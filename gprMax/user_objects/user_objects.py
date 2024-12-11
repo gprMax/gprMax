@@ -145,4 +145,10 @@ class OutputUserObject(UserObject):
 class GeometryUserObject(GridUserObject):
     """User defined object that adds geometry to a grid."""
 
-    pass
+    @property
+    def order(self):
+        """Geometry Objects do not have an ordering.
+
+        They should be built in the order they were added to the scene.
+        """
+        return 1

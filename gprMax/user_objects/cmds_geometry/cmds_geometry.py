@@ -26,44 +26,6 @@ import gprMax.config as config
 logger = logging.getLogger(__name__)
 
 
-class UserObjectGeometry:
-    """Specific Geometry object."""
-
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.hash = "#example"
-        self.autotranslate = True
-        self.do_rotate = False
-
-    def __str__(self):
-        """Readable string of parameters given to object."""
-        s = ""
-        for _, v in self.kwargs.items():
-            if isinstance(v, (tuple, list)):
-                v = " ".join([str(el) for el in v])
-            s += f"{str(v)} "
-
-        return f"{self.hash}: {s[:-1]}"
-
-    def build(self, grid, uip):
-        """Creates object and adds it to the grid."""
-        pass
-
-    def rotate(self, axis, angle, origin=None):
-        """Rotates object - specialised for each object."""
-        pass
-
-    def grid_name(self, grid):
-        """Returns subgrid name for use with logging info. Returns an empty
-        string if the grid is the main grid.
-        """
-
-        if config.sim_config.general["subgrid"] and grid.name != "main_grid":
-            return f"[{grid.name}] "
-        else:
-            return ""
-
-
 def check_averaging(averaging):
     """Check and set material averaging value.
 

@@ -23,13 +23,16 @@ import numpy as np
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
 from gprMax.fractals import FractalVolume
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import ListMaterial
-from gprMax.user_objects.cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object
+from gprMax.user_objects.cmds_geometry.cmds_geometry import rotate_2point_object
+from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class FractalBox(UserObjectGeometry):
+class FractalBox(GeometryUserObject, Rotatable):
     """Introduces an orthogonal parallelepiped with fractal distributed
         properties which are related to a mixing model or normal material into
         the model.
@@ -53,26 +56,22 @@ class FractalBox(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#fractal_box"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.do_pre_build = True
-        self.hash = "#fractal_box"
 
-    def rotate(self, axis, angle, origin=None):
-        """Set parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def pre_build(self, grid, uip):
+    def pre_build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -96,7 +95,7 @@ class FractalBox(UserObjectGeometry):
             seed = None
 
         if self.do_rotate:
-            self._do_rotate()
+            self._do_rotate(grid)
 
         # Check averaging
         try:
@@ -107,6 +106,7 @@ class FractalBox(UserObjectGeometry):
             # a fractal box.
             averagefractalbox = False
 
+        uip = self._create_uip(grid)
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
@@ -187,9 +187,9 @@ class FractalBox(UserObjectGeometry):
         )
         grid.fractalvolumes.append(self.volume)
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         if self.do_pre_build:
-            self.pre_build(grid, uip)
+            self.pre_build(grid)
             self.do_pre_build = False
         else:
             if self.volume.fractalsurfaces:

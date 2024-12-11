@@ -20,15 +20,18 @@ import logging
 
 import numpy as np
 
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_water
+from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.user_objects import GeometryUserObject
 from gprMax.utilities.utilities import round_value
 
-from .cmds_geometry import UserObjectGeometry, rotate_2point_object
+from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class AddSurfaceWater(UserObjectGeometry):
+class AddSurfaceWater(GeometryUserObject, Rotatable):
     """Adds surface water to a FractalBox class in the model.
 
     Attributes:
@@ -43,25 +46,21 @@ class AddSurfaceWater(UserObjectGeometry):
                         surface water should be applied to.
     """
 
+    @property
+    def hash(self):
+        return "#add_surface_water"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#add_surface_water"
 
-    def rotate(self, axis, angle, origin=None):
-        """Set parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Perform rotation."""
         pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         """ "Create surface water on fractal box."""
         try:
             p1 = self.kwargs["p1"]
@@ -73,7 +72,7 @@ class AddSurfaceWater(UserObjectGeometry):
             raise
 
         if self.do_rotate:
-            self._do_rotate()
+            self._do_rotate(grid)
 
         if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
             volume = volumes[0]
@@ -81,6 +80,7 @@ class AddSurfaceWater(UserObjectGeometry):
             logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
             raise ValueError
 
+        uip = self._create_uip(grid)
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2

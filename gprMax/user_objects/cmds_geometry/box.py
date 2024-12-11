@@ -22,14 +22,17 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_box
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
+from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_2point_object
+from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class Box(UserObjectGeometry):
+class Box(GeometryUserObject, Rotatable):
     """Introduces an orthogonal parallelepiped with specific properties into
         the model.
 
@@ -42,25 +45,21 @@ class Box(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#box"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#box"
 
-    def rotate(self, axis, angle, origin=None):
-        """Set parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Perform rotation."""
         pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -69,7 +68,7 @@ class Box(UserObjectGeometry):
             raise
 
         if self.do_rotate:
-            self._do_rotate()
+            self._do_rotate(grid)
 
         # Check materials have been specified
         # Isotropic case
@@ -91,6 +90,7 @@ class Box(UserObjectGeometry):
             # Otherwise go with the grid default
             averagebox = grid.averagevolumeobjects
 
+        uip = self._create_uip(grid)
         p3, p4 = uip.check_box_points(p1, p2, self.__str__())
         # Find nearest point on grid without translation
         p5 = uip.round_to_grid_static_point(p1)
