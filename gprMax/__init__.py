@@ -33,8 +33,6 @@ from .user_objects.cmds_multiuse import (
     AddDrudeDispersion,
     AddLorentzDispersion,
     ExcitationFile,
-    GeometryObjectsWrite,
-    GeometryView,
     HertzianDipole,
     MagneticDipole,
     Material,
@@ -49,6 +47,7 @@ from .user_objects.cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
+from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView
 from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
