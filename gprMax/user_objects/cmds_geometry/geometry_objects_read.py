@@ -22,10 +22,10 @@ from pathlib import Path
 import h5py
 
 import gprMax.config as config
+from gprMax.cython.geometry_primitives import build_voxels_from_array
+from gprMax.hash_cmds_file import get_user_objects
+from gprMax.utilities.utilities import round_value
 
-from ..cython.geometry_primitives import build_voxels_from_array
-from ..hash_cmds_file import get_user_objects
-from ..utilities.utilities import round_value
 from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)

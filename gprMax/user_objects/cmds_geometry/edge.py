@@ -20,8 +20,8 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
-                                          build_edge_z)
+from gprMax.cython.geometry_primitives import build_edge_x, build_edge_y, build_edge_z
+
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)

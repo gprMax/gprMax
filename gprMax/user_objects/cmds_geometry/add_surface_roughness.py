@@ -20,8 +20,9 @@ import logging
 
 import numpy as np
 
-from ..fractals import FractalSurface
-from ..utilities.utilities import round_value
+from gprMax.fractals import FractalSurface
+from gprMax.utilities.utilities import round_value
+
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)

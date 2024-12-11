@@ -20,8 +20,9 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_triangle
-from ..materials import Material
+from gprMax.cython.geometry_primitives import build_triangle
+from gprMax.materials import Material
+
 from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_point
 
 logger = logging.getLogger(__name__)

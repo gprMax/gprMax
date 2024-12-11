@@ -20,8 +20,9 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_cylindrical_sector
-from ..materials import Material
+from gprMax.cython.geometry_primitives import build_cylindrical_sector
+from gprMax.materials import Material
+
 from .cmds_geometry import UserObjectGeometry, check_averaging
 
 logger = logging.getLogger(__name__)

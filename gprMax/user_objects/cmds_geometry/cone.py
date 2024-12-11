@@ -20,21 +20,25 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_ellipsoid
-from ..materials import Material
+from gprMax.cython.geometry_primitives import build_cone
+from gprMax.materials import Material
+
 from .cmds_geometry import UserObjectGeometry, check_averaging
 
 logger = logging.getLogger(__name__)
 
 
-class Ellipsoid(UserObjectGeometry):
-    """Introduces an ellipsoidal object with specific parameters into the model.
+class Cone(UserObjectGeometry):
+    """Introduces a circular cone into the model. The difference with the cylinder is that the faces of the cone
+       can have different radii and one of them can be zero.
 
     Attributes:
-        p1: list of the coordinates (x,y,z) of the centre of the ellipsoid.
-        xr: float for x-semiaxis of the elliposid.
-        xy: float for y-semiaxis of the ellipsoid.
-        xz: float for z-semiaxis of the ellipsoid.
+        p1: list of the coordinates (x,y,z) of the centre of the first face
+            of the cone.
+        p2: list of the coordinates (x,y,z) of the centre of the second face
+            of the cone.
+        r1: float of the radius of the first face of the cone.
+        r2: float of the radius of the second face of the cone.
         material_id: string for the material identifier that must correspond
                         to material that has already been defined.
         material_ids: list of material identifiers in the x, y, z directions.
@@ -43,26 +47,25 @@ class Ellipsoid(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#ellipsoid"
+        self.hash = "#cone"
 
     def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
-            xr = self.kwargs["xr"]
-            yr = self.kwargs["yr"]
-            zr = self.kwargs["zr"]
-
+            p2 = self.kwargs["p2"]
+            r1 = self.kwargs["r1"]
+            r2 = self.kwargs["r2"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify a point and the three semiaxes.")
+            logger.exception(f"{self.__str__()} please specify two points and two radii")
             raise
 
         # Check averaging
         try:
             # Try user-specified averaging
-            averageellipsoid = self.kwargs["averaging"]
+            averagecone = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
-            averageellipsoid = grid.averagevolumeobjects
+            averagecone = grid.averagevolumeobjects
 
         # Check materials have been specified
         # Isotropic case
@@ -76,9 +79,27 @@ class Ellipsoid(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
-        # Centre of ellipsoid
-        p2 = uip.round_to_grid_static_point(p1)
-        xc, yc, zc = uip.discretise_point(p1)
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
+        x1, y1, z1 = uip.round_to_grid(p1)
+        x2, y2, z2 = uip.round_to_grid(p2)
+
+        if r1 < 0:
+            logger.exception(
+                f"{self.__str__()} the radius of the first face {r1:g} should be a positive value."
+            )
+            raise ValueError
+
+        if r2 < 0:
+            logger.exception(
+                f"{self.__str__()} the radius of the second face {r2:g} should be a positive value."
+            )
+            raise ValueError
+
+        if r1 == 0 and r2 == 0:
+            logger.exception(f"{self.__str__()} both radii cannot be zero.")
+            raise ValueError
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
@@ -90,7 +111,7 @@ class Ellipsoid(UserObjectGeometry):
 
         # Isotropic case
         if len(materials) == 1:
-            averaging = materials[0].averagable and averageellipsoid
+            averaging = materials[0].averagable and averagecone
             numID = numIDx = numIDy = numIDz = materials[0].numID
 
         # Uniaxial anisotropic case
@@ -116,13 +137,15 @@ class Ellipsoid(UserObjectGeometry):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
-        build_ellipsoid(
-            xc,
-            yc,
-            zc,
-            xr,
-            yr,
-            zr,
+        build_cone(
+            x1,
+            y1,
+            z1,
+            x2,
+            y2,
+            z2,
+            r1,
+            r2,
             grid.dx,
             grid.dy,
             grid.dz,
@@ -139,9 +162,8 @@ class Ellipsoid(UserObjectGeometry):
 
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
-            f"{self.grid_name(grid)}Ellipsoid with centre {p2[0]:g}m, "
-            f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, "
-            f"y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) "
-            f"{', '.join(materialsrequested)} created, dielectric "
-            f"smoothing is {dielectricsmoothing}."
+            f"{self.grid_name(grid)}Cone with face centres {p3[0]:g}m, "
+            f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
+            f"with radii {r1:g}m and {r2:g}, of material(s) {', '.join(materialsrequested)} "
+            f"created, dielectric smoothing is {dielectricsmoothing}."
         )

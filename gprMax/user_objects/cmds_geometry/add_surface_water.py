@@ -20,8 +20,9 @@ import logging
 
 import numpy as np
 
-from ..materials import create_water
-from ..utilities.utilities import round_value
+from gprMax.materials import create_water
+from gprMax.utilities.utilities import round_value
+
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)

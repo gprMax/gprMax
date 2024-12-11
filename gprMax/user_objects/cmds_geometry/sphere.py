@@ -20,22 +20,20 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_cylinder
-from ..materials import Material
+from gprMax.cython.geometry_primitives import build_sphere
+from gprMax.materials import Material
+
 from .cmds_geometry import UserObjectGeometry, check_averaging
 
 logger = logging.getLogger(__name__)
 
 
-class Cylinder(UserObjectGeometry):
-    """Introduces a circular cylinder into the model.
+class Sphere(UserObjectGeometry):
+    """Introduces a spherical object with specific parameters into the model.
 
     Attributes:
-        p1: list of the coordinates (x,y,z) of the centre of the first face
-            of the cylinder.
-        p2: list of the coordinates (x,y,z) of the centre of the second face
-            of the cylinder.
-        r: float of the radius of the cylinder.
+        p1: list of the coordinates (x,y,z) of the centre of the sphere.
+        r: float of radius of the sphere.
         material_id: string for the material identifier that must correspond
                         to material that has already been defined.
         material_ids: list of material identifiers in the x, y, z directions.
@@ -44,24 +42,23 @@ class Cylinder(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#cylinder"
+        self.hash = "#sphere"
 
     def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
-            p2 = self.kwargs["p2"]
             r = self.kwargs["r"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify 2 points and a radius")
+            logger.exception(f"{self.__str__()} please specify a point and a radius.")
             raise
 
         # Check averaging
         try:
             # Try user-specified averaging
-            averagecylinder = self.kwargs["averaging"]
+            averagesphere = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
-            averagecylinder = grid.averagevolumeobjects
+            averagesphere = grid.averagevolumeobjects
 
         # Check materials have been specified
         # Isotropic case
@@ -75,15 +72,9 @@ class Cylinder(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
-
-        x1, y1, z1 = uip.round_to_grid(p1)
-        x2, y2, z2 = uip.round_to_grid(p2)
-
-        if r <= 0:
-            logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
-            raise ValueError
+        # Centre of sphere
+        p2 = uip.round_to_grid_static_point(p1)
+        xc, yc, zc = uip.discretise_point(p1)
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
@@ -95,7 +86,7 @@ class Cylinder(UserObjectGeometry):
 
         # Isotropic case
         if len(materials) == 1:
-            averaging = materials[0].averagable and averagecylinder
+            averaging = materials[0].averagable and averagesphere
             numID = numIDx = numIDy = numIDz = materials[0].numID
 
         # Uniaxial anisotropic case
@@ -121,13 +112,10 @@ class Cylinder(UserObjectGeometry):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
-        build_cylinder(
-            x1,
-            y1,
-            z1,
-            x2,
-            y2,
-            z2,
+        build_sphere(
+            xc,
+            yc,
+            zc,
             r,
             grid.dx,
             grid.dy,
@@ -145,8 +133,8 @@ class Cylinder(UserObjectGeometry):
 
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
-            f"{self.grid_name(grid)}Cylinder with face centres {p3[0]:g}m, "
-            f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
-            f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} "
-            f"created, dielectric smoothing is {dielectricsmoothing}."
+            f"{self.grid_name(grid)}Sphere with centre {p2[0]:g}m, "
+            f"{p2[1]:g}m, {p2[2]:g}m, radius {r:g}m, of material(s) "
+            f"{', '.join(materialsrequested)} created, dielectric "
+            f"smoothing is {dielectricsmoothing}."
         )
