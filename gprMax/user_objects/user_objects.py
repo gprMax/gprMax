@@ -35,17 +35,12 @@ class UserObject(ABC):
     def hash(self) -> str:
         pass
 
-    @property
-    def is_single_use(self) -> bool:
-        return True
-
-    @property
-    def is_geometry_object(self) -> bool:
-        return False
-
     def __init__(self, **kwargs) -> None:
         self.kwargs = kwargs
         self.autotranslate = True
+
+    def __lt__(self, obj: "UserObject"):
+        return self.order < obj.order
 
     def __str__(self) -> str:
         """Readable user object as per hash commands."""
@@ -86,14 +81,6 @@ class UserObject(ABC):
             return MainGridUserInput(grid)
 
 
-class MultiUserObject(UserObject):
-    """User defined object that can occur multiple times."""
-
-    @property
-    def is_single_use(self) -> bool:
-        return False
-
-
 class ModelUserObject(UserObject):
     """User defined object to add to the model."""
 
@@ -107,7 +94,7 @@ class ModelUserObject(UserObject):
         pass
 
 
-class GridUserObject(MultiUserObject):
+class GridUserObject(UserObject):
     """User defined object to add to a grid."""
 
     @abstractmethod
@@ -131,7 +118,7 @@ class GridUserObject(MultiUserObject):
             return ""
 
 
-class OutputUserObject(MultiUserObject):
+class OutputUserObject(UserObject):
     """User defined object that controls the output of data."""
 
     @abstractmethod
@@ -158,6 +145,4 @@ class OutputUserObject(MultiUserObject):
 class GeometryUserObject(GridUserObject):
     """User defined object that adds geometry to a grid."""
 
-    @property
-    def is_geometry_object(self) -> bool:
-        return True
+    pass

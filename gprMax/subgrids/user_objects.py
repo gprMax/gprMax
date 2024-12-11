@@ -28,29 +28,40 @@ from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGUser
 from gprMax.user_inputs import MainGridUserInput
-from gprMax.user_objects.cmds_multiuse import UserObjectMulti
+from gprMax.user_objects.user_objects import (
+    GeometryUserObject,
+    GridUserObject,
+    ModelUserObject,
+    OutputUserObject,
+    UserObject,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class SubGridBase(UserObjectMulti):
+class SubGridBase(ModelUserObject):
     """Allows UserObjectMulti and UserObjectGeometry to be nested in SubGrid
     type user objects.
     """
 
+    @property
+    def is_single_use(self) -> bool:
+        return False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.children_multiple: List[UserObjectMulti] = []
-        self.children_geometry: List[UserObjectGeometry] = []
-        self.children_multiple: List[UserObjectMulti] = []
-        self.children_geometry: List[UserObjectGeometry] = []
+        self.children_grid: List[GridUserObject] = []
+        self.children_geometry: List[GeometryUserObject] = []
+        self.children_output: List[OutputUserObject] = []
 
-    def add(self, node: Union[UserObjectMulti, UserObjectGeometry]):
+    def add(self, node: UserObject):
         """Adds other user objects. Geometry and multi only."""
-        if isinstance(node, UserObjectMulti):
-            self.children_multiple.append(node)
-        elif isinstance(node, UserObjectGeometry):
+        if isinstance(node, GeometryUserObject):
             self.children_geometry.append(node)
+        elif isinstance(node, GridUserObject):
+            self.children_grid.append(node)
+        elif isinstance(node, OutputUserObject):
+            self.children_output.append(node)
         else:
             logger.exception(f"{str(node)} this Object can not be added to a sub grid")
             raise ValueError
