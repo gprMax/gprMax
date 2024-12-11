@@ -28,11 +28,6 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
-from gprMax.cmds_geometry.cmds_geometry import (
-    UserObjectGeometry,
-    rotate_2point_object,
-    rotate_polarisation,
-)
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
@@ -51,6 +46,11 @@ from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_inputs import MainGridUserInput
+from gprMax.user_objects.cmds_geometry.cmds_geometry import (
+    UserObjectGeometry,
+    rotate_2point_object,
+    rotate_polarisation,
+)
 from gprMax.user_objects.rotatable import Rotatable
 from gprMax.user_objects.user_objects import GridUserObject
 from gprMax.utilities.utilities import round_value
