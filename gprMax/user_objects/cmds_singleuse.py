@@ -556,3 +556,26 @@ class RxSteps(ModelUserObject):
             f"{model.rxsteps[1] * model.dy:g}m, {model.rxsteps[2] * model.dz:g}m "
             "for each model run."
         )
+
+
+class OutputDir(ModelUserObject):
+    """Set the directory where output file(s) will be stored.
+
+    Attributes:
+        output_dir (str): File path to directory.
+    """
+
+    @property
+    def order(self):
+        return 10
+
+    @property
+    def hash(self):
+        return "#output_dir"
+
+    def __init__(self, dir: str):
+        super().__init__(dir=dir)
+        self.output_dir = dir
+
+    def build(self, model: Model):
+        config.get_model_config().set_output_file_path(self.output_dir)
