@@ -18,14 +18,14 @@
 import logging
 from typing import List, Sequence
 
-from gprMax.cmds_geometry.add_grass import AddGrass
-from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
-from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
-from gprMax.cmds_geometry.fractal_box import FractalBox
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
+from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
+from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
+from gprMax.user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
+from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
 from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow
 from gprMax.user_objects.user_objects import (
     GeometryUserObject,

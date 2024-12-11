@@ -21,11 +21,10 @@ import logging
 import numpy as np
 
 import gprMax.config as config
-from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object
+from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
 from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial
-
-from ..cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
+from gprMax.user_objects.cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
