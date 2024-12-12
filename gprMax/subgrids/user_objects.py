@@ -27,7 +27,6 @@ from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGUser
 from gprMax.user_inputs import MainGridUserInput
-from gprMax.user_objects.cmds_geometry.cmds_geometry import UserObjectGeometry
 from gprMax.user_objects.user_objects import (
     GeometryUserObject,
     GridUserObject,

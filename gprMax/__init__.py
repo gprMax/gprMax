@@ -42,7 +42,6 @@ from .user_objects.cmds_multiuse import (
     RxArray,
     Snapshot,
     SoilPeplinski,
-    Subgrid,
     TransmissionLine,
     VoltageSource,
     Waveform,

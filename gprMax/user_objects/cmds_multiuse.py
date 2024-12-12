@@ -45,9 +45,7 @@ from gprMax.sources import MagneticDipole as MagneticDipoleUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
 from gprMax.subgrids.grid import SubGridBaseGrid
-from gprMax.user_inputs import MainGridUserInput
 from gprMax.user_objects.cmds_geometry.cmds_geometry import (
-    UserObjectGeometry,
     rotate_2point_object,
     rotate_polarisation,
 )
@@ -2009,8 +2007,9 @@ class PMLCFS(GridUserObject):
             raise ValueError
 
 
+"""
+TODO: Can this be removed?
 class Subgrid(UserObjectMulti):
-    """"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2030,3 +2029,4 @@ class Subgrid(UserObjectMulti):
         else:
             logger.exception("This object is unknown to gprMax.")
             raise ValueError
+"""
