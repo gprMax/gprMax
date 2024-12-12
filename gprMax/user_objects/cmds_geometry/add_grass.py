@@ -23,7 +23,7 @@ import numpy as np
 from gprMax.fractals import FractalSurface, Grass
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_grass
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 from gprMax.utilities.utilities import round_value
 
@@ -32,7 +32,7 @@ from .cmds_geometry import rotate_2point_object
 logger = logging.getLogger(__name__)
 
 
-class AddGrass(GeometryUserObject, Rotatable):
+class AddGrass(RotatableMixin, GeometryUserObject):
     """Adds grass with roots to a FractalBox class in the model.
 
     Attributes:

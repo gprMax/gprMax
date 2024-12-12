@@ -22,7 +22,7 @@ import numpy as np
 
 from gprMax.fractals import FractalSurface
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 from gprMax.utilities.utilities import round_value
 
@@ -31,7 +31,7 @@ from .cmds_geometry import rotate_2point_object
 logger = logging.getLogger(__name__)
 
 
-class AddSurfaceRoughness(GeometryUserObject, Rotatable):
+class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
     """Adds surface roughness to a FractalBox class in the model.
 
     Attributes:

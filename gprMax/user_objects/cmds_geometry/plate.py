@@ -22,7 +22,7 @@ import numpy as np
 
 from gprMax.cython.geometry_primitives import build_face_xy, build_face_xz, build_face_yz
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 from .cmds_geometry import rotate_2point_object
@@ -30,7 +30,7 @@ from .cmds_geometry import rotate_2point_object
 logger = logging.getLogger(__name__)
 
 
-class Plate(GeometryUserObject, Rotatable):
+class Plate(RotatableMixin, GeometryUserObject):
     """Introduces a plate with specific properties into the model.
 
     Attributes:

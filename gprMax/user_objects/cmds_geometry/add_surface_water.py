@@ -22,7 +22,7 @@ import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_water
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 from gprMax.utilities.utilities import round_value
 
@@ -31,7 +31,7 @@ from .cmds_geometry import rotate_2point_object
 logger = logging.getLogger(__name__)
 
 
-class AddSurfaceWater(GeometryUserObject, Rotatable):
+class AddSurfaceWater(RotatableMixin, GeometryUserObject):
     """Adds surface water to a FractalBox class in the model.
 
     Attributes:

@@ -26,13 +26,13 @@ from gprMax.fractals import FractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import ListMaterial
 from gprMax.user_objects.cmds_geometry.cmds_geometry import rotate_2point_object
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class FractalBox(GeometryUserObject, Rotatable):
+class FractalBox(RotatableMixin, GeometryUserObject):
     """Introduces an orthogonal parallelepiped with fractal distributed
         properties which are related to a mixing model or normal material into
         the model.

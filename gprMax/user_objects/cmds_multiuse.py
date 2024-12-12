@@ -49,7 +49,7 @@ from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     rotate_2point_object,
     rotate_polarisation,
 )
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GridUserObject
 from gprMax.utilities.utilities import round_value
 from gprMax.waveforms import Waveform as WaveformUser
@@ -291,7 +291,7 @@ class Waveform(GridUserObject):
         grid.waveforms.append(w)
 
 
-class VoltageSource(GridUserObject, Rotatable):
+class VoltageSource(RotatableMixin, GridUserObject):
     """Specifies a voltage source at an electric field location.
 
     Attributes:
@@ -435,7 +435,7 @@ class VoltageSource(GridUserObject, Rotatable):
         grid.voltagesources.append(v)
 
 
-class HertzianDipole(GridUserObject, Rotatable):
+class HertzianDipole(RotatableMixin, GridUserObject):
     """Specifies a current density term at an electric field location.
 
     The simplest excitation, often referred to as an additive or soft source.
@@ -582,7 +582,7 @@ class HertzianDipole(GridUserObject, Rotatable):
         grid.hertziandipoles.append(h)
 
 
-class MagneticDipole(GridUserObject, Rotatable):
+class MagneticDipole(RotatableMixin, GridUserObject):
     """Simulates an infinitesimal magnetic dipole.
 
     Often referred to as an additive or soft source.
@@ -720,7 +720,7 @@ class MagneticDipole(GridUserObject, Rotatable):
         grid.magneticdipoles.append(m)
 
 
-class TransmissionLine(GridUserObject, Rotatable):
+class TransmissionLine(RotatableMixin, GridUserObject):
     """Specifies a one-dimensional transmission line model at an electric
         field location.
 
@@ -879,7 +879,7 @@ class TransmissionLine(GridUserObject, Rotatable):
         grid.transmissionlines.append(t)
 
 
-class Rx(GridUserObject, Rotatable):
+class Rx(RotatableMixin, GridUserObject):
     """Specifies output points in the model.
 
     These are locations where the values of the electric and magnetic field

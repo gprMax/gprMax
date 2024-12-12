@@ -23,7 +23,7 @@ import numpy as np
 from gprMax.cython.geometry_primitives import build_triangle
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
-from gprMax.user_objects.rotatable import Rotatable
+from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 from .cmds_geometry import rotate_point
@@ -31,7 +31,7 @@ from .cmds_geometry import rotate_point
 logger = logging.getLogger(__name__)
 
 
-class Triangle(GeometryUserObject, Rotatable):
+class Triangle(RotatableMixin, GeometryUserObject):
     """Introduces a triangular patch or a triangular prism with specific
         properties into the model.
 

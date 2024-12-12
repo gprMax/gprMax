@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 from gprMax.grid.fdtd_grid import FDTDGrid
 
 
-class Rotatable(ABC):
+class RotatableMixin(ABC):
     """Stores parameters and defines an interface for rotatable objects.
 
     Attributes:
@@ -18,7 +18,8 @@ class Rotatable(ABC):
             otherwise. Default False.
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)  # Forward all unused arguments
         self.axis = "x"
         self.angle = 0
         self.origin = None
