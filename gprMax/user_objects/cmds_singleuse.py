@@ -239,7 +239,7 @@ class TimeWindow(ModelUserObject):
         if self.time is not None:
             if self.time > 0:
                 model.timewindow = self.time
-                model.iterations = np.ceil(self.time / model.dt, dtype=np.int32) + 1
+                model.iterations = int(np.ceil(self.time / model.dt)) + 1
             else:
                 raise ValueError(f"{self} must have a value greater than zero")
         elif self.iterations is not None:
