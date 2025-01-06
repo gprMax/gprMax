@@ -101,11 +101,12 @@ class SubGridBase(ModelUserObject):
         """Sets number of iterations that will take place in the subgrid."""
         sg.iterations = model.iterations * sg.ratio
 
-    def setup(self, sg: SubGridBaseGrid, model: Model, uip: MainGridUserInput):
+    def setup(self, sg: SubGridBaseGrid, model: Model):
         """ "Common setup to both all subgrid types."""
         p1 = self.kwargs["p1"]
         p2 = self.kwargs["p2"]
 
+        uip = self._create_uip(model.G)
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
 
         self.set_discretisation(sg, model.G)
@@ -179,6 +180,14 @@ class SubGridHSG(SubGridBase):
                 stability. Defaults to True.
     """
 
+    @property
+    def order(self):
+        return 18
+
+    @property
+    def hash(self):
+        return "#subgrid_hsg"
+
     def __init__(
         self,
         p1=None,
@@ -206,10 +215,8 @@ class SubGridHSG(SubGridBase):
         kwargs["filter"] = filter
 
         super().__init__(**kwargs)
-        self.order = 18
-        self.hash = "#subgrid_hsg"
 
-    def build(self, model: Model, uip: MainGridUserInput) -> SubGridHSGUser:
+    def build(self, model: Model) -> SubGridHSGUser:
         sg = SubGridHSGUser(**self.kwargs)
-        self.setup(sg, model, uip)
+        self.setup(sg, model)
         return sg
