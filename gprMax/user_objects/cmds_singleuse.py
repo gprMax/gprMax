@@ -391,10 +391,12 @@ class PMLThickness(ModelUserObject):
         ):
             raise ValueError(f"{self} has too many cells for the domain size")
 
+        thickness = model.G.pmls["thickness"]
+
         logger.info(
-            f"PML thickness: x0={model.G.pmls['x0']}, y0={model.G.pmls['y0']},"
-            f" z0={model.G.pmls['z0']}, xmax={model.G.pmls['xmax']},"
-            f" ymax={model.G.pmls['yxmax']}, zmax={model.G.pmls['zmax']}"
+            f"PML thickness: x0={thickness['x0']}, y0={thickness['y0']},"
+            f" z0={thickness['z0']}, xmax={thickness['xmax']},"
+            f" ymax={thickness['ymax']}, zmax={thickness['zmax']}"
         )
 
 
@@ -427,7 +429,7 @@ class PMLProps(ModelUserObject):
 
     def __init__(
         self,
-        formulation: str,
+        formulation: Optional[str] = None,
         thickness: Optional[int] = None,
         x0: Optional[int] = None,
         y0: Optional[int] = None,
@@ -463,7 +465,10 @@ class PMLProps(ModelUserObject):
             " PMLThickness user objects instead."
         )
 
-        self.pml_formulation = PMLFormulation(formulation)
+        if formulation is not None:
+            self.pml_formulation = PMLFormulation(formulation)
+        else:
+            self.pml_formulation = None
 
         if thickness is not None:
             self.pml_thickness = PMLThickness(thickness)
@@ -477,11 +482,19 @@ class PMLProps(ModelUserObject):
         ):
             self.pml_thickness = PMLThickness((x0, y0, z0, xmax, ymax, zmax))
         else:
-            raise ValueError("Either set thickness, or all of x0, y0, z0, xmax, ymax, zmax.")
+            self.pml_thickness = None
+
+        if self.pml_formulation is None and self.pml_thickness is None:
+            raise ValueError(
+                "Must set PML formulation or thickness. Thickness can be set by specifying all of x0, y0, z0, xmax, ymax, zmax."
+            )
 
     def build(self, model):
-        self.pml_formulation.build(model)
-        self.pml_thickness.build(model)
+        if self.pml_formulation is not None:
+            self.pml_formulation.build(model)
+
+        if self.pml_thickness is not None:
+            self.pml_thickness.build(model)
 
 
 class SrcSteps(ModelUserObject):
