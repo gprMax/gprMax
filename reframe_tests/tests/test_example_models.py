@@ -1,7 +1,7 @@
 import reframe as rfm
 from reframe.core.builtins import parameter
 
-from reframe_tests.tests.mixins import BScanMixin
+from reframe_tests.tests.mixins import BScanMixin, MpiMixin
 from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for example models in gprMax documentation
@@ -26,6 +26,23 @@ class TestAscan(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestAscanMPI(MpiMixin, TestAscan):
+    tags = {
+        "test",
+        "mpi",
+        "ascan",
+        "2d",
+        "hertzian_dipole",
+        "waveform",
+        "material",
+        "box",
+        "cylinder",
+    }
+    mpi_layout = parameter([[2, 2, 1]])
+    test_dependency = TestAscan
+
+
+@rfm.simple_test
 class TestBscan(BScanMixin, GprMaxRegressionTest):
     tags = {
         "test",
@@ -41,3 +58,20 @@ class TestBscan(BScanMixin, GprMaxRegressionTest):
     sourcesdir = "src/bscan_tests"
     model = parameter(["cylinder_Bscan_2D"])
     num_models = parameter([64])
+
+
+@rfm.simple_test
+class TestBscanMPI(MpiMixin, TestBscan):
+    tags = {
+        "test",
+        "mpi",
+        "bscan",
+        "steps",
+        "waveform",
+        "hertzian_dipole",
+        "material",
+        "box",
+        "cylinder",
+    }
+    mpi_layout = parameter([[2, 2, 1]])
+    test_dependency = TestBscan
