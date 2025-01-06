@@ -20,14 +20,18 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_triangle
-from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_point
+from gprMax.cython.geometry_primitives import build_triangle
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
+from gprMax.user_objects.rotatable import RotatableMixin
+from gprMax.user_objects.user_objects import GeometryUserObject
+
+from .cmds_geometry import rotate_point
 
 logger = logging.getLogger(__name__)
 
 
-class Triangle(UserObjectGeometry):
+class Triangle(RotatableMixin, GeometryUserObject):
     """Introduces a triangular patch or a triangular prism with specific
         properties into the model.
 
@@ -43,18 +47,14 @@ class Triangle(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#triangle"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#triangle"
 
-    def rotate(self, axis, angle, origin=None):
-        """Sets parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         p1 = rotate_point(self.kwargs["p1"], self.axis, self.angle, self.origin)
         p2 = rotate_point(self.kwargs["p2"], self.axis, self.angle, self.origin)
@@ -63,7 +63,7 @@ class Triangle(UserObjectGeometry):
         self.kwargs["p2"] = tuple(p2)
         self.kwargs["p3"] = tuple(p3)
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         try:
             up1 = self.kwargs["p1"]
             up2 = self.kwargs["p2"]
@@ -74,7 +74,7 @@ class Triangle(UserObjectGeometry):
             raise
 
         if self.do_rotate:
-            self._do_rotate()
+            self._do_rotate(grid)
 
         # Check averaging
         try:
@@ -96,6 +96,7 @@ class Triangle(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
+        uip = self._create_uip(grid)
         p4 = uip.round_to_grid_static_point(up1)
         p5 = uip.round_to_grid_static_point(up2)
         p6 = uip.round_to_grid_static_point(up3)

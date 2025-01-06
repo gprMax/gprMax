@@ -61,6 +61,9 @@ class FDTDGrid:
         self.dl = np.ones(3, dtype=np.float64)
         self.dt = 0.0
 
+        self.iterations = 0  # Total number of iterations
+        self.timewindow = 0.0
+
         # Field Arrays
         self.Ex: npt.NDArray[np.float32]
         self.Ey: npt.NDArray[np.float32]
@@ -362,7 +365,7 @@ class FDTDGrid:
         logger.info(f"Materials [{self.name}]:\n{materialstable.table}\n")
 
     def _update_positions(
-        self, items: Iterable[Union[Source, Rx]], step_size: List[int], step_number: int
+        self, items: Iterable[Union[Source, Rx]], step_size: npt.NDArray[np.int32], step_number: int
     ) -> None:
         """Update the grid positions of the provided items.
 
@@ -387,11 +390,11 @@ class FDTDGrid:
                         or item.zcoord + step_size[2] * config.sim_config.model_end > self.nz
                     ):
                         raise ValueError
-                item.xcoord = item.xcoordorigin + step_number * step_size[0]
-                item.ycoord = item.ycoordorigin + step_number * step_size[1]
-                item.zcoord = item.zcoordorigin + step_number * step_size[2]
+                item.coord = item.coordorigin + step_number * step_size
 
-    def update_simple_source_positions(self, step_size: List[int], step: int = 0) -> None:
+    def update_simple_source_positions(
+        self, step_size: npt.NDArray[np.int32], step: int = 0
+    ) -> None:
         """Update the positions of sources in the grid.
 
         Move hertzian dipole and magnetic dipole sources. Transmission
@@ -414,7 +417,7 @@ class FDTDGrid:
             logger.exception("Source(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    def update_receiver_positions(self, step_size: List[int], step: int = 0) -> None:
+    def update_receiver_positions(self, step_size: npt.NDArray[np.int32], step: int = 0) -> None:
         """Update the positions of receivers in the grid.
 
         Args:

@@ -20,14 +20,17 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
-                                          build_edge_z)
-from .cmds_geometry import UserObjectGeometry, rotate_2point_object
+from gprMax.cython.geometry_primitives import build_edge_x, build_edge_y, build_edge_z
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.user_objects.rotatable import RotatableMixin
+from gprMax.user_objects.user_objects import GeometryUserObject
+
+from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class Edge(UserObjectGeometry):
+class Edge(RotatableMixin, GeometryUserObject):
     """Introduces a wire with specific properties into the model.
 
     Attributes:
@@ -37,25 +40,21 @@ class Edge(UserObjectGeometry):
                         to material that has already been defined.
     """
 
+    @property
+    def hash(self):
+        return "#edge"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#edge"
 
-    def rotate(self, axis, angle, origin=None):
-        """Set parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         """Creates edge and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -66,8 +65,9 @@ class Edge(UserObjectGeometry):
             raise
 
         if self.do_rotate:
-            self._do_rotate()
+            self._do_rotate(grid)
 
+        uip = self._create_uip(grid)
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 

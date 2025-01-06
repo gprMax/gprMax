@@ -19,7 +19,9 @@
 import inspect
 import logging
 from abc import ABC, abstractmethod
+from os import PathLike
 from pathlib import Path
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -28,123 +30,81 @@ from scipy import interpolate
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
+from gprMax.materials import ListMaterial as ListMaterialUser
+from gprMax.materials import Material as MaterialUser
+from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
+from gprMax.materials import RangeMaterial as RangeMaterialUser
 from gprMax.model import Model
-from gprMax.user_inputs import MainGridUserInput
-
-from .cmds_geometry.cmds_geometry import (
-    UserObjectGeometry,
+from gprMax.pml import CFS, CFSParameter
+from gprMax.receivers import Rx as RxUser
+from gprMax.snapshots import MPISnapshot as MPISnapshotUser
+from gprMax.snapshots import Snapshot as SnapshotUser
+from gprMax.sources import HertzianDipole as HertzianDipoleUser
+from gprMax.sources import MagneticDipole as MagneticDipoleUser
+from gprMax.sources import TransmissionLine as TransmissionLineUser
+from gprMax.sources import VoltageSource as VoltageSourceUser
+from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     rotate_2point_object,
     rotate_polarisation,
 )
-from .geometry_outputs import GeometryObjects as GeometryObjectsUser
-from .geometry_outputs import MPIGeometryObjects as MPIGeometryObjectsUser
-from .materials import DispersiveMaterial as DispersiveMaterialUser
-from .materials import ListMaterial as ListMaterialUser
-from .materials import Material as MaterialUser
-from .materials import PeplinskiSoil as PeplinskiSoilUser
-from .materials import RangeMaterial as RangeMaterialUser
-from .pml import CFS, CFSParameter
-from .receivers import Rx as RxUser
-from .snapshots import MPISnapshot as MPISnapshotUser
-from .snapshots import Snapshot as SnapshotUser
-from .sources import HertzianDipole as HertzianDipoleUser
-from .sources import MagneticDipole as MagneticDipoleUser
-from .sources import TransmissionLine as TransmissionLineUser
-from .sources import VoltageSource as VoltageSourceUser
-from .subgrids.grid import SubGridBaseGrid
-from .utilities.utilities import round_value
-from .waveforms import Waveform as WaveformUser
+from gprMax.user_objects.rotatable import RotatableMixin
+from gprMax.user_objects.user_objects import GridUserObject
+from gprMax.utilities.utilities import round_value
+from gprMax.waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)
 
 
-class UserObjectMulti(ABC):
-    """Object that can occur multiple times in a model."""
+class ExcitationFile(GridUserObject):
+    """Specify file containing amplitude values of custom waveforms.
 
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.order = 0
-        self.hash = None
-        self.autotranslate = True
-        self.do_rotate = False
-
-    def __str__(self):
-        """Readable user string as per hash commands."""
-        s = ""
-        for _, v in self.kwargs.items():
-            if isinstance(v, (tuple, list)):
-                v = " ".join([str(el) for el in v])
-            s += f"{str(v)} "
-
-        return f"{self.hash}: {s[:-1]}"
-
-    @abstractmethod
-    def build(self, model: Model, uip: MainGridUserInput):
-        """Creates object and adds it to model."""
-        pass
-
-    # TODO: Make _do_rotate not use a grid object
-    def rotate(self, axis, angle, origin=None):
-        """Rotates object (specialised for each object)."""
-        pass
-
-    def params_str(self):
-        """Readable string of parameters given to object."""
-        return f"{self.hash}: {str(self.kwargs)}"
-
-    def grid_name(self, grid: FDTDGrid) -> str:
-        """Returns subgrid name for use with logging info. Returns an empty
-        string if the grid is the main grid.
-        """
-        if isinstance(grid, SubGridBaseGrid):
-            return f"[{grid.name}] "
-        else:
-            return ""
-
-    def model_name(self, model: Model) -> str:
-        """Returns model name for use with logging info."""
-        return f"[{model.title}] "
-
-
-class ExcitationFile(UserObjectMulti):
-    """An ASCII file that contains columns of amplitude values that specify
-        custom waveform shapes that can be used with sources in the model.
+    The file should be an ASCII file, and the custom waveform shapes can
+    be used with sources in the model.
 
     Attributes:
-        filepath: string of excitation file path.
-        kind: string or int specifying interpolation kind passed to
-                scipy.interpolate.interp1d.
-        fill_value: float or 'extrapolate' passed to scipy.interpolate.interp1d.
+        filepath (str | PathLike): Excitation file path.
+        kind (int | str | None): Optional interpolation kind passed to
+            scipy.interpolate.interp1d.
+        fill_value (float | str | None): Optional float value or
+            'extrapolate' passed to scipy.interpolate.interp1d.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 1
-        self.hash = "#excitation_file"
+    @property
+    def order(self):
+        return 1
 
-    def build(self, model, uip):
-        try:
-            kwargs = {}
-            excitationfile = self.kwargs["filepath"]
-            kwargs["kind"] = self.kwargs["kind"]
-            kwargs["fill_value"] = self.kwargs["fill_value"]
+    @property
+    def hash(self):
+        return "#excitation_file"
 
-        except KeyError:
-            try:
-                excitationfile = self.kwargs["filepath"]
-                fullargspec = inspect.getfullargspec(interpolate.interp1d)
-                kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
-            except KeyError:
-                logger.exception(f"{self.__str__()} requires either one or three parameter(s)")
-                raise
+    def __init__(
+        self,
+        filepath: Union[str, PathLike],
+        kind: Optional[Union[int, str]] = None,
+        fill_value: Optional[Union[float, str]] = None,
+    ):
+        """Create an ExcitationFile user object.
 
+        Args:
+            filepath: Excitation file path.
+            kind: Optional interpolation kind passed to
+                scipy.interpolate.interp1d. Default None.
+            fill_value: Optional float value or 'extrapolate' passed to
+                scipy.interpolate.interp1d. Default None.
+        """
+        super().__init__(filepath=filepath, kind=kind, fill_value=fill_value)
+        self.filepath = filepath
+        self.kind = kind
+        self.fill_value = fill_value
+
+    def build(self, grid: FDTDGrid):
         # See if file exists at specified path and if not try input file directory
-        excitationfile = Path(excitationfile)
-        # excitationfile = excitationfile.resolve()
+        excitationfile = Path(self.filepath)
         if not excitationfile.exists():
             excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
 
-        grid = uip.grid
         logger.info(self.grid_name(grid) + f"Excitation file: {excitationfile}")
 
         # Get waveform names
@@ -162,13 +122,12 @@ class ExcitationFile(UserObjectMulti):
             waveformvalues = waveformvalues[:, 1:]
             timestr = "user-defined time array"
         else:
-            waveformtime = np.arange(0, model.timewindow + grid.dt, grid.dt)
+            waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
             timestr = "simulation time array"
 
         for i, waveformID in enumerate(waveformIDs):
             if any(x.ID == waveformID for x in grid.waveforms):
-                logger.exception(f"Waveform with ID {waveformID} already exists")
-                raise ValueError
+                raise ValueError(f"Waveform with ID {waveformID} already exists")
             w = WaveformUser()
             w.ID = waveformID
             w.type = "user"
@@ -191,38 +150,61 @@ class ExcitationFile(UserObjectMulti):
                 )
 
             # Interpolate waveform values
-            w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
+            if self.kind is None and self.fill_value is None:
+                w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues)
+            elif self.kind is not None and self.fill_value is not None:
+                w.userfunc = interpolate.interp1d(
+                    waveformtime, singlewaveformvalues, kind=self.kind, fill_value=self.fill_value
+                )
+            else:
+                raise ValueError(f"{self} requires either one or three parameter(s)")
 
             logger.info(
                 self.grid_name(grid) + f"User waveform {w.ID} created using {timestr} and, if "
-                f"required, interpolation parameters (kind: {kwargs['kind']}, "
-                f"fill value: {kwargs['fill_value']})."
+                f"required, interpolation parameters (kind: {self.kind}, "
+                f"fill value: {self.fill_value})."
             )
 
             grid.waveforms.append(w)
 
 
-class Waveform(UserObjectMulti):
-    """Specifies waveforms to use with sources in the model.
+class Waveform(GridUserObject):
+    """Create waveform to use with sources in the model.
 
     Attributes:
-        wave_type: string required to specify waveform type.
-        amp: float to scale maximum amplitude of waveform.
-        freq: float to specify centre frequency (Hz) of waveform.
-        id: string required for identifier of waveform.
-        user_values: optional 1D array of amplitude values to use with
-                        user waveform.
-        user_time: optional 1D array of time values to use with user waveform.
-        kind: optional string or int, see scipy.interpolate.interp1d - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy-interpolate-interp1d
-        fill_value: optional array or 'extrapolate', see scipy.interpolate.interp1d - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy-interpolate-interp1d
+        wave_type (str): Waveform type. Can should be one of 'gaussian',
+            'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot',
+            'gaussiandotdotnorm', 'ricker', 'gaussianprime',
+            'gaussiandoubleprime', 'sine', 'contsine'.
+        amp (float): Factor to scale the maximum amplitude of the
+            waveform by. (For a #hertzian_dipole the units will be Amps,
+            for a #voltage_source or #transmission_line the units will
+            be Volts).
+        freq: Centre frequency (Hz) of the waveform. In the case of the
+            Gaussian waveform it is related to the pulse width.
+        id (str): Identifier of the waveform.
+        user_values: Optional 1D array of amplitude values to use with
+            user waveform.
+        user_time: Optional 1D array of time values to use with user
+            waveform.
+        kind (int | str | None): Optional string or int, see
+            scipy.interpolate.interp1d - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy-interpolate-interp1d
+        fill_value: Optional array or 'extrapolate', see
+            scipy.interpolate.interp1d - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html#scipy-interpolate-interp1d
     """
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#waveform"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
-        self.hash = "#waveform"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             wavetype = self.kwargs["wave_type"].lower()
         except KeyError:
@@ -236,7 +218,6 @@ class Waveform(UserObjectMulti):
             )
             raise ValueError
 
-        grid = uip.grid
         if wavetype != "user":
             try:
                 amp = self.kwargs["amp"]
@@ -288,7 +269,7 @@ class Waveform(UserObjectMulti):
             if "user_time" in self.kwargs:
                 waveformtime = self.kwargs["user_time"]
             else:
-                waveformtime = np.arange(0, model.timewindow + grid.dt, grid.dt)
+                waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
 
             # Set args for interpolation if given by user
             if "kind" in self.kwargs:
@@ -310,7 +291,7 @@ class Waveform(UserObjectMulti):
         grid.waveforms.append(w)
 
 
-class VoltageSource(UserObjectMulti):
+class VoltageSource(RotatableMixin, GridUserObject):
     """Specifies a voltage source at an electric field location.
 
     Attributes:
@@ -323,19 +304,18 @@ class VoltageSource(UserObjectMulti):
         stop: float optional to time (secs) to remove source.
     """
 
+    @property
+    def order(self):
+        return 3
+
+    @property
+    def hash(self):
+        return "#voltage_source"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 3
-        self.hash = "#voltage_source"
 
-    def rotate(self, axis, angle, origin=None):
-        """Sets parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self, grid):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs["polarisation"] = rotate_polarisation(
             self.kwargs["p1"], self.kwargs["polarisation"], self.axis, self.angle, grid
@@ -343,7 +323,7 @@ class VoltageSource(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             polarisation = self.kwargs["polarisation"].lower()
@@ -353,7 +333,6 @@ class VoltageSource(UserObjectMulti):
             logger.exception(self.params_str() + (" requires at least six parameters."))
             raise
 
-        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -380,6 +359,7 @@ class VoltageSource(UserObjectMulti):
             logger.exception(self.params_str() + (" polarisation must be z in 2D TMz mode."))
             raise ValueError
 
+        uip = self._create_uip(grid)
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
         p2 = uip.round_to_grid_static_point(p1)
 
@@ -435,15 +415,14 @@ class VoltageSource(UserObjectMulti):
                 )
                 raise ValueError
             v.start = start
-            v.stop = min(stop, model.timewindow)
+            v.stop = min(stop, grid.timewindow)
             startstop = f" start time {v.start:g} secs, finish time {v.stop:g} secs "
         except KeyError:
             v.start = 0
-            v.stop = model.timewindow
+            v.stop = grid.timewindow
             startstop = " "
 
-        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
-        v.calculate_waveform_values(iterations, grid.dt)
+        v.calculate_waveform_values(grid.iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Voltage source with polarity "
@@ -456,7 +435,7 @@ class VoltageSource(UserObjectMulti):
         grid.voltagesources.append(v)
 
 
-class HertzianDipole(UserObjectMulti):
+class HertzianDipole(RotatableMixin, GridUserObject):
     """Specifies a current density term at an electric field location.
 
     The simplest excitation, often referred to as an additive or soft source.
@@ -469,19 +448,18 @@ class HertzianDipole(UserObjectMulti):
         stop: float optional to time (secs) to remove source.
     """
 
+    @property
+    def order(self):
+        return 4
+
+    @property
+    def hash(self):
+        return "#hertzian_dipole"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 4
-        self.hash = "#hertzian_dipole"
 
-    def rotate(self, axis, angle, origin=None):
-        """Sets parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self, grid):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs["polarisation"] = rotate_polarisation(
             self.kwargs["p1"], self.kwargs["polarisation"], self.axis, self.angle, grid
@@ -489,7 +467,7 @@ class HertzianDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -498,7 +476,6 @@ class HertzianDipole(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least 3 parameters.")
             raise
 
-        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -525,6 +502,7 @@ class HertzianDipole(UserObjectMulti):
             logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
             raise ValueError
 
+        uip = self._create_uip(grid)
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
         p2 = uip.round_to_grid_static_point(p1)
 
@@ -575,15 +553,14 @@ class HertzianDipole(UserObjectMulti):
                 )
                 raise ValueError
             h.start = start
-            h.stop = min(stop, model.timewindow)
+            h.stop = min(stop, grid.timewindow)
             startstop = f" start time {h.start:g} secs, finish time {h.stop:g} secs "
         except KeyError:
             h.start = 0
-            h.stop = model.timewindow
+            h.stop = grid.timewindow
             startstop = " "
 
-        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
-        h.calculate_waveform_values(iterations, grid.dt)
+        h.calculate_waveform_values(grid.iterations, grid.dt)
 
         if config.get_model_config().mode == "2D":
             logger.info(
@@ -605,7 +582,7 @@ class HertzianDipole(UserObjectMulti):
         grid.hertziandipoles.append(h)
 
 
-class MagneticDipole(UserObjectMulti):
+class MagneticDipole(RotatableMixin, GridUserObject):
     """Simulates an infinitesimal magnetic dipole.
 
     Often referred to as an additive or soft source.
@@ -618,19 +595,18 @@ class MagneticDipole(UserObjectMulti):
         stop: float optional to time (secs) to remove source.
     """
 
+    @property
+    def order(self):
+        return 5
+
+    @property
+    def hash(self):
+        return "#magnetic_dipole"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 5
-        self.hash = "#magnetic_dipole"
 
-    def rotate(self, axis, angle, origin=None):
-        """Sets parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self, grid):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs["polarisation"] = rotate_polarisation(
             self.kwargs["p1"], self.kwargs["polarisation"], self.axis, self.angle, grid
@@ -638,7 +614,7 @@ class MagneticDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -647,7 +623,6 @@ class MagneticDipole(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least five parameters.")
             raise
 
-        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -674,6 +649,7 @@ class MagneticDipole(UserObjectMulti):
             logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
             raise ValueError
 
+        uip = self._create_uip(grid)
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
         p2 = uip.round_to_grid_static_point(p1)
 
@@ -725,15 +701,14 @@ class MagneticDipole(UserObjectMulti):
                 )
                 raise ValueError
             m.start = start
-            m.stop = min(stop, model.timewindow)
+            m.stop = min(stop, grid.timewindow)
             startstop = f" start time {m.start:g} secs, finish time {m.stop:g} secs "
         except KeyError:
             m.start = 0
-            m.stop = model.timewindow
+            m.stop = grid.timewindow
             startstop = " "
 
-        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
-        m.calculate_waveform_values(iterations, grid.dt)
+        m.calculate_waveform_values(grid.iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity "
@@ -745,7 +720,7 @@ class MagneticDipole(UserObjectMulti):
         grid.magneticdipoles.append(m)
 
 
-class TransmissionLine(UserObjectMulti):
+class TransmissionLine(RotatableMixin, GridUserObject):
     """Specifies a one-dimensional transmission line model at an electric
         field location.
 
@@ -759,19 +734,18 @@ class TransmissionLine(UserObjectMulti):
         stop: float optional to time (secs) to remove source.
     """
 
+    @property
+    def order(self):
+        return 6
+
+    @property
+    def hash(self):
+        return "#transmission_line"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 6
-        self.hash = "#transmission_line"
 
-    def rotate(self, axis, angle, origin=None):
-        """Sets parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self, grid):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs["polarisation"] = rotate_polarisation(
             self.kwargs["p1"], self.kwargs["polarisation"], self.axis, self.angle, grid
@@ -779,7 +753,7 @@ class TransmissionLine(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -789,7 +763,6 @@ class TransmissionLine(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least six parameters.")
             raise
 
-        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -825,6 +798,7 @@ class TransmissionLine(UserObjectMulti):
             logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
             raise ValueError
 
+        uip = self._create_uip(grid)
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
         p2 = uip.round_to_grid_static_point(p1)
 
@@ -843,8 +817,7 @@ class TransmissionLine(UserObjectMulti):
             )
             raise ValueError
 
-        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
-        t = TransmissionLineUser(iterations, grid.dt)
+        t = TransmissionLineUser(grid.iterations, grid.dt)
         t.polarisation = polarisation
         t.xcoord = xcoord
         t.ycoord = ycoord
@@ -885,14 +858,14 @@ class TransmissionLine(UserObjectMulti):
                 )
                 raise ValueError
             t.start = start
-            t.stop = min(stop, model.timewindow)
+            t.stop = min(stop, grid.timewindow)
             startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
         except KeyError:
             t.start = 0
-            t.stop = model.timewindow
+            t.stop = grid.timewindow
             startstop = " "
 
-        t.calculate_waveform_values(iterations, grid.dt)
+        t.calculate_waveform_values(grid.iterations, grid.dt)
         t.calculate_incident_V_I(grid)
 
         logger.info(
@@ -906,7 +879,7 @@ class TransmissionLine(UserObjectMulti):
         grid.transmissionlines.append(t)
 
 
-class Rx(UserObjectMulti):
+class Rx(RotatableMixin, GridUserObject):
     """Specifies output points in the model.
 
     These are locations where the values of the electric and magnetic field
@@ -919,20 +892,20 @@ class Rx(UserObjectMulti):
                     selection from Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, or Iz.
     """
 
+    @property
+    def order(self):
+        return 7
+
+    @property
+    def hash(self):
+        return "#rx"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 7
-        self.hash = "#rx"
+        # TODO: Can this be removed?
         self.constructor = RxUser
 
-    def rotate(self, axis, angle, origin=None):
-        """Sets parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self, grid):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
         new_pt = (
             self.kwargs["p1"][0] + grid.dx,
@@ -953,25 +926,23 @@ class Rx(UserObjectMulti):
         except KeyError:
             pass
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
         except KeyError:
             logger.exception(self.params_str())
             raise
 
-        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
+        uip = self._create_uip(grid)
         p = uip.check_src_rx_point(p1, self.params_str())
         p2 = uip.round_to_grid_static_point(p1)
 
         r = self.constructor()
         r.xcoord, r.ycoord, r.zcoord = p
         r.xcoordorigin, r.ycoordorigin, r.zcoordorigin = p
-
-        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
 
         try:
             r.ID = self.kwargs["id"]
@@ -981,7 +952,7 @@ class Rx(UserObjectMulti):
             r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
             for key in RxUser.defaultoutputs:
                 r.outputs[key] = np.zeros(
-                    iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
                 )
         else:
             outputs.sort()
@@ -994,7 +965,7 @@ class Rx(UserObjectMulti):
             for field in outputs:
                 if field in allowableoutputs:
                     r.outputs[field] = np.zeros(
-                        iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                        grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
                     )
                 else:
                     logger.exception(
@@ -1016,7 +987,7 @@ class Rx(UserObjectMulti):
         return r
 
 
-class RxArray(UserObjectMulti):
+class RxArray(GridUserObject):
     """Defines multiple output points in the model.
 
     Attributes:
@@ -1025,12 +996,18 @@ class RxArray(UserObjectMulti):
         dl: tuple required for receiver spacing dx, dy, dz.
     """
 
+    @property
+    def order(self):
+        return 8
+
+    @property
+    def hash(self):
+        return "#rx_array"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
-        self.hash = "#rx_array"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1039,6 +1016,7 @@ class RxArray(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires exactly 9 parameters")
             raise
 
+        uip = self._create_uip(grid)
         xs, ys, zs = uip.check_src_rx_point(p1, self.params_str(), "lower")
         xf, yf, zf = uip.check_src_rx_point(p2, self.params_str(), "upper")
         p3 = uip.round_to_grid_static_point(p1)
@@ -1078,15 +1056,12 @@ class RxArray(UserObjectMulti):
                 )
                 raise ValueError
 
-        grid = uip.grid
         logger.info(
             f"{self.grid_name(grid)}Receiver array "
             f"{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to "
             f"{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps "
             f"{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m"
         )
-
-        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -1105,7 +1080,7 @@ class RxArray(UserObjectMulti):
                     r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(
-                            iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
                         )
                     logger.info(
                         f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "
@@ -1115,7 +1090,7 @@ class RxArray(UserObjectMulti):
                     grid.rxs.append(r)
 
 
-class Snapshot(UserObjectMulti):
+class Snapshot(GridUserObject):
     """Obtains information about the electromagnetic fields within a volume
         of the model at a given time instant.
 
@@ -1136,10 +1111,17 @@ class Snapshot(UserObjectMulti):
                     selection from Ex, Ey, Ez, Hx, Hy, or Hz.
     """
 
+    # TODO: Make this an output user object
+    @property
+    def order(self):
+        return 9
+
+    @property
+    def hash(self):
+        return "#snapshot"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
-        self.hash = "#snapshot"
 
     def _calculate_upper_bound(
         self, start: npt.NDArray, step: npt.NDArray, size: npt.NDArray
@@ -1147,9 +1129,7 @@ class Snapshot(UserObjectMulti):
         # upper_bound = p2 + dl - ((snapshot_size - 1) % dl) - 1
         return start + step * np.ceil(size / step)
 
-    def build(self, model, uip):
-        grid = uip.grid
-
+    def build(self, grid: FDTDGrid):
         if isinstance(grid, SubGridBaseGrid):
             logger.exception(f"{self.params_str()} do not add snapshots to subgrids.")
             raise ValueError
@@ -1162,6 +1142,7 @@ class Snapshot(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires exactly 11 parameters.")
             raise
 
+        uip = self._create_uip(grid)
         dl = np.array(uip.discretise_static_point(dl))
 
         try:
@@ -1242,7 +1223,7 @@ class Snapshot(UserObjectMulti):
                 logger.exception(f"{self.params_str()} time value must be greater than zero.")
                 raise ValueError
 
-        if iterations <= 0 or iterations > model.iterations:
+        if iterations <= 0 or iterations > grid.iterations:
             logger.exception(f"{self.params_str()} time value is not valid.")
             raise ValueError
 
@@ -1322,7 +1303,7 @@ class Snapshot(UserObjectMulti):
         grid.snapshots.append(s)
 
 
-class Material(UserObjectMulti):
+class Material(GridUserObject):
     """Specifies a material in the model described by a set of constitutive
         parameters.
 
@@ -1334,12 +1315,18 @@ class Material(UserObjectMulti):
         id: string used as identifier for material.
     """
 
+    @property
+    def order(self):
+        return 10
+
+    @property
+    def hash(self):
+        return "#material"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
-        self.hash = "#material"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             er = self.kwargs["er"]
             se = self.kwargs["se"]
@@ -1373,7 +1360,6 @@ class Material(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires a positive value for magnetic loss.")
             raise ValueError
 
-        grid = uip.grid
         if any(x.ID == material_id for x in grid.materials):
             logger.exception(f"{self.params_str()} with ID {material_id} already exists")
             raise ValueError
@@ -1391,7 +1377,7 @@ class Material(UserObjectMulti):
 
         m.er = er
         logger.info(
-            f"{self.model_name(model)}Material {m.ID} with eps_r={m.er:g}, "
+            f"{self.grid_name(grid)}Material {m.ID} with eps_r={m.er:g}, "
             f"sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m "
             f"created."
         )
@@ -1399,7 +1385,7 @@ class Material(UserObjectMulti):
         grid.materials.append(m)
 
 
-class AddDebyeDispersion(UserObjectMulti):
+class AddDebyeDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
         multi-pole Debye formulation.
 
@@ -1413,12 +1399,18 @@ class AddDebyeDispersion(UserObjectMulti):
                         properties.
     """
 
+    @property
+    def order(self):
+        return 11
+
+    @property
+    def hash(self):
+        return "#add_dispersion_debye"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
-        self.hash = "#add_dispersion_debye"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1433,7 +1425,6 @@ class AddDebyeDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        grid = uip.grid
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
@@ -1475,7 +1466,7 @@ class AddDebyeDispersion(UserObjectMulti):
             )
 
 
-class AddLorentzDispersion(UserObjectMulti):
+class AddLorentzDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
         multi-pole Lorentz formulation.
 
@@ -1490,12 +1481,18 @@ class AddLorentzDispersion(UserObjectMulti):
                         properties.
     """
 
+    @property
+    def order(self):
+        return 12
+
+    @property
+    def hash(self):
+        return "#add_dispersion_lorentz"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
-        self.hash = "#add_dispersion_lorentz"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1511,7 +1508,6 @@ class AddLorentzDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        grid = uip.grid
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
@@ -1558,7 +1554,7 @@ class AddLorentzDispersion(UserObjectMulti):
             )
 
 
-class AddDrudeDispersion(UserObjectMulti):
+class AddDrudeDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
         multi-pole Drude formulation.
 
@@ -1570,12 +1566,18 @@ class AddDrudeDispersion(UserObjectMulti):
                         properties.
     """
 
+    @property
+    def order(self):
+        return 13
+
+    @property
+    def hash(self):
+        return "#add_dispersion_drude"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 13
-        self.hash = "#add_dispersion_drude"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             poles = self.kwargs["poles"]
             omega = self.kwargs["omega"]
@@ -1590,7 +1592,6 @@ class AddDrudeDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        grid = uip.grid
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
@@ -1634,7 +1635,7 @@ class AddDrudeDispersion(UserObjectMulti):
             )
 
 
-class SoilPeplinski(UserObjectMulti):
+class SoilPeplinski(GridUserObject):
     """Mixing model for soils proposed by Peplinski et al.
         (http://dx.doi.org/10.1109/36.387598)
 
@@ -1650,12 +1651,18 @@ class SoilPeplinski(UserObjectMulti):
         id: string used as identifier for soil.
     """
 
+    @property
+    def order(self):
+        return 14
+
+    @property
+    def hash(self):
+        return "#soil_peplinski"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 14
-        self.hash = "#soil_peplinski"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             sand_fraction = self.kwargs["sand_fraction"]
             clay_fraction = self.kwargs["clay_fraction"]
@@ -1698,7 +1705,6 @@ class SoilPeplinski(UserObjectMulti):
                 "fraction."
             )
             raise ValueError
-        grid = uip.grid
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -1725,7 +1731,7 @@ class SoilPeplinski(UserObjectMulti):
         grid.mixingmodels.append(s)
 
 
-class MaterialRange(UserObjectMulti):
+class MaterialRange(GridUserObject):
     """Creates varying material properties for stochastic models.
 
     Attributes:
@@ -1740,12 +1746,18 @@ class MaterialRange(UserObjectMulti):
         id: string used as identifier for this variable material.
     """
 
+    @property
+    def order(self):
+        return 15
+
+    @property
+    def hash(self):
+        return "#material_range"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 15
-        self.hash = "#material_range"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             er_lower = self.kwargs["er_lower"]
             er_upper = self.kwargs["er_upper"]
@@ -1803,7 +1815,6 @@ class MaterialRange(UserObjectMulti):
             logger.exception(
                 f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
             )
-        grid = uip.grid
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -1826,7 +1837,7 @@ class MaterialRange(UserObjectMulti):
         grid.mixingmodels.append(s)
 
 
-class MaterialList(UserObjectMulti):
+class MaterialList(GridUserObject):
     """Creates varying material properties for stochastic models.
 
     Attributes:
@@ -1834,19 +1845,24 @@ class MaterialList(UserObjectMulti):
         id: string used as identifier for this variable material.
     """
 
+    @property
+    def order(self):
+        return 15
+
+    @property
+    def hash(self):
+        return "#material_range"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 16
-        self.hash = "#material_list"
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             list_of_materials = self.kwargs["list_of_materials"]
             ID = self.kwargs["id"]
         except KeyError:
             logger.exception(f"{self.params_str()} requires at at least 2 parameters.")
             raise
-        grid = uip.grid
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -1860,163 +1876,7 @@ class MaterialList(UserObjectMulti):
         grid.mixingmodels.append(s)
 
 
-class GeometryView(UserObjectMulti):
-    """Outputs to file(s) information about the geometry (mesh) of model.
-
-    The geometry information is saved in Visual Toolkit (VTK) formats.
-
-    Attributes:
-        p1: tuple required for lower left (x,y,z) coordinates of volume of
-                geometry view in metres.
-        p2: tuple required for upper right (x,y,z) coordinates of volume of
-                geometry view in metres.
-        dl: tuple required for spatial discretisation of geometry view in metres.
-        output_tuple: string required for per-cell 'n' (normal) or per-cell-edge
-                        'f' (fine) geometry views.
-        filename: string required for filename where geometry view will be
-                    stored in the same directory as input file.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 17
-        self.hash = "#geometry_view"
-
-    def geometry_view_constructor(self, output_type):
-        """Selects appropriate class for geometry view dependent on geometry
-        view type, i.e. normal or fine.
-        """
-
-        if output_type == "n":
-            from .geometry_outputs import GeometryViewVoxels as GeometryViewUser
-        else:
-            from .geometry_outputs import GeometryViewLines as GeometryViewUser
-
-        return GeometryViewUser
-
-    def build(self, model, uip):
-        try:
-            p1 = self.kwargs["p1"]
-            p2 = self.kwargs["p2"]
-            dl = self.kwargs["dl"]
-            output_type = self.kwargs["output_type"].lower()
-            filename = self.kwargs["filename"]
-        except KeyError:
-            logger.exception(f"{self.params_str()} requires exactly eleven parameters.")
-            raise
-
-        GeometryViewUser = self.geometry_view_constructor(output_type)
-
-        try:
-            p3 = uip.round_to_grid_static_point(p1)
-            p4 = uip.round_to_grid_static_point(p2)
-            p1, p2 = uip.check_box_points(p1, p2, self.params_str())
-        except ValueError:
-            logger.exception(f"{self.params_str()} point is outside the domain.")
-            raise
-        xs, ys, zs = p1
-        xf, yf, zf = p2
-
-        grid = uip.grid
-        dx, dy, dz = uip.discretise_static_point(dl)
-
-        if dx < 0 or dy < 0 or dz < 0:
-            logger.exception(f"{self.params_str()} the step size should not be less than zero.")
-            raise ValueError
-        if dx > grid.nx or dy > grid.ny or dz > grid.nz:
-            logger.exception(
-                f"{self.params_str()} the step size should be less than the domain size."
-            )
-            raise ValueError
-        if dx < 1 or dy < 1 or dz < 1:
-            logger.exception(
-                f"{self.params_str()} the step size should not be less than the spatial discretisation."
-            )
-            raise ValueError
-        if output_type not in ["n", "f"]:
-            logger.exception(
-                f"{self.params_str()} requires type to be either n (normal) or f (fine)."
-            )
-            raise ValueError
-        if output_type == "f" and (
-            dx * grid.dx != grid.dx or dy * grid.dy != grid.dy or dz * grid.dz != grid.dz
-        ):
-            logger.exception(
-                f"{self.params_str()} requires the spatial "
-                "discretisation for the geometry view to be the "
-                "same as the model for geometry view of "
-                "type f (fine)"
-            )
-            raise ValueError
-
-        g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid)
-
-        logger.info(
-            f"{self.grid_name(grid)}Geometry view from {p3[0]:g}m, "
-            f"{p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, "
-            f"{p4[2]:g}m, discretisation {dx * grid.dx:g}m, "
-            f"{dy * grid.dy:g}m, {dz * grid.dz:g}m, with filename "
-            f"base {g.filename} created."
-        )
-
-        model.geometryviews.append(g)
-
-
-class GeometryObjectsWrite(UserObjectMulti):
-    """Writes geometry generated in a model to file which can be imported into
-        other models.
-
-    Attributes:
-        p1: tuple required for lower left (x,y,z) coordinates of volume of
-                output in metres.
-        p2: tuple required for upper right (x,y,z) coordinates of volume of
-                output in metres.
-        filename: string required for filename where output will be stored in
-                    the same directory as input file.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 18
-        self.hash = "#geometry_objects_write"
-
-    def build(self, model, uip):
-        grid = uip.grid
-        if isinstance(grid, SubGridBaseGrid):
-            logger.exception(f"{self.params_str()} do not add geometry objects to subgrids.")
-            raise ValueError
-        try:
-            p1 = self.kwargs["p1"]
-            p2 = self.kwargs["p2"]
-            basefilename = self.kwargs["filename"]
-        except KeyError:
-            logger.exception(f"{self.params_str()} requires exactly seven parameters.")
-            raise
-
-        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
-        x0, y0, z0 = p1
-        x1, y1, z1 = p2
-
-        if isinstance(grid, MPIGrid):
-            geometry_object_type = MPIGeometryObjectsUser
-        else:
-            geometry_object_type = GeometryObjectsUser
-
-        g = geometry_object_type(x0, y0, z0, x1, y1, z1, basefilename)
-
-        logger.info(
-            f"Geometry objects in the volume from {p1[0] * grid.dx:g}m, "
-            f"{p1[1] * grid.dy:g}m, {p1[2] * grid.dz:g}m, to "
-            f"{p2[0] * grid.dx:g}m, {p2[1] * grid.dy:g}m, "
-            f"{p2[2] * grid.dz:g}m, will be written to "
-            f"{g.filename_hdf5}, with materials written to "
-            f"{g.filename_materials}"
-        )
-
-        model.geometryobjects.append(g)
-
-
-class PMLCFS(UserObjectMulti):
+class PMLCFS(GridUserObject):
     """Controls parameters that are used to build each order of PML. Default
         values are set in pml.py
 
@@ -2041,11 +1901,18 @@ class PMLCFS(UserObjectMulti):
         sigmamax: float required for maximum value for the CFS sigma parameter.
     """
 
+    @property
+    def order(self):
+        return 19
+
+    @property
+    def hash(self):
+        return "#pml_cfs"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 19
 
-    def build(self, model, uip):
+    def build(self, grid: FDTDGrid):
         try:
             alphascalingprofile = self.kwargs["alphascalingprofile"]
             alphascalingdirection = self.kwargs["alphascalingdirection"]
@@ -2131,7 +1998,6 @@ class PMLCFS(UserObjectMulti):
             f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
-        grid = uip.grid
         grid.pmls["cfs"].append(cfs)
 
         if len(grid.pmls["cfs"]) > 2:
@@ -2141,11 +2007,17 @@ class PMLCFS(UserObjectMulti):
             raise ValueError
 
 
+"""
+TODO: Can this be removed?
 class Subgrid(UserObjectMulti):
-    """"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        logger.warning(
+            "Subgrid user object is deprecated and may be removed in"
+            " future releases of gprMax. Use the SubGridHSG user object"
+            " instead."
+        )
         self.children_multiple = []
         self.children_geometry = []
 
@@ -2157,3 +2029,4 @@ class Subgrid(UserObjectMulti):
         else:
             logger.exception("This object is unknown to gprMax.")
             raise ValueError
+"""

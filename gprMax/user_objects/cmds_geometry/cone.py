@@ -20,14 +20,15 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_cone
-from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, check_averaging
+from gprMax.cython.geometry_primitives import build_cone
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
+from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class Cone(UserObjectGeometry):
+class Cone(GeometryUserObject):
     """Introduces a circular cone into the model. The difference with the cylinder is that the faces of the cone
        can have different radii and one of them can be zero.
 
@@ -44,11 +45,14 @@ class Cone(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#cone"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#cone"
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid) -> None:
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -78,6 +82,7 @@ class Cone(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
+        uip = self._create_uip(grid)
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 

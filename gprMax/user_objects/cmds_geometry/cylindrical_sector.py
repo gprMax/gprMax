@@ -20,14 +20,15 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_cylindrical_sector
-from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, check_averaging
+from gprMax.cython.geometry_primitives import build_cylindrical_sector
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
+from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class CylindricalSector(UserObjectGeometry):
+class CylindricalSector(GeometryUserObject):
     """Introduces a cylindrical sector (shaped like a slice of pie) into the model.
 
     Attributes:
@@ -51,11 +52,14 @@ class CylindricalSector(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#cylindrical_sector"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#cylindrical_sector"
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         try:
             normal = self.kwargs["normal"].lower()
             ctr1 = self.kwargs["ctr1"]
@@ -158,6 +162,7 @@ class CylindricalSector(UserObjectGeometry):
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
 
+        uip = self._create_uip(grid)
         # yz-plane cylindrical sector
         if normal == "x":
             level, ctr1, ctr2 = uip.round_to_grid((extent1, ctr1, ctr2))

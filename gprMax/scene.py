@@ -16,22 +16,24 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 import logging
-from typing import List, Optional, Union
+from typing import List, Sequence
 
-from gprMax import config
-from gprMax.cmds_geometry.add_grass import AddGrass
-from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
-from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
-from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
-from gprMax.cmds_geometry.fractal_box import FractalBox
-from gprMax.cmds_multiuse import UserObjectMulti
-from gprMax.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
-from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
-from gprMax.user_inputs import MainGridUserInput, SubgridUserInput
+from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
+from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
+from gprMax.user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
+from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
+from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow
+from gprMax.user_objects.user_objects import (
+    GeometryUserObject,
+    GridUserObject,
+    ModelUserObject,
+    OutputUserObject,
+    UserObject,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,128 +41,85 @@ logger = logging.getLogger(__name__)
 class Scene:
     """Scene stores all of the user created objects."""
 
-    def __init__(self):
-        self.multiple_cmds: List[UserObjectMulti] = []
-        self.single_cmds: List[UserObjectSingle] = []
-        self.geometry_cmds: List[UserObjectGeometry] = []
-        self.multiple_cmds: List[UserObjectMulti] = []
-        self.single_cmds: List[UserObjectSingle] = []
-        self.geometry_cmds: List[UserObjectGeometry] = []
-        self.essential_cmds = [Domain, TimeWindow, Discretisation]
+    ESSENTIAL_CMDS = [Domain, TimeWindow, Discretisation]
 
-    def add(self, user_object):
+    def __init__(self):
+        self.single_use_objects: List[ModelUserObject] = []
+        self.grid_objects: List[GridUserObject] = []
+        self.geometry_objects: List[GeometryUserObject] = []
+        self.output_objects: List[OutputUserObject] = []
+        self.subgrid_objects: List[SubGridUserBase] = []
+
+    def add(self, user_object: UserObject):
         """Add the user object to the scene.
 
         Args:
             user_object: user object to add to the scene. For example,
-                            :class:`gprMax.cmds_single_use.Domain`
+                `gprMax.user_objects.cmds_singleuse.Domain`
         """
-        if isinstance(user_object, UserObjectMulti):
-            self.multiple_cmds.append(user_object)
-        elif isinstance(user_object, UserObjectGeometry):
-            self.geometry_cmds.append(user_object)
-        elif isinstance(user_object, UserObjectSingle):
-            self.single_cmds.append(user_object)
+        # Check for
+        if isinstance(user_object, SubGridUserBase):
+            self.subgrid_objects.append(user_object)
+        elif isinstance(user_object, ModelUserObject):
+            self.single_use_objects.append(user_object)
+        elif isinstance(user_object, GeometryUserObject):
+            self.geometry_objects.append(user_object)
+        elif isinstance(user_object, GridUserObject):
+            self.grid_objects.append(user_object)
+        elif isinstance(user_object, OutputUserObject):
+            self.output_objects.append(user_object)
         else:
-            logger.exception("This object is unknown to gprMax")
-            raise ValueError
+            raise TypeError(f"Object of type '{type(user_object)}' is unknown to gprMax")
 
-    def build_grid_obj(self, obj: UserObjectGeometry, grid: FDTDGrid):
-        """Builds objects in FDTDGrids.
-
-        Args:
-            obj: user object
-            grid: FDTDGrid class describing a grid in a model.
-        """
-        uip = create_user_input_points(grid, obj)
-        try:
-            obj.build(grid, uip)
-        except ValueError:
-            logger.exception("Error creating user input object")
-            raise
-
-    def build_model_obj(
-        self,
-        obj: Union[UserObjectSingle, UserObjectMulti],
-        model: Model,
-        subgrid: Optional[FDTDGrid] = None,
-    ):
+    def build_model_objects(self, objects: Sequence[ModelUserObject], model: Model):
         """Builds objects in models.
 
         Args:
             obj: user object
             model: Model being built
         """
-
-        grid = model.G if subgrid is None else subgrid
-        uip = create_user_input_points(grid, obj)
-
         try:
-            obj.build(model, uip)
+            for model_user_object in sorted(objects):
+                model_user_object.build(model)
         except ValueError:
-            logger.exception("Error creating user input object")
+            logger.exception(f"Error creating user object '{model_user_object}'")
             raise
 
-    def process_subgrid_cmds(self, model: Model):
-        """Process all commands in any sub-grids."""
+    def build_grid_objects(self, objects: Sequence[GridUserObject], grid: FDTDGrid):
+        """Builds objects in FDTDGrids.
 
-        # Subgrid user objects
-        subgrid_cmds = [
-            sg_cmd for sg_cmd in self.multiple_cmds if isinstance(sg_cmd, SubGridUserBase)
-        ]
-        subgrid_cmds = [
-            sg_cmd for sg_cmd in self.multiple_cmds if isinstance(sg_cmd, SubGridUserBase)
-        ]
+        Args:
+            objects: user object
+            grid: FDTDGrid class describing a grid in a model.
+        """
+        try:
+            for grid_user_object in sorted(objects):
+                grid_user_object.build(grid)
+        except ValueError:
+            logger.exception(f"Error creating user object '{grid_user_object}'")
+            raise
 
-        # Iterate through the user command objects under the subgrid user object
-        for sg_cmd in subgrid_cmds:
-            # When the subgrid is created its reference is attached to its user
-            # object. This reference allows the multi and geo user objects
-            # to build in the correct subgrid.
-            sg = sg_cmd.subgrid
-            self.process_cmds(sg_cmd.children_multiple, model, sg)
-            self.process_geocmds(sg_cmd.children_geometry, sg)
-
-    def process_cmds(
-        self,
-        commands: Union[List[UserObjectMulti], List[UserObjectSingle]],
-        model: Model,
-        subgrid: Optional[SubGridBaseGrid] = None,
+    def build_output_objects(
+        self, objects: Sequence[OutputUserObject], model: Model, grid: FDTDGrid
     ):
-        """Process list of commands."""
-        cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
-        for obj in cmds_sorted:
-            self.build_model_obj(obj, model, subgrid)
+        try:
+            for output_user_object in sorted(objects):
+                output_user_object.build(model, grid)
+        except ValueError:
+            logger.exception(f"Error creating user object '{output_user_object}'")
+            raise
 
-        return self
-
-    def process_geocmds(self, commands, grid):
-        # Check for fractal boxes and modifications and pre-process them first
-        proc_cmds = []
-        for obj in commands:
-            if isinstance(obj, (FractalBox, AddGrass, AddSurfaceRoughness, AddSurfaceWater)):
-                self.build_grid_obj(obj, grid)
-                if isinstance(obj, (FractalBox)):
-                    proc_cmds.append(obj)
-            else:
-                proc_cmds.append(obj)
-
-        # Process all geometry commands
-        for obj in proc_cmds:
-            self.build_grid_obj(obj, grid)
-
-        return self
-
-    def process_singlecmds(self, model: Model):
+    def process_single_use_objects(self, model: Model):
         # Check for duplicate commands and warn user if they exist
-        cmds_unique = list(set(self.single_cmds))
-        if len(cmds_unique) != len(self.single_cmds):
+        # TODO: Test this works
+        unique_commands = list(set(self.single_use_objects))
+        if len(unique_commands) != len(self.single_use_objects):
             logger.exception("Duplicate single-use commands exist in the input.")
             raise ValueError
 
         # Check essential commands and warn user if missing
-        for cmd_type in self.essential_cmds:
-            d = any(isinstance(cmd, cmd_type) for cmd in cmds_unique)
+        for cmd_type in self.ESSENTIAL_CMDS:
+            d = any(isinstance(cmd, cmd_type) for cmd in unique_commands)
             if not d:
                 logger.exception(
                     "Your input file is missing essential commands "
@@ -169,7 +128,39 @@ class Scene:
                 )
                 raise ValueError
 
-        self.process_cmds(cmds_unique, model)
+        self.build_model_objects(unique_commands, model)
+
+    def process_multi_use_objects(self, model: Model):
+        self.build_grid_objects(self.grid_objects, model.G)
+        self.build_output_objects(self.output_objects, model, model.G)
+        self.build_model_objects(self.subgrid_objects, model)
+
+    def process_geometry_objects(self, geometry_objects: List[GeometryUserObject], grid: FDTDGrid):
+        # Check for fractal boxes and modifications and pre-process them first
+        # TODO: Can this be removed in favour of sorting geometry objects?
+        objects_to_be_built: List[GeometryUserObject] = []
+        for obj in geometry_objects:
+            if isinstance(obj, (FractalBox, AddGrass, AddSurfaceRoughness, AddSurfaceWater)):
+                self.build_grid_objects([obj], grid)
+                if isinstance(obj, (FractalBox)):
+                    objects_to_be_built.append(obj)
+            else:
+                objects_to_be_built.append(obj)
+
+        # Process all geometry commands
+        self.build_grid_objects(objects_to_be_built, grid)
+
+    def process_subgrid_objects(self, model: Model):
+        """Process all commands in any sub-grids."""
+        # Iterate through the user command objects under the subgrid user object
+        for subgrid_object in self.subgrid_objects:
+            # When the subgrid is created its reference is attached to its user
+            # object. This reference allows the multi and geo user objects
+            # to build in the correct subgrid.
+            subgrid = subgrid_object.subgrid
+            self.build_grid_objects(subgrid_object.children_grid, subgrid)
+            self.build_output_objects(subgrid_object.children_output, model, subgrid)
+            self.process_geometry_objects(subgrid_object.children_geometry, subgrid)
 
     def create_internal_objects(self, model: Model):
         """Calls the UserObject.build() function in the correct way - API
@@ -181,36 +172,17 @@ class Scene:
         create_built_in_materials(model.G)
 
         # Process commands that can only have a single instance
-        self.process_singlecmds(model)
+        self.process_single_use_objects(model)
 
-        # Process main grid multiple commands
-        self.process_cmds(self.multiple_cmds, model)
+        # Process multiple commands
+        self.process_multi_use_objects(model)
 
         # Initialise geometry arrays for main and subgrids
         for grid in [model.G] + model.subgrids:
             grid.initialise_geometry_arrays()
 
         # Process the main grid geometry commands
-        self.process_geocmds(self.geometry_cmds, model.G)
+        self.process_geometry_objects(self.geometry_objects, model.G)
 
         # Process all the commands for subgrids
-        self.process_subgrid_cmds(model)
-
-
-def create_user_input_points(
-    grid: FDTDGrid, user_obj: Union[UserObjectSingle, UserObjectMulti, UserObjectGeometry]
-) -> Union[MainGridUserInput, SubgridUserInput]:
-    """Returns a point checker class based on the grid supplied."""
-
-    if isinstance(grid, SubGridBaseGrid):
-        # Local object configuration trumps. User can turn off autotranslate for
-        # specific objects.
-        if not user_obj.autotranslate and config.sim_config.args.autotranslate:
-            return MainGridUserInput(grid)
-
-        if config.sim_config.args.autotranslate:
-            return SubgridUserInput(grid)
-        else:
-            return MainGridUserInput(grid)
-    else:
-        return MainGridUserInput(grid)
+        self.process_subgrid_objects(model)

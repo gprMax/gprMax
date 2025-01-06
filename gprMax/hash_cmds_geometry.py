@@ -20,20 +20,20 @@ import logging
 
 import numpy as np
 
-from .cmds_geometry.add_grass import AddGrass
-from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
-from .cmds_geometry.add_surface_water import AddSurfaceWater
-from .cmds_geometry.box import Box
-from .cmds_geometry.cmds_geometry import check_averaging
-from .cmds_geometry.cone import Cone
-from .cmds_geometry.cylinder import Cylinder
-from .cmds_geometry.cylindrical_sector import CylindricalSector
-from .cmds_geometry.edge import Edge
-from .cmds_geometry.ellipsoid import Ellipsoid
-from .cmds_geometry.fractal_box import FractalBox
-from .cmds_geometry.plate import Plate
-from .cmds_geometry.sphere import Sphere
-from .cmds_geometry.triangle import Triangle
+from .user_objects.cmds_geometry.add_grass import AddGrass
+from .user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
+from .user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
+from .user_objects.cmds_geometry.box import Box
+from .user_objects.cmds_geometry.cmds_geometry import check_averaging
+from .user_objects.cmds_geometry.cone import Cone
+from .user_objects.cmds_geometry.cylinder import Cylinder
+from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
+from .user_objects.cmds_geometry.edge import Edge
+from .user_objects.cmds_geometry.ellipsoid import Ellipsoid
+from .user_objects.cmds_geometry.fractal_box import FractalBox
+from .user_objects.cmds_geometry.plate import Plate
+from .user_objects.cmds_geometry.sphere import Sphere
+from .user_objects.cmds_geometry.triangle import Triangle
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
@@ -57,8 +57,7 @@ def process_geometrycmds(geometry):
         tmp = object.split()
 
         if tmp[0] == "#geometry_objects_read:":
-            from .cmds_geometry.geometry_objects_read import \
-                GeometryObjectsRead
+            from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
 
             if len(tmp) != 6:
                 logger.exception("'" + " ".join(tmp) + "'" + " requires exactly five parameters")
@@ -126,7 +125,14 @@ def process_geometrycmds(geometry):
             # Isotropic case with user specified averaging
             elif len(tmp) == 13:
                 averaging = check_averaging(tmp[12].lower())
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11], averaging=averaging)
+                triangle = Triangle(
+                    p1=p1,
+                    p2=p2,
+                    p3=p3,
+                    thickness=thickness,
+                    material_id=tmp[11],
+                    averaging=averaging,
+                )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 14:
@@ -330,7 +336,9 @@ def process_geometrycmds(geometry):
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
                 averaging = check_averaging(tmp[8].lower())
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], averaging=averaging)
+                ellipsoid = Ellipsoid(
+                    p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], averaging=averaging
+                )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
@@ -346,7 +354,9 @@ def process_geometrycmds(geometry):
             # Default is no dielectric smoothing for a fractal box
 
             if len(tmp) < 14:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least thirteen parameters")
+                logger.exception(
+                    "'" + " ".join(tmp) + "'" + " requires at least thirteen parameters"
+                )
                 raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
@@ -402,7 +412,9 @@ def process_geometrycmds(geometry):
 
                 if tmp[0] == "#add_surface_roughness:":
                     if len(tmp) < 13:
-                        logger.exception("'" + " ".join(tmp) + "'" + " requires at least twelve parameters")
+                        logger.exception(
+                            "'" + " ".join(tmp) + "'" + " requires at least twelve parameters"
+                        )
                         raise ValueError
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
@@ -432,14 +444,18 @@ def process_geometrycmds(geometry):
                             seed=int(tmp[13]),
                         )
                     else:
-                        logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
+                        logger.exception(
+                            "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                        )
                         raise ValueError
 
                     scene_objects.append(asr)
 
                 if tmp[0] == "#add_surface_water:":
                     if len(tmp) != 9:
-                        logger.exception("'" + " ".join(tmp) + "'" + " requires exactly eight parameters")
+                        logger.exception(
+                            "'" + " ".join(tmp) + "'" + " requires exactly eight parameters"
+                        )
                         raise ValueError
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
@@ -452,7 +468,9 @@ def process_geometrycmds(geometry):
 
                 if tmp[0] == "#add_grass:":
                     if len(tmp) < 12:
-                        logger.exception("'" + " ".join(tmp) + "'" + " requires at least eleven parameters")
+                        logger.exception(
+                            "'" + " ".join(tmp) + "'" + " requires at least eleven parameters"
+                        )
                         raise ValueError
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
@@ -482,7 +500,9 @@ def process_geometrycmds(geometry):
                             seed=int(tmp[12]),
                         )
                     else:
-                        logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
+                        logger.exception(
+                            "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                        )
                         raise ValueError
 
                     scene_objects.append(grass)

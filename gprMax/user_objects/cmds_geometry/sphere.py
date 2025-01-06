@@ -20,14 +20,15 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_sphere
-from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, check_averaging
+from gprMax.cython.geometry_primitives import build_sphere
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
+from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class Sphere(UserObjectGeometry):
+class Sphere(GeometryUserObject):
     """Introduces a spherical object with specific parameters into the model.
 
     Attributes:
@@ -39,11 +40,14 @@ class Sphere(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#sphere"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#sphere"
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             r = self.kwargs["r"]
@@ -72,6 +76,7 @@ class Sphere(UserObjectGeometry):
                 raise
 
         # Centre of sphere
+        uip = self._create_uip(grid)
         p2 = uip.round_to_grid_static_point(p1)
         xc, yc, zc = uip.discretise_point(p1)
 

@@ -20,14 +20,15 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import build_ellipsoid
-from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, check_averaging
+from gprMax.cython.geometry_primitives import build_ellipsoid
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
+from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class Ellipsoid(UserObjectGeometry):
+class Ellipsoid(GeometryUserObject):
     """Introduces an ellipsoidal object with specific parameters into the model.
 
     Attributes:
@@ -41,11 +42,14 @@ class Ellipsoid(UserObjectGeometry):
         averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
+    @property
+    def hash(self):
+        return "#ellipsoid"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#ellipsoid"
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             xr = self.kwargs["xr"]
@@ -77,6 +81,7 @@ class Ellipsoid(UserObjectGeometry):
                 raise
 
         # Centre of ellipsoid
+        uip = self._create_uip(grid)
         p2 = uip.round_to_grid_static_point(p1)
         xc, yc, zc = uip.discretise_point(p1)
 

@@ -25,33 +25,42 @@ import numpy as np
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGUser
 from gprMax.user_inputs import MainGridUserInput
-
-from ..cmds_geometry.cmds_geometry import UserObjectGeometry
-from ..cmds_multiuse import UserObjectMulti
-from .subgrid_hsg import SubGridHSG as SubGridHSGUser
+from gprMax.user_objects.user_objects import (
+    GeometryUserObject,
+    GridUserObject,
+    ModelUserObject,
+    OutputUserObject,
+    UserObject,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class SubGridBase(UserObjectMulti):
+class SubGridBase(ModelUserObject):
     """Allows UserObjectMulti and UserObjectGeometry to be nested in SubGrid
     type user objects.
     """
 
+    @property
+    def is_single_use(self) -> bool:
+        return False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.children_multiple: List[UserObjectMulti] = []
-        self.children_geometry: List[UserObjectGeometry] = []
-        self.children_multiple: List[UserObjectMulti] = []
-        self.children_geometry: List[UserObjectGeometry] = []
+        self.children_grid: List[GridUserObject] = []
+        self.children_geometry: List[GeometryUserObject] = []
+        self.children_output: List[OutputUserObject] = []
 
-    def add(self, node: Union[UserObjectMulti, UserObjectGeometry]):
+    def add(self, node: UserObject):
         """Adds other user objects. Geometry and multi only."""
-        if isinstance(node, UserObjectMulti):
-            self.children_multiple.append(node)
-        elif isinstance(node, UserObjectGeometry):
+        if isinstance(node, GeometryUserObject):
             self.children_geometry.append(node)
+        elif isinstance(node, GridUserObject):
+            self.children_grid.append(node)
+        elif isinstance(node, OutputUserObject):
+            self.children_output.append(node)
         else:
             logger.exception(f"{str(node)} this Object can not be added to a sub grid")
             raise ValueError
@@ -92,11 +101,12 @@ class SubGridBase(UserObjectMulti):
         """Sets number of iterations that will take place in the subgrid."""
         sg.iterations = model.iterations * sg.ratio
 
-    def setup(self, sg: SubGridBaseGrid, model: Model, uip: MainGridUserInput):
+    def setup(self, sg: SubGridBaseGrid, model: Model):
         """ "Common setup to both all subgrid types."""
         p1 = self.kwargs["p1"]
         p2 = self.kwargs["p2"]
 
+        uip = self._create_uip(model.G)
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
 
         self.set_discretisation(sg, model.G)
@@ -170,6 +180,14 @@ class SubGridHSG(SubGridBase):
                 stability. Defaults to True.
     """
 
+    @property
+    def order(self):
+        return 18
+
+    @property
+    def hash(self):
+        return "#subgrid_hsg"
+
     def __init__(
         self,
         p1=None,
@@ -197,10 +215,8 @@ class SubGridHSG(SubGridBase):
         kwargs["filter"] = filter
 
         super().__init__(**kwargs)
-        self.order = 18
-        self.hash = "#subgrid_hsg"
 
-    def build(self, model: Model, uip: MainGridUserInput) -> SubGridHSGUser:
+    def build(self, model: Model) -> SubGridHSGUser:
         sg = SubGridHSGUser(**self.kwargs)
-        self.setup(sg, model, uip)
+        self.setup(sg, model)
         return sg

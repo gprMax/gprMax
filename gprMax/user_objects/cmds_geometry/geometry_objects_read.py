@@ -22,24 +22,24 @@ from pathlib import Path
 import h5py
 
 import gprMax.config as config
-
-from ..cython.geometry_primitives import build_voxels_from_array
-from ..hash_cmds_file import get_user_objects
-from ..utilities.utilities import round_value
-from .cmds_geometry import UserObjectGeometry
+from gprMax.cython.geometry_primitives import build_voxels_from_array
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.hash_cmds_file import get_user_objects
+from gprMax.user_objects.user_objects import GeometryUserObject
+from gprMax.utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
 
 
-class GeometryObjectsRead(UserObjectGeometry):
+class GeometryObjectsRead(GeometryUserObject):
+    @property
+    def hash(self):
+        return "#geometry_objects_read"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#geometry_objects_read"
 
-    def rotate(self, axis, angle, origin=None):
-        pass
-
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         """Creates the object and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -52,6 +52,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         # Discretise the point using uip object. This has different behaviour
         # depending on the type of uip object. So we can use it for
         # the main grid or the subgrid.
+        uip = self._create_uip(grid)
         xs, ys, zs = uip.discretise_point(p1)
 
         # See if material file exists at specified path and if not try input
@@ -82,7 +83,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             scene.add(material_obj)
 
         # Creates the internal simulation objects
-        scene.process_cmds(material_objs, grid)
+        scene.build_grid_objects(material_objs, grid)
 
         # Update material type
         for material in grid.materials:

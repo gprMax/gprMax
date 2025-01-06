@@ -20,14 +20,18 @@ import logging
 
 import numpy as np
 
-from ..fractals import FractalSurface
-from ..utilities.utilities import round_value
-from .cmds_geometry import UserObjectGeometry, rotate_2point_object
+from gprMax.fractals import FractalSurface
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.user_objects.rotatable import RotatableMixin
+from gprMax.user_objects.user_objects import GeometryUserObject
+from gprMax.utilities.utilities import round_value
+
+from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class AddSurfaceRoughness(UserObjectGeometry):
+class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
     """Adds surface roughness to a FractalBox class in the model.
 
     Attributes:
@@ -47,25 +51,21 @@ class AddSurfaceRoughness(UserObjectGeometry):
                 number generator used to create the fractals.
     """
 
+    @property
+    def hash(self):
+        return "#add_surface_roughness"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = "#add_surface_roughness"
 
-    def rotate(self, axis, angle, origin=None):
-        """Set parameters for rotation."""
-        self.axis = axis
-        self.angle = angle
-        self.origin = origin
-        self.do_rotate = True
-
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Perform rotation."""
         pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -88,7 +88,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
             seed = None
 
         if self.do_rotate:
-            self._do_rotate()
+            self._do_rotate(grid)
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
@@ -98,6 +98,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
             logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
             raise ValueError
 
+        uip = self._create_uip(grid)
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2

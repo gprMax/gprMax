@@ -18,14 +18,12 @@
 
 import logging
 
-from .cmds_multiuse import (
+from .user_objects.cmds_multiuse import (
     PMLCFS,
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
     ExcitationFile,
-    GeometryObjectsWrite,
-    GeometryView,
     HertzianDipole,
     MagneticDipole,
     Material,
@@ -39,6 +37,7 @@ from .cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
+from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView
 
 logger = logging.getLogger(__name__)
 
