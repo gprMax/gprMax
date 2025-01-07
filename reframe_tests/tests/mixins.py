@@ -1,10 +1,12 @@
 from pathlib import Path
+from shutil import copyfile
 from typing import Optional
 
+import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
 from numpy import prod
 from reframe import RegressionMixin
-from reframe.core.builtins import parameter, required, run_after, variable
+from reframe.core.builtins import parameter, run_after, variable
 from typing_extensions import TYPE_CHECKING
 
 from reframe_tests.tests.base_tests import GprMaxBaseTest
@@ -31,7 +33,11 @@ class ReceiverMixin(GprMaxMixin):
 
     @run_after("setup", always_last=True)
     def add_receiver_regression_checks(self):
-        reference_file = self.build_reference_filepath(self.output_file)
+        test_dependency = self.get_test_dependency()
+        if test_dependency is not None:
+            reference_file = self.build_reference_filepath(test_dependency.output_file)
+        else:
+            reference_file = self.build_reference_filepath(self.output_file)
 
         if self.number_of_receivers > 0:
             for i in range(self.number_of_receivers):
@@ -88,16 +94,7 @@ class GeometryOnlyMixin(GprMaxMixin):
         self.executable_opts += ["--geometry-only"]
 
 
-class GeometryObjectMixin(GprMaxMixin):
-    """Add regression tests for geometry objects.
-
-    Attributes:
-        geometry_objects (list[str]): List of geometry objects to run
-            regression checks on.
-    """
-
-    geometry_objects = variable(typ.List[str], value=[])
-
+class GeometryObjectMixinBase(GprMaxMixin):
     def build_geometry_object_filepath(self, geometry_object: str) -> Path:
         """Build filepath to the specified geometry object.
 
@@ -114,6 +111,63 @@ class GeometryObjectMixin(GprMaxMixin):
         """
         return Path(f"{geometry_object}_materials").with_suffix(".txt")
 
+
+class GeometryObjectsReadMixin(GeometryObjectMixinBase):
+    geometry_objects_read = variable(typ.Dict[str, str], value={})
+
+    @run_after("setup")
+    def copy_geometry_objects_from_test_dependency(self):
+        self.skip_if(
+            len(self.geometry_objects_read) < 0,
+            f"Must provide a list of geometry objects being read by the test.",
+        )
+
+        test_dependency = self.get_test_dependency()
+
+        self.skip_if(
+            test_dependency is None,
+            f"GeometryObjectsReadMixin must be used with a test dependency.",
+        )
+
+        for geometry_object_input, geometry_object_output in self.geometry_objects_read.items():
+            geometry_object_input_file = self.build_geometry_object_filepath(geometry_object_input)
+            geometry_object_input_file = Path(test_dependency.stagedir, geometry_object_input_file)
+
+            materials_input_file = self.build_materials_filepath(geometry_object_input)
+            materials_input_file = Path(test_dependency.stagedir, materials_input_file)
+
+            self.skip_if(
+                not sn.path_isfile(geometry_object_input_file),
+                f"Test dependency did not create geometry object file.",
+            )
+
+            self.skip_if(
+                not sn.path_isfile(materials_input_file),
+                f"Test dependency did not create geometry object materials file.",
+            )
+
+            geometry_object_output_file = self.build_geometry_object_filepath(
+                geometry_object_output
+            )
+            geometry_object_output_file = Path(self.stagedir, geometry_object_output_file)
+
+            materials_output_file = self.build_materials_filepath(geometry_object_output)
+            materials_output_file = Path(self.stagedir, materials_output_file)
+
+            copyfile(geometry_object_input_file, geometry_object_output_file)
+            copyfile(materials_input_file, materials_output_file)
+
+
+class GeometryObjectsWriteMixin(GeometryObjectMixinBase):
+    """Add regression tests for geometry objects.
+
+    Attributes:
+        geometry_objects_write (list[str]): List of geometry objects to
+            run regression checks on.
+    """
+
+    geometry_objects_write = variable(typ.List[str], value=[])
+
     @run_after("setup")
     def add_geometry_object_regression_checks(self):
         """Add a regression check for each geometry object.
@@ -121,11 +175,11 @@ class GeometryObjectMixin(GprMaxMixin):
         The test will be skipped if no geometry objects have been specified.
         """
         self.skip_if(
-            len(self.geometry_objects) < 0,
-            f"Must provide a list of geometry objects.",
+            len(self.geometry_objects_write) < 0,
+            f"Must provide a list of geometry objects being written by the test.",
         )
 
-        for geometry_object in self.geometry_objects:
+        for geometry_object in self.geometry_objects_write:
             # Add materials regression check first as if this fails,
             # checking the .h5 file will almost definitely fail.
             materials_file = self.build_materials_filepath(geometry_object)
@@ -138,7 +192,9 @@ class GeometryObjectMixin(GprMaxMixin):
             self.regression_checks.append(materials_regression_check)
 
             geometry_object_file = self.build_geometry_object_filepath(geometry_object)
-            reference_file = self.build_reference_filepath(geometry_object)
+            reference_file = self.build_reference_filepath(
+                geometry_object, suffix=geometry_object_file.suffix
+            )
             regression_check = GeometryObjectRegressionCheck(geometry_object_file, reference_file)
             self.regression_checks.append(regression_check)
 
