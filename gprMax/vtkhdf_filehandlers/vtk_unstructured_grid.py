@@ -85,7 +85,7 @@ class VtkUnstructuredGrid(VtkHdfFile):
             raise ValueError("Connectivity array is shorter than final cell_offsets value")
 
         elif len(connectivity) > cell_offsets[-1]:
-            raise logger.warning(
+            logger.warning(
                 "Connectivity array longer than final cell_offsets value."
                 " Some connectivity data will be ignored"
             )
