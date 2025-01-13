@@ -1,0 +1,181 @@
+from io import TextIOWrapper
+from pathlib import Path
+from typing import Generic
+
+import h5py
+import numpy as np
+from mpi4py import MPI
+from tqdm import tqdm
+
+from gprMax import config
+from gprMax._version import __version__
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
+from gprMax.output_controllers.grid_view import GridViewType, MPIGridView
+
+
+class GeometryObjects(Generic[GridViewType]):
+    """Geometry objects to be written to file."""
+
+    def __init__(self, grid_view: GridViewType, filename: str):
+        """
+        Args:
+            xs, xf, ys, yf, zs, zf: ints for extent of the volume in cells.
+            filename: string for filename.
+        """
+        self.grid_view = grid_view
+
+        # Set filenames
+        parts = config.sim_config.input_file_path.with_suffix("").parts
+        self.filename = Path(*parts[:-1], filename)
+        self.filename_hdf5 = self.filename.with_suffix(".h5")
+        self.filename_materials = Path(self.filename, f"{self.filename}_materials")
+        self.filename_materials = self.filename_materials.with_suffix(".txt")
+
+        # Sizes of arrays to write necessary to update progress bar
+        self.solidsize = np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize
+        self.rigidsize = 18 * np.prod(self.grid_view.size + 1) * np.dtype(np.int8).itemsize
+        self.IDsize = 6 * np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize
+        self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
+
+    @property
+    def grid(self) -> FDTDGrid:
+        return self.grid_view.grid
+
+    def write_metadata(self, file_handler: h5py.File, title: str):
+        file_handler.attrs["gprMax"] = __version__
+        file_handler.attrs["Title"] = title
+        file_handler.attrs["dx_dy_dz"] = (self.grid.dx, self.grid.dy, self.grid.dz)
+
+    def output_material(self, material: Material, file: TextIOWrapper):
+        file.write(
+            f"#material: {material.er:g} {material.se:g} "
+            f"{material.mr:g} {material.sm:g} {material.ID}\n"
+        )
+        if hasattr(material, "poles"):
+            if "debye" in material.type:
+                dispersionstr = "#add_dispersion_debye: " f"{material.poles:g} "
+                for pole in range(material.poles):
+                    dispersionstr += f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
+            elif "lorenz" in material.type:
+                dispersionstr = f"#add_dispersion_lorenz: " f"{material.poles:g} "
+                for pole in range(material.poles):
+                    dispersionstr += (
+                        f"{material.deltaer[pole]:g} "
+                        f"{material.tau[pole]:g} "
+                        f"{material.alpha[pole]:g} "
+                    )
+            elif "drude" in material.type:
+                dispersionstr = f"#add_dispersion_drude: " f"{material.poles:g} "
+                for pole in range(material.poles):
+                    dispersionstr += f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
+            dispersionstr += material.ID
+            file.write(dispersionstr + "\n")
+
+    def write_hdf5(self, title: str, G: FDTDGrid, pbar: tqdm):
+        """Writes a geometry objects file in HDF5 format.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+            pbar: Progress bar class instance.
+        """
+
+        self.grid_view.initialise_materials()
+
+        ID = self.grid_view.get_ID()
+        data = self.grid_view.get_solid().astype(np.int16)
+        rigidE = self.grid_view.get_rigidE()
+        rigidH = self.grid_view.get_rigidH()
+
+        ID = self.grid_view.map_to_view_materials(ID)
+        data = self.grid_view.map_to_view_materials(data)
+
+        with h5py.File(self.filename_hdf5, "w") as fdata:
+            self.write_metadata(fdata, title)
+
+            fdata["/data"] = data
+            pbar.update(self.solidsize)
+
+            fdata["/rigidE"] = rigidE
+            fdata["/rigidH"] = rigidH
+            pbar.update(self.rigidsize)
+
+            fdata["/ID"] = ID
+            pbar.update(self.IDsize)
+
+        # Write materials list to a text file
+        with open(self.filename_materials, "w") as fmaterials:
+            for material in self.grid_view.materials:
+                self.output_material(material, fmaterials)
+
+
+class MPIGeometryObjects(GeometryObjects[MPIGridView]):
+    def __init__(
+        self,
+        grid_view: MPIGridView,
+        filename: str,
+        comm: MPI.Comm = None,
+    ):
+        super().__init__(grid_view, filename)
+
+        self.comm = comm
+
+    def write_hdf5(self, title: str, pbar: tqdm):
+        """Writes a geometry objects file in HDF5 format.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+            pbar: Progress bar class instance.
+        """
+
+        self.grid_view.initialise_materials(self.comm)
+
+        ID = self.grid_view.get_ID()
+        data = self.grid_view.get_solid().astype(np.int16)
+        rigidE = self.grid_view.get_rigidE()
+        rigidH = self.grid_view.get_rigidH()
+
+        ID = self.grid_view.map_to_view_materials(ID)
+        data = self.grid_view.map_to_view_materials(data)
+
+        with h5py.File(self.filename_hdf5, "w", driver="mpio", comm=self.comm) as fdata:
+            self.write_metadata(fdata, title)
+
+            dset_slice = (
+                self.grid_view.get_slice(0),
+                self.grid_view.get_slice(1),
+                self.grid_view.get_slice(2),
+            )
+
+            dset = fdata.create_dataset("/data", self.grid_view.global_size, dtype=data.dtype)
+            dset[dset_slice] = data
+            pbar.update(self.solidsize)
+
+            rigid_E_dataset = fdata.create_dataset(
+                "/rigidE", (12, *self.grid_view.global_size), dtype=rigidE.dtype
+            )
+            rigid_E_dataset[:, dset_slice[0], dset_slice[1], dset_slice[2]] = rigidE
+
+            rigid_H_dataset = fdata.create_dataset(
+                "/rigidH", (6, *self.grid_view.global_size), dtype=rigidH.dtype
+            )
+            rigid_H_dataset[:, dset_slice[0], dset_slice[1], dset_slice[2]] = rigidH
+            pbar.update(self.rigidsize)
+
+            dset_slice = (
+                self.grid_view.get_slice(0, upper_bound_exclusive=False),
+                self.grid_view.get_slice(1, upper_bound_exclusive=False),
+                self.grid_view.get_slice(2, upper_bound_exclusive=False),
+            )
+
+            dset = fdata.create_dataset(
+                "/ID", (6, *(self.grid_view.global_size + 1)), dtype=ID.dtype
+            )
+            dset[:, dset_slice[0], dset_slice[1], dset_slice[2]] = ID
+            pbar.update(self.IDsize)
+
+        # Write materials list to a text file
+        if self.grid_view.materials is not None:
+            with open(self.filename_materials, "w") as materials_file:
+                for material in self.grid_view.materials:
+                    self.output_material(material, materials_file)
