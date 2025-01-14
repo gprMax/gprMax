@@ -59,8 +59,6 @@ class MPIGrid(FDTDGrid):
     def __init__(self, comm: MPI.Cartcomm):
         self.size = np.zeros(3, dtype=np.intc)
 
-        super().__init__()
-
         self.comm = comm
         self.x_comm = comm.Sub([False, True, True])
         self.y_comm = comm.Sub([True, False, True])
@@ -81,6 +79,8 @@ class MPIGrid(FDTDGrid):
 
         self.send_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
         self.recv_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
+
+        super().__init__()
 
     @property
     def rank(self) -> int:
@@ -113,6 +113,47 @@ class MPIGrid(FDTDGrid):
     @nz.setter
     def nz(self, value: int):
         self.size[Dim.Z] = value
+
+    @property
+    def gx(self) -> int:
+        return self.global_size[Dim.X]
+
+    @gx.setter
+    def gx(self, value: int):
+        self.global_size[Dim.X] = value
+
+    @property
+    def gy(self) -> int:
+        return self.global_size[Dim.Y]
+
+    @gy.setter
+    def gy(self, value: int):
+        self.global_size[Dim.Y] = value
+
+    @property
+    def gz(self) -> int:
+        return self.global_size[Dim.Z]
+
+    @gz.setter
+    def gz(self, value: int):
+        self.global_size[Dim.Z] = value
+
+    def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
+        super().set_pml_thickness(thickness)
+
+        # Set PML thickness to zero if not at the edge of the domain
+        if self.has_neighbour(Dim.X, Dir.NEG):
+            self.pmls["thickness"]["x0"] = 0
+        if self.has_neighbour(Dim.X, Dir.POS):
+            self.pmls["thickness"]["xmax"] = 0
+        if self.has_neighbour(Dim.Y, Dir.NEG):
+            self.pmls["thickness"]["y0"] = 0
+        if self.has_neighbour(Dim.Y, Dir.POS):
+            self.pmls["thickness"]["ymax"] = 0
+        if self.has_neighbour(Dim.Z, Dir.NEG):
+            self.pmls["thickness"]["z0"] = 0
+        if self.has_neighbour(Dim.Z, Dir.POS):
+            self.pmls["thickness"]["zmax"] = 0
 
     def is_coordinator(self) -> bool:
         """Test if the current rank is the coordinator.
@@ -478,20 +519,6 @@ class MPIGrid(FDTDGrid):
 
         self.scatter_snapshots()
 
-        self.pmls = self.comm.bcast(self.pmls, root=self.COORDINATOR_RANK)
-        if self.coords[Dim.X] != 0:
-            self.pmls["thickness"]["x0"] = 0
-        if self.coords[Dim.X] != self.mpi_tasks[Dim.X] - 1:
-            self.pmls["thickness"]["xmax"] = 0
-        if self.coords[Dim.Y] != 0:
-            self.pmls["thickness"]["y0"] = 0
-        if self.coords[Dim.Y] != self.mpi_tasks[Dim.Y] - 1:
-            self.pmls["thickness"]["ymax"] = 0
-        if self.coords[Dim.Z] != 0:
-            self.pmls["thickness"]["z0"] = 0
-        if self.coords[Dim.Z] != self.mpi_tasks[Dim.Z] - 1:
-            self.pmls["thickness"]["zmax"] = 0
-
         if not self.is_coordinator():
             # TODO: When scatter arrays properly, should initialise these to the local grid size
             self.initialise_geometry_arrays()
@@ -666,7 +693,6 @@ class MPIGrid(FDTDGrid):
             )
             raise ValueError
 
-        self.calculate_local_extents()
         self.set_halo_map()
         self.distribute_grid()
 
@@ -751,6 +777,50 @@ class MPIGrid(FDTDGrid):
         self.upper_extent = self.lower_extent + self.size
 
         logger.debug(
-            f"Local grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent:"
-            f" {self.upper_extent}"
+            f"Global grid size: {self.global_size}, Local grid size: {self.size}, Lower extent:"
+            f" {self.lower_extent}, Upper extent: {self.upper_extent}"
+        )
+
+    def within_bounds(self, p: Tuple[int, int, int]) -> bool:
+        """Check a point is within the grid.
+
+        Args:
+            p: Point to check.
+
+        Returns:
+            within_bounds: True if the point is within the local grid
+                (i.e. this rank's grid). False otherwise.
+
+        Raises:
+            ValueError: Raised if the point is outside the global grid.
+        """
+        if p[0] < 0 or p[0] > self.gx:
+            raise ValueError("x")
+        if p[1] < 0 or p[1] > self.gy:
+            raise ValueError("y")
+        if p[2] < 0 or p[2] > self.gz:
+            raise ValueError("z")
+
+        local_point = self.global_to_local_coordinate(np.array(p, dtype=np.intc))
+
+        return all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
+
+    def within_pml(self, p: Tuple[int, int, int]) -> bool:
+        """Check if the provided point is within a PML.
+
+        Args:
+            p: Point to check.
+
+        Returns:
+            within_pml: True if the point is within a PML.
+        """
+        local_point = self.global_to_local_coordinate(np.array(p))
+        p = (local_point[0], local_point[1], local_point[2])
+
+        # within_pml check will only be valid if the point is also
+        # within the local grid
+        return (
+            super().within_pml(p)
+            and all(local_point >= self.negative_halo_offset)
+            and all(local_point <= self.size)
         )

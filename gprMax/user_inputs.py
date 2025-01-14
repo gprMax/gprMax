@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Generic
+from typing import Generic, Tuple
 
 import numpy as np
 from typing_extensions import TypeVar
@@ -48,10 +48,13 @@ class UserInput(Generic[GridType]):
     def __init__(self, grid: GridType):
         self.grid = grid
 
-    def point_within_bounds(self, p, cmd_str, name):
+    def point_within_bounds(self, p, cmd_str, name, ignore_error=False) -> bool:
         try:
-            self.grid.within_bounds(p)
+            return self.grid.within_bounds(p)
         except ValueError as err:
+            if ignore_error:
+                return False
+
             v = ["x", "y", "z"]
             # Discretisation
             dl = getattr(self.grid, f"d{err.args[0]}")
@@ -64,17 +67,10 @@ class UserInput(Generic[GridType]):
             logger.exception(s)
             raise
 
-    def check_point_within_bounds(self, p) -> bool:
-        try:
-            self.grid.within_bounds(p)
-            return True
-        except ValueError:
-            return False
-
     def grid_upper_bound(self) -> list[int]:
         return [self.grid.nx, self.grid.ny, self.grid.nz]
 
-    def discretise_point(self, p):
+    def discretise_point(self, p: Tuple[float, float, float]) -> Tuple[int, int, int]:
         """Gets the index of a continuous point with the grid."""
         rv = np.vectorize(round_value)
         return rv(p / self.grid.dl)

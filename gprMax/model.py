@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 
 import humanize
 import numpy as np
@@ -169,6 +169,9 @@ class Model:
             grid = OpenCLGrid()
 
         return grid
+
+    def set_size(self, size: Tuple[int, int, int]):
+        self.nx, self.ny, self.nz = size
 
     def build(self):
         """Builds the Yee cells for a model."""

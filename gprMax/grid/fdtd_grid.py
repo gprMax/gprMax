@@ -21,7 +21,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Any, Iterable, List, Tuple, Union
+from typing import Any, Iterable, List, Literal, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -98,7 +98,8 @@ class FDTDGrid:
         # itself does not matter, however, if must be the same from model to
         # model otherwise the numerical precision from adding the PML
         # corrections will be different.
-        self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
+        self.pmls["thickness"] = OrderedDict()
+        self.set_pml_thickness(10)
 
         # Materials used by this grid
         self.materials: List[Material] = []
@@ -139,6 +140,18 @@ class FDTDGrid:
     @dz.setter
     def dz(self, value: float):
         self.dl[2] = value
+
+    def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
+        if isinstance(thickness, int) or len(thickness) == 1:
+            for key in PML.boundaryIDs:
+                self.pmls["thickness"][key] = int(thickness)
+        elif len(thickness) == 6:
+            self.pmls["thickness"]["x0"] = int(thickness[0])
+            self.pmls["thickness"]["y0"] = int(thickness[1])
+            self.pmls["thickness"]["z0"] = int(thickness[2])
+            self.pmls["thickness"]["xmax"] = int(thickness[3])
+            self.pmls["thickness"]["ymax"] = int(thickness[4])
+            self.pmls["thickness"]["zmax"] = int(thickness[5])
 
     def build(self) -> None:
         """Build the grid."""
@@ -435,14 +448,14 @@ class FDTDGrid:
             logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    IntPoint = Tuple[int, int, int]
-    FloatPoint = Tuple[float, float, float]
-
-    def within_bounds(self, p: IntPoint):
+    def within_bounds(self, p: Tuple[int, int, int]) -> bool:
         """Check a point is within the grid.
 
         Args:
             p: Point to check.
+
+        Returns:
+            within_bounds: True if the point is within the grid bounds.
 
         Raises:
             ValueError: Raised if the point is outside the grid.
@@ -454,7 +467,9 @@ class FDTDGrid:
         if p[2] < 0 or p[2] > self.nz:
             raise ValueError("z")
 
-    def discretise_point(self, p: FloatPoint) -> IntPoint:
+        return True
+
+    def discretise_point(self, p: Tuple[float, float, float]) -> Tuple[int, int, int]:
         """Calculate the nearest grid cell to the given point.
 
         Args:
@@ -468,7 +483,7 @@ class FDTDGrid:
         z = round_value(float(p[2]) / self.dz)
         return (x, y, z)
 
-    def round_to_grid(self, p: FloatPoint) -> FloatPoint:
+    def round_to_grid(self, p: Tuple[float, float, float]) -> Tuple[float, float, float]:
         """Round the provided point to the nearest grid cell.
 
         Args:
@@ -481,7 +496,7 @@ class FDTDGrid:
         p_r = (p[0] * self.dx, p[1] * self.dy, p[2] * self.dz)
         return p_r
 
-    def within_pml(self, p: IntPoint) -> bool:
+    def within_pml(self, p: Tuple[int, int, int]) -> bool:
         """Check if the provided point is within a PML.
 
         Args:

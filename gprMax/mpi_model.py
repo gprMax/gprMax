@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 from mpi4py import MPI
@@ -53,6 +53,11 @@ class MPIModel(Model):
     def is_coordinator(self):
         return self.rank == 0
 
+    def set_size(self, size: Tuple[int, int, int]):
+        super().set_size(size)
+
+        self.G.calculate_local_extents()
+
     def build_geometry(self):
         self._broadcast_model()
 
@@ -61,23 +66,8 @@ class MPIModel(Model):
         self._filter_geometry_objects()
 
     def _broadcast_model(self):
-        self.title = self.comm.bcast(self.title)
-
-        self.nx = self.comm.bcast(self.nx)
-        self.ny = self.comm.bcast(self.ny)
-        self.nz = self.comm.bcast(self.nz)
-
-        self.comm.Bcast(self.dl)
-        self.dt = self.comm.bcast(self.dt)
-
-        self.iterations = self.comm.bcast(self.iterations)
-
-        self.srcsteps = self.comm.bcast(self.srcsteps)
-        self.rxsteps = self.comm.bcast(self.rxsteps)
-
         model_config = config.get_model_config()
         model_config.materials["maxpoles"] = self.comm.bcast(model_config.materials["maxpoles"])
-        model_config.ompthreads = self.comm.bcast(model_config.ompthreads)
 
     def _filter_geometry_objects(self):
         objects = self.comm.bcast(self.geometryobjects)

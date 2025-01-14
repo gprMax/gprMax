@@ -201,9 +201,8 @@ class MPIContext(Context):
 
         if not model_config.reuse_geometry():
             model = self._create_model()
-            if model.is_coordinator():
-                scene = self._get_scene(model_num)
-                scene.create_internal_objects(model)
+            scene = self._get_scene(model_num)
+            scene.create_internal_objects(model)
 
         model.build()
 

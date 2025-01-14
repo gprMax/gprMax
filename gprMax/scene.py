@@ -21,6 +21,7 @@ from typing import List, Sequence
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
+from gprMax.mpi_model import MPIModel
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
 from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
@@ -174,15 +175,20 @@ class Scene:
         # Process commands that can only have a single instance
         self.process_single_use_objects(model)
 
-        # Process multiple commands
-        self.process_multi_use_objects(model)
+        if (
+            isinstance(model, MPIModel)
+            and model.is_coordinator()
+            or not isinstance(model, MPIModel)
+        ):
+            # Process multiple commands
+            self.process_multi_use_objects(model)
 
-        # Initialise geometry arrays for main and subgrids
-        for grid in [model.G] + model.subgrids:
-            grid.initialise_geometry_arrays()
+            # Initialise geometry arrays for main and subgrids
+            for grid in [model.G] + model.subgrids:
+                grid.initialise_geometry_arrays()
 
-        # Process the main grid geometry commands
-        self.process_geometry_objects(self.geometry_objects, model.G)
+            # Process the main grid geometry commands
+            self.process_geometry_objects(self.geometry_objects, model.G)
 
-        # Process all the commands for subgrids
-        self.process_subgrid_objects(model)
+            # Process all the commands for subgrids
+            self.process_subgrid_objects(model)

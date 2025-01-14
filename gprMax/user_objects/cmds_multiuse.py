@@ -18,7 +18,6 @@
 
 import inspect
 import logging
-from abc import ABC, abstractmethod
 from os import PathLike
 from pathlib import Path
 from typing import Optional, Union
@@ -1165,7 +1164,7 @@ class Snapshot(GridUserObject):
         while any(p2 < upper_bound):
             # Ideally extend p2 up to the correct upper bound. This will
             # not change the snapshot output.
-            if uip.check_point_within_bounds(upper_bound):
+            if uip.point_within_bounds(upper_bound, "", "", ignore_error=True):
                 p2 = upper_bound
                 p2_continuous = uip.descretised_to_continuous(p2)
                 logger.warning(
