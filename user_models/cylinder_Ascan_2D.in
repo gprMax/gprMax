@@ -3,7 +3,7 @@
 #dx_dy_dz: 0.002 0.002 0.002
 #time_window: 3e-9
 
-#material: 6 0 1 0 half_space
+#material: 16 1 1 6 half_space
 
 #waveform: ricker 1 1.5e9 my_ricker
 #hertzian_dipole: z 0.100 0.170 0 my_ricker
