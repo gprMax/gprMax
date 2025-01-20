@@ -101,9 +101,9 @@ class GeometryView(ABC):
             grid: FDTDGrid class describing a grid in a model.
         """
 
-        self.start = np.array([xs, ys, zs], dtype=np.intc)
-        self.stop = np.array([xf, yf, zf], dtype=np.intc)
-        self.step = np.array([dx, dy, dz], dtype=np.intc)
+        self.start = np.array([xs, ys, zs], dtype=np.int32)
+        self.stop = np.array([xf, yf, zf], dtype=np.int32)
+        self.step = np.array([dx, dy, dz], dtype=np.int32)
         self.size = (self.stop - self.start) // self.step
 
         self.filename = Path(filename)
@@ -224,7 +224,7 @@ class GeometryViewLines(GeometryView):
         n_lines = 3 * self.nx * self.ny * self.nz
 
         self.cell_types = np.full(n_lines, VtkCellType.LINE)
-        self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
+        self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.int32)
 
         self.connectivity, self.material_data = get_line_properties(
             n_lines, self.nx, self.ny, self.nz, ID
@@ -330,7 +330,7 @@ class Metadata:
 
         self.gprmax_version = __version__
         self.dx_dy_dz = self.grid.dl
-        self.nx_ny_nz = np.array([self.grid.nx, self.grid.ny, self.grid.nz], dtype=np.intc)
+        self.nx_ny_nz = np.array([self.grid.nx, self.grid.ny, self.grid.nz], dtype=np.int32)
 
         self.materials = self.materials_comment()
 
@@ -427,8 +427,8 @@ class Metadata:
     def dx_dy_dz_comment(self) -> npt.NDArray[np.float64]:
         return self.grid.dl
 
-    def nx_ny_nz_comment(self) -> npt.NDArray[np.intc]:
-        return np.array([self.grid.nx, self.grid.ny, self.grid.nz], dtype=np.intc)
+    def nx_ny_nz_comment(self) -> npt.NDArray[np.int32]:
+        return np.array([self.grid.nx, self.grid.ny, self.grid.nz], dtype=np.int32)
 
     def materials_comment(self) -> List[str]:
         if not self.averaged_materials:

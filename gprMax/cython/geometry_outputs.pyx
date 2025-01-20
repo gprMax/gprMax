@@ -45,7 +45,7 @@ cpdef get_line_properties(
             material IDs for each line.
     """
     cdef np.ndarray material_data = np.zeros(number_of_lines, dtype=np.uint32)
-    cdef np.ndarray connectivity = np.zeros(2 * number_of_lines, dtype=np.intc)
+    cdef np.ndarray connectivity = np.zeros(2 * number_of_lines, dtype=np.int32)
     cdef int line_index = 0
     cdef int connectivity_index = 0
     cdef int point_id = 0

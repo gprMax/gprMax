@@ -130,10 +130,10 @@ class Snapshot:
         self.grid_dl = grid_dl
         self.grid_dt = grid_dt
 
-        self.start = np.array([xs, ys, zs], dtype=np.intc)
-        self.stop = np.array([xf, yf, zf], dtype=np.intc)
-        self.step = np.array([dx, dy, dz], dtype=np.intc)
-        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.intc)
+        self.start = np.array([xs, ys, zs], dtype=np.int32)
+        self.stop = np.array([xf, yf, zf], dtype=np.int32)
+        self.step = np.array([dx, dy, dz], dtype=np.int32)
+        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.int32)
         self.slice: list[slice] = list(map(slice, self.start, self.stop + self.step, self.step))
 
         self.nbytes = 0
@@ -365,14 +365,14 @@ class MPISnapshot(Snapshot):
             xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename, fileext, outputs, grid_dl, grid_dt
         )
 
-        self.offset = np.zeros(3, dtype=np.intc)
+        self.offset = np.zeros(3, dtype=np.int32)
         self.global_size = self.size.copy()
 
         self.comm: MPI.Cartcomm = None  # type: ignore
 
     def initialise_snapfields(self):
         # Start and stop may have changed since initialisation
-        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.intc)
+        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.int32)
         return super().initialise_snapfields()
 
     def has_neighbour(self, dimension: Dim, direction: Dir) -> bool:

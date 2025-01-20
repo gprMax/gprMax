@@ -33,8 +33,8 @@ class Source:
     def __init__(self):
         self.ID: str
         self.polarisation = None
-        self.coord = np.zeros(3, dtype=np.intc)
-        self.coordorigin = np.zeros(3, dtype=np.intc)
+        self.coord = np.zeros(3, dtype=np.int32)
+        self.coordorigin = np.zeros(3, dtype=np.int32)
         self.start = 0.0
         self.stop = 0.0
         self.waveform: Waveform

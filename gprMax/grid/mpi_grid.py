@@ -57,7 +57,7 @@ class MPIGrid(FDTDGrid):
     COORDINATOR_RANK = 0
 
     def __init__(self, comm: MPI.Cartcomm):
-        self.size = np.zeros(3, dtype=np.intc)
+        self.size = np.zeros(3, dtype=np.int32)
 
         self.comm = comm
         self.x_comm = comm.Sub([False, True, True])
@@ -65,12 +65,12 @@ class MPIGrid(FDTDGrid):
         self.z_comm = comm.Sub([True, True, False])
         self.pml_comm = MPI.COMM_NULL
 
-        self.mpi_tasks = np.array(self.comm.dims, dtype=np.intc)
+        self.mpi_tasks = np.array(self.comm.dims, dtype=np.int32)
 
-        self.lower_extent = np.zeros(3, dtype=np.intc)
-        self.upper_extent = np.zeros(3, dtype=np.intc)
+        self.lower_extent = np.zeros(3, dtype=np.int32)
+        self.upper_extent = np.zeros(3, dtype=np.int32)
         self.negative_halo_offset = np.zeros(3, dtype=np.bool_)
-        self.global_size = np.zeros(3, dtype=np.intc)
+        self.global_size = np.zeros(3, dtype=np.int32)
 
         self.neighbours = np.full((3, 2), -1, dtype=int)
         self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)
@@ -164,7 +164,7 @@ class MPIGrid(FDTDGrid):
         """
         return self.rank == self.COORDINATOR_RANK
 
-    def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
+    def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]:
         """Get the MPI grid coordinate for a global grid coordinate.
 
         Args:
@@ -224,8 +224,8 @@ class MPIGrid(FDTDGrid):
         return [coord_to_rank(coord) for coord in np.ndindex(*(stop - start))]
 
     def global_to_local_coordinate(
-        self, global_coord: npt.NDArray[np.intc]
-    ) -> npt.NDArray[np.intc]:
+        self, global_coord: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
         """Convert a global grid coordinate to a local grid coordinate.
 
         The returned coordinate will be relative to the current MPI
@@ -240,7 +240,9 @@ class MPIGrid(FDTDGrid):
         """
         return global_coord - self.lower_extent
 
-    def local_to_global_coordinate(self, local_coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
+    def local_to_global_coordinate(
+        self, local_coord: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
         """Convert a local grid coordinate to a global grid coordinate.
 
         Args:
@@ -252,7 +254,7 @@ class MPIGrid(FDTDGrid):
         return local_coord + self.lower_extent
 
     def global_coord_inside_grid(
-        self, global_coord: npt.NDArray[np.intc], allow_inside_halo: bool = False
+        self, global_coord: npt.NDArray[np.int32], allow_inside_halo: bool = False
     ) -> bool:
         """Check if a global coordinate falls with in the local grid.
 
@@ -277,7 +279,7 @@ class MPIGrid(FDTDGrid):
         return all(global_coord >= lower_bound) and all(global_coord <= upper_bound)
 
     def global_bounds_overlap_local_grid(
-        self, start: npt.NDArray[np.intc], stop: npt.NDArray[np.intc]
+        self, start: npt.NDArray[np.int32], stop: npt.NDArray[np.int32]
     ) -> bool:
         local_start = self.global_to_local_coordinate(start)
         local_stop = self.global_to_local_coordinate(stop)
@@ -285,10 +287,10 @@ class MPIGrid(FDTDGrid):
 
     def limit_global_bounds_to_within_local_grid(
         self,
-        start: npt.NDArray[np.intc],
-        stop: npt.NDArray[np.intc],
-        step: npt.NDArray[np.intc] = np.ones(3, dtype=np.intc),
-    ) -> Tuple[npt.NDArray[np.intc], npt.NDArray[np.intc], npt.NDArray[np.intc]]:
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        step: npt.NDArray[np.int32] = np.ones(3, dtype=np.int32),
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         local_start = self.global_to_local_coordinate(start)
 
         # Bring start into the local grid (and not in the negative halo)
@@ -801,7 +803,7 @@ class MPIGrid(FDTDGrid):
         if p[2] < 0 or p[2] > self.gz:
             raise ValueError("z")
 
-        local_point = self.global_to_local_coordinate(np.array(p, dtype=np.intc))
+        local_point = self.global_to_local_coordinate(np.array(p, dtype=np.int32))
 
         return all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
 

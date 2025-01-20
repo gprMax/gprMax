@@ -101,20 +101,20 @@ class VtkUnstructuredGrid(VtkHdfFile):
     @property
     def number_of_cells(self) -> int:
         number_of_cells = self._get_root_dataset(self.Dataset.NUMBER_OF_CELLS)
-        return np.sum(number_of_cells, dtype=np.intc)
+        return np.sum(number_of_cells, dtype=np.int32)
 
     @property
     def number_of_connectivity_ids(self) -> int:
         number_of_connectivity_ids = self._get_root_dataset(self.Dataset.NUMBER_OF_CONNECTIVITY_IDS)
-        return np.sum(number_of_connectivity_ids, dtype=np.intc)
+        return np.sum(number_of_connectivity_ids, dtype=np.int32)
 
     @property
     def number_of_points(self) -> int:
         number_of_points = self._get_root_dataset(self.Dataset.NUMBER_OF_POINTS)
-        return np.sum(number_of_points, dtype=np.intc)
+        return np.sum(number_of_points, dtype=np.int32)
 
     def add_point_data(
-        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.intc]] = None
+        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
     ):
         """Add point data to the VTKHDF file.
 
@@ -143,7 +143,7 @@ class VtkUnstructuredGrid(VtkHdfFile):
         return super().add_point_data(name, data, shape, offset)
 
     def add_cell_data(
-        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.intc]] = None
+        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
     ):
         """Add cell data to the VTKHDF file.
 

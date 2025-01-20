@@ -185,8 +185,8 @@ class VtkHdfFile(AbstractContextManager):
         self,
         name: "VtkHdfFile.Dataset",
         data: npt.ArrayLike,
-        shape: Optional[npt.NDArray[np.intc]] = None,
-        offset: Optional[npt.NDArray[np.intc]] = None,
+        shape: Optional[npt.NDArray[np.int32]] = None,
+        offset: Optional[npt.NDArray[np.int32]] = None,
         xyz_data_ordering=True,
     ):
         """Write specified dataset to the root group of the VTKHDF file.
@@ -211,8 +211,8 @@ class VtkHdfFile(AbstractContextManager):
         self,
         path: str,
         data: npt.ArrayLike,
-        shape: Optional[npt.NDArray[np.intc]] = None,
-        offset: Optional[npt.NDArray[np.intc]] = None,
+        shape: Optional[npt.NDArray[np.int32]] = None,
+        offset: Optional[npt.NDArray[np.int32]] = None,
         dtype: Optional[npt.DTypeLike] = None,
         xyz_data_ordering=True,
     ):
@@ -301,8 +301,8 @@ class VtkHdfFile(AbstractContextManager):
         self,
         name: str,
         data: npt.NDArray,
-        shape: Optional[npt.NDArray[np.intc]] = None,
-        offset: Optional[npt.NDArray[np.intc]] = None,
+        shape: Optional[npt.NDArray[np.int32]] = None,
+        offset: Optional[npt.NDArray[np.int32]] = None,
     ):
         """Add point data to the VTKHDF file.
 
@@ -321,8 +321,8 @@ class VtkHdfFile(AbstractContextManager):
         self,
         name: str,
         data: npt.NDArray,
-        shape: Optional[npt.NDArray[np.intc]] = None,
-        offset: Optional[npt.NDArray[np.intc]] = None,
+        shape: Optional[npt.NDArray[np.int32]] = None,
+        offset: Optional[npt.NDArray[np.int32]] = None,
     ):
         """Add cell data to the VTKHDF file.
 
@@ -341,8 +341,8 @@ class VtkHdfFile(AbstractContextManager):
         self,
         name: str,
         data: npt.ArrayLike,
-        shape: Optional[npt.NDArray[np.intc]] = None,
-        offset: Optional[npt.NDArray[np.intc]] = None,
+        shape: Optional[npt.NDArray[np.int32]] = None,
+        offset: Optional[npt.NDArray[np.int32]] = None,
         dtype: Optional[npt.DTypeLike] = None,
     ):
         """Add field data to the VTKHDF file.

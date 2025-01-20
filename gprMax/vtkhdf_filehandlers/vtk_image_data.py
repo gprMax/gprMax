@@ -29,7 +29,7 @@ class VtkImageData(VtkHdfFile):
     def __init__(
         self,
         filename: Union[str, PathLike],
-        shape: npt.NDArray[np.intc],
+        shape: npt.NDArray[np.int32],
         origin: Optional[npt.NDArray[np.float32]] = None,
         spacing: Optional[npt.NDArray[np.float32]] = None,
         direction: Optional[npt.NDArray[np.float32]] = None,
@@ -68,11 +68,11 @@ class VtkImageData(VtkHdfFile):
         if len(shape) > self.DIMENSIONS:
             raise ValueError(f"Shape must not have more than {self.DIMENSIONS} dimensions.")
         elif len(shape) < self.DIMENSIONS:
-            shape = np.concatenate((shape, np.ones(self.DIMENSIONS - len(shape), dtype=np.intc)))
+            shape = np.concatenate((shape, np.ones(self.DIMENSIONS - len(shape), dtype=np.int32)))
 
         self.shape = shape
 
-        whole_extent = np.zeros(2 * self.DIMENSIONS, dtype=np.intc)
+        whole_extent = np.zeros(2 * self.DIMENSIONS, dtype=np.int32)
         whole_extent[1::2] = self.shape
         self._set_root_attribute(self.WHOLE_EXTENT_ATTR, whole_extent)
 
@@ -89,7 +89,7 @@ class VtkImageData(VtkHdfFile):
         self.set_direction(direction)
 
     @property
-    def whole_extent(self) -> npt.NDArray[np.intc]:
+    def whole_extent(self) -> npt.NDArray[np.int32]:
         return self._get_root_attribute(self.WHOLE_EXTENT_ATTR)
 
     @property
@@ -141,7 +141,7 @@ class VtkImageData(VtkHdfFile):
         self._set_root_attribute(self.DIRECTION_ATTR, direction)
 
     def add_point_data(
-        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.intc]] = None
+        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
     ):
         """Add point data to the VTKHDF file.
 
@@ -163,7 +163,7 @@ class VtkImageData(VtkHdfFile):
         return super().add_point_data(name, data, points_shape, offset)
 
     def add_cell_data(
-        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.intc]] = None
+        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
     ):
         """Add cell data to the VTKHDF file.
 

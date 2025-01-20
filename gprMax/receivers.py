@@ -31,8 +31,8 @@ class Rx:
     def __init__(self):
         self.ID: str
         self.outputs = {}
-        self.coord = np.zeros(3, dtype=np.intc)
-        self.coordorigin = np.zeros(3, dtype=np.intc)
+        self.coord = np.zeros(3, dtype=np.int32)
+        self.coordorigin = np.zeros(3, dtype=np.int32)
 
     @property
     def xcoord(self) -> int:

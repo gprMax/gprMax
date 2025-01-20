@@ -74,8 +74,8 @@ class MPIModel(Model):
         self.geometryobjects = []
 
         for go in objects:
-            start = np.array([go.xs, go.ys, go.zs], dtype=np.intc)
-            stop = np.array([go.xf, go.yf, go.zf], dtype=np.intc)
+            start = np.array([go.xs, go.ys, go.zs], dtype=np.int32)
+            stop = np.array([go.xf, go.yf, go.zf], dtype=np.int32)
             if self.G.global_bounds_overlap_local_grid(start, stop):
                 comm = self.comm.Split()
                 assert isinstance(comm, MPI.Intracomm)
@@ -83,7 +83,7 @@ class MPIModel(Model):
                 stop_grid_coord = self.G.get_grid_coord_from_coordinate(stop) + 1
                 go.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
 
-                go.global_size = np.array([go.nx, go.ny, go.nz], dtype=np.intc)
+                go.global_size = np.array([go.nx, go.ny, go.nz], dtype=np.int32)
                 start, stop, offset = self.G.limit_global_bounds_to_within_local_grid(start, stop)
                 go.size = stop - start
                 go.start = start
