@@ -141,6 +141,33 @@ def logo(version):
     return str
 
 
+def round_int(value: float) -> int:
+    """Round number to nearest integer (half values are rounded down).
+
+    Args:
+        value: Number to round.
+
+    Returns:
+        rounded: Rounded value.
+    """
+    return int(d.Decimal(value).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
+
+
+def round_float(value: float, decimalplaces: int) -> float:
+    """Round down to a specific number of decimal places.
+
+    Args:
+        value: Number to round.
+        decimalplaces: Number of decimal places of float to represent
+            rounded value.
+
+    Returns:
+        rounded: Rounded value.
+    """
+    precision = f"1.{'0' * decimalplaces}"
+    return float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+
+
 def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
     """Rounding function.
 
@@ -155,12 +182,11 @@ def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
 
     # Rounds to nearest integer (half values are rounded downwards)
     if decimalplaces == 0:
-        rounded = int(d.Decimal(value).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
+        rounded = round_int(value)
 
     # Rounds down to nearest float represented by number of decimal places
     else:
-        precision = f"1.{'0' * decimalplaces}"
-        rounded = float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+        rounded = round_float(value, decimalplaces)
 
     return rounded
 
