@@ -125,7 +125,6 @@ class Domain(ModelUserObject):
 
         discretised_domain_size = uip.discretise_point(self.domain_size)
 
-        # TODO: Fix type hinting
         model.set_size(discretised_domain_size)
 
         if model.nx == 0 or model.ny == 0 or model.nz == 0:
@@ -520,7 +519,7 @@ class SrcSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.srcsteps = np.array(uip.discretise_point(self.step_size), dtype=np.int32)
+        model.srcsteps = uip.discretise_point(self.step_size)
 
         logger.info(
             f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
@@ -557,7 +556,7 @@ class RxSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.rxsteps = np.array(uip.discretise_point(self.step_size), dtype=np.int32)
+        model.rxsteps = uip.discretise_point(self.step_size)
 
         logger.info(
             f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "

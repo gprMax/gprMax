@@ -1,7 +1,8 @@
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
+import numpy.typing as npt
 from mpi4py import MPI
 
 from gprMax import config
@@ -53,7 +54,7 @@ class MPIModel(Model):
     def is_coordinator(self):
         return self.rank == 0
 
-    def set_size(self, size: Tuple[int, int, int]):
+    def set_size(self, size: npt.NDArray[np.int32]):
         super().set_size(size)
 
         self.G.calculate_local_extents()

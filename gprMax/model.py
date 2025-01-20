@@ -170,7 +170,7 @@ class Model:
 
         return grid
 
-    def set_size(self, size: Tuple[int, int, int]):
+    def set_size(self, size: npt.NDArray[np.int32]):
         self.nx, self.ny, self.nz = size
 
     def build(self):

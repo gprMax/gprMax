@@ -21,12 +21,13 @@ import logging
 from typing import Generic, Tuple
 
 import numpy as np
+import numpy.typing as npt
 from typing_extensions import TypeVar
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 
-from .utilities.utilities import round_value
+from .utilities.utilities import round_int
 
 logger = logging.getLogger(__name__)
 
@@ -70,18 +71,18 @@ class UserInput(Generic[GridType]):
     def grid_upper_bound(self) -> list[int]:
         return [self.grid.nx, self.grid.ny, self.grid.nz]
 
-    def discretise_point(self, p: Tuple[float, float, float]) -> Tuple[int, int, int]:
+    def discretise_point(self, p: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
         """Gets the index of a continuous point with the grid."""
-        rv = np.vectorize(round_value)
+        rv = np.vectorize(round_int, otypes=[np.int32])
         return rv(p / self.grid.dl)
 
-    def round_to_grid(self, p):
+    def round_to_grid(self, p: Tuple[float, float, float]) -> npt.NDArray[np.float64]:
         """Gets the nearest continuous point on the grid from a continuous point
         in space.
         """
         return self.discretise_point(p) * self.grid.dl
 
-    def descretised_to_continuous(self, p):
+    def descretised_to_continuous(self, p: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
         """Returns a point given as indices to a continuous point in the real space."""
         return p * self.grid.dl
 
@@ -156,7 +157,7 @@ class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
 
         self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz], self.inner_bound)
 
-    def translate_to_gap(self, p):
+    def translate_to_gap(self, p) -> npt.NDArray[np.int32]:
         """Translates the user input point to the real point in the subgrid."""
 
         p1 = (p[0] - self.grid.i0 * self.grid.ratio) + self.grid.n_boundary_cells_x
@@ -165,7 +166,7 @@ class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
 
         return np.array([p1, p2, p3])
 
-    def discretise_point(self, p):
+    def discretise_point(self, p) -> npt.NDArray[np.int32]:
         """Discretises a point. Does not provide any checks. The user enters
         coordinates relative to self.inner_bound. This function translate
         the user point to the correct index for building objects.
