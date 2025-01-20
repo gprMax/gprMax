@@ -49,7 +49,9 @@ class UserInput(Generic[GridType]):
     def __init__(self, grid: GridType):
         self.grid = grid
 
-    def point_within_bounds(self, p, cmd_str, name, ignore_error=False) -> bool:
+    def point_within_bounds(
+        self, p: npt.NDArray[np.int32], cmd_str: str, name: str = "", ignore_error=False
+    ) -> bool:
         try:
             return self.grid.within_bounds(p)
         except ValueError as err:
@@ -99,15 +101,15 @@ class MainGridUserInput(UserInput[GridType]):
         self.point_within_bounds(p, cmd_str, name)
         return p
 
-    def check_src_rx_point(self, p, cmd_str, name=""):
-        p = self.check_point(p, cmd_str, name)
+    def check_src_rx_point(self, p: npt.NDArray[np.int32], cmd_str: str, name: str = "") -> bool:
+        within_grid = self.point_within_bounds(p, cmd_str, name)
 
         if self.grid.within_pml(p):
             logger.warning(
                 f"'{cmd_str}' sources and receivers should not normally be positioned within the PML."
             )
 
-        return p
+        return within_grid
 
     def check_box_points(self, p1, p2, cmd_str):
         p1 = self.check_point(p1, cmd_str, name="lower")

@@ -448,7 +448,7 @@ class FDTDGrid:
             logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    def within_bounds(self, p: Tuple[int, int, int]) -> bool:
+    def within_bounds(self, p: npt.NDArray[np.int32]) -> bool:
         """Check a point is within the grid.
 
         Args:
@@ -496,7 +496,7 @@ class FDTDGrid:
         p_r = (p[0] * self.dx, p[1] * self.dy, p[2] * self.dz)
         return p_r
 
-    def within_pml(self, p: Tuple[int, int, int]) -> bool:
+    def within_pml(self, p: npt.NDArray[np.int32]) -> bool:
         """Check if the provided point is within a PML.
 
         Args:

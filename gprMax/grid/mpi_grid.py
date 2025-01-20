@@ -783,7 +783,7 @@ class MPIGrid(FDTDGrid):
             f" {self.lower_extent}, Upper extent: {self.upper_extent}"
         )
 
-    def within_bounds(self, p: Tuple[int, int, int]) -> bool:
+    def within_bounds(self, p: npt.NDArray[np.int32]) -> bool:
         """Check a point is within the grid.
 
         Args:
@@ -803,11 +803,11 @@ class MPIGrid(FDTDGrid):
         if p[2] < 0 or p[2] > self.gz:
             raise ValueError("z")
 
-        local_point = self.global_to_local_coordinate(np.array(p, dtype=np.int32))
+        local_point = self.global_to_local_coordinate(p)
 
         return all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
 
-    def within_pml(self, p: Tuple[int, int, int]) -> bool:
+    def within_pml(self, p: npt.NDArray[np.int32]) -> bool:
         """Check if the provided point is within a PML.
 
         Args:
@@ -816,13 +816,12 @@ class MPIGrid(FDTDGrid):
         Returns:
             within_pml: True if the point is within a PML.
         """
-        local_point = self.global_to_local_coordinate(np.array(p))
-        p = (local_point[0], local_point[1], local_point[2])
+        local_point = self.global_to_local_coordinate(p)
 
         # within_pml check will only be valid if the point is also
         # within the local grid
         return (
-            super().within_pml(p)
+            super().within_pml(local_point)
             and all(local_point >= self.negative_halo_offset)
             and all(local_point <= self.size)
         )
