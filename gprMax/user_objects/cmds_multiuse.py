@@ -759,86 +759,109 @@ class TransmissionLine(RotatableMixin, GridUserObject):
     def hash(self):
         return "#transmission_line"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        polarisation: str,
+        resistance: float,
+        waveform_id: str,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
+    ):
+        super().__init__(
+            p1=p1,
+            polarisation=polarisation,
+            resistance=resistance,
+            waveform_id=waveform_id,
+            start=start,
+            stop=stop,
+        )
+
+        self.point = p1
+        self.polarisation = polarisation
+        self.resistance = resistance
+        self.waveform_id = waveform_id
+        self.start = start
+        self.stop = stop
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.kwargs["polarisation"] = rotate_polarisation(
-            self.kwargs["p1"], self.kwargs["polarisation"], self.axis, self.angle, grid
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
         )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
+        self.point = tuple(rot_pts[0, :])
 
     def build(self, grid: FDTDGrid):
-        try:
-            polarisation = self.kwargs["polarisation"].lower()
-            p1 = self.kwargs["p1"]
-            waveform_id = self.kwargs["waveform_id"]
-            resistance = self.kwargs["resistance"]
-        except KeyError:
-            logger.exception(f"{self.params_str()} requires at least six parameters.")
-            raise
-
         if self.do_rotate:
             self._do_rotate(grid)
 
+        # Check the position of the voltage source
+        uip = self._create_uip(grid)
+        discretised_point = uip.discretise_point(self.point)
+
+        if uip.check_src_rx_point(discretised_point, self.params_str()):
+            self._validate_parameters(grid)
+            transmission_line = self._create_transmission_line(grid, discretised_point)
+            grid.transmissionlines.append(transmission_line)
+            self._log(grid, transmission_line)
+
+    def _validate_parameters(self, grid: FDTDGrid):
         # Warn about using a transmission line on GPU
         if config.sim_config.general["solver"] in ["cuda", "opencl"]:
-            logger.exception(
+            raise ValueError(
                 f"{self.params_str()} cannot currently be used "
                 "with the CUDA or OpenCL-based solver. Consider "
                 "using a #voltage_source instead."
             )
-            raise ValueError
 
-        # Check polarity & position parameters
-        if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
-            raise ValueError
-        if "2D TMx" in config.get_model_config().mode and polarisation in [
-            "y",
-            "z",
-        ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
-            raise ValueError
-        elif "2D TMy" in config.get_model_config().mode and polarisation in [
-            "x",
-            "z",
-        ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
-            raise ValueError
-        elif "2D TMz" in config.get_model_config().mode and polarisation in [
-            "x",
-            "y",
-        ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
-            raise ValueError
+        # Check polarity
+        self.polarisation = self.polarisation.lower()
+        if self.polarisation not in ("x", "y", "z"):
+            raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
+        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
+            raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
+        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
+            raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
+        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
+            raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
-        uip = self._create_uip(grid)
-        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
-        p2 = uip.round_to_grid_static_point(p1)
-
-        if resistance <= 0 or resistance >= config.sim_config.em_consts["z0"]:
-            logger.exception(
+        # Check resistance
+        if self.resistance <= 0 or self.resistance >= config.sim_config.em_consts["z0"]:
+            raise ValueError(
                 f"{self.params_str()} requires a resistance "
                 "greater than zero and less than the impedance "
                 "of free space, i.e. 376.73 Ohms."
             )
-            raise ValueError
 
         # Check if there is a waveformID in the waveforms list
-        if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(
-                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+        if not any(x.ID == self.waveform_id for x in grid.waveforms):
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
             )
-            raise ValueError
 
+        # Check start and stop
+        if self.start is not None and self.stop is not None:
+            if self.start < 0:
+                raise ValueError(
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
+                )
+            if self.stop < 0:
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
+            if self.stop - self.start <= 0:
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
+
+    def _create_transmission_line(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> TransmissionLineUser:
         t = TransmissionLineUser(grid.iterations, grid.dt)
-        t.polarisation = polarisation
-        t.xcoord = xcoord
-        t.ycoord = ycoord
-        t.zcoord = zcoord
+        t.polarisation = self.polarisation
+        t.coord = coord
         t.ID = (
             t.__class__.__name__
             + "("
@@ -849,51 +872,36 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             + str(t.zcoord)
             + ")"
         )
-        t.resistance = resistance
-        t.waveform = grid.get_waveform_by_id(waveform_id)
+        t.resistance = self.resistance
+        t.waveform = grid.get_waveform_by_id(self.waveform_id)
 
-        try:
-            # Check source start & source remove time parameters
-            start = self.kwargs["start"]
-            stop = self.kwargs["stop"]
-            if start < 0:
-                logger.exception(
-                    self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
-                )
-                raise ValueError
-            if stop < 0:
-                logger.exception(
-                    self.params_str()
-                    + (" time to remove the " "source should not be " "less than zero.")
-                )
-                raise ValueError
-            if stop - start <= 0:
-                logger.exception(
-                    self.params_str()
-                    + (" duration of the source " "should not be zero or " "less.")
-                )
-                raise ValueError
-            t.start = start
-            t.stop = min(stop, grid.timewindow)
-            startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
-        except KeyError:
+        if self.start is None or self.stop is None:
             t.start = 0
             t.stop = grid.timewindow
-            startstop = " "
+        else:
+            t.start = self.start
+            t.stop = min(self.stop, grid.timewindow)
 
         t.calculate_waveform_values(grid.iterations, grid.dt)
         t.calculate_incident_V_I(grid)
 
-        logger.info(
-            f"{self.grid_name(grid)}Transmission line with polarity "
-            + f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
-            + f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms,"
-            + startstop
-            + f"using waveform {t.waveform.ID} created."
-        )
+        return t
 
-        grid.transmissionlines.append(t)
+    def _log(self, grid: FDTDGrid, t: TransmissionLineUser):
+        if self.start is None or self.stop is None:
+            startstop = " "
+        else:
+            startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
+
+        uip = self._create_uip(grid)
+        p = uip.discretised_to_continuous(t.coord)
+
+        logger.info(
+            f"{self.grid_name(grid)}Transmission line with polarity"
+            f" {t.polarisation} at {p[0]:g}m, {p[1]:g}m, {p[2]:g}m,"
+            f" resistance {t.resistance:.1f} Ohms,{startstop} using"
+            f" waveform {t.waveform.ID} created."
+        )
 
 
 class Rx(RotatableMixin, GridUserObject):
