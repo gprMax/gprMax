@@ -321,11 +321,16 @@ class VoltageSource(RotatableMixin, GridUserObject):
         stop: Optional[float] = None,
     ):
         super().__init__(
-            p1=p1, polarisation=polarisation, resistance=resistance, waveform_id=waveform_id
+            p1=p1,
+            polarisation=polarisation,
+            resistance=resistance,
+            waveform_id=waveform_id,
+            start=start,
+            stop=stop,
         )
 
         self.point = p1
-        self.polarisation = polarisation.lower()
+        self.polarisation = polarisation
         self.resistance = resistance
         self.waveform_id = waveform_id
         self.start = start
@@ -339,16 +344,9 @@ class VoltageSource(RotatableMixin, GridUserObject):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def build(self, grid: FDTDGrid):
-        if self.do_rotate:
-            self._do_rotate(grid)
-
-        uip = self._create_uip(grid)
-        discretised_point = uip.discretise_point(self.point)
-        if not uip.check_src_rx_point(discretised_point, self.params_str()):
-            return
-
-        # Check polarity & position parameters
+    def _validate_parameters(self, grid: FDTDGrid):
+        # Check polarity
+        self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
         if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
@@ -358,6 +356,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
         elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
             raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
+        # Check resistance
         if self.resistance < 0:
             raise ValueError(
                 f"{self.params_str()} requires a source resistance of zero or greater."
@@ -369,28 +368,8 @@ class VoltageSource(RotatableMixin, GridUserObject):
                 f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
             )
 
-        v = VoltageSourceUser()
-        v.polarisation = self.polarisation
-        v.coord = discretised_point
-        v.ID = (
-            v.__class__.__name__
-            + "("
-            + str(v.xcoord)
-            + ","
-            + str(v.ycoord)
-            + ","
-            + str(v.zcoord)
-            + ")"
-        )
-        v.resistance = self.resistance
-        v.waveform = grid.get_waveform_by_id(self.waveform_id)
-
-        if self.start is None or self.stop is None:
-            v.start = 0
-            v.stop = grid.timewindow
-            startstop = " "
-        else:
-            # Check source start & source remove time parameters
+        # Check start and stop
+        if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
                     f"{self.params_str()} delay of the initiation of the source should not be less"
@@ -404,23 +383,67 @@ class VoltageSource(RotatableMixin, GridUserObject):
                 raise ValueError(
                     f"{self.params_str()} duration of the source should not be zero or less."
                 )
-            v.start = self.start
-            v.stop = min(self.stop, grid.timewindow)
-            startstop = f" start time {v.start:g} secs, finish time {v.stop:g} secs "
 
-        v.calculate_waveform_values(grid.iterations, grid.dt)
+    def _create_voltage_source(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> VoltageSourceUser:
+        voltage_source = VoltageSourceUser()
+        voltage_source.polarisation = self.polarisation
+        voltage_source.coord = coord
+        voltage_source.ID = (
+            voltage_source.__class__.__name__
+            + "("
+            + str(voltage_source.xcoord)
+            + ","
+            + str(voltage_source.ycoord)
+            + ","
+            + str(voltage_source.zcoord)
+            + ")"
+        )
+        voltage_source.resistance = self.resistance
+        voltage_source.waveform = grid.get_waveform_by_id(self.waveform_id)
 
-        p2 = uip.discretised_to_continuous(discretised_point)
+        if self.start is None or self.stop is None:
+            voltage_source.start = 0
+            voltage_source.stop = grid.timewindow
+        else:
+            voltage_source.start = self.start
+            voltage_source.stop = min(self.stop, grid.timewindow)
+
+        voltage_source.calculate_waveform_values(grid.iterations, grid.dt)
+
+        return voltage_source
+
+    def _log(self, grid: FDTDGrid, voltage_source: VoltageSourceUser):
+        if self.start is None or self.stop is None:
+            startstop = " "
+        else:
+            startstop = f" start time {voltage_source.start:g} secs, finish time {voltage_source.stop:g} secs "
+
+        uip = self._create_uip(grid)
+        p = uip.discretised_to_continuous(voltage_source.coord)
 
         logger.info(
-            f"{self.grid_name(grid)}Voltage source with polarity "
-            f"{v.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, "
-            f"resistance {v.resistance:.1f} Ohms,"
-            + startstop
-            + f"using waveform {v.waveform.ID} created."
+            f"{self.grid_name(grid)}Voltage source with polarity"
+            f" {voltage_source.polarisation} at {p[0]:g}m, {p[1]:g}m,"
+            f" {p[2]:g}m, resistance {voltage_source.resistance:.1f}"
+            f" Ohms,{startstop}using waveform {voltage_source.waveform.ID}"
+            f" created."
         )
 
-        grid.voltagesources.append(v)
+    def build(self, grid: FDTDGrid):
+        if self.do_rotate:
+            self._do_rotate(grid)
+
+        # Check the position of the voltage source
+        uip = self._create_uip(grid)
+        discretised_point = uip.discretise_point(self.point)
+
+        if uip.check_src_rx_point(discretised_point, self.params_str()):
+            self._validate_parameters(grid)
+            voltage_source = self._create_voltage_source(grid, discretised_point)
+            grid.voltagesources.append(voltage_source)
+            self._log(grid, voltage_source)
 
 
 class HertzianDipole(RotatableMixin, GridUserObject):
