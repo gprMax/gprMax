@@ -82,7 +82,7 @@ class UserInput(Generic[GridType]):
         """
         return self.discretise_point(p) * self.grid.dl
 
-    def descretised_to_continuous(self, p: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
+    def discretised_to_continuous(self, p: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
         """Returns a point given as indices to a continuous point in the real space."""
         return p * self.grid.dl
 

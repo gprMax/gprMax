@@ -1074,7 +1074,7 @@ class RxArray(GridUserObject):
                     r.zcoordorigin = z
                     # Point relative to main grid
                     p5 = np.array([x, y, z])
-                    p5 = uip.descretised_to_continuous(p5)
+                    p5 = uip.discretised_to_continuous(p5)
                     p5 = uip.round_to_grid_static_point(p5)
                     r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
                     for key in RxUser.defaultoutputs:
@@ -1166,7 +1166,7 @@ class Snapshot(GridUserObject):
             # not change the snapshot output.
             if uip.point_within_bounds(upper_bound, "", "", ignore_error=True):
                 p2 = upper_bound
-                p2_continuous = uip.descretised_to_continuous(p2)
+                p2_continuous = uip.discretised_to_continuous(p2)
                 logger.warning(
                     f"{self.params_str()} upper bound not aligned with discretisation. Updating 'p2'"
                     f" to {p2_continuous}"
@@ -1177,7 +1177,7 @@ class Snapshot(GridUserObject):
             elif any(dl > snapshot_size):
                 dl = np.where(dl > snapshot_size, snapshot_size, dl)
                 upper_bound = self._calculate_upper_bound(p1, dl, snapshot_size)
-                dl_continuous = uip.descretised_to_continuous(dl)
+                dl_continuous = uip.discretised_to_continuous(dl)
                 logger.warning(
                     f"{self.params_str()} current bounds and discretisation would go outside"
                     f" domain. As discretisation is larger than the snapshot size in at least one"
@@ -1191,7 +1191,7 @@ class Snapshot(GridUserObject):
                 p2 = np.where(uip.grid_upper_bound() < upper_bound, p2 - (snapshot_size % dl), p2)
                 snapshot_size = p2 - p1
                 upper_bound = self._calculate_upper_bound(p1, dl, snapshot_size)
-                p2_continuous = uip.descretised_to_continuous(p2)
+                p2_continuous = uip.discretised_to_continuous(p2)
                 logger.warning(
                     f"{self.params_str()} current bounds and discretisation would go outside"
                     f" domain. Limiting 'p2' to {p2_continuous}"
