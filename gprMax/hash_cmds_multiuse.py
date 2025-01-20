@@ -86,7 +86,7 @@ def process_multicmds(multicmds):
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
                     start=float(tmp[6]),
-                    end=float(tmp[7]),
+                    stop=float(tmp[7]),
                 )
             else:
                 logger.exception(
