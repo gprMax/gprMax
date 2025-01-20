@@ -467,65 +467,71 @@ class HertzianDipole(RotatableMixin, GridUserObject):
     def hash(self):
         return "#hertzian_dipole"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        polarisation: str,
+        waveform_id: str,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
+    ):
+        super().__init__(
+            p1=p1, polarisation=polarisation, waveform_id=waveform_id, start=start, stop=stop
+        )
+
+        self.point = p1
+        self.polarisation = polarisation.lower()
+        self.waveform_id = waveform_id
+        self.start = start
+        self.stop = stop
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.kwargs["polarisation"] = rotate_polarisation(
-            self.kwargs["p1"], self.kwargs["polarisation"], self.axis, self.angle, grid
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
         )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
+        self.point = tuple(rot_pts[0, :])
 
-    def build(self, grid: FDTDGrid):
-        try:
-            polarisation = self.kwargs["polarisation"].lower()
-            p1 = self.kwargs["p1"]
-            waveform_id = self.kwargs["waveform_id"]
-        except KeyError:
-            logger.exception(f"{self.params_str()} requires at least 3 parameters.")
-            raise
-
-        if self.do_rotate:
-            self._do_rotate(grid)
-
-        # Check polarity & position parameters
-        if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + " polarisation must be x, y, or z.")
-            raise ValueError
-        if "2D TMx" in config.get_model_config().mode and polarisation in [
-            "y",
-            "z",
-        ]:
-            logger.exception(self.params_str() + " polarisation must be x in 2D TMx mode.")
-            raise ValueError
-        elif "2D TMy" in config.get_model_config().mode and polarisation in [
-            "x",
-            "z",
-        ]:
-            logger.exception(self.params_str() + " polarisation must be y in 2D TMy mode.")
-            raise ValueError
-        elif "2D TMz" in config.get_model_config().mode and polarisation in [
-            "x",
-            "y",
-        ]:
-            logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
-            raise ValueError
-
-        uip = self._create_uip(grid)
-        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
-        p2 = uip.round_to_grid_static_point(p1)
+    def _validate_parameters(self, grid: FDTDGrid):
+        # Check polarity
+        self.polarisation = self.polarisation.lower()
+        if self.polarisation not in ("x", "y", "z"):
+            raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
+        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
+            raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
+        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
+            raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
+        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
+            raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
         # Check if there is a waveformID in the waveforms list
-        if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(
-                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+        if not any(x.ID == self.waveform_id for x in grid.waveforms):
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
             )
-            raise ValueError
 
+        # Check start and stop
+        if self.start is not None and self.stop is not None:
+            if self.start < 0:
+                raise ValueError(
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
+                )
+            if self.stop < 0:
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
+            if self.stop - self.start <= 0:
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
+
+    def _create_hertzian_dipole(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> HertzianDipoleUser:
         h = HertzianDipoleUser()
-        h.polarisation = polarisation
+        h.polarisation = self.polarisation
 
         # Set length of dipole to grid size in polarisation direction
         if h.polarisation == "x":
@@ -535,62 +541,59 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         elif h.polarisation == "z":
             h.dl = grid.dz
 
-        h.xcoord = xcoord
-        h.ycoord = ycoord
-        h.zcoord = zcoord
-        h.xcoordorigin = xcoord
-        h.ycoordorigin = ycoord
-        h.zcoordorigin = zcoord
+        h.coord = coord
+        h.coordorigin = coord
         h.ID = f"{h.__class__.__name__}({str(h.xcoord)},{str(h.ycoord)},{str(h.zcoord)})"
-        h.waveform = grid.get_waveform_by_id(waveform_id)
+        h.waveform = grid.get_waveform_by_id(self.waveform_id)
 
-        try:
-            # Check source start & source remove time parameters
-            start = self.kwargs["start"]
-            stop = self.kwargs["stop"]
-            if start < 0:
-                logger.exception(
-                    f"{self.params_str()} delay of the initiation of the source should not be less than zero."
-                )
-                raise ValueError
-            if stop < 0:
-                logger.exception(
-                    f"{self.params_str()} time to remove the source should not be less than zero."
-                )
-                raise ValueError
-            if stop - start <= 0:
-                logger.exception(
-                    f"{self.params_str()} duration of the source should not be zero or less."
-                )
-                raise ValueError
-            h.start = start
-            h.stop = min(stop, grid.timewindow)
-            startstop = f" start time {h.start:g} secs, finish time {h.stop:g} secs "
-        except KeyError:
+        if self.start is None or self.stop is None:
             h.start = 0
             h.stop = grid.timewindow
-            startstop = " "
+        else:
+            h.start = self.start
+            h.stop = min(self.stop, grid.timewindow)
 
         h.calculate_waveform_values(grid.iterations, grid.dt)
 
+        return h
+
+    def _log(self, grid: FDTDGrid, hertzian_dipole: HertzianDipoleUser):
+        if self.start is None or self.stop is None:
+            startstop = " "
+        else:
+            startstop = f" start time {hertzian_dipole.start:g} secs, finish time {hertzian_dipole.stop:g} secs "
+
+        uip = self._create_uip(grid)
+        p = uip.discretised_to_continuous(hertzian_dipole.coord)
+
         if config.get_model_config().mode == "2D":
             logger.info(
-                f"{self.grid_name(grid)}Hertzian dipole is a line "
-                + f"source in 2D with polarity {h.polarisation} at "
-                + f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
-                + startstop
-                + f"using waveform {h.waveform.ID} created."
+                f"{self.grid_name(grid)}Hertzian dipole is a line source"
+                f" in 2D with polarity {hertzian_dipole.polarisation} at"
+                f" {p[0]:g}m, {p[1]:g}m, {p[2]:g}m,{startstop}using"
+                f" waveform {hertzian_dipole.waveform.ID} created."
             )
         else:
             logger.info(
-                f"{self.grid_name(grid)}Hertzian dipole with "
-                + f"polarity {h.polarisation} at {p2[0]:g}m, "
-                + f"{p2[1]:g}m, {p2[2]:g}m,"
-                + startstop
-                + f"using waveform {h.waveform.ID} created."
+                f"{self.grid_name(grid)}Hertzian dipole with polarity"
+                f" {hertzian_dipole.polarisation} at {p[0]:g}m,"
+                f" {p[1]:g}m, {p[2]:g}m,{startstop} using"
+                f" waveform {hertzian_dipole.waveform.ID} created."
             )
 
-        grid.hertziandipoles.append(h)
+    def build(self, grid: FDTDGrid):
+        if self.do_rotate:
+            self._do_rotate(grid)
+
+        # Check the position of the hertzian dipole
+        uip = self._create_uip(grid)
+        discretised_point = uip.discretise_point(self.point)
+
+        if uip.check_src_rx_point(discretised_point, self.params_str()):
+            self._validate_parameters(grid)
+            hertzian_dipole = self._create_hertzian_dipole(grid, discretised_point)
+            grid.hertziandipoles.append(hertzian_dipole)
+            self._log(grid, hertzian_dipole)
 
 
 class MagneticDipole(RotatableMixin, GridUserObject):
