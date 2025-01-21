@@ -925,91 +925,86 @@ class Rx(RotatableMixin, GridUserObject):
     def hash(self):
         return "#rx"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        id: Optional[str] = None,
+        outputs: Optional[List[str]] = None,
+    ):
+        super().__init__(p1=p1, id=id, outputs=outputs)
         # TODO: Can this be removed?
         self.constructor = RxUser
 
+        self.point = p1
+        self.id = id
+        self.outputs = outputs
+
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        new_pt = (
-            self.kwargs["p1"][0] + grid.dx,
-            self.kwargs["p1"][1] + grid.dy,
-            self.kwargs["p1"][2] + grid.dz,
-        )
-        pts = np.array([self.kwargs["p1"], new_pt])
+        new_pt = self.point + grid.dl
+        pts = np.array([self.point, new_pt])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
+        self.point = tuple(rot_pts[0, :])
 
+        # TODO: Why does this need resetting if rotate the receiver?
         # If specific field components are specified, set to output all components
-        try:
-            self.kwargs["id"]
-            self.kwargs["outputs"]
-            rxargs = dict(self.kwargs)
-            del rxargs["outputs"]
-            self.kwargs = rxargs
-        except KeyError:
-            pass
+        if self.outputs is not None:
+            self.outputs = None
+            self.kwargs.pop("outputs", None)
+
+    def _create_receiver(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> RxUser:
+        r = RxUser()
+        r.coord = coord
+        r.coordorigin = coord
+
+        if self.id is None:
+            r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
+        else:
+            r.ID = self.id
+
+        if self.outputs is None:
+            self.outputs = RxUser.defaultoutputs
+
+        self.outputs.sort()
+        # Get allowable outputs
+        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+            allowableoutputs = RxUser.allowableoutputs_dev
+        else:
+            allowableoutputs = RxUser.allowableoutputs
+        # Check and add field output names
+        for field in self.outputs:
+            if field in allowableoutputs:
+                r.outputs[field] = np.zeros(
+                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                )
+            else:
+                raise ValueError(
+                    f"{self.params_str()} contains an output "
+                    f"type that is not allowable. Allowable "
+                    f"outputs in current context are "
+                    f"{allowableoutputs}."
+                )
+
+        return r
 
     def build(self, grid: FDTDGrid):
-        try:
-            p1 = self.kwargs["p1"]
-        except KeyError:
-            logger.exception(self.params_str())
-            raise
-
         if self.do_rotate:
             self._do_rotate(grid)
 
+        # Check position of the receiver
         uip = self._create_uip(grid)
-        p = uip.check_src_rx_point(p1, self.params_str())
-        p2 = uip.round_to_grid_static_point(p1)
+        discretised_point = uip.discretise_point(self.point)
 
-        r = self.constructor()
-        r.xcoord, r.ycoord, r.zcoord = p
-        r.xcoordorigin, r.ycoordorigin, r.zcoordorigin = p
+        if uip.check_src_rx_point(discretised_point, self.params_str()):
+            receiver = self._create_receiver(grid, discretised_point)
+            grid.rxs.append(receiver)
 
-        try:
-            r.ID = self.kwargs["id"]
-            outputs = self.kwargs["outputs"]
-        except KeyError:
-            # If no ID or outputs are specified, use default
-            r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
-            for key in RxUser.defaultoutputs:
-                r.outputs[key] = np.zeros(
-                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-                )
-        else:
-            outputs.sort()
-            # Get allowable outputs
-            if config.sim_config.general["solver"] in ["cuda", "opencl"]:
-                allowableoutputs = RxUser.allowableoutputs_dev
-            else:
-                allowableoutputs = RxUser.allowableoutputs
-            # Check and add field output names
-            for field in outputs:
-                if field in allowableoutputs:
-                    r.outputs[field] = np.zeros(
-                        grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-                    )
-                else:
-                    logger.exception(
-                        f"{self.params_str()} contains an output "
-                        f"type that is not allowable. Allowable "
-                        f"outputs in current context are "
-                        f"{allowableoutputs}."
-                    )
-                    raise ValueError
-
-        logger.info(
-            f"{self.grid_name(grid)}Receiver at {p2[0]:g}m, {p2[1]:g}m, "
-            f"{p2[2]:g}m with output component(s) "
-            f"{', '.join(r.outputs)} created."
-        )
-
-        grid.rxs.append(r)
-
-        return r
+            p = uip.discretised_to_continuous(discretised_point)
+            logger.info(
+                f"{self.grid_name(grid)}Receiver at {p[0]:g}m,"
+                f" {p[1]:g}m, {p[2]:g}m with output component(s)"
+                f" {', '.join(receiver.outputs)} created."
+            )
 
 
 class RxArray(GridUserObject):
