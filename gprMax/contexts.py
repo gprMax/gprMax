@@ -188,6 +188,7 @@ class MPIContext(Context):
         try:
             return super().run()
         except:
+            logger.exception(f"Rank {self.rank} encountered an error. Aborting...")
             self.comm.Abort()
 
     def _run_model(self, model_num: int) -> None:
