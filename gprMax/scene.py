@@ -175,14 +175,14 @@ class Scene:
         # Process commands that can only have a single instance
         self.process_single_use_objects(model)
 
+        # Process multiple commands
+        self.process_multi_use_objects(model)
+
         if (
             isinstance(model, MPIModel)
             and model.is_coordinator()
             or not isinstance(model, MPIModel)
         ):
-            # Process multiple commands
-            self.process_multi_use_objects(model)
-
             # Initialise geometry arrays for main and subgrids
             for grid in [model.G] + model.subgrids:
                 grid.initialise_geometry_arrays()

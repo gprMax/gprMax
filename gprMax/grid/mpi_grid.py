@@ -512,13 +512,6 @@ class MPIGrid(FDTDGrid):
         Global properties/objects are broadcast to all ranks whereas
         local properties/objects are scattered to the relevant ranks.
         """
-        self.materials = self.comm.bcast(self.materials, root=self.COORDINATOR_RANK)
-        self.rxs = self.scatter_coord_objects(self.rxs)
-        self.voltagesources = self.scatter_coord_objects(self.voltagesources)
-        self.magneticdipoles = self.scatter_coord_objects(self.magneticdipoles)
-        self.hertziandipoles = self.scatter_coord_objects(self.hertziandipoles)
-        self.transmissionlines = self.scatter_coord_objects(self.transmissionlines)
-
         self.scatter_snapshots()
 
         if not self.is_coordinator():

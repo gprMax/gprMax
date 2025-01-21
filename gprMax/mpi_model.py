@@ -60,15 +60,9 @@ class MPIModel(Model):
         self.G.calculate_local_extents()
 
     def build_geometry(self):
-        self._broadcast_model()
-
         super().build_geometry()
 
         self._filter_geometry_objects()
-
-    def _broadcast_model(self):
-        model_config = config.get_model_config()
-        model_config.materials["maxpoles"] = self.comm.bcast(model_config.materials["maxpoles"])
 
     def _filter_geometry_objects(self):
         objects = self.comm.bcast(self.geometryobjects)
