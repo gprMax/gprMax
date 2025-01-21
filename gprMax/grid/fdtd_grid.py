@@ -153,6 +153,21 @@ class FDTDGrid:
             self.pmls["thickness"]["ymax"] = int(thickness[4])
             self.pmls["thickness"]["zmax"] = int(thickness[5])
 
+    def add_source(self, source: Source):
+        if isinstance(source, VoltageSource):
+            self.voltagesources.append(source)
+        elif isinstance(source, HertzianDipole):
+            self.hertziandipoles.append(source)
+        elif isinstance(source, MagneticDipole):
+            self.magneticdipoles.append(source)
+        elif isinstance(source, TransmissionLine):
+            self.transmissionlines.append(source)
+        else:
+            raise TypeError(f"Source of type '{type(source)}' is unknown to gprMax")
+
+    def add_receiver(self, receiver: Rx):
+        self.rxs.append(receiver)
+
     def build(self) -> None:
         """Build the grid."""
 

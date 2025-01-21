@@ -155,6 +155,16 @@ class MPIGrid(FDTDGrid):
         if self.has_neighbour(Dim.Z, Dir.POS):
             self.pmls["thickness"]["zmax"] = 0
 
+    def add_source(self, source: Source):
+        source.coord = self.global_to_local_coordinate(source.coord)
+        source.coordorigin = self.global_to_local_coordinate(source.coordorigin)
+        return super().add_source(source)
+
+    def add_receiver(self, receiver: Rx):
+        receiver.coord = self.global_to_local_coordinate(receiver.coord)
+        receiver.coordorigin = self.global_to_local_coordinate(receiver.coordorigin)
+        return super().add_receiver(receiver)
+
     def is_coordinator(self) -> bool:
         """Test if the current rank is the coordinator.
 

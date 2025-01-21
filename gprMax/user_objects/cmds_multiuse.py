@@ -441,7 +441,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
         if uip.check_src_rx_point(discretised_point, self.params_str()):
             self._validate_parameters(grid)
             voltage_source = self._create_voltage_source(grid, discretised_point)
-            grid.voltagesources.append(voltage_source)
+            grid.add_source(voltage_source)
             self._log(grid, voltage_source)
 
 
@@ -591,7 +591,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         if uip.check_src_rx_point(discretised_point, self.params_str()):
             self._validate_parameters(grid)
             hertzian_dipole = self._create_hertzian_dipole(grid, discretised_point)
-            grid.hertziandipoles.append(hertzian_dipole)
+            grid.add_source(hertzian_dipole)
             self._log(grid, hertzian_dipole)
 
 
@@ -645,7 +645,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         if uip.check_src_rx_point(discretised_point, self.params_str()):
             self._validate_parameters(grid)
             magnetic_dipole = self._create_magnetic_dipole(grid, discretised_point)
-            grid.magneticdipoles.append(magnetic_dipole)
+            grid.add_source(magnetic_dipole)
             self._log(grid, magnetic_dipole)
 
     def _do_rotate(self, grid: FDTDGrid):
@@ -802,7 +802,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         if uip.check_src_rx_point(discretised_point, self.params_str()):
             self._validate_parameters(grid)
             transmission_line = self._create_transmission_line(grid, discretised_point)
-            grid.transmissionlines.append(transmission_line)
+            grid.add_source(transmission_line)
             self._log(grid, transmission_line)
 
     def _validate_parameters(self, grid: FDTDGrid):
@@ -996,7 +996,7 @@ class Rx(RotatableMixin, GridUserObject):
 
         if uip.check_src_rx_point(discretised_point, self.params_str()):
             receiver = self._create_receiver(grid, discretised_point)
-            grid.rxs.append(receiver)
+            grid.add_receiver(receiver)
 
             p = uip.discretised_to_continuous(discretised_point)
             logger.info(
