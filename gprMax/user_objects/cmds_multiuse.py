@@ -20,7 +20,7 @@ import inspect
 import logging
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -34,7 +34,6 @@ from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
 from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
 from gprMax.materials import RangeMaterial as RangeMaterialUser
-from gprMax.model import Model
 from gprMax.pml import CFS, CFSParameter
 from gprMax.receivers import Rx as RxUser
 from gprMax.snapshots import MPISnapshot as MPISnapshotUser
@@ -1024,90 +1023,57 @@ class RxArray(GridUserObject):
     def hash(self):
         return "#rx_array"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        p2: Tuple[float, float, float],
+        dl: Tuple[float, float, float],
+    ):
+        super().__init__(p1=p1, p2=p2, dl=dl)
+
+        self.lower_point = p1
+        self.upper_point = p2
+        self.dl = dl
 
     def build(self, grid: FDTDGrid):
-        try:
-            p1 = self.kwargs["p1"]
-            p2 = self.kwargs["p2"]
-            dl = self.kwargs["dl"]
-        except KeyError:
-            logger.exception(f"{self.params_str()} requires exactly 9 parameters")
-            raise
-
         uip = self._create_uip(grid)
-        xs, ys, zs = uip.check_src_rx_point(p1, self.params_str(), "lower")
-        xf, yf, zf = uip.check_src_rx_point(p2, self.params_str(), "upper")
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
-        dx, dy, dz = uip.discretise_point(dl)
+        discretised_lower_point = uip.discretise_point(self.lower_point)
+        discretised_upper_point = uip.discretise_point(self.upper_point)
+        discretised_dl = uip.discretise_point(self.dl)
 
-        if xs > xf or ys > yf or zs > zf:
-            logger.exception(
+        uip.check_src_rx_point(discretised_lower_point, self.params_str(), "lower")
+        uip.check_src_rx_point(discretised_upper_point, self.params_str(), "upper")
+
+        if any(discretised_lower_point > discretised_upper_point):
+            raise ValueError(
                 f"{self.params_str()} the lower coordinates should be less than the upper coordinates."
             )
-            raise ValueError
-        if dx < 0 or dy < 0 or dz < 0:
-            logger.exception(f"{self.params_str()} the step size should not be less than zero.")
-            raise ValueError
-        if dx < 1:
-            if dx == 0:
-                dx = 1
-            else:
-                logger.exception(
-                    f"{self.params_str()} the step size should not be less than the spatial discretisation."
-                )
-                raise ValueError
-        if dy < 1:
-            if dy == 0:
-                dy = 1
-            else:
-                logger.exception(
-                    f"{self.params_str()} the step size should not be less than the spatial discretisation."
-                )
-                raise ValueError
-        if dz < 1:
-            if dz == 0:
-                dz = 1
-            else:
-                logger.exception(
-                    f"{self.params_str()} the step size should not be less than the spatial discretisation."
-                )
-                raise ValueError
+        if any(discretised_dl < 0):
+            raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
+
+        discretised_dl = np.where(discretised_dl == 0, 1, discretised_dl)
+
+        if any(discretised_dl < 1):
+            raise ValueError(
+                f"{self.params_str()} the step size should not be less than the spatial discretisation."
+            )
+
+        xs, ys, zs = uip.discretised_to_continuous(discretised_lower_point)
+        xf, yf, zf = uip.discretised_to_continuous(discretised_upper_point)
+        dx, dy, dz = uip.discretised_to_continuous(discretised_dl)
 
         logger.info(
-            f"{self.grid_name(grid)}Receiver array "
-            f"{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to "
-            f"{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps "
-            f"{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m"
+            f"{self.grid_name(grid)}Receiver array"
+            f" {xs:g}m, {ys:g}m, {zs:g}m, to"
+            f" {xf:g}m, {yf:g}m, {zf:g}m with steps"
+            f" {dx:g}m, {dy:g}m, {dz:g}m"
         )
 
-        for x in range(xs, xf + 1, dx):
-            for y in range(ys, yf + 1, dy):
-                for z in range(zs, zf + 1, dz):
-                    r = RxUser()
-                    r.xcoord = x
-                    r.ycoord = y
-                    r.zcoord = z
-                    r.xcoordorigin = x
-                    r.ycoordorigin = y
-                    r.zcoordorigin = z
-                    # Point relative to main grid
-                    p5 = np.array([x, y, z])
-                    p5 = uip.discretised_to_continuous(p5)
-                    p5 = uip.round_to_grid_static_point(p5)
-                    r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
-                    for key in RxUser.defaultoutputs:
-                        r.outputs[key] = np.zeros(
-                            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-                        )
-                    logger.info(
-                        f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "
-                        f"{p5[2]:g}m with output component(s) "
-                        f"{', '.join(r.outputs)} created."
-                    )
-                    grid.rxs.append(r)
+        for x in range(xs, xf + grid.dx, dx):
+            for y in range(ys, yf + grid.dy, dy):
+                for z in range(zs, zf + grid.dz, dz):
+                    receiver = Rx((x, y, x))
+                    receiver.build(grid)
 
 
 class Snapshot(GridUserObject):
