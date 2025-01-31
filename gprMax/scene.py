@@ -178,17 +178,12 @@ class Scene:
         # Process multiple commands
         self.process_multi_use_objects(model)
 
-        if (
-            isinstance(model, MPIModel)
-            and model.is_coordinator()
-            or not isinstance(model, MPIModel)
-        ):
-            # Initialise geometry arrays for main and subgrids
-            for grid in [model.G] + model.subgrids:
-                grid.initialise_geometry_arrays()
+        # Initialise geometry arrays for main and subgrids
+        for grid in [model.G] + model.subgrids:
+            grid.initialise_geometry_arrays()
 
-            # Process the main grid geometry commands
-            self.process_geometry_objects(self.geometry_objects, model.G)
+        # Process the main grid geometry commands
+        self.process_geometry_objects(self.geometry_objects, model.G)
 
-            # Process all the commands for subgrids
-            self.process_subgrid_objects(model)
+        # Process all the commands for subgrids
+        self.process_subgrid_objects(model)

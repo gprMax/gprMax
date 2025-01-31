@@ -963,7 +963,7 @@ cpdef void build_cone(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf, xc, yc, zc
+    cdef int xs, xf, ys, yf, zs, zf, xs_bound, xf_bound, ys_bound, yf_bound, zs_bound, zf_bound
     cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2
     cdef float theta1, theta2, distance1, distance2, R1, R2
     cdef float height, distance_axis_1, distance_axis_2
@@ -1034,41 +1034,48 @@ cpdef void build_cone(
             zs = round_value((z2 - Rmax) / dz) - 1
             zf = round_value((z1 + Rmax) / dz) + 1
 
+    xs_bound = xs
+    xf_bound = xf
+    ys_bound = ys
+    yf_bound = yf
+    zs_bound = zs
+    zf_bound = zf
+
     # Set bounds to domain if they outside
-    if xs < 0:
-        xs = 0
-    if xf > solid.shape[0]:
-        xf = solid.shape[0]
-    if ys < 0:
-        ys = 0
-    if yf > solid.shape[1]:
-        yf = solid.shape[1]
-    if zs < 0:
-        zs = 0
-    if zf > solid.shape[2]:
-        zf = solid.shape[2]
+    if xs_bound < 0:
+        xs_bound = 0
+    if xf_bound > solid.shape[0]:
+        xf_bound = solid.shape[0]
+    if ys_bound < 0:
+        ys_bound = 0
+    if yf_bound > solid.shape[1]:
+        yf_bound = solid.shape[1]
+    if zs_bound < 0:
+        zs_bound = 0
+    if zf_bound > solid.shape[2]:
+        zf_bound = solid.shape[2]
 
     # x-aligned cone
     if x_align:
-        for j in range(ys, yf):
-            for k in range(zs, zf):
-                for i in range(xs, xf):
-                    if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i-xs)/(xf-xs))*(r2-r1) + r1:
+        for j in range(ys_bound, yf_bound):
+            for k in range(zs_bound, zf_bound):
+                for i in range(xs_bound, xf_bound):
+                    if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i- xs)/(xf-xs))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, solid, rigidE, rigidH, ID)
     # y-aligned cone
     elif y_align:
-        for i in range(xs, xf):
-            for k in range(zs, zf):
-                for j in range(ys, yf):
+        for i in range(xs_bound, xf_bound):
+            for k in range(zs_bound, zf_bound):
+                for j in range(ys_bound, yf_bound):
                     if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((j-ys)/(yf-ys))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, solid, rigidE, rigidH, ID)
     # z-aligned cone
     elif z_align:
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                for k in range(zs, zf):
+        for i in range(xs_bound, xf_bound):
+            for j in range(ys_bound, yf_bound):
+                for k in range(zs_bound, zf_bound):
                     if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= ((k-zs)/(zf-zs))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, solid, rigidE, rigidH, ID)
@@ -1085,9 +1092,9 @@ cpdef void build_cone(
 
         height = f1f2mag
 
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                for k in range(zs, zf):
+        for i in range(xs_bound, xf_bound):
+            for j in range(ys_bound, yf_bound):
+                for k in range(zs_bound, zf_bound):
                     # Build flag - default false, set to True if point is in cone
                     build = 0
                     # Vector from centre of first cone face to test point
