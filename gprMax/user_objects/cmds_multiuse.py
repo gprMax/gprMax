@@ -413,20 +413,17 @@ class VoltageSource(RotatableMixin, GridUserObject):
 
         return voltage_source
 
-    def _log(self, grid: FDTDGrid, voltage_source: VoltageSourceUser):
+    def _log(self, grid: FDTDGrid, voltage_source: VoltageSourceUser, x: float, y: float, z: float):
         if self.start is None or self.stop is None:
             startstop = " "
         else:
             startstop = f" start time {voltage_source.start:g} secs, finish time {voltage_source.stop:g} secs "
 
-        uip = self._create_uip(grid)
-        p = uip.discretised_to_continuous(voltage_source.coord)
-
         logger.info(
             f"{self.grid_name(grid)}Voltage source with polarity"
-            f" {voltage_source.polarisation} at {p[0]:g}m, {p[1]:g}m,"
-            f" {p[2]:g}m, resistance {voltage_source.resistance:.1f}"
-            f" Ohms,{startstop}using waveform {voltage_source.waveform.ID}"
+            f" {voltage_source.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
+            f" resistance {voltage_source.resistance:.1f} Ohms,"
+            f"{startstop}using waveform {voltage_source.waveform.ID}"
             f" created."
         )
 
@@ -442,7 +439,8 @@ class VoltageSource(RotatableMixin, GridUserObject):
             self._validate_parameters(grid)
             voltage_source = self._create_voltage_source(grid, discretised_point)
             grid.add_source(voltage_source)
-            self._log(grid, voltage_source)
+            position = uip.round_to_grid_static_point(self.point)
+            self._log(grid, voltage_source, *position)
 
 
 class HertzianDipole(RotatableMixin, GridUserObject):
@@ -556,28 +554,27 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
         return h
 
-    def _log(self, grid: FDTDGrid, hertzian_dipole: HertzianDipoleUser):
+    def _log(
+        self, grid: FDTDGrid, hertzian_dipole: HertzianDipoleUser, x: float, y: float, z: float
+    ):
         if self.start is None or self.stop is None:
             startstop = " "
         else:
             startstop = f" start time {hertzian_dipole.start:g} secs, finish time {hertzian_dipole.stop:g} secs "
 
-        uip = self._create_uip(grid)
-        p = uip.discretised_to_continuous(hertzian_dipole.coord)
-
         if config.get_model_config().mode == "2D":
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole is a line source"
-                f" in 2D with polarity {hertzian_dipole.polarisation} at"
-                f" {p[0]:g}m, {p[1]:g}m, {p[2]:g}m,{startstop}using"
+                f" in 2D with polarity {hertzian_dipole.polarisation}"
+                f" at {x:g}m, {y:g}m, {z:g}m,{startstop}using"
                 f" waveform {hertzian_dipole.waveform.ID} created."
             )
         else:
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole with polarity"
-                f" {hertzian_dipole.polarisation} at {p[0]:g}m,"
-                f" {p[1]:g}m, {p[2]:g}m,{startstop} using"
-                f" waveform {hertzian_dipole.waveform.ID} created."
+                f" {hertzian_dipole.polarisation} at {x:g}m, {y:g}m,"
+                f" {z:g}m,{startstop}using waveform"
+                f" {hertzian_dipole.waveform.ID} created."
             )
 
     def build(self, grid: FDTDGrid):
@@ -592,7 +589,8 @@ class HertzianDipole(RotatableMixin, GridUserObject):
             self._validate_parameters(grid)
             hertzian_dipole = self._create_hertzian_dipole(grid, discretised_point)
             grid.add_source(hertzian_dipole)
-            self._log(grid, hertzian_dipole)
+            position = uip.round_to_grid_static_point(self.point)
+            self._log(grid, hertzian_dipole, *position)
 
 
 class MagneticDipole(RotatableMixin, GridUserObject):
@@ -646,7 +644,8 @@ class MagneticDipole(RotatableMixin, GridUserObject):
             self._validate_parameters(grid)
             magnetic_dipole = self._create_magnetic_dipole(grid, discretised_point)
             grid.add_source(magnetic_dipole)
-            self._log(grid, magnetic_dipole)
+            position = uip.round_to_grid_static_point(self.point)
+            self._log(grid, magnetic_dipole, *position)
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
@@ -720,18 +719,15 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
         return m
 
-    def _log(self, grid: FDTDGrid, m: MagneticDipoleUser):
+    def _log(self, grid: FDTDGrid, m: MagneticDipoleUser, x: float, y: float, z: float):
         if self.start is None or self.stop is None:
             startstop = " "
         else:
             startstop = f" start time {m.start:g} secs, finish time {m.stop:g} secs "
 
-        uip = self._create_uip(grid)
-        p = uip.discretised_to_continuous(m.coord)
-
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity"
-            f" {m.polarisation} at {p[0]:g}m, {p[1]:g}m, {p[2]:g}m,"
+            f" {m.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
             f"{startstop}using waveform {m.waveform.ID} created."
         )
 
@@ -803,7 +799,8 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             self._validate_parameters(grid)
             transmission_line = self._create_transmission_line(grid, discretised_point)
             grid.add_source(transmission_line)
-            self._log(grid, transmission_line)
+            position = uip.round_to_grid_static_point(self.point)
+            self._log(grid, transmission_line, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
         # Warn about using a transmission line on GPU
@@ -886,18 +883,15 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
         return t
 
-    def _log(self, grid: FDTDGrid, t: TransmissionLineUser):
+    def _log(self, grid: FDTDGrid, t: TransmissionLineUser, x: float, y: float, z: float):
         if self.start is None or self.stop is None:
             startstop = " "
         else:
             startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
 
-        uip = self._create_uip(grid)
-        p = uip.discretised_to_continuous(t.coord)
-
         logger.info(
             f"{self.grid_name(grid)}Transmission line with polarity"
-            f" {t.polarisation} at {p[0]:g}m, {p[1]:g}m, {p[2]:g}m,"
+            f" {t.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
             f" resistance {t.resistance:.1f} Ohms,{startstop} using"
             f" waveform {t.waveform.ID} created."
         )
@@ -998,10 +992,10 @@ class Rx(RotatableMixin, GridUserObject):
             receiver = self._create_receiver(grid, discretised_point)
             grid.add_receiver(receiver)
 
-            p = uip.discretised_to_continuous(discretised_point)
+            x, y, z = uip.round_to_grid_static_point(self.point)
             logger.info(
-                f"{self.grid_name(grid)}Receiver at {p[0]:g}m,"
-                f" {p[1]:g}m, {p[2]:g}m with output component(s)"
+                f"{self.grid_name(grid)}Receiver at {x:g}m,"
+                f" {y:g}m, {z:g}m with output component(s)"
                 f" {', '.join(receiver.outputs)} created."
             )
 
@@ -1058,9 +1052,9 @@ class RxArray(GridUserObject):
                 f"{self.params_str()} the step size should not be less than the spatial discretisation."
             )
 
-        xs, ys, zs = uip.discretised_to_continuous(discretised_lower_point)
-        xf, yf, zf = uip.discretised_to_continuous(discretised_upper_point)
-        dx, dy, dz = uip.discretised_to_continuous(discretised_dl)
+        xs, ys, zs = uip.round_to_grid_static_point(self.lower_point)
+        xf, yf, zf = uip.round_to_grid_static_point(self.upper_point)
+        dx, dy, dz = uip.round_to_grid_static_point(self.dl)
 
         logger.info(
             f"{self.grid_name(grid)}Receiver array"
@@ -1110,8 +1104,8 @@ class Snapshot(GridUserObject):
         super().__init__(**kwargs)
 
     def _calculate_upper_bound(
-        self, start: npt.NDArray, step: npt.NDArray, size: npt.NDArray
-    ) -> npt.NDArray:
+        self, start: npt.NDArray[np.int32], step: npt.NDArray[np.int32], size: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
         # upper_bound = p2 + dl - ((snapshot_size - 1) % dl) - 1
         return start + step * np.ceil(size / step)
 
@@ -1129,7 +1123,7 @@ class Snapshot(GridUserObject):
             raise
 
         uip = self._create_uip(grid)
-        dl = np.array(uip.discretise_static_point(dl))
+        dl = uip.discretise_static_point(dl)
 
         try:
             p1, p2 = uip.check_box_points(p1, p2, self.params_str())
@@ -1137,8 +1131,6 @@ class Snapshot(GridUserObject):
             logger.exception(f"{self.params_str()} point is outside the domain.")
             raise
 
-        p1 = np.array(p1)
-        p2 = np.array(p2)
         snapshot_size = p2 - p1
 
         # If p2 does not line up with the set discretisation, the actual
@@ -1153,7 +1145,7 @@ class Snapshot(GridUserObject):
             # not change the snapshot output.
             if uip.point_within_bounds(upper_bound, "", "", ignore_error=True):
                 p2 = upper_bound
-                p2_continuous = uip.discretised_to_continuous(p2)
+                p2_continuous = p2 * grid.dl
                 logger.warning(
                     f"{self.params_str()} upper bound not aligned with discretisation. Updating 'p2'"
                     f" to {p2_continuous}"
@@ -1164,7 +1156,7 @@ class Snapshot(GridUserObject):
             elif any(dl > snapshot_size):
                 dl = np.where(dl > snapshot_size, snapshot_size, dl)
                 upper_bound = self._calculate_upper_bound(p1, dl, snapshot_size)
-                dl_continuous = uip.discretised_to_continuous(dl)
+                dl_continuous = dl * grid.dl
                 logger.warning(
                     f"{self.params_str()} current bounds and discretisation would go outside"
                     f" domain. As discretisation is larger than the snapshot size in at least one"
@@ -1178,7 +1170,7 @@ class Snapshot(GridUserObject):
                 p2 = np.where(uip.grid_upper_bound() < upper_bound, p2 - (snapshot_size % dl), p2)
                 snapshot_size = p2 - p1
                 upper_bound = self._calculate_upper_bound(p1, dl, snapshot_size)
-                p2_continuous = uip.discretised_to_continuous(p2)
+                p2_continuous = p2 * grid.dl
                 logger.warning(
                     f"{self.params_str()} current bounds and discretisation would go outside"
                     f" domain. Limiting 'p2' to {p2_continuous}"
