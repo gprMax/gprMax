@@ -38,7 +38,9 @@ class TestBoxGeometryNoPml(GprMaxRegressionTest):
 class TestConeGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "cone"}
     sourcesdir = "src/geometry_tests/cone_geometry"
-    model = parameter(["full_cone", "small_cone", "partial_cone"])
+    model = parameter(
+        ["full_cone", "small_cone", "non_axis_aligned_cone", "overtall_cone", "rigid_cone"]
+    )
 
 
 @rfm.simple_test
