@@ -111,5 +111,6 @@ gprMax.run(
     outputfile=fn,
     subgrid=True,
     autotranslate=True,
-    log_level=25,
+    log_level=10,
+    hide_progress_bars=True,
 )
