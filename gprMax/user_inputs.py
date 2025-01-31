@@ -25,6 +25,7 @@ import numpy.typing as npt
 from typing_extensions import TypeVar
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 from .utilities.utilities import round_int
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
     encapulsated here.
 """
 
-GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
+GridType = TypeVar("GridType", bound=FDTDGrid)
 
 
 class UserInput(Generic[GridType]):
@@ -180,6 +181,32 @@ class MainGridUserInput(UserInput[GridType]):
         p3 = self.check_point(p3, cmd_str, name="vertex_3")
 
         return p1, p2, p3
+
+
+class MPIUserInput(MainGridUserInput[MPIGrid]):
+    """Handles (x, y, z) points supplied by the user for MPI grids.
+
+    This class autotranslates points from the global coordinate system
+    to the grid's local coordinate system.
+    """
+
+    def discretise_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
+        """Get the nearest grid index to a continuous static point.
+
+        This function translates user points to the correct index for
+        building objects. Points will be mapped from the global
+        coordinate space to the local coordinate space of the grid.
+        There are no checks of the validity of the point such as bound
+        checking.
+
+        Args:
+            point: x, y, z coordinates of the point in space.
+
+        Returns:
+            discretised_point: x, y, z indices of the point on the grid.
+        """
+        discretised_point = super().discretise_point(point)
+        return self.grid.global_to_local_coordinate(discretised_point)
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):

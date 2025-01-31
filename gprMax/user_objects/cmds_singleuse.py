@@ -123,7 +123,7 @@ class Domain(ModelUserObject):
     def build(self, model: Model):
         uip = self._create_uip(model.G)
 
-        discretised_domain_size = uip.discretise_point(self.domain_size)
+        discretised_domain_size = uip.discretise_static_point(self.domain_size)
 
         model.set_size(discretised_domain_size)
 
@@ -519,7 +519,7 @@ class SrcSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.srcsteps = uip.discretise_point(self.step_size)
+        model.srcsteps = uip.discretise_static_point(self.step_size)
 
         logger.info(
             f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
@@ -556,7 +556,7 @@ class RxSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.rxsteps = uip.discretise_point(self.step_size)
+        model.rxsteps = uip.discretise_static_point(self.step_size)
 
         logger.info(
             f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "

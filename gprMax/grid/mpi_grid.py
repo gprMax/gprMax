@@ -155,16 +155,6 @@ class MPIGrid(FDTDGrid):
         if self.has_neighbour(Dim.Z, Dir.POS):
             self.pmls["thickness"]["zmax"] = 0
 
-    def add_source(self, source: Source):
-        source.coord = self.global_to_local_coordinate(source.coord)
-        source.coordorigin = self.global_to_local_coordinate(source.coordorigin)
-        return super().add_source(source)
-
-    def add_receiver(self, receiver: Rx):
-        receiver.coord = self.global_to_local_coordinate(receiver.coord)
-        receiver.coordorigin = self.global_to_local_coordinate(receiver.coordorigin)
-        return super().add_receiver(receiver)
-
     def is_coordinator(self) -> bool:
         """Test if the current rank is the coordinator.
 
@@ -524,14 +514,12 @@ class MPIGrid(FDTDGrid):
         """
         self.scatter_snapshots()
 
-        if not self.is_coordinator():
-            # TODO: When scatter arrays properly, should initialise these to the local grid size
-            self.initialise_geometry_arrays()
-
-        self.ID = self.scatter_4d_array_with_positive_halo(self.ID)
-        self.solid = self.scatter_3d_array(self.solid)
-        self.rigidE = self.scatter_4d_array(self.rigidE)
-        self.rigidH = self.scatter_4d_array(self.rigidH)
+        # self._halo_swap_array(self.ID[0])
+        # self._halo_swap_array(self.ID[1])
+        # self._halo_swap_array(self.ID[2])
+        # self._halo_swap_array(self.ID[3])
+        # self._halo_swap_array(self.ID[4])
+        # self._halo_swap_array(self.ID[5])
 
     def gather_grid_objects(self):
         """Gather sources and receivers."""
@@ -541,16 +529,6 @@ class MPIGrid(FDTDGrid):
         self.magneticdipoles = self.gather_coord_objects(self.magneticdipoles)
         self.hertziandipoles = self.gather_coord_objects(self.hertziandipoles)
         self.transmissionlines = self.gather_coord_objects(self.transmissionlines)
-
-    def initialise_geometry_arrays(self, use_local_size=False):
-        # TODO: Remove this when scatter geometry arrays rather than broadcast
-        if use_local_size:
-            super().initialise_geometry_arrays()
-        else:
-            self.solid = np.ones(self.global_size, dtype=np.uint32)
-            self.rigidE = np.zeros((12, *self.global_size), dtype=np.int8)
-            self.rigidH = np.zeros((6, *self.global_size), dtype=np.int8)
-            self.ID = np.ones((6, *(self.global_size + 1)), dtype=np.uint32)
 
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
         """Perform a halo swap in the specifed dimension and direction.
@@ -786,11 +764,11 @@ class MPIGrid(FDTDGrid):
             f" {self.lower_extent}, Upper extent: {self.upper_extent}"
         )
 
-    def within_bounds(self, p: npt.NDArray[np.int32]) -> bool:
-        """Check a point is within the grid.
+    def within_bounds(self, local_point: npt.NDArray[np.int32]) -> bool:
+        """Check a local point is within the grid.
 
         Args:
-            p: Point to check.
+            local_point: Point to check.
 
         Returns:
             within_bounds: True if the point is within the local grid
@@ -799,14 +777,18 @@ class MPIGrid(FDTDGrid):
         Raises:
             ValueError: Raised if the point is outside the global grid.
         """
-        if p[0] < 0 or p[0] > self.gx:
-            raise ValueError("x")
-        if p[1] < 0 or p[1] > self.gy:
-            raise ValueError("y")
-        if p[2] < 0 or p[2] > self.gz:
-            raise ValueError("z")
 
-        local_point = self.global_to_local_coordinate(p)
+        gx, gy, gz = self.local_to_global_coordinate(local_point)
+
+        print(local_point)
+        print(gx, gy, gz)
+
+        if gx < 0 or gx > self.gx:
+            raise ValueError("x")
+        if gy < 0 or gy > self.gy:
+            raise ValueError("y")
+        if gz < 0 or gz > self.gz:
+            raise ValueError("z")
 
         return all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
 

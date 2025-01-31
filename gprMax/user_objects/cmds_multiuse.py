@@ -951,7 +951,9 @@ class Rx(RotatableMixin, GridUserObject):
         r.coordorigin = coord
 
         if self.id is None:
-            r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
+            uip = self._create_uip(grid)
+            x, y, z = uip.discretise_static_point(self.point)
+            r.ID = f"Rx({x},{y},{z})"
         else:
             r.ID = self.id
 
@@ -1033,7 +1035,7 @@ class RxArray(GridUserObject):
         uip = self._create_uip(grid)
         discretised_lower_point = uip.discretise_point(self.lower_point)
         discretised_upper_point = uip.discretise_point(self.upper_point)
-        discretised_dl = uip.discretise_point(self.dl)
+        discretised_dl = uip.discretise_static_point(self.dl)
 
         uip.check_src_rx_point(discretised_lower_point, self.params_str(), "lower")
         uip.check_src_rx_point(discretised_upper_point, self.params_str(), "upper")

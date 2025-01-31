@@ -3,9 +3,10 @@ from typing import List, Union
 
 from gprMax import config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
-from gprMax.user_inputs import MainGridUserInput, SubgridUserInput
+from gprMax.user_inputs import MainGridUserInput, MPIUserInput, SubgridUserInput
 
 
 class UserObject(ABC):
@@ -58,7 +59,7 @@ class UserObject(ABC):
         """Readable string of parameters given to object."""
         return f"{self.hash}: {str(self.kwargs)}"
 
-    def _create_uip(self, grid: FDTDGrid) -> Union[SubgridUserInput, MainGridUserInput]:
+    def _create_uip(self, grid: FDTDGrid) -> MainGridUserInput:
         """Returns a point checker class based on the grid supplied.
 
         Args:
@@ -77,6 +78,8 @@ class UserObject(ABC):
             and self.autotranslate
         ):
             return SubgridUserInput(grid)
+        elif isinstance(grid, MPIGrid):
+            return MPIUserInput(grid)
         else:
             return MainGridUserInput(grid)
 
