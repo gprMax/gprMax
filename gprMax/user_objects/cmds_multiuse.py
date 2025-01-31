@@ -953,7 +953,7 @@ class Rx(RotatableMixin, GridUserObject):
         if self.id is None:
             uip = self._create_uip(grid)
             x, y, z = uip.discretise_static_point(self.point)
-            r.ID = f"Rx({x},{y},{z})"
+            r.ID = f"{r.__class__.__name__}({x},{y},{z})"
         else:
             r.ID = self.id
 
