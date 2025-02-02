@@ -24,7 +24,6 @@ from .cmds_geometry.add_grass import AddGrass
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.box import Box
-from .cmds_geometry.cmds_geometry import check_averaging
 from .cmds_geometry.cone import Cone
 from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cylindrical_sector import CylindricalSector
@@ -125,8 +124,8 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 13:
-                averaging = check_averaging(tmp[12].lower())
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11], averaging=averaging)
+                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, 
+                                    material_id=tmp[11], averaging=tmp[12].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 14:
@@ -152,8 +151,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                averaging = check_averaging(tmp[8].lower())
-                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=averaging)
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
@@ -180,8 +178,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 10:
-                averaging = check_averaging(tmp[9].lower())
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=averaging)
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
@@ -209,8 +206,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
-                averaging = check_averaging(tmp[10].lower())
-                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9], averaging=averaging)
+                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9], averaging=tmp[10].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
@@ -252,7 +248,6 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
-                averaging = check_averaging(tmp[10].lower())
                 cylindrical_sector = CylindricalSector(
                     normal=normal,
                     ctr1=ctr1,
@@ -262,7 +257,7 @@ def process_geometrycmds(geometry):
                     r=r,
                     start=start,
                     end=end,
-                    averaging=averaging,
+                    averaging=tmp[10].lower(),
                     material_id=tmp[9],
                 )
 
@@ -300,8 +295,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 7:
-                averaging = check_averaging(tmp[6].lower())
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=averaging)
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
@@ -329,8 +323,8 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                averaging = check_averaging(tmp[8].lower())
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], averaging=averaging)
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, 
+                                      material_id=tmp[7], averaging=tmp[8].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
