@@ -144,7 +144,6 @@ class GeometryObjectsRead(UserObjectGeometry):
                 xs,
                 ys,
                 zs,
-                config.get_model_config().ompthreads,
                 numexistmaterials,
                 averaging,
                 data,

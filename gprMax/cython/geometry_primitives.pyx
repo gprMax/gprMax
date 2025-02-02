@@ -21,7 +21,6 @@ import numpy as np
 cimport numpy as np
 
 np.seterr(divide='raise')
-from cython.parallel import prange
 
 from gprMax.cython.yee_cell_setget_rigid cimport (
     set_rigid_E,
@@ -652,7 +651,6 @@ cpdef void build_box(
     int yf,
     int zs,
     int zf,
-    int nthreads,
     int numID,
     int numIDx,
     int numIDy,
@@ -667,7 +665,6 @@ cpdef void build_box(
 
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of entire box.
-        nthreads: int for number of threads to use
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
@@ -677,14 +674,14 @@ cpdef void build_box(
     cdef Py_ssize_t i, j, k
 
     if averaging:
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
                     unset_rigid_E(i, j, k, rigidE)
                     unset_rigid_H(i, j, k, rigidH)
     else:
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
@@ -697,32 +694,32 @@ cpdef void build_box(
                     ID[4, i, j, k] = numIDy
                     ID[5, i, j, k] = numIDz
 
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             j = yf
             k = zf
             ID[0, i, j, k] = numIDx
 
         i = xf
-        for j in prange(ys, yf, nogil=True, schedule='static', num_threads=nthreads):
+        for j in range(ys, yf):
             for k in range(zf, zf + 1):
                 ID[1, i, j, k] = numIDy
 
         i = xf
         j = yf
-        for k in prange(zs, zf, nogil=True, schedule='static', num_threads=nthreads):
+        for k in range(zs, zf):
             ID[2, i, j, k] = numIDz
 
         i = xf
-        for j in prange(ys, yf, nogil=True, schedule='static', num_threads=nthreads):
+        for j in range(ys, yf):
             for k in range(zs, zf):
                 ID[3, i, j, k] = numIDx
 
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             j = yf
             for k in range(zs, zf):
                 ID[4, i, j, k] = numIDy
 
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             for j in range(ys, yf):
                 k = zf
                 ID[5, i, j, k] = numIDz
@@ -1275,7 +1272,6 @@ cpdef void build_voxels_from_array(
     int xs,
     int ys,
     int zs,
-    int nthreads,
     int numexistmaterials,
     bint averaging,
     np.int16_t[:, :, ::1] data,
@@ -1289,7 +1285,6 @@ cpdef void build_voxels_from_array(
     Args:
         xs, ys, zs: ints for cell coordinates of position of start of array in
                     domain.
-        nthreads: int for number of threads to use
         numexistmaterials: int for number of existing materials in model prior
                             to building voxels.
         averaging: bint for whether material property averaging will occur for
@@ -1323,7 +1318,7 @@ cpdef void build_voxels_from_array(
     else:
         zf = zs + data.shape[2]
 
-    for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+    for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
                 numID = data[i - xs, j - ys, k - zs]
@@ -1336,7 +1331,6 @@ cpdef void build_voxels_from_array_mask(
     int xs,
     int ys,
     int zs,
-    int nthreads,
     int waternumID,
     int grassnumID,
     bint averaging,
@@ -1351,7 +1345,6 @@ cpdef void build_voxels_from_array_mask(
 
     Args:
         xs, ys, zs: ints for cell coordinates of position of start of array in domain.
-        nthreads: int for number of threads to use
         waternumID, grassnumID: ints for numeric ID of water and grass materials.
         averaging: bint for whether material property averaging will occur for
                 the object.
@@ -1368,7 +1361,7 @@ cpdef void build_voxels_from_array_mask(
     yf = ys + data.shape[1]
     zf = zs + data.shape[2]
 
-    for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+    for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
                 if mask[i - xs, j - ys, k - zs] == 1:

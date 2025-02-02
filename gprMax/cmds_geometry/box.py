@@ -143,7 +143,6 @@ class Box(UserObjectGeometry):
             yf,
             zs,
             zf,
-            config.get_model_config().ompthreads,
             numID,
             numIDx,
             numIDy,
