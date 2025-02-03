@@ -68,7 +68,9 @@ class CustomFormatter(logging.Formatter):
         return logging.Formatter.format(self, colored_record)
 
 
-def logging_config(name="gprMax", level=logging.INFO, format_style="std", log_file=False):
+def logging_config(
+    name="gprMax", level=logging.INFO, format_style="std", log_file=False
+):
     """Setup and configure logging.
 
     Args:
@@ -102,7 +104,9 @@ def logging_config(name="gprMax", level=logging.INFO, format_style="std", log_fi
 
     # Config for logging to file if required
     if log_file:
-        filename = name + "-log-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt"
+        filename = (
+            name + "-log-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt"
+        )
         handler = logging.FileHandler(filename, mode="w")
         formatter = logging.Formatter(format_full)
         handler.setLevel(logging.DEBUG)
