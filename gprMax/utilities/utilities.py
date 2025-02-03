@@ -22,6 +22,7 @@ import logging
 import re
 import textwrap
 from shutil import get_terminal_size
+from time import perf_counter as timer_fn
 
 import numpy as np
 from colorama import Fore, Style, init
@@ -29,12 +30,6 @@ from colorama import Fore, Style, init
 init()
 
 logger = logging.getLogger(__name__)
-
-try:
-    from time import thread_time as timer_fn
-except ImportError:
-    # thread_time not always available in macOS
-    from time import process_time as timer_fn
 
 
 def get_terminal_width():
@@ -71,9 +66,15 @@ def logo(version):
         str: string containing logo, version, and licencing/copyright info.
     """
 
-    description = "\n=== Electromagnetic modelling software based on the " "Finite-Difference Time-Domain (FDTD) method"
+    description = (
+        "\n=== Electromagnetic modelling software based on the "
+        "Finite-Difference Time-Domain (FDTD) method"
+    )
     current_year = datetime.datetime.now().year
-    copyright = f"Copyright (C) 2015-{current_year}: The University of " "Edinburgh, United Kingdom"
+    copyright = (
+        f"Copyright (C) 2015-{current_year}: The University of "
+        "Edinburgh, United Kingdom"
+    )
     authors = "Authors: Craig Warren, Antonis Giannopoulos, and John Hartley"
     licenseinfo1 = (
         "gprMax is free software: you can redistribute it and/or "
@@ -96,7 +97,7 @@ def logo(version):
     )
 
     logo = (
-        """    www.gprmax.com   __  __
+        r"""    www.gprmax.com   __  __
      __ _ _ __  _ __|  \/  | __ ___  __
     / _` | '_ \| '__| |\/| |/ _` \ \/ /
    | (_| | |_) | |  | |  | | (_| |>  <
@@ -109,15 +110,39 @@ def logo(version):
 
     str = f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n\n"
     str += f"{Fore.CYAN}{logo}"
-    str += Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=" ") + "\n"
-    str += textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ") + "\n\n"
     str += (
-        textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  ") + "\n"
+        Style.RESET_ALL
+        + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=" ")
+        + "\n"
     )
     str += (
-        textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  ") + "\n"
+        textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ")
+        + "\n\n"
     )
-    str += textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  ")
+    str += (
+        textwrap.fill(
+            licenseinfo1,
+            width=get_terminal_width() - 1,
+            initial_indent=" ",
+            subsequent_indent="  ",
+        )
+        + "\n"
+    )
+    str += (
+        textwrap.fill(
+            licenseinfo2,
+            width=get_terminal_width() - 1,
+            initial_indent=" ",
+            subsequent_indent="  ",
+        )
+        + "\n"
+    )
+    str += textwrap.fill(
+        licenseinfo3,
+        width=get_terminal_width() - 1,
+        initial_indent=" ",
+        subsequent_indent="  ",
+    )
 
     return str
 
@@ -136,12 +161,16 @@ def round_value(value, decimalplaces=0):
 
     # Rounds to nearest integer (half values are rounded downwards)
     if decimalplaces == 0:
-        rounded = int(d.Decimal(value).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
+        rounded = int(
+            d.Decimal(value).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN)
+        )
 
     # Rounds down to nearest float represented by number of decimal places
     else:
         precision = f"1.{'0' * decimalplaces}"
-        rounded = float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+        rounded = float(
+            d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR)
+        )
 
     return rounded
 
