@@ -48,7 +48,11 @@ def get_host_info():
         # Manufacturer/model
         try:
             manufacturer = (
-                subprocess.check_output(["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["wmic", "csproduct", "get", "vendor"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -59,7 +63,9 @@ def get_host_info():
                 manufacturer = manufacturer[0]
             model = (
                 subprocess.check_output(
-                    ["wmic", "computersystem", "get", "model"], shell=False, stderr=subprocess.STDOUT
+                    ["wmic", "computersystem", "get", "model"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
                 .decode("utf-8")
                 .strip()
@@ -76,7 +82,11 @@ def get_host_info():
         # CPU information
         try:
             allcpuinfo = (
-                subprocess.check_output(["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["wmic", "cpu", "get", "Name"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -109,7 +119,9 @@ def get_host_info():
         manufacturer = "Apple"
         try:
             model = (
-                subprocess.check_output(["sysctl", "-n", "hw.model"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["sysctl", "-n", "hw.model"], shell=False, stderr=subprocess.STDOUT
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -120,14 +132,20 @@ def get_host_info():
         # CPU information
         try:
             sockets = (
-                subprocess.check_output(["sysctl", "-n", "hw.packages"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["sysctl", "-n", "hw.packages"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
+                )
                 .decode("utf-8")
                 .strip()
             )
             sockets = int(sockets)
             cpuID = (
                 subprocess.check_output(
-                    ["sysctl", "-n", "machdep.cpu.brand_string"], shell=False, stderr=subprocess.STDOUT
+                    ["sysctl", "-n", "machdep.cpu.brand_string"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
                 .decode("utf-8")
                 .strip()
@@ -150,13 +168,19 @@ def get_host_info():
         # Manufacturer/model
         try:
             manufacturer = (
-                subprocess.check_output(["cat", "/sys/class/dmi/id/sys_vendor"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["cat", "/sys/class/dmi/id/sys_vendor"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
+                )
                 .decode("utf-8")
                 .strip()
             )
             model = (
                 subprocess.check_output(
-                    ["cat", "/sys/class/dmi/id/product_name"], shell=False, stderr=subprocess.STDOUT
+                    ["cat", "/sys/class/dmi/id/product_name"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
                 .decode("utf-8")
                 .strip()
@@ -170,7 +194,12 @@ def get_host_info():
             # Locale to ensure English
             myenv = {**os.environ, "LANG": "en_US.utf8"}
             cpuIDinfo = (
-                subprocess.check_output(["cat", "/proc/cpuinfo"], shell=False, stderr=subprocess.STDOUT, env=myenv)
+                subprocess.check_output(
+                    ["cat", "/proc/cpuinfo"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
+                    env=myenv,
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -179,7 +208,9 @@ def get_host_info():
                     cpuID = re.sub(".*model name.*:", "", line, 1).strip()
                     cpuID = " ".join(cpuID.split())
             allcpuinfo = (
-                subprocess.check_output(["lscpu"], shell=False, stderr=subprocess.STDOUT, env=myenv)
+                subprocess.check_output(
+                    ["lscpu"], shell=False, stderr=subprocess.STDOUT, env=myenv
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -232,7 +263,7 @@ def print_host_info(hostinfo):
     """
 
     hyperthreadingstr = (
-        f", {config.sim_config.hostinfo['logicalcores']} " f"cores with Hyper-Threading"
+        f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading"
         if config.sim_config.hostinfo["hyperthreading"]
         else ""
     )
@@ -490,12 +521,12 @@ def detect_cuda_gpus():
 
 
 def print_cuda_info(devs):
-    """"Prints info about detected CUDA-capable GPU(s).
+    """Prints info about detected CUDA-capable GPU(s).
 
     Args:
         devs: dict of detected pycuda device object(s) where where device ID(s)
                 are keys.
-    """ ""
+    """
 
     import pycuda
 
@@ -545,12 +576,12 @@ def detect_opencl():
 
 
 def print_opencl_info(devs):
-    """"Prints info about detected OpenCL-capable device(s).
+    """Prints info about detected OpenCL-capable device(s).
 
     Args:
         devs: dict of detected pyopencl device object(s) where where device ID(s)
                 are keys.
-    """ ""
+    """
 
     import pyopencl as cl
 
