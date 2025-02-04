@@ -1,0 +1,11 @@
+#title: Hertzian dipole over a half-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: z 0.050 0.050 0.050 myWave
+#rx: 0.070 0.070 0.070
+
+#material: 8 0 1 0 half_space
+#box: 0 0 0 0.100 0.100 0.050 half_space
