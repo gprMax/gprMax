@@ -28,7 +28,9 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
+def calculate_antenna_params(
+    filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None
+):
     """Calculates antenna parameters - incident, reflected and total volatges
         and currents; s11, (s21) and input impedance.
 
@@ -160,7 +162,9 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
         "yin": yin,
     }
     if tlrxnumber or rxnumber:
-        with np.errstate(divide="ignore"):  # Ignore warning from taking a log of any zero values
+        with np.errstate(
+            divide="ignore"
+        ):  # Ignore warning from taking a log of any zero values
             s21 = 20 * np.log10(s21)
         s21[np.invert(np.isfinite(s21))] = 0
         antennaparams["s21"] = s21
@@ -224,7 +228,10 @@ def mpl_plot(
 
     # Print some useful values from s11, and input impedance
     s11minfreq = np.where(s11[pltrange] == np.amin(s11[pltrange]))[0][0]
-    logger.info(f"s11 minimum: {np.amin(s11[pltrange]):g} dB at " + f"{freqs[s11minfreq + pltrangemin]:g} Hz")
+    logger.info(
+        f"s11 minimum: {np.amin(s11[pltrange]):g} dB at "
+        + f"{freqs[s11minfreq + pltrangemin]:g} Hz"
+    )
     logger.info(f"At {freqs[s11minfreq + pltrangemin]:g} Hz...")
     logger.info(
         f"Input impedance: {np.abs(zin[s11minfreq + pltrangemin]):.1f}"
@@ -236,7 +243,10 @@ def mpl_plot(
     # Figure 1
     # Plot incident voltage
     fig1, ax = plt.subplots(
-        num="Transmitter transmission line parameters", figsize=(20, 12), facecolor="w", edgecolor="w"
+        num="Transmitter transmission line parameters",
+        figsize=(20, 12),
+        facecolor="w",
+        edgecolor="w",
     )
     gs1 = gridspec.GridSpec(4, 2, hspace=0.7)
     ax = plt.subplot(gs1[0, 0])
@@ -368,7 +378,9 @@ def mpl_plot(
 
     # Figure 2
     # Plot frequency spectra of s11
-    fig2, ax = plt.subplots(num="Antenna parameters", figsize=(20, 12), facecolor="w", edgecolor="w")
+    fig2, ax = plt.subplots(
+        num="Antenna parameters", figsize=(20, 12), facecolor="w", edgecolor="w"
+    )
     gs2 = gridspec.GridSpec(2, 2, hspace=0.3)
     ax = plt.subplot(gs2[0, 0])
     markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange], "-.")
@@ -463,8 +475,20 @@ def mpl_plot(
         savename2 = filename.stem + "_ant_params"
         savename2 = filename.parent / savename2
         # Save a PDF of the figure
-        fig1.savefig(savename1.with_suffix(".pdf"), dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
-        fig2.savefig(savename2.with_suffix(".pdf"), dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+        fig1.savefig(
+            savename1.with_suffix(".pdf"),
+            dpi=None,
+            format="pdf",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
+        fig2.savefig(
+            savename2.with_suffix(".pdf"),
+            dpi=None,
+            format="pdf",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
         # Save a PNG of the figure
         # fig1.savefig(savename1.with_suffix('.png'), dpi=150, format='png',
         #             bbox_inches='tight', pad_inches=0.1)
@@ -485,8 +509,15 @@ if __name__ == "__main__":
         usage="cd gprMax; python -m toolboxes.Plotting.plot_antenna_params outputfile",
     )
     parser.add_argument("outputfile", help="name of output file including path")
-    parser.add_argument("--tltx-num", default=1, type=int, help="transmitter antenna - transmission line number")
-    parser.add_argument("--tlrx-num", type=int, help="receiver antenna - transmission line number")
+    parser.add_argument(
+        "--tltx-num",
+        default=1,
+        type=int,
+        help="transmitter antenna - transmission line number",
+    )
+    parser.add_argument(
+        "--tlrx-num", type=int, help="receiver antenna - transmission line number"
+    )
     parser.add_argument("--rx-num", type=int, help="receiver antenna - output number")
     parser.add_argument(
         "--rx-component",
@@ -495,7 +526,10 @@ if __name__ == "__main__":
         choices=["Ex", "Ey", "Ez"],
     )
     parser.add_argument(
-        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+        "-save",
+        action="store_true",
+        default=False,
+        help="save plot directly to file, i.e. do not display",
     )
     args = parser.parse_args()
 

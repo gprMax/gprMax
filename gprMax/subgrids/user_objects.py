@@ -131,7 +131,9 @@ class SubGridBase(UserObjectMulti):
         # Don't mix and match different subgrid types
         for sg_made in grid.subgrids:
             if type(sg) != type(sg_made):
-                logger.exception(f"{self.__str__()} please only use one type of subgrid")
+                logger.exception(
+                    f"{self.__str__()} please only use one type of subgrid"
+                )
                 raise ValueError
 
         # Reference the subgrid under the main grid to which it belongs

@@ -17,9 +17,15 @@ if __name__ == "__main__":
         usage="cd gprMax; python -m toolboxes.STLtoVoxel.stltovoxel stlfilename -matindex -dxdydz",
     )
     parser.add_argument(
-        "stlfiles", help="can be the filename of a single STL file, or the path to folder containing multiple STL files"
+        "stlfiles",
+        help="can be the filename of a single STL file, or the path to folder containing multiple STL files",
     )
-    parser.add_argument("-dxdydz", type=float, required=True, help="discretisation to use in voxelisation process")
+    parser.add_argument(
+        "-dxdydz",
+        type=float,
+        required=True,
+        help="discretisation to use in voxelisation process",
+    )
     args = parser.parse_args()
 
     if os.path.isdir(args.stlfiles):
@@ -38,7 +44,9 @@ if __name__ == "__main__":
     newline = "\n\t"
     logger.info(f"\nConverting STL file(s): {newline.join(files)}")
     model_array = convert_files(files, dxdydz)
-    logger.info(f"Number of voxels: {model_array.shape[0]} x {model_array.shape[1]} x {model_array.shape[2]}")
+    logger.info(
+        f"Number of voxels: {model_array.shape[0]} x {model_array.shape[1]} x {model_array.shape[2]}"
+    )
     logger.info(f"Spatial discretisation: {dxdydz[0]} x {dxdydz[1]} x {dxdydz[2]}m")
 
     # Write HDF5 file for gprMax using voxels

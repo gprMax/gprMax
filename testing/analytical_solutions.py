@@ -157,14 +157,18 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
         )
 
         # Hx
-        fields[timestep, 3] = -(Hx_y / (4 * np.pi * Hr_x**3)) * (f_Hx + (tau_Hx * fdot_Hx))
+        fields[timestep, 3] = -(Hx_y / (4 * np.pi * Hr_x**3)) * (
+            f_Hx + (tau_Hx * fdot_Hx)
+        )
 
         # Hy
         try:
             tmp = Hy_x / Hy_y
         except ZeroDivisionError:
             tmp = 0
-        fields[timestep, 4] = -tmp * (-(Hy_y / (4 * np.pi * Hr_y**3)) * (f_Hy + (tau_Hy * fdot_Hy)))
+        fields[timestep, 4] = -tmp * (
+            -(Hy_y / (4 * np.pi * Hr_y**3)) * (f_Hy + (tau_Hy * fdot_Hy))
+        )
 
         # Hz
         fields[timestep, 5] = 0

@@ -107,7 +107,9 @@ def merge_files(outputfiles, removefiles=False):
                 availableoutputs = list(fin[path].keys())
                 for output in availableoutputs:
                     grp.create_dataset(
-                        output, (fout.attrs["Iterations"], len(outputfiles)), dtype=fin[path + "/" + output].dtype
+                        output,
+                        (fout.attrs["Iterations"], len(outputfiles)),
+                        dtype=fin[path + "/" + output].dtype,
                     )
 
         # For all receivers
@@ -134,9 +136,14 @@ if __name__ == "__main__":
         + "optionally removes the series of output files.",
         usage="cd gprMax; python -m tools.outputfiles_merge basefilename",
     )
-    parser.add_argument("basefilename", help="base name of output file series including path")
     parser.add_argument(
-        "--remove-files", action="store_true", default=False, help="flag to remove individual output files after merge"
+        "basefilename", help="base name of output file series including path"
+    )
+    parser.add_argument(
+        "--remove-files",
+        action="store_true",
+        default=False,
+        help="flag to remove individual output files after merge",
     )
     args = parser.parse_args()
 

@@ -31,8 +31,7 @@ import gprMax.config as config
 from ._version import __version__, codename
 from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
-from .utilities.host_info import (print_cuda_info, print_host_info,
-                                  print_opencl_info)
+from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info
 from .utilities.utilities import get_terminal_width, logo, timer
 
 logger = logging.getLogger(__name__)
@@ -45,7 +44,9 @@ class Context:
     """
 
     def __init__(self):
-        self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
+        self.model_range = range(
+            config.sim_config.model_start, config.sim_config.model_end
+        )
         self.tsimend = None
         self.tsimstart = None
 
@@ -64,7 +65,7 @@ class Context:
         elif config.sim_config.general["solver"] == "opencl":
             print_opencl_info(config.sim_config.devices["devs"])
 
-        # Clear list of model configs, which can be retained when gprMax is 
+        # Clear list of model configs, which can be retained when gprMax is
         # called in a loop, and want to avoid this.
         config.model_configs = []
 
@@ -181,7 +182,11 @@ class MPIContext(Context):
                 print_opencl_info(config.sim_config.devices["devs"])
 
             s = f"\n--- Input file: {config.sim_config.input_file_path}"
-            logger.basic(Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL)
+            logger.basic(
+                Fore.GREEN
+                + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n"
+                + Style.RESET_ALL
+            )
 
             sys.stdout.flush()
 

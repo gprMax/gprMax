@@ -91,11 +91,15 @@ class AddSurfaceRoughness(UserObjectGeometry):
             self._do_rotate()
 
         # Get the correct fractal volume
-        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
+        volumes = [
+            volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id
+        ]
         if volumes:
             volume = volumes[0]
         else:
-            logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
+            logger.exception(
+                f"{self.__str__()} cannot find FractalBox {fractal_box_id}"
+            )
             raise ValueError
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -103,7 +107,10 @@ class AddSurfaceRoughness(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the " + "fractal dimension")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the "
+                + "fractal dimension"
+            )
             raise ValueError
         if weighting[0] < 0:
             logger.exception(
@@ -121,12 +128,19 @@ class AddSurfaceRoughness(UserObjectGeometry):
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
+            fractalrange = (
+                round_value(limits[0] / grid.dx),
+                round_value(limits[1] / grid.dx),
+            )
             # xminus surface
             if xs == volume.xs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.xf:
@@ -152,12 +166,20 @@ class AddSurfaceRoughness(UserObjectGeometry):
 
         elif ys == yf:
             if zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external "
+                    + "surfaces of a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
+            fractalrange = (
+                round_value(limits[0] / grid.dy),
+                round_value(limits[1] / grid.dy),
+            )
             # yminus surface
             if ys == volume.ys:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.yf:
@@ -183,9 +205,15 @@ class AddSurfaceRoughness(UserObjectGeometry):
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external "
+                    + "surfaces of a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
+            fractalrange = (
+                round_value(limits[0] / grid.dz),
+                round_value(limits[1] / grid.dz),
+            )
             # zminus surface
             if zs == volume.zs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.zf:
@@ -222,7 +250,9 @@ class AddSurfaceRoughness(UserObjectGeometry):
         # List of existing surfaces IDs
         existingsurfaceIDs = [x.surfaceID for x in volume.fractalsurfaces]
         if surface.surfaceID in existingsurfaceIDs:
-            logger.exception(f"{self.__str__()} has already been used on the {surface.surfaceID} surface")
+            logger.exception(
+                f"{self.__str__()} has already been used on the {surface.surfaceID} surface"
+            )
             raise ValueError
 
         surface.generate_fractal_surface()

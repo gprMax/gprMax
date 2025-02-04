@@ -109,7 +109,9 @@ class Triangle(UserObjectGeometry):
         x3, y3, z3 = uip.round_to_grid(up3)
 
         if thickness < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for thickness")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for thickness"
+            )
             raise ValueError
 
         # Check for valid orientations
@@ -123,7 +125,9 @@ class Triangle(UserObjectGeometry):
         elif z1 == z2 == z3:
             normal = "z"
         else:
-            logger.exception(f"{self.__str__()} the triangle is not specified correctly")
+            logger.exception(
+                f"{self.__str__()} the triangle is not specified correctly"
+            )
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -146,7 +150,9 @@ class Triangle(UserObjectGeometry):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
+                requiredID = (
+                    materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
+                )
                 averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
@@ -155,10 +161,18 @@ class Triangle(UserObjectGeometry):
                     m = Material(numID, requiredID)
                     m.type = "dielectric-smoothed"
                     # Create dielectric-smoothed constituents for material
-                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                    m.er = np.mean(
+                        (materials[0].er, materials[1].er, materials[2].er), axis=0
+                    )
+                    m.se = np.mean(
+                        (materials[0].se, materials[1].se, materials[2].se), axis=0
+                    )
+                    m.mr = np.mean(
+                        (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                    )
+                    m.sm = np.mean(
+                        (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                    )
 
                     # Append the new material object to the materials list
                     grid.materials.append(m)

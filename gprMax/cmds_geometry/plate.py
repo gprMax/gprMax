@@ -20,8 +20,7 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import (build_face_xy, build_face_xz,
-                                          build_face_yz)
+from ..cython.geometry_primitives import build_face_xy, build_face_xz, build_face_yz
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)
@@ -115,7 +114,9 @@ class Plate(UserObjectGeometry):
 
             for j in range(ys, yf):
                 for k in range(zs, zf):
-                    build_face_yz(xs, j, k, numIDy, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_yz(
+                        xs, j, k, numIDy, numIDz, grid.rigidE, grid.rigidH, grid.ID
+                    )
 
         # xz-plane plate
         elif ys == yf:
@@ -130,7 +131,9 @@ class Plate(UserObjectGeometry):
 
             for i in range(xs, xf):
                 for k in range(zs, zf):
-                    build_face_xz(i, ys, k, numIDx, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_xz(
+                        i, ys, k, numIDx, numIDz, grid.rigidE, grid.rigidH, grid.ID
+                    )
 
         # xy-plane plate
         elif zs == zf:
@@ -145,7 +148,9 @@ class Plate(UserObjectGeometry):
 
             for i in range(xs, xf):
                 for j in range(ys, yf):
-                    build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_xy(
+                        i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID
+                    )
 
         logger.info(
             f"{self.grid_name(grid)}Plate from {p3[0]:g}m, {p3[1]:g}m, "

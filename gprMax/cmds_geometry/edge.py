@@ -20,8 +20,7 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
-                                          build_edge_z)
+from ..cython.geometry_primitives import build_edge_x, build_edge_y, build_edge_z
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)
@@ -92,15 +91,21 @@ class Edge(UserObjectGeometry):
             raise ValueError
         elif xs != xf:
             for i in range(xs, xf):
-                build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+                build_edge_x(
+                    i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID
+                )
 
         elif ys != yf:
             for j in range(ys, yf):
-                build_edge_y(xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+                build_edge_y(
+                    xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID
+                )
 
         elif zs != zf:
             for k in range(zs, zf):
-                build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+                build_edge_z(
+                    xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID
+                )
 
         logger.info(
             f"{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, "

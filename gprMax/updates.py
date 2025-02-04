@@ -25,12 +25,14 @@ from jinja2 import Environment, PackageLoader
 
 import gprMax.config as config
 
-from .cuda_opencl import (knl_fields_updates, knl_snapshots,
-                          knl_source_updates, knl_store_outputs)
-from .cython.fields_updates_normal import \
-    update_electric as update_electric_cpu
-from .cython.fields_updates_normal import \
-    update_magnetic as update_magnetic_cpu
+from .cuda_opencl import (
+    knl_fields_updates,
+    knl_snapshots,
+    knl_source_updates,
+    knl_store_outputs,
+)
+from .cython.fields_updates_normal import update_electric as update_electric_cpu
+from .cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
 from .fields_outputs import store_outputs as store_outputs_cpu
 from .receivers import dtoh_rx_array, htod_rx_arrays
 from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
@@ -151,7 +153,11 @@ class CPUUpdates:
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
-        for source in self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles:
+        for source in (
+            self.grid.voltagesources
+            + self.grid.transmissionlines
+            + self.grid.hertziandipoles
+        ):
             source.update_electric(
                 self.grid.iteration,
                 self.grid.updatecoeffsE,
@@ -191,10 +197,13 @@ class CPUUpdates:
         """Sets dispersive update functions."""
 
         poles = "multi" if config.get_model_config().materials["maxpoles"] > 1 else "1"
-        precision = "float" if config.sim_config.general["precision"] == "single" else "double"
+        precision = (
+            "float" if config.sim_config.general["precision"] == "single" else "double"
+        )
         dispersion = (
             "complex"
-            if config.get_model_config().materials["dispersivedtype"] == config.sim_config.dtypes["complex"]
+            if config.get_model_config().materials["dispersivedtype"]
+            == config.sim_config.dtypes["complex"]
             else "real"
         )
 
@@ -202,8 +211,12 @@ class CPUUpdates:
         disp_a = update_f.format(poles, "A", precision, dispersion)
         disp_b = update_f.format(poles, "B", precision, dispersion)
 
-        disp_a_f = getattr(import_module("gprMax.cython.fields_updates_dispersive"), disp_a)
-        disp_b_f = getattr(import_module("gprMax.cython.fields_updates_dispersive"), disp_b)
+        disp_a_f = getattr(
+            import_module("gprMax.cython.fields_updates_dispersive"), disp_a
+        )
+        disp_b_f = getattr(
+            import_module("gprMax.cython.fields_updates_dispersive"), disp_b
+        )
 
         self.dispersive_update_a = disp_a_f
         self.dispersive_update_b = disp_b_f
@@ -271,7 +284,11 @@ class CUDAUpdates:
             self._set_pml_knls()
         if self.grid.rxs:
             self._set_rx_knl()
-        if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
+        if (
+            self.grid.voltagesources
+            + self.grid.hertziandipoles
+            + self.grid.magneticdipoles
+        ):
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
@@ -344,11 +361,15 @@ class CUDAUpdates:
         gets kernel functions.
         """
 
-        bld = self._build_knl(knl_fields_updates.update_electric, self.subs_name_args, self.subs_func)
+        bld = self._build_knl(
+            knl_fields_updates.update_electric, self.subs_name_args, self.subs_func
+        )
         knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.update_electric_dev = knlE.get_function("update_electric")
 
-        bld = self._build_knl(knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func)
+        bld = self._build_knl(
+            knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func
+        )
         knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.update_magnetic_dev = knlH.get_function("update_magnetic")
 
@@ -367,13 +388,25 @@ class CUDAUpdates:
                 }
             )
 
-            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A, self.subs_name_args, self.subs_func)
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            bld = self._build_knl(
+                knl_fields_updates.update_electric_dispersive_A,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            knl = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
             self._copy_mat_coeffs(knl, knl)
 
-            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B, self.subs_name_args, self.subs_func)
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            bld = self._build_knl(
+                knl_fields_updates.update_electric_dispersive_B,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            knl = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
             self._copy_mat_coeffs(knl, knl)
 
@@ -387,10 +420,12 @@ class CUDAUpdates:
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
         knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl.knl_pml_updates_electric_"
+            + self.grid.pmls["formulation"]
         )
         knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl.knl_pml_updates_magnetic_"
+            + self.grid.pmls["formulation"]
         )
 
         # Initialise arrays on GPU, set block per grid, and get kernel functions
@@ -402,12 +437,16 @@ class CUDAUpdates:
 
             knl_electric = getattr(knl_pml_updates_electric, knl_name)
             bld = self._build_knl(knl_electric, self.subs_name_args, self.subs_func)
-            knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knlE = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             pml.update_electric_dev = knlE.get_function(knl_name)
 
             knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
             bld = self._build_knl(knl_magnetic, self.subs_name_args, self.subs_func)
-            knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knlH = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             pml.update_magnetic_dev = knlH.get_function(knl_name)
 
             # Copy material coefficient arrays to constant memory of GPU - must
@@ -430,7 +469,9 @@ class CUDAUpdates:
             }
         )
 
-        bld = self._build_knl(knl_store_outputs.store_outputs, self.subs_name_args, self.subs_func)
+        bld = self._build_knl(
+            knl_store_outputs.store_outputs, self.subs_name_args, self.subs_func
+        )
         knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.store_outputs_dev = knl.get_function("store_outputs")
 
@@ -441,25 +482,49 @@ class CUDAUpdates:
         self.subs_func.update({"NY_SRCINFO": 4, "NY_SRCWAVES": self.grid.iteration})
 
         if self.grid.hertziandipoles:
-            self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(
-                self.grid.hertziandipoles, self.grid
+            (
+                self.srcinfo1_hertzian_dev,
+                self.srcinfo2_hertzian_dev,
+                self.srcwaves_hertzian_dev,
+            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid)
+            bld = self._build_knl(
+                knl_source_updates.update_hertzian_dipole,
+                self.subs_name_args,
+                self.subs_func,
             )
-            bld = self._build_knl(knl_source_updates.update_hertzian_dipole, self.subs_name_args, self.subs_func)
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             self.update_hertzian_dipole_dev = knl.get_function("update_hertzian_dipole")
         if self.grid.magneticdipoles:
-            self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(
-                self.grid.magneticdipoles, self.grid
+            (
+                self.srcinfo1_magnetic_dev,
+                self.srcinfo2_magnetic_dev,
+                self.srcwaves_magnetic_dev,
+            ) = htod_src_arrays(self.grid.magneticdipoles, self.grid)
+            bld = self._build_knl(
+                knl_source_updates.update_magnetic_dipole,
+                self.subs_name_args,
+                self.subs_func,
             )
-            bld = self._build_knl(knl_source_updates.update_magnetic_dipole, self.subs_name_args, self.subs_func)
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             self.update_magnetic_dipole_dev = knl.get_function("update_magnetic_dipole")
         if self.grid.voltagesources:
-            self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev, self.srcwaves_voltage_dev = htod_src_arrays(
-                self.grid.voltagesources, self.grid
+            (
+                self.srcinfo1_voltage_dev,
+                self.srcinfo2_voltage_dev,
+                self.srcwaves_voltage_dev,
+            ) = htod_src_arrays(self.grid.voltagesources, self.grid)
+            bld = self._build_knl(
+                knl_source_updates.update_voltage_source,
+                self.subs_name_args,
+                self.subs_func,
             )
-            bld = self._build_knl(knl_source_updates.update_voltage_source, self.subs_name_args, self.subs_func)
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(
+                bld, options=config.sim_config.devices["nvcc_opts"]
+            )
             self.update_voltage_source_dev = knl.get_function("update_voltage_source")
 
         self._copy_mat_coeffs(knl, knl)
@@ -486,7 +551,9 @@ class CUDAUpdates:
             }
         )
 
-        bld = self._build_knl(knl_snapshots.store_snapshot, self.subs_name_args, self.subs_func)
+        bld = self._build_knl(
+            knl_snapshots.store_snapshot, self.subs_name_args, self.subs_func
+        )
         knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.store_snapshot_dev = knl.get_function("store_snapshot")
 
@@ -805,12 +872,16 @@ class OpenCLUpdates:
 
         # Import pyopencl module
         self.cl = import_module("pyopencl")
-        self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
+        self.elwiseknl = getattr(
+            import_module("pyopencl.elementwise"), "ElementwiseKernel"
+        )
 
         # Select device, create context and command queue
         self.dev = config.get_model_config().device["dev"]
         self.ctx = self.cl.Context(devices=[self.dev])
-        self.queue = self.cl.CommandQueue(self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE)
+        self.queue = self.cl.CommandQueue(
+            self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE
+        )
 
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
@@ -822,7 +893,11 @@ class OpenCLUpdates:
             self._set_pml_knls()
         if self.grid.rxs:
             self._set_rx_knl()
-        if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
+        if (
+            self.grid.voltagesources
+            + self.grid.hertziandipoles
+            + self.grid.magneticdipoles
+        ):
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
@@ -872,7 +947,7 @@ class OpenCLUpdates:
 
     def _set_field_knls(self):
         """Electric and magnetic field updates - prepares kernels, and
-            gets kernel functions.
+        gets kernel functions.
         """
 
         subs = {
@@ -884,7 +959,7 @@ class OpenCLUpdates:
             "NY_ID": self.grid.ID.shape[2],
             "NZ_ID": self.grid.ID.shape[3],
         }
-        
+
         self.update_electric_dev = self.elwiseknl(
             self.ctx,
             knl_fields_updates.update_electric["args_opencl"].substitute(
@@ -924,30 +999,42 @@ class OpenCLUpdates:
                 "NY_T": self.grid.Tx.shape[2],
                 "NZ_T": self.grid.Tx.shape[3],
             }
-            
+
             self.dispersive_update_a = self.elwiseknl(
                 self.ctx,
-                knl_fields_updates.update_electric_dispersive_A["args_opencl"].substitute(
+                knl_fields_updates.update_electric_dispersive_A[
+                    "args_opencl"
+                ].substitute(
                     {
                         "REAL": config.sim_config.dtypes["C_float_or_double"],
-                        "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                        "COMPLEX": config.get_model_config().materials[
+                            "dispersiveCdtype"
+                        ],
                     }
                 ),
-                knl_fields_updates.update_electric_dispersive_A["func"].substitute(subs),
+                knl_fields_updates.update_electric_dispersive_A["func"].substitute(
+                    subs
+                ),
                 "update_electric_dispersive_A",
                 preamble=self.knl_common,
                 options=config.sim_config.devices["compiler_opts"],
             )
-            
+
             self.dispersive_update_b = self.elwiseknl(
                 self.ctx,
-                knl_fields_updates.update_electric_dispersive_B["args_opencl"].substitute(
+                knl_fields_updates.update_electric_dispersive_B[
+                    "args_opencl"
+                ].substitute(
                     {
                         "REAL": config.sim_config.dtypes["C_float_or_double"],
-                        "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                        "COMPLEX": config.get_model_config().materials[
+                            "dispersiveCdtype"
+                        ],
                     }
                 ),
-                knl_fields_updates.update_electric_dispersive_B["func"].substitute(subs),
+                knl_fields_updates.update_electric_dispersive_B["func"].substitute(
+                    subs
+                ),
                 "update_electric_dispersive_B",
                 preamble=self.knl_common,
                 options=config.sim_config.devices["compiler_opts"],
@@ -962,10 +1049,12 @@ class OpenCLUpdates:
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
         knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl.knl_pml_updates_electric_"
+            + self.grid.pmls["formulation"]
         )
         knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl.knl_pml_updates_magnetic_"
+            + self.grid.pmls["formulation"]
         )
 
         subs = {
@@ -990,7 +1079,9 @@ class OpenCLUpdates:
 
             pml.update_electric_dev = self.elwiseknl(
                 self.ctx,
-                knl_electric_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+                knl_electric_name["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
                 knl_electric_name["func"].substitute(subs),
                 f"pml_updates_electric_{knl_name}",
                 preamble=self.knl_common,
@@ -999,7 +1090,9 @@ class OpenCLUpdates:
 
             pml.update_magnetic_dev = self.elwiseknl(
                 self.ctx,
-                knl_magnetic_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+                knl_magnetic_name["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
                 knl_magnetic_name["func"].substitute(subs),
                 f"pml_updates_magnetic_{knl_name}",
                 preamble=self.knl_common,
@@ -1027,48 +1120,63 @@ class OpenCLUpdates:
         gets kernel function.
         """
         if self.grid.hertziandipoles:
-            self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(
-                self.grid.hertziandipoles, self.grid, self.queue
-            )
+            (
+                self.srcinfo1_hertzian_dev,
+                self.srcinfo2_hertzian_dev,
+                self.srcwaves_hertzian_dev,
+            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid, self.queue)
             self.update_hertzian_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_hertzian_dipole["args_opencl"].substitute(
                     {"REAL": config.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_source_updates.update_hertzian_dipole["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {
+                        "CUDA_IDX": "",
+                        "REAL": config.sim_config.dtypes["C_float_or_double"],
+                    }
                 ),
                 "update_hertzian_dipole",
                 preamble=self.knl_common,
                 options=config.sim_config.devices["compiler_opts"],
             )
         if self.grid.magneticdipoles:
-            self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(
-                self.grid.magneticdipoles, self.grid, self.queue
-            )
+            (
+                self.srcinfo1_magnetic_dev,
+                self.srcinfo2_magnetic_dev,
+                self.srcwaves_magnetic_dev,
+            ) = htod_src_arrays(self.grid.magneticdipoles, self.grid, self.queue)
             self.update_magnetic_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_magnetic_dipole["args_opencl"].substitute(
                     {"REAL": config.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_source_updates.update_magnetic_dipole["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {
+                        "CUDA_IDX": "",
+                        "REAL": config.sim_config.dtypes["C_float_or_double"],
+                    }
                 ),
                 "update_magnetic_dipole",
                 preamble=self.knl_common,
                 options=config.sim_config.devices["compiler_opts"],
             )
         if self.grid.voltagesources:
-            self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev, self.srcwaves_voltage_dev = htod_src_arrays(
-                self.grid.voltagesources, self.grid, self.queue
-            )
+            (
+                self.srcinfo1_voltage_dev,
+                self.srcinfo2_voltage_dev,
+                self.srcwaves_voltage_dev,
+            ) = htod_src_arrays(self.grid.voltagesources, self.grid, self.queue)
             self.update_voltage_source_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_voltage_source["args_opencl"].substitute(
                     {"REAL": config.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_source_updates.update_voltage_source["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {
+                        "CUDA_IDX": "",
+                        "REAL": config.sim_config.dtypes["C_float_or_double"],
+                    }
                 ),
                 "update_voltage_source",
                 preamble=self.knl_common,
@@ -1093,7 +1201,12 @@ class OpenCLUpdates:
                 {"REAL": config.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_snapshots.store_snapshot["func"].substitute(
-                {"CUDA_IDX": "", "NX_SNAPS": Snapshot.nx_max, "NY_SNAPS": Snapshot.ny_max, "NZ_SNAPS": Snapshot.nz_max}
+                {
+                    "CUDA_IDX": "",
+                    "NX_SNAPS": Snapshot.nx_max,
+                    "NY_SNAPS": Snapshot.ny_max,
+                    "NZ_SNAPS": Snapshot.nz_max,
+                }
             ),
             "store_snapshot",
             preamble=self.knl_common,
@@ -1238,7 +1351,7 @@ class OpenCLUpdates:
                 self.grid.Ty_dev,
                 self.grid.Tz_dev,
             )
-        
+
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -1311,7 +1424,7 @@ class OpenCLUpdates:
         self.event_marker1.wait()
 
     def calculate_memory_used(self, iteration):
-        """Calculates memory used on last iteration. 
+        """Calculates memory used on last iteration.
 
         Args:
             iteration: int for iteration number.

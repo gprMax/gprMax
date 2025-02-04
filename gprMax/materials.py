@@ -168,7 +168,9 @@ class DispersiveMaterial(Material):
                 # tau for Lorentz materials are pole frequencies
                 # alpha for Lorentz materials are the damping coefficients
                 wp2 = (2 * np.pi * self.tau[x]) ** 2
-                self.w[x] = -1j * ((wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x] ** 2))
+                self.w[x] = -1j * (
+                    (wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x] ** 2)
+                )
                 self.q[x] = -self.alpha[x] + (1j * np.sqrt(wp2 - self.alpha[x] ** 2))
             elif "drude" in self.type:
                 # tau for Drude materials are pole frequencies
@@ -239,7 +241,15 @@ class PeplinskiSoil:
     by Peplinski (http://dx.doi.org/10.1109/36.387598).
     """
 
-    def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
+    def __init__(
+        self,
+        ID,
+        sandfraction,
+        clayfraction,
+        bulkdensity,
+        sandpartdensity,
+        watervolfraction,
+    ):
         """
         Args:
             ID: string for name of the soil.
@@ -282,7 +292,9 @@ class PeplinskiSoil:
         erealw = watereri + (waterdeltaer / (1 + (w * watertau) ** 2))
 
         a = 0.65  # Experimentally derived constant
-        es = (1.01 + 0.44 * self.rs) ** 2 - 0.062  #  Relative permittivity of sand particles
+        es = (
+            1.01 + 0.44 * self.rs
+        ) ** 2 - 0.062  #  Relative permittivity of sand particles
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
 
@@ -304,7 +316,12 @@ class PeplinskiSoil:
         muiter = np.nditer(mumaterials, flags=["c_index"])
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
-            er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0] ** b1 * erealw**a) - muiter[0]) ** (1 / a)
+            er = (
+                1
+                + (self.rb / self.rs) * ((es**a) - 1)
+                + (muiter[0] ** b1 * erealw**a)
+                - muiter[0]
+            ) ** (1 / a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear
             # correction to 1.4-18GHz value)
             er = 1.15 * er - 0.68
@@ -313,7 +330,9 @@ class PeplinskiSoil:
             eri = er - (muiter[0] ** (b2 / a) * waterdeltaer)
 
             # Effective conductivity
-            sig = muiter[0] ** (b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
+            sig = muiter[0] ** (b2 / a) * (
+                (sigf * (self.rs - self.rb)) / (self.rs * muiter[0])
+            )
 
             # Create individual materials
             m = DispersiveMaterial(len(G.materials), None)
@@ -406,7 +425,9 @@ class RangeMaterial:
             sm = romaterials[iter]
 
             # Check to see if the material already exists before creating a new one
-            requiredID = f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
+            requiredID = (
+                f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
+            )
             material = next((x for x in G.materials if x.ID == requiredID), None)
             if iter == 0 and material:
                 self.matID.append(material.numID)
@@ -456,7 +477,9 @@ class ListMaterial:
             self.matID.append(material.numID)
 
             if not material:
-                logger.exception(self.__str__() + f" material(s) {material} do not exist")
+                logger.exception(
+                    self.__str__() + f" material(s) {material} do not exist"
+                )
                 raise ValueError
 
 
@@ -495,11 +518,16 @@ def calculate_water_properties(T=25, S=0):
     # Properties of water from: https://doi.org/10.1109/JOE.1977.1145319
     eri = 4.9
     er = 88.045 - 0.4147 * T + 6.295e-4 * T**2 + 1.075e-5 * T**3
-    tau = (1 / (2 * np.pi)) * (1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 5.096e-16 * T**3)
+    tau = (1 / (2 * np.pi)) * (
+        1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 5.096e-16 * T**3
+    )
 
     delta = 25 - T
     beta = (
-        2.033e-2 + 1.266e-4 * delta + 2.464e-6 * delta**2 - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
+        2.033e-2
+        + 1.266e-4 * delta
+        + 2.464e-6 * delta**2
+        - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
     )
     sig_25s = S * (0.182521 - 1.46192e-3 * S + 2.09324e-5 * S**2 - 1.28205e-7 * S**3)
     sig = sig_25s * np.exp(-delta * beta)
@@ -608,8 +636,20 @@ def process_materials(G):
         material.calculate_update_coeffsH(G)
 
         # Add update coefficients to overall storage for all materials
-        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+        G.updatecoeffsE[material.numID, :] = (
+            material.CA,
+            material.CBx,
+            material.CBy,
+            material.CBz,
+            material.srce,
+        )
+        G.updatecoeffsH[material.numID, :] = (
+            material.DA,
+            material.DBx,
+            material.DBy,
+            material.DBz,
+            material.srcm,
+        )
 
         # Add update coefficients to overall storage for dispersive materials
         if hasattr(material, "poles"):
@@ -632,11 +672,15 @@ def process_materials(G):
         ]
         if config.get_model_config().materials["maxpoles"] > 0:
             if "debye" in material.type:
-                materialtext.append("\n".join(f"{deltaer:g}" for deltaer in material.deltaer))
+                materialtext.append(
+                    "\n".join(f"{deltaer:g}" for deltaer in material.deltaer)
+                )
                 materialtext.append("\n".join(f"{tau:g}" for tau in material.tau))
                 materialtext.extend(["", "", ""])
             elif "lorentz" in material.type:
-                materialtext.append(", ".join(f"{deltaer:g}" for deltaer in material.deltaer))
+                materialtext.append(
+                    ", ".join(f"{deltaer:g}" for deltaer in material.deltaer)
+                )
                 materialtext.append("")
                 materialtext.append(", ".join(f"{tau:g}" for tau in material.tau))
                 materialtext.append(", ".join(f"{alpha:g}" for alpha in material.alpha))
@@ -649,7 +693,9 @@ def process_materials(G):
             else:
                 materialtext.extend(["", "", "", "", ""])
 
-        materialtext.extend((f"{material.mr:g}", f"{material.sm:g}", material.averagable))
+        materialtext.extend(
+            (f"{material.mr:g}", f"{material.sm:g}", material.averagable)
+        )
         materialsdata.append(materialtext)
 
     return materialsdata

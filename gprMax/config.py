@@ -87,7 +87,11 @@ class ModelConfig:
             except:
                 deviceID = 0
 
-            self.device = {"dev": sim_config.set_model_device(deviceID), "deviceID": deviceID, "snapsgpu2cpu": False}
+            self.device = {
+                "dev": sim_config.set_model_device(deviceID),
+                "deviceID": deviceID,
+                "snapsgpu2cpu": False,
+            }
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_overhead = 65e6
@@ -96,11 +100,20 @@ class ModelConfig:
         self.reuse_geometry = False
 
         # String to print at start of each model run
-        s = f"\n--- Model {model_num + 1}/{sim_config.model_end}, " f"input file: {sim_config.input_file_path}"
-        self.inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+        s = (
+            f"\n--- Model {model_num + 1}/{sim_config.model_end}, "
+            f"input file: {sim_config.input_file_path}"
+        )
+        self.inputfilestr = (
+            Fore.GREEN
+            + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n"
+            + Style.RESET_ALL
+        )
 
         # Output file path and name for specific model
-        self.appendmodelnumber = "" if sim_config.args.n == 1 else str(model_num + 1)  # Indexed from 1
+        self.appendmodelnumber = (
+            "" if sim_config.args.n == 1 else str(model_num + 1)
+        )  # Indexed from 1
         self.set_output_file_path()
 
         # Numerical dispersion analysis parameters
@@ -111,7 +124,11 @@ class ModelConfig:
         #                       phase-velocity phase error.
         #   mingridsampling: minimum grid sampling of smallest wavelength for
         #                       physical wave propagation.
-        self.numdispersion = {"highestfreqthres": 40, "maxnumericaldisp": 2, "mingridsampling": 3}
+        self.numdispersion = {
+            "highestfreqthres": 40,
+            "maxnumericaldisp": 2,
+            "mingridsampling": 3,
+        }
 
         # General information to configure materials
         #   maxpoles: Maximum number of dispersive material poles in a model.
@@ -221,7 +238,11 @@ class SimulationConfig:
         #                   progressbars when logging level is greater than
         #                   info (20)
 
-        self.general = {"solver": "cpu", "precision": "single", "progressbars": args.log_level <= 20}
+        self.general = {
+            "solver": "cpu",
+            "precision": "single",
+            "progressbars": args.log_level <= 20,
+        }
 
         self.em_consts = {
             "c": c,  # Speed of light in free space (m/s)
@@ -239,7 +260,10 @@ class SimulationConfig:
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device objects; nvcc compiler options
+            self.devices = {
+                "devs": [],
+                "nvcc_opts": None,
+            }  # pycuda device objects; nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == "win32":
                 self.devices["nvcc_opts"] = ["-w"]
@@ -251,11 +275,14 @@ class SimulationConfig:
         if self.args.opencl is not None:
             self.general["solver"] = "opencl"
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl device device(s); compiler options
+            self.devices = {
+                "devs": [],
+                "compiler_opts": None,
+            }  # pyopencl device device(s); compiler options
 
             # Suppress CompilerWarning (sub-class of UserWarning)
             warnings.filterwarnings("ignore", category=UserWarning)
-            
+
             # Suppress unused variable warnings on gcc
             # if sys.platform != 'win32': self.devices['compiler_opts'] = ['-w']
 
@@ -271,7 +298,8 @@ class SimulationConfig:
                 self.general["subgrid"] and self.general["solver"] == "opencl"
             ):
                 logger.exception(
-                    "You cannot currently use CUDA or OpenCL-based " "solvers with models that contain sub-grids."
+                    "You cannot currently use CUDA or OpenCL-based "
+                    "solvers with models that contain sub-grids."
                 )
                 raise ValueError
         else:
@@ -305,7 +333,9 @@ class SimulationConfig:
                 return dev
 
         if not found:
-            logger.exception(f"Compute device with device ID {deviceID} does " "not exist.")
+            logger.exception(
+                f"Compute device with device ID {deviceID} does not exist."
+            )
             raise ValueError
 
     def _set_precision(self):

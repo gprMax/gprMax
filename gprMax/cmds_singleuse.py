@@ -95,17 +95,20 @@ class Discretisation(UserObjectSingle):
 
         if G.dl[0] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"x-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"x-direction spatial step to be greater than zero"
             )
             raise ValueError
         if G.dl[1] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"y-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"y-direction spatial step to be greater than zero"
             )
             raise ValueError
         if G.dl[2] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"z-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"z-direction spatial step to be greater than zero"
             )
             raise ValueError
 
@@ -131,7 +134,9 @@ class Domain(UserObjectSingle):
             raise
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            logger.exception(f"{self.__str__()} requires at least one cell in " f"every dimension")
+            logger.exception(
+                f"{self.__str__()} requires at least one cell in every dimension"
+            )
             raise ValueError
 
         logger.info(
@@ -161,7 +166,10 @@ class Domain(UserObjectSingle):
 
         # Sub-grids cannot be used with 2D models. There would typically be
         # minimal performance benefit with sub-gridding and 2D models.
-        if "2D" in config.get_model_config().mode and config.sim_config.general["subgrid"]:
+        if (
+            "2D" in config.get_model_config().mode
+            and config.sim_config.general["subgrid"]
+        ):
             logger.exception("Sub-gridding cannot be used with 2D models")
             raise ValueError
 
@@ -188,7 +196,8 @@ class TimeStepStabilityFactor(UserObjectSingle):
 
         if f <= 0 or f > 1:
             logger.exception(
-                f"{self.__str__()} requires the value of the time " f"step stability factor to be between zero and one"
+                f"{self.__str__()} requires the value of the time "
+                f"step stability factor to be between zero and one"
             )
             raise ValueError
 
@@ -227,7 +236,9 @@ class TimeWindow(UserObjectSingle):
                 G.timewindow = tmp
                 G.iterations = int(np.ceil(tmp / G.dt)) + 1
             else:
-                logger.exception(self.__str__() + " must have a value greater than zero")
+                logger.exception(
+                    self.__str__() + " must have a value greater than zero"
+                )
                 raise ValueError
         except KeyError:
             pass
@@ -261,7 +272,10 @@ class OMPThreads(UserObjectSingle):
             )
             raise
         if n < 1:
-            logger.exception(f"{self.__str__()} requires the value to be an " f"integer not less than one")
+            logger.exception(
+                f"{self.__str__()} requires the value to be an "
+                f"integer not less than one"
+            )
             raise ValueError
 
         config.get_model_config().ompthreads = set_omp_threads(n)
@@ -290,7 +304,9 @@ class PMLProps(UserObjectSingle):
             G.pmls["formulation"] = self.kwargs["formulation"]
             if G.pmls["formulation"] not in PML.formulations:
                 logger.exception(
-                    self.__str__() + f" requires the value to be " + f"one of {' '.join(PML.formulations)}"
+                    self.__str__()
+                    + f" requires the value to be "
+                    + f"one of {' '.join(PML.formulations)}"
                 )
         except KeyError:
             pass
@@ -309,7 +325,9 @@ class PMLProps(UserObjectSingle):
                 G.pmls["thickness"]["ymax"] = int(self.kwargs["ymax"])
                 G.pmls["thickness"]["zmax"] = int(self.kwargs["zmax"])
             except KeyError:
-                logger.exception(f"{self.__str__()} requires either one or six parameter(s)")
+                logger.exception(
+                    f"{self.__str__()} requires either one or six parameter(s)"
+                )
                 raise
 
         if (

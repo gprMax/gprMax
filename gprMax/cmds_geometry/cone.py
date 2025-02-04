@@ -55,7 +55,9 @@ class Cone(UserObjectGeometry):
             r1 = self.kwargs["r1"]
             r2 = self.kwargs["r2"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify two points and two radii")
+            logger.exception(
+                f"{self.__str__()} please specify two points and two radii"
+            )
             raise
 
         # Check averaging
@@ -86,11 +88,15 @@ class Cone(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r1 < 0:
-            logger.exception(f"{self.__str__()} the radius of the first face {r1:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius of the first face {r1:g} should be a positive value."
+            )
             raise ValueError
 
         if r2 < 0:
-            logger.exception(f"{self.__str__()} the radius of the second face {r2:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius of the second face {r2:g} should be a positive value."
+            )
             raise ValueError
 
         if r1 == 0 and r2 == 0:
@@ -125,10 +131,18 @@ class Cone(UserObjectGeometry):
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                m.er = np.mean(
+                    (materials[0].er, materials[1].er, materials[2].er), axis=0
+                )
+                m.se = np.mean(
+                    (materials[0].se, materials[1].se, materials[2].se), axis=0
+                )
+                m.mr = np.mean(
+                    (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                )
+                m.sm = np.mean(
+                    (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                )
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)

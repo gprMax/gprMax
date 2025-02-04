@@ -95,15 +95,23 @@ class CylindricalSector(UserObjectGeometry):
         sectorangle = 2 * np.pi * (end / 360)
 
         if normal not in ["x", "y", "z"]:
-            logger.exception(f"{self.__str__()} the normal direction must be either x, y or z.")
+            logger.exception(
+                f"{self.__str__()} the normal direction must be either x, y or z."
+            )
             raise ValueError
         if r <= 0:
-            logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius {r:g} should be a positive value."
+            )
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(f"{self.__str__()} the starting angle and sector angle should be a positive values.")
+            logger.exception(
+                f"{self.__str__()} the starting angle and sector angle should be a positive values."
+            )
             raise ValueError
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees.")
+            logger.exception(
+                f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees."
+            )
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -134,10 +142,18 @@ class CylindricalSector(UserObjectGeometry):
                     m = Material(numID, requiredID)
                     m.type = "dielectric-smoothed"
                     # Create dielectric-smoothed constituents for material
-                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                    m.er = np.mean(
+                        (materials[0].er, materials[1].er, materials[2].er), axis=0
+                    )
+                    m.se = np.mean(
+                        (materials[0].se, materials[1].se, materials[2].se), axis=0
+                    )
+                    m.mr = np.mean(
+                        (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                    )
+                    m.sm = np.mean(
+                        (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                    )
 
                     # Append the new material object to the materials list
                     grid.materials.append(m)

@@ -24,8 +24,7 @@ import gprMax.config as config
 
 from ..cython.geometry_primitives import build_box
 from ..materials import Material
-from .cmds_geometry import (UserObjectGeometry, check_averaging,
-                            rotate_2point_object)
+from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -128,10 +127,18 @@ class Box(UserObjectGeometry):
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                m.er = np.mean(
+                    (materials[0].er, materials[1].er, materials[2].er), axis=0
+                )
+                m.se = np.mean(
+                    (materials[0].se, materials[1].se, materials[2].se), axis=0
+                )
+                m.mr = np.mean(
+                    (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                )
+                m.sm = np.mean(
+                    (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                )
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)

@@ -74,7 +74,13 @@ for x, PMLID in enumerate(PMLIDs):
         ax.set_ylabel(f"{output} error [dB]")
 
     # Save a PDF/PNG of the figure
-    fig.savefig(basename + "_diffs_" + PMLID + ".pdf", dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+    fig.savefig(
+        basename + "_diffs_" + PMLID + ".pdf",
+        dpi=None,
+        format="pdf",
+        bbox_inches="tight",
+        pad_inches=0.1,
+    )
     # fig.savefig(basename + "_diffs_" + PMLID + ".png", dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

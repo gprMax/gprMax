@@ -66,7 +66,13 @@ class Waveform:
         waveforms.
         """
 
-        if self.type in ["gaussian", "gaussiandot", "gaussiandotnorm", "gaussianprime", "gaussiandoubleprime"]:
+        if self.type in [
+            "gaussian",
+            "gaussiandot",
+            "gaussiandotnorm",
+            "gaussianprime",
+            "gaussiandoubleprime",
+        ]:
             self.chi = 1 / self.freq
             self.zeta = 2 * np.pi**2 * self.freq**2
         elif self.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
@@ -98,22 +104,41 @@ class Waveform:
         elif self.type == "gaussiandotnorm":
             delay = time - self.chi
             normalise = np.sqrt(np.exp(1) / (2 * self.zeta))
-            ampvalue = -2 * self.zeta * delay * np.exp(-self.zeta * delay**2) * normalise
+            ampvalue = (
+                -2 * self.zeta * delay * np.exp(-self.zeta * delay**2) * normalise
+            )
 
         elif self.type in ["gaussiandotdot", "gaussiandoubleprime"]:
             delay = time - self.chi
-            ampvalue = 2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)
+            ampvalue = (
+                2
+                * self.zeta
+                * (2 * self.zeta * delay**2 - 1)
+                * np.exp(-self.zeta * delay**2)
+            )
 
         elif self.type == "gaussiandotdotnorm":
             delay = time - self.chi
             normalise = 1 / (2 * self.zeta)
-            ampvalue = 2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2) * normalise
+            ampvalue = (
+                2
+                * self.zeta
+                * (2 * self.zeta * delay**2 - 1)
+                * np.exp(-self.zeta * delay**2)
+                * normalise
+            )
 
         elif self.type == "ricker":
             delay = time - self.chi
             normalise = 1 / (2 * self.zeta)
             ampvalue = -(
-                (2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)) * normalise
+                (
+                    2
+                    * self.zeta
+                    * (2 * self.zeta * delay**2 - 1)
+                    * np.exp(-self.zeta * delay**2)
+                )
+                * normalise
             )
 
         elif self.type == "sine":

@@ -45,7 +45,9 @@ def store_outputs(G):
             # Store current component
             else:
                 func = globals()[output]
-                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
+                rx.outputs[output][iteration] = func(
+                    rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G
+                )
 
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
@@ -92,7 +94,12 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     basegrp.attrs["nx_ny_nz"] = (grid.nx, grid.ny, grid.nz)
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
-    nsrc = len(grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles + grid.transmissionlines)
+    nsrc = len(
+        grid.voltagesources
+        + grid.hertziandipoles
+        + grid.magneticdipoles
+        + grid.transmissionlines
+    )
     basegrp.attrs["nsrc"] = nsrc
     basegrp.attrs["nrx"] = len(grid.rxs)
     basegrp.attrs["srcsteps"] = grid.srcsteps
@@ -112,13 +119,21 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     for srcindex, src in enumerate(srclist):
         grp = basegrp.create_group(f"srcs/src{str(srcindex + 1)}")
         grp.attrs["Type"] = type(src).__name__
-        grp.attrs["Position"] = (src.xcoord * grid.dx, src.ycoord * grid.dy, src.zcoord * grid.dz)
+        grp.attrs["Position"] = (
+            src.xcoord * grid.dx,
+            src.ycoord * grid.dy,
+            src.zcoord * grid.dz,
+        )
 
     # Create group for transmission lines; add positional data, line resistance and
     # line discretisation attributes; write arrays for line voltages and currents
     for tlindex, tl in enumerate(grid.transmissionlines):
         grp = basegrp.create_group("tls/tl" + str(tlindex + 1))
-        grp.attrs["Position"] = (tl.xcoord * grid.dx, tl.ycoord * grid.dy, tl.zcoord * grid.dz)
+        grp.attrs["Position"] = (
+            tl.xcoord * grid.dx,
+            tl.ycoord * grid.dy,
+            tl.zcoord * grid.dz,
+        )
         grp.attrs["Resistance"] = tl.resistance
         grp.attrs["dl"] = tl.dl
         # Save incident voltage and current
@@ -133,7 +148,11 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
         if rx.ID:
             grp.attrs["Name"] = rx.ID
-        grp.attrs["Position"] = (rx.xcoord * grid.dx, rx.ycoord * grid.dy, rx.zcoord * grid.dz)
+        grp.attrs["Position"] = (
+            rx.xcoord * grid.dx,
+            rx.ycoord * grid.dy,
+            rx.zcoord * grid.dz,
+        )
 
         for output in rx.outputs:
             basegrp["rxs/rx" + str(rxindex + 1) + "/" + output] = rx.outputs[output]
@@ -151,7 +170,9 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
     if y == 0 or z == 0:
         Ix = 0
     else:
-        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
+        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (
+            Hz[x, y, z] - Hz[x, y - 1, z]
+        )
 
     return Ix
 
@@ -168,7 +189,9 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
     if x == 0 or z == 0:
         Iy = 0
     else:
-        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
+        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (
+            Hz[x - 1, y, z] - Hz[x, y, z]
+        )
 
     return Iy
 
@@ -185,6 +208,8 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     if x == 0 or y == 0:
         Iz = 0
     else:
-        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
+        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (
+            Hy[x, y, z] - Hy[x - 1, y, z]
+        )
 
     return Iz

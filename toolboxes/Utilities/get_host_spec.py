@@ -33,7 +33,11 @@ logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 # Host machine info.
 hostinfo = get_host_info()
-hyperthreadingstr = f", {hostinfo['logicalcores']} cores with Hyper-Threading" if hostinfo["hyperthreading"] else ""
+hyperthreadingstr = (
+    f", {hostinfo['logicalcores']} cores with Hyper-Threading"
+    if hostinfo["hyperthreading"]
+    else ""
+)
 hostname = f"\n=== {hostinfo['hostname']}"
 logging.info(f"{hostname} {'=' * (get_terminal_width() - len(hostname) - 1)}")
 logging.info(f"\n{'Mfr/model:':<12} {hostinfo['machineID']}")
@@ -46,7 +50,8 @@ logging.info(f"{'OS/Version:':<12} {hostinfo['osversion']}")
 
 # OpenMP
 logging.info(
-    "\n\n=== OpenMP capabilities (gprMax will not use Hyper-Threading " + "as there is no performance advantage)\n"
+    "\n\n=== OpenMP capabilities (gprMax will not use Hyper-Threading "
+    + "as there is no performance advantage)\n"
 )
 logging.info(f"{'OpenMP threads: '} {hostinfo['physicalcores']}")
 

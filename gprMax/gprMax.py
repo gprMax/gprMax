@@ -47,7 +47,8 @@ help_msg = {
     "scenes": "(list, req): Scenes to run the model. Multiple scene objects "
     "can given in order to run multiple simulation runs. Each scene "
     "must contain the essential simulation objects",
-    "inputfile": "(str, opt): Input file path. Can also run simulation by " "providing an input file.",
+    "inputfile": "(str, opt): Input file path. Can also run simulation by "
+    "providing an input file.",
     "outputfile": "(str, req): File path to the output data file.",
     "n": "(int, req): Number of required simulation runs.",
     "i": "(int, opt): Model number to start/restart simulation from. It would "
@@ -59,16 +60,20 @@ help_msg = {
     "models to be farmed out using a MPI task farm, e.g. to create a "
     "B-scan with 60 traces and use MPI to farm out each trace. For "
     "further details see the performance section of the User Guide.",
-    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU " "device ID(s) for specific GPU card(s).",
-    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device " "ID(s) for specific compute device(s).",
+    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU "
+    "device ID(s) for specific GPU card(s).",
+    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device "
+    "ID(s) for specific compute device(s).",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": "(bool, opt): For sub-gridding - auto translate objects "
     "with main grid coordinates to their equivalent local "
     "grid coordinate within the subgrid. If this option is "
     "off users must specify sub-grid object point within the "
     "global subgrid space.",
-    "geometry_only": "(bool, opt): Build a model and produce any geometry " "views but do not run the simulation.",
-    "geometry_fixed": "(bool, opt): Run a series of models where the geometry " "does not change between models.",
+    "geometry_only": "(bool, opt): Build a model and produce any geometry "
+    "views but do not run the simulation.",
+    "geometry_fixed": "(bool, opt): Run a series of models where the geometry "
+    "does not change between models.",
     "write_processed": "(bool, opt): Writes another input file after any "
     "Python code (#python blocks) and in the original input "
     "file has been processed.",
@@ -163,15 +168,26 @@ def cli():
     """Entry point for command line interface (CLI)."""
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(prog="gprMax", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="gprMax", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("inputfile", help=help_msg["inputfile"])
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
-    parser.add_argument("-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"])
-    parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
-    parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument(
-        "--geometry-only", action="store_true", default=args_defaults["geometry_only"], help=help_msg["geometry_only"]
+        "-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"]
+    )
+    parser.add_argument(
+        "-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"]
+    )
+    parser.add_argument(
+        "-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"]
+    )
+    parser.add_argument(
+        "--geometry-only",
+        action="store_true",
+        default=args_defaults["geometry_only"],
+        help=help_msg["geometry_only"],
     )
     parser.add_argument(
         "--geometry-fixed",
@@ -185,8 +201,18 @@ def cli():
         default=args_defaults["write_processed"],
         help=help_msg["write_processed"],
     )
-    parser.add_argument("--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"])
-    parser.add_argument("--log-file", action="store_true", default=args_defaults["log_file"], help=help_msg["log_file"])
+    parser.add_argument(
+        "--log-level",
+        type=int,
+        default=args_defaults["log_level"],
+        help=help_msg["log_level"],
+    )
+    parser.add_argument(
+        "--log-file",
+        action="store_true",
+        default=args_defaults["log_file"],
+        help=help_msg["log_file"],
+    )
     args = parser.parse_args()
 
     results = run_main(args)

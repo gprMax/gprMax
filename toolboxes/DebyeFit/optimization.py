@@ -121,7 +121,16 @@ class PSO_DLS(Optimizer):
     """
 
     def __init__(
-        self, swarmsize=40, maxiter=50, omega=0.9, phip=0.9, phig=0.9, minstep=1e-8, minfun=1e-8, pflag=False, seed=None
+        self,
+        swarmsize=40,
+        maxiter=50,
+        omega=0.9,
+        phip=0.9,
+        phig=0.9,
+        minstep=1e-8,
+        minfun=1e-8,
+        pflag=False,
+        seed=None,
     ):
         super(PSO_DLS, self).__init__(maxiter, seed)
         self.swarmsize = swarmsize
@@ -159,7 +168,9 @@ class PSO_DLS(Optimizer):
         assert hasattr(func, "__call__"), "Invalid function handle"
         lb = np.array(lb)
         ub = np.array(ub)
-        assert np.all(ub > lb), "All upper-bound values must be greater than lower-bound values"
+        assert np.all(ub > lb), (
+            "All upper-bound values must be greater than lower-bound values"
+        )
 
         vhigh = np.abs(ub - lb)
         vlow = -vhigh
@@ -226,10 +237,16 @@ class PSO_DLS(Optimizer):
                         tmp = x[i, :].copy()
                         stepsize = np.sqrt(np.sum((g - tmp) ** 2))
                         if np.abs(fg - fx) <= self.minfun:
-                            print(f"Stopping search: Swarm best objective " f"change less than {self.minfun}")
+                            print(
+                                f"Stopping search: Swarm best objective "
+                                f"change less than {self.minfun}"
+                            )
                             return tmp, fx
                         elif stepsize <= self.minstep:
-                            print(f"Stopping search: Swarm best position " f"change less than {self.minstep}")
+                            print(
+                                f"Stopping search: Swarm best position "
+                                f"change less than {self.minstep}"
+                            )
                             return tmp, fx
                         else:
                             g = tmp.copy()
@@ -471,7 +488,10 @@ def DLS(logt, rl, im, freq):
     # Solving the overdetermined system y=Ax
     x = np.abs(np.linalg.lstsq(d.imag, im, rcond=None)[0])
     # x - absolute damped least-squares solution
-    rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(d.imag, x[np.newaxis].T).T[0]
+    rp, ip = (
+        np.matmul(d.real, x[np.newaxis].T).T[0],
+        np.matmul(d.imag, x[np.newaxis].T).T[0],
+    )
     cost_i = np.sum(np.abs(ip - im)) / len(im)
     ee = np.mean(rl - rp)
     ee = max(ee, 1)

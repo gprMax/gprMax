@@ -91,11 +91,15 @@ class AddGrass(UserObjectGeometry):
             self._do_rotate()
 
         # Get the correct fractal volume
-        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
+        volumes = [
+            volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id
+        ]
         try:
             volume = volumes[0]
         except NameError:
-            logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
+            logger.exception(
+                f"{self.__str__()} cannot find FractalBox {fractal_box_id}"
+            )
             raise
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -103,7 +107,9 @@ class AddGrass(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the fractal dimension")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the fractal dimension"
+            )
             raise ValueError
         if limits[0] < 0 or limits[1] < 0:
             logger.exception(
@@ -114,12 +120,19 @@ class AddGrass(UserObjectGeometry):
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
+                logger.exception(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
+            fractalrange = (
+                round_value(limits[0] / grid.dx),
+                round_value(limits[1] / grid.dx),
+            )
             # xminus surface
             if xs == volume.xs:
                 logger.exception(
@@ -139,12 +152,19 @@ class AddGrass(UserObjectGeometry):
 
         elif ys == yf:
             if zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
+                logger.exception(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
+            fractalrange = (
+                round_value(limits[0] / grid.dy),
+                round_value(limits[1] / grid.dy),
+            )
             # yminus surface
             if ys == volume.ys:
                 logger.exception(
@@ -164,9 +184,14 @@ class AddGrass(UserObjectGeometry):
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
+                logger.exception(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
+            fractalrange = (
+                round_value(limits[0] / grid.dz),
+                round_value(limits[1] / grid.dz),
+            )
             # zminus surface
             if zs == volume.zs:
                 logger.exception(
@@ -219,7 +244,8 @@ class AddGrass(UserObjectGeometry):
         # probability values, and convert the 1D index back into a x, y index
         # for the original surface.
         bladesindex = np.unravel_index(
-            np.digitize(A, probability1D), (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1])
+            np.digitize(A, probability1D),
+            (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]),
         )
 
         # Set the fractal range to minimum and maximum heights of the grass blades
@@ -227,7 +253,9 @@ class AddGrass(UserObjectGeometry):
 
         # Set the fractal surface using the pre-calculated spatial distribution
         # and a random height
-        surface.fractalsurface = np.zeros((surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]))
+        surface.fractalsurface = np.zeros(
+            (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1])
+        )
         for i in range(len(bladesindex[0])):
             surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(
                 surface.fractalrange[0], surface.fractalrange[1], size=1

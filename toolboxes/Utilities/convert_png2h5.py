@@ -55,7 +55,9 @@ class Cursor(object):
                 )  # Convert pixel values from float (0-1) to integer (0-255)
                 match = pixel_match(materials, pixel)
                 if match is False:
-                    logger.info(f"x, y: {int(x)} {int(y)} px; RGB: {pixel[:-1]}; material ID: {len(self.materials)}")
+                    logger.info(
+                        f"x, y: {int(x)} {int(y)} px; RGB: {pixel[:-1]}; material ID: {len(self.materials)}"
+                    )
                     materials.append(pixel)
 
 
@@ -85,10 +87,17 @@ if __name__ == "__main__":
     )
     parser.add_argument("imagefile", help="name of image file including path")
     parser.add_argument(
-        "dxdydz", type=float, action="append", nargs=3, help="spatial resolution of model, e.g. dx dy dz"
+        "dxdydz",
+        type=float,
+        action="append",
+        nargs=3,
+        help="spatial resolution of model, e.g. dx dy dz",
     )
     parser.add_argument(
-        "-zcells", default=1, type=int, help="number of cells for domain in z-direction (infinite direction)"
+        "-zcells",
+        default=1,
+        type=int,
+        help="number of cells for domain in z-direction (infinite direction)",
     )
     args = parser.parse_args()
 
@@ -97,7 +106,9 @@ if __name__ == "__main__":
 
     # Store image data to use for creating geometry
     imdata = np.rot90(im, k=3)  # Rotate 90CW
-    imdata = np.floor(imdata * 255).astype(np.int16)  # Convert pixel values from float (0-1) to integer (0-255)
+    imdata = np.floor(imdata * 255).astype(
+        np.int16
+    )  # Convert pixel values from float (0-1) to integer (0-255)
 
     logger.info(f"Reading PNG image file: {os.path.split(args.imagefile)[1]}")
     logger.info(

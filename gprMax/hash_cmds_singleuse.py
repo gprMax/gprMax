@@ -18,9 +18,18 @@
 
 import logging
 
-from .cmds_singleuse import (Discretisation, Domain, OMPThreads, OutputDir,
-                             PMLProps, RxSteps, SrcSteps,
-                             TimeStepStabilityFactor, TimeWindow, Title)
+from .cmds_singleuse import (
+    Discretisation,
+    Domain,
+    OMPThreads,
+    OutputDir,
+    PMLProps,
+    RxSteps,
+    SrcSteps,
+    TimeStepStabilityFactor,
+    TimeWindow,
+    Title,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +63,9 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            logger.exception(f"{cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use")
+            logger.exception(
+                f"{cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
+            )
             raise ValueError
 
         omp_threads = OMPThreads(n=tmp[0])
@@ -144,7 +155,12 @@ def process_singlecmds(singlecmds):
                 pml_props = PMLProps(thickness=int(tmp[0]))
             else:
                 pml_props = PMLProps(
-                    x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
+                    x0=int(tmp[0]),
+                    y0=int(tmp[1]),
+                    z0=int(tmp[2]),
+                    xmax=int(tmp[3]),
+                    ymax=int(tmp[4]),
+                    zmax=int(tmp[5]),
                 )
 
         scene_objects.append(pml_props)

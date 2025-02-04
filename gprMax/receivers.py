@@ -63,7 +63,8 @@ def htod_rx_arrays(G, queue=None):
     # Array to store field components for receivers on compute device -
     #   rows are field components; columns are iterations; pages are receivers
     rxs = np.zeros(
-        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)), dtype=config.sim_config.dtypes["float_or_double"]
+        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
 
     # Copy arrays to compute device
@@ -102,4 +103,6 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
                 and rx.zcoord == rxcoords_dev[rxd, 2]
             ):
                 for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_dev[Rx.allowableoutputs_dev.index(output), :, rxd]
+                    rx.outputs[output] = rxs_dev[
+                        Rx.allowableoutputs_dev.index(output), :, rxd
+                    ]

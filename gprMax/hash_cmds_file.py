@@ -48,7 +48,11 @@ def process_python_include_code(inputfile, usernamespace):
     """
 
     # Strip out any newline characters and comments that must begin with double hashes
-    inputlines = [line.rstrip() for line in inputfile if (not line.startswith("##") and line.rstrip("\n"))]
+    inputlines = [
+        line.rstrip()
+        for line in inputfile
+        if (not line.startswith("##") and line.rstrip("\n"))
+    ]
 
     # Rewind input file in preparation for any subsequent reading function
     inputfile.seek(0)
@@ -74,7 +78,8 @@ def process_python_include_code(inputfile, usernamespace):
                 x += 1
                 if x == len(inputlines):
                     logger.exception(
-                        "Cannot find the end of the Python code " + "block, i.e. missing #end_python: command."
+                        "Cannot find the end of the Python code "
+                        + "block, i.e. missing #end_python: command."
                     )
                     raise SyntaxError
             # Compile code for faster execution
@@ -147,7 +152,9 @@ def process_include_files(hashcmds):
             # See if file exists at specified path and if not try input file directory
             includefile = Path(includefile)
             if not includefile.exists():
-                includefile = Path(config.sim_config.input_file_path.parent, includefile)
+                includefile = Path(
+                    config.sim_config.input_file_path.parent, includefile
+                )
 
             with open(includefile, "r") as f:
                 # Strip out any newline characters and comments that must begin with double hashes
@@ -289,7 +296,9 @@ def check_cmd_names(processedlines, checkessential=True):
         # are no parameters for a command, e.g. for #taguchi:
         if " " not in cmdparams[0] and len(cmdparams.strip("\n")) != 0:
             logger.exception(
-                "There must be a space between the command name " + "and parameters in " + processedlines[lindex]
+                "There must be a space between the command name "
+                + "and parameters in "
+                + processedlines[lindex]
             )
             raise SyntaxError
 
@@ -312,7 +321,11 @@ def check_cmd_names(processedlines, checkessential=True):
             if singlecmds[cmdname] is None:
                 singlecmds[cmdname] = cmd[1].strip(" \t\n")
             else:
-                logger.exception("You can only have a single instance of " + cmdname + " in your model")
+                logger.exception(
+                    "You can only have a single instance of "
+                    + cmdname
+                    + " in your model"
+                )
                 raise SyntaxError
 
         elif cmdname in multiplecmds:
@@ -384,7 +397,10 @@ def parse_hash_commands(scene):
         for key, value in sorted(usernamespace.items()):
             if key != "__builtins__":
                 uservars += f"{key}: {value}, "
-        logger.info(f"Constants/variables used/available for Python scripting: " + f"{{{uservars[:-2]}}}\n")
+        logger.info(
+            f"Constants/variables used/available for Python scripting: "
+            + f"{{{uservars[:-2]}}}\n"
+        )
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
