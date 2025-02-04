@@ -29,9 +29,9 @@ if __name__ == "__main__":
         filename_mats = os.path.join(path, os.path.basename(path) + "_mats.txt")
     elif os.path.isfile(args.stlfiles):
         path = os.path.dirname(args.stlfiles)
-        files = args.stlfiles
-        filename_hdf5 = os.path.join(path, os.path.split(os.path.basename(path))[0] + "_geo.h5")
-        filename_mats = os.path.join(path, os.path.split(os.path.basename(path))[0] + "_mats.txt")
+        files = [args.stlfiles]
+        filename_hdf5 = os.path.splitext(args.stlfiles)[0] + "_geo.h5"
+        filename_mats = os.path.splitext(args.stlfiles)[0] + "_mats.txt"
 
     dxdydz = (args.dxdydz, args.dxdydz, args.dxdydz)
 
