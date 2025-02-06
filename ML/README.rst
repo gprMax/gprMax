@@ -8,6 +8,8 @@ This folder contains the essential files for using a near-real time Machine Lear
 * `ML_utilities.py <https://github.com/utsav-akhaury/gprMax/blob/devel/ML/ML_utilities.py>`_ contains a few helpful functions required for using the ML feature
 * ``sample_models`` contains the gprMax input file for the specific model that was used for near-real time prediction in the sample ML solver notebook
 
+The framework is described in more detail in `Akhaury et al. (2021) <https://ieeexplore.ieee.org/document/9843172>`_.
+
 Results
 -------
 
