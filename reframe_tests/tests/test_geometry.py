@@ -44,6 +44,21 @@ class TestConeGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestCylinderGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "cylinder"}
+    sourcesdir = "src/geometry_tests/cylinder_geometry"
+    model = parameter(
+        [
+            "cylinder_full",
+            "cylinder_small",
+            "cylinder_non_axis_aligned",
+            "cylinder_overtall",
+            "cylinder_rigid",
+        ]
+    )
+
+
+@rfm.simple_test
 class TestSphereGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "sphere"}
     sourcesdir = "src/geometry_tests/sphere_geometry"
@@ -80,6 +95,13 @@ class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
     tags = {"test", "mpi", "geometery", "cone"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestConeGeometry
+
+
+@rfm.simple_test
+class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
+    tags = {"test", "mpi", "geometery", "cylinder"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestCylinderGeometry
 
 
 @rfm.simple_test
