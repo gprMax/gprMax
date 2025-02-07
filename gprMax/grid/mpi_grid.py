@@ -754,9 +754,6 @@ class MPIGrid(FDTDGrid):
 
         gx, gy, gz = self.local_to_global_coordinate(local_point)
 
-        print(local_point)
-        print(gx, gy, gz)
-
         if gx < 0 or gx > self.gx:
             raise ValueError("x")
         if gy < 0 or gy > self.gy:
@@ -766,17 +763,16 @@ class MPIGrid(FDTDGrid):
 
         return all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
 
-    def within_pml(self, p: npt.NDArray[np.int32]) -> bool:
+    def within_pml(self, local_point: npt.NDArray[np.int32]) -> bool:
         """Check if the provided point is within a PML.
 
         Args:
-            p: Point to check.
+            local_point: Point to check. This must use this grid's
+                coordinate system.
 
         Returns:
             within_pml: True if the point is within a PML.
         """
-        local_point = self.global_to_local_coordinate(p)
-
         # within_pml check will only be valid if the point is also
         # within the local grid
         return (
