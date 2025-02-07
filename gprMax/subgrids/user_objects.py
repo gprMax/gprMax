@@ -107,7 +107,7 @@ class SubGridBase(ModelUserObject):
         p2 = self.kwargs["p2"]
 
         uip = self._create_uip(model.G)
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
 
         self.set_discretisation(sg, model.G)
 

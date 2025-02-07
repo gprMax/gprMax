@@ -99,7 +99,7 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
             raise ValueError
 
         uip = self._create_uip(grid)
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
 
