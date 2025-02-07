@@ -44,6 +44,13 @@ class TestConeGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestSphereGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "sphere"}
+    sourcesdir = "src/geometry_tests/sphere_geometry"
+    model = parameter(["sphere_full", "sphere_small", "sphere_outside_boundary", "sphere_rigid"])
+
+
+@rfm.simple_test
 class TestEdgeGeometry(AntennaModelMixin, GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     sourcesdir = "src/geometry_tests/edge_geometry"
@@ -73,6 +80,13 @@ class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
     tags = {"test", "mpi", "geometery", "cone"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestConeGeometry
+
+
+@rfm.simple_test
+class TestSphereGeometryMpi(MpiMixin, TestSphereGeometry):
+    tags = {"test", "mpi", "geometery", "sphere"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestSphereGeometry
 
 
 @rfm.simple_test
