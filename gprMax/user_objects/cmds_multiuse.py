@@ -433,9 +433,9 @@ class VoltageSource(RotatableMixin, GridUserObject):
 
         # Check the position of the voltage source
         uip = self._create_uip(grid)
-        discretised_point = uip.discretise_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if uip.check_src_rx_point(discretised_point, self.params_str()):
+        if point_within_grid:
             self._validate_parameters(grid)
             voltage_source = self._create_voltage_source(grid, discretised_point)
             grid.add_source(voltage_source)
@@ -583,9 +583,9 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
         # Check the position of the hertzian dipole
         uip = self._create_uip(grid)
-        discretised_point = uip.discretise_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if uip.check_src_rx_point(discretised_point, self.params_str()):
+        if point_within_grid:
             self._validate_parameters(grid)
             hertzian_dipole = self._create_hertzian_dipole(grid, discretised_point)
             grid.add_source(hertzian_dipole)
@@ -638,9 +638,9 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
         # Check the position of the magnetic dipole
         uip = self._create_uip(grid)
-        discretised_point = uip.discretise_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if uip.check_src_rx_point(discretised_point, self.params_str()):
+        if point_within_grid:
             self._validate_parameters(grid)
             magnetic_dipole = self._create_magnetic_dipole(grid, discretised_point)
             grid.add_source(magnetic_dipole)
@@ -793,9 +793,9 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
         # Check the position of the voltage source
         uip = self._create_uip(grid)
-        discretised_point = uip.discretise_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if uip.check_src_rx_point(discretised_point, self.params_str()):
+        if point_within_grid:
             self._validate_parameters(grid)
             transmission_line = self._create_transmission_line(grid, discretised_point)
             grid.add_source(transmission_line)
@@ -988,9 +988,9 @@ class Rx(RotatableMixin, GridUserObject):
 
         # Check position of the receiver
         uip = self._create_uip(grid)
-        discretised_point = uip.discretise_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if uip.check_src_rx_point(discretised_point, self.params_str()):
+        if point_within_grid:
             receiver = self._create_receiver(grid, discretised_point)
             grid.add_receiver(receiver)
 
@@ -1033,12 +1033,13 @@ class RxArray(GridUserObject):
 
     def build(self, grid: FDTDGrid):
         uip = self._create_uip(grid)
-        discretised_lower_point = uip.discretise_point(self.lower_point)
-        discretised_upper_point = uip.discretise_point(self.upper_point)
+        _, discretised_lower_point = uip.check_src_rx_point(
+            self.lower_point, self.params_str(), "lower"
+        )
+        _, discretised_upper_point = uip.check_src_rx_point(
+            self.lower_point, self.params_str(), "upper"
+        )
         discretised_dl = uip.discretise_static_point(self.dl)
-
-        uip.check_src_rx_point(discretised_lower_point, self.params_str(), "lower")
-        uip.check_src_rx_point(discretised_upper_point, self.params_str(), "upper")
 
         if any(discretised_lower_point > discretised_upper_point):
             raise ValueError(
@@ -1068,7 +1069,7 @@ class RxArray(GridUserObject):
         for x in range(xs, xf + grid.dx, dx):
             for y in range(ys, yf + grid.dy, dy):
                 for z in range(zs, zf + grid.dz, dz):
-                    receiver = Rx((x, y, x))
+                    receiver = Rx((x, y, z))
                     receiver.build(grid)
 
 
@@ -1128,7 +1129,7 @@ class Snapshot(GridUserObject):
         dl = uip.discretise_static_point(dl)
 
         try:
-            p1, p2 = uip.check_box_points(p1, p2, self.params_str())
+            _, p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         except ValueError:
             logger.exception(f"{self.params_str()} point is outside the domain.")
             raise

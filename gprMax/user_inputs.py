@@ -147,40 +147,61 @@ class MainGridUserInput(UserInput[GridType]):
     def __init__(self, grid):
         super().__init__(grid)
 
-    def check_point(self, p, cmd_str, name=""):
+    def check_point(
+        self, point: Tuple[float, float, float], cmd_str: str, name: str = ""
+    ) -> Tuple[bool, npt.NDArray[np.int32]]:
         """Discretises point and check its within the domain"""
-        p = self.discretise_point(p)
-        self.point_within_bounds(p, cmd_str, name)
-        return p
+        discretised_point = self.discretise_point(point)
+        within_bounds = self.point_within_bounds(discretised_point, cmd_str, name)
+        return within_bounds, discretised_point
 
-    def check_src_rx_point(self, p: npt.NDArray[np.int32], cmd_str: str, name: str = "") -> bool:
-        within_grid = self.point_within_bounds(p, cmd_str, name)
+    def check_src_rx_point(
+        self, point: Tuple[float, float, float], cmd_str: str, name: str = ""
+    ) -> Tuple[bool, npt.NDArray[np.int32]]:
+        within_bounds, discretised_point = self.check_point(point, cmd_str, name)
 
-        if self.grid.within_pml(p):
+        if self.grid.within_pml(discretised_point):
             logger.warning(
                 f"'{cmd_str}' sources and receivers should not normally be positioned within the PML."
             )
 
-        return within_grid
+        return within_bounds, discretised_point
 
-    def check_box_points(self, p1, p2, cmd_str):
-        p1 = self.check_point(p1, cmd_str, name="lower")
-        p2 = self.check_point(p2, cmd_str, name="upper")
+    def _check_2d_points(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        lower_within_grid, lower_point = self.check_point(p1, cmd_str, "lower")
+        upper_within_grid, upper_point = self.check_point(p2, cmd_str, "upper")
 
-        if np.greater(p1, p2).any():
-            logger.exception(
+        if np.greater(lower_point, upper_point).any():
+            raise ValueError(
                 f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."
             )
-            raise ValueError
 
-        return p1, p2
+        return lower_within_grid and upper_within_grid, lower_point, upper_point
 
-    def check_tri_points(self, p1, p2, p3, cmd_str):
-        p1 = self.check_point(p1, cmd_str, name="vertex_1")
-        p2 = self.check_point(p2, cmd_str, name="vertex_2")
-        p3 = self.check_point(p3, cmd_str, name="vertex_3")
+    def check_box_points(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        return self._check_2d_points(p1, p2, cmd_str)
 
-        return p1, p2, p3
+    def check_tri_points(
+        self,
+        p1: Tuple[float, float, float],
+        p2: Tuple[float, float, float],
+        p3: Tuple[float, float, float],
+        cmd_str: str,
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        p1_within_grid, p1_checked = self.check_point(p1, cmd_str, name="vertex_1")
+        p2_within_grid, p2_checked = self.check_point(p2, cmd_str, name="vertex_2")
+        p3_within_grid, p3_checked = self.check_point(p3, cmd_str, name="vertex_3")
+
+        return (
+            p1_within_grid and p2_within_grid and p3_within_grid,
+            p1_checked,
+            p2_checked,
+            p3_checked,
+        )
 
 
 class MPIUserInput(MainGridUserInput[MPIGrid]):
@@ -207,6 +228,17 @@ class MPIUserInput(MainGridUserInput[MPIGrid]):
         """
         discretised_point = super().discretise_point(point)
         return self.grid.global_to_local_coordinate(discretised_point)
+
+    def check_box_points(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        _, lower_point, upper_point = super().check_box_points(p1, p2, cmd_str)
+
+        # Restrict points to the bounds of the local grid
+        lower_point = np.where(lower_point < 0, 0, lower_point)
+        upper_point = np.where(upper_point > self.grid.size, self.grid.size, upper_point)
+
+        return all(lower_point < upper_point), lower_point, upper_point
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
