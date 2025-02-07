@@ -55,9 +55,7 @@ class FDTDGrid:
         self.name = "main_grid"
         self.mem_use = 0
 
-        self.nx = 0
-        self.ny = 0
-        self.nz = 0
+        self.size = np.zeros(3, dtype=np.int32)
         self.dl = np.ones(3, dtype=np.float64)
         self.dt = 0.0
 
@@ -116,6 +114,30 @@ class FDTDGrid:
         self.snapshots: List[Snapshot] = []
 
         self.averagevolumeobjects = True
+
+    @property
+    def nx(self) -> int:
+        return self.size[0]
+
+    @nx.setter
+    def nx(self, value: int):
+        self.size[0] = value
+
+    @property
+    def ny(self) -> int:
+        return self.size[1]
+
+    @ny.setter
+    def ny(self, value: int):
+        self.size[1] = value
+
+    @property
+    def nz(self) -> int:
+        return self.size[2]
+
+    @nz.setter
+    def nz(self, value: int):
+        self.size[2] = value
 
     @property
     def dx(self) -> float:

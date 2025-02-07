@@ -57,8 +57,6 @@ class MPIGrid(FDTDGrid):
     COORDINATOR_RANK = 0
 
     def __init__(self, comm: MPI.Cartcomm):
-        self.size = np.zeros(3, dtype=np.int32)
-
         self.comm = comm
         self.x_comm = comm.Sub([False, True, True])
         self.y_comm = comm.Sub([True, False, True])
@@ -89,30 +87,6 @@ class MPIGrid(FDTDGrid):
     @property
     def coords(self) -> List[int]:
         return self.comm.coords
-
-    @property
-    def nx(self) -> int:
-        return self.size[Dim.X]
-
-    @nx.setter
-    def nx(self, value: int):
-        self.size[Dim.X] = value
-
-    @property
-    def ny(self) -> int:
-        return self.size[Dim.Y]
-
-    @ny.setter
-    def ny(self, value: int):
-        self.size[Dim.Y] = value
-
-    @property
-    def nz(self) -> int:
-        return self.size[Dim.Z]
-
-    @nz.setter
-    def nz(self, value: int):
-        self.size[Dim.Z] = value
 
     @property
     def gx(self) -> int:
