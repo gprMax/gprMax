@@ -10,32 +10,39 @@ from tqdm import tqdm
 from gprMax import config
 from gprMax._version import __version__
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import Material
-from gprMax.output_controllers.grid_view import GridViewType, MPIGridView
+from gprMax.output_controllers.grid_view import GridView, MPIGridView
 
 
-class GeometryObjects(Generic[GridViewType]):
+class GeometryObject:
     """Geometry objects to be written to file."""
 
-    def __init__(self, grid_view: GridViewType, filename: str):
+    @property
+    def GRID_VIEW_TYPE(self) -> type[GridView]:
+        return GridView
+
+    def __init__(
+        self, grid: FDTDGrid, xs: int, ys: int, zs: int, xf: int, yf: int, zf: int, filename: str
+    ):
         """
         Args:
             xs, xf, ys, yf, zs, zf: ints for extent of the volume in cells.
             filename: string for filename.
         """
-        self.grid_view = grid_view
+        self.grid_view = self.GRID_VIEW_TYPE(grid, xs, ys, zs, xf, yf, zf)
 
         # Set filenames
         parts = config.sim_config.input_file_path.with_suffix("").parts
         self.filename = Path(*parts[:-1], filename)
         self.filename_hdf5 = self.filename.with_suffix(".h5")
-        self.filename_materials = Path(self.filename, f"{self.filename}_materials")
+        self.filename_materials = Path(f"{self.filename}_materials")
         self.filename_materials = self.filename_materials.with_suffix(".txt")
 
         # Sizes of arrays to write necessary to update progress bar
-        self.solidsize = np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize
-        self.rigidsize = 18 * np.prod(self.grid_view.size + 1) * np.dtype(np.int8).itemsize
-        self.IDsize = 6 * np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize
+        self.solidsize = (float)(np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize)
+        self.rigidsize = (float)(18 * np.prod(self.grid_view.size + 1) * np.dtype(np.int8).itemsize)
+        self.IDsize = (float)(6 * np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize)
         self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
 
     @property
@@ -72,7 +79,7 @@ class GeometryObjects(Generic[GridViewType]):
             dispersionstr += material.ID
             file.write(dispersionstr + "\n")
 
-    def write_hdf5(self, title: str, G: FDTDGrid, pbar: tqdm):
+    def write_hdf5(self, title: str, pbar: tqdm):
         """Writes a geometry objects file in HDF5 format.
 
         Args:
@@ -109,15 +116,24 @@ class GeometryObjects(Generic[GridViewType]):
                 self.output_material(material, fmaterials)
 
 
-class MPIGeometryObjects(GeometryObjects[MPIGridView]):
+class MPIGeometryObject(GeometryObject):
+    @property
+    def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
+        return MPIGridView
+
     def __init__(
         self,
-        grid_view: MPIGridView,
+        grid: MPIGrid,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
         filename: str,
-        comm: MPI.Comm = None,
+        comm: MPI.Cartcomm,
     ):
-        super().__init__(grid_view, filename)
-
+        super().__init__(grid, xs, xf, ys, yf, zs, zf, filename)
         self.comm = comm
 
     def write_hdf5(self, title: str, pbar: tqdm):
@@ -127,6 +143,7 @@ class MPIGeometryObjects(GeometryObjects[MPIGridView]):
             G: FDTDGrid class describing a grid in a model.
             pbar: Progress bar class instance.
         """
+        assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
 
         self.grid_view.initialise_materials(self.comm)
 
@@ -142,9 +159,9 @@ class MPIGeometryObjects(GeometryObjects[MPIGridView]):
             self.write_metadata(fdata, title)
 
             dset_slice = (
-                self.grid_view.get_slice(0),
-                self.grid_view.get_slice(1),
-                self.grid_view.get_slice(2),
+                self.grid_view.get_output_slice(0),
+                self.grid_view.get_output_slice(1),
+                self.grid_view.get_output_slice(2),
             )
 
             dset = fdata.create_dataset("/data", self.grid_view.global_size, dtype=data.dtype)
@@ -163,9 +180,9 @@ class MPIGeometryObjects(GeometryObjects[MPIGridView]):
             pbar.update(self.rigidsize)
 
             dset_slice = (
-                self.grid_view.get_slice(0, upper_bound_exclusive=False),
-                self.grid_view.get_slice(1, upper_bound_exclusive=False),
-                self.grid_view.get_slice(2, upper_bound_exclusive=False),
+                self.grid_view.get_output_slice(0, upper_bound_exclusive=False),
+                self.grid_view.get_output_slice(1, upper_bound_exclusive=False),
+                self.grid_view.get_output_slice(2, upper_bound_exclusive=False),
             )
 
             dset = fdata.create_dataset(

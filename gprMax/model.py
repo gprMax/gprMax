@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence
 
 import humanize
 import numpy as np
@@ -29,6 +29,7 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.output_controllers.geometry_objects import GeometryObject
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -38,7 +39,7 @@ from tqdm import tqdm
 import gprMax.config as config
 
 from .fields_outputs import write_hdf5_outputfile
-from .geometry_outputs import GeometryObjects, GeometryView, save_geometry_views
+from .geometry_outputs import GeometryView, save_geometry_views
 from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
 from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
@@ -64,7 +65,7 @@ class Model:
         self.subgrids: List[SubGridBaseGrid] = []
 
         self.geometryviews: List[GeometryView] = []
-        self.geometryobjects: List[GeometryObjects] = []
+        self.geometryobjects: List[GeometryObject] = []
 
         # Monitor memory usage
         self.p = None
@@ -173,6 +174,19 @@ class Model:
     def set_size(self, size: npt.NDArray[np.int32]):
         self.nx, self.ny, self.nz = size
 
+    def add_geometry_object(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        basefilename: str,
+    ) -> Optional[GeometryObject]:
+        geometry_object = GeometryObject(
+            grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename
+        )
+        self.geometryobjects.append(geometry_object)
+        return geometry_object
+
     def build(self):
         """Builds the Yee cells for a model."""
 
@@ -222,7 +236,7 @@ class Model:
                     file=sys.stdout,
                     disable=not config.sim_config.general["progressbars"],
                 )
-                go.write_hdf5(self.title, self.G, pbar)
+                go.write_hdf5(self.title, pbar)
                 pbar.close()
             logger.info("")
 

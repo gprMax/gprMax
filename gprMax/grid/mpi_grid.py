@@ -138,6 +138,20 @@ class MPIGrid(FDTDGrid):
         """
         return self.rank == self.COORDINATOR_RANK
 
+    def create_sub_communicator(
+        self, start: npt.NDArray[np.int32], stop: npt.NDArray[np.int32]
+    ) -> Optional[MPI.Cartcomm]:
+        if self.local_bounds_overlap_grid(start, stop):
+            comm = self.comm.Split()
+            assert isinstance(comm, MPI.Intracomm)
+            start_grid_coord = self.get_grid_coord_from_coordinate(start)
+            stop_grid_coord = self.get_grid_coord_from_coordinate(stop) + 1
+            comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
+            return comm
+        else:
+            self.comm.Split(MPI.UNDEFINED)
+            return None
+
     def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]:
         """Get the MPI grid coordinate for a global grid coordinate.
 
@@ -252,11 +266,9 @@ class MPIGrid(FDTDGrid):
 
         return all(global_coord >= lower_bound) and all(global_coord <= upper_bound)
 
-    def global_bounds_overlap_local_grid(
-        self, start: npt.NDArray[np.int32], stop: npt.NDArray[np.int32]
+    def local_bounds_overlap_grid(
+        self, local_start: npt.NDArray[np.int32], local_stop: npt.NDArray[np.int32]
     ) -> bool:
-        local_start = self.global_to_local_coordinate(start)
-        local_stop = self.global_to_local_coordinate(stop)
         return all(local_start < self.size) and all(local_stop > self.negative_halo_offset)
 
     def limit_global_bounds_to_within_local_grid(

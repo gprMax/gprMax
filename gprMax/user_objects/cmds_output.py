@@ -1,9 +1,7 @@
 import logging
+from typing import Tuple
 
-from gprMax.geometry_outputs import GeometryObjects as GeometryObjectsUser
-from gprMax.geometry_outputs import MPIGeometryObjects as MPIGeometryObjectsUser
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_objects.user_objects import OutputUserObject
@@ -140,41 +138,35 @@ class GeometryObjectsWrite(OutputUserObject):
     def hash(self):
         return "#geometry_objects_write"
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], filename: str
+    ):
+        super().__init__(p1=p1, p2=p2, filename=filename)
+        self.lower_bound = p1
+        self.upper_bound = p2
+        self.basefilename = filename
 
     def build(self, model: Model, grid: FDTDGrid):
         if isinstance(grid, SubGridBaseGrid):
-            logger.exception(f"{self.params_str()} do not add geometry objects to subgrids.")
-            raise ValueError
-        try:
-            p1 = self.kwargs["p1"]
-            p2 = self.kwargs["p2"]
-            basefilename = self.kwargs["filename"]
-        except KeyError:
-            logger.exception(f"{self.params_str()} requires exactly seven parameters.")
-            raise
+            raise ValueError(f"{self.params_str()} do not add geometry objects to subgrids.")
 
         uip = self._create_uip(grid)
-        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
-        x0, y0, z0 = p1
-        x1, y1, z1 = p2
 
-        # TODO: Remove these when add parallel build
-        if isinstance(grid, MPIGrid):
-            geometry_object_type = MPIGeometryObjectsUser
-        else:
-            geometry_object_type = GeometryObjectsUser
-
-        g = geometry_object_type(x0, y0, z0, x1, y1, z1, basefilename)
-
-        logger.info(
-            f"Geometry objects in the volume from {p1[0] * grid.dx:g}m, "
-            f"{p1[1] * grid.dy:g}m, {p1[2] * grid.dz:g}m, to "
-            f"{p2[0] * grid.dx:g}m, {p2[1] * grid.dy:g}m, "
-            f"{p2[2] * grid.dz:g}m, will be written to "
-            f"{g.filename_hdf5}, with materials written to "
-            f"{g.filename_materials}"
+        discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(
+            self.lower_bound, self.upper_bound, self.params_str()
         )
 
-        model.geometryobjects.append(g)
+        g = model.add_geometry_object(
+            grid, discretised_lower_bound, discretised_upper_bound, self.basefilename
+        )
+
+        if g is not None:
+            p1 = uip.round_to_grid_static_point(self.lower_bound)
+            p2 = uip.round_to_grid_static_point(self.upper_bound)
+
+            logger.info(
+                f"Geometry objects in the volume from {p1[0]:g}m,"
+                f" {p1[1]:g}m, {p1[2]:g}m, to {p2[0]:g}m, {p2[1]:g}m,"
+                f" {p2[2]:g}m, will be written to {g.filename_hdf5},"
+                f" with materials written to {g.filename_materials}"
+            )

@@ -180,6 +180,14 @@ class MainGridUserInput(UserInput[GridType]):
 
         return lower_within_grid and upper_within_grid, lower_point, upper_point
 
+    def check_output_object_bounds(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        # We only care if the bounds are in the global grid (an error
+        # will be thrown if that is not the case).
+        _, lower_bound, upper_bound = self._check_2d_points(p1, p2, cmd_str)
+        return lower_bound, upper_bound
+
     def check_box_points(
         self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
     ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:

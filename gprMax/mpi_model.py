@@ -9,6 +9,7 @@ from gprMax import config
 from gprMax.fields_outputs import write_hdf5_outputfile
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
+from gprMax.output_controllers.geometry_objects import MPIGeometryObject
 from gprMax.snapshots import save_snapshots
 
 logger = logging.getLogger(__name__)
@@ -59,34 +60,23 @@ class MPIModel(Model):
 
         self.G.calculate_local_extents()
 
-    def build_geometry(self):
-        super().build_geometry()
+    def add_geometry_object(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        basefilename: str,
+    ) -> Optional[MPIGeometryObject]:
+        comm = grid.create_sub_communicator(start, stop)
 
-        self._filter_geometry_objects()
-
-    def _filter_geometry_objects(self):
-        objects = self.comm.bcast(self.geometryobjects)
-        self.geometryobjects = []
-
-        for go in objects:
-            start = np.array([go.xs, go.ys, go.zs], dtype=np.int32)
-            stop = np.array([go.xf, go.yf, go.zf], dtype=np.int32)
-            if self.G.global_bounds_overlap_local_grid(start, stop):
-                comm = self.comm.Split()
-                assert isinstance(comm, MPI.Intracomm)
-                start_grid_coord = self.G.get_grid_coord_from_coordinate(start)
-                stop_grid_coord = self.G.get_grid_coord_from_coordinate(stop) + 1
-                go.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
-
-                go.global_size = np.array([go.nx, go.ny, go.nz], dtype=np.int32)
-                start, stop, offset = self.G.limit_global_bounds_to_within_local_grid(start, stop)
-                go.size = stop - start
-                go.start = start
-                go.stop = stop
-                go.offset = offset
-                self.geometryobjects.append(go)
-            else:
-                self.comm.Split(MPI.UNDEFINED)
+        if comm is None:
+            return None
+        else:
+            geometry_object = MPIGeometryObject(
+                grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename, comm
+            )
+            self.geometryobjects.append(geometry_object)
+            return geometry_object
 
     def write_output_data(self):
         """Writes output data, i.e. field data for receivers and snapshots to

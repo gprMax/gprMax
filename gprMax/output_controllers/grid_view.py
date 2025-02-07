@@ -54,7 +54,7 @@ class GridView(Generic[GridType]):
 
         self._ID = None
 
-    def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice[int, int, int]:
+    def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
 
         Args:
@@ -272,8 +272,7 @@ class MPIGridView(GridView[MPIGrid]):
         self.global_size = self.size
 
         # Calculate start for the local grid
-        self.global_start = self.start
-        self.start = self.grid.global_to_local_coordinate(self.start)
+        self.global_start = self.grid.local_to_global_coordinate(self.start)
 
         # Bring start into the local grid (and not in the negative halo)
         # local_start must still be aligned with the provided step.
@@ -285,7 +284,7 @@ class MPIGridView(GridView[MPIGrid]):
         )
 
         # Calculate stop for the local grid
-        self.stop = self.grid.global_to_local_coordinate(self.stop)
+        self.global_stop = self.grid.local_to_global_coordinate(self.stop)
 
         self.has_positive_neighbour = self.stop > self.grid.size
 
@@ -309,7 +308,7 @@ class MPIGridView(GridView[MPIGrid]):
         # Update local size
         self.size = self.stop - self.start
 
-    def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice[int, int, int]:
+    def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
 
         Args:
@@ -332,7 +331,19 @@ class MPIGridView(GridView[MPIGrid]):
 
         return slice(self.start[dimension], stop, self.step[dimension])
 
-    def initialise_materials(self, comm: MPI.Comm):
+    def get_output_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        if upper_bound_exclusive or self.has_positive_neighbour[dimension]:
+            size = self.size[dimension]
+        else:
+            # Make slice of array one step larger if this rank does not
+            # have a positive neighbour
+            size = self.size[dimension] + 1
+
+        offset = self.offset[dimension]
+
+        return slice(offset, offset + size)
+
+    def initialise_materials(self, comm: MPI.Cartcomm):
         """Create a new ID map for materials in the grid view.
 
         Rather than using the default material IDs (as per the main grid
@@ -349,6 +360,8 @@ class MPIGridView(GridView[MPIGrid]):
 
         local_material_ids = np.unique(ID)
         local_materials = np.array(self.grid.materials, dtype=Material)[local_material_ids]
+        local_materials.sort()
+        local_material_ids = [m.numID for m in local_materials]
 
         # Send all materials to the coordinating rank
         materials_by_rank = comm.gather(local_materials, root=0)
@@ -356,25 +369,28 @@ class MPIGridView(GridView[MPIGrid]):
         if materials_by_rank is not None:
             # Filter out duplicate materials and sort by material ID
             all_materials = np.fromiter(chain.from_iterable(materials_by_rank), dtype=Material)
-            unique_materials = np.unique(all_materials)
+            self.materials = np.unique(all_materials)
 
             # The new material IDs corespond to each material's index in
-            # the sorted unique_materials array. For each rank, get the
+            # the sorted self.materials array. For each rank, get the
             # new IDs of each material it sent to send back
             for rank in range(1, comm.size):
-                new_material_ids = np.where(np.isin(unique_materials, materials_by_rank[rank]))[0]
-                comm.Isend([new_material_ids, MPI.INT], rank)
+                new_material_ids = np.where(np.isin(self.materials, materials_by_rank[rank]))[0]
+                comm.Isend([new_material_ids.astype(np.int32), MPI.INT], rank)
 
-            new_material_ids = np.where(np.isin(unique_materials, materials_by_rank[0]))[0]
+            new_material_ids = np.where(np.isin(self.materials, materials_by_rank[0]))[0]
+            new_material_ids = new_material_ids.astype(np.int32)
         else:
-            unique_materials = None
+            self.materials = None
 
             # Get list of global IDs for this rank's local materials
             new_material_ids = np.empty(len(local_materials), dtype=np.int32)
             comm.Recv([new_material_ids, MPI.INT], 0)
 
         # Create map from local material ID to global material ID
-        materials_map = {index: new_id for index, new_id in enumerate(new_material_ids)}
+        materials_map = {
+            local_material_ids[index]: new_id for index, new_id in enumerate(new_material_ids)
+        }
 
         # Create map from material ID to 0 - number of materials
         self.map_materials_func = np.vectorize(lambda id: materials_map[id])
