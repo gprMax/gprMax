@@ -91,7 +91,13 @@ class Box(RotatableMixin, GeometryUserObject):
             averagebox = grid.averagevolumeobjects
 
         uip = self._create_uip(grid)
-        p3, p4 = uip.check_box_points(p1, p2, self.__str__())
+        grid_contains_box, p3, p4 = uip.check_box_points(p1, p2, self.__str__())
+
+        # Exit early if none of the box is in this grid as there is
+        # nothing else to do.
+        if not grid_contains_box:
+            return
+
         # Find nearest point on grid without translation
         p5 = uip.round_to_grid_static_point(p1)
         p6 = uip.round_to_grid_static_point(p2)
