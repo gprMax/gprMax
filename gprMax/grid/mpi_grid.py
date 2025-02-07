@@ -773,7 +773,7 @@ class MPIGrid(FDTDGrid):
         if gz < 0 or gz > self.gz:
             raise ValueError("z")
 
-        return all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
+        return all(local_point >= self.negative_halo_offset) and all(local_point < self.size)
 
     def within_pml(self, local_point: npt.NDArray[np.int32]) -> bool:
         """Check if the provided point is within a PML.
