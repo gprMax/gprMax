@@ -144,13 +144,19 @@ class MPIGrid(FDTDGrid):
         if self.local_bounds_overlap_grid(start, stop):
             comm = self.comm.Split()
             assert isinstance(comm, MPI.Intracomm)
-            start_grid_coord = self.get_grid_coord_from_coordinate(start)
-            stop_grid_coord = self.get_grid_coord_from_coordinate(stop) + 1
+            start_grid_coord = self.get_grid_coord_from_local_coordinate(start)
+            stop_grid_coord = self.get_grid_coord_from_local_coordinate(stop) + 1
             comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
             return comm
         else:
             self.comm.Split(MPI.UNDEFINED)
             return None
+
+    def get_grid_coord_from_local_coordinate(
+        self, local_coord: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
+        coord = self.local_to_global_coordinate(local_coord)
+        return self.get_grid_coord_from_coordinate(coord)
 
     def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]:
         """Get the MPI grid coordinate for a global grid coordinate.
