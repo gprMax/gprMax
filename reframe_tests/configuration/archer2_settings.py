@@ -28,7 +28,7 @@ site_configuration = {
                         "--hint=nomultithread",
                         "--distribution=block:block",
                         "--partition=standard",
-                        "--qos=standard",
+                        "--qos=short",
                     ],
                     "environs": ["PrgEnv-gnu", "PrgEnv-cray", "PrgEnv-aocc"],
                     "max_jobs": 16,
