@@ -9,3 +9,5 @@
 
 #material: 8 0 1 0 half_space
 #box: 0 0 0 0.100 0.100 0.100 half_space
+
+#geometry_objects_write: 0 0 0 0.1 0.1 0.1 full_volume
