@@ -59,6 +59,20 @@ class TestCylinderGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestCylindricalSectorGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "cylindrical", "sector", "cylindrical_sector"}
+    sourcesdir = "src/geometry_tests/cylindrical_sector_geometry"
+    model = parameter(
+        [
+            "cylindrical_sector_x_full",
+            "cylindrical_sector_y_small",
+            "cylindrical_sector_z_outside_boundary",
+            "cylindrical_sector_z_rigid",
+        ]
+    )
+
+
+@rfm.simple_test
 class TestEllipsoidGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "ellipsoid"}
     sourcesdir = "src/geometry_tests/ellipsoid_geometry"
@@ -107,8 +121,15 @@ class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
 
 
 @rfm.simple_test
-class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
+class TestCylindricalSectorGeometryMpi(MpiMixin, TestCylindricalSectorGeometry):
     tags = {"test", "mpi", "geometery", "cylinder"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestCylindricalSectorGeometry
+
+
+@rfm.simple_test
+class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
+    tags = {"test", "mpi", "geometery", "cylindrical", "sector", "cylindrical_sector"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestCylinderGeometry
 
