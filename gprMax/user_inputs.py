@@ -235,6 +235,8 @@ class MainGridUserInput(UserInput[GridType]):
             thickness: Thickness value such that start + thickness is
                 within the bounds of the grid.
         """
+        # TODO: This should throw an error if the bounds are outside the
+        # global grid.
         if dimension == "x":
             grid_size = self.grid.nx * self.grid.dx
         elif dimension == "y":
