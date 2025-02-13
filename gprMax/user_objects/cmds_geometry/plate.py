@@ -98,16 +98,14 @@ class Plate(RotatableMixin, GeometryUserObject):
             or (zs == zf and (xs == xf or ys == yf))
             or (xs != xf and ys != yf and zs != zf)
         ):
-            logger.exception(f"{self.__str__()} the plate is not specified correctly")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} the plate is not specified correctly")
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} material(s) {notfound} do not exist")
 
         # yz-plane plate
         if xs == xf:
