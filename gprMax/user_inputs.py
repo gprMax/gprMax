@@ -246,7 +246,7 @@ class MPIUserInput(MainGridUserInput[MPIGrid]):
         lower_point = np.where(lower_point < 0, 0, lower_point)
         upper_point = np.where(upper_point > self.grid.size, self.grid.size, upper_point)
 
-        return all(lower_point < upper_point), lower_point, upper_point
+        return all(lower_point <= upper_point), lower_point, upper_point
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
