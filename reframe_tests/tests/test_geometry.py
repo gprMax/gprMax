@@ -81,6 +81,14 @@ class TestEllipsoidGeometry(GprMaxRegressionTest):
     )
 
 
+# TODO: Add Mixin class to enable testing that invalid geometry throws an error
+@rfm.simple_test
+class TestPlateGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "plate"}
+    sourcesdir = "src/geometry_tests/plate_geometry"
+    model = parameter(["plate_x_full", "plate_z_full", "plate_y_small"])
+
+
 @rfm.simple_test
 class TestSphereGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "sphere"}
@@ -139,6 +147,13 @@ class TestEllipsoidGeometryMpi(MpiMixin, TestEllipsoidGeometry):
     tags = {"test", "mpi", "geometery", "ellipsoid"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestEllipsoidGeometry
+
+
+@rfm.simple_test
+class TestPlateGeometryMpi(MpiMixin, TestPlateGeometry):
+    tags = {"test", "mpi", "geometery", "plate"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestPlateGeometry
 
 
 @rfm.simple_test
