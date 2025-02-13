@@ -74,6 +74,29 @@ class CylindricalSector(GeometryUserObject):
             logger.exception(self.__str__())
             raise
 
+        # Check thickness of the object first as may be able to exit
+        # early if fully outside the grid.
+        uip = self._create_uip(grid)
+
+        # yz-plane cylindrical sector
+        if normal == "x":
+            level, ctr1, ctr2 = uip.round_to_grid((extent1, ctr1, ctr2))
+
+        # xz-plane cylindrical sector
+        elif normal == "y":
+            ctr1, level, ctr2 = uip.round_to_grid((ctr1, extent1, ctr2))
+
+        # xy-plane cylindrical sector
+        elif normal == "z":
+            ctr1, ctr2, level = uip.round_to_grid((ctr1, ctr2, extent1))
+
+        sector_within_grid, level, thickness = uip.check_thickness(normal, level, thickness)
+
+        # Exit early if none of the cylindrical sector is in this grid
+        # as there is nothing else to do.
+        if not sector_within_grid:
+            return
+
         # Check averaging
         try:
             # Try user-specified averaging
@@ -161,19 +184,6 @@ class CylindricalSector(GeometryUserObject):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-
-        uip = self._create_uip(grid)
-        # yz-plane cylindrical sector
-        if normal == "x":
-            level, ctr1, ctr2 = uip.round_to_grid((extent1, ctr1, ctr2))
-
-        # xz-plane cylindrical sector
-        elif normal == "y":
-            ctr1, level, ctr2 = uip.round_to_grid((ctr1, extent1, ctr2))
-
-        # xy-plane cylindrical sector
-        elif normal == "z":
-            ctr1, ctr2, level = uip.round_to_grid((ctr1, ctr2, extent1))
 
         build_cylindrical_sector(
             ctr1,

@@ -211,6 +211,53 @@ class MainGridUserInput(UserInput[GridType]):
             p3_checked,
         )
 
+    def check_thickness(
+        self, dimension: str, start: float, thickness: float
+    ) -> Tuple[bool, float, float]:
+        """Check the thickness of an object in a specified dimension.
+
+        Args:
+            dimension: Dimension to check the thickness value for.
+                This must have value x, y, or z.
+            start: Start coordinate of the object in the specified
+                dimension. This must be in the local grid coordinate
+                system - i.e. previously translated using the
+                round_to_grid function.
+            thickness: Thickness of the object.
+
+        Raises:
+            ValueError: Raised if dimension has an invalid value.
+
+        Returns:
+            within_grid: True if part of the object is within the
+                current grid. False otherwise.
+            start: Start value limited to the bounds of the grid.
+            thickness: Thickness value such that start + thickness is
+                within the bounds of the grid.
+        """
+        if dimension == "x":
+            grid_size = self.grid.nx * self.grid.dx
+        elif dimension == "y":
+            grid_size = self.grid.ny * self.grid.dy
+        elif dimension == "z":
+            grid_size = self.grid.nz * self.grid.dz
+        else:
+            raise ValueError("Dimension should have value x, y, or z")
+
+        end = start + thickness
+
+        if start > grid_size:
+            return False, start, thickness
+        elif end < 0:
+            return False, start, thickness
+
+        if start < 0:
+            start = 0
+        if end > grid_size:
+            thickness = grid_size - start
+
+        return True, start, thickness
+
 
 class MPIUserInput(MainGridUserInput[MPIGrid]):
     """Handles (x, y, z) points supplied by the user for MPI grids.
