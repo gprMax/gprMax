@@ -8,6 +8,6 @@
 #rx: 0.080 0.080 0.080
 
 #material: 8 0 1 0 half_space
-#cylindrical_sector: z 0.05 0.05 0 0.1 0.05 60 330 half_space n
+#cylindrical_sector: z 0.05 0.05 0 0.1 0.05 0 180 half_space n
 
 #geometry_objects_write: 0 0 0 0.1 0.1 0.1 full_volume
