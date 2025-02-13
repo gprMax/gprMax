@@ -111,9 +111,19 @@ cpdef bint is_inside_sector(
     relpoint1 = px - ctrx
     relpoint2 = py - ctry
 
-    return (not are_clockwise(sectorstart1, sectorstart2, relpoint1, relpoint2)
-        and are_clockwise(sectorend1, sectorend2, relpoint1, relpoint2)
-        and is_within_radius(relpoint1, relpoint2, radius))
+    if sectorangle <= np.pi:
+        return (
+            not are_clockwise(sectorstart1, sectorstart2, relpoint1, relpoint2)
+            and are_clockwise(sectorend1, sectorend2, relpoint1, relpoint2)
+            and is_within_radius(relpoint1, relpoint2, radius)
+        )
+    else:
+        return (
+            (
+                not are_clockwise(sectorstart1, sectorstart2, relpoint1, relpoint2)
+                or are_clockwise(sectorend1, sectorend2, relpoint1, relpoint2)
+            ) and is_within_radius(relpoint1, relpoint2, radius)
+        )
 
 
 cpdef bint point_in_polygon(
