@@ -1,6 +1,5 @@
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Generic
 
 import h5py
 import numpy as np
@@ -40,8 +39,8 @@ class GeometryObject:
         self.filename_materials = self.filename_materials.with_suffix(".txt")
 
         # Sizes of arrays to write necessary to update progress bar
-        self.solidsize = (float)(np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize)
-        self.rigidsize = (float)(18 * np.prod(self.grid_view.size + 1) * np.dtype(np.int8).itemsize)
+        self.solidsize = (float)(np.prod(self.grid_view.size) * np.dtype(np.uint32).itemsize)
+        self.rigidsize = (float)(18 * np.prod(self.grid_view.size) * np.dtype(np.int8).itemsize)
         self.IDsize = (float)(6 * np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize)
         self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
 
