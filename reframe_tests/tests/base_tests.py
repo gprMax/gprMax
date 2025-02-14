@@ -43,6 +43,7 @@ class CreatePyenvTest(RunOnlyRegressionTest):
     valid_systems = ["generic", "archer2:login"]
     valid_prog_environs = ["builtin", "PrgEnv-gnu"]
     modules = ["cray-python"]
+    time_limit = "20m"
 
     prerun_cmds = [
         "python -m venv --system-site-packages --prompt gprMax .venv",
@@ -122,6 +123,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-gnu"]
     modules = ["cray-python"]
+    time_limit = "10m"
 
     num_cpus_per_task = 16
     exclusive_access = True
