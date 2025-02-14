@@ -68,12 +68,18 @@ class Edge(RotatableMixin, GeometryUserObject):
             self._do_rotate(grid)
 
         uip = self._create_uip(grid)
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
 
-        _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-        xs, ys, zs = p1
-        xf, yf, zf = p2
+        edge_within_grid, discretised_p1, discretised_p2 = uip.check_box_points(
+            p1, p2, self.__str__()
+        )
+
+        # Exit early if none of the edge is in this grid as there is
+        # nothing else to do.
+        if not edge_within_grid:
+            return
+
+        xs, ys, zs = discretised_p1
+        xf, yf, zf = discretised_p2
 
         material = next((x for x in grid.materials if x.ID == material_id), None)
 
@@ -101,6 +107,9 @@ class Edge(RotatableMixin, GeometryUserObject):
         elif zs != zf:
             for k in range(zs, zf):
                 build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
 
         logger.info(
             f"{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, "
