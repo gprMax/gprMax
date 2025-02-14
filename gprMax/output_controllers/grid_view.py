@@ -1,3 +1,4 @@
+import logging
 from itertools import chain
 from typing import Generic
 
@@ -9,6 +10,8 @@ from typing_extensions import TypeVar
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import Material
+
+logger = logging.getLogger(__name__)
 
 GridType = TypeVar("GridType", bound=FDTDGrid)
 
@@ -53,6 +56,11 @@ class GridView(Generic[GridType]):
         self.grid = grid
 
         self._ID = None
+
+        logger.debug(
+            f"Created GridView for grid '{self.grid.name}' (start={self.start}, stop={self.stop},"
+            f" step={self.step}, size={self.size})"
+        )
 
     def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
@@ -274,10 +282,12 @@ class MPIGridView(GridView[MPIGrid]):
         # Calculate start for the local grid
         self.global_start = self.grid.local_to_global_coordinate(self.start)
 
+        self.has_negative_neighbour = self.start < self.grid.negative_halo_offset
+
         # Bring start into the local grid (and not in the negative halo)
-        # local_start must still be aligned with the provided step.
+        # start must still be aligned with the provided step.
         self.start = np.where(
-            self.start < self.grid.negative_halo_offset,
+            self.has_negative_neighbour,
             self.grid.negative_halo_offset
             + ((self.start - self.grid.negative_halo_offset) % self.step),
             self.start,
@@ -307,6 +317,12 @@ class MPIGridView(GridView[MPIGrid]):
 
         # Update local size
         self.size = self.stop - self.start
+
+        logger.debug(
+            f"Created MPIGridView for grid '{self.grid.name}' (global_start={self.global_start},"
+            f" global_stop={self.global_stop}, global_size={self.global_size}, start={self.start},"
+            f" stop={self.stop}, step={self.step}, size={self.size}, offset={self.offset})"
+        )
 
     def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
