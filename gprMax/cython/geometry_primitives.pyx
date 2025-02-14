@@ -445,6 +445,12 @@ cpdef void build_triangle(
         j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
         levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
+
+        # Bound to the size of the grid
+        if i2 > solid.shape[1]:
+            i2 = solid.shape[1]
+        if j2 > solid.shape[2]:
+            j2 = solid.shape[2]
     elif normal == 'y':
         area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
         i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
@@ -453,6 +459,12 @@ cpdef void build_triangle(
         j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
         levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
+
+        # Bound to the size of the grid
+        if i2 > solid.shape[0]:
+            i2 = solid.shape[0]
+        if j2 > solid.shape[2]:
+            j2 = solid.shape[2]
     elif normal == 'z':
         area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
         i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
@@ -461,6 +473,18 @@ cpdef void build_triangle(
         j2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
         levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
+
+        # Bound to the size of the grid
+        if i2 > solid.shape[0]:
+            i2 = solid.shape[0]
+        if j2 > solid.shape[1]:
+            j2 = solid.shape[1]
+
+    # Bound to the start of the grid
+    if i1 < 0:
+        i1 = 0
+    if j1 < 0:
+        j1 = 0
 
     sign = np.sign(area)
 

@@ -73,6 +73,13 @@ class TestCylindricalSectorGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestEdgeGeometry(AntennaModelMixin, GprMaxRegressionTest):
+    tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
+    sourcesdir = "src/geometry_tests/edge_geometry"
+    model = parameter(["antenna_wire_dipole_fs"])
+
+
+@rfm.simple_test
 class TestEllipsoidGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "ellipsoid"}
     sourcesdir = "src/geometry_tests/ellipsoid_geometry"
@@ -97,10 +104,10 @@ class TestSphereGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestEdgeGeometry(AntennaModelMixin, GprMaxRegressionTest):
-    tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
-    sourcesdir = "src/geometry_tests/edge_geometry"
-    model = parameter(["antenna_wire_dipole_fs"])
+class TestTriangleGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "triangle"}
+    sourcesdir = "src/geometry_tests/triangle_geometry"
+    model = parameter(["triangle_x_full", "triangle_y_small", "triangle_z_rigid"])
 
 
 """Test MPI Functionality
@@ -129,6 +136,13 @@ class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
 
 
 @rfm.simple_test
+class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
+    tags = {"test", "mpi", "geometery", "cylindrical", "sector", "cylindrical_sector"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestCylinderGeometry
+
+
+@rfm.simple_test
 class TestCylindricalSectorGeometryMpi(MpiMixin, TestCylindricalSectorGeometry):
     tags = {"test", "mpi", "geometery", "cylinder"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
@@ -136,10 +150,10 @@ class TestCylindricalSectorGeometryMpi(MpiMixin, TestCylindricalSectorGeometry):
 
 
 @rfm.simple_test
-class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
-    tags = {"test", "mpi", "geometery", "cylindrical", "sector", "cylindrical_sector"}
+class TestEdgeGeometryMpi(MpiMixin, TestEdgeGeometry):
+    tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    test_dependency = TestCylinderGeometry
+    test_dependency = TestEdgeGeometry
 
 
 @rfm.simple_test
@@ -164,7 +178,7 @@ class TestSphereGeometryMpi(MpiMixin, TestSphereGeometry):
 
 
 @rfm.simple_test
-class TestEdgeGeometryMpi(MpiMixin, TestEdgeGeometry):
-    tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
-    mpi_layout = parameter([[3, 3, 3]])
-    test_dependency = TestEdgeGeometry
+class TestTriangleGeometryMpi(MpiMixin, TestTriangleGeometry):
+    tags = {"test", "mpi", "geometery", "triangle"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestTriangleGeometry

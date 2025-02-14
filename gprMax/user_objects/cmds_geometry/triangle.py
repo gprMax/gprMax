@@ -96,35 +96,59 @@ class Triangle(RotatableMixin, GeometryUserObject):
                 logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
+        if thickness < 0:
+            logger.exception(f"{self.__str__()} requires a positive value for thickness")
+            raise ValueError
+
         uip = self._create_uip(grid)
-        p4 = uip.round_to_grid_static_point(up1)
-        p5 = uip.round_to_grid_static_point(up2)
-        p6 = uip.round_to_grid_static_point(up3)
 
         # Check whether points are valid against grid
-        uip.check_tri_points(up1, up2, up3, object)
+        uip.check_tri_points(up1, up2, up3, self.__str__())
         # Convert points to metres
         x1, y1, z1 = uip.round_to_grid(up1)
         x2, y2, z2 = uip.round_to_grid(up2)
         x3, y3, z3 = uip.round_to_grid(up3)
 
-        if thickness < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for thickness")
-            raise ValueError
-
         # Check for valid orientations
         # yz-plane triangle
         if x1 == x2 == x3:
             normal = "x"
+            start = x1
         # xz-plane triangle
         elif y1 == y2 == y3:
             normal = "y"
+            start = y1
         # xy-plane triangle
         elif z1 == z2 == z3:
             normal = "z"
+            start = z1
         else:
             logger.exception(f"{self.__str__()} the triangle is not specified correctly")
             raise ValueError
+
+        triangle_within_grid, start, thickness = uip.check_thickness(normal, start, thickness)
+
+        # Exit early if none of the triangle is in this grid as there is
+        # nothing else to do.
+        if not triangle_within_grid:
+            return
+
+        # Update start bound of the triangle
+        # yz-plane triangle
+        if normal == "x":
+            x1 = start
+            x2 = start
+            x3 = start
+        # xz-plane triangle
+        elif normal == "y":
+            y1 = start
+            y2 = start
+            y3 = start
+        # xy-plane triangle
+        elif normal == "z":
+            z1 = start
+            z2 = start
+            z3 = start
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
@@ -201,6 +225,10 @@ class Triangle(RotatableMixin, GeometryUserObject):
             grid.rigidH,
             grid.ID,
         )
+
+        p4 = uip.round_to_grid_static_point(up1)
+        p5 = uip.round_to_grid_static_point(up2)
+        p6 = uip.round_to_grid_static_point(up3)
 
         if thickness > 0:
             dielectricsmoothing = "on" if averaging else "off"
