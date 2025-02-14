@@ -254,9 +254,10 @@ class MainGridUserInput(UserInput[GridType]):
             return False, start, thickness
 
         if start < 0:
+            thickness += start
             start = 0
         if end > grid_size:
-            thickness = grid_size - start
+            thickness -= end - grid_size
 
         return True, start, thickness
 
