@@ -66,6 +66,7 @@ class TestCylindricalSectorGeometry(GprMaxRegressionTest):
     model = parameter(
         [
             "cylindrical_sector_x_full",
+            "cylindrical_sector_x_half",
             "cylindrical_sector_y_small",
             "cylindrical_sector_z_outside_boundary",
             "cylindrical_sector_z_rigid",
