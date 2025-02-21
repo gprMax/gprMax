@@ -90,7 +90,9 @@ class CylindricalSector(GeometryUserObject):
         elif normal == "z":
             ctr1, ctr2, level = uip.round_to_grid((ctr1, ctr2, extent1))
 
-        sector_within_grid, level, thickness = uip.check_thickness(normal, level, thickness)
+        sector_within_grid, level, thickness = uip.check_thickness(
+            normal, extent1, thickness, self.__str__()
+        )
 
         # Exit early if none of the cylindrical sector is in this grid
         # as there is nothing else to do.

@@ -140,6 +140,9 @@ class UserInput(Generic[GridType]):
         """
         return self.discretise_point(point) * self.grid.dl
 
+    def discrete_to_continuous(self, point: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
+        return point * self.grid.dl
+
 
 class MainGridUserInput(UserInput[GridType]):
     """Handles (x, y, z) points supplied by the user in the main grid."""
@@ -199,30 +202,29 @@ class MainGridUserInput(UserInput[GridType]):
         p2: Tuple[float, float, float],
         p3: Tuple[float, float, float],
         cmd_str: str,
-    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
-        p1_within_grid, p1_checked = self.check_point(p1, cmd_str, name="vertex_1")
-        p2_within_grid, p2_checked = self.check_point(p2, cmd_str, name="vertex_2")
-        p3_within_grid, p3_checked = self.check_point(p3, cmd_str, name="vertex_3")
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        # We only care if the point are in the global grid (an error
+        # will be thrown if that is not the case).
+        _, p1_checked = self.check_point(p1, cmd_str, name="vertex_1")
+        _, p2_checked = self.check_point(p2, cmd_str, name="vertex_2")
+        _, p3_checked = self.check_point(p3, cmd_str, name="vertex_3")
 
-        return (
-            p1_within_grid and p2_within_grid and p3_within_grid,
-            p1_checked,
-            p2_checked,
-            p3_checked,
-        )
+        return p1_checked, p2_checked, p3_checked
 
     def check_thickness(
-        self, dimension: str, start: float, thickness: float
+        self,
+        dimension: str,
+        lower_extent: float,
+        thickness: float,
+        cmd_str: str,
     ) -> Tuple[bool, float, float]:
         """Check the thickness of an object in a specified dimension.
 
         Args:
             dimension: Dimension to check the thickness value for.
                 This must have value x, y, or z.
-            start: Start coordinate of the object in the specified
-                dimension. This must be in the local grid coordinate
-                system - i.e. previously translated using the
-                round_to_grid function.
+            lower_extent: Lower extent of the object in the specified
+                dimension.
             thickness: Thickness of the object.
 
         Raises:
@@ -231,35 +233,71 @@ class MainGridUserInput(UserInput[GridType]):
         Returns:
             within_grid: True if part of the object is within the
                 current grid. False otherwise.
-            start: Start value limited to the bounds of the grid.
-            thickness: Thickness value such that start + thickness is
-                within the bounds of the grid.
+            lower_extent: Lower extent limited to the bounds of the
+                grid.
+            thickness: Thickness value such that lower_extent +
+                thickness is within the bounds of the grid.
         """
-        # TODO: This should throw an error if the bounds are outside the
-        # global grid.
+        if thickness < 0:
+            raise ValueError(f"'{cmd_str}' requires a non negative thickness")
+
+        if lower_extent < 0:
+            raise ValueError(
+                f"'{cmd_str}' lower extent should be non negative in the {dimension} dimension"
+            )
+
+        upper_extent = lower_extent + thickness
+
         if dimension == "x":
-            grid_size = self.grid.nx * self.grid.dx
+            lower_point = self.discretise_point((lower_extent, 0, 0))
+            upper_point = self.discretise_point((upper_extent, 0, 0))
+            thickness_point = self.discretise_static_point((thickness, 0, 0))
+            index = 0
         elif dimension == "y":
-            grid_size = self.grid.ny * self.grid.dy
+            lower_point = self.discretise_point((0, lower_extent, 0))
+            upper_point = self.discretise_point((0, upper_extent, 0))
+            thickness_point = self.discretise_static_point((0, thickness, 0))
+            index = 1
         elif dimension == "z":
-            grid_size = self.grid.nz * self.grid.dz
+            lower_point = self.discretise_point((0, 0, lower_extent))
+            upper_point = self.discretise_point((0, 0, upper_extent))
+            thickness_point = self.discretise_static_point((0, 0, thickness))
+            index = 2
         else:
             raise ValueError("Dimension should have value x, y, or z")
 
-        end = start + thickness
+        try:
+            self.grid.within_bounds(upper_point)
+        except ValueError:
+            raise ValueError(
+                f"'{cmd_str}' extends beyond the size of the model in the {dimension} dimension"
+            )
 
-        if start > grid_size:
-            return False, start, thickness
-        elif end < 0:
-            return False, start, thickness
+        # Work with discretised (int) values as reduces imprecision due
+        # to floating point calculations
+        size = self.grid.size[index]
+        lower_extent = lower_point[index]
+        upper_extent = upper_point[index]
+        thickness = thickness_point[index]
 
-        if start < 0:
-            thickness += start
-            start = 0
-        if end > grid_size:
-            thickness -= end - grid_size
+        # These should only trigger for MPIGrids.
+        # TODO: Can this be structured so these checks happen in the
+        # MPIGridUserInput object?
+        if lower_extent < 0:
+            thickness += lower_extent
+            lower_extent = 0
+        if upper_extent > size:
+            thickness -= upper_extent - size
 
-        return True, start, thickness
+        dl = self.grid.dl[index]
+
+        return (
+            lower_extent <= size
+            and upper_extent >= 0
+            and not (upper_extent > size and thickness <= 0),
+            lower_extent * dl,
+            thickness * dl,
+        )
 
 
 class MPIUserInput(MainGridUserInput[MPIGrid]):
