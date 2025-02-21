@@ -16,6 +16,7 @@ class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
         [
             "box_full_model",
             "box_half_model",
+            "box_rigid",
             "box_single_rank",
             "box_outside_pml",
             "box_single_rank_outside_pml",
