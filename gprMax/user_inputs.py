@@ -173,7 +173,7 @@ class MainGridUserInput(UserInput[GridType]):
         lower_within_grid, lower_point = self.check_point(p1, cmd_str, "lower")
         upper_within_grid, upper_point = self.check_point(p2, cmd_str, "upper")
 
-        if np.greater(lower_point, upper_point).any():
+        if np.greater(lower_point, upper_point).any() or np.equal(lower_point, upper_point).all():
             raise ValueError(
                 f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."
             )
@@ -296,7 +296,11 @@ class MPIUserInput(MainGridUserInput[MPIGrid]):
         lower_point = np.where(lower_point < 0, 0, lower_point)
         upper_point = np.where(upper_point > self.grid.size, self.grid.size, upper_point)
 
-        return all(lower_point <= upper_point), lower_point, upper_point
+        return (
+            all(lower_point <= upper_point) and all(lower_point < self.grid.size),
+            lower_point,
+            upper_point,
+        )
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
