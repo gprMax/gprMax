@@ -73,7 +73,14 @@ class TestCylindricalSectorGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestEdgeGeometry(AntennaModelMixin, GprMaxRegressionTest):
+class TestEdgeGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometry", "edge"}
+    sourcesdir = "src/geometry_tests/edge_geometry"
+    model = parameter(["edge_y_full_width", "edge_z_small"])
+
+
+@rfm.simple_test
+class TestEdgeGeometryAntennaModel(AntennaModelMixin, GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     sourcesdir = "src/geometry_tests/edge_geometry"
     model = parameter(["antenna_wire_dipole_fs"])
@@ -151,9 +158,16 @@ class TestCylindricalSectorGeometryMpi(MpiMixin, TestCylindricalSectorGeometry):
 
 @rfm.simple_test
 class TestEdgeGeometryMpi(MpiMixin, TestEdgeGeometry):
-    tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
+    tags = {"test", "mpi", "geometry", "edge"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestEdgeGeometry
+
+
+@rfm.simple_test
+class TestEdgeGeometryAntennaModelMpi(MpiMixin, TestEdgeGeometryAntennaModel):
+    tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestEdgeGeometryAntennaModel
 
 
 @rfm.simple_test
