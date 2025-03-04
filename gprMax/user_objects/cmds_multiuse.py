@@ -389,16 +389,9 @@ class VoltageSource(RotatableMixin, GridUserObject):
         voltage_source = VoltageSourceUser()
         voltage_source.polarisation = self.polarisation
         voltage_source.coord = coord
-        voltage_source.ID = (
-            voltage_source.__class__.__name__
-            + "("
-            + str(voltage_source.xcoord)
-            + ","
-            + str(voltage_source.ycoord)
-            + ","
-            + str(voltage_source.zcoord)
-            + ")"
-        )
+        uip = self._create_uip(grid)
+        x, y, z = uip.discretise_static_point(self.point)
+        voltage_source.ID = f"{voltage_source.__class__.__name__}({x},{y},{z})"
         voltage_source.resistance = self.resistance
         voltage_source.waveform = grid.get_waveform_by_id(self.waveform_id)
 
@@ -540,7 +533,9 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
         h.coord = coord
         h.coordorigin = coord
-        h.ID = f"{h.__class__.__name__}({str(h.xcoord)},{str(h.ycoord)},{str(h.zcoord)})"
+        uip = self._create_uip(grid)
+        x, y, z = uip.discretise_static_point(self.point)
+        h.ID = f"{h.__class__.__name__}({x},{y},{z})"
         h.waveform = grid.get_waveform_by_id(self.waveform_id)
 
         if self.start is None or self.stop is None:
@@ -696,16 +691,9 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         m.polarisation = self.polarisation
         m.coord = coord
         m.coordorigin = coord
-        m.ID = (
-            m.__class__.__name__
-            + "("
-            + str(m.xcoord)
-            + ","
-            + str(m.ycoord)
-            + ","
-            + str(m.zcoord)
-            + ")"
-        )
+        uip = self._create_uip(grid)
+        x, y, z = uip.discretise_static_point(self.point)
+        m.ID = f"{m.__class__.__name__}({x},{y},{z})"
         m.waveform = grid.get_waveform_by_id(self.waveform_id)
 
         if self.start is None or self.stop is None:
@@ -858,16 +846,9 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         t = TransmissionLineUser(grid.iterations, grid.dt)
         t.polarisation = self.polarisation
         t.coord = coord
-        t.ID = (
-            t.__class__.__name__
-            + "("
-            + str(t.xcoord)
-            + ","
-            + str(t.ycoord)
-            + ","
-            + str(t.zcoord)
-            + ")"
-        )
+        uip = self._create_uip(grid)
+        x, y, z = uip.discretise_static_point(self.point)
+        t.ID = f"{t.__class__.__name__}({x},{y},{z})"
         t.resistance = self.resistance
         t.waveform = grid.get_waveform_by_id(self.waveform_id)
 

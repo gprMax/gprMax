@@ -19,13 +19,13 @@
 import logging
 
 import numpy as np
-from mpi4py import MPI
 
 from gprMax._version import __version__
 from gprMax.cython.geometry_outputs import get_line_properties
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.geometry_views import GeometryView, GridViewType, Metadata
-from gprMax.output_controllers.grid_view import MPIGridView
+from gprMax.output_controllers.geometry_views import GeometryView, Metadata, MPIMetadata
+from gprMax.output_controllers.grid_view import GridType, MPIGridView
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType
@@ -33,11 +33,26 @@ from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType
 logger = logging.getLogger(__name__)
 
 
-class GeometryViewLines(GeometryView[GridViewType]):
+class GeometryViewLines(GeometryView[GridType]):
     """Unstructured grid for a per-cell-edge geometry view."""
+
+    def __init__(
+        self,
+        xs: int,
+        ys: int,
+        zs: int,
+        xf: int,
+        yf: int,
+        zf: int,
+        filename: str,
+        grid: GridType,
+    ):
+        super().__init__(xs, ys, zs, xf, yf, zf, 1, 1, 1, filename, grid)
 
     def prep_vtk(self):
         """Prepares data for writing to VTKHDF file."""
+
+        self.grid_view.initialise_materials(filter_materials=False)
 
         ID = self.grid_view.get_ID()
 
@@ -81,6 +96,9 @@ class GeometryViewLines(GeometryView[GridViewType]):
             + self.material_data.nbytes
         )
 
+        # Use sorted material IDs rather than default ordering
+        self.material_data = self.grid_view.map_to_view_materials(self.material_data)
+
     def write_vtk(self):
         """Writes geometry information to a VTKHDF file."""
 
@@ -96,20 +114,19 @@ class GeometryViewLines(GeometryView[GridViewType]):
             self.metadata.write_to_vtkhdf(f)
 
 
-class MPIGeometryViewLines(GeometryViewLines[MPIGridView]):
+class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
     """Image data for a per-cell geometry view."""
 
-    def __init__(self, grid_view: MPIGridView, filename: str, comm: MPI.Comm):
-        super().__init__(grid_view, filename)
-
-        self.comm = comm
-
     @property
-    def grid(self) -> MPIGrid:
-        return self.grid_view.grid
+    def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
+        return MPIGridView
 
     def prep_vtk(self):
         """Prepares data for writing to VTKHDF file."""
+
+        assert isinstance(self.grid_view, MPIGridView)
+
+        self.grid_view.initialise_materials(filter_materials=False)
 
         ID = self.grid_view.get_ID()
 
@@ -120,11 +137,6 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGridView]):
         self.points = np.vstack(list(map(np.ravel, coords))).T
         self.points += self.grid_view.global_start
         self.points *= self.grid_view.step * self.grid.dl
-
-        # Add offset to subgrid geometry to correctly locate within main grid
-        if isinstance(self.grid, SubGridBaseGrid):
-            offset = [self.grid.i0, self.grid.j0, self.grid.k0]
-            self.points += offset * self.grid.dl * self.grid.ratio
 
         # Each point is the 'source' for 3 lines.
         # NB: Excluding points at the far edge of the geometry as those
@@ -142,7 +154,7 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGridView]):
         assert isinstance(self.material_data, np.ndarray)
 
         # Write information about any PMLs, sources, receivers
-        self.metadata = Metadata(self.grid_view, averaged_materials=True, materials_only=True)
+        self.metadata = MPIMetadata(self.grid_view, averaged_materials=True, materials_only=True)
 
         # Number of bytes of data to be written to file
         self.nbytes = (
@@ -154,10 +166,12 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGridView]):
         )
 
         # Use global material IDs rather than local IDs
-        self.material_data = self.grid.local_to_global_material_id_map(self.material_data)
+        self.material_data = self.grid_view.map_to_view_materials(self.material_data)
 
     def write_vtk(self):
         """Writes geometry information to a VTKHDF file."""
+
+        assert isinstance(self.grid_view, MPIGridView)
 
         with VtkUnstructuredGrid(
             self.filename,
@@ -165,7 +179,7 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGridView]):
             self.cell_types,
             self.connectivity,
             self.cell_offsets,
-            comm=self.comm,
+            comm=self.grid_view.comm,
         ) as f:
             f.add_cell_data("Material", self.material_data, self.grid_view.offset)
             self.metadata.write_to_vtkhdf(f)

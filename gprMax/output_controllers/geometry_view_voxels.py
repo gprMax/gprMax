@@ -23,15 +23,15 @@ from mpi4py import MPI
 
 from gprMax._version import __version__
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.geometry_views import GeometryView, GridViewType, Metadata
-from gprMax.output_controllers.grid_view import MPIGridView
+from gprMax.output_controllers.geometry_views import GeometryView, Metadata, MPIMetadata
+from gprMax.output_controllers.grid_view import GridType, MPIGridView
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 
 logger = logging.getLogger(__name__)
 
 
-class GeometryViewVoxels(GeometryView[GridViewType]):
+class GeometryViewVoxels(GeometryView[GridType]):
     """Image data for a per-cell geometry view."""
 
     def prep_vtk(self):
@@ -65,31 +65,43 @@ class GeometryViewVoxels(GeometryView[GridViewType]):
             self.metadata.write_to_vtkhdf(f)
 
 
-class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGridView]):
+class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
     """Image data for a per-cell geometry view."""
 
-    def __init__(self, grid_view: MPIGridView, filename: str, comm: MPI.Comm):
-        super().__init__(grid_view, filename)
-
-        self.comm = comm
-
     @property
-    def grid(self) -> MPIGrid:
-        return self.grid_view.grid
+    def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
+        return MPIGridView
 
     def prep_vtk(self):
         """Prepares data for writing to VTKHDF file."""
 
-        super().prep_vtk()
+        assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
+
+        self.material_data = self.grid_view.get_solid()
+
+        self.origin = self.grid_view.global_start * self.grid.dl
+        self.spacing = self.grid_view.step * self.grid.dl
 
         # Use global material IDs rather than local IDs
-        self.material_data = self.grid.local_to_global_material_id_map(self.material_data)
+        self.grid_view.initialise_materials(filter_materials=False)
+        self.material_data = self.grid_view.map_to_view_materials(self.material_data)
+
+        self.nbytes = self.material_data.nbytes
+
+        # Write information about any PMLs, sources, receivers
+        self.metadata = MPIMetadata(self.grid_view)
 
     def write_vtk(self):
         """Writes geometry information to a VTKHDF file."""
 
+        assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
+
         with VtkImageData(
-            self.filename, self.grid_view.global_size, self.origin, self.spacing, comm=self.comm
+            self.filename,
+            self.grid_view.global_size,
+            self.origin,
+            self.spacing,
+            comm=self.grid_view.comm,
         ) as f:
             f.add_cell_data("Material", self.material_data, self.grid_view.offset)
             self.metadata.write_to_vtkhdf(f)

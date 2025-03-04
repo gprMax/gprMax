@@ -5,7 +5,7 @@ from enum import Enum
 from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import h5py
 import numpy as np
@@ -211,7 +211,7 @@ class VtkHdfFile(AbstractContextManager):
         self,
         path: str,
         data: npt.ArrayLike,
-        shape: Optional[npt.NDArray[np.int32]] = None,
+        shape: Optional[Union[npt.NDArray[np.int32], Tuple[int, ...]]] = None,
         offset: Optional[npt.NDArray[np.int32]] = None,
         dtype: Optional[npt.DTypeLike] = None,
         xyz_data_ordering=True,
@@ -228,6 +228,8 @@ class VtkHdfFile(AbstractContextManager):
                 Can be omitted if data provides the full dataset.
             offset (optional): Offset to store the provided data at. Can
                 be omitted if data provides the full dataset.
+            dtype (optional): Type of the data. If omitted, the type
+                will be deduced from the provided data.
             xyz_data_ordering (optional): If True, the data will be
                 transposed as VTKHDF stores datasets using ZYX ordering.
                 Default True.
@@ -237,17 +239,37 @@ class VtkHdfFile(AbstractContextManager):
                 and offset are invalid.
         """
 
-        # If dtype is a string, ensure it is ascii encoded and use
-        # variable length strings
-        if dtype is not None and h5py.check_string_dtype(dtype) is not None:
-            dtype = h5py.string_dtype(encoding="ascii", length=None)
+        # If dtype is a string and using parallel I/O, ensure using
+        # fixed length strings
+        if isinstance(dtype, np.dtype) and self.comm is not None:
+            string_info = h5py.check_string_dtype(dtype)
+            if string_info is not None and string_info.length is None:
+                logger.warning(
+                    "HDF5 does not support variable length strings with parallel I/O."
+                    " Using fixed length strings instead."
+                )
+                dtype = h5py.string_dtype(encoding="ascii", length=0)
 
         if not isinstance(data, np.ndarray):
             data = np.array(data, dtype=dtype)
             if data.ndim < 1:
                 data = np.expand_dims(data, axis=-1)
 
-        if dtype is None:
+        if data.dtype.kind == "U":
+            if dtype is not None:  # Only log warning if user specified a data type
+                logger.warning(
+                    "NumPy UTF-32 ('U' dtype) is not supported by HDF5."
+                    " Converting to bytes array ('S' dtype)."
+                )
+            data = data.astype("S")
+
+        # Explicitly define string datatype
+        # VTKHDF only supports ascii strings (not UTF-8)
+        if data.dtype.kind == "S":
+            dtype = h5py.string_dtype(encoding="ascii", length=data.dtype.itemsize)
+            data = data.astype(dtype)
+
+        elif dtype is None:
             dtype = data.dtype
 
         # VTKHDF stores datasets using ZYX ordering rather than XYZ
@@ -260,8 +282,14 @@ class VtkHdfFile(AbstractContextManager):
         if offset is not None:
             offset = np.flip(offset)
 
+        logger.debug(
+            f"Writing dataset '{path}', shape: {shape}, data.shape: {data.shape}, dtype: {dtype}"
+        )
+
         if shape is None or all(shape == data.shape):
-            self.file_handler.create_dataset(path, data=data, dtype=dtype)
+            shape = data.shape if shape is None else shape
+            dataset = self.file_handler.create_dataset(path, shape=shape, dtype=dtype)
+            dataset[:] = data
         elif offset is None:
             raise ValueError(
                 "Offset must not be None as the full dataset has not been provided."
@@ -293,15 +321,56 @@ class VtkHdfFile(AbstractContextManager):
             start = offset
             stop = offset + data.shape
 
-            dataset_slice = (slice(start[i], stop[i]) for i in range(dimensions))
+            dataset_slice = tuple([slice(start[i], stop[i]) for i in range(dimensions)])
 
             dataset[dataset_slice] = data
+
+    def _create_dataset(
+        self, path: str, shape: Union[npt.NDArray[np.int32], Tuple[int, ...]], dtype: npt.DTypeLike
+    ):
+        """Create dataset in the VTKHDF file without writing any data.
+
+        Args:
+            path: Absolute path to the dataset.
+            shape: Size of the full dataset being created.
+            dtype: Type of the data.
+
+        Raises:
+            TypeError: Raised if attempt to use variable length strings
+                with parallel I/O.
+        """
+        dtype = np.dtype(dtype)
+
+        # If dtype is a string and using parallel I/O, ensure using
+        # fixed length strings
+        if self.comm is not None:
+            string_info = h5py.check_string_dtype(dtype)
+            if string_info is not None and string_info.length is None:
+                raise TypeError(
+                    "HDF5 does not support variable length strings with parallel I/O."
+                    " Use fixed length strings instead."
+                )
+
+        if dtype.kind == "U":
+            logger.warning(
+                "NumPy UTF-32 ('U' dtype) is not supported by HDF5."
+                " Converting to bytes array ('S' dtype)."
+            )
+
+        # Explicitly define string datatype
+        # VTKHDF only supports ascii strings (not UTF-8)
+        if dtype.kind == "U" or dtype.kind == "S":
+            dtype = h5py.string_dtype(encoding="ascii", length=dtype.itemsize)
+
+        logger.debug(f"Creating dataset '{path}', shape: {shape}, dtype: {dtype}")
+
+        self.file_handler.create_dataset(path, shape=shape, dtype=dtype)
 
     def add_point_data(
         self,
         name: str,
         data: npt.NDArray,
-        shape: Optional[npt.NDArray[np.int32]] = None,
+        shape: Optional[Union[npt.NDArray[np.int32], Tuple[int, ...]]] = None,
         offset: Optional[npt.NDArray[np.int32]] = None,
     ):
         """Add point data to the VTKHDF file.
@@ -321,7 +390,7 @@ class VtkHdfFile(AbstractContextManager):
         self,
         name: str,
         data: npt.NDArray,
-        shape: Optional[npt.NDArray[np.int32]] = None,
+        shape: Optional[Union[npt.NDArray[np.int32], Tuple[int, ...]]] = None,
         offset: Optional[npt.NDArray[np.int32]] = None,
     ):
         """Add cell data to the VTKHDF file.
@@ -340,8 +409,8 @@ class VtkHdfFile(AbstractContextManager):
     def add_field_data(
         self,
         name: str,
-        data: npt.ArrayLike,
-        shape: Optional[npt.NDArray[np.int32]] = None,
+        data: Optional[npt.ArrayLike],
+        shape: Optional[Union[npt.NDArray[np.int32], Tuple[int, ...]]] = None,
         offset: Optional[npt.NDArray[np.int32]] = None,
         dtype: Optional[npt.DTypeLike] = None,
     ):
@@ -349,16 +418,32 @@ class VtkHdfFile(AbstractContextManager):
 
         Args:
             name: Name of the dataset.
-            data: Data to be saved.
+            data: Data to be saved. Can be None if both shape and dtype
+                are specified. If None, the dataset will be created but
+                no data written. This can be useful if, for example,
+                only one rank is writing the data. As long as all ranks
+                know the shape and dtype, ranks not writing data can
+                perform the collective operation of creating the
+                dataset, but only the rank(s) with the data need to
+                write data.
             shape (optional): Size of the full dataset being created.
                 Can be omitted if data provides the full dataset.
             offset (optional): Offset to store the provided data at. Can
                 be omitted if data provides the full dataset.
+            dtype (optional): Type of the data. If omitted, the type
+                will be deduced from the provided data.
         """
         dataset_path = self._build_dataset_path("FieldData", name)
-        self._write_dataset(
-            dataset_path, data, shape=shape, offset=offset, dtype=dtype, xyz_data_ordering=False
-        )
+        if data is not None:
+            self._write_dataset(
+                dataset_path, data, shape=shape, offset=offset, dtype=dtype, xyz_data_ordering=False
+            )
+        elif shape is not None and dtype is not None:
+            self._create_dataset(dataset_path, shape, dtype)
+        else:
+            raise ValueError(
+                "If data is None, shape and dtype must be provided. I.e. they must not be None"
+            )
 
 
 class VtkCellType(np.uint8, Enum):

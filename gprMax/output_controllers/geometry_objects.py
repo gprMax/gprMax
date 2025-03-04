@@ -1,5 +1,6 @@
 from io import TextIOWrapper
 from pathlib import Path
+from typing import Generic
 
 import h5py
 import numpy as np
@@ -11,10 +12,10 @@ from gprMax._version import __version__
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import Material
-from gprMax.output_controllers.grid_view import GridView, MPIGridView
+from gprMax.output_controllers.grid_view import GridType, GridView, MPIGridView
 
 
-class GeometryObject:
+class GeometryObject(Generic[GridType]):
     """Geometry objects to be written to file."""
 
     @property
@@ -22,7 +23,7 @@ class GeometryObject:
         return GridView
 
     def __init__(
-        self, grid: FDTDGrid, xs: int, ys: int, zs: int, xf: int, yf: int, zf: int, filename: str
+        self, grid: GridType, xs: int, ys: int, zs: int, xf: int, yf: int, zf: int, filename: str
     ):
         """
         Args:
@@ -45,7 +46,7 @@ class GeometryObject:
         self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
 
     @property
-    def grid(self) -> FDTDGrid:
+    def grid(self) -> GridType:
         return self.grid_view.grid
 
     def write_metadata(self, file_handler: h5py.File, title: str):
@@ -115,25 +116,10 @@ class GeometryObject:
                 self.output_material(material, fmaterials)
 
 
-class MPIGeometryObject(GeometryObject):
+class MPIGeometryObject(GeometryObject[MPIGrid]):
     @property
     def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
         return MPIGridView
-
-    def __init__(
-        self,
-        grid: MPIGrid,
-        xs: int,
-        xf: int,
-        ys: int,
-        yf: int,
-        zs: int,
-        zf: int,
-        filename: str,
-        comm: MPI.Cartcomm,
-    ):
-        super().__init__(grid, xs, xf, ys, yf, zs, zf, filename)
-        self.comm = comm
 
     def write_hdf5(self, title: str, pbar: tqdm):
         """Writes a geometry objects file in HDF5 format.
@@ -144,7 +130,7 @@ class MPIGeometryObject(GeometryObject):
         """
         assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
 
-        self.grid_view.initialise_materials(self.comm)
+        self.grid_view.initialise_materials()
 
         ID = self.grid_view.get_ID()
         data = self.grid_view.get_solid().astype(np.int16)
@@ -154,14 +140,10 @@ class MPIGeometryObject(GeometryObject):
         ID = self.grid_view.map_to_view_materials(ID)
         data = self.grid_view.map_to_view_materials(data)
 
-        with h5py.File(self.filename_hdf5, "w", driver="mpio", comm=self.comm) as fdata:
+        with h5py.File(self.filename_hdf5, "w", driver="mpio", comm=self.grid_view.comm) as fdata:
             self.write_metadata(fdata, title)
 
-            dset_slice = (
-                self.grid_view.get_output_slice(0),
-                self.grid_view.get_output_slice(1),
-                self.grid_view.get_output_slice(2),
-            )
+            dset_slice = self.grid_view.get_3d_output_slice()
 
             dset = fdata.create_dataset("/data", self.grid_view.global_size, dtype=data.dtype)
             dset[dset_slice] = data
@@ -178,11 +160,7 @@ class MPIGeometryObject(GeometryObject):
             rigid_H_dataset[:, dset_slice[0], dset_slice[1], dset_slice[2]] = rigidH
             pbar.update(self.rigidsize)
 
-            dset_slice = (
-                self.grid_view.get_output_slice(0, upper_bound_exclusive=False),
-                self.grid_view.get_output_slice(1, upper_bound_exclusive=False),
-                self.grid_view.get_output_slice(2, upper_bound_exclusive=False),
-            )
+            dset_slice = self.grid_view.get_3d_output_slice(upper_bound_exclusive=False)
 
             dset = fdata.create_dataset(
                 "/ID", (6, *(self.grid_view.global_size + 1)), dtype=ID.dtype

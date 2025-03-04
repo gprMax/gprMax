@@ -1,6 +1,6 @@
 import logging
 from itertools import chain
-from typing import Generic
+from typing import Generic, Tuple
 
 import numpy as np
 import numpy.typing as npt
@@ -62,6 +62,42 @@ class GridView(Generic[GridType]):
             f" step={self.step}, size={self.size})"
         )
 
+    @property
+    def xs(self) -> int:
+        return self.start[0]
+
+    @property
+    def ys(self) -> int:
+        return self.start[1]
+
+    @property
+    def zs(self) -> int:
+        return self.start[2]
+
+    @property
+    def xf(self) -> int:
+        return self.stop[0]
+
+    @property
+    def yf(self) -> int:
+        return self.stop[1]
+
+    @property
+    def zf(self) -> int:
+        return self.stop[2]
+
+    @property
+    def nx(self) -> int:
+        return self.size[0]
+
+    @property
+    def ny(self) -> int:
+        return self.size[1]
+
+    @property
+    def nz(self) -> int:
+        return self.size[2]
+
     def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
 
@@ -112,7 +148,7 @@ class GridView(Generic[GridType]):
             ]
         )
 
-    def initialise_materials(self):
+    def initialise_materials(self, filter_materials: bool = True):
         """Create a new ID map for materials in the grid view.
 
         Rather than using the default material IDs (as per the main grid
@@ -125,11 +161,16 @@ class GridView(Generic[GridType]):
         map_to_view_materials() function.
         """
         # Get unique materials in the grid view
-        ID = self.get_ID(force_refresh=True)
-        materials_in_grid_view = np.unique(ID)
+        if filter_materials:
+            ID = self.get_ID(force_refresh=True)
+            materials_in_grid_view = np.unique(ID)
 
-        # Get actual Material objects and sort
-        self.materials = np.array(self.grid.materials, dtype=Material)[materials_in_grid_view]
+            # Get actual Material objects
+            self.materials = np.array(self.grid.materials, dtype=Material)[materials_in_grid_view]
+        else:
+            self.materials = np.array(self.grid.materials, dtype=Material)
+
+        # Sort materials
         self.materials.sort()
 
         # Create map from material ID to 0 - number of materials
@@ -150,7 +191,7 @@ class GridView(Generic[GridType]):
         Returns:
             array: Mapped array.
         """
-        return self.map_materials_func(array)
+        return self.map_materials_func(array).astype(array.dtype)
 
     def get_ID(self, force_refresh=False) -> npt.NDArray[np.uint32]:
         """Get a view of the ID array.
@@ -277,6 +318,12 @@ class MPIGridView(GridView[MPIGrid]):
         """
         super().__init__(grid, xs, ys, zs, xf, yf, zf, dx, dy, dz)
 
+        comm = grid.comm.Split()
+        assert isinstance(comm, MPI.Intracomm)
+        start_grid_coord = grid.get_grid_coord_from_local_coordinate(self.start)
+        stop_grid_coord = grid.get_grid_coord_from_local_coordinate(self.stop) + 1
+        self.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
+
         self.global_size = self.size
 
         # Calculate start for the local grid
@@ -324,6 +371,18 @@ class MPIGridView(GridView[MPIGrid]):
             f" stop={self.stop}, step={self.step}, size={self.size}, offset={self.offset})"
         )
 
+    @property
+    def gx(self) -> int:
+        return self.global_size[0]
+
+    @property
+    def gy(self) -> int:
+        return self.global_size[1]
+
+    @property
+    def gz(self) -> int:
+        return self.global_size[2]
+
     def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
 
@@ -348,6 +407,35 @@ class MPIGridView(GridView[MPIGrid]):
         return slice(self.start[dimension], stop, self.step[dimension])
 
     def get_output_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        """Create an output slice object for the specified dimension.
+
+        This provides a slice of the grid view for the section of the
+        grid view managed by this rank. This can be used when writing
+        out arrays provided by the grid view as part of a collective
+        operation.
+
+        For example:
+        ```
+        dset_slice = (
+                grid_view.get_output_slice(0),
+                grid_view.get_output_slice(1),
+                grid_view.get_output_slice(2),
+            )
+
+        dset[dset_slice] = grid_view.get_solid()
+        ```
+
+        Args:
+            dimension: Dimension to create the slice object for. Values
+                0, 1, and 2 map to the x, y, and z dimensions
+                respectively.
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: Slice object
+        """
         if upper_bound_exclusive or self.has_positive_neighbour[dimension]:
             size = self.size[dimension]
         else:
@@ -359,7 +447,32 @@ class MPIGridView(GridView[MPIGrid]):
 
         return slice(offset, offset + size)
 
-    def initialise_materials(self, comm: MPI.Cartcomm):
+    def get_3d_output_slice(self, upper_bound_exclusive: bool = True) -> Tuple[slice, slice, slice]:
+        """Create a 3D output slice object.
+
+        This provides a slice of the grid view for the section of the
+        grid view managed by this rank. This can be used when writing
+        out arrays provided by the grid view as part of a collective
+        operation.
+
+        For example:
+        `dset[grid_view.get_3d_output_slice()] = grid_view.get_solid()`
+
+        Args:
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: 3D Slice object
+        """
+        return (
+            self.get_output_slice(0, upper_bound_exclusive),
+            self.get_output_slice(1, upper_bound_exclusive),
+            self.get_output_slice(2, upper_bound_exclusive),
+        )
+
+    def initialise_materials(self, filter_materials: bool = True):
         """Create a new ID map for materials in the grid view.
 
         Rather than using the default material IDs (as per the main grid
@@ -372,15 +485,18 @@ class MPIGridView(GridView[MPIGrid]):
         communication to construct the new map. It should also be called
         before the map_to_view_materials() function.
         """
-        ID = self.get_ID(force_refresh=True)
+        if filter_materials:
+            ID = self.get_ID(force_refresh=True)
+            local_material_ids = np.unique(ID)
+            local_materials = np.array(self.grid.materials, dtype=Material)[local_material_ids]
+        else:
+            local_materials = np.array(self.grid.materials, dtype=Material)
 
-        local_material_ids = np.unique(ID)
-        local_materials = np.array(self.grid.materials, dtype=Material)[local_material_ids]
         local_materials.sort()
         local_material_ids = [m.numID for m in local_materials]
 
         # Send all materials to the coordinating rank
-        materials_by_rank = comm.gather(local_materials, root=0)
+        materials_by_rank = self.comm.gather(local_materials, root=0)
 
         if materials_by_rank is not None:
             # Filter out duplicate materials and sort by material ID
@@ -390,9 +506,9 @@ class MPIGridView(GridView[MPIGrid]):
             # The new material IDs corespond to each material's index in
             # the sorted self.materials array. For each rank, get the
             # new IDs of each material it sent to send back
-            for rank in range(1, comm.size):
+            for rank in range(1, self.comm.size):
                 new_material_ids = np.where(np.isin(self.materials, materials_by_rank[rank]))[0]
-                comm.Isend([new_material_ids.astype(np.int32), MPI.INT], rank)
+                self.comm.Isend([new_material_ids.astype(np.int32), MPI.INT], rank)
 
             new_material_ids = np.where(np.isin(self.materials, materials_by_rank[0]))[0]
             new_material_ids = new_material_ids.astype(np.int32)
@@ -401,7 +517,7 @@ class MPIGridView(GridView[MPIGrid]):
 
             # Get list of global IDs for this rank's local materials
             new_material_ids = np.empty(len(local_materials), dtype=np.int32)
-            comm.Recv([new_material_ids, MPI.INT], 0)
+            self.comm.Recv([new_material_ids, MPI.INT], 0)
 
         # Create map from local material ID to global material ID
         materials_map = {

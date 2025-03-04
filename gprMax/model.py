@@ -30,6 +30,9 @@ from colorama import Fore, Style, init
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.output_controllers.geometry_objects import GeometryObject
+from gprMax.output_controllers.geometry_view_lines import GeometryViewLines
+from gprMax.output_controllers.geometry_view_voxels import GeometryViewVoxels
+from gprMax.output_controllers.geometry_views import GeometryView, save_geometry_views
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -39,7 +42,6 @@ from tqdm import tqdm
 import gprMax.config as config
 
 from .fields_outputs import write_hdf5_outputfile
-from .geometry_outputs import GeometryView, save_geometry_views
 from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
 from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
@@ -172,6 +174,11 @@ class Model:
         return grid
 
     def set_size(self, size: npt.NDArray[np.int32]):
+        """Set size of the model.
+
+        Args:
+            size: Array to set the size (3 dimensional).
+        """
         self.nx, self.ny, self.nz = size
 
     def add_geometry_object(
@@ -181,11 +188,89 @@ class Model:
         stop: npt.NDArray[np.int32],
         basefilename: str,
     ) -> Optional[GeometryObject]:
+        """Add a geometry object to the model.
+
+        Args:
+            grid: Grid to create a geometry object for.
+            start: Lower extent of the geometry object (3 dimensional).
+            stop: Upper extent of the geometry object (3 dimensional).
+            basefilename: Output filename of the geometry object.
+
+        Returns:
+            geometry_object: The created geometry object.
+        """
         geometry_object = GeometryObject(
             grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename
         )
         self.geometryobjects.append(geometry_object)
         return geometry_object
+
+    def add_geometry_view_voxels(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[GeometryViewVoxels]:
+        """Add a voxel geometry view to the model.
+
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (3 dimensional).
+            stop: Upper extent of the geometry view (3 dimensional).
+            dl: Discritisation of the geometry view (3 dimensional).
+            filename: Output filename of the geometry view.
+
+        Returns:
+            geometry_view: The created geometry view.
+        """
+        geometry_view = GeometryViewVoxels(
+            start[0],
+            start[1],
+            start[2],
+            stop[0],
+            stop[1],
+            stop[2],
+            dl[0],
+            dl[1],
+            dl[2],
+            filename,
+            grid,
+        )
+        self.geometryviews.append(geometry_view)
+        return geometry_view
+
+    def add_geometry_view_lines(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[GeometryViewLines]:
+        """Add a lines geometry view to the model.
+
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (3 dimensional).
+            stop: Upper extent of the geometry view (3 dimensional).
+            filename: Output filename of the geometry view.
+
+        Returns:
+            geometry_view: The created geometry view.
+        """
+        geometry_view = GeometryViewLines(
+            start[0],
+            start[1],
+            start[2],
+            stop[0],
+            stop[1],
+            stop[2],
+            filename,
+            grid,
+        )
+        self.geometryviews.append(geometry_view)
+        return geometry_view
 
     def build(self):
         """Builds the Yee cells for a model."""

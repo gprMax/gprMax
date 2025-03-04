@@ -10,6 +10,8 @@ from gprMax.fields_outputs import write_hdf5_outputfile
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.output_controllers.geometry_objects import MPIGeometryObject
+from gprMax.output_controllers.geometry_view_lines import MPIGeometryViewLines
+from gprMax.output_controllers.geometry_view_voxels import MPIGeometryViewVoxels
 from gprMax.snapshots import save_snapshots
 
 logger = logging.getLogger(__name__)
@@ -67,16 +69,116 @@ class MPIModel(Model):
         stop: npt.NDArray[np.int32],
         basefilename: str,
     ) -> Optional[MPIGeometryObject]:
-        comm = grid.create_sub_communicator(start, stop)
+        """Add a geometry object to the model.
 
-        if comm is None:
-            return None
-        else:
+        Args:
+            grid: Grid to create a geometry object for
+            start: Lower extent of the geometry object (3 dimensional)
+            stop: Upper extent of the geometry object (3 dimensional)
+            basefilename: Output filename of the geometry object
+
+        Returns:
+            geometry_object: The new geometry object or None if no
+                geometry object was created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
             geometry_object = MPIGeometryObject(
-                grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename, comm
+                grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename
             )
             self.geometryobjects.append(geometry_object)
             return geometry_object
+        else:
+            # The MPIGridView created by the MPIGeometryObject will
+            # create a new communicator using MPI_Split. Calling this
+            # here prevents deadlock if not all ranks create the new
+            # MPIGeometryObject.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
+
+    def add_geometry_view_voxels(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[MPIGeometryViewVoxels]:
+        """Add a voxel geometry view to the model.
+
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (3 dimensional).
+            stop: Upper extent of the geometry view (3 dimensional).
+            dl: Discritisation of the geometry view (3 dimensional).
+            filename: Output filename of the geometry view.
+
+        Returns:
+            geometry_view: The new geometry view or None if no geometry
+                view was created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            geometry_view = MPIGeometryViewVoxels(
+                start[0],
+                start[1],
+                start[2],
+                stop[0],
+                stop[1],
+                stop[2],
+                dl[0],
+                dl[1],
+                dl[2],
+                filename,
+                grid,
+            )
+            self.geometryviews.append(geometry_view)
+            return geometry_view
+        else:
+            # The MPIGridView created by MPIGeometryViewVoxels will
+            # create a new communicator using MPI_Split. Calling this
+            # here prevents deadlock if not all ranks create the new
+            # MPIGeometryViewVoxels.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
+
+    def add_geometry_view_lines(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[MPIGeometryViewLines]:
+        """Add a lines geometry view to the model.
+
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (3 dimensional).
+            stop: Upper extent of the geometry view (3 dimensional).
+            filename: Output filename of the geometry view.
+
+        Returns:
+            geometry_view: The new geometry view or None if no geometry
+                view was created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            geometry_view = MPIGeometryViewLines(
+                start[0],
+                start[1],
+                start[2],
+                stop[0],
+                stop[1],
+                stop[2],
+                filename,
+                grid,
+            )
+            self.geometryviews.append(geometry_view)
+            return geometry_view
+        else:
+            # The MPIGridView created by MPIGeometryViewLines will
+            # create a new communicator using MPI_Split. Calling this
+            # here prevents deadlock if not all ranks create the new
+            # MPIGeometryViewLines.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
 
     def write_output_data(self):
         """Writes output data, i.e. field data for receivers and snapshots to
