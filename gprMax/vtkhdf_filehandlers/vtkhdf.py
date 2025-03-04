@@ -421,7 +421,7 @@ class VtkHdfFile(AbstractContextManager):
             data: Data to be saved. Can be None if both shape and dtype
                 are specified. If None, the dataset will be created but
                 no data written. This can be useful if, for example,
-                only one rank is writing the data. As long as all ranks
+                not all ranks are writing the data. As long as all ranks
                 know the shape and dtype, ranks not writing data can
                 perform the collective operation of creating the
                 dataset, but only the rank(s) with the data need to
