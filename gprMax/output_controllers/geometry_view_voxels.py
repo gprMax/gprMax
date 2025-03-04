@@ -52,10 +52,10 @@ class GeometryViewVoxels(GeometryView[GridType]):
 
         self.spacing = self.grid_view.step * self.grid.dl
 
+        self.nbytes = self.material_data.nbytes
+
         # Write information about any PMLs, sources, receivers
         self.metadata = Metadata(self.grid_view)
-
-        self.nbytes = self.material_data.nbytes
 
     def write_vtk(self):
         """Writes geometry information to a VTKHDF file."""
@@ -81,10 +81,6 @@ class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
 
         self.origin = self.grid_view.global_start * self.grid.dl
         self.spacing = self.grid_view.step * self.grid.dl
-
-        # Use global material IDs rather than local IDs
-        self.grid_view.initialise_materials(filter_materials=False)
-        self.material_data = self.grid_view.map_to_view_materials(self.material_data)
 
         self.nbytes = self.material_data.nbytes
 

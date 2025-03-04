@@ -243,13 +243,18 @@ class Metadata(Generic[GridType]):
         return self.grid.size
 
     def materials_comment(self) -> Optional[List[str]]:
-        if self.grid_view.materials is None:
+        if hasattr(self.grid_view, "materials"):
+            materials = self.grid_view.materials
+        else:
+            materials = self.grid.materials
+
+        if materials is None:
             return None
 
         if not self.averaged_materials:
-            return [m.ID for m in self.grid_view.materials if m.type != "dielectric-smoothed"]
+            return [m.ID for m in materials if m.type != "dielectric-smoothed"]
         else:
-            return [m.ID for m in self.grid_view.materials]
+            return [m.ID for m in materials]
 
 
 class MPIMetadata(Metadata[MPIGrid]):
