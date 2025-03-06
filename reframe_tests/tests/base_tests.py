@@ -507,7 +507,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         # Check all ranks reported their estimated memory usage
         if sn.len(memory_report) != self.num_tasks:
             raise ValueError(
-                f"Memory usage not reported for all ranks. Found {len(memory_report)}, expected {self.num_tasks}"
+                f"Memory usage not reported for all ranks. Found {sn.len(memory_report)}, expected {self.num_tasks}"
             )
 
         usages = np.zeros(self.num_tasks)
