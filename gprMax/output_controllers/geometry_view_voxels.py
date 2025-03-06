@@ -99,5 +99,5 @@ class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
             self.spacing,
             comm=self.grid_view.comm,
         ) as f:
-            f.add_cell_data("Material", self.material_data, self.grid_view.offset)
             self.metadata.write_to_vtkhdf(f)
+            f.add_cell_data("Material", self.material_data, self.grid_view.offset)
