@@ -139,13 +139,16 @@ class MPIGrid(FDTDGrid):
         return self.rank == self.COORDINATOR_RANK
 
     def create_sub_communicator(
-        self, start: npt.NDArray[np.int32], stop: npt.NDArray[np.int32]
+        self, local_start: npt.NDArray[np.int32], local_stop: npt.NDArray[np.int32]
     ) -> Optional[MPI.Cartcomm]:
-        if self.local_bounds_overlap_grid(start, stop):
+        if self.local_bounds_overlap_grid(local_start, local_stop):
             comm = self.comm.Split()
             assert isinstance(comm, MPI.Intracomm)
-            start_grid_coord = self.get_grid_coord_from_local_coordinate(start)
-            stop_grid_coord = self.get_grid_coord_from_local_coordinate(stop) + 1
+            start_grid_coord = self.get_grid_coord_from_local_coordinate(local_start)
+            # Subtract 1 from local_stop as the upper extent is
+            # exclusive meaning the last coordinate included in the sub
+            # communicator is actually (local_stop - 1).
+            stop_grid_coord = self.get_grid_coord_from_local_coordinate(local_stop - 1) + 1
             comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
             return comm
         else:

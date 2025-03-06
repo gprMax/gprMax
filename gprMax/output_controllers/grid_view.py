@@ -320,14 +320,20 @@ class MPIGridView(GridView[MPIGrid]):
 
         comm = grid.comm.Split()
         assert isinstance(comm, MPI.Intracomm)
-        start_grid_coord = grid.get_grid_coord_from_local_coordinate(self.start)
-        stop_grid_coord = grid.get_grid_coord_from_local_coordinate(self.stop) + 1
-        self.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
 
+        # Calculate start, stop and size for the global grid view
+        self.global_start = self.grid.local_to_global_coordinate(self.start)
+        self.global_stop = self.grid.local_to_global_coordinate(self.stop)
         self.global_size = self.size
 
-        # Calculate start for the local grid
-        self.global_start = self.grid.local_to_global_coordinate(self.start)
+        # Create new cartesean communicator by finding MPI grid coords
+        # for the start and end of the grid view.
+        # Subtract 1 from global_stop as the upper extent is exclusive
+        # meaning the last coordinate included in the grid view is
+        # actually (global_stop - 1).
+        start_grid_coord = grid.get_grid_coord_from_coordinate(self.global_start)
+        stop_grid_coord = grid.get_grid_coord_from_coordinate(self.global_stop - 1) + 1
+        self.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
 
         self.has_negative_neighbour = self.start < self.grid.negative_halo_offset
 
@@ -339,9 +345,6 @@ class MPIGridView(GridView[MPIGrid]):
             + ((self.start - self.grid.negative_halo_offset) % self.step),
             self.start,
         )
-
-        # Calculate stop for the local grid
-        self.global_stop = self.grid.local_to_global_coordinate(self.stop)
 
         self.has_positive_neighbour = self.stop > self.grid.size
 
