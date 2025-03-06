@@ -74,10 +74,14 @@ class VoltageSource(Source):
             for src in G.voltagesources:
                 if src.waveformID == self.waveformID:
                     src_match = True
+                    self.waveformvalues_halfdt = src.waveformvalues_halfdt
                     self.waveformvalues_wholedt = src.waveformvalues_wholedt
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
             )
@@ -88,6 +92,9 @@ class VoltageSource(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
                     self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
                         time, G.dt
                     )
