@@ -304,8 +304,11 @@ class Model:
             and not self.geometryobjects
             and config.sim_config.args.geometry_only
         ):
-            logger.exception("\nNo geometry views or geometry objects found.")
-            raise ValueError
+            logger.warning(
+                "Geometry only run specified, but no geometry views or geometry objects found."
+            )
+            return
+
         save_geometry_views(self.geometryviews)
 
         if self.geometryobjects:
