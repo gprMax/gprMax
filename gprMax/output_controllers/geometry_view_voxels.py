@@ -19,7 +19,6 @@
 import logging
 
 import numpy as np
-from mpi4py import MPI
 
 from gprMax._version import __version__
 from gprMax.grid.mpi_grid import MPIGrid
