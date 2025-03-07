@@ -366,7 +366,7 @@ class MPIGridView(GridView[MPIGrid]):
         self.offset = self.grid.local_to_global_coordinate(self.start) - self.global_start
 
         # Update local size
-        self.size = self.stop - self.start
+        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.int32)
 
         logger.debug(
             f"Created MPIGridView for grid '{self.grid.name}' (global_start={self.global_start},"
@@ -446,7 +446,7 @@ class MPIGridView(GridView[MPIGrid]):
             # have a positive neighbour
             size = self.size[dimension] + 1
 
-        offset = self.offset[dimension]
+        offset = self.offset[dimension] // self.step[dimension]
 
         return slice(offset, offset + size)
 
