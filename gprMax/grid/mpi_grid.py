@@ -31,7 +31,6 @@ from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
-from gprMax.snapshots import MPISnapshot, Snapshot
 from gprMax.sources import Source
 
 logger = logging.getLogger(__name__)
@@ -378,7 +377,7 @@ class MPIGrid(FDTDGrid):
         local grid.
         """
         if self.is_coordinator():
-            snapshots_by_rank: List[List[Optional[Snapshot]]] = [[] for _ in range(self.comm.size)]
+            snapshots_by_rank = [[] for _ in range(self.comm.size)]
             for snapshot in self.snapshots:
                 ranks = self.get_ranks_between_coordinates(snapshot.start, snapshot.stop)
                 for rank in range(
@@ -395,9 +394,7 @@ class MPIGrid(FDTDGrid):
         else:
             snapshots_by_rank = None
 
-        snapshots: List[Optional[MPISnapshot]] = self.comm.scatter(
-            snapshots_by_rank, root=self.COORDINATOR_RANK
-        )
+        snapshots = self.comm.scatter(snapshots_by_rank, root=self.COORDINATOR_RANK)
 
         for snapshot in snapshots:
             if snapshot is None:
@@ -507,7 +504,8 @@ class MPIGrid(FDTDGrid):
         Global properties/objects are broadcast to all ranks whereas
         local properties/objects are scattered to the relevant ranks.
         """
-        self.scatter_snapshots()
+        pass
+        # self.scatter_snapshots()
 
         # self._halo_swap_array(self.ID[0])
         # self._halo_swap_array(self.ID[1])

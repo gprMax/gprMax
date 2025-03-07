@@ -50,15 +50,10 @@ class UserInput(Generic[GridType]):
     def __init__(self, grid: GridType):
         self.grid = grid
 
-    def point_within_bounds(
-        self, p: npt.NDArray[np.int32], cmd_str: str, name: str = "", ignore_error=False
-    ) -> bool:
+    def point_within_bounds(self, p: npt.NDArray[np.int32], cmd_str: str, name: str = "") -> bool:
         try:
             return self.grid.within_bounds(p)
         except ValueError as err:
-            if ignore_error:
-                return False
-
             v = ["x", "y", "z"]
             # Discretisation
             dl = getattr(self.grid, f"d{err.args[0]}")
@@ -70,9 +65,6 @@ class UserInput(Generic[GridType]):
                 s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
             logger.exception(s)
             raise
-
-    def grid_upper_bound(self) -> list[int]:
-        return [self.grid.nx, self.grid.ny, self.grid.nz]
 
     def discretise_static_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
         """Get the nearest grid index to a continuous static point.

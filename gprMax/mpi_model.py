@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -12,7 +12,7 @@ from gprMax.model import Model
 from gprMax.output_controllers.geometry_objects import MPIGeometryObject
 from gprMax.output_controllers.geometry_view_lines import MPIGeometryViewLines
 from gprMax.output_controllers.geometry_view_voxels import MPIGeometryViewVoxels
-from gprMax.snapshots import save_snapshots
+from gprMax.snapshots import MPISnapshot, Snapshot, save_snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +73,8 @@ class MPIModel(Model):
 
         Args:
             grid: Grid to create a geometry object for
-            start: Lower extent of the geometry object (3 dimensional)
-            stop: Upper extent of the geometry object (3 dimensional)
+            start: Lower extent of the geometry object (x, y, z)
+            stop: Upper extent of the geometry object (x, y, z)
             basefilename: Output filename of the geometry object
 
         Returns:
@@ -107,9 +107,9 @@ class MPIModel(Model):
 
         Args:
             grid: Grid to create a geometry view for.
-            start: Lower extent of the geometry view (3 dimensional).
-            stop: Upper extent of the geometry view (3 dimensional).
-            dl: Discritisation of the geometry view (3 dimensional).
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
+            dl: Discritisation of the geometry view (x, y, z).
             filename: Output filename of the geometry view.
 
         Returns:
@@ -151,8 +151,8 @@ class MPIModel(Model):
 
         Args:
             grid: Grid to create a geometry view for.
-            start: Lower extent of the geometry view (3 dimensional).
-            stop: Upper extent of the geometry view (3 dimensional).
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
             filename: Output filename of the geometry view.
 
         Returns:
@@ -177,6 +177,60 @@ class MPIModel(Model):
             # create a new communicator using MPI_Split. Calling this
             # here prevents deadlock if not all ranks create the new
             # MPIGeometryViewLines.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
+
+    def add_snapshot(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        time: int,
+        filename: str,
+        fileext: str,
+        outputs: Dict[str, bool],
+    ) -> Optional[MPISnapshot]:
+        """Add a snapshot to the provided grid.
+
+        Args:
+            grid: Grid to create a snapshot for.
+            start: Lower extent of the snapshot (x, y, z).
+            stop: Upper extent of the snapshot (x, y, z).
+            dl: Discritisation of the snapshot (x, y, z).
+            time: Iteration number to take the snapshot on
+            filename: Output filename of the snapshot.
+            fileext: File extension of the snapshot.
+            outputs: Fields to use in the snapshot.
+
+        Returns:
+            snapshot: The new snapshot or None if no snapshot was
+                created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            snapshot = MPISnapshot(
+                start[0],
+                start[1],
+                start[2],
+                stop[0],
+                stop[1],
+                stop[2],
+                dl[0],
+                dl[1],
+                dl[2],
+                time,
+                filename,
+                fileext,
+                outputs,
+                grid,
+            )
+            # TODO: Move snapshots into the Model
+            grid.snapshots.append(snapshot)
+            return snapshot
+        else:
+            # The MPIGridView created by MPISnapshot will create a new
+            # communicator using MPI_Split. Calling this here prevents
+            # deadlock if not all ranks create the new MPISnapshot.
             grid.comm.Split(MPI.UNDEFINED)
             return None
 

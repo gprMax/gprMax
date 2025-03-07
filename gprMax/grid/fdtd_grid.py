@@ -36,7 +36,6 @@ from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
-from gprMax.snapshots import Snapshot
 from gprMax.sources import HertzianDipole, MagneticDipole, Source, TransmissionLine, VoltageSource
 from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
 from gprMax.waveforms import Waveform
@@ -111,7 +110,7 @@ class FDTDGrid:
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines: List[TransmissionLine] = []
         self.rxs: List[Rx] = []
-        self.snapshots: List[Snapshot] = []
+        self.snapshots = []  # List[Snapshot]
 
         self.averagevolumeobjects = True
 

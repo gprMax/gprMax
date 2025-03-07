@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import humanize
 import numpy as np
@@ -40,12 +40,11 @@ init()
 from tqdm import tqdm
 
 import gprMax.config as config
-
-from .fields_outputs import write_hdf5_outputfile
-from .grid.fdtd_grid import FDTDGrid
-from .snapshots import save_snapshots
-from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
-from .utilities.utilities import get_terminal_width
+from gprMax.fields_outputs import write_hdf5_outputfile
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.snapshots import Snapshot, save_snapshots
+from gprMax.utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
+from gprMax.utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 
@@ -192,8 +191,8 @@ class Model:
 
         Args:
             grid: Grid to create a geometry object for.
-            start: Lower extent of the geometry object (3 dimensional).
-            stop: Upper extent of the geometry object (3 dimensional).
+            start: Lower extent of the geometry object (x, y, z).
+            stop: Upper extent of the geometry object (x, y, z).
             basefilename: Output filename of the geometry object.
 
         Returns:
@@ -217,9 +216,9 @@ class Model:
 
         Args:
             grid: Grid to create a geometry view for.
-            start: Lower extent of the geometry view (3 dimensional).
-            stop: Upper extent of the geometry view (3 dimensional).
-            dl: Discritisation of the geometry view (3 dimensional).
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
+            dl: Discritisation of the geometry view (x, y, z).
             filename: Output filename of the geometry view.
 
         Returns:
@@ -252,8 +251,8 @@ class Model:
 
         Args:
             grid: Grid to create a geometry view for.
-            start: Lower extent of the geometry view (3 dimensional).
-            stop: Upper extent of the geometry view (3 dimensional).
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
             filename: Output filename of the geometry view.
 
         Returns:
@@ -271,6 +270,52 @@ class Model:
         )
         self.geometryviews.append(geometry_view)
         return geometry_view
+
+    def add_snapshot(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        time: int,
+        filename: str,
+        fileext: str,
+        outputs: Dict[str, bool],
+    ) -> Optional[Snapshot]:
+        """Add a snapshot to the provided grid.
+
+        Args:
+            grid: Grid to create a snapshot for.
+            start: Lower extent of the snapshot (x, y, z).
+            stop: Upper extent of the snapshot (x, y, z).
+            dl: Discritisation of the snapshot (x, y, z).
+            time: Iteration number to take the snapshot on
+            filename: Output filename of the snapshot.
+            fileext: File extension of the snapshot.
+            outputs: Fields to use in the snapshot.
+
+        Returns:
+            snapshot: The created snapshot.
+        """
+        snapshot = Snapshot(
+            start[0],
+            start[1],
+            start[2],
+            stop[0],
+            stop[1],
+            stop[2],
+            dl[0],
+            dl[1],
+            dl[2],
+            time,
+            filename,
+            fileext,
+            outputs,
+            grid,
+        )
+        # TODO: Move snapshots into the Model
+        grid.snapshots.append(snapshot)
+        return snapshot
 
     def build(self):
         """Builds the Yee cells for a model."""

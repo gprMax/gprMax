@@ -50,7 +50,7 @@ class CPUUpdates(Updates[GridType]):
         """
         for snap in self.grid.snapshots:
             if snap.time == iteration + 1:
-                snap.store(self.grid)
+                snap.store()
 
     def update_magnetic(self):
         """Updates magnetic field components."""

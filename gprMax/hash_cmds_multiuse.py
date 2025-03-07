@@ -31,13 +31,12 @@ from .user_objects.cmds_multiuse import (
     MaterialRange,
     Rx,
     RxArray,
-    Snapshot,
     SoilPeplinski,
     TransmissionLine,
     VoltageSource,
     Waveform,
 )
-from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView
+from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
 
 logger = logging.getLogger(__name__)
 
