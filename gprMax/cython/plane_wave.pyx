@@ -1,5 +1,6 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, and
+#                          Adittya Pal
 #
 # This file is part of gprMax.
 #
@@ -26,28 +27,24 @@ from cython.parallel import prange
 from gprMax.config cimport float_or_double
 
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cpdef double[:, ::1] getProjections(
     double psi, 
     int[:] m
 ):
-    '''
-    Method to get the projection vectors to source the magnetic fields of the plane wave. 
-    __________________________
-    
-    Input parameters:
-    --------------------------
-        psi, float     : the angle describing the polatan value of the required phi angle (which would be approximated to a rational number)
-        m, int array   : stores the integer mappings, m_x, m_y, m_z which determine the rational angles, for assignment of the correct element
-                         to the three dimensional FDTD grid from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-    
-    __________________________
+    """Gets the projection vectors to source magnetic fields of plane wave. 
+
+    Args:
+        psi: float for angle describing polatan value of required phi angle
+                (which would be approximated to a rational number).
+        m: int array to store integer mappings, m_x, m_y, m_z which determine 
+            the rational angles, for assignment of the correct element to 3D 
+            FDTD grid from 1D representation, last element stores 
+            max(m_x, m_y, m_z).
     
     Returns:
-    --------------------------
-        projections, float array : stores the projections for sourcing the magnetic field and the sourcing vector
-    '''
+        projections: float array to store projections for sourcing magnetic 
+                        field and the sourcing vector.
+    """
 
     cdef double phi, theta, cos_phi, sin_phi, cos_psi, sin_psi, cos_theta, sin_theta
     cdef double[:, ::1] projections = np.zeros((2, 3), order='C')
@@ -83,29 +80,25 @@ cpdef double[:, ::1] getProjections(
 
 
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cdef int[:] getPhi(
     int[:, :] integers, 
     double required_ratio, 
     double tolerance
 ):
-    '''
-    Method to get the rational angle approximation to phi within the requested tolerance level using
-    Farey Fractions to determine a rational number closest to the real number. 
-    __________________________
+    """Gets rational angle approximation to phi within the requested tolerance 
+        level using Farey Fractions to determine a rational number closest to 
+        the real number. 
     
-    Input parameters:
-    --------------------------
-        integers, int array   : array of integers to determine the value of m_x and m_y.
-        required_ratio, float : tan value of the required phi angle (which would be approximated to a rational number)
-        tolerance, float      : acceptable deviation in the tan value of the rational angle from phi
-    __________________________
+    Args:
+        integers: int array to determine the value of m_x and m_y.
+        required_ratio: float of tan value of the required phi angle 
+                        (which would be approximated to a rational number).
+        tolerance: float for acceptable deviation in the tan value of the 
+                    rational angle from phi.
     
     Returns:
-    --------------------------
-        integers, int array : sequence of the two integers [m_x, m_y]
-    '''
+        integers: int array of sequence of the two integers [m_x, m_y].
+    """
 
     if(abs(integers[2, 0]/<double>integers[2, 1]-required_ratio)<tolerance):
         return integers[2, :]
@@ -120,27 +113,24 @@ cdef int[:] getPhi(
         else:
             integers[0, :] = integers[1, :]
 
+
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cdef inline double getTanValue(
     int[:] integers, 
     double[:] dr
 ):
-    '''
-    Method to return the tan value of the angle approximated to theta given the three integers.
-    __________________________
+    """Returns tan value of the angle approximated to theta given three integers.
     
-    Input parameters:
-    --------------------------
-        integers, int array : three integers for the rational angle approximation
-        dr, double array    : array containing the separation between grid points along the three axes [dx, dy, dz]
-    __________________________
+    Args:
+        integers: int array of three integers for the rational angle 
+                    approximation.
+        dr: double array containing the separation between grid points along 
+            the three axes [dx, dy, dz].
     
     Returns:
-    --------------------------
-        _tanValue, double : tan value of the rationa angle cprrenponding to the integers m_x, m_y, m_z
-    '''
+        _tanValue: double of tan value of the rational angle corresponding to 
+                    integers m_x, m_y, m_z.
+    """
 
     if(integers[2]==0):   #if rational angle==90 degrees
         return 99999.0       #return a large number to avoid division by zero error
@@ -148,31 +138,29 @@ cdef inline double getTanValue(
         return sqrt((integers[0]/dr[0])*(integers[0]/dr[0]) + (integers[1]/dr[1])*(integers[1]/dr[1])
                    )/(integers[2]/dr[2])
 
+
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cdef int[:, :] get_mZ(
     int m_x, 
     int m_y, 
     double theta, 
     double[:] Delta_r
 ):
-    '''
-    Method to get the arrays to perform a binary search to determine a rational number, m_z, closest to the real number, m_z, to get the desired tan Theta value. 
-    __________________________
+    """Gets arrays to perform a binary search to determine a rational number, 
+        m_z, closest to real number, m_z, to get desired tan Theta value. 
     
-    Input parameters:
-    --------------------------
-        m_x and m_y, int     : integers approximating the rational angle to the tan value of phi 
-        theta, float         : polar angle of the incident plane wave (in radians) to be approximated to a rational angle
-        Delta_r, float array : projections of the propagation vector along the different coordinate axes
-    __________________________
+    Args:
+        m_x and m_y: ints approximating rational angle to tan value of phi.
+        theta: float of polar angle of incident plane wave (radians) to be 
+                approximated to a rational angle.
+        Delta_r: float array of projections of  propagation vector along 
+                    different coordinate axes.
     
     Returns:
-    --------------------------
-        _integers, int array : a two dimensional sequence of the three integers [m_x, m_y, m_z] to perform a binary search 
-                               to determine the value of m_z within the given limits.
-    '''
+        _integers: int array of 2D sequence of three integers [m_x, m_y, m_z] 
+                    to perform a binary search to determine value of m_z within 
+                    given limits.
+    """
 
     cdef double m_z = 0
     m_z = sqrt((m_x/Delta_r[0])*(m_x/Delta_r[0]) + (m_y/Delta_r[1])*(m_y/Delta_r[1]))/(tan(theta)/Delta_r[2]) #get an estimate of the m_z value 
@@ -182,8 +170,6 @@ cdef int[:, :] get_mZ(
     
 
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cdef int[:] getTheta(
     int m_x, 
     int m_y, 
@@ -191,23 +177,22 @@ cdef int[:] getTheta(
     double Delta_theta, 
     double[:] Delta_r
 ):
-    '''
-    Method to get the rational angle approximation to theta within the requested tolerance level using
-    Binary Search to determine a rational number closest to the real number. 
-    __________________________
+    """Gets rational angle approximation to theta within requested tolerance 
+        level using Binary Search to determine a rational number closest to 
+        real number. 
     
-    Input parameters:
-    --------------------------
-        m_x and m_y, int     : integers approximating the rational angle to the tan value of phi 
-        theta, float         : polar angle of the incident plane wave (in radians) to be approximated to a rational angle
-        Delta_theta, float   : permissible error in the rational angle approximation to theta (in radians)
-        Delta_r, float array : projections of the propagation vector along the different coordinate axes
-    __________________________
+    Args:
+        m_x and m_y: ints approximating rational angle to tan value of phi. 
+        theta: float of polar angle of incident plane wave (radians) to be 
+                approximated to a rational angle.
+        Delta_theta: float of permissible error in rational angle approximation 
+                        to theta (radians).
+        Delta_r: float array of projections of propagation vector along 
+                    different coordinate axes.
     
     Returns:
-    --------------------------
-        integers, int array : sequence of the three integers [m_x, m_y, m_z]
-    '''
+        integers: int array of sequence of three integers [m_x, m_y, m_z].
+    """
 
     cdef Py_ssize_t i, j = 0
     cdef double tan_theta = 0.0
@@ -231,8 +216,6 @@ cdef int[:] getTheta(
 
 
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cpdef int[:, ::1] getIntegerForAngles(
     double phi, 
     double Delta_phi, 
@@ -240,24 +223,26 @@ cpdef int[:, ::1] getIntegerForAngles(
     double Delta_theta, 
     double[:] Delta_r
 ):
-    '''
-    Method to get [m_x, m_y, m_z] to determine the rational angles given phi and theta along with the permissible tolerances 
-    __________________________
+    """Gets [m_x, m_y, m_z] to determine rational angles given phi and theta 
+        along with the permissible tolerances.
     
-    Input parameters:
-    --------------------------
-        phi, float         : azimuthal angle of the incident plane wave (in degrees) to be approximated to a rational angle
-        Delta_phi, float   : permissible error in the rational angle approximation to phi (in degrees)
-        theta, float       : polar angle of the incident plane wave (in degrees) to be approximated to a rational angle
-        Delta_theta, float : permissible error in the rational angle approximation to theta (in degrees)
-        Delta_r, float     : projections of the propagation vector along the different coordinate axes
-    __________________________
+    Args:
+        phi: float of  azimuthal angle of incident plane wave (degrees) to be 
+                approximated to a rational angle.
+        Delta_phi: float of permissible error in rational angle approximation 
+                    to phi (degrees).
+        theta: float of polar angle of incident plane wave (degrees) to be 
+                approximated to a rational angle.
+        Delta_theta: float of permissible error in rational angle approximation 
+                        to theta (degrees).
+        Delta_r: float of projections of propagation vector along different 
+                    coordinate axes.
     
     Returns:
-    --------------------------
-        quadrants[0, :], int array : the integers specifying the direction of propagation of the plane wave along the three coordinate axes
-        quadrants[1, :], int array : sequence of the three integers [m_x, m_y, m_z]
-    '''
+        quadrants[0, :]: int array specifying direction of propagation of plane 
+                            wave along the three coordinate axes.
+        quadrants[1, :]: int array of three integers [m_x, m_y, m_z].
+    """
 
     cdef double required_ratio_phi, tolerance_phi = 0.0
     cdef int m_x, m_y, m_z = 0
@@ -297,7 +282,6 @@ cpdef int[:, ::1] getIntegerForAngles(
     return quadrants
 
 
-
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void applyTFSFMagnetic(
@@ -310,22 +294,22 @@ cdef void applyTFSFMagnetic(
     int[:] m, 
     int[:] corners
 ):
-    '''
-    Method to implement the total field-scattered field formulation for the magnetic field on the edge of the TF/SF region of the TFSF Box.
-    __________________________
+    """Implements total field-scattered field formulation for magnetic field on 
+        the edge of the TF/SF region of the TFSF Box.
     
-    Input parameters:
-    --------------------------
-        nthreads, int            : number of threads to parallelize the for loops on
-        Hx, Hy, Hz, double array : stores the magnetic fields for the grid cells over the TFSF box at particular indices
-        E_fields, double array   : array to store the electric fields of the one dimensional representation of the plane wave
-                                   in a direction along which the wave propagates
-        updatecoeffsH, float     : stores the coefficients of the fields in the TFSF assignment equation for the magnetic field
-        m, int array             : stores the integer mappings, m_x, m_y, m_z which determine the rational angles,
-                                   for assignment of the correct element to the three dimensional FDTD grid
-                                   from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-        corners, int array       : stores the coordinates of the cornets of the total field/scattered field boundaries    
-    '''
+    Args:
+        nthreads: int of number of threads to parallelize for loops.
+        Hx, Hy, Hz: double array to store magnetic fields for grid cells over 
+                    the TFSF box at particular indices.
+        E_fields: double array to store electric fields of 1D representation of 
+                    plane wave in a direction along which the wave propagates.
+        updatecoeffsH: float of coefficients of fields in TFSF assignment 
+                        equation for the magnetic field.
+        m: int array of integer mappings, m_x, m_y, m_z which determine rational 
+            angles for assignment of correct element to 3D FDTD grid from 1D 
+            representation, last element stores max(m_x, m_y, m_z).
+        corners: int array of coordinates of corners of TF/SF field boundaries.    
+    """
 
     cdef Py_ssize_t i, j, k = 0
 
@@ -434,11 +418,7 @@ cdef void applyTFSFMagnetic(
             index = m_x * i + m_y * j + m_z * k
             Hx[i, j, k] += coef_H_xz * E_y[index]
 
-
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)    
+    
 cdef void applyTFSFElectric(
     int nthreads, 
     float_or_double[:, :, ::1] Ex, 
@@ -450,22 +430,22 @@ cdef void applyTFSFElectric(
     int[:] corners
 ):
     
-    '''
-    Method to implement the total field-scattered field formulation for the electric field on the edge of the TF/SF region of the TFSF Box.
-    __________________________
+    """Implements total field-scattered field formulation for electric field on 
+        edge of the TF/SF region of the TFSF Box.
     
-    Input parameters:
-    --------------------------
-        nthreads, int            : number of threads to parallelize the for loops on
-        Ex, Ey, Ez, double array : stores the magnetic fields for the grid cells over the TFSF box at particular indices
-        H_fields, double array   : array to store the electric fields of the one dimensional representation of the plane wave
-                                   in a direction along which the wave propagates
-        updatecoeffsE, float     : stores the coefficients of the fields in the TFSF assignment equation for the magnetic field
-        m, int array             : stores the integer mappings, m_x, m_y, m_z which determine the rational angles,
-                                   for assignment of the correct element to the three dimensional FDTD grid
-                                   from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-        corners, int array       : stores the coordinates of the cornets of the total field/scattered field boundaries    
-    '''
+    Args:
+        nthreads: int for number of threads to parallelize the for loops.
+        Ex, Ey, Ez: double array for magnetic fields for grid cells over TFSF 
+                    box at particular indices.
+        H_fields: double array to store electric fields of 1D representation of 
+                    plane wave in direction along which wave propagates.
+        updatecoeffsE: float of coefficients of fields in TFSF assignment 
+                        equation for magnetic field.
+        m: int array of integer mappings, m_x, m_y, m_z which determine rational 
+            angles for assignment of correct element to 3D FDTD grid from 1D
+            representation, last element stores max(m_x, m_y, m_z).
+        corners: int array for coordinates of corners of TF/SF field boundaries.    
+    """
 
     cdef Py_ssize_t i, j, k = 0
 
@@ -591,31 +571,30 @@ cdef void initializeMagneticFields(
     double freq,
     char* wavetype
 ):
-    '''
-    Method to initialize the first few grid points of the the source waveform
-        __________________________
-
-        Input parameters:
-        --------------------------
-            m, int array                         : stores the integer mappings, m_x, m_y, m_z which determine the rational angles, 
-                                                   for assignment of the correct element to the three dimensional FDTD grid
-                                                   from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-            H_fields, double array               : array to store the electric fields of the one dimensional representation of the plane wave
-                                                   in a direction along which the wave propagates
-            projections, float array             : stores the projections of the magnetoc fields along the different cartesian axes.
-            waveformvalues_wholedt, double array : stores the precomputed waveforms at each timestep to initialize the magnetic fields
-            precompute, boolean                  : stores whether the fields values have been precomputed or should be computed on the fly
-            iterations, int                      : stores the number of iterations in the simulation
-           
-            dt, float                            : stores the timestep for the simulation
-            ds, float                            : stores the projection vector for sourcing the plane wave
-            c, float                             : stores the sped of light in the medium
-            start, float                         : stores the start time at which the source is placed in the TFSF grid
-            stop, float                          : stores the stop time at which the source is removed from the TFSF grid
-            freq, float                          : the frequency if the introduced wave which determines the grid points per wavelength for the wave source
-            wavetype, string                     : stores the type of waveform whose magnitude should be returned
-    '''
-
+    """Initialises first few grid points of source waveform.
+        
+    Args:
+        m: int array of integer mappings, m_x, m_y, m_z which determine rational 
+            angles for assignment of correct element to 3D FDTD grid from 1D 
+            representation, last element stores max(m_x, m_y, m_z).
+        H_fields: double array for electric fields of 1D representation of plane 
+                    wave in a direction along which the wave propagates.
+        projections: float array for projections of magnetic fields along 
+                        different cartesian axes.
+        waveformvalues_wholedt: double array stores precomputed waveforms at 
+                                each timestep to initialize magnetic fields.
+        precompute: boolean to store whether fields values have been precomputed 
+                    or should be computed on the fly.
+        iterations: int stores number of iterations in the simulation.
+        dt: float of timestep for the simulation.
+        ds: float of projection vector for sourcing the plane wave.
+        c: float of speed of light in the medium.
+        start: float of start time at which source is placed in the TFSF grid.
+        stop: float of stop time at which source is removed from TFSF grid.
+        freq: float of frequency of introduced wave which determines grid points 
+                per wavelength for wave source.
+        wavetype: string of type of waveform whose magnitude should be returned.
+    """
 
     cdef Py_ssize_t r = 0
     cdef double time_x, time_y, time_z = 0.0
@@ -637,8 +616,6 @@ cdef void initializeMagneticFields(
     
 
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cdef void updateMagneticFields(
     int n, 
     float_or_double[:, ::1] H_fields, 
@@ -646,21 +623,23 @@ cdef void updateMagneticFields(
     float_or_double[:] updatecoeffsH, 
     int[:] m
 ):
-    '''
-    Method to update the magnetic fields for the next time step using
-    Equation 8 of DOI: 10.1109/LAWP.2009.2016851
-        __________________________
-
-        Input parameters:
-        --------------------------
-            n , int                      : stores the spatial length of the DPW array to update each length grid cell
-            H_fields, double array       : stores the magnetic fields of the DPW till temporal index time
-            E_fields, double array       : stores the electric fields of the DPW till temporal index time
-            updatecoeffsH, double array  : stores the coefficients of the fields in the update equation for the magnetic field
-            m, int array                 : stores the integer mappings, m_x, m_y, m_z which determine the rational angles, 
-                                           for assignment of the correct element to the three dimensional FDTD grid 
-                                           from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-    '''  
+    """Updates magnetic fields for next time step using Equation 8 of 
+        DOI: 10.1109/LAWP.2009.2016851.
+        
+    Args:
+        n: int for spatial length of DPW array to update each length grid 
+            cell.
+        H_fields: double array of magnetic fields of DPW until temporal 
+                    index time.
+        E_fields: double array of electric fields of DPW until temporal 
+                    index time.
+        updatecoeffsH: double array of coefficients of fields in update 
+                        equation for magnetic field.
+        m: int array of integer mappings, m_x, m_y, m_z which determine 
+            rational angles for assignment of correct element to 3D FDTD 
+            grid from 1D representation, last element stores 
+            max(m_x, m_y, m_z).
+    """ 
 
     cdef Py_ssize_t j = 0
 
@@ -693,11 +672,7 @@ cdef void updateMagneticFields(
         H_z[j] = coef_H_zt * H_z[j] + coef_H_zy * ( E_x[j+m_y] - E_x[j] ) - coef_H_zx * ( E_y[j+m_x] - E_y[j] )     #equation 8 of Tan, Potter paper
     
 
-    
-
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cdef void updateElectricFields(
     int n, 
     float_or_double[:, ::1] H_fields, 
@@ -705,21 +680,23 @@ cdef void updateElectricFields(
     float_or_double[:] updatecoeffsE, 
     int[:] m
 ):
-    '''
-    Method to update the electric fields for the next time step using
-    Equation 9 of DOI: 10.1109/LAWP.2009.2016851
-        __________________________
-
-        Input parameters:
-        --------------------------
-            n , int                      : stores the spatial length of the DPW array to update each length grid cell
-            H_fields, double array       : stores the magnetic fields of the DPW till temporal index time
-            E_fields, double array       : stores the electric fields of the DPW till temporal index time
-            updatecoeffsE, double array  : stores the coefficients of the fields in the update equation for the electric field
-            m, int array                 : stores the integer mappings, m_x, m_y, m_z which determine the rational angles, 
-                                           for assignment of the correct element to the three dimensional FDTD grid
-                                           from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-    '''
+    """Updates electric fields for next time step using Equation 9 of 
+        DOI: 10.1109/LAWP.2009.2016851.
+        
+    Args:
+        n: int for spatial length of DPW array to update each length grid 
+            cell.
+        H_fields: double array of magnetic fields of DPW until temporal 
+                    index time.
+        E_fields: double array of electric fields of DPW until temporal 
+                    index time.
+        updatecoeffsE: double array of coefficients of fields in update 
+                        equation for electric field.
+        m: int array of integer mappings, m_x, m_y, m_z which determine 
+            rational angles for assignment of correct element to 3D FDTD 
+            grid from 1D representation, last element stores 
+            max(m_x, m_y, m_z).
+    """
 
     cdef Py_ssize_t j = 0
 
@@ -752,8 +729,6 @@ cdef void updateElectricFields(
         E_z[j] = coef_E_zt * E_z[j] + coef_E_zy * ( H_y[j] - H_y[j-m_x] ) - coef_E_zx * ( H_x[j] - H_x[j-m_y] )  #equation 9 of Tan, Potter paper
     
 
-
-
 @cython.cdivision(True)
 cpdef double getSource(
     double time, 
@@ -761,23 +736,20 @@ cpdef double getSource(
     char* wavetype, 
     double dt
 ):
-    '''
-    Method to get the magnitude of the source field in the direction perpendicular to the propagation of the plane wave
-        __________________________
+    """Gets magnitude of source field in direction perpendicular to propagation 
+        of plane wave.
 
-        Input parameters:
-        --------------------------
-            time, float      : time at which the magnitude of the source is calculated
-            freq, float      : the frequency if the introduced wave which determines the grid points per wavelength for the wave source
-            wavetype, string : stores the type of waveform whose magnitude should be returned
-            dt, double       : the time upto which the wave should exist in a impulse delta pulse
+    Args:
+        time: float of time at which magnitude of source is calculated.
+        freq: float of frequency of introduced wave which determines grid points 
+                per wavelength for wave source.
+        wavetype: string of type of waveform whose magnitude should be returned.
+        dt: double of time upto which wave should exist in a impulse delta pulse.
 
-        __________________________
-
-        Returns:
-        --------------------------
-            sourceMagnitude, double : magnitude of the source for the requested indices at the current time
-    '''
+    Returns:
+        sourceMagnitude: double of magnitude of source for requested indices at 
+                            current time.
+    """
 
     # Waveforms
     if (strcmp(wavetype, "gaussian") == 0):
@@ -818,9 +790,8 @@ cpdef double getSource(
         else:
             return 0.0
 
+
 @cython.cdivision(True)
-@cython.wraparound(False)
-@cython.boundscheck(False)
 cpdef void calculate1DWaveformValues(
     float_or_double[:, :, ::1] waveformvalues_wholedt, 
     int iterations, 
@@ -833,25 +804,25 @@ cpdef void calculate1DWaveformValues(
     double freq, 
     char* wavetype
 ):
-    '''
-    Method to precompute the source waveform values so that the initialization if faster, if requested
-        __________________________
+    """Precomputes source waveform values so that initialization is faster, 
+        if requested.
 
-        Input parameters:
-        --------------------------
-            waveformvalues_wholedt, double array : stores the precomputed waveforms at each timestep to initialize the magnetic fields
-            iterations, int                      : stores the number of iterations in the simulation
-            m, int array                         : stores the integer mappings, m_x, m_y, m_z which determine the rational angles, 
-                                                   for assignment of the correct element to the three dimensional FDTD grid
-                                                   from the one dimensional representation, last element stores max(m_x, m_y, m_z)
-            dt, float                            : stores the timestep for the simulation
-            ds, float                            : stores the projection vector for sourcing the plane wave
-            c, float                             : stores the sped of light in the medium
-            start, float                         : stores the start time at which the source is placed in the TFSF grid
-            stop, float                          : stores the stop time at which the source is removed from the TFSF grid
-            freq, float                          : the frequency if the introduced wave which determines the grid points per wavelength for the wave source
-            wavetype, string                     : stores the type of waveform whose magnitude should be returned
-    '''
+    Args:
+        waveformvalues_wholedt: double array of precomputed waveforms at each 
+                                    timestep to initialize magnetic fields.
+        iterations: int of number of iterations in simulation.
+        m: int array of integer mappings, m_x, m_y, m_z which determine rational 
+            angles for assignment of correct element to 3D FDTD grid from 1D 
+            representation, last element stores max(m_x, m_y, m_z).
+        dt: float of timestep for the simulation.
+        ds: float of projection vector for sourcing the plane wave.
+        c: float of speed of light in the medium.
+        start: float of start time at which source is placed in the TFSF grid.
+        stop: float of stop time at which source is removed from TFSF grid.
+        freq: float of frequency of introduced wave which determines grid points 
+                per wavelength for wave source.
+        wavetype: string of type of waveform whose magnitude should be returned.
+    """
     
     cdef double time_x, time_y, time_z = 0.0
     cdef Py_ssize_t iteration, r = 0
@@ -866,6 +837,7 @@ cpdef void calculate1DWaveformValues(
                 waveformvalues_wholedt[iteration, 0, r] = getSource(time_x-start, freq, wavetype, dt)
                 waveformvalues_wholedt[iteration, 1, r] = getSource(time_y-start, freq, wavetype, dt)
                 waveformvalues_wholedt[iteration, 2, r] = getSource(time_z-start, freq, wavetype, dt)
+
 
 cpdef void updatePlaneWave(    
     int n, 
@@ -901,20 +873,17 @@ cpdef void updatePlaneWave(
     updateElectricFields(n, H_fields, E_fields, updatecoeffsE, m)
 
 
-@cython.wraparound(False)
-@cython.boundscheck(False)
 @cython.cdivision(True)
 cdef void takeSnapshot3D(double[:, :, ::1] field, char* filename):
-    '''
-    Method to write the fields of the plane wave simulation at a particular time step.
-    __________________________
+    """Writes fields of plane wave simulation at a particular time step.
     
-    Input parameters:
-    --------------------------
-        fields, double array : stores the fields for the grid cells over the TFSF box at particular indices of the TFSF box at a particular time step
-        filename, string     : specifies the file location where the fields are to be written
+    Args:
+        fields: double array of fields for grid cells over TFSF box at 
+                particular indices of TFSF box at particular time step.
+        filename: string of file location where fields are to be written.
         
-    '''
+    """
+
     cdef FILE *fptr = fopen(filename, "wb")
     fwrite(&field[0, 0, 0], sizeof(double), field.size, fptr)
     fclose(fptr)
