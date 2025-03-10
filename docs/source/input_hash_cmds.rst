@@ -900,6 +900,23 @@ For example, to specify a z directed transmission line source with a resistance 
 
 An example antenna model using a transmission line can be found in the :ref:`examples <example-wire-dipole>` section.
 
+#discrete_plane_wave:
+---------------------
+
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The syntax of the command is:
+
+.. code-block:: none
+
+    #discrete_plane_wave: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11]
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
+* ``f7`` is psi the polarisation of the wave.
+* ``f8`` is phi the propagation angle (degrees) of the wave.
+* ``f9`` is theta the propagation angle (degrees) of the wave.
+* ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the transmission line. ``f11`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+
+
 #rx:
 ----
 
