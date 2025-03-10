@@ -46,6 +46,8 @@ from .cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
+from .cmds_multiuse import DiscretePlaneWave
+
 from .cmds_singleuse import (
     Discretisation,
     Domain,
@@ -61,5 +63,6 @@ from .cmds_singleuse import (
 from .gprMax import run as run
 from .scene import Scene
 from .subgrids.user_objects import SubGridHSG
+
 
 __name__ = "gprMax"
