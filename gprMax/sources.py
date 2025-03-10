@@ -25,7 +25,7 @@ import gprMax.config as config
 from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value
 
-from .cython.planeWaveModules import (
+from .cython.plane_wave import (
     getIntegerForAngles,
     getProjections,
     calculate1DWaveformValues,
