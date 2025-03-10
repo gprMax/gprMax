@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -22,7 +22,7 @@ import numpy as np
 
 from ..cython.geometry_primitives import build_cylinder
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry
+from .cmds_geometry import UserObjectGeometry, check_averaging
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class Cylinder(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = "#cylinder"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -59,6 +59,7 @@ class Cylinder(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagecylinder = self.kwargs["averaging"]
+            averagecylinder = check_averaging(averagecylinder)
         except KeyError:
             # Otherwise go with the grid default
             averagecylinder = grid.averagevolumeobjects
@@ -82,7 +83,9 @@ class Cylinder(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r <= 0:
-            logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius {r:g} should be a positive value."
+            )
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -113,10 +116,18 @@ class Cylinder(UserObjectGeometry):
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                m.er = np.mean(
+                    (materials[0].er, materials[1].er, materials[2].er), axis=0
+                )
+                m.se = np.mean(
+                    (materials[0].se, materials[1].se, materials[2].se), axis=0
+                )
+                m.mr = np.mean(
+                    (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                )
+                m.sm = np.mean(
+                    (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                )
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)
@@ -146,7 +157,7 @@ class Cylinder(UserObjectGeometry):
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
             f"{self.grid_name(grid)}Cylinder with face centres {p3[0]:g}m, "
-            + f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
-            + f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} "
-            + f"created, dielectric smoothing is {dielectricsmoothing}."
+            f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
+            f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} "
+            f"created, dielectric smoothing is {dielectricsmoothing}."
         )

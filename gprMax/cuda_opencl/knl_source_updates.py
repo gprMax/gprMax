@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -126,10 +126,10 @@ update_magnetic_dipole = {
                                             $REAL dx,
                                             $REAL dy,
                                             $REAL dz,
-                                            __global const int* restrict rcinfo1,
-                                            __global const $REAL* restrict rcinfo2,
-                                            __global const $REAL* restrict rcwaveforms,
-                                            __global const unsigned int* estrict ID,
+                                            __global const int* restrict srcinfo1,
+                                            __global const $REAL* restrict srcinfo2,
+                                            __global const $REAL* restrict srcwaveforms,
+                                            __global const unsigned int* restrict ID,
                                             __global $REAL *Hx,
                                             __global $REAL *Hy,
                                             __global $REAL *Hz
@@ -208,10 +208,10 @@ update_voltage_source = {
                                             $REAL dx,
                                             $REAL dy,
                                             $REAL dz,
-                                            __global const int* restrict rcinfo1,
-                                            __global const $REAL* restrict rcinfo2,
-                                            __global const $REAL* restrict rcwaveforms,
-                                            __global const unsigned int* estrict ID,
+                                            __global const int* restrict srcinfo1,
+                                            __global const $REAL* restrict srcinfo2,
+                                            __global const $REAL* restrict srcwaveforms,
+                                            __global const unsigned int* restrict ID,
                                             __global $REAL *Ex,
                                             __global $REAL *Ey,
                                             __global $REAL *Ez

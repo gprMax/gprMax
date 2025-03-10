@@ -20,6 +20,10 @@ The Python API in gprMax allows users to access to gprMax functions directly fro
 
 The syntax of the API is generally more verbose than the input file (hash) command syntax. However, for input file commands where there are an undefined number of parameters, such as adding dispersive properties, the user may find the API more manageable.
 
+.. note::
+
+    In prior versions of gprMax (<4) the input file could be scripted using Python inserted between two commands (`#python:` and `#end_python:`). This feature is now deprecated and will be removed entirely in later versions. Users are encouraged to move to the new Python API. Antenna models can still be inserted between `#python:` and `#end_python:` commands but will need to make a small change to their input file. An example of this is provided in `examples/antenna_like_GSSI_1500_fs.in`. Alternatively a switch to the Python API can be made using the example in `examples/antenna_like_GSSI_1500_fs.py`.
+
 Example
 =======
 
@@ -171,6 +175,10 @@ Fractal Box
 -----------
 .. autoclass:: gprMax.cmds_geometry.fractal_box.FractalBox
 
+.. note::
+
+    * Currently (2024) we are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model.
+
 Add Grass
 ---------
 .. autoclass:: gprMax.cmds_geometry.add_grass.AddGrass
@@ -216,7 +224,7 @@ Transmission Line
 
 Excitation File
 ---------------
-.. autoclass:: gprMax.cmds_singleuse.ExcitationFile
+.. autoclass:: gprMax.cmds_multiuse.ExcitationFile
 
 Receiver
 --------

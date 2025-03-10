@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -81,7 +81,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
         # Check for single output component when doing a FFT
         if fft and not len(outputs) == 1:
-            logger.exception("A single output must be specified when using " + "the -fft option")
+            logger.exception(
+                "A single output must be specified when using " + "the -fft option"
+            )
             raise ValueError
 
         # New plot for each receiver
@@ -120,7 +122,11 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                     # Set plotting range to -60dB from maximum power or 4 times
                     # frequency at maximum power
                     try:
-                        pltrange = np.where(power[freqmaxpower:] < -60)[0][0] + freqmaxpower + 1
+                        pltrange = (
+                            np.where(power[freqmaxpower:] < -60)[0][0]
+                            + freqmaxpower
+                            + 1
+                        )
                     except:
                         pltrange = freqmaxpower * 4
 
@@ -143,7 +149,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
                     # Plot frequency spectra
                     markerline, stemlines, baseline = ax2.stem(
-                        freqs[pltrange], power[pltrange], "-.", use_line_collection=True
+                        freqs[pltrange], power[pltrange], "-."
                     )
                     plt.setp(baseline, "linewidth", 0)
                     plt.setp(stemlines, "color", "r")
@@ -160,20 +166,27 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(line2, color="g")
                         plt.setp(ax1, ylabel=outputtext + " field strength [A/m]")
                         plt.setp(stemlines, "color", "g")
-                        plt.setp(markerline, "markerfacecolor", "g", "markeredgecolor", "g")
+                        plt.setp(
+                            markerline, "markerfacecolor", "g", "markeredgecolor", "g"
+                        )
                     elif "I" in outputs[0]:
                         plt.setp(line1, color="b")
                         plt.setp(line2, color="b")
                         plt.setp(ax1, ylabel=outputtext + " current [A]")
                         plt.setp(stemlines, "color", "b")
-                        plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
+                        plt.setp(
+                            markerline, "markerfacecolor", "b", "markeredgecolor", "b"
+                        )
 
                     plt.show()
 
                 # Plotting if no FFT required
                 else:
                     fig, ax = plt.subplots(
-                        subplot_kw=dict(xlabel="Time [s]", ylabel=outputtext + " field strength [V/m]"),
+                        subplot_kw=dict(
+                            xlabel="Time [s]",
+                            ylabel=outputtext + " field strength [V/m]",
+                        ),
                         num=rxpath + " - " + f[rxpath].attrs["Name"],
                         figsize=(20, 10),
                         facecolor="w",
@@ -279,7 +292,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
     if save:
         # Save a PDF of the figure
-        fig.savefig(filename[:-3] + ".pdf", dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+        fig.savefig(
+            filename[:-3] + ".pdf",
+            dpi=None,
+            format="pdf",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
         # Save a PNG of the figure
         # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
         #             bbox_inches='tight', pad_inches=0.1)
@@ -322,9 +341,17 @@ if __name__ == "__main__":
         ],
         nargs="+",
     )
-    parser.add_argument("-fft", action="store_true", default=False, help="plot FFT (single output must be specified)")
     parser.add_argument(
-        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+        "-fft",
+        action="store_true",
+        default=False,
+        help="plot FFT (single output must be specified)",
+    )
+    parser.add_argument(
+        "-save",
+        action="store_true",
+        default=False,
+        help="save plot directly to file, i.e. do not display",
     )
     args = parser.parse_args()
 

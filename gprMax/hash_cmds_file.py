@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -48,7 +48,11 @@ def process_python_include_code(inputfile, usernamespace):
     """
 
     # Strip out any newline characters and comments that must begin with double hashes
-    inputlines = [line.rstrip() for line in inputfile if (not line.startswith("##") and line.rstrip("\n"))]
+    inputlines = [
+        line.rstrip()
+        for line in inputfile
+        if (not line.startswith("##") and line.rstrip("\n"))
+    ]
 
     # Rewind input file in preparation for any subsequent reading function
     inputfile.seek(0)
@@ -74,7 +78,8 @@ def process_python_include_code(inputfile, usernamespace):
                 x += 1
                 if x == len(inputlines):
                     logger.exception(
-                        "Cannot find the end of the Python code " + "block, i.e. missing #end_python: command."
+                        "Cannot find the end of the Python code "
+                        + "block, i.e. missing #end_python: command."
                     )
                     raise SyntaxError
             # Compile code for faster execution
@@ -147,7 +152,9 @@ def process_include_files(hashcmds):
             # See if file exists at specified path and if not try input file directory
             includefile = Path(includefile)
             if not includefile.exists():
-                includefile = Path(config.sim_config.input_file_path.parent, includefile)
+                includefile = Path(
+                    config.sim_config.input_file_path.parent, includefile
+                )
 
             with open(includefile, "r") as f:
                 # Strip out any newline characters and comments that must begin with double hashes
@@ -185,8 +192,7 @@ def write_processed_file(processedlines):
             f.write(f"{item}")
 
     logger.info(
-        f"Written input commands, after processing any Python "
-        + f"code and include commands, to file: {processedfile}\n"
+        f"Written input commands, after processing any Python code and include commands, to file: {processedfile}\n"
     )
 
 
@@ -218,8 +224,8 @@ def check_cmd_names(processedlines, checkessential=True):
             "#title",
             "#omp_threads",
             "#time_step_stability_factor",
+            "#pml_formulation",
             "#pml_cells",
-            "#excitation_file",
             "#src_steps",
             "#rx_steps",
             "#output_dir",
@@ -247,9 +253,11 @@ def check_cmd_names(processedlines, checkessential=True):
             "#magnetic_dipole",
             "#transmission_line",
             "#discrete_plane_wave",
+            "#excitation_file",
             "#rx",
             "#rx_array",
             "#snapshot",
+            "#pml_cfs",
             "#include_file",
         ]
     }
@@ -289,7 +297,9 @@ def check_cmd_names(processedlines, checkessential=True):
         # are no parameters for a command, e.g. for #taguchi:
         if " " not in cmdparams[0] and len(cmdparams.strip("\n")) != 0:
             logger.exception(
-                "There must be a space between the command name " + "and parameters in " + processedlines[lindex]
+                "There must be a space between the command name "
+                + "and parameters in "
+                + processedlines[lindex]
             )
             raise SyntaxError
 
@@ -312,7 +322,11 @@ def check_cmd_names(processedlines, checkessential=True):
             if singlecmds[cmdname] is None:
                 singlecmds[cmdname] = cmd[1].strip(" \t\n")
             else:
-                logger.exception("You can only have a single instance of " + cmdname + " in your model")
+                logger.exception(
+                    "You can only have a single instance of "
+                    + cmdname
+                    + " in your model"
+                )
                 raise SyntaxError
 
         elif cmdname in multiplecmds:
@@ -384,7 +398,10 @@ def parse_hash_commands(scene):
         for key, value in sorted(usernamespace.items()):
             if key != "__builtins__":
                 uservars += f"{key}: {value}, "
-        logger.info(f"Constants/variables used/available for Python scripting: " + f"{{{uservars[:-2]}}}\n")
+        logger.info(
+            f"Constants/variables used/available for Python scripting: "
+            + f"{{{uservars[:-2]}}}\n"
+        )
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
@@ -396,32 +413,3 @@ def parse_hash_commands(scene):
             scene.add(user_obj)
 
         return scene
-
-
-class Capturing(list):
-    """Context manager to capture standard output stream."""
-
-    # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
-
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
-        return self
-
-    def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
-        del self._stringio  # free up some memory
-        sys.stdout = self._stdout
-
-
-def user_libs_fn_to_scene_obj(f, *args, **kwargs):
-    """Function to convert library functions in the toolboxes directory
-    into geometry objects which can be added to the scene.
-    """
-
-    with Capturing() as str_cmds:
-        f(*args, **kwargs)
-
-    user_objects = get_user_objects(str_cmds, checkessential=False)
-
-    return user_objects

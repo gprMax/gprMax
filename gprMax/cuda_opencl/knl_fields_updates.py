@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -42,9 +42,9 @@ update_electric = {
                         __global $REAL *Ex,
                         __global $REAL *Ey,
                         __global $REAL *Ez,
-                        __global const $REAL * restrict Hx,
-                        __global const $REAL * restrict Hy,
-                        __global const $REAL * restrict Hz
+                        __global const $REAL* restrict Hx,
+                        __global const $REAL* restrict Hy,
+                        __global const $REAL* restrict Hz
                     """
     ),
     "func": Template(
@@ -118,9 +118,9 @@ update_magnetic = {
                         __global $REAL *Hx,
                         __global $REAL *Hy,
                         __global $REAL *Hz,
-                        __global const $REAL * restrict Ex,
-                        __global const $REAL * restrict Ey,
-                        __global const $REAL * restrict Ez
+                        __global const $REAL* restrict Ex,
+                        __global const $REAL* restrict Ey,
+                        __global const $REAL* restrict Ez
                     """
     ),
     "func": Template(
@@ -196,17 +196,17 @@ update_electric_dispersive_A = {
                         int NY,
                         int NZ,
                         int MAXPOLES,
-                        __global const $COMPLEX* restrict updatecoeffsdispersive,
-                        __global $COMPLEX *Tx,
-                        __global $COMPLEX *Ty,
-                        __global $COMPLEX *Tz,
                         __global const unsigned int* restrict ID,
                         __global $REAL *Ex,
                         __global $REAL *Ey,
                         __global $REAL *Ez,
                         __global const $REAL* restrict Hx,
                         __global const $REAL* restrict Hy,
-                        __global const $REAL* restrict Hz
+                        __global const $REAL* restrict Hz,
+                        __global const $COMPLEX* restrict updatecoeffsdispersive,
+                        __global $COMPLEX *Tx,
+                        __global $COMPLEX *Ty,
+                        __global $COMPLEX *Tz
                     """
     ),
     "func": Template(
@@ -238,8 +238,7 @@ update_electric_dispersive_A = {
     int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
-
-
+    
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
@@ -311,14 +310,14 @@ update_electric_dispersive_B = {
                         int NY,
                         int NZ,
                         int MAXPOLES,
-                        __global const $COMPLEX* restrict updatecoeffsdispersive,
-                        __global $COMPLEX *Tx,
-                        __global $COMPLEX *Ty,
-                        __global $COMPLEX *Tz,
                         __global const unsigned int* restrict ID,
                         __global const $REAL* restrict Ex,
                         __global const $REAL* restrict Ey,
-                        __global const $REAL* restrict Ez
+                        __global const $REAL* restrict Ez,
+                        __global const $COMPLEX* restrict updatecoeffsdispersive,
+                        __global $COMPLEX *Tx,
+                        __global $COMPLEX *Ty,
+                        __global $COMPLEX *Tz
                     """
     ),
     "func": Template(

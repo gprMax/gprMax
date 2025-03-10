@@ -1,0 +1,10 @@
+[build-system]
+requires = ['setuptools>=64', 'wheel', 'numpy>=1.19.0', 'Cython>=0.29.21',
+            'jinja2']
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"

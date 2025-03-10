@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -233,7 +233,9 @@ class PrecursorNodesBase:
 
     def interpolate_to_sub_grid(self, field, coords):
         x, z, x_sg, z_sg = coords
-        interp_f = interpolate.RectBivariateSpline(x, z, field, kx=self.interpolation, ky=self.interpolation)
+        interp_f = interpolate.RectBivariateSpline(
+            x, z, field, kx=self.interpolation, ky=self.interpolation
+        )
         f_i = interp_f(x_sg, z_sg)
         return f_i
 
@@ -268,7 +270,7 @@ class PrecursorNodesBase:
             # interpolate over a fine grid
             f_i = self.interpolate_to_sub_grid(f_t, obj[1])
 
-            if f_i == f_t:
+            if np.array_equal(f_i, f_t):
                 raise ValueError
 
             # discard the outer nodes only required for interpolation
@@ -417,18 +419,78 @@ class PrecursorNodes(PrecursorNodesBase):
 
         # Spatially interpolate nodes
         slices = [
-            ["ex_front_1", True, (slice(i0, i1, 1), self.j0, slice(k0, k1 + 1, 1)), self.Ex],
-            ["ex_back_1", True, (slice(i0, i1, 1), self.j1, slice(k0, k1 + 1, 1)), self.Ex],
-            ["ez_front_1", False, (slice(i0, i1 + 1, 1), self.j0, slice(k0, k1, 1)), self.Ez],
-            ["ez_back_1", False, (slice(i0, i1 + 1, 1), self.j1, slice(k0, k1, 1)), self.Ez],
-            ["ey_left_1", True, (self.i0, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Ey],
-            ["ey_right_1", True, (self.i1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Ey],
-            ["ez_left_1", False, (self.i0, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Ez],
-            ["ez_right_1", False, (self.i1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Ez],
-            ["ex_bottom_1", True, (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0), self.Ex],
-            ["ex_top_1", True, (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1), self.Ex],
-            ["ey_bottom_1", False, (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0), self.Ey],
-            ["ey_top_1", False, (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1), self.Ey],
+            [
+                "ex_front_1",
+                True,
+                (slice(i0, i1, 1), self.j0, slice(k0, k1 + 1, 1)),
+                self.Ex,
+            ],
+            [
+                "ex_back_1",
+                True,
+                (slice(i0, i1, 1), self.j1, slice(k0, k1 + 1, 1)),
+                self.Ex,
+            ],
+            [
+                "ez_front_1",
+                False,
+                (slice(i0, i1 + 1, 1), self.j0, slice(k0, k1, 1)),
+                self.Ez,
+            ],
+            [
+                "ez_back_1",
+                False,
+                (slice(i0, i1 + 1, 1), self.j1, slice(k0, k1, 1)),
+                self.Ez,
+            ],
+            [
+                "ey_left_1",
+                True,
+                (self.i0, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                self.Ey,
+            ],
+            [
+                "ey_right_1",
+                True,
+                (self.i1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                self.Ey,
+            ],
+            [
+                "ez_left_1",
+                False,
+                (self.i0, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                self.Ez,
+            ],
+            [
+                "ez_right_1",
+                False,
+                (self.i1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                self.Ez,
+            ],
+            [
+                "ex_bottom_1",
+                True,
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0),
+                self.Ex,
+            ],
+            [
+                "ex_top_1",
+                True,
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1),
+                self.Ex,
+            ],
+            [
+                "ey_bottom_1",
+                False,
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0),
+                self.Ey,
+            ],
+            [
+                "ey_top_1",
+                False,
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1),
+                self.Ey,
+            ],
         ]
 
         for obj in slices:

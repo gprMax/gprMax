@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -22,7 +22,7 @@ import numpy as np
 
 from ..cython.geometry_primitives import build_triangle
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, rotate_point
+from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_point
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class Triangle(UserObjectGeometry):
         self.kwargs["p2"] = tuple(p2)
         self.kwargs["p3"] = tuple(p3)
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             up1 = self.kwargs["p1"]
             up2 = self.kwargs["p2"]
@@ -80,6 +80,7 @@ class Triangle(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagetriangularprism = self.kwargs["averaging"]
+            averagetriangularprism = check_averaging(averagetriangularprism)
         except KeyError:
             # Otherwise go with the grid default
             averagetriangularprism = grid.averagevolumeobjects
@@ -108,7 +109,9 @@ class Triangle(UserObjectGeometry):
         x3, y3, z3 = uip.round_to_grid(up3)
 
         if thickness < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for thickness")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for thickness"
+            )
             raise ValueError
 
         # Check for valid orientations
@@ -122,7 +125,9 @@ class Triangle(UserObjectGeometry):
         elif z1 == z2 == z3:
             normal = "z"
         else:
-            logger.exception(f"{self.__str__()} the triangle is not specified correctly")
+            logger.exception(
+                f"{self.__str__()} the triangle is not specified correctly"
+            )
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -145,7 +150,9 @@ class Triangle(UserObjectGeometry):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
+                requiredID = (
+                    materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
+                )
                 averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
@@ -154,10 +161,18 @@ class Triangle(UserObjectGeometry):
                     m = Material(numID, requiredID)
                     m.type = "dielectric-smoothed"
                     # Create dielectric-smoothed constituents for material
-                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                    m.er = np.mean(
+                        (materials[0].er, materials[1].er, materials[2].er), axis=0
+                    )
+                    m.se = np.mean(
+                        (materials[0].se, materials[1].se, materials[2].se), axis=0
+                    )
+                    m.mr = np.mean(
+                        (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                    )
+                    m.sm = np.mean(
+                        (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                    )
 
                     # Append the new material object to the materials list
                     grid.materials.append(m)
@@ -205,15 +220,15 @@ class Triangle(UserObjectGeometry):
             dielectricsmoothing = "on" if averaging else "off"
             logger.info(
                 f"{self.grid_name(grid)}Triangle with coordinates "
-                + f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m "
-                + f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness "
-                + f"{thickness:g}m of material(s) {', '.join(materialsrequested)} "
-                + f"created, dielectric smoothing is {dielectricsmoothing}."
+                f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m "
+                f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness "
+                f"{thickness:g}m of material(s) {', '.join(materialsrequested)} "
+                f"created, dielectric smoothing is {dielectricsmoothing}."
             )
         else:
             logger.info(
                 f"{self.grid_name(grid)}Triangle with coordinates "
-                + f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m "
-                + f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) "
-                + f"{', '.join(materialsrequested)} created."
+                f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m "
+                f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) "
+                f"{', '.join(materialsrequested)} created."
             )

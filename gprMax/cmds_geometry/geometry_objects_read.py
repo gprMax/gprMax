@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -39,7 +39,7 @@ class GeometryObjectsRead(UserObjectGeometry):
     def rotate(self, axis, angle, origin=None):
         pass
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Creates the object and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -71,7 +71,11 @@ class GeometryObjectsRead(UserObjectGeometry):
             materials = [
                 line.rstrip() + "{" + matstr + "}\n"
                 for line in f
-                if (line.startswith("#") and not line.startswith("##") and line.rstrip("\n"))
+                if (
+                    line.startswith("#")
+                    and not line.startswith("##")
+                    and line.rstrip("\n")
+                )
             ]
 
         # Build scene
@@ -82,7 +86,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             scene.add(material_obj)
 
         # Creates the internal simulation objects
-        scene.process_cmds(material_objs, grid, sort=False)
+        scene.process_cmds(material_objs, grid)
 
         # Update material type
         for material in grid.materials:
@@ -108,8 +112,8 @@ class GeometryObjectsRead(UserObjectGeometry):
         ):
             logger.exception(
                 f"{self.__str__()} requires the spatial resolution "
-                + "of the geometry objects file to match the spatial "
-                + "resolution of the model"
+                "of the geometry objects file to match the spatial "
+                "resolution of the model"
             )
             raise ValueError
 
@@ -126,17 +130,31 @@ class GeometryObjectsRead(UserObjectGeometry):
             rigidE = f["/rigidE"][:]
             rigidH = f["/rigidH"][:]
             ID = f["/ID"][:]
-            grid.solid[xs : xs + data.shape[0], ys : ys + data.shape[1], zs : zs + data.shape[2]] = (
-                data + numexistmaterials
-            )
-            grid.rigidE[:, xs : xs + rigidE.shape[1], ys : ys + rigidE.shape[2], zs : zs + rigidE.shape[3]] = rigidE
-            grid.rigidH[:, xs : xs + rigidH.shape[1], ys : ys + rigidH.shape[2], zs : zs + rigidH.shape[3]] = rigidH
-            grid.ID[:, xs : xs + ID.shape[1], ys : ys + ID.shape[2], zs : zs + ID.shape[3]] = ID + numexistmaterials
+            grid.solid[
+                xs : xs + data.shape[0],
+                ys : ys + data.shape[1],
+                zs : zs + data.shape[2],
+            ] = data + numexistmaterials
+            grid.rigidE[
+                :,
+                xs : xs + rigidE.shape[1],
+                ys : ys + rigidE.shape[2],
+                zs : zs + rigidE.shape[3],
+            ] = rigidE
+            grid.rigidH[
+                :,
+                xs : xs + rigidH.shape[1],
+                ys : ys + rigidH.shape[2],
+                zs : zs + rigidH.shape[3],
+            ] = rigidH
+            grid.ID[
+                :, xs : xs + ID.shape[1], ys : ys + ID.shape[2], zs : zs + ID.shape[3]
+            ] = ID + numexistmaterials
             logger.info(
                 f"{self.grid_name(grid)}Geometry objects from file {geofile} "
-                + f"inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, "
-                + f"{zs * grid.dz:g}m, with corresponding materials file "
-                + f"{matfile}."
+                f"inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, "
+                f"{zs * grid.dz:g}m, with corresponding materials file "
+                f"{matfile}."
             )
         except KeyError:
             averaging = False
@@ -144,7 +162,6 @@ class GeometryObjectsRead(UserObjectGeometry):
                 xs,
                 ys,
                 zs,
-                config.get_model_config().ompthreads,
                 numexistmaterials,
                 averaging,
                 data,
@@ -155,7 +172,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             )
             logger.info(
                 f"{self.grid_name(grid)}Geometry objects from file "
-                + f"(voxels only){geofile} inserted at {xs * grid.dx:g}m, "
-                + f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding "
-                + f"materials file {matfile}."
+                f"(voxels only){geofile} inserted at {xs * grid.dx:g}m, "
+                f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding "
+                f"materials file {matfile}."
             )

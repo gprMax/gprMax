@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -21,7 +21,6 @@ import logging
 from .cmds_singleuse import (
     Discretisation,
     Domain,
-    ExcitationFile,
     OMPThreads,
     OutputDir,
     PMLProps,
@@ -65,7 +64,7 @@ def process_singlecmds(singlecmds):
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
             logger.exception(
-                f"{cmd} requires exactly one parameter to specify " + f"the number of CPU OpenMP threads to use"
+                f"{cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
             )
             raise ValueError
 
@@ -106,7 +105,7 @@ def process_singlecmds(singlecmds):
         if len(tmp) != 1:
             logger.exception(
                 f"{cmd} requires exactly one parameter to specify the "
-                + f"time window. Either in seconds or number of iterations."
+                f"time window. Either in seconds or number of iterations."
             )
             raise ValueError
         tmp = tmp[0].lower()
@@ -122,20 +121,49 @@ def process_singlecmds(singlecmds):
 
         scene_objects.append(tw)
 
+    cmd = "#pml_formulation"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires one parameter")
+            raise ValueError
+        else:
+            pml_formulation = tmp[0]
+
     cmd = "#pml_cells"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) not in [1, 6]:
             logger.exception(f"{cmd} requires either one or six parameter(s)")
             raise ValueError
-        if len(tmp) == 1:
-            pml_cells = PMLProps(thickness=int(tmp[0]))
-        else:
-            pml_cells = PMLProps(
-                x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
-            )
 
-        scene_objects.append(pml_cells)
+        if "pml_formulation" in locals():
+            if len(tmp) == 1:
+                pml_props = PMLProps(formulation=pml_formulation, thickness=int(tmp[0]))
+            else:
+                pml_props = PMLProps(
+                    formulation=pml_formulation,
+                    x0=int(tmp[0]),
+                    y0=int(tmp[1]),
+                    z0=int(tmp[2]),
+                    xmax=int(tmp[3]),
+                    ymax=int(tmp[4]),
+                    zmax=int(tmp[5]),
+                )
+        else:
+            if len(tmp) == 1:
+                pml_props = PMLProps(thickness=int(tmp[0]))
+            else:
+                pml_props = PMLProps(
+                    x0=int(tmp[0]),
+                    y0=int(tmp[1]),
+                    z0=int(tmp[2]),
+                    xmax=int(tmp[3]),
+                    ymax=int(tmp[4]),
+                    zmax=int(tmp[5]),
+                )
+
+        scene_objects.append(pml_props)
 
     cmd = "#src_steps"
     if singlecmds[cmd] is not None:
@@ -158,20 +186,5 @@ def process_singlecmds(singlecmds):
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         rx_steps = RxSteps(p1=p1)
         scene_objects.append(rx_steps)
-
-    # Excitation file for user-defined source waveforms
-    cmd = "#excitation_file"
-    if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) not in [1, 3]:
-            logger.exception(f"{cmd} requires either one or three parameter(s)")
-            raise ValueError
-
-        if len(tmp) > 1:
-            ex_file = ExcitationFile(filepath=tmp[0], kind=tmp[1], fill_value=tmp[2])
-        else:
-            ex_file = ExcitationFile(filepath=tmp[0])
-
-        scene_objects.append(ex_file)
 
     return scene_objects

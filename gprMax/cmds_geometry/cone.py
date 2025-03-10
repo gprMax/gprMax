@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -22,7 +22,7 @@ import numpy as np
 
 from ..cython.geometry_primitives import build_cone
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry
+from .cmds_geometry import UserObjectGeometry, check_averaging
 
 logger = logging.getLogger(__name__)
 
@@ -48,23 +48,26 @@ class Cone(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = "#cone"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
             r1 = self.kwargs["r1"]
             r2 = self.kwargs["r2"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify two points and two radii")
+            logger.exception(
+                f"{self.__str__()} please specify two points and two radii"
+            )
             raise
 
         # Check averaging
         try:
             # Try user-specified averaging
-            averagecylinder = self.kwargs["averaging"]
+            averagecone = self.kwargs["averaging"]
+            averagecone = check_averaging(averagecone)
         except KeyError:
             # Otherwise go with the grid default
-            averagecylinder = grid.averagevolumeobjects
+            averagecone = grid.averagevolumeobjects
 
         # Check materials have been specified
         # Isotropic case
@@ -85,11 +88,15 @@ class Cone(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r1 < 0:
-            logger.exception(f"{self.__str__()} the radius of the first face " + f"{r1:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius of the first face {r1:g} should be a positive value."
+            )
             raise ValueError
 
         if r2 < 0:
-            logger.exception(f"{self.__str__()} the radius of the second face " + f"{r2:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius of the second face {r2:g} should be a positive value."
+            )
             raise ValueError
 
         if r1 == 0 and r2 == 0:
@@ -106,7 +113,7 @@ class Cone(UserObjectGeometry):
 
         # Isotropic case
         if len(materials) == 1:
-            averaging = materials[0].averagable and averagecylinder
+            averaging = materials[0].averagable and averagecone
             numID = numIDx = numIDy = numIDz = materials[0].numID
 
         # Uniaxial anisotropic case
@@ -124,10 +131,18 @@ class Cone(UserObjectGeometry):
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                m.er = np.mean(
+                    (materials[0].er, materials[1].er, materials[2].er), axis=0
+                )
+                m.se = np.mean(
+                    (materials[0].se, materials[1].se, materials[2].se), axis=0
+                )
+                m.mr = np.mean(
+                    (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                )
+                m.sm = np.mean(
+                    (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                )
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)
@@ -158,7 +173,7 @@ class Cone(UserObjectGeometry):
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
             f"{self.grid_name(grid)}Cone with face centres {p3[0]:g}m, "
-            + f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
-            + f"with radii {r1:g}m and {r2:g}, of material(s) {', '.join(materialsrequested)} "
-            + f"created, dielectric smoothing is {dielectricsmoothing}."
+            f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
+            f"with radii {r1:g}m and {r2:g}, of material(s) {', '.join(materialsrequested)} "
+            f"created, dielectric smoothing is {dielectricsmoothing}."
         )

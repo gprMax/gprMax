@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -24,7 +24,7 @@ import gprMax.config as config
 
 from ..cython.geometry_primitives import build_box
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, rotate_2point_object
+from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class Box(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -87,6 +87,7 @@ class Box(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagebox = self.kwargs["averaging"]
+            averagebox = check_averaging(averagebox)
         except KeyError:
             # Otherwise go with the grid default
             averagebox = grid.averagevolumeobjects
@@ -126,10 +127,18 @@ class Box(UserObjectGeometry):
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
+                m.er = np.mean(
+                    (materials[0].er, materials[1].er, materials[2].er), axis=0
+                )
+                m.se = np.mean(
+                    (materials[0].se, materials[1].se, materials[2].se), axis=0
+                )
+                m.mr = np.mean(
+                    (materials[0].mr, materials[1].mr, materials[2].mr), axis=0
+                )
+                m.sm = np.mean(
+                    (materials[0].sm, materials[1].sm, materials[2].sm), axis=0
+                )
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)
@@ -141,7 +150,6 @@ class Box(UserObjectGeometry):
             yf,
             zs,
             zf,
-            config.get_model_config().ompthreads,
             numID,
             numIDx,
             numIDy,
@@ -157,7 +165,7 @@ class Box(UserObjectGeometry):
 
         logger.info(
             f"{self.grid_name(grid)}Box from {p5[0]:g}m, {p5[1]:g}m, "
-            + f"{p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of "
-            + f"material(s) {', '.join(materialsrequested)} created, "
-            + f"dielectric smoothing is {dielectricsmoothing}."
+            f"{p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of "
+            f"material(s) {', '.join(materialsrequested)} created, "
+            f"dielectric smoothing is {dielectricsmoothing}."
         )

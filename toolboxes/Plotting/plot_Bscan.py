@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -46,7 +46,12 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
 
     file = Path(filename)
 
-    fig = plt.figure(num=file.stem + " - rx" + str(rxnumber), figsize=(20, 10), facecolor="w", edgecolor="w")
+    fig = plt.figure(
+        num=file.stem + " - rx" + str(rxnumber),
+        figsize=(20, 10),
+        facecolor="w",
+        edgecolor="w",
+    )
     plt.imshow(
         outputdata,
         extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0],
@@ -73,7 +78,13 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
 
     if save:
         # Save a PDF of the figure
-        fig.savefig(filename[:-3] + ".pdf", dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+        fig.savefig(
+            filename[:-3] + ".pdf",
+            dpi=None,
+            format="pdf",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
         # Save a PNG of the figure
         # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
         #             bbox_inches='tight', pad_inches=0.1)
@@ -94,10 +105,16 @@ if __name__ == "__main__":
         choices=["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"],
     )
     parser.add_argument(
-        "-gather", action="store_true", default=False, help="gather together all receiver outputs in file"
+        "-gather",
+        action="store_true",
+        default=False,
+        help="gather together all receiver outputs in file",
     )
     parser.add_argument(
-        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+        "-save",
+        action="store_true",
+        default=False,
+        help="save plot directly to file, i.e. do not display",
     )
     args = parser.parse_args()
 
@@ -118,10 +135,14 @@ if __name__ == "__main__":
                 rxsgather = outputdata
             rxsgather = np.column_stack((rxsgather, outputdata))
         else:
-            plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component, save=args.save)
+            plthandle = mpl_plot(
+                args.outputfile, outputdata, dt, rx, args.rx_component, save=args.save
+            )
 
     # Plot all receivers from single output file together if required
     if args.gather:
-        plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, args.rx_component, save=args.save)
+        plthandle = mpl_plot(
+            args.outputfile, rxsgather, dt, rx, args.rx_component, save=args.save
+        )
 
     plthandle.show()

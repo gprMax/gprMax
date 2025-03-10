@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -35,11 +35,19 @@ x_args = {
                                         int NZ_PHI2,
                                         int NY_R,
                                         const unsigned int* __restrict__ ID,
-                                        const $REAL* __restrict__ Ex, $REAL *Ey,
+                                        const $REAL* __restrict__ Ex,
+                                        $REAL *Ey,
                                         $REAL *Ez,
-                                        const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1,
+                                        const $REAL* __restrict__ Hx,
+                                        const $REAL* __restrict__ Hy,
+                                        const $REAL* __restrict__ Hz,
+                                        $REAL *PHI1,
                                         $REAL *PHI2,
-                                        const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
+                                        const $REAL* __restrict__ RA,
+                                        const $REAL* __restrict__ RB,
+                                        const $REAL* __restrict__ RE,
+                                        const $REAL* __restrict__ RF,
+                                        $REAL d)
                     """
     ),
     "opencl": Template(
@@ -95,9 +103,16 @@ y_args = {
                                         $REAL *Ex,
                                         const $REAL* __restrict__ Ey,
                                         $REAL *Ez,
-                                        const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1,
+                                        const $REAL* __restrict__ Hx,
+                                        const $REAL* __restrict__ Hy,
+                                        const $REAL* __restrict__ Hz,
+                                        $REAL *PHI1,
                                         $REAL *PHI2,
-                                        const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
+                                        const $REAL* __restrict__ RA,
+                                        const $REAL* __restrict__ RB,
+                                        const $REAL* __restrict__ RE,
+                                        const $REAL* __restrict__ RF,
+                                        $REAL d)
                     """
     ),
     "opencl": Template(
@@ -153,9 +168,16 @@ z_args = {
                                         $REAL *Ex,
                                         $REAL *Ey,
                                         const $REAL* __restrict__ Ez,
-                                        const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1,
+                                        const $REAL* __restrict__ Hx,
+                                        const $REAL* __restrict__ Hy,
+                                        const $REAL* __restrict__ Hz,
+                                        $REAL *PHI1,
                                         $REAL *PHI2,
-                                        const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
+                                        const $REAL* __restrict__ RA,
+                                        const $REAL* __restrict__ RB,
+                                        const $REAL* __restrict__ RE,
+                                        const $REAL* __restrict__ RF,
+                                        $REAL d)
                     """
     ),
     "opencl": Template(

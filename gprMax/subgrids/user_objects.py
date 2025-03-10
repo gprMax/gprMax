@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -121,7 +121,7 @@ class SubGridBase(UserObjectMulti):
 
         sg.timewindow = grid.timewindow
 
-        # Copy a subgrid reference to self so that children.create(grid, uip)
+        # Copy a subgrid reference to self so that children.build(grid, uip)
         # can access the correct grid.
         self.subgrid = sg
 
@@ -131,7 +131,9 @@ class SubGridBase(UserObjectMulti):
         # Don't mix and match different subgrid types
         for sg_made in grid.subgrids:
             if type(sg) != type(sg_made):
-                logger.exception(f"{self.__str__()} please only use one type of subgrid")
+                logger.exception(
+                    f"{self.__str__()} please only use one type of subgrid"
+                )
                 raise ValueError
 
         # Reference the subgrid under the main grid to which it belongs
@@ -192,7 +194,7 @@ class SubGridHSG(SubGridBase):
         self.order = 18
         self.hash = "#subgrid_hsg"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         sg = SubGridHSGUser(**self.kwargs)
         self.setup(sg, grid, uip)
         return sg

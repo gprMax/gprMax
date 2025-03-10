@@ -6,7 +6,9 @@ def lines_to_voxels(line_list, pixels):
     x = 0
     for event_x, status, line_ind in generate_line_events(line_list):
         while event_x - x >= 0:
-            lines = reduce(lambda acc, cur: acc + [line_list[cur]], current_line_indices, [])
+            lines = reduce(
+                lambda acc, cur: acc + [line_list[cur]], current_line_indices, []
+            )
             paint_y_axis(lines, pixels, x)
             x += 1
 

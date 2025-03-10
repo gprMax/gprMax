@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -26,9 +26,7 @@ class Rx:
 
     allowableoutputs = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"]
     defaultoutputs = allowableoutputs[:-3]
-
     allowableoutputs_dev = allowableoutputs[:-3]
-    maxnumoutputs_dev = 0
 
     def __init__(self):
         self.ID = None
@@ -61,14 +59,12 @@ def htod_rx_arrays(G, queue=None):
         rxcoords[i, 0] = rx.xcoord
         rxcoords[i, 1] = rx.ycoord
         rxcoords[i, 2] = rx.zcoord
-        # Store maximum number of output components
-        if len(rx.outputs) > Rx.maxnumoutputs_dev:
-            Rx.maxnumoutputs_dev = len(rx.outputs)
 
     # Array to store field components for receivers on compute device -
     #   rows are field components; columns are iterations; pages are receivers
     rxs = np.zeros(
-        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)), dtype=config.sim_config.dtypes["float_or_double"]
+        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
 
     # Copy arrays to compute device
@@ -92,9 +88,9 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         objects.
 
     Args:
-        rxcoords_dev: int array of receiver coordinates on compute device.
         rxs_dev: float array of receiver data on compute device - rows are field
                     components; columns are iterations; pages are receivers.
+        rxcoords_dev: int array of receiver coordinates on compute device.
         G: FDTDGrid class describing a grid in a model.
 
     """
@@ -107,4 +103,6 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
                 and rx.zcoord == rxcoords_dev[rxd, 2]
             ):
                 for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_dev[Rx.allowableoutputs_dev.index(output), :, rxd]
+                    rx.outputs[output] = rxs_dev[
+                        Rx.allowableoutputs_dev.index(output), :, rxd
+                    ]

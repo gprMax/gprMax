@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -21,7 +21,6 @@ import numpy as np
 cimport numpy as np
 
 np.seterr(divide='raise')
-from cython.parallel import prange
 
 from gprMax.cython.yee_cell_setget_rigid cimport (
     set_rigid_E,
@@ -423,7 +422,7 @@ cpdef void build_triangle(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int i1, i2, j1, j2, sign, level, thicknesscells
+    cdef int i1, i2, j1, j2, sign, levelcells, thicknesscells
     cdef float area, s, t
 
     # Calculate a bounding box for the triangle
@@ -433,7 +432,7 @@ cpdef void build_triangle(
         i2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
         j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
         j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
-        level = round_value(x1 / dx)
+        levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
     elif normal == 'y':
         area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
@@ -441,7 +440,7 @@ cpdef void build_triangle(
         i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
         j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
         j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
-        level = round_value(y1 /dy)
+        levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
     elif normal == 'z':
         area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
@@ -449,7 +448,7 @@ cpdef void build_triangle(
         i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
         j1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
         j2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
-        level = round_value(z1 / dz)
+        levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
 
     sign = np.sign(area)
@@ -479,16 +478,16 @@ cpdef void build_triangle(
             if s > 0 and t > 0 and (s + t) < 2 * area * sign:
                 if thicknesscells == 0:
                     if normal == 'x':
-                        build_face_yz(level, i, j, numIDy, numIDz,
+                        build_face_yz(levelcells, i, j, numIDy, numIDz,
                                       rigidE, rigidH, ID)
                     elif normal == 'y':
-                        build_face_xz(i, level, j, numIDx, numIDz,
+                        build_face_xz(i, levelcells, j, numIDx, numIDz,
                                       rigidE, rigidH, ID)
                     elif normal == 'z':
-                        build_face_xy(i, j, level, numIDx, numIDy,
+                        build_face_xy(i, j, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
                 else:
-                    for k in range(level, level + thicknesscells):
+                    for k in range(levelcells, levelcells + thicknesscells):
                         if normal == 'x':
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
@@ -503,7 +502,7 @@ cpdef void build_triangle(
 cpdef void build_cylindrical_sector(
     float ctr1,
     float ctr2,
-    int level,
+    float level,
     float sectorstartangle,
     float sectorangle,
     float radius,
@@ -532,7 +531,7 @@ cpdef void build_cylindrical_sector(
 
     Args:
         ctr1, ctr2: floats for coordinates of centre of circle.
-        level: int for the third dimensional coordinate.
+        level: float for the third dimensional coordinate.
         sectorstartangle: float for angle (in radians) of start of sector.
         sectorangle: float for angle (in radians) that sector makes.
         radius: float for radius of the cylindrical sector.
@@ -555,7 +554,8 @@ cpdef void build_cylindrical_sector(
         y2 = round_value((ctr1 + radius)/dy)
         z1 = round_value((ctr2 - radius)/dz)
         z2 = round_value((ctr2 + radius)/dz)
-        thicknesscells = round_value(thickness/dx)
+        levelcells = round_value(level / dx)
+        thicknesscells = round_value(thickness / dx)
 
         # Set bounds to domain if they outside
         if y1 < 0:
@@ -572,10 +572,10 @@ cpdef void build_cylindrical_sector(
                 if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1,
                                     ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_yz(level, y, z, numIDy, numIDz,
+                        build_face_yz(levelcells, y, z, numIDy, numIDz,
                                       rigidE, rigidH, ID)
                     else:
-                        for x in range(level, level + thicknesscells):
+                        for x in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
 
@@ -586,7 +586,8 @@ cpdef void build_cylindrical_sector(
         x2 = round_value((ctr1 + radius)/dx)
         z1 = round_value((ctr2 - radius)/dz)
         z2 = round_value((ctr2 + radius)/dz)
-        thicknesscells = round_value(thickness/dy)
+        levelcells = round_value(level / dy)
+        thicknesscells = round_value(thickness / dy)
 
         # Set bounds to domain if they outside
         if x1 < 0:
@@ -603,10 +604,10 @@ cpdef void build_cylindrical_sector(
                 if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1,
                                     ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_xz(x, level, z, numIDx, numIDz,
+                        build_face_xz(x, levelcells, z, numIDx, numIDz,
                                       rigidE, rigidH, ID)
                     else:
-                        for y in range(level, level + thicknesscells):
+                        for y in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
 
@@ -617,7 +618,8 @@ cpdef void build_cylindrical_sector(
         x2 = round_value((ctr1 + radius)/dx)
         y1 = round_value((ctr2 - radius)/dy)
         y2 = round_value((ctr2 + radius)/dy)
-        thicknesscells = round_value(thickness/dz)
+        levelcells = round_value(level / dz)
+        thicknesscells = round_value(thickness / dz)
 
         # Set bounds to domain if they outside
         if x1 < 0:
@@ -634,10 +636,10 @@ cpdef void build_cylindrical_sector(
                 if is_inside_sector(x * dx + 0.5 * dx, y * dy + 0.5 * dy, ctr1,
                                     ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_xy(x, y, level, numIDx, numIDy,
+                        build_face_xy(x, y, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
                     else:
-                        for z in range(level, level + thicknesscells):
+                        for z in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
 
@@ -649,7 +651,6 @@ cpdef void build_box(
     int yf,
     int zs,
     int zf,
-    int nthreads,
     int numID,
     int numIDx,
     int numIDy,
@@ -664,7 +665,6 @@ cpdef void build_box(
 
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of entire box.
-        nthreads: int for number of threads to use
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
@@ -674,14 +674,14 @@ cpdef void build_box(
     cdef Py_ssize_t i, j, k
 
     if averaging:
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
                     unset_rigid_E(i, j, k, rigidE)
                     unset_rigid_H(i, j, k, rigidH)
     else:
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
@@ -694,32 +694,32 @@ cpdef void build_box(
                     ID[4, i, j, k] = numIDy
                     ID[5, i, j, k] = numIDz
 
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             j = yf
             k = zf
             ID[0, i, j, k] = numIDx
 
         i = xf
-        for j in prange(ys, yf, nogil=True, schedule='static', num_threads=nthreads):
+        for j in range(ys, yf):
             for k in range(zf, zf + 1):
                 ID[1, i, j, k] = numIDy
 
         i = xf
         j = yf
-        for k in prange(zs, zf, nogil=True, schedule='static', num_threads=nthreads):
+        for k in range(zs, zf):
             ID[2, i, j, k] = numIDz
 
         i = xf
-        for j in prange(ys, yf, nogil=True, schedule='static', num_threads=nthreads):
+        for j in range(ys, yf):
             for k in range(zs, zf):
                 ID[3, i, j, k] = numIDx
 
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             j = yf
             for k in range(zs, zf):
                 ID[4, i, j, k] = numIDy
 
-        for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+        for i in range(xs, xf):
             for j in range(ys, yf):
                 k = zf
                 ID[5, i, j, k] = numIDz
@@ -1272,7 +1272,6 @@ cpdef void build_voxels_from_array(
     int xs,
     int ys,
     int zs,
-    int nthreads,
     int numexistmaterials,
     bint averaging,
     np.int16_t[:, :, ::1] data,
@@ -1286,7 +1285,6 @@ cpdef void build_voxels_from_array(
     Args:
         xs, ys, zs: ints for cell coordinates of position of start of array in
                     domain.
-        nthreads: int for number of threads to use
         numexistmaterials: int for number of existing materials in model prior
                             to building voxels.
         averaging: bint for whether material property averaging will occur for
@@ -1320,7 +1318,7 @@ cpdef void build_voxels_from_array(
     else:
         zf = zs + data.shape[2]
 
-    for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+    for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
                 numID = data[i - xs, j - ys, k - zs]
@@ -1333,7 +1331,6 @@ cpdef void build_voxels_from_array_mask(
     int xs,
     int ys,
     int zs,
-    int nthreads,
     int waternumID,
     int grassnumID,
     bint averaging,
@@ -1348,7 +1345,6 @@ cpdef void build_voxels_from_array_mask(
 
     Args:
         xs, ys, zs: ints for cell coordinates of position of start of array in domain.
-        nthreads: int for number of threads to use
         waternumID, grassnumID: ints for numeric ID of water and grass materials.
         averaging: bint for whether material property averaging will occur for
                 the object.
@@ -1365,7 +1361,7 @@ cpdef void build_voxels_from_array_mask(
     yf = ys + data.shape[1]
     zf = zs + data.shape[2]
 
-    for i in prange(xs, xf, nogil=True, schedule='static', num_threads=nthreads):
+    for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
                 if mask[i - xs, j - ys, k - zs] == 1:

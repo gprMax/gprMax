@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -20,9 +20,6 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-
-# Used to suppress CompilerWarning (sub-class of UserWarning) from pyopencl
-warnings.filterwarnings("ignore", category=UserWarning)
 
 import cython
 import numpy as np
@@ -90,7 +87,11 @@ class ModelConfig:
             except:
                 deviceID = 0
 
-            self.device = {"dev": sim_config.set_model_device(deviceID), "snapsgpu2cpu": False}
+            self.device = {
+                "dev": sim_config.set_model_device(deviceID),
+                "deviceID": deviceID,
+                "snapsgpu2cpu": False,
+            }
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_overhead = 65e6
@@ -99,11 +100,20 @@ class ModelConfig:
         self.reuse_geometry = False
 
         # String to print at start of each model run
-        s = f"\n--- Model {model_num + 1}/{sim_config.model_end}, " f"input file: {sim_config.input_file_path}"
-        self.inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+        s = (
+            f"\n--- Model {model_num + 1}/{sim_config.model_end}, "
+            f"input file: {sim_config.input_file_path}"
+        )
+        self.inputfilestr = (
+            Fore.GREEN
+            + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n"
+            + Style.RESET_ALL
+        )
 
         # Output file path and name for specific model
-        self.appendmodelnumber = "" if sim_config.args.n == 1 else str(model_num + 1)  # Indexed from 1
+        self.appendmodelnumber = (
+            "" if sim_config.args.n == 1 else str(model_num + 1)
+        )  # Indexed from 1
         self.set_output_file_path()
 
         # Numerical dispersion analysis parameters
@@ -114,27 +124,31 @@ class ModelConfig:
         #                       phase-velocity phase error.
         #   mingridsampling: minimum grid sampling of smallest wavelength for
         #                       physical wave propagation.
-        self.numdispersion = {"highestfreqthres": 40, "maxnumericaldisp": 2, "mingridsampling": 3}
+        self.numdispersion = {
+            "highestfreqthres": 40,
+            "maxnumericaldisp": 2,
+            "mingridsampling": 3,
+        }
 
         # General information to configure materials
         #   maxpoles: Maximum number of dispersive material poles in a model.
         #   dispersivedtype: Data type for dispersive materials.
         #   dispersiveCdtype: Data type for dispersive materials in Cython.
         #   drudelorentz: True/False model contains Drude or Lorentz materials.
-        #   cudarealfunc: String to substitute into CUDA kernels for fields
+        #   crealfunc: String to substitute into CUDA/OpenCL kernels for fields
         #                   dependent on dispersive material type.
         self.materials = {
             "maxpoles": 0,
             "dispersivedtype": None,
             "dispersiveCdtype": None,
             "drudelorentz": None,
-            "cudarealfunc": "",
+            "crealfunc": None,
         }
 
     def get_scene(self):
-        if sim_config.scenes:
+        try:
             return sim_config.scenes[model_num]
-        else:
+        except:
             return None
 
     def get_usernamespace(self):
@@ -209,33 +223,33 @@ class SimulationConfig:
 
         self.args = args
 
-        if args.mpi and args.geometry_fixed:
+        if self.args.mpi and self.args.geometry_fixed:
             logger.exception("The geometry fixed option cannot be used with MPI.")
             raise ValueError
 
-        if args.gpu and args.opencl:
+        if self.args.gpu and self.args.opencl:
             logger.exception("You cannot use both CUDA and OpenCl simultaneously.")
             raise ValueError
 
         # General settings for the simulation
-        #   inputfilepath: path to inputfile location.
-        #   outputfilepath: path to outputfile location.
-        #   progressbars: whether to show progress bars on stdoout or not.
         #   solver: cpu, cuda, opencl.
-        #   subgrid: whether the simulation uses sub-grids.
         #   precision: data type for electromagnetic field output (single/double).
         #   progressbars: progress bars on stdoout or not - switch off
         #                   progressbars when logging level is greater than
         #                   info (20)
 
-        self.general = {"solver": "cpu", "subgrid": False, "precision": "single", "progressbars": args.log_level <= 20}
+        self.general = {
+            "solver": "cpu",
+            "precision": "single",
+            "progressbars": args.log_level <= 20,
+        }
 
         self.em_consts = {
             "c": c,  # Speed of light in free space (m/s)
             "e0": e0,  # Permittivity of free space (F/m)
             "m0": m0,  # Permeability of free space (H/m)
-            "z0": np.sqrt(m0 / e0),
-        }  # Impedance of free space (Ohms)
+            "z0": np.sqrt(m0 / e0),  # Impedance of free space (Ohms)
+        }
 
         # Store information about host machine
         self.hostinfo = get_host_info()
@@ -246,7 +260,10 @@ class SimulationConfig:
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device objects  # nvcc compiler options
+            self.devices = {
+                "devs": [],
+                "nvcc_opts": None,
+            }  # pycuda device objects; nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == "win32":
                 self.devices["nvcc_opts"] = ["-w"]
@@ -258,7 +275,13 @@ class SimulationConfig:
         if self.args.opencl is not None:
             self.general["solver"] = "opencl"
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl available device(s)
+            self.devices = {
+                "devs": [],
+                "compiler_opts": None,
+            }  # pyopencl device device(s); compiler options
+
+            # Suppress CompilerWarning (sub-class of UserWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
 
             # Suppress unused variable warnings on gcc
             # if sys.platform != 'win32': self.devices['compiler_opts'] = ['-w']
@@ -266,8 +289,8 @@ class SimulationConfig:
             # Add pyopencl available device(s)
             self.devices["devs"] = detect_opencl()
 
-        # Subgrid parameter may not exist if user enters via CLI
-        try:
+        # Subgrids
+        if hasattr(self.args, "subgrid") and self.args.subgrid:
             self.general["subgrid"] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
             self.general["precision"] = "double"
@@ -275,10 +298,11 @@ class SimulationConfig:
                 self.general["subgrid"] and self.general["solver"] == "opencl"
             ):
                 logger.exception(
-                    "You cannot currently use CUDA or OpenCL-based " "solvers with models that contain sub-grids."
+                    "You cannot currently use CUDA or OpenCL-based "
+                    "solvers with models that contain sub-grids."
                 )
                 raise ValueError
-        except AttributeError:
+        else:
             self.general["subgrid"] = False
 
         # Scenes parameter may not exist if user enters via CLI
@@ -309,7 +333,9 @@ class SimulationConfig:
                 return dev
 
         if not found:
-            logger.exception(f"Compute device with device ID {deviceID} does " "not exist.")
+            logger.exception(
+                f"Compute device with device ID {deviceID} does not exist."
+            )
             raise ValueError
 
     def _set_precision(self):

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2021, Craig Warren
+# Copyright (C) 2015-2024, Craig Warren
 #
 # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
 # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
@@ -84,20 +84,30 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         bowtieheight = 0.024
         tx = x + 0.062, y + 0.052, z + skidthickness
     else:
-        logger.exception("This antenna module can only be used with a spatial resolution of 1mm or 2mm")
+        logger.exception(
+            "This antenna module can only be used with a spatial resolution of 1mm or 2mm"
+        )
         raise ValueError
 
     # SMD resistors - 3 on each Tx & Rx bowtie arm
     txres = 470  # Ohms
     txrescellupper = txres / 3  # Resistor over 3 cells
-    txsigupper = ((1 / txrescellupper) * (dy / (dx * dz))) / 2  # Divide by number of parallel edges per resistor
+    txsigupper = (
+        (1 / txrescellupper) * (dy / (dx * dz))
+    ) / 2  # Divide by number of parallel edges per resistor
     txrescelllower = txres / 4  # Resistor over 4 cells
-    txsiglower = ((1 / txrescelllower) * (dy / (dx * dz))) / 2  # Divide by number of parallel edges per resistor
+    txsiglower = (
+        (1 / txrescelllower) * (dy / (dx * dz))
+    ) / 2  # Divide by number of parallel edges per resistor
     rxres = 150  # Ohms
     rxrescellupper = rxres / 3  # Resistor over 3 cells
-    rxsigupper = ((1 / rxrescellupper) * (dy / (dx * dz))) / 2  # Divide by number of parallel edges per resistor
+    rxsigupper = (
+        (1 / rxrescellupper) * (dy / (dx * dz))
+    ) / 2  # Divide by number of parallel edges per resistor
     rxrescelllower = rxres / 4  # Resistor over 4 cells
-    rxsiglower = ((1 / rxrescelllower) * (dy / (dx * dz))) / 2  # Divide by number of parallel edges per resistor
+    rxsiglower = (
+        (1 / rxrescelllower) * (dy / (dx * dz))
+    ) / 2  # Divide by number of parallel edges per resistor
 
     # Material definitions
     absorber = gprMax.Material(er=absorberEr, se=absorbersig, mr=1, sm=0, id="absorber")
@@ -108,7 +118,18 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     txresupper = gprMax.Material(er=3, se=txsigupper, mr=1, sm=0, id="txresupper")
     rxreslower = gprMax.Material(er=3, se=rxsiglower, mr=1, sm=0, id="rxreslower")
     rxresupper = gprMax.Material(er=3, se=rxsigupper, mr=1, sm=0, id="rxresupper")
-    scene_objects.extend((absorber, pcb, hdpe, polypropylene, txreslower, txresupper, rxreslower, rxresupper))
+    scene_objects.extend(
+        (
+            absorber,
+            pcb,
+            hdpe,
+            polypropylene,
+            txreslower,
+            txresupper,
+            rxreslower,
+            rxresupper,
+        )
+    )
 
     # Antenna geometry
     # Shield - metallic enclosure
@@ -119,19 +140,31 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     b2 = gprMax.Box(
         p1=(x + 0.020, y + casethickness, z + skidthickness),
-        p2=(x + 0.100, y + casesize[1] - casethickness, z + skidthickness + casethickness),
+        p2=(
+            x + 0.100,
+            y + casesize[1] - casethickness,
+            z + skidthickness + casethickness,
+        ),
         material_id="free_space",
     )
     b3 = gprMax.Box(
         p1=(x + 0.100, y + casethickness, z + skidthickness),
-        p2=(x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casethickness),
+        p2=(
+            x + casesize[0] - casethickness,
+            y + casesize[1] - casethickness,
+            z + skidthickness + casethickness,
+        ),
         material_id="free_space",
     )
 
     # Absorber material
     b4 = gprMax.Box(
         p1=(x + 0.020, y + casethickness, z + skidthickness),
-        p2=(x + 0.100, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.100,
+            y + casesize[1] - casethickness,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         material_id="absorber",
     )
     b5 = gprMax.Box(
@@ -148,7 +181,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     # Shield - cylindrical sections
     c1 = gprMax.Cylinder(
         p1=(x + 0.055, y + casesize[1] - 0.008, z + skidthickness),
-        p2=(x + 0.055, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.055,
+            y + casesize[1] - 0.008,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         r=0.008,
         material_id="pec",
     )
@@ -160,7 +197,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     c3 = gprMax.Cylinder(
         p1=(x + 0.147, y + casesize[1] - 0.008, z + skidthickness),
-        p2=(x + 0.147, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.147,
+            y + casesize[1] - 0.008,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         r=0.008,
         material_id="pec",
     )
@@ -172,7 +213,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     c5 = gprMax.Cylinder(
         p1=(x + 0.055, y + casesize[1] - 0.008, z + skidthickness),
-        p2=(x + 0.055, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.055,
+            y + casesize[1] - 0.008,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         r=0.007,
         material_id="free_space",
     )
@@ -184,7 +229,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     c7 = gprMax.Cylinder(
         p1=(x + 0.147, y + casesize[1] - 0.008, z + skidthickness),
-        p2=(x + 0.147, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.147,
+            y + casesize[1] - 0.008,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         r=0.007,
         material_id="free_space",
     )
@@ -196,7 +245,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     b6 = gprMax.Box(
         p1=(x + 0.054, y + casesize[1] - 0.016, z + skidthickness),
-        p2=(x + 0.056, y + casesize[1] - 0.014, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.056,
+            y + casesize[1] - 0.014,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         material_id="free_space",
     )
     b7 = gprMax.Box(
@@ -206,7 +259,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     b8 = gprMax.Box(
         p1=(x + 0.146, y + casesize[1] - 0.016, z + skidthickness),
-        p2=(x + 0.148, y + casesize[1] - 0.014, z + skidthickness + casesize[2] - casethickness),
+        p2=(
+            x + 0.148,
+            y + casesize[1] - 0.014,
+            z + skidthickness + casesize[2] - casethickness,
+        ),
         material_id="free_space",
     )
     b9 = gprMax.Box(
@@ -219,18 +276,30 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     # PCB
     b10 = gprMax.Box(
         p1=(x + 0.020, y + 0.018, z + skidthickness),
-        p2=(x + casesize[0] - casethickness, y + casesize[1] - 0.018, z + skidthickness + pcbthickness),
+        p2=(
+            x + casesize[0] - casethickness,
+            y + casesize[1] - 0.018,
+            z + skidthickness + pcbthickness,
+        ),
         material_id="pcb",
     )
 
     # Shield - Tx & Rx cavities
     b11 = gprMax.Box(
         p1=(x + 0.032, y + 0.022, z + skidthickness),
-        p2=(x + 0.032 + cavitysize[0], y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2]),
+        p2=(
+            x + 0.032 + cavitysize[0],
+            y + 0.022 + cavitysize[1],
+            z + skidthickness + cavitysize[2],
+        ),
         material_id="pec",
     )
     b12 = gprMax.Box(
-        p1=(x + 0.032 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness),
+        p1=(
+            x + 0.032 + cavitythickness,
+            y + 0.022 + cavitythickness,
+            z + skidthickness,
+        ),
         p2=(
             x + 0.032 + cavitysize[0] - cavitythickness,
             y + 0.022 + cavitysize[1] - cavitythickness,
@@ -240,11 +309,19 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     b13 = gprMax.Box(
         p1=(x + 0.108, y + 0.022, z + skidthickness),
-        p2=(x + 0.108 + cavitysize[0], y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2]),
+        p2=(
+            x + 0.108 + cavitysize[0],
+            y + 0.022 + cavitysize[1],
+            z + skidthickness + cavitysize[2],
+        ),
         material_id="pec",
     )
     b14 = gprMax.Box(
-        p1=(x + 0.108 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness),
+        p1=(
+            x + 0.108 + cavitythickness,
+            y + 0.022 + cavitythickness,
+            z + skidthickness,
+        ),
         p2=(
             x + 0.108 + cavitysize[0] - cavitythickness,
             y + 0.022 + cavitysize[1] - cavitythickness,
@@ -264,14 +341,22 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         material_id="pec",
     )
     b16 = gprMax.Box(
-        p1=(x + 0.032 + cavitysize[0], y + 0.022, z + skidthickness + cavitysize[2] - casethickness),
+        p1=(
+            x + 0.032 + cavitysize[0],
+            y + 0.022,
+            z + skidthickness + cavitysize[2] - casethickness,
+        ),
         p2=(x + 0.108, y + 0.022 + 0.006, z + skidthickness + cavitysize[2]),
         material_id="pec",
     )
 
     # PCB - replace bits chopped by TX & Rx cavities
     b17 = gprMax.Box(
-        p1=(x + 0.032 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness),
+        p1=(
+            x + 0.032 + cavitythickness,
+            y + 0.022 + cavitythickness,
+            z + skidthickness,
+        ),
         p2=(
             x + 0.032 + cavitysize[0] - cavitythickness,
             y + 0.022 + cavitysize[1] - cavitythickness,
@@ -280,7 +365,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         material_id="pcb",
     )
     b18 = gprMax.Box(
-        p1=(x + 0.108 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness),
+        p1=(
+            x + 0.108 + cavitythickness,
+            y + 0.022 + cavitythickness,
+            z + skidthickness,
+        ),
         p2=(
             x + 0.108 + cavitysize[0] - cavitythickness,
             y + 0.022 + cavitysize[1] - cavitythickness,
@@ -300,7 +389,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
             thickness=0,
             material_id="pec",
         )
-        e1 = gprMax.Edge(p1=(tx[0], tx[1] - 0.001, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
+        e1 = gprMax.Edge(
+            p1=(tx[0], tx[1] - 0.001, tx[2]),
+            p2=(tx[0], tx[1], tx[2]),
+            material_id="pec",
+        )
         t2 = gprMax.Triangle(
             p1=(tx[0], tx[1] + 0.002, tx[2]),
             p2=(tx[0] - 0.026, tx[1] + bowtieheight + 0.002, tx[2]),
@@ -308,7 +401,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
             thickness=0,
             material_id="pec",
         )
-        e2 = gprMax.Edge(p1=(tx[0], tx[1] + 0.001, tx[2]), p2=(tx[0], tx[1] + 0.002, tx[2]), material_id="pec")
+        e2 = gprMax.Edge(
+            p1=(tx[0], tx[1] + 0.001, tx[2]),
+            p2=(tx[0], tx[1] + 0.002, tx[2]),
+            material_id="pec",
+        )
         scene_objects.extend((t1, t2, e1, e2))
     elif resolution == 0.002:
         t1 = gprMax.Triangle(
@@ -336,7 +433,11 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
             thickness=0,
             material_id="pec",
         )
-        e3 = gprMax.Edge(p1=(tx[0] + 0.076, tx[1] - 0.001, tx[2]), p2=(tx[0] + 0.076, tx[1], tx[2]), material_id="pec")
+        e3 = gprMax.Edge(
+            p1=(tx[0] + 0.076, tx[1] - 0.001, tx[2]),
+            p2=(tx[0] + 0.076, tx[1], tx[2]),
+            material_id="pec",
+        )
         t4 = gprMax.Triangle(
             p1=(tx[0] + 0.076, tx[1] + 0.002, tx[2]),
             p2=(tx[0] + 0.076 - 0.026, tx[1] + bowtieheight + 0.002, tx[2]),
@@ -345,7 +446,9 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
             material_id="pec",
         )
         e4 = gprMax.Edge(
-            p1=(tx[0] + 0.076, tx[1] + 0.001, tx[2]), p2=(tx[0] + 0.076, tx[1] + 0.002, tx[2]), material_id="pec"
+            p1=(tx[0] + 0.076, tx[1] + 0.001, tx[2]),
+            p2=(tx[0] + 0.076, tx[1] + 0.002, tx[2]),
+            material_id="pec",
         )
         scene_objects.extend((t3, e3, t4, e4))
     elif resolution == 0.002:
@@ -631,31 +734,46 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
 
     # Skid
     b19 = gprMax.Box(
-        p1=(x, y, z), p2=(x + casesize[0], y + casesize[1], z + polypropylenethickness), material_id="polypropylene"
+        p1=(x, y, z),
+        p2=(x + casesize[0], y + casesize[1], z + polypropylenethickness),
+        material_id="polypropylene",
     )
     b20 = gprMax.Box(
         p1=(x, y, z + polypropylenethickness),
-        p2=(x + casesize[0], y + casesize[1], z + polypropylenethickness + hdpethickness),
+        p2=(
+            x + casesize[0],
+            y + casesize[1],
+            z + polypropylenethickness + hdpethickness,
+        ),
         material_id="hdpe",
     )
     scene_objects.extend((b19, b20))
 
     # Excitation
-    w2 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
+    w2 = gprMax.Waveform(
+        wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian"
+    )
     scene_objects.append(w2)
     vs1 = gprMax.VoltageSource(
-        polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_gaussian"
+        polarisation="y",
+        p1=(tx[0], tx[1], tx[2]),
+        resistance=sourceresistance,
+        waveform_id="my_gaussian",
     )
     scene_objects.append(vs1)
 
     # Output point - receiver bowtie
-    r1 = gprMax.Rx(p1=(tx[0] + 0.076, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
+    r1 = gprMax.Rx(p1=(tx[0] + 0.076, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
     scene_objects.append(r1)
 
     # Geometry views
     gv1 = gprMax.GeometryView(
         p1=(x - dx, y - dy, z - dz),
-        p2=(x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz),
+        p2=(
+            x + casesize[0] + dx,
+            y + casesize[1] + dy,
+            z + skidthickness + casesize[2] + dz,
+        ),
         dl=(dx, dy, dz),
         filename="antenna_like_MALA_1200",
         output_type="n",

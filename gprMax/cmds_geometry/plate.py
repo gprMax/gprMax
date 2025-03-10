@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -55,7 +55,7 @@ class Plate(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -114,7 +114,9 @@ class Plate(UserObjectGeometry):
 
             for j in range(ys, yf):
                 for k in range(zs, zf):
-                    build_face_yz(xs, j, k, numIDy, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_yz(
+                        xs, j, k, numIDy, numIDz, grid.rigidE, grid.rigidH, grid.ID
+                    )
 
         # xz-plane plate
         elif ys == yf:
@@ -129,7 +131,9 @@ class Plate(UserObjectGeometry):
 
             for i in range(xs, xf):
                 for k in range(zs, zf):
-                    build_face_xz(i, ys, k, numIDx, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_xz(
+                        i, ys, k, numIDx, numIDz, grid.rigidE, grid.rigidH, grid.ID
+                    )
 
         # xy-plane plate
         elif zs == zf:
@@ -144,10 +148,12 @@ class Plate(UserObjectGeometry):
 
             for i in range(xs, xf):
                 for j in range(ys, yf):
-                    build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_xy(
+                        i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID
+                    )
 
         logger.info(
             f"{self.grid_name(grid)}Plate from {p3[0]:g}m, {p3[1]:g}m, "
-            + f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
-            + f"material(s) {', '.join(materialsrequested)} created."
+            f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
+            f"material(s) {', '.join(materialsrequested)} created."
         )

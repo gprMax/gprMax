@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -43,29 +43,10 @@ class Source:
         self.start = None
         self.stop = None
         self.waveformID = None
-
-    def calculate_waveform_values(self, G):
-        """Calculates all waveform values for source for duration of simulation.
-
-        Args:
-            G: FDTDGrid class describing a grid in a model.
-        """
         # Waveform values for sources that need to be calculated on whole timesteps
-        self.waveformvalues_wholedt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
-
+        self.waveformvalues_wholedt = None
         # Waveform values for sources that need to be calculated on half timesteps
-        self.waveformvalues_halfdt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
-
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-
-        for iteration in range(G.iterations):
-            time = G.dt * iteration
-            if time >= self.start and time <= self.stop:
-                # Set the time of the waveform evaluation to account for any
-                # delay in the start
-                time -= self.start
-                self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
-                self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+        self.waveformvalues_halfdt = None
 
 
 class VoltageSource(Source):
@@ -78,6 +59,47 @@ class VoltageSource(Source):
     def __init__(self):
         super().__init__()
         self.resistance = None
+
+    def calculate_waveform_values(self, G):
+        """Calculates all waveform values for source for duration of simulation.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        # Check if a source matches existing source in terms of waveform and
+        # does not have a customised start/stop time. If so, use its
+        # pre-calculated waveform values, otherwise calculate them.
+        src_match = False
+
+        if self.start == 0 and self.stop == G.timewindow:
+            for src in G.voltagesources:
+                if src.waveformID == self.waveformID:
+                    src_match = True
+                    self.waveformvalues_halfdt = src.waveformvalues_halfdt
+                    self.waveformvalues_wholedt = src.waveformvalues_wholedt
+
+        if not src_match:
+            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.waveformvalues_wholedt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
+
+            for iteration in range(G.iterations):
+                time = G.dt * iteration
+                if time >= self.start and time <= self.stop:
+                    # Set the time of the waveform evaluation to account for any
+                    # delay in the start
+                    time -= self.start
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
+                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
+                        time, G.dt
+                    )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
@@ -149,7 +171,9 @@ class VoltageSource(Source):
         newmaterial.ID = f"{material.ID}+{self.ID}"
         newmaterial.numID = len(G.materials)
         newmaterial.averagable = False
-        newmaterial.type += ",\nvoltage-source" if newmaterial.type else "voltage-source"
+        newmaterial.type += (
+            ",\nvoltage-source" if newmaterial.type else "voltage-source"
+        )
 
         # Add conductivity of voltage source to underlying conductivity
         if self.polarisation == "x":
@@ -169,6 +193,40 @@ class HertzianDipole(Source):
     def __init__(self):
         super().__init__()
         self.dl = None
+
+    def calculate_waveform_values(self, G):
+        """Calculates all waveform values for source for duration of simulation.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        # Check if a source matches existing source in terms of waveform and
+        # does not have a customised start/stop time. If so, use its
+        # pre-calculated waveform values, otherwise calculate them.
+        src_match = False
+
+        if self.start == 0 and self.stop == G.timewindow:
+            for src in G.hertziandipoles:
+                if src.waveformID == self.waveformID:
+                    src_match = True
+                    self.waveformvalues_halfdt = src.waveformvalues_halfdt
+
+        if not src_match:
+            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
+
+            for iteration in range(G.iterations):
+                time = G.dt * iteration
+                if time >= self.start and time <= self.stop:
+                    # Set the time of the waveform evaluation to account for any
+                    # delay in the start
+                    time -= self.start
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
@@ -215,6 +273,40 @@ class HertzianDipole(Source):
 
 class MagneticDipole(Source):
     """A magnetic dipole is an additive source (magnetic current density)."""
+
+    def calculate_waveform_values(self, G):
+        """Calculates all waveform values for source for duration of simulation.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        # Check if a source matches existing source in terms of waveform and
+        # does not have a customised start/stop time. If so, use its
+        # pre-calculated waveform values, otherwise calculate them.
+        src_match = False
+
+        if self.start == 0 and self.stop == G.timewindow:
+            for src in G.magneticdipoles:
+                if src.waveformID == self.waveformID:
+                    src_match = True
+                    self.waveformvalues_wholedt = src.waveformvalues_wholedt
+
+        if not src_match:
+            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            self.waveformvalues_wholedt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
+
+            for iteration in range(G.iterations):
+                time = G.dt * iteration
+                if time >= self.start and time <= self.stop:
+                    # Set the time of the waveform evaluation to account for any
+                    # delay in the start
+                    time -= self.start
+                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
+                        time, G.dt
+                    )
 
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
@@ -275,8 +367,12 @@ def htod_src_arrays(sources, G, queue=None):
     """
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
-    srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
-    srcwaves = np.zeros((len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+    srcinfo2 = np.zeros(
+        (len(sources)), dtype=config.sim_config.dtypes["float_or_double"]
+    )
+    srcwaves = np.zeros(
+        (len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+    )
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord
@@ -353,12 +449,65 @@ class TransmissionLine(Source):
         # Cell position of where line connects to antenna/main grid
         self.antpos = 10
 
-        self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Iinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Itotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.voltage = np.zeros(
+            self.nl, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.current = np.zeros(
+            self.nl, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Vinc = np.zeros(
+            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Iinc = np.zeros(
+            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Vtotal = np.zeros(
+            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Itotal = np.zeros(
+            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+
+    def calculate_waveform_values(self, G):
+        """Calculates all waveform values for source for duration of simulation.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        # Check if a source matches existing source in terms of waveform and
+        # does not have a customised start/stop time. If so, use its
+        # pre-calculated waveform values, otherwise calculate them.
+        src_match = False
+
+        if self.start == 0 and self.stop == G.timewindow:
+            for src in G.transmissionlines:
+                if src.waveformID == self.waveformID:
+                    src_match = True
+                    self.waveformvalues_wholedt = src.waveformvalues_wholedt
+                    self.waveformvalues_halfdt = src.waveformvalues_halfdt
+
+        if not src_match:
+            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            self.waveformvalues_wholedt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            )
+
+            for iteration in range(G.iterations):
+                time = G.dt * iteration
+                if time >= self.start and time <= self.stop:
+                    # Set the time of the waveform evaluation to account for any
+                    # delay in the start
+                    time -= self.start
+                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
+                        time, G.dt
+                    )
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length
@@ -401,11 +550,15 @@ class TransmissionLine(Source):
 
         # Update all the voltage values along the line
         self.voltage[1 : self.nl] -= (
-            self.resistance * (config.c * G.dt / self.dl) * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
+            self.resistance
+            * (config.c * G.dt / self.dl)
+            * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
         )
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[iteration]
+        self.voltage[self.srcpos] += (
+            config.c * G.dt / self.dl
+        ) * self.waveformvalues_halfdt[iteration]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -427,7 +580,9 @@ class TransmissionLine(Source):
 
         # Update the current one cell before the position of the one-way injector excitation
         self.current[self.srcpos - 1] += (
-            (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[iteration]
+            (1 / self.resistance)
+            * (config.c * G.dt / self.dl)
+            * self.waveformvalues_wholedt[iteration]
         )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):

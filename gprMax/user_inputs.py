@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -70,9 +70,9 @@ class UserInput:
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
-                s = f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} " + "is not within the model domain"
+                s = f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} is not within the model domain"
             else:
-                s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not " + "within the model domain"
+                s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
             logger.exception(s)
             raise
 
@@ -108,7 +108,9 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            logger.warning(f"'{cmd_str}' sources and receivers should not " + "normally be positioned within the PML.")
+            logger.warning(
+                f"'{cmd_str}' sources and receivers should not normally be positioned within the PML."
+            )
 
         return p
 
@@ -117,7 +119,9 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name="upper")
 
         if np.greater(p1, p2).any():
-            logger.exception(f"'{cmd_str}' the lower coordinates should be less " + "than the upper coordinates.")
+            logger.exception(
+                f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."
+            )
             raise ValueError
 
         return p1, p2
@@ -152,7 +156,9 @@ class SubgridUserInput(MainGridUserInput):
         super().__init__(grid)
 
         # Defines the region exposed to the user
-        self.inner_bound = np.array([grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z])
+        self.inner_bound = np.array(
+            [grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z]
+        )
 
         self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz], self.inner_bound)
 
@@ -185,8 +191,13 @@ class SubgridUserInput(MainGridUserInput):
 
         # Provide user within a warning if they have placed objects within
         # the OS non-working region.
-        if np.less(p_t, self.inner_bound).any() or np.greater(p_t, self.outer_bound).any():
-            logger.warning(f"'{cmd_str}' this object traverses the Outer " + "Surface. This is an advanced feature.")
+        if (
+            np.less(p_t, self.inner_bound).any()
+            or np.greater(p_t, self.outer_bound).any()
+        ):
+            logger.warning(
+                f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature."
+            )
         return p_t
 
     def discretise_static_point(self, p):

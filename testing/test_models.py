@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -40,13 +40,11 @@ if sys.platform == "linux":
         python -m testing.test_models
 """
 
-# Specify directoty with set of models to test
+# Specify directory with set of models to test
 modelset = "models_basic"
 # modelset += 'models_advanced'
-# modelset += 'models_pmls'
 
 basepath = Path(__file__).parents[0] / modelset
-
 
 # List of available basic test models
 testmodels = [
@@ -58,14 +56,12 @@ testmodels = [
     "hertzian_dipole_fs",
     "hertzian_dipole_hs",
     "hertzian_dipole_dispersive",
+    "antenna_wire_dipole_fs",
     "magnetic_dipole_fs",
 ]
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
-
-# List of available PML models
-# testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
 
 # Select a specific model if desired
 # testmodels = [testmodels[0]]
@@ -80,7 +76,7 @@ for i, model in enumerate(testmodels):
 
     # Run model
     file = basepath / model / model
-    gprMax.run(inputfile=file.with_suffix(".in"), gpu=None)
+    gprMax.run(inputfile=file.with_suffix(".in"), gpu=None, opencl=None)
 
     # Special case for analytical comparison
     if model == "hertzian_dipole_fs_analytical":
@@ -94,13 +90,19 @@ for i, model in enumerate(testmodels):
         # Arrays for storing time
         float_or_double = filetest[path + outputstest[0]].dtype
         timetest = (
-            np.linspace(0, (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"], num=filetest.attrs["Iterations"])
+            np.linspace(
+                0,
+                (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"],
+                num=filetest.attrs["Iterations"],
+            )
             / 1e-9
         )
         timeref = timetest
 
         # Arrays for storing field data
-        datatest = np.zeros((filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_double)
+        datatest = np.zeros(
+            (filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_double
+        )
         for ID, name in enumerate(outputstest):
             datatest[:, ID] = filetest[path + str(name)][:]
             if np.any(np.isnan(datatest[:, ID])):
@@ -110,12 +112,20 @@ for i, model in enumerate(testmodels):
         # Tx/Rx position to feed to analytical solution
         rxpos = filetest[path].attrs["Position"]
         txpos = filetest["/srcs/src1/"].attrs["Position"]
-        rxposrelative = ((rxpos[0] - txpos[0]), (rxpos[1] - txpos[1]), (rxpos[2] - txpos[2]))
+        rxposrelative = (
+            (rxpos[0] - txpos[0]),
+            (rxpos[1] - txpos[1]),
+            (rxpos[2] - txpos[2]),
+        )
 
         # Analytical solution of a dipole in free space
         dataref = hertzian_dipole_fs(
-            filetest.attrs["Iterations"], filetest.attrs["dt"], filetest.attrs["dx_dy_dz"], rxposrelative
+            filetest.attrs["Iterations"],
+            filetest.attrs["dt"],
+            filetest.attrs["dx_dy_dz"],
+            rxposrelative,
         )
+        filetest.close()
 
     else:
         # Get output for model and reference files
@@ -134,30 +144,42 @@ for i, model in enumerate(testmodels):
             raise ValueError
 
         # Check that type of float used to store fields matches
-        if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
-            logger.warning(
-                f"Type of floating point number in test model "
-                + f"({filetest[path + outputstest[0]].dtype}) does not "
-                + f"match type in reference solution ({fileref[path + outputsref[0]].dtype})\n"
-            )
         float_or_doubleref = fileref[path + outputsref[0]].dtype
         float_or_doubletest = filetest[path + outputstest[0]].dtype
+        if float_or_doubleref != float_or_doubletest:
+            logger.warning(
+                f"Type of floating point number in test model "
+                f"({float_or_doubletest}) does not "
+                f"match type in reference solution ({float_or_doubleref})\n"
+            )
 
         # Arrays for storing time
         timeref = np.zeros((fileref.attrs["Iterations"]), dtype=float_or_doubleref)
         timeref = (
-            np.linspace(0, (fileref.attrs["Iterations"] - 1) * fileref.attrs["dt"], num=fileref.attrs["Iterations"])
+            np.linspace(
+                0,
+                (fileref.attrs["Iterations"] - 1) * fileref.attrs["dt"],
+                num=fileref.attrs["Iterations"],
+            )
             / 1e-9
         )
         timetest = np.zeros((filetest.attrs["Iterations"]), dtype=float_or_doubletest)
         timetest = (
-            np.linspace(0, (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"], num=filetest.attrs["Iterations"])
+            np.linspace(
+                0,
+                (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"],
+                num=filetest.attrs["Iterations"],
+            )
             / 1e-9
         )
 
         # Arrays for storing field data
-        dataref = np.zeros((fileref.attrs["Iterations"], len(outputsref)), dtype=float_or_doubleref)
-        datatest = np.zeros((filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_doubletest)
+        dataref = np.zeros(
+            (fileref.attrs["Iterations"], len(outputsref)), dtype=float_or_doubleref
+        )
+        datatest = np.zeros(
+            (filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_doubletest
+        )
         for ID, name in enumerate(outputsref):
             dataref[:, ID] = fileref[path + str(name)][:]
             datatest[:, ID] = filetest[path + str(name)][:]
@@ -166,14 +188,17 @@ for i, model in enumerate(testmodels):
                 raise ValueError
 
         fileref.close()
-    filetest.close()
+        filetest.close()
 
     # Diffs
     datadiffs = np.zeros(datatest.shape, dtype=np.float64)
     for i in range(len(outputstest)):
         maxi = np.amax(np.abs(dataref[:, i]))
         datadiffs[:, i] = np.divide(
-            np.abs(dataref[:, i] - datatest[:, i]), maxi, out=np.zeros_like(dataref[:, i]), where=maxi != 0
+            np.abs(dataref[:, i] - datatest[:, i]),
+            maxi,
+            out=np.zeros_like(dataref[:, i]),
+            where=maxi != 0,
         )  # Replace any division by zero with zero
 
         # Calculate power (ignore warning from taking a log of any zero values)
@@ -263,19 +288,31 @@ for i, model in enumerate(testmodels):
     #              bbox_inches='tight', pad_inches=0.1)
     # fig2.savefig(savediffs.with_suffix('.pdf'), dpi=None, format='pdf',
     #              bbox_inches='tight', pad_inches=0.1)
-    fig1.savefig(file.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
-    fig2.savefig(filediffs.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
+    fig1.savefig(
+        file.with_suffix(".png"),
+        dpi=150,
+        format="png",
+        bbox_inches="tight",
+        pad_inches=0.1,
+    )
+    fig2.savefig(
+        filediffs.with_suffix(".png"),
+        dpi=150,
+        format="png",
+        bbox_inches="tight",
+        pad_inches=0.1,
+    )
 
 # Summary of results
 for name, data in sorted(testresults.items()):
     if "analytical" in name:
         logger.info(
             f"Test '{name}.in' using v.{data['Test version']} compared "
-            + f"to analytical solution. Max difference {data['Max diff']:.2f}dB."
+            f"to analytical solution. Max difference {data['Max diff']:.2f}dB."
         )
     else:
         logger.info(
             f"Test '{name}.in' using v.{data['Test version']} compared to "
-            + f"reference solution using v.{data['Ref version']}. Max difference "
-            + f"{data['Max diff']:.2f}dB."
+            f"reference solution using v.{data['Ref version']}. Max difference "
+            f"{data['Max diff']:.2f}dB."
         )

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -45,7 +45,7 @@ class UserObjectGeometry:
 
         return f"{self.hash}: {s[:-1]}"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Creates object and adds it to the grid."""
         pass
 
@@ -62,6 +62,27 @@ class UserObjectGeometry:
             return f"[{grid.name}] "
         else:
             return ""
+
+
+def check_averaging(averaging):
+    """Check and set material averaging value.
+
+    Args:
+        averaging: string for input value from hash command - should be 'y'
+                    or 'n'.
+
+    Returns:
+        averaging: boolean for geometry object material averaging.
+    """
+
+    if averaging == "y":
+        averaging = True
+    elif averaging == "n":
+        averaging = False
+    else:
+        logger.exception("Averaging should be either y or n")
+
+    return averaging
 
 
 def rotate_point(p, axis, angle, origin=(0, 0, 0)):

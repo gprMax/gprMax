@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -17,10 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import gc
 import logging
 import sys
 
 import humanize
+from colorama import Fore, Style, init
+
+init()
 
 import gprMax.config as config
 
@@ -40,7 +44,9 @@ class Context:
     """
 
     def __init__(self):
-        self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
+        self.model_range = range(
+            config.sim_config.model_start, config.sim_config.model_end
+        )
         self.tsimend = None
         self.tsimstart = None
 
@@ -59,7 +65,7 @@ class Context:
         elif config.sim_config.general["solver"] == "opencl":
             print_opencl_info(config.sim_config.devices["devs"])
 
-        # Clear list of model configs. It can be retained when gprMax is
+        # Clear list of model configs, which can be retained when gprMax is
         # called in a loop, and want to avoid this.
         config.model_configs = []
 
@@ -81,6 +87,14 @@ class Context:
             if not config.sim_config.args.geometry_only:
                 solver = create_solver(G)
                 model.solve(solver)
+                del solver, model
+
+            if not config.sim_config.args.geometry_fixed:
+                # Manual garbage collection required to stop memory leak on GPUs
+                # when using pycuda
+                del G
+
+            gc.collect()
 
         self.tsimend = timer()
         self.print_sim_time_taken()
@@ -96,7 +110,7 @@ class Context:
         """Prints the total simulation time based on context."""
         s = (
             f"\n=== Simulation completed in "
-            + f"{humanize.precisedelta(datetime.timedelta(seconds=self.tsimend - self.tsimstart), format='%0.4f')}"
+            f"{humanize.precisedelta(datetime.timedelta(seconds=self.tsimend - self.tsimstart), format='%0.4f')}"
         )
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
@@ -130,7 +144,11 @@ class MPIContext(Context):
         model_config = config.ModelConfig()
         # Set GPU deviceID according to worker rank
         if config.sim_config.general["solver"] == "cuda":
-            model_config.device = {"dev": config.sim_config.devices["devs"][self.rank - 1], "snapsgpu2cpu": False}
+            model_config.device = {
+                "dev": config.sim_config.devices["devs"][self.rank - 1],
+                "deviceID": self.rank - 1,
+                "snapsgpu2cpu": False,
+            }
         config.model_configs = model_config
 
         G = create_G()
@@ -140,6 +158,12 @@ class MPIContext(Context):
         if not config.sim_config.args.geometry_only:
             solver = create_solver(G)
             model.solve(solver)
+            del solver, model
+
+        # Manual garbage collection required to stop memory leak on GPUs when
+        # using pycuda
+        del G
+        gc.collect()
 
     def run(self):
         """Specialise how the models are run.
@@ -156,6 +180,14 @@ class MPIContext(Context):
                 print_cuda_info(config.sim_config.devices["devs"])
             elif config.sim_config.general["solver"] == "opencl":
                 print_opencl_info(config.sim_config.devices["devs"])
+
+            s = f"\n--- Input file: {config.sim_config.input_file_path}"
+            logger.basic(
+                Fore.GREEN
+                + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n"
+                + Style.RESET_ALL
+            )
+
             sys.stdout.flush()
 
         # Contruct MPIExecutor

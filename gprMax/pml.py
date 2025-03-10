@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from importlib import import_module
 
 import numpy as np
@@ -23,6 +24,8 @@ import numpy as np
 import gprMax.config as config
 
 from .cython.pml_build import pml_average_er_mr
+
+logger = logging.getLogger(__name__)
 
 
 class CFSParameter:
@@ -42,7 +45,15 @@ class CFSParameter:
     }
     scalingdirections = ["forward", "reverse"]
 
-    def __init__(self, ID=None, scaling="polynomial", scalingprofile=None, scalingdirection="forward", min=0, max=0):
+    def __init__(
+        self,
+        ID=None,
+        scaling="polynomial",
+        scalingprofile=None,
+        scalingdirection="forward",
+        min=0,
+        max=0,
+    ):
         """
         Args:
             ID: string identifier for CFS parameter, can be: 'alpha', 'kappa' or
@@ -92,7 +103,9 @@ class CFS:
 
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
         m = CFSParameter.scalingprofiles[self.sigma.scalingprofile]
-        self.sigma.max = (0.8 * (m + 1)) / (config.sim_config.em_consts["z0"] * d * np.sqrt(er * mr))
+        self.sigma.max = (0.8 * (m + 1)) / (
+            config.sim_config.em_consts["z0"] * d * np.sqrt(er * mr)
+        )
 
     def scaling_polynomial(self, order, Evalues, Hvalues):
         """Applies the polynomial to be used for the scaling profile for
@@ -112,7 +125,10 @@ class CFS:
                         magnetic PML update.
         """
 
-        tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues)) / (len(Evalues) - 1)) ** order
+        tmp = (
+            np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues))
+            / (len(Evalues) - 1)
+        ) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
 
@@ -135,8 +151,12 @@ class CFS:
 
         # Extra cell of thickness added to allow correct scaling of electric and
         # magnetic values
-        Evalues = np.zeros(thickness + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        Hvalues = np.zeros(thickness + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        Evalues = np.zeros(
+            thickness + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        Hvalues = np.zeros(
+            thickness + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         if parameter.scalingprofile == "constant":
             Evalues += parameter.max
@@ -223,50 +243,76 @@ class PML:
             self.thickness = self.nz
 
         self.CFS = self.G.pmls["cfs"]
+        self.check_kappamin()
 
         self.initialise_field_arrays()
+
+    def check_kappamin(self):
+        """Checks that the sum of all kappamin values, i.e. when a multi-pole
+        PML is used, is not less than one.
+        """
+
+        kappamin = sum(cfs.kappa.min for cfs in self.CFS)
+        if kappamin < 1:
+            logger.exception(
+                f"Sum of kappamin value(s) for PML is {kappamin} "
+                "and must be greater than one."
+            )
+            raise ValueError
 
     def initialise_field_arrays(self):
         """Initialise arrays to store fields in PML."""
 
         if self.direction[0] == "x":
             self.EPhi1 = np.zeros(
-                (len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx + 1, self.ny, self.nz + 1),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.EPhi2 = np.zeros(
-                (len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx + 1, self.ny + 1, self.nz),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.HPhi1 = np.zeros(
-                (len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx, self.ny + 1, self.nz),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.HPhi2 = np.zeros(
-                (len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx, self.ny, self.nz + 1),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
         elif self.direction[0] == "y":
             self.EPhi1 = np.zeros(
-                (len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx, self.ny + 1, self.nz + 1),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.EPhi2 = np.zeros(
-                (len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx + 1, self.ny + 1, self.nz),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.HPhi1 = np.zeros(
-                (len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx + 1, self.ny, self.nz),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.HPhi2 = np.zeros(
-                (len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx, self.ny, self.nz + 1),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
         elif self.direction[0] == "z":
             self.EPhi1 = np.zeros(
-                (len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx, self.ny + 1, self.nz + 1),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.EPhi2 = np.zeros(
-                (len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx + 1, self.ny, self.nz + 1),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.HPhi1 = np.zeros(
-                (len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx + 1, self.ny, self.nz),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.HPhi2 = np.zeros(
-                (len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                (len(self.CFS), self.nx, self.ny + 1, self.nz),
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
     def calculate_update_coeffs(self, er, mr):
@@ -277,14 +323,38 @@ class PML:
             mr: float of average permeability of underlying material
         """
 
-        self.ERA = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.ERB = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.ERE = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.ERF = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.HRA = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.HRB = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.HRE = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
-        self.HRF = np.zeros((len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"])
+        self.ERA = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.ERB = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.ERE = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.ERF = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.HRA = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.HRB = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.HRE = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.HRF = np.zeros(
+            (len(self.CFS), self.thickness),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
 
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
@@ -296,20 +366,30 @@ class PML:
             # Define different parameters depending on PML formulation
             if self.G.pmls["formulation"] == "HORIPML":
                 # HORIPML electric update coefficients
-                tmp = (2 * config.sim_config.em_consts["e0"] * Ekappa) + self.G.dt * (Ealpha * Ekappa + Esigma)
-                self.ERA[x, :] = (2 * config.sim_config.em_consts["e0"] + self.G.dt * Ealpha) / tmp
+                tmp = (2 * config.sim_config.em_consts["e0"] * Ekappa) + self.G.dt * (
+                    Ealpha * Ekappa + Esigma
+                )
+                self.ERA[x, :] = (
+                    2 * config.sim_config.em_consts["e0"] + self.G.dt * Ealpha
+                ) / tmp
                 self.ERB[x, :] = (2 * config.sim_config.em_consts["e0"] * Ekappa) / tmp
                 self.ERE[x, :] = (
-                    (2 * config.sim_config.em_consts["e0"] * Ekappa) - self.G.dt * (Ealpha * Ekappa + Esigma)
+                    (2 * config.sim_config.em_consts["e0"] * Ekappa)
+                    - self.G.dt * (Ealpha * Ekappa + Esigma)
                 ) / tmp
                 self.ERF[x, :] = (2 * Esigma * self.G.dt) / (Ekappa * tmp)
 
                 # HORIPML magnetic update coefficients
-                tmp = (2 * config.sim_config.em_consts["e0"] * Hkappa) + self.G.dt * (Halpha * Hkappa + Hsigma)
-                self.HRA[x, :] = (2 * config.sim_config.em_consts["e0"] + self.G.dt * Halpha) / tmp
+                tmp = (2 * config.sim_config.em_consts["e0"] * Hkappa) + self.G.dt * (
+                    Halpha * Hkappa + Hsigma
+                )
+                self.HRA[x, :] = (
+                    2 * config.sim_config.em_consts["e0"] + self.G.dt * Halpha
+                ) / tmp
                 self.HRB[x, :] = (2 * config.sim_config.em_consts["e0"] * Hkappa) / tmp
                 self.HRE[x, :] = (
-                    (2 * config.sim_config.em_consts["e0"] * Hkappa) - self.G.dt * (Halpha * Hkappa + Hsigma)
+                    (2 * config.sim_config.em_consts["e0"] * Hkappa)
+                    - self.G.dt * (Halpha * Hkappa + Hsigma)
                 ) / tmp
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / (Hkappa * tmp)
 
@@ -318,14 +398,18 @@ class PML:
                 tmp = 2 * config.sim_config.em_consts["e0"] + self.G.dt * Ealpha
                 self.ERA[x, :] = Ekappa + (self.G.dt * Esigma) / tmp
                 self.ERB[x, :] = (2 * config.sim_config.em_consts["e0"]) / tmp
-                self.ERE[x, :] = ((2 * config.sim_config.em_consts["e0"]) - self.G.dt * Ealpha) / tmp
+                self.ERE[x, :] = (
+                    (2 * config.sim_config.em_consts["e0"]) - self.G.dt * Ealpha
+                ) / tmp
                 self.ERF[x, :] = (2 * Esigma * self.G.dt) / tmp
 
                 # MRIPML magnetic update coefficients
                 tmp = 2 * config.sim_config.em_consts["e0"] + self.G.dt * Halpha
                 self.HRA[x, :] = Hkappa + (self.G.dt * Hsigma) / tmp
                 self.HRB[x, :] = (2 * config.sim_config.em_consts["e0"]) / tmp
-                self.HRE[x, :] = ((2 * config.sim_config.em_consts["e0"]) - self.G.dt * Halpha) / tmp
+                self.HRE[x, :] = (
+                    (2 * config.sim_config.em_consts["e0"]) - self.G.dt * Halpha
+                ) / tmp
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / tmp
 
     def update_electric(self):
@@ -334,7 +418,10 @@ class PML:
         """
 
         pmlmodule = "gprMax.cython.pml_updates_electric_" + self.G.pmls["formulation"]
-        func = getattr(import_module(pmlmodule), "order" + str(len(self.CFS)) + "_" + self.direction)
+        func = getattr(
+            import_module(pmlmodule),
+            "order" + str(len(self.CFS)) + "_" + self.direction,
+        )
         func(
             self.xs,
             self.xf,
@@ -366,7 +453,10 @@ class PML:
         """
 
         pmlmodule = "gprMax.cython.pml_updates_magnetic_" + self.G.pmls["formulation"]
-        func = getattr(import_module(pmlmodule), "order" + str(len(self.CFS)) + "_" + self.direction)
+        func = getattr(
+            import_module(pmlmodule),
+            "order" + str(len(self.CFS)) + "_" + self.direction,
+        )
         func(
             self.xs,
             self.xf,
@@ -425,26 +515,17 @@ class CUDAPML(PML):
         self.bpg = (
             int(
                 np.ceil(
-                    ((self.EPhi1_dev.shape[1] + 1) * (self.EPhi1_dev.shape[2] + 1) * (self.EPhi1_dev.shape[3] + 1))
+                    (
+                        (self.EPhi1_dev.shape[1] + 1)
+                        * (self.EPhi1_dev.shape[2] + 1)
+                        * (self.EPhi1_dev.shape[3] + 1)
+                    )
                     / self.G.tpb[0]
                 )
             ),
             1,
             1,
         )
-
-    def get_update_funcs(self, kernelselectric, kernelsmagnetic):
-        """Gets update functions from PML kernels.
-
-        Args:
-            kernelselectric: pycuda SourceModule containing PML kernels for
-                                electric updates.
-            kernelsmagnetic: pycuda SourceModule containing PML kernels for
-                                magnetic updates.
-        """
-
-        self.update_electric_dev = kernelselectric.get_function("order" + str(len(self.CFS)) + "_" + self.direction)
-        self.update_magnetic_dev = kernelsmagnetic.get_function("order" + str(len(self.CFS)) + "_" + self.direction)
 
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU."""
@@ -549,12 +630,6 @@ class OpenCLPML(PML):
         self.HPhi1_dev = clarray.to_device(self.queue, self.HPhi1)
         self.HPhi2_dev = clarray.to_device(self.queue, self.HPhi2)
 
-    def set_blocks_per_grid():
-        pass
-
-    def get_update_funcs():
-        pass
-
     def update_electric(self):
         """Updates electric field components with the PML correction on the
         compute device.
@@ -636,7 +711,9 @@ def print_pml_info(G):
     if all(value == 0 for value in G.pmls["thickness"].values()):
         return f"\nPML boundaries [{G.name}]: switched off"
 
-    if all(value == G.pmls["thickness"]["x0"] for value in G.pmls["thickness"].values()):
+    if all(
+        value == G.pmls["thickness"]["x0"] for value in G.pmls["thickness"].values()
+    ):
         pmlinfo = str(G.pmls["thickness"]["x0"])
     else:
         pmlinfo = ""
@@ -678,31 +755,105 @@ def build_pml(G, pml_ID, thickness):
         pml_type = OpenCLPML
 
     if pml_ID == "x0":
-        pml = pml_type(G, ID=pml_ID, direction="xminus", xs=0, xf=thickness, ys=0, yf=G.ny, zs=0, zf=G.nz)
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="xminus",
+            xs=0,
+            xf=thickness,
+            ys=0,
+            yf=G.ny,
+            zs=0,
+            zf=G.nz,
+        )
     elif pml_ID == "xmax":
-        pml = pml_type(G, ID=pml_ID, direction="xplus", xs=G.nx - thickness, xf=G.nx, ys=0, yf=G.ny, zs=0, zf=G.nz)
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="xplus",
+            xs=G.nx - thickness,
+            xf=G.nx,
+            ys=0,
+            yf=G.ny,
+            zs=0,
+            zf=G.nz,
+        )
     elif pml_ID == "y0":
-        pml = pml_type(G, ID=pml_ID, direction="yminus", xs=0, xf=G.nx, ys=0, yf=thickness, zs=0, zf=G.nz)
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="yminus",
+            xs=0,
+            xf=G.nx,
+            ys=0,
+            yf=thickness,
+            zs=0,
+            zf=G.nz,
+        )
     elif pml_ID == "ymax":
-        pml = pml_type(G, ID=pml_ID, direction="yplus", xs=0, xf=G.nx, ys=G.ny - thickness, yf=G.ny, zs=0, zf=G.nz)
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="yplus",
+            xs=0,
+            xf=G.nx,
+            ys=G.ny - thickness,
+            yf=G.ny,
+            zs=0,
+            zf=G.nz,
+        )
     elif pml_ID == "z0":
-        pml = pml_type(G, ID=pml_ID, direction="zminus", xs=0, xf=G.nx, ys=0, yf=G.ny, zs=0, zf=thickness)
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="zminus",
+            xs=0,
+            xf=G.nx,
+            ys=0,
+            yf=G.ny,
+            zs=0,
+            zf=thickness,
+        )
     elif pml_ID == "zmax":
-        pml = pml_type(G, ID=pml_ID, direction="zplus", xs=0, xf=G.nx, ys=0, yf=G.ny, zs=G.nz - thickness, zf=G.nz)
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="zplus",
+            xs=0,
+            xf=G.nx,
+            ys=0,
+            yf=G.ny,
+            zs=G.nz - thickness,
+            zf=G.nz,
+        )
 
     if pml_ID[0] == "x":
         averageer, averagemr = pml_average_er_mr(
-            G.ny, G.nz, config.get_model_config().ompthreads, G.solid[pml.xs, :, :], ers, mrs
+            G.ny,
+            G.nz,
+            config.get_model_config().ompthreads,
+            G.solid[pml.xs, :, :],
+            ers,
+            mrs,
         )
     elif pml_ID[0] == "y":
         averageer, averagemr = pml_average_er_mr(
-            G.nx, G.nz, config.get_model_config().ompthreads, G.solid[:, pml.ys, :], ers, mrs
+            G.nx,
+            G.nz,
+            config.get_model_config().ompthreads,
+            G.solid[:, pml.ys, :],
+            ers,
+            mrs,
         )
     elif pml_ID[0] == "z":
         averageer, averagemr = pml_average_er_mr(
-            G.nx, G.ny, config.get_model_config().ompthreads, G.solid[:, :, pml.zs], ers, mrs
+            G.nx,
+            G.ny,
+            config.get_model_config().ompthreads,
+            G.solid[:, :, pml.zs],
+            ers,
+            mrs,
         )
 
-    pml.CFS = G.pmls["cfs"]
     pml.calculate_update_coeffs(averageer, averagemr)
     G.pmls["slabs"].append(pml)

@@ -13,10 +13,15 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-import gprMax.config as config
+from scipy.constants import c
+from scipy.constants import epsilon_0 as e0
+from scipy.constants import mu_0 as m0
+
 
 logger = logging.getLogger(__name__)
 
+# Impedance of free space (Ohms)
+z0 = np.sqrt(m0 / e0) 
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
@@ -59,16 +64,16 @@ traceno = np.s_[:]  # All traces
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts["z0"]
-    v1 = config.sim_config.em_consts["c"] / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1 / config.sim_config.em_consts["c"]) * (180 / np.pi))
+    z1 = np.sqrt(mr / epsr) * z0
+    v1 = c / np.sqrt(epsr)
+    thetac = np.round(np.arcsin(v1 / c * (180 / np.pi))
     wavelength = v1 / f
 
 # Print some useful information
-logger.info("Centre frequency: {} GHz".format(f / 1e9))
+logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
-    logger.info("Critical angle for Er {} is {} degrees".format(epsr, thetac))
-    logger.info("Wavelength: {:.3f} m".format(wavelength))
+    logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
+    logger.info(f"Wavelength: {wavelength:.3f} m")
     logger.info(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
             radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
@@ -189,8 +194,8 @@ for radius in range(0, len(radii)):
             Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / z1
             Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / z1
         else:
-            Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / config.sim_config.em_consts["z0"]
-            Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / config.sim_config.em_consts["z0"]
+            Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / z0
+            Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / z0
 
         index += 1
 
@@ -204,4 +209,4 @@ for radius in range(0, len(radii)):
 
 # Save pattern to numpy file
 np.save(os.path.splitext(outputfile)[0], patternsave)
-logger.info("Written Numpy file: {}.npy".format(os.path.splitext(outputfile)[0]))
+logger.info(f"Written Numpy file: {os.path.splitext(outputfile)[0]}.npy")

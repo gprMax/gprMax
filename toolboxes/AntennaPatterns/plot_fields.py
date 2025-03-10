@@ -12,10 +12,16 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-import gprMax.config as config
+from scipy.constants import c
+from scipy.constants import epsilon_0 as e0
+from scipy.constants import mu_0 as m0
+
 
 logger = logging.getLogger(__name__)
 
+
+# Impedance of free space (Ohms)
+z0 = np.sqrt(m0 / e0)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
@@ -56,16 +62,16 @@ step = 12
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts["z0"]
-    v1 = config.sim_config.em_consts["c"] / np.sqrt(epsr)
-    thetac = np.round(np.rad2deg(np.arcsin(v1 / config.sim_config.em_consts["c"])))
+    z1 = np.sqrt(mr / epsr) * z0
+    v1 = c / np.sqrt(epsr)
+    thetac = np.round(np.rad2deg(np.arcsin(v1 / c)))
     wavelength = v1 / f
 
 # Print some useful information
 logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
     logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
-    logger.info("Wavelength: {:.3f} m".format(wavelength))
+    logger.info(f"Wavelength: {wavelength:.3f} m")
     logger.info(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
             radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
@@ -94,12 +100,18 @@ if epsr:
     ax.plot([0, np.deg2rad(180 + thetac)], [min, 0], color="0.7", lw=2)
 ax.plot([np.deg2rad(270), np.deg2rad(90)], [0, 0], color="0.7", lw=2)
 ax.annotate("Air", xy=(np.deg2rad(270), 0), xytext=(8, 8), textcoords="offset points")
-ax.annotate("Ground", xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords="offset points")
+ax.annotate(
+    "Ground", xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords="offset points"
+)
 
 # Plot patterns
 for patt in range(0, len(radii)):
-    pattplot = np.append(patterns[patt, :], patterns[patt, 0])  # Append start value to close circle
-    pattplot = pattplot / np.max(np.max(patterns))  # Normalise, based on set of patterns
+    pattplot = np.append(
+        patterns[patt, :], patterns[patt, 0]
+    )  # Append start value to close circle
+    pattplot = pattplot / np.max(
+        np.max(patterns)
+    )  # Normalise, based on set of patterns
 
     # Calculate power (ignore warning from taking a log of any zero values)
     with np.errstate(divide="ignore"):
@@ -107,7 +119,7 @@ for patt in range(0, len(radii)):
     # Replace any NaNs or Infs from zero division
     power[np.invert(np.isfinite(power))] = 0
 
-    ax.plot(theta, power, label="{:.2f}m".format(radii[patt]), marker=".", ms=6, lw=1.5)
+    ax.plot(theta, power, label=f"{radii[patt]:.2f}m", marker=".", ms=6, lw=1.5)
 
 # Add Hertzian dipole plot
 # hertzplot1 = np.append(hertzian[0, :], hertzian[0, 0]) # Append start value to close circle
@@ -134,7 +146,11 @@ ax.set_yticklabels(yticks)
 ax.grid(True)
 handles, existlabels = ax.get_legend_handles_labels()
 leg = ax.legend(
-    [handles[0], handles[-1]], [existlabels[0], existlabels[-1]], ncol=2, loc=(0.27, -0.12), frameon=False
+    [handles[0], handles[-1]],
+    [existlabels[0], existlabels[-1]],
+    ncol=2,
+    loc=(0.27, -0.12),
+    frameon=False,
 )  # Plot just first and last legend entries
 # leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
 [legobj.set_linewidth(2) for legobj in leg.legendHandles]

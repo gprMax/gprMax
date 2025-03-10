@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -18,6 +18,7 @@
 
 import glob
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -32,11 +33,15 @@ from setuptools import Extension, find_packages, setup
 # Check Python version
 MIN_PYTHON_VERSION = (3, 7)
 if sys.version_info[:2] < MIN_PYTHON_VERSION:
-    sys.exit("\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n")
+    sys.exit(
+        "\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n"
+    )
 
 # Importing gprMax _version__.py before building can cause issues.
 with open("gprMax/_version.py", "r") as fd:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE)[1]
+    version = re.search(
+        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE
+    )[1]
 
 
 def build_dispersive_material_templates():
@@ -107,7 +112,9 @@ def build_dispersive_material_templates():
         ]
     )
 
-    with open(os.path.join("gprMax", "cython", "fields_updates_dispersive.pyx"), "w") as f:
+    with open(
+        os.path.join("gprMax", "cython", "fields_updates_dispersive.pyx"), "w"
+    ) as f:
         f.write(r)
 
 
@@ -143,9 +150,9 @@ if "cleanall" in sys.argv:
             except OSError:
                 print(f"Could not remove: {filebase}.c")
         # Remove compiled Cython modules
-        libfile = glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.pyd") + glob.glob(
-            os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.so"
-        )
+        libfile = glob.glob(
+            os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.pyd"
+        ) + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.so")
         if libfile:
             libfile = libfile[0]
             try:
@@ -181,41 +188,39 @@ else:
     elif sys.platform == "darwin":
         # Check for Intel or Apple M series CPU
         cpuID = (
-            subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT)
+            subprocess.check_output(
+                "sysctl -n machdep.cpu.brand_string",
+                shell=True,
+                stderr=subprocess.STDOUT,
+            )
             .decode("utf-8")
             .strip()
         )
         cpuID = " ".join(cpuID.split())
         if "Apple" in cpuID:
-            gccpath = glob.glob("/opt/homebrew/bin/gcc-[4-9]*")
-            gccpath += glob.glob("/opt/homebrew/bin/gcc-[10-11]*")
-            if gccpath:
-                # Use newest gcc found
-                os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
-                rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
-            else:
-                raise (
-                    "Cannot find gcc in /opt/homebrew/bin. gprMax requires gcc "
-                    + "to be installed - easily done through the Homebrew package "
-                    + "manager (http://brew.sh). Note: gcc with OpenMP support "
-                    + "is required."
+            gccbasepath = "/opt/homebrew/bin/"
+        else:
+            gccbasepath = "/usr/local/bin/"
+        gccpath = glob.glob(gccbasepath + "gcc-[0-9][0-9]")
+        if gccpath:
+            # Use newest gcc found
+            os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
+            if "Apple" in cpuID:
+                rpath = (
+                    "/opt/homebrew/opt/gcc/lib/gcc/"
+                    + gccpath[-1].split(os.sep)[-1][-1]
+                    + "/"
                 )
         else:
-            gccpath = glob.glob("/usr/local/bin/gcc-[4-9]*")
-            gccpath += glob.glob("/usr/local/bin/gcc-[10-11]*")
-            if gccpath:
-                # Use newest gcc found
-                os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
-            else:
-                raise (
-                    "Cannot find gcc in /usr/local/bin. gprMax requires gcc "
-                    + "to be installed - easily done through the Homebrew package "
-                    + "manager (http://brew.sh). Note: gcc with OpenMP support "
-                    + "is required."
-                )
+            raise (
+                f"Cannot find gcc in {gccbasepath}. gprMax requires gcc "
+                + "to be installed - easily done through the Homebrew package "
+                + "manager (http://brew.sh). Note: gcc with OpenMP support "
+                + "is required."
+            )
 
-        # Minimum supported macOS deployment target
-        MIN_MACOS_VERSION = "10.13"
+        # Set minimum supported macOS deployment target to installed macOS version
+        MIN_MACOS_VERSION = platform.mac_ver()[0]
         try:
             os.environ["MACOSX_DEPLOYMENT_TARGET"]
             del os.environ["MACOSX_DEPLOYMENT_TARGET"]
@@ -223,7 +228,13 @@ else:
             pass
         os.environ["MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET"] = MIN_MACOS_VERSION
         # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
-        compile_args = ["-O3", "-w", "-fopenmp", "-march=native", f"-mmacosx-version-min={MIN_MACOS_VERSION}"]
+        compile_args = [
+            "-O3",
+            "-w",
+            "-fopenmp",
+            "-march=native",
+            f"-mmacosx-version-min={MIN_MACOS_VERSION}",
+        ]
         linker_args = ["-fopenmp", f"-mmacosx-version-min={MIN_MACOS_VERSION}"]
         libraries = ["gomp"]
 
@@ -262,7 +273,7 @@ else:
     )
 
     # Parse long_description from README.rst file.
-    with open("README.rst", "r") as fd:
+    with open("README.rst", "r", encoding="utf-8") as fd:
         long_description = fd.read()
 
     setup(
@@ -270,7 +281,8 @@ else:
         version=version,
         author="Craig Warren, Antonis Giannopoulos, and John Hartley",
         url="http://www.gprmax.com",
-        description="Electromagnetic Modelling Software based on the " + "Finite-Difference Time-Domain (FDTD) method",
+        description="Electromagnetic Modelling Software based on the "
+        + "Finite-Difference Time-Domain (FDTD) method",
         long_description=long_description,
         long_description_content_type="text/x-rst",
         license="GPLv3+",

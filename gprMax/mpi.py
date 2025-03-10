@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Tobias Schruff
 #
 # This file is part of gprMax.
@@ -165,7 +165,9 @@ class MPIExecutor(object):
         self.busy = [False] * len(self.workers)
 
         if self.is_master():
-            logger.basic(f"\n({self.comm.name}) - Master: {self.master}, Workers: {self.workers}")
+            logger.basic(
+                f"\n({self.comm.name}) - Master: {self.master}, Workers: {self.workers}"
+            )
 
     def __enter__(self):
         """Context manager enter. Only the master returns an executor, all other
@@ -222,7 +224,9 @@ class MPIExecutor(object):
         """Joins the workers."""
         if not self.is_master():
             return
-        logger.debug(f"({self.comm.name}) - Terminating. Sending sentinel to all workers.")
+        logger.debug(
+            f"({self.comm.name}) - Terminating. Sending sentinel to all workers."
+        )
         # Send sentinel to all workers
         for worker in self.workers:
             self.comm.send(None, dest=worker, tag=Tags.EXIT)
@@ -269,7 +273,9 @@ class MPIExecutor(object):
             for i, worker in enumerate(self.workers):
                 if self.comm.Iprobe(source=worker, tag=Tags.DONE):
                     job_idx, result = self.comm.recv(source=worker, tag=Tags.DONE)
-                    logger.debug(f"({self.comm.name}) - Received finished job {job_idx} from worker {worker:d}.")
+                    logger.debug(
+                        f"({self.comm.name}) - Received finished job {job_idx} from worker {worker:d}."
+                    )
                     results[job_idx] = result
                     self.busy[i] = False
                 elif self.comm.Iprobe(source=worker, tag=Tags.READY):
@@ -277,10 +283,16 @@ class MPIExecutor(object):
                         self.comm.recv(source=worker, tag=Tags.READY)
                         self.busy[i] = True
                         job_idx = num_jobs - len(my_jobs)
-                        logger.debug(f"({self.comm.name}) - Sending job {job_idx} to worker {worker:d}.")
-                        self.comm.send((job_idx, my_jobs.pop(0)), dest=worker, tag=Tags.START)
+                        logger.debug(
+                            f"({self.comm.name}) - Sending job {job_idx} to worker {worker:d}."
+                        )
+                        self.comm.send(
+                            (job_idx, my_jobs.pop(0)), dest=worker, tag=Tags.START
+                        )
                 elif self.comm.Iprobe(source=worker, tag=Tags.EXIT):
-                    logger.debug(f"({self.comm.name}) - Worker on rank {worker:d} has terminated.")
+                    logger.debug(
+                        f"({self.comm.name}) - Worker on rank {worker:d} has terminated."
+                    )
                     self.comm.recv(source=worker, tag=Tags.EXIT)
                     self.busy[i] = False
 
@@ -304,16 +316,22 @@ class MPIExecutor(object):
 
         while True:
             self.comm.send(None, dest=self.master, tag=Tags.READY)
-            logger.debug(f"({self.comm.name}) - Worker on rank {self.rank} waiting for job.")
+            logger.debug(
+                f"({self.comm.name}) - Worker on rank {self.rank} waiting for job."
+            )
 
             data = self.comm.recv(source=self.master, tag=MPI.ANY_TAG, status=status)
             tag = status.tag
 
             if tag == Tags.START:
                 job_idx, work = data
-                logger.debug(f"({self.comm.name}) - Received job {job_idx} (work={work}).")
+                logger.debug(
+                    f"({self.comm.name}) - Received job {job_idx} (work={work})."
+                )
                 result = self.__guarded_work(work)
-                logger.debug(f"({self.comm.name}) - Finished job. Sending results to master.")
+                logger.debug(
+                    f"({self.comm.name}) - Finished job. Sending results to master."
+                )
                 self.comm.send((job_idx, result), dest=self.master, tag=Tags.DONE)
             elif tag == Tags.EXIT:
                 logger.debug(f"({self.comm.name}) - Received sentinel from master.")

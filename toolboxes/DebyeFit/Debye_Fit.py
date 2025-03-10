@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023, Iraklis Giannakis and Sylwia Majchrowska
+# Copyright (C) 2015-2024, Iraklis Giannakis and Sylwia Majchrowska
 #
 # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
 # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
@@ -100,7 +100,15 @@ class Relaxation(object):
     def check_inputs(self):
         """Check the validity of the inputs."""
         try:
-            d = [float(i) for i in [self.number_of_debye_poles, self.sigma, self.mu, self.mu_sigma]]
+            d = [
+                float(i)
+                for i in [
+                    self.number_of_debye_poles,
+                    self.sigma,
+                    self.mu,
+                    self.mu_sigma,
+                ]
+            ]
         except ValueError:
             sys.exit("The inputs should be numeric.")
         if not isinstance(self.number_of_debye_poles, int):
@@ -120,7 +128,9 @@ class Relaxation(object):
         Returns:
             s (str): Info about chosen function and its parameters.
         """
-        print(f"Approximating {self.name}" f" using {self.number_of_debye_poles} Debye poles")
+        print(
+            f"Approximating {self.name} using {self.number_of_debye_poles} Debye poles"
+        )
         print(f"{self.name} parameters: ")
         s = "".join(f"{k:10s} = {v}\n" for k, v in self.params.items())
         print(s)
@@ -172,7 +182,12 @@ class Relaxation(object):
         self.rl, self.im = q.real, q.imag
 
         if self.number_of_debye_poles == -1:
-            print("\n#########", "Try to automaticaly fit number of Debye poles, up to 20!", "##########\n", sep="")
+            print(
+                "\n#########",
+                "Try to automaticaly fit number of Debye poles, up to 20!",
+                "##########\n",
+                sep="",
+            )
             error = np.infty  # artificial best error starting value
             self.number_of_debye_poles = 1
             iteration = 1
@@ -195,7 +210,11 @@ class Relaxation(object):
 
         # Print the results in gprMax format style
         properties = self.print_output(tau, weights, ee)
-        print(f"The average fractional error for:\n" f"- real part: {err_real}\n" f"- imaginary part: {err_imag}\n")
+        print(
+            f"The average fractional error for:\n"
+            f"- real part: {err_real}\n"
+            f"- imaginary part: {err_imag}\n"
+        )
         if self.save:
             self.save_result(properties)
         # Plot the actual and the approximate dielectric properties
@@ -220,18 +239,20 @@ class Relaxation(object):
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
         for i in range(0, len(tau)):
-            print("Debye {0:}|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}|".format(i + 1, ee / len(tau), weights[i], tau[i]))
+            print(
+                f"Debye {i + 1}|{ee / len(tau):^14.5f}|{weights[i]:^14.5f}|{tau[i]:^25.5f}|"
+            )
             print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
         material_prop = []
         material_prop.append(
-            "#material: {} {} {} {} {}\n".format(ee, self.sigma, self.mu, self.mu_sigma, self.material_name)
+            f"#material: {ee} {self.sigma} {self.mu} {self.mu_sigma} {self.material_name}\n"
         )
         print(material_prop[0], end="")
         dispersion_prop = f"#add_dispersion_debye: {len(tau)}"
         for i in range(len(tau)):
-            dispersion_prop += f" {weights[i]} {10**tau[i]}"
+            dispersion_prop += f" {weights[i]} {10 ** tau[i]}"
         dispersion_prop += f" {self.material_name}"
         print(dispersion_prop)
         material_prop.append(dispersion_prop + "\n")
@@ -253,10 +274,34 @@ class Relaxation(object):
         gs = gridspec.GridSpec(2, 1)
         ax = fig.add_subplot(gs[0])
         ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
-        ax.semilogx(self.freq * 1e-6, rl_exp, "b-", linewidth=2.0, label="Debye Expansion: Real part")
-        ax.semilogx(self.freq * 1e-6, -im_exp, "k-", linewidth=2.0, label="Debye Expansion: Imaginary part")
-        ax.semilogx(self.freq * 1e-6, self.rl, "r.", linewidth=2.0, label=f"{self.name}: Real part")
-        ax.semilogx(self.freq * 1e-6, -self.im, "g.", linewidth=2.0, label=f"{self.name}: Imaginary part")
+        ax.semilogx(
+            self.freq * 1e-6,
+            rl_exp,
+            "b-",
+            linewidth=2.0,
+            label="Debye Expansion: Real part",
+        )
+        ax.semilogx(
+            self.freq * 1e-6,
+            -im_exp,
+            "k-",
+            linewidth=2.0,
+            label="Debye Expansion: Imaginary part",
+        )
+        ax.semilogx(
+            self.freq * 1e-6,
+            self.rl,
+            "r.",
+            linewidth=2.0,
+            label=f"{self.name}: Real part",
+        )
+        ax.semilogx(
+            self.freq * 1e-6,
+            -self.im,
+            "g.",
+            linewidth=2.0,
+            label=f"{self.name}: Imaginary part",
+        )
         ax.set_ylim([-1, np.max(np.concatenate([self.rl, -self.im])) + 1])
         ax.legend()
         ax.set_xlabel("Frequency (MHz)")
@@ -264,8 +309,20 @@ class Relaxation(object):
 
         ax = fig.add_subplot(gs[1])
         ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
-        ax.semilogx(self.freq * 1e-6, (rl_exp - self.rl) / (self.rl + 1), "b-", linewidth=2.0, label="Real part")
-        ax.semilogx(self.freq * 1e-6, (-im_exp + self.im) / (self.im + 1), "k-", linewidth=2.0, label="Imaginary part")
+        ax.semilogx(
+            self.freq * 1e-6,
+            (rl_exp - self.rl) / (self.rl + 1),
+            "b-",
+            linewidth=2.0,
+            label="Real part",
+        )
+        ax.semilogx(
+            self.freq * 1e-6,
+            (-im_exp + self.im) / (self.im + 1),
+            "k-",
+            linewidth=2.0,
+            label="Imaginary part",
+        )
         ax.legend()
         ax.set_xlabel("Frequency (MHz)")
         ax.set_ylabel("Relative approximation error")
@@ -286,8 +343,12 @@ class Relaxation(object):
             avg_err_imag (float): average fractional error
                                   for conductivity (imaginary part)
         """
-        avg_err_real = np.sum(np.abs((rl_exp - self.rl) / (self.rl + 1)) * 100) / len(rl_exp)
-        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (self.im + 1)) * 100) / len(im_exp)
+        avg_err_real = np.sum(np.abs((rl_exp - self.rl) / (self.rl + 1)) * 100) / len(
+            rl_exp
+        )
+        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (self.im + 1)) * 100) / len(
+            im_exp
+        )
         return avg_err_real, avg_err_imag
 
     @staticmethod
@@ -308,7 +369,10 @@ class Relaxation(object):
         elif os.path.isdir("user_libs/materials"):
             file_path = os.path.join("user_libs", "materials", "my_materials.txt")
         else:
-            sys.exit("Cannot save material properties " f"in {os.path.join(fdir, 'my_materials.txt')}!")
+            sys.exit(
+                "Cannot save material properties "
+                f"in {os.path.join(fdir, 'my_materials.txt')}!"
+            )
         with open(file_path, "a") as fileH:
             fileH.write(f"## {output[0].split(' ')[-1]}")
             fileH.writelines(output)
@@ -384,7 +448,13 @@ class HavriliakNegami(Relaxation):
             self.f_min, self.f_max = f_min, f_max
         # Choosing n frequencies logarithmicaly equally spaced between the bounds given
         self.set_freq(self.f_min, self.f_max, self.f_n)
-        self.e_inf, self.alpha, self.beta, self.de, self.tau_0 = e_inf, alpha, beta, de, tau_0
+        self.e_inf, self.alpha, self.beta, self.de, self.tau_0 = (
+            e_inf,
+            alpha,
+            beta,
+            de,
+            tau_0,
+        )
         self.params = {
             "f_min": self.f_min,
             "f_max": self.f_max,
@@ -414,7 +484,11 @@ class HavriliakNegami(Relaxation):
     def calculation(self):
         """Calculates the Havriliak-Negami function for
         the given parameters."""
-        return self.e_inf + self.de / (1 + (1j * 2 * np.pi * self.freq * self.tau_0) ** self.alpha) ** self.beta
+        return (
+            self.e_inf
+            + self.de
+            / (1 + (1j * 2 * np.pi * self.freq * self.tau_0) ** self.alpha) ** self.beta
+        )
 
 
 class Jonscher(Relaxation):
@@ -503,9 +577,9 @@ class Jonscher(Relaxation):
 
     def calculation(self):
         """Calculates the Q function for the given parameters"""
-        return self.e_inf + (self.a_p * (2 * np.pi * self.freq / self.omega_p) ** (self.n_p - 1)) * (
-            1 - 1j / np.tan(self.n_p * np.pi / 2)
-        )
+        return self.e_inf + (
+            self.a_p * (2 * np.pi * self.freq / self.omega_p) ** (self.n_p - 1)
+        ) * (1 - 1j / np.tan(self.n_p * np.pi / 2))
 
 
 class Crim(Relaxation):
@@ -585,7 +659,9 @@ class Crim(Relaxation):
         if (np.array(d) < 0).sum() != 0:
             sys.exit("The inputs should be positive.")
         if len(self.volumetric_fractions) != len(self.materials):
-            sys.exit("Number of volumetric volumes does not match the dielectric properties")
+            sys.exit(
+                "Number of volumetric volumes does not match the dielectric properties"
+            )
         # Check if the materials are at least two
         if len(self.volumetric_fractions) < 2:
             sys.exit("The materials should be at least 2")
@@ -606,7 +682,10 @@ class Crim(Relaxation):
 
     def print_info(self):
         """Print information about chosen approximation settings"""
-        print(f"Approximating Complex Refractive Index Model (CRIM)" f" using {self.number_of_debye_poles} Debye poles")
+        print(
+            f"Approximating Complex Refractive Index Model (CRIM)"
+            f" using {self.number_of_debye_poles} Debye poles"
+        )
         print("CRIM parameters: ")
         for i in range(len(self.volumetric_fractions)):
             print(f"Material {i + 1}.:")
@@ -619,7 +698,9 @@ class Crim(Relaxation):
     def calculation(self):
         """Calculates the Crim function for the given parameters"""
         return np.sum(
-            np.repeat(self.volumetric_fractions, len(self.freq)).reshape((-1, len(self.materials)))
+            np.repeat(self.volumetric_fractions, len(self.freq)).reshape(
+                (-1, len(self.materials))
+            )
             * (
                 self.materials[:, 0]
                 + self.materials[:, 1]
@@ -628,7 +709,9 @@ class Crim(Relaxation):
                     + 1j
                     * 2
                     * np.pi
-                    * np.repeat(self.freq, len(self.materials)).reshape((-1, len(self.materials)))
+                    * np.repeat(self.freq, len(self.materials)).reshape(
+                        (-1, len(self.materials))
+                    )
                     * self.materials[:, 2]
                 )
             )
@@ -693,13 +776,19 @@ class Rawdata(Relaxation):
         # Read the file
         with open(self.filename) as f:
             try:
-                array = np.array([[float(x) for x in line.split(self.delimiter)] for line in f])
+                array = np.array(
+                    [[float(x) for x in line.split(self.delimiter)] for line in f]
+                )
             except ValueError:
                 sys.exit("Error: The inputs should be numeric")
 
         self.set_freq(min(array[:, 0]), max(array[:, 0]), self.f_n)
-        rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1], fill_value="extrapolate")
-        im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2], fill_value="extrapolate")
+        rl_interp = scipy.interpolate.interp1d(
+            array[:, 0], array[:, 1], fill_value="extrapolate"
+        )
+        im_interp = scipy.interpolate.interp1d(
+            array[:, 0], array[:, 2], fill_value="extrapolate"
+        )
         return rl_interp(self.freq) - 1j * im_interp(self.freq)
 
 
@@ -776,17 +865,63 @@ if __name__ == "__main__":
     setup.run()
     # Testing setup
     setup = Rawdata(
-        "examples/Test.txt", 0.1, 1, 0.1, "M1", number_of_debye_poles=3, plot=True, optimizer_options={"seed": 111}
+        "examples/Test.txt",
+        0.1,
+        1,
+        0.1,
+        "M1",
+        number_of_debye_poles=3,
+        plot=True,
+        optimizer_options={"seed": 111},
     )
     setup.run()
     np.random.seed(111)
-    setup = HavriliakNegami(1e12, 1e-3, 0.5, 1, 10, 5, 1e-6, 0.1, 1, 0, "M2", number_of_debye_poles=6, plot=True)
+    setup = HavriliakNegami(
+        1e12,
+        1e-3,
+        0.5,
+        1,
+        10,
+        5,
+        1e-6,
+        0.1,
+        1,
+        0,
+        "M2",
+        number_of_debye_poles=6,
+        plot=True,
+    )
     setup.run()
-    setup = Jonscher(1e6, 1e-5, 50, 1, 1e5, 0.7, 0.1, 1, 0.1, "M3", number_of_debye_poles=4, plot=True)
+    setup = Jonscher(
+        1e6,
+        1e-5,
+        50,
+        1,
+        1e5,
+        0.7,
+        0.1,
+        1,
+        0.1,
+        "M3",
+        number_of_debye_poles=4,
+        plot=True,
+    )
     setup.run()
     f = np.array([0.5, 0.5])
     material1 = [3, 25, 1e6]
     material2 = [3, 0, 1e3]
     materials = np.array([material1, material2])
-    setup = Crim(1 * 1e-1, 1e-9, 0.5, f, materials, 0.1, 1, 0, "M4", number_of_debye_poles=2, plot=True)
+    setup = Crim(
+        1 * 1e-1,
+        1e-9,
+        0.5,
+        f,
+        materials,
+        0.1,
+        1,
+        0,
+        "M4",
+        number_of_debye_poles=2,
+        plot=True,
+    )
     setup.run()

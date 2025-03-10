@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -32,7 +32,7 @@ class FractalSurface:
 
     surfaceIDs = ["xminus", "xplus", "yminus", "yplus", "zminus", "zplus"]
 
-    def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
+    def __init__(self, xs, xf, ys, yf, zs, zf, dimension, seed):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal surface
@@ -40,6 +40,7 @@ class FractalSurface:
                                         to correctly define a surface).
             dimension: float for the fractal dimension that controls the fractal
                         distribution.
+            seed: int for seed value for random number generator.
         """
 
         self.ID = None
@@ -54,10 +55,8 @@ class FractalSurface:
         self.ny = yf - ys
         self.nz = zf - zs
         self.dtype = np.dtype(np.complex128)
-        self.seed = None
-        self.dimension = dimension
-        # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
-        self.b = -(2 * self.dimension - 7) / 2
+        self.seed = seed
+        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.weighting = np.array([1, 1], dtype=np.float64)
         self.fractalrange = (0, 0)
         self.filldepth = 0
@@ -83,7 +82,12 @@ class FractalSurface:
         self.fractalsurface = np.zeros(surfacedims, dtype=self.dtype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2])
+        v1 = np.array(
+            [
+                self.weighting[0] * (surfacedims[0]) / 2,
+                self.weighting[1] * (surfacedims[1]) / 2,
+            ]
+        )
 
         # 2D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
@@ -99,7 +103,7 @@ class FractalSurface:
             surfacedims[0],
             surfacedims[1],
             config.get_model_config().ompthreads,
-            self.b,
+            self.dimension,
             self.weighting,
             v1,
             A,
@@ -120,21 +124,24 @@ class FractalSurface:
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
         self.fractalsurface = (
-            self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
+            self.fractalsurface
+            * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
             + self.fractalrange[0]
-            - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
+            - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
+            * fractalmin
         )
 
 
 class FractalVolume:
     """Fractal volumes."""
 
-    def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
+    def __init__(self, xs, xf, ys, yf, zs, zf, dimension, seed):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal volume.
             dimension: float for the fractal dimension that controls the fractal
                         distribution.
+            seed: int for seed value for random number generator.
         """
 
         self.ID = None
@@ -156,10 +163,8 @@ class FractalVolume:
         self.originalzf = zf
         self.averaging = False
         self.dtype = np.dtype(np.complex128)
-        self.seed = None
-        self.dimension = dimension
-        # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
-        self.b = -(2 * self.dimension - 7) / 2
+        self.seed = seed
+        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
         self.fractalsurfaces = []
@@ -169,16 +174,24 @@ class FractalVolume:
 
         # Scale filter according to size of fractal volume
         if self.nx == 1:
-            filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array([self.ny, self.nz])
+            filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array(
+                [self.ny, self.nz]
+            )
             filterscaling = np.insert(filterscaling, 0, 1)
         elif self.ny == 1:
-            filterscaling = np.amin(np.array([self.nx, self.nz])) / np.array([self.nx, self.nz])
+            filterscaling = np.amin(np.array([self.nx, self.nz])) / np.array(
+                [self.nx, self.nz]
+            )
             filterscaling = np.insert(filterscaling, 1, 1)
         elif self.nz == 1:
-            filterscaling = np.amin(np.array([self.nx, self.ny])) / np.array([self.nx, self.ny])
+            filterscaling = np.amin(np.array([self.nx, self.ny])) / np.array(
+                [self.nx, self.ny]
+            )
             filterscaling = np.insert(filterscaling, 2, 1)
         else:
-            filterscaling = np.amin(np.array([self.nx, self.ny, self.nz])) / np.array([self.nx, self.ny, self.nz])
+            filterscaling = np.amin(np.array([self.nx, self.ny, self.nz])) / np.array(
+                [self.nx, self.ny, self.nz]
+            )
 
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
@@ -187,7 +200,11 @@ class FractalVolume:
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array(
-            [self.weighting[0] * self.nx / 2, self.weighting[1] * self.ny / 2, self.weighting[2] * self.nz / 2]
+            [
+                self.weighting[0] * self.nx / 2,
+                self.weighting[1] * self.ny / 2,
+                self.weighting[2] * self.nz / 2,
+            ]
         )
 
         # 3D array of random numbers to be convolved with the fractal function
@@ -205,7 +222,7 @@ class FractalVolume:
             self.ny,
             self.nz,
             config.get_model_config().ompthreads,
-            self.b,
+            self.dimension,
             self.weighting,
             v1,
             A,
@@ -224,10 +241,14 @@ class FractalVolume:
         )
 
         # Bin fractal values
-        bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
+        bins = np.linspace(
+            np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins
+        )
         for j in range(self.ny):
             for k in range(self.nz):
-                self.fractalvolume[:, j, k] = np.digitize(self.fractalvolume[:, j, k], bins, right=True)
+                self.fractalvolume[:, j, k] = np.digitize(
+                    self.fractalvolume[:, j, k], bins, right=True
+                )
 
     def generate_volume_mask(self):
         """Generate a 3D volume to use as a mask for adding rough surfaces,
@@ -248,17 +269,25 @@ class FractalVolume:
 class Grass:
     """Geometry information for blades of grass."""
 
-    def __init__(self, numblades):
+    def __init__(self, numblades, seed):
         """
         Args:
             numblades: int for the number of blades of grass.
+            seed: int for seed value for random number generator.
         """
 
         self.numblades = numblades
-        self.geometryparams = np.zeros((self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"])
-        self.seed = None
+        self.geometryparams = np.zeros(
+            (self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.seed = seed
+        self.set_geometry_parameters()
 
-        # Randomly defined parameters that will be used to calculate geometry
+    def set_geometry_parameters(self):
+        """Sets randomly defined parameters that will be used to calculate
+        blade and root geometries.
+        """
+
         self.R1 = np.random.default_rng(seed=self.seed)
         self.R2 = np.random.default_rng(seed=self.seed)
         self.R3 = np.random.default_rng(seed=self.seed)

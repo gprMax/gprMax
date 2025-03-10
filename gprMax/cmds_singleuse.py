@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -16,18 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import inspect
 import logging
-from pathlib import Path
 
 import numpy as np
-from scipy import interpolate
 
 import gprMax.config as config
 
 from .pml import PML
 from .utilities.host_info import set_omp_threads
-from .waveforms import Waveform
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +47,7 @@ class UserObjectSingle:
         for k, v in kwargs.items():
             setattr(self.props, k, v)
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         pass
 
     def rotate(self, axis, angle, origin=None):
@@ -69,7 +65,7 @@ class Title(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 1
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             title = self.kwargs["name"]
             G.title = title
@@ -89,7 +85,7 @@ class Discretisation(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 2
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.dl = np.array(self.kwargs["p1"])
             G.dx, G.dy, G.dz = self.kwargs["p1"]
@@ -99,17 +95,20 @@ class Discretisation(UserObjectSingle):
 
         if G.dl[0] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"x-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"x-direction spatial step to be greater than zero"
             )
             raise ValueError
         if G.dl[1] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"y-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"y-direction spatial step to be greater than zero"
             )
             raise ValueError
         if G.dl[2] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"z-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"z-direction spatial step to be greater than zero"
             )
             raise ValueError
 
@@ -127,7 +126,7 @@ class Domain(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 3
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
@@ -135,7 +134,9 @@ class Domain(UserObjectSingle):
             raise
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            logger.exception(f"{self.__str__()} requires at least one cell in " f"every dimension")
+            logger.exception(
+                f"{self.__str__()} requires at least one cell in every dimension"
+            )
             raise ValueError
 
         logger.info(
@@ -165,7 +166,10 @@ class Domain(UserObjectSingle):
 
         # Sub-grids cannot be used with 2D models. There would typically be
         # minimal performance benefit with sub-gridding and 2D models.
-        if "2D" in config.get_model_config().mode and config.sim_config.general["subgrid"]:
+        if (
+            "2D" in config.get_model_config().mode
+            and config.sim_config.general["subgrid"]
+        ):
             logger.exception("Sub-gridding cannot be used with 2D models")
             raise ValueError
 
@@ -183,7 +187,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 4
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             f = self.kwargs["f"]
         except KeyError:
@@ -192,7 +196,8 @@ class TimeStepStabilityFactor(UserObjectSingle):
 
         if f <= 0 or f > 1:
             logger.exception(
-                f"{self.__str__()} requires the value of the time " f"step stability factor to be between zero and one"
+                f"{self.__str__()} requires the value of the time "
+                f"step stability factor to be between zero and one"
             )
             raise ValueError
 
@@ -214,7 +219,7 @@ class TimeWindow(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 5
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         # If number of iterations given
         # The +/- 1 used in calculating the number of iterations is to account for
         # the fact that the solver (iterations) loop runs from 0 to < G.iterations
@@ -231,7 +236,9 @@ class TimeWindow(UserObjectSingle):
                 G.timewindow = tmp
                 G.iterations = int(np.ceil(tmp / G.dt)) + 1
             else:
-                logger.exception(self.__str__() + " must have a value greater than zero")
+                logger.exception(
+                    self.__str__() + " must have a value greater than zero"
+                )
                 raise ValueError
         except KeyError:
             pass
@@ -255,7 +262,7 @@ class OMPThreads(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 6
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             n = self.kwargs["n"]
         except KeyError:
@@ -265,7 +272,10 @@ class OMPThreads(UserObjectSingle):
             )
             raise
         if n < 1:
-            logger.exception(f"{self.__str__()} requires the value to be an " f"integer not less than one")
+            logger.exception(
+                f"{self.__str__()} requires the value to be an "
+                f"integer not less than one"
+            )
             raise ValueError
 
         config.get_model_config().ompthreads = set_omp_threads(n)
@@ -289,12 +299,14 @@ class PMLProps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 7
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.pmls["formulation"] = self.kwargs["formulation"]
             if G.pmls["formulation"] not in PML.formulations:
                 logger.exception(
-                    self.__str__() + f" requires the value to be " + f"one of {' '.join(PML.formulations)}"
+                    self.__str__()
+                    + f" requires the value to be "
+                    + f"one of {' '.join(PML.formulations)}"
                 )
         except KeyError:
             pass
@@ -313,7 +325,9 @@ class PMLProps(UserObjectSingle):
                 G.pmls["thickness"]["ymax"] = int(self.kwargs["ymax"])
                 G.pmls["thickness"]["zmax"] = int(self.kwargs["zmax"])
             except KeyError:
-                logger.exception(f"{self.__str__()} requires either one or six parameter(s)")
+                logger.exception(
+                    f"{self.__str__()} requires either one or six parameter(s)"
+                )
                 raise
 
         if (
@@ -339,7 +353,7 @@ class SrcSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 8
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.srcsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
@@ -348,8 +362,8 @@ class SrcSteps(UserObjectSingle):
 
         logger.info(
             f"Simple sources will step {G.srcsteps[0] * G.dx:g}m, "
-            + f"{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m "
-            + "for each model run."
+            f"{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m "
+            "for each model run."
         )
 
 
@@ -364,7 +378,7 @@ class RxSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 9
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.rxsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
@@ -373,100 +387,9 @@ class RxSteps(UserObjectSingle):
 
         logger.info(
             f"All receivers will step {G.rxsteps[0] * G.dx:g}m, "
-            + f"{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m "
-            + "for each model run."
+            f"{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m "
+            "for each model run."
         )
-
-
-class ExcitationFile(UserObjectSingle):
-    """An ASCII file that contains columns of amplitude values that specify
-        custom waveform shapes that can be used with sources in the model.
-
-    Attributes:
-        filepath: string of excitation file path.
-        kind: string or int specifying interpolation kind passed to
-                scipy.interpolate.interp1d.
-        fill_value: float or 'extrapolate' passed to scipy.interpolate.interp1d.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 10
-
-    def create(self, G, uip):
-        try:
-            kwargs = {}
-            excitationfile = self.kwargs["filepath"]
-            kwargs["kind"] = self.kwargs["kind"]
-            kwargs["fill_value"] = self.kwargs["fill_value"]
-
-        except KeyError:
-            try:
-                excitationfile = self.kwargs["filepath"]
-                fullargspec = inspect.getfullargspec(interpolate.interp1d)
-                kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
-            except KeyError:
-                logger.exception(f"{self.__str__()} requires either one or three parameter(s)")
-                raise
-
-        # See if file exists at specified path and if not try input file directory
-        excitationfile = Path(excitationfile)
-        # excitationfile = excitationfile.resolve()
-        if not excitationfile.exists():
-            excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
-
-        logger.info(f"Excitation file: {excitationfile}")
-
-        # Get waveform names
-        with open(excitationfile, "r") as f:
-            waveformIDs = f.readline().split()
-
-        # Read all waveform values into an array
-        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"])
-
-        # Time array (if specified) for interpolation, otherwise use simulation time
-        if waveformIDs[0].lower() == "time":
-            waveformIDs = waveformIDs[1:]
-            waveformtime = waveformvalues[:, 0]
-            waveformvalues = waveformvalues[:, 1:]
-            timestr = "user-defined time array"
-        else:
-            waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
-            timestr = "simulation time array"
-
-        for waveform in range(len(waveformIDs)):
-            if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
-                logger.exception(f"Waveform with ID {waveformIDs[waveform]} already exists")
-                raise ValueError
-            w = Waveform()
-            w.ID = waveformIDs[waveform]
-            w.type = "user"
-
-            # Select correct column of waveform values depending on array shape
-            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
-
-            # Truncate waveform array if it is longer than time array
-            if len(singlewaveformvalues) > len(waveformtime):
-                singlewaveformvalues = singlewaveformvalues[: len(waveformtime)]
-            # Zero-pad end of waveform array if it is shorter than time array
-            elif len(singlewaveformvalues) < len(waveformtime):
-                singlewaveformvalues = np.pad(
-                    singlewaveformvalues,
-                    (0, len(waveformtime) - len(singlewaveformvalues)),
-                    "constant",
-                    constant_values=0,
-                )
-
-            # Interpolate waveform values
-            w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
-
-            logger.info(
-                f"User waveform {w.ID} created using {timestr} and, if "
-                + f"required, interpolation parameters (kind: {kwargs['kind']}, "
-                + f"fill value: {kwargs['fill_value']})."
-            )
-
-            G.waveforms.append(w)
 
 
 class OutputDir(UserObjectSingle):
@@ -478,7 +401,7 @@ class OutputDir(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 10
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         config.get_model_config().set_output_file_path(self.kwargs["dir"])

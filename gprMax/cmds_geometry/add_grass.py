@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -64,7 +64,7 @@ class AddGrass(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Add Grass to fractal box."""
         try:
             p1 = self.kwargs["p1"]
@@ -78,19 +78,28 @@ class AddGrass(UserObjectGeometry):
             raise
 
         try:
-            seed = self.kwargs["seed"]
+            seed = int(self.kwargs["seed"])
         except KeyError:
+            logger.warning(
+                f"{self.__str__()} no value for seed detected. This "
+                "means you will get a different fractal distribution "
+                "every time the model runs."
+            )
             seed = None
 
         if self.do_rotate:
             self._do_rotate()
 
         # Get the correct fractal volume
-        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
+        volumes = [
+            volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id
+        ]
         try:
             volume = volumes[0]
         except NameError:
-            logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
+            logger.exception(
+                f"{self.__str__()} cannot find FractalBox {fractal_box_id}"
+            )
             raise
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -98,27 +107,36 @@ class AddGrass(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for " + "the fractal dimension")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the fractal dimension"
+            )
             raise ValueError
         if limits[0] < 0 or limits[1] < 0:
             logger.exception(
-                f"{self.__str__()} requires a positive value for " + "the minimum and maximum heights for grass blades"
+                f"{self.__str__()} requires a positive value for the minimum and maximum heights for grass blades"
             )
             raise ValueError
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
+                logger.exception(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
+            fractalrange = (
+                round_value(limits[0] / grid.dx),
+                round_value(limits[1] / grid.dx),
+            )
             # xminus surface
             if xs == volume.xs:
                 logger.exception(
-                    f"{self.__str__()} grass can only be specified " + "on surfaces in the positive axis direction"
+                    f"{self.__str__()} grass can only be specified on surfaces in the positive axis direction"
                 )
                 raise ValueError
             # xplus surface
@@ -126,24 +144,31 @@ class AddGrass(UserObjectGeometry):
                 if fractalrange[1] > grid.nx:
                     logger.exception(
                         f"{self.__str__()} cannot apply grass to "
-                        + "fractal box as it would exceed the domain "
-                        + "size in the x direction"
+                        "fractal box as it would exceed the domain "
+                        "size in the x direction"
                     )
                     raise ValueError
                 requestedsurface = "xplus"
 
         elif ys == yf:
             if zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
+                logger.exception(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
+            fractalrange = (
+                round_value(limits[0] / grid.dy),
+                round_value(limits[1] / grid.dy),
+            )
             # yminus surface
             if ys == volume.ys:
                 logger.exception(
-                    f"{self.__str__()} grass can only be specified " + "on surfaces in the positive axis direction"
+                    f"{self.__str__()} grass can only be specified on surfaces in the positive axis direction"
                 )
                 raise ValueError
             # yplus surface
@@ -151,21 +176,26 @@ class AddGrass(UserObjectGeometry):
                 if fractalrange[1] > grid.ny:
                     logger.exception(
                         f"{self.__str__()} cannot apply grass to "
-                        + "fractal box as it would exceed the domain "
-                        + "size in the y direction"
+                        "fractal box as it would exceed the domain "
+                        "size in the y direction"
                     )
                     raise ValueError
                 requestedsurface = "yplus"
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
+                logger.exception(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
+            fractalrange = (
+                round_value(limits[0] / grid.dz),
+                round_value(limits[1] / grid.dz),
+            )
             # zminus surface
             if zs == volume.zs:
                 logger.exception(
-                    f"{self.__str__()} grass can only be specified " + "on surfaces in the positive axis direction"
+                    f"{self.__str__()} grass can only be specified on surfaces in the positive axis direction"
                 )
                 raise ValueError
             # zplus surface
@@ -173,8 +203,8 @@ class AddGrass(UserObjectGeometry):
                 if fractalrange[1] > grid.nz:
                     logger.exception(
                         f"{self.__str__()} cannot apply grass to "
-                        + "fractal box as it would exceed the domain "
-                        + "size in the z direction"
+                        "fractal box as it would exceed the domain "
+                        "size in the z direction"
                     )
                     raise ValueError
                 requestedsurface = "zplus"
@@ -183,10 +213,9 @@ class AddGrass(UserObjectGeometry):
             logger.exception(f"{self.__str__()} dimensions are not specified correctly")
             raise ValueError
 
-        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim)
+        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.ID = "grass"
         surface.surfaceID = requestedsurface
-        surface.seed = seed
 
         # Set the fractal range to scale the fractal distribution between zero and one
         surface.fractalrange = (0, 1)
@@ -195,7 +224,7 @@ class AddGrass(UserObjectGeometry):
         if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
             logger.exception(
                 f"{self.__str__()} the specified surface is not large "
-                + "enough for the number of grass blades/roots specified"
+                "enough for the number of grass blades/roots specified"
             )
             raise ValueError
 
@@ -215,7 +244,8 @@ class AddGrass(UserObjectGeometry):
         # probability values, and convert the 1D index back into a x, y index
         # for the original surface.
         bladesindex = np.unravel_index(
-            np.digitize(A, probability1D), (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1])
+            np.digitize(A, probability1D),
+            (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]),
         )
 
         # Set the fractal range to minimum and maximum heights of the grass blades
@@ -223,15 +253,16 @@ class AddGrass(UserObjectGeometry):
 
         # Set the fractal surface using the pre-calculated spatial distribution
         # and a random height
-        surface.fractalsurface = np.zeros((surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]))
+        surface.fractalsurface = np.zeros(
+            (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1])
+        )
         for i in range(len(bladesindex[0])):
             surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(
                 surface.fractalrange[0], surface.fractalrange[1], size=1
             )
 
         # Create grass geometry parameters
-        g = Grass(n_blades)
-        g.seed = surface.seed
+        g = Grass(n_blades, surface.seed)
         surface.grass.append(g)
 
         # Check to see if grass has been already defined as a material
@@ -244,7 +275,7 @@ class AddGrass(UserObjectGeometry):
         if testgrass:
             logger.exception(
                 f"{self.__str__()} requires the time step for the "
-                + "model to be less than the relaxation time required to model grass."
+                "model to be less than the relaxation time required to model grass."
             )
             raise ValueError
 
@@ -252,9 +283,9 @@ class AddGrass(UserObjectGeometry):
 
         logger.info(
             f"{self.grid_name(grid)}{n_blades} blades of grass on surface from "
-            + f"{xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, "
-            + f"to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m "
-            + f"with fractal dimension {surface.dimension:g}, fractal seeding "
-            + f"{surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, "
-            + f"added to {surface.operatingonID}."
+            f"{xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, "
+            f"to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m "
+            f"with fractal dimension {surface.dimension:g}, fractal seeding "
+            f"{surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, "
+            f"added to {surface.operatingonID}."
         )

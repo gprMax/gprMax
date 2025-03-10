@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -54,7 +54,7 @@ class Edge(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Creates edge and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -91,18 +91,24 @@ class Edge(UserObjectGeometry):
             raise ValueError
         elif xs != xf:
             for i in range(xs, xf):
-                build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+                build_edge_x(
+                    i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID
+                )
 
         elif ys != yf:
             for j in range(ys, yf):
-                build_edge_y(xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+                build_edge_y(
+                    xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID
+                )
 
         elif zs != zf:
             for k in range(zs, zf):
-                build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+                build_edge_z(
+                    xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID
+                )
 
         logger.info(
             f"{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, "
-            + f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
-            + f"material {material_id} created."
+            f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
+            f"material {material_id} created."
         )

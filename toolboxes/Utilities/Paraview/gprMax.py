@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -74,7 +74,7 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
 
     pml_names = ["x0", "y0", "z0", "xmax", "ymax", "zmax"]
     pmls = dict.fromkeys(pml_names, None)
-    SetActiveSource(pv_src)
+    SetActiveSource(pv_data)
 
     if pmlthick[0] != 0:
         x0 = Box(
@@ -159,15 +159,13 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
 
 
 # Get whatever source is loaded - should be loaded file (.vt*) or files (.pvd)
-data = GetActiveSource()
+pv_data = GetActiveSource()
 
 # Hide display of root data
-Hide(data)
-
+Hide(pv_data)
 
 # Single .vti or .vtu file
-file = data.FileName
-dirname = os.path.dirname(file[0])
+file = pv_data.FileName[0]
 
 # Read and display data from file, i.e. materials, sources,  receivers, and PMLs
 with open(file, "rb") as f:
@@ -187,12 +185,8 @@ with open(file, "rb") as f:
 ################
 pv_view = GetActiveView()
 pv_view.AxesGrid.Visibility = 1  # Show Data Axes Grid
-pv_data = OpenDataFile(file)
 pv_disp = Show(pv_data, pv_view)
-pv_src = GetActiveSource()
-Hide(pv_src)
-src_name = os.path.split(file)
-RenameSource(src_name[1])
+pv_disp.ColorArrayName = ["CELLS", "Material"]
 
 # Discretisation
 dl = c["dx_dy_dz"]
@@ -202,7 +196,7 @@ nl = c["nx_ny_nz"]
 # Materials
 try:
     for i, mat in enumerate(c["Materials"]):
-        threshold = threshold_filt(pv_src, i, i, ["CELLS", "Material"])
+        threshold = threshold_filt(pv_data, i, i, ["CELLS", "Material"])
         RenameSource(mat, threshold)
 
         # Show data in view, except for free_space

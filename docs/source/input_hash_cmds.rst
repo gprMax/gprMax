@@ -620,6 +620,10 @@ Allows you to introduce an orthogonal parallelepiped with fractal distributed pr
 
 For example, to create an orthogonal parallelepiped with fractal distributed properties using a Peplinski mixing model for soil, with 50 different materials over a range of water volumetric fractions from 0.001 - 0.25, you should first define the mixing model using: ``#soil_peplinski: 0.5 0.5 2.0 2.66 0.001 0.25 my_soil`` and then specify the fractal box using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 50 my_soil my_fractal_box``.
 
+.. note::
+
+    * Currently (2024) we are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model. 
+
 #add_surface_roughness:
 -----------------------
 
@@ -731,7 +735,7 @@ Source and output commands
 #waveform:
 ----------
 
-Allows you to specify waveforms to use with sources in the model. The syntax of the command is:
+Allows you to specify common waveform shapes to use with sources in the model. The syntax of the command is:
 
 .. code-block:: none
 
@@ -757,7 +761,7 @@ For example, to specify the normalised first derivative of a Gaussian waveform w
 
 .. note::
 
-    * The functions used to create the waveforms can be found in the in ``toolboxes/Plotting`` package.
+    * The functions used to create the waveforms can be found in the ``toolboxes/Plotting`` package.
     * ``gaussiandot``, ``gaussiandotnorm``, ``gaussiandotdot``, ``gaussiandotdotnorm``, ``ricker`` waveforms have their centre frequencies specified by the user, i.e. they are not derived to the 'base' ``gaussian``
     * ``gaussianprime`` and ``gaussiandoubleprime`` waveforms are the first derivative and second derivative of the 'base' ``gaussian`` waveform, i.e. the centre frequencies of the waveforms will rise for the first and second derivatives.
 
@@ -765,11 +769,17 @@ For example, to specify the normalised first derivative of a Gaussian waveform w
 #excitation_file:
 -----------------
 
-Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model.
+Allows you to specify an ASCII file that contains amplitude values that specify custom waveform(s) that can be used with sources in the model.
 
-The first row of each column must begin with a identifier string that will be used as the name of each waveform. Optionally, the first column of the file may contain a time vector of values (which must use the identifier ``time``) to interpolate the amplitude values of the waveform. If a time vector is not given, a vector of time values corresponding to the simulation time step and number of iterations will be used.
+The first row of each column must begin with a identifier string that will be used as the name of each waveform. Subsequent rows should contain amplitude values for the custom waveform you want to use. You can import multiple different waveforms (as columns of amplitude data) in a single file.
 
-If there are less amplitude values than the number of iterations that are going to be performed, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored. The syntax of the command is:
+Ideally, there should be the same number of amplitude values as number of iterations in your model. If there are less amplitude values than the number of iterations in the model, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored.
+
+Optionally, in the first column of the file you may specify your own time vector of values (which must use the identifier ``time``) to use with the amplitude values of the waveform.
+
+The amplitude values will be interpolated using either the aforementioned user specified time vector, or if none was supplied, a vector of time values corresponding to the simulation time step and number of iterations will be used. Key parameters used for the interpolation can be specified in the command.
+
+ The syntax of the command is:
 
 .. code-block:: none
 
@@ -965,7 +975,7 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 PML commands
 ============
 
-The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. The thickness of the PML can be altered by using the following command (further customisation of the PML is possible using our Python API):
+The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain.
 
 #pml_cells:
 ------------
@@ -989,3 +999,47 @@ For example to use a PML with 20 cells (thicker than the default 10 cells) on on
 .. code-block:: none
 
     #pml_cells: 10 10 20 10 10 20
+
+#pml_formulation:
+-----------------
+
+Allows you to alter the formulation used for the PML. The current options are to use the Higher Order RIPML (HORIPML) - https://doi.org/10.1109/TAP.2011.2180344, or Multipole RIPML (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_formulation: str
+
+* ``str`` can be either 'HORIPML' or 'MRIPML'
+
+For example to use the Multipole RIPML:
+
+.. code-block:: none
+
+    #pml_formulation: MRIPML
+
+#pml_cfs:
+---------
+
+Allows you (advanced) control of the parameters that are used to build each order of the PML. Up to a second order PML can currently be specified, i.e. by using two ``#pml_cfs`` commands. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6
+
+* ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str2`` is the direction of the scaling to use for the CFS :math:`\alpha` parameter. It can be ``forward`` or ``reverse``.
+* ``f1 f2`` are the minimum and maximum values for the CFS :math:`\alpha` parameter.
+* ``str3`` is the type of scaling to use for the CFS :math:`\kappa` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str4`` is the direction of the scaling to use for the CFS :math:`\kappa` parameter. It can be ``forward`` or ``reverse``.
+* ``f3 f4`` are the minimum and maximum values for the CFS :math:`\kappa` parameter. The minimum value for the CFS :math:`\kappa` parameter is one.
+* ``str5`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str6`` is the direction of the scaling to use for the CFS :math:`\sigma` parameter. It can be ``forward`` or ``reverse``.
+* ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
+
+The CFS values (which are internally specified) used for the default standard first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
+
+The parameters will be applied to all slabs of the PML that are switched on.
+
+.. tip::
+
+    ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.

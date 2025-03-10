@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -18,6 +18,7 @@
 
 import decimal as d
 from collections import OrderedDict
+from importlib import import_module
 
 import numpy as np
 
@@ -56,10 +57,11 @@ class FDTDGrid:
         self.pmls["formulation"] = "HORIPML"
         self.pmls["cfs"] = []
         self.pmls["slabs"] = []
-        # Ordered dictionary required so that PMLs are always updated in the
-        # same order. The order itself does not matter, however, if must be the
-        # same from model to model otherwise the numerical precision from adding
-        # the PML corrections will be different.
+        # Ordered dictionary required so *updating* the PMLs always follows the
+        # same order (the order for *building* PMLs does not matter). The order
+        # itself does not matter, however, if must be the same from model to
+        # model otherwise the numerical precision from adding the PML
+        # corrections will be different.
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
         self.materials = []
@@ -127,30 +129,67 @@ class FDTDGrid:
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
-        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
+        self.Ex = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Ey = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Ez = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Hx = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Hy = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Hz = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
-        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
-        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
+        self.updatecoeffsE = np.zeros(
+            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.updatecoeffsH = np.zeros(
+            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
         self.Tx = np.zeros(
-            (config.get_model_config().materials["maxpoles"], self.nx + 1, self.ny + 1, self.nz + 1),
+            (
+                config.get_model_config().materials["maxpoles"],
+                self.nx + 1,
+                self.ny + 1,
+                self.nz + 1,
+            ),
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
         self.Ty = np.zeros(
-            (config.get_model_config().materials["maxpoles"], self.nx + 1, self.ny + 1, self.nz + 1),
+            (
+                config.get_model_config().materials["maxpoles"],
+                self.nx + 1,
+                self.ny + 1,
+                self.nz + 1,
+            ),
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
         self.Tz = np.zeros(
-            (config.get_model_config().materials["maxpoles"], self.nx + 1, self.ny + 1, self.nz + 1),
+            (
+                config.get_model_config().materials["maxpoles"],
+                self.nx + 1,
+                self.ny + 1,
+                self.nz + 1,
+            ),
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
 
@@ -184,7 +223,9 @@ class FDTDGrid:
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
         # 12 x rigidE array components + 6 x rigidH array components
-        rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        rigidarrays = (
+            (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        )
 
         # 6 x field arrays + 6 x ID arrays
         fieldarrays = (
@@ -287,14 +328,24 @@ class FDTDGrid:
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
         if config.get_model_config().mode == "2D TMx":
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
+            )
         elif config.get_model_config().mode == "2D TMy":
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
+            )
         elif config.get_model_config().mode == "2D TMz":
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
+            )
         else:
             self.dt = 1 / (
-                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
             )
 
         # Round down time step to nearest float with precision one less than
@@ -309,6 +360,8 @@ class CUDAGrid(FDTDGrid):
     def __init__(self):
         super().__init__()
 
+        self.gpuarray = import_module("pycuda.gpuarray")
+
         # Threads per block - used for main electric/magnetic field updates
         self.tpb = (128, 1, 1)
         # Blocks per grid - used for main electric/magnetic field updates
@@ -319,82 +372,83 @@ class CUDAGrid(FDTDGrid):
         magnetic field arrays on a GPU.
         """
 
-        self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
+        self.bpg = (
+            int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])),
+            1,
+            1,
+        )
 
-    def htod_geometry_arrays(self, queue=None):
+    def htod_geometry_arrays(self):
+        """Initialise an array for cell edge IDs (ID) on compute device."""
+
+        self.ID_dev = self.gpuarray.to_gpu(self.ID)
+
+    def htod_field_arrays(self):
+        """Initialise field arrays on compute device."""
+
+        self.Ex_dev = self.gpuarray.to_gpu(self.Ex)
+        self.Ey_dev = self.gpuarray.to_gpu(self.Ey)
+        self.Ez_dev = self.gpuarray.to_gpu(self.Ez)
+        self.Hx_dev = self.gpuarray.to_gpu(self.Hx)
+        self.Hy_dev = self.gpuarray.to_gpu(self.Hy)
+        self.Hz_dev = self.gpuarray.to_gpu(self.Hz)
+
+    def htod_dispersive_arrays(self):
+        """Initialise dispersive material coefficient arrays on compute device."""
+
+        self.updatecoeffsdispersive_dev = self.gpuarray.to_gpu(
+            self.updatecoeffsdispersive
+        )
+        self.Tx_dev = self.gpuarray.to_gpu(self.Tx)
+        self.Ty_dev = self.gpuarray.to_gpu(self.Ty)
+        self.Tz_dev = self.gpuarray.to_gpu(self.Tz)
+
+
+class OpenCLGrid(FDTDGrid):
+    """Additional grid methods for solving on compute device using OpenCL."""
+
+    def __init__(self):
+        super().__init__()
+
+        self.clarray = import_module("pyopencl.array")
+
+    def htod_geometry_arrays(self, queue):
         """Initialise an array for cell edge IDs (ID) on compute device.
 
         Args:
             queue: pyopencl queue.
         """
 
-        if config.sim_config.general["solver"] == "cuda":
-            import pycuda.gpuarray as gpuarray
+        self.ID_dev = self.clarray.to_device(queue, self.ID)
 
-            self.ID_dev = gpuarray.to_gpu(self.ID)
-
-        elif config.sim_config.general["solver"] == "opencl":
-            import pyopencl.array as clarray
-
-            self.ID_dev = clarray.to_device(queue, self.ID)
-
-    def htod_field_arrays(self, queue=None):
+    def htod_field_arrays(self, queue):
         """Initialise field arrays on compute device.
 
         Args:
             queue: pyopencl queue.
         """
 
-        if config.sim_config.general["solver"] == "cuda":
-            import pycuda.gpuarray as gpuarray
+        self.Ex_dev = self.clarray.to_device(queue, self.Ex)
+        self.Ey_dev = self.clarray.to_device(queue, self.Ey)
+        self.Ez_dev = self.clarray.to_device(queue, self.Ez)
+        self.Hx_dev = self.clarray.to_device(queue, self.Hx)
+        self.Hy_dev = self.clarray.to_device(queue, self.Hy)
+        self.Hz_dev = self.clarray.to_device(queue, self.Hz)
 
-            self.Ex_dev = gpuarray.to_gpu(self.Ex)
-            self.Ey_dev = gpuarray.to_gpu(self.Ey)
-            self.Ez_dev = gpuarray.to_gpu(self.Ez)
-            self.Hx_dev = gpuarray.to_gpu(self.Hx)
-            self.Hy_dev = gpuarray.to_gpu(self.Hy)
-            self.Hz_dev = gpuarray.to_gpu(self.Hz)
-        elif config.sim_config.general["solver"] == "opencl":
-            import pyopencl.array as clarray
-
-            self.Ex_dev = clarray.to_device(queue, self.Ex)
-            self.Ey_dev = clarray.to_device(queue, self.Ey)
-            self.Ez_dev = clarray.to_device(queue, self.Ez)
-            self.Hx_dev = clarray.to_device(queue, self.Hx)
-            self.Hy_dev = clarray.to_device(queue, self.Hy)
-            self.Hz_dev = clarray.to_device(queue, self.Hz)
-
-    def htod_dispersive_arrays(self, queue=None):
+    def htod_dispersive_arrays(self, queue):
         """Initialise dispersive material coefficient arrays on compute device.
 
         Args:
             queue: pyopencl queue.
         """
 
-        if config.sim_config.general["solver"] == "cuda":
-            import pycuda.gpuarray as gpuarray
-
-            self.Tx_dev = gpuarray.to_gpu(self.Tx)
-            self.Ty_dev = gpuarray.to_gpu(self.Ty)
-            self.Tz_dev = gpuarray.to_gpu(self.Tz)
-            self.updatecoeffsdispersive_dev = gpuarray.to_gpu(self.updatecoeffsdispersive)
-        elif config.sim_config.general["solver"] == "opencl":
-            import pyopencl.array as clarray
-
-            self.Tx_dev = clarray.to_device(queue, self.Tx)
-            self.Ty_dev = clarray.to_device(queue, self.Ty)
-            self.Tz_dev = clarray.to_device(queue, self.Tz)
-            self.updatecoeffsdispersive_dev = clarray.to_device(queue, self.updatecoeffsdispersive)
-
-
-class OpenCLGrid(CUDAGrid):
-    """Additional grid methods for solving on compute device using OpenCL."""
-
-    def __init__(self):
-        super().__init__()
-
-    def set_blocks_per_grid(self):
-        pass
+        self.updatecoeffsdispersive_dev = self.clarray.to_device(
+            queue, self.updatecoeffsdispersive
+        )
+        # self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, np.ones((95,95,95), dtype=np.float32))
+        self.Tx_dev = self.clarray.to_device(queue, self.Tx)
+        self.Ty_dev = self.clarray.to_device(queue, self.Ty)
+        self.Tz_dev = self.clarray.to_device(queue, self.Tz)
 
 
 def dispersion_analysis(G):
@@ -428,22 +482,16 @@ def dispersion_analysis(G):
                 results["error"] = "user waveform detected."
 
             else:
-                # User-defined waveform
-                if waveform.type == "user":
-                    iterations = G.iterations
-
-                # Built-in waveform
-                else:
-                    # Time to analyse waveform - 4*pulse_width as using entire
-                    # time window can result in demanding FFT
-                    waveform.calculate_coefficients()
-                    iterations = round_value(4 * waveform.chi / G.dt)
-                    if iterations > G.iterations:
-                        iterations = G.iterations
-
+                # Time to analyse waveform - 4*pulse_width as using entire
+                # time window can result in demanding FFT
+                waveform.calculate_coefficients()
+                iterations = round_value(4 * waveform.chi / G.dt)
+                iterations = min(iterations, G.iterations)
                 waveformvalues = np.zeros(G.iterations)
                 for iteration in range(G.iterations):
-                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
+                    waveformvalues[iteration] = waveform.calculate_value(
+                        iteration * G.dt, G.dt
+                    )
 
                 # Ensure source waveform is not being overly truncated before attempting any FFT
                 if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
@@ -456,7 +504,10 @@ def dispersion_analysis(G):
                     try:
                         freqthres = (
                             np.where(
-                                power[freqmaxpower:] < -config.get_model_config().numdispersion["highestfreqthres"]
+                                power[freqmaxpower:]
+                                < -config.get_model_config().numdispersion[
+                                    "highestfreqthres"
+                                ]
                             )[0][0]
                             + freqmaxpower
                         )
@@ -475,7 +526,8 @@ def dispersion_analysis(G):
                 # If waveform is truncated don't do any further analysis
                 else:
                     results["error"] = (
-                        "waveform does not fit within specified " + "time window and is therefore being truncated."
+                        "waveform does not fit within specified "
+                        + "time window and is therefore being truncated."
                     )
     else:
         results["error"] = "no waveform detected."
@@ -523,9 +575,14 @@ def dispersion_analysis(G):
         results["N"] = minwavelength / delta
 
         # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results["N"])) >= config.get_model_config().numdispersion["mingridsampling"]:
+        if (
+            int(np.floor(results["N"]))
+            >= config.get_model_config().numdispersion["mingridsampling"]
+        ):
             # Numerical phase velocity
-            vp = np.pi / (results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"])))
+            vp = np.pi / (
+                results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
+            )
 
             # Physical phase velocity error (percentage)
             results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100

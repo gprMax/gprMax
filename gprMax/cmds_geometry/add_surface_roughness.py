@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -65,7 +65,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -78,12 +78,12 @@ class AddSurfaceRoughness(UserObjectGeometry):
             raise
 
         try:
-            seed = self.kwargs["seed"]
+            seed = int(self.kwargs["seed"])
         except KeyError:
             logger.warning(
                 f"{self.__str__()} no value for seed detected. This "
-                + "means you will get a different fractal distribution "
-                + "every time the model runs."
+                "means you will get a different fractal distribution "
+                "every time the model runs."
             )
             seed = None
 
@@ -91,11 +91,15 @@ class AddSurfaceRoughness(UserObjectGeometry):
             self._do_rotate()
 
         # Get the correct fractal volume
-        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
+        volumes = [
+            volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id
+        ]
         if volumes:
             volume = volumes[0]
         else:
-            logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
+            logger.exception(
+                f"{self.__str__()} cannot find FractalBox {fractal_box_id}"
+            )
             raise ValueError
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -103,38 +107,48 @@ class AddSurfaceRoughness(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the " + "fractal dimension")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the "
+                + "fractal dimension"
+            )
             raise ValueError
         if weighting[0] < 0:
             logger.exception(
                 f"{self.__str__()} requires a positive value for the "
-                + "fractal weighting in the first direction of the surface"
+                "fractal weighting in the first direction of the surface"
             )
             raise ValueError
         if weighting[1] < 0:
             logger.exception(
                 f"{self.__str__()} requires a positive value for the "
-                + "fractal weighting in the second direction of the surface"
+                "fractal weighting in the second direction of the surface"
             )
             raise ValueError
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
+            fractalrange = (
+                round_value(limits[0] / grid.dx),
+                round_value(limits[1] / grid.dx),
+            )
             # xminus surface
             if xs == volume.xs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.xf:
                     logger.exception(
                         f"{self.__str__()} cannot apply fractal surface "
-                        + "to fractal box as it would exceed either the "
-                        + "upper coordinates of the fractal box or the "
-                        + "domain in the x direction"
+                        "to fractal box as it would exceed either the "
+                        "upper coordinates of the fractal box or the "
+                        "domain in the x direction"
                     )
                     raise ValueError
                 requestedsurface = "xminus"
@@ -143,29 +157,37 @@ class AddSurfaceRoughness(UserObjectGeometry):
                 if fractalrange[0] < volume.xs or fractalrange[1] > grid.nx:
                     logger.exception(
                         f"{self.__str__()} cannot apply fractal surface "
-                        + "to fractal box as it would exceed either the "
-                        + "lower coordinates of the fractal box or the "
-                        + "domain in the x direction"
+                        "to fractal box as it would exceed either the "
+                        "lower coordinates of the fractal box or the "
+                        "domain in the x direction"
                     )
                     raise ValueError
                 requestedsurface = "xplus"
 
         elif ys == yf:
             if zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
+                logger.exception(
+                    f"{self.__str__()} dimensions are not specified correctly"
+                )
                 raise ValueError
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external "
+                    + "surfaces of a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
+            fractalrange = (
+                round_value(limits[0] / grid.dy),
+                round_value(limits[1] / grid.dy),
+            )
             # yminus surface
             if ys == volume.ys:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.yf:
                     logger.exception(
                         f"{self.__str__()} cannot apply fractal surface "
-                        + "to fractal box as it would exceed either the "
-                        + "upper coordinates of the fractal box or the "
-                        + "domain in the y direction"
+                        "to fractal box as it would exceed either the "
+                        "upper coordinates of the fractal box or the "
+                        "domain in the y direction"
                     )
                     raise ValueError
                 requestedsurface = "yminus"
@@ -174,26 +196,32 @@ class AddSurfaceRoughness(UserObjectGeometry):
                 if fractalrange[0] < volume.ys or fractalrange[1] > grid.ny:
                     logger.exception(
                         f"{self.__str__()} cannot apply fractal surface "
-                        + "to fractal box as it would exceed either the "
-                        + "lower coordinates of the fractal box or the "
-                        + "domain in the y direction"
+                        "to fractal box as it would exceed either the "
+                        "lower coordinates of the fractal box or the "
+                        "domain in the y direction"
                     )
                     raise ValueError
                 requestedsurface = "yplus"
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external "
+                    + "surfaces of a fractal box"
+                )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
+            fractalrange = (
+                round_value(limits[0] / grid.dz),
+                round_value(limits[1] / grid.dz),
+            )
             # zminus surface
             if zs == volume.zs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.zf:
                     logger.exception(
                         f"{self.__str__()} cannot apply fractal surface "
-                        + "to fractal box as it would exceed either the "
-                        + "upper coordinates of the fractal box or the "
-                        + "domain in the x direction"
+                        "to fractal box as it would exceed either the "
+                        "upper coordinates of the fractal box or the "
+                        "domain in the x direction"
                     )
                     raise ValueError
                 requestedsurface = "zminus"
@@ -202,9 +230,9 @@ class AddSurfaceRoughness(UserObjectGeometry):
                 if fractalrange[0] < volume.zs or fractalrange[1] > grid.nz:
                     logger.exception(
                         f"{self.__str__()} cannot apply fractal surface "
-                        + "to fractal box as it would exceed either the "
-                        + "lower coordinates of the fractal box or the "
-                        + "domain in the z direction"
+                        "to fractal box as it would exceed either the "
+                        "lower coordinates of the fractal box or the "
+                        "domain in the z direction"
                     )
                     raise ValueError
                 requestedsurface = "zplus"
@@ -213,20 +241,18 @@ class AddSurfaceRoughness(UserObjectGeometry):
             logger.exception(f"{self.__str__()} dimensions are not specified correctly")
             raise ValueError
 
-        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim)
+        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.surfaceID = requestedsurface
         surface.fractalrange = fractalrange
         surface.operatingonID = volume.ID
-        if seed is not None:
-            surface.seed = int(seed)
-        else:
-            surface.seed = seed
         surface.weighting = weighting
 
         # List of existing surfaces IDs
         existingsurfaceIDs = [x.surfaceID for x in volume.fractalsurfaces]
         if surface.surfaceID in existingsurfaceIDs:
-            logger.exception(f"{self.__str__()} has already been used on the " + f"{surface.surfaceID} surface")
+            logger.exception(
+                f"{self.__str__()} has already been used on the {surface.surfaceID} surface"
+            )
             raise ValueError
 
         surface.generate_fractal_surface()
@@ -234,10 +260,10 @@ class AddSurfaceRoughness(UserObjectGeometry):
 
         logger.info(
             f"{self.grid_name(grid)}Fractal surface from {xs * grid.dx:g}m, "
-            + f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, "
-            + f"{yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension "
-            + f"{surface.dimension:g}, fractal weightings {surface.weighting[0]:g}, "
-            + f"{surface.weighting[1]:g}, fractal seeding {surface.seed}, "
-            + f"and range {limits[0]:g}m to {limits[1]:g}m, added to "
-            + f"{surface.operatingonID}."
+            f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, "
+            f"{yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension "
+            f"{surface.dimension:g}, fractal weightings {surface.weighting[0]:g}, "
+            f"{surface.weighting[1]:g}, fractal seeding {surface.seed}, "
+            f"and range {limits[0]:g}m to {limits[1]:g}m, added to "
+            f"{surface.operatingonID}."
         )
