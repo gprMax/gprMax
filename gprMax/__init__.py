@@ -29,6 +29,7 @@ from .cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
+    DiscretePlaneWave,
     ExcitationFile,
     GeometryObjectsWrite,
     GeometryView,
@@ -46,7 +47,6 @@ from .cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
-from .cmds_multiuse import DiscretePlaneWave
 
 from .cmds_singleuse import (
     Discretisation,
