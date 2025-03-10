@@ -963,6 +963,8 @@ class DiscretePlaneWave(UserObjectMulti):
         p1: tuple required for the upper right position (x, y, z) of the total
             field, scattered field (TFSF) box.
         waveform_id: string required for identifier of waveform used with source.
+        material_id: string optional of material identifier to use as the 
+                        background material in the TFSF box.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
     """
