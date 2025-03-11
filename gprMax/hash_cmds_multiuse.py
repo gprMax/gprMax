@@ -251,20 +251,9 @@ def process_multicmds(multicmds):
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi=float(tmp[6]),
                     phi=float(tmp[7]),
-                    theta=float(tmp[9]),
-                    waveform_id=tmp[11],
-                    material_ID=int(tmp[12]),
-                )
-            elif len(tmp) == 12:
-                plWave = DiscretePlaneWave(
-                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
-                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                    psi=float(tmp[6]),
-                    phi=float(tmp[7]),
-                    delta_phi=float(tmp[8]),
-                    theta=float(tmp[9]),
-                    delta_theta=float(tmp[10]),
-                    waveform_id=tmp[11],
+                    theta=float(tmp[8]),
+                    waveform_id=tmp[9],
+                    material_ID=int(tmp[10]),
                 )
             elif len(tmp) == 13:
                 plWave = DiscretePlaneWave(
@@ -272,38 +261,11 @@ def process_multicmds(multicmds):
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi=float(tmp[6]),
                     phi=float(tmp[7]),
-                    delta_phi=float(tmp[8]),
-                    theta=float(tmp[9]),
-                    delta_theta=float(tmp[10]),
-                    waveform_id=tmp[11],
-                    material_ID=int(tmp[12]),
-                )
-            elif len(tmp) == 14:
-                plWave = DiscretePlaneWave(
-                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
-                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                    psi=float(tmp[6]),
-                    phi=float(tmp[7]),
-                    delta_phi=float(tmp[8]),
-                    theta=float(tmp[9]),
-                    delta_theta=float(tmp[10]),
-                    waveform_id=tmp[11],
-                    start=float(tmp[12]),
-                    stop=float(tmp[13]),
-                )
-            elif len(tmp) == 15:
-                plWave = DiscretePlaneWave(
-                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
-                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                    psi=float(tmp[6]),
-                    phi=float(tmp[7]),
-                    delta_phi=float(tmp[8]),
-                    theta=float(tmp[9]),
-                    delta_theta=float(tmp[10]),
-                    waveform_id=tmp[11],
-                    material_ID=int(tmp[12]),
-                    start=float(tmp[13]),
-                    stop=float(tmp[14]),
+                    theta=float(tmp[8]),
+                    waveform_id=tmp[9],
+                    material_ID=int(tmp[10]),
+                    start=float(tmp[11]),
+                    stop=float(tmp[12]),
                 )
             else:
                 logger.exception(
