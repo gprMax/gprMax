@@ -916,6 +916,12 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 * ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the transmission line. ``f11`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
+For example, to specify a ..... use: ``#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 mypulse``.
+
+.. note::
+
+    * Currently a plane wave can be introduced from the direction of the origin only, if the Total field/scattered field box is considered to be present in the first octant (region in the coordinate space determined by the positive x-axis, positive y-axis, and positive z-axis). The implementation should ideally be able to handle the introduction of the plane wave from any direction but currently it supports 0 <= phi <= 90 degrees and 0 <= theta <= 90 degrees only.
+    * The plane wave implementation was initiated through a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 #rx:
 ----
