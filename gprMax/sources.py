@@ -701,6 +701,7 @@ class DiscretePlaneWave(Source):
             theta: float for polar angle (radians) of the incident plane wave.
             Delta_theta: float for permissible error in the rational angle
                             (radians) approximation to theta.
+            G: FDTDGrid class describing a grid in a model.
             number: int for number of cells in the 3D FDTD simulation.
             dx: double for separation between adjacent cells in the x direction.
             dy: double for separation between adjacent cells in the y direction.
@@ -737,7 +738,8 @@ class DiscretePlaneWave(Source):
             order="C",
             dtype=config.sim_config.dtypes["float_or_double"],
         )
-        # the 1D grid has no ABC to terminate it, sufficiently long array prevents reflections from the back
+        # 1D grid has no ABC to terminate it, sufficiently long array prevents
+        # reflections from the back
         # Projections for field components
         projections_h, P = getProjections(
             psi * 180 / np.pi, self.m
@@ -900,23 +902,23 @@ class DiscretePlaneWave(Source):
                     )
 
     def update_magnetic_field_1D(self, G, precompute=True):
-        """Updates magnetic fields for the next time step using Equation 8 of 
+        """Updates magnetic fields for the next time step using Equation 8 of
             DOI: 10.1109/LAWP.2009.2016851
-        
+
         Args:
-            n: int stores spatial length of the DPW array so that each length 
+            n: int stores spatial length of the DPW array so that each length
                 grid cell is updated when updateMagneticFields() called.
-            H_coefficients: double array stores coefficients of the fields in 
+            H_coefficients: double array stores coefficients of the fields in
                             the update equation for the magnetic field.
             H_fields: double array stores magnetic fields of the DPW until
                         temporal index time.
-            E_fields: double array stores electric fields of the DPW until 
+            E_fields: double array stores electric fields of the DPW until
                         temporal index time.
-            time: int time index storing current axis number which would be 
+            time: int time index storing current axis number which would be
                     updated for the H_fields.
 
         Returns:
-            H_fields: double array for magnetic field with the axis entry for 
+            H_fields: double array for magnetic field with the axis entry for
                         the current time added.
         """
 
@@ -947,23 +949,23 @@ class DiscretePlaneWave(Source):
                 )  # equation 8 of Tan, Potter paper
 
     def update_electric_field_1D(self, G):
-        """Updates electric fields for the next time step using Equation 9 of 
+        """Updates electric fields for the next time step using Equation 9 of
             DOI: 10.1109/LAWP.2009.2016851
-        
+
         Args:
-            n: int stores spatial length of DPW array so that each length grid 
+            n: int stores spatial length of DPW array so that each length grid
                 cell is updated when updateMagneticFields() is called.
-            E_coefficients: double array stores coefficients of the fields in 
+            E_coefficients: double array stores coefficients of the fields in
                             the update equation for the electric field.
             H_fields: double array stores magnetic fields of the DPW until
                         temporal index time.
-            E_fields: double array stores electric fields of the DPW until 
+            E_fields: double array stores electric fields of the DPW until
                         temporal index time.
-            time: int time index storing current axis number which would be 
+            time: int time index storing current axis number which would be
                     updated for the E_fields.
 
         Returns:
-            E_fields: double array for electric field with the axis entry for 
+            E_fields: double array for electric field with the axis entry for
                         the current time added.
 
         """
