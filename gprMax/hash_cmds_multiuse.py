@@ -275,12 +275,12 @@ def process_multicmds(multicmds):
 
             scene_objects.append(plWave)
 
-    cmd = "#excitation_file"
-    if multicmds[cmd] is not None:
+    cmdname = "#excitation_file"
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) not in [1, 3]:
-                logger.exception(f"{cmd} requires either one or three parameter(s)")
+                logger.exception(f"{cmdname} requires either one or three parameter(s)")
                 raise ValueError
 
             if len(tmp) > 1:

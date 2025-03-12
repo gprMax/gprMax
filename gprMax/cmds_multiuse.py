@@ -974,7 +974,7 @@ class DiscretePlaneWave(UserObjectMulti):
         self.order = 19
         self.hash = "#discrete_plane_wave"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             theta = self.kwargs["theta"]
             phi = self.kwargs["phi"]
@@ -1069,7 +1069,7 @@ class DiscretePlaneWave(UserObjectMulti):
             DPW.calculate_waveform_values(grid)
 
         logger.info(
-            f"{self.grid_name(grid)} Discrete Plane Wave within the TFSF Box "
+            f"{self.grid_name(grid)}Discrete Plane Wave within the TFSF Box "
             + f"spanning from {p1} m to {p2} m, incident in the direction "
             + f"theta {theta} degrees and phi {phi} degrees "
             + startstop
@@ -1088,12 +1088,11 @@ class DiscretePlaneWave(UserObjectMulti):
             / np.pi
         )
         logger.info(
-            f"Since {self.grid_name(grid)} Discrete Plane Wave has been discretized "
+            f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
             + "the angles have been approximated to the nearest rational angles "
             + "with some small tolerance levels. The chosen rational integers are "
-            + f"[m_x, m_y, m_z] : {DPW.m[:3]}. The approximated angles are : \n"
-            + "Approximated Phi : {:.3f}".format(phi_approx)
-            + "\nApproximated Theta : {:.3f} .".format(theta_approx)
+            + f"[m_x, m_y, m_z] : {DPW.m[:3]}. The approximated angles are: "
+            + f"Phi: {phi_approx:.3f} and Theta: {theta_approx:.3f}"
         )
 
         grid.discreteplanewaves.append(DPW)
