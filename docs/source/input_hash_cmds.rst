@@ -910,13 +910,13 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
     #discrete_plane_wave: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
-* ``f7`` is psi the polarisation of the wave.
-* ``f8`` is phi the propagation angle (degrees) of the wave.
-* ``f9`` is theta the propagation angle (degrees) of the wave.
+* ``f7`` is psi which defines the polarisation of the incident plane wave.
+* ``f8`` is phi which defines the azimuthal propagation angle (degrees) of the incident plane wave.
+* ``f9`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
 * ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the transmission line. ``f11`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
-For example, to specify a ..... use: ``#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 mypulse``.
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle of 90 degrees, azimuthal propagation angle of 63.4 degrees, polar propagation angle of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 mypulse``.
 
 .. note::
 

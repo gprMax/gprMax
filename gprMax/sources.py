@@ -693,8 +693,7 @@ class DiscretePlaneWave(Source):
             at different time and space indices.
 
         Args:
-            psi: float for polarization angle  of the incident plane
-                    wave.
+            psi: float for polarization angle of the incident plane wave.
             phi: float for azimuthal angle (radians) of the incident plane wave.
             Delta_phi: float for permissible error in the rational angle
                         (radians) approximation to phi.
@@ -719,15 +718,17 @@ class DiscretePlaneWave(Source):
                 equation of the magnetic fields.
         """
 
+        # Get the integers for the nearest rational angle
         self.directions, self.m[:3] = getIntegerForAngles(
             phi, Delta_phi, theta, Delta_theta, np.array([G.dx, G.dy, G.dz])
-        )  # get the integers for the nearest rational angle
-        self.m[3] = max(
-            self.m
-        )  # store max(m_x, m_y, m_z) in the last element of the array
-        self.length = int(
-            2 * max(self.m[:-1]) * G.iterations
-        )  # set an appropriate length fo the one dimensional arrays
+        )
+
+        # Store max(m_x, m_y, m_z) in the last element of the array
+        self.m[3] = max(self.m)
+
+        # Set an appropriate length fo the one dimensional arrays
+        self.length = int(2 * max(self.m[:-1]) * G.iterations)
+
         self.E_fields = np.zeros(
             (3, self.length),
             order="C",
@@ -738,17 +739,15 @@ class DiscretePlaneWave(Source):
             order="C",
             dtype=config.sim_config.dtypes["float_or_double"],
         )
+
         # 1D grid has no ABC to terminate it, sufficiently long array prevents
         # reflections from the back
         # Projections for field components
-        projections_h, P = getProjections(
-            psi * 180 / np.pi, self.m
-        )  # get the projection vertors for different fields
-        self.projections = projections_h / np.sqrt(
-            config.m0 / config.e0
-        )  # scale the projection vector for the mangetic field
+        projections_h, P = getProjections(psi * 180 / np.pi, self.m)
+        # Scale the projection vector for the magnetic field
+        self.projections = projections_h / np.sqrt(config.m0 / config.e0)
 
-        if self.m[0] == 0:  # calculate dr that is needed for sourcing the 1D array
+        if self.m[0] == 0:  # Calculate dr that is needed for sourcing the 1D array
             if self.m[1] == 0:
                 if self.m[2] == 0:
                     raise ValueError("not all m_i values can be zero")
@@ -772,8 +771,6 @@ class DiscretePlaneWave(Source):
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
-        # Waveform values for sources that need to be calculated on half timesteps
-        # self.waveformvalues_halfdt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         if cythonize:
             calculate1DWaveformValues(
@@ -812,7 +809,6 @@ class DiscretePlaneWave(Source):
                             self.waveformvalues_wholedt[iteration, dimension, r] = (
                                 waveform.calculate_value(time, G.dt)
                             )
-                            # self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
 
     def update_plane_wave(
         self,
@@ -868,9 +864,8 @@ class DiscretePlaneWave(Source):
     def initialize_magnetic_fields_1D(self, G, precompute):
         if precompute:
             for dimension in range(3):
-                for r in range(
-                    self.m[3]
-                ):  # loop to assign the source values of magnetic field to the first few gridpoints
+                for r in range(self.m[3]):
+                    # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = (
                         self.projections[dimension]
                         * self.waveformvalues_wholedt[G.iteration, dimension, r]
@@ -879,9 +874,8 @@ class DiscretePlaneWave(Source):
         else:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             for dimension in range(3):
-                for r in range(
-                    self.m[3]
-                ):  # loop to assign the source values of magnetic field to the first few gridpoints
+                for r in range(self.m[3]):
+                    # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = self.projections[
                         dimension
                     ] * getSource(
@@ -924,16 +918,15 @@ class DiscretePlaneWave(Source):
 
         self.initialize_magnetic_fields_1D(G, precompute)
 
-        for i in range(3):  # loop to update each component of the magnetic field
+        for i in range(3):  # Update each component of magnetic field
             materialH = G.ID[
                 3 + i,
                 (self.corners[0] + self.corners[3]) // 2,
                 (self.corners[1] + self.corners[4]) // 2,
                 (self.corners[2] + self.corners[5]) // 2,
             ]
-            for j in range(
-                self.m[-1], self.length - self.m[-1]
-            ):  # loop to update the magnetic field at each spatial index
+            # Update magnetic field at each spatial index
+            for j in range(self.m[-1], self.length - self.m[-1]):
                 self.H_fields[i, j] = (
                     G.updatecoeffsH[materialH, 0] * self.H_fields[i, j]
                     + G.updatecoeffsH[materialH, (i + 2) % 3 + 1]
@@ -970,16 +963,15 @@ class DiscretePlaneWave(Source):
 
         """
 
-        for i in range(3):  # loop to update each component of the electric field
+        for i in range(3):  # Update each component of electric field
             materialE = G.ID[
                 i,
                 (self.corners[0] + self.corners[3]) // 2,
                 (self.corners[1] + self.corners[4]) // 2,
                 (self.corners[2] + self.corners[5]) // 2,
             ]
-            for j in range(
-                self.m[-1], self.length - self.m[-1]
-            ):  # loop to update the electric field at each spatial index
+            # Update electric field at each spatial index
+            for j in range(self.m[-1], self.length - self.m[-1]):
                 self.E_fields[i, j] = (
                     G.updatecoeffsE[materialE, 0] * self.E_fields[i, j]
                     + G.updatecoeffsE[materialE, (i + 2) % 3 + 1]
