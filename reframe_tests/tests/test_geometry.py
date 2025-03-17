@@ -97,6 +97,13 @@ class TestEllipsoidGeometry(GprMaxRegressionTest):
     )
 
 
+@rfm.simple_test
+class TestFractalBoxGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
+    sourcesdir = "src/geometry_tests/fractal_box_geometry"
+    model = parameter(["fractal_box_full"])
+
+
 # TODO: Add Mixin class to enable testing that invalid geometry throws an error
 @rfm.simple_test
 class TestPlateGeometry(GprMaxRegressionTest):
@@ -177,6 +184,13 @@ class TestEllipsoidGeometryMpi(MpiMixin, TestEllipsoidGeometry):
     tags = {"test", "mpi", "geometery", "ellipsoid"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestEllipsoidGeometry
+
+
+@rfm.simple_test
+class TestFractalBoxGeometryMpi(MpiMixin, TestFractalBoxGeometry):
+    tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    test_dependency = TestFractalBoxGeometry
 
 
 @rfm.simple_test
