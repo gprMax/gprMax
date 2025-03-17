@@ -23,6 +23,7 @@ from .cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
+    DiscretePlaneWave,
     ExcitationFile,
     GeometryObjectsWrite,
     GeometryView,
@@ -36,7 +37,6 @@ from .cmds_multiuse import (
     Snapshot,
     SoilPeplinski,
     TransmissionLine,
-    DiscretePlaneWave,
     VoltageSource,
     Waveform,
 )
@@ -63,18 +63,11 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
             if len(tmp) != 4:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly four parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly four parameters"
                 )
                 raise ValueError
 
-            waveform = Waveform(
-                wave_type=tmp[0], amp=float(tmp[1]), freq=float(tmp[2]), id=tmp[3]
-            )
+            waveform = Waveform(wave_type=tmp[0], amp=float(tmp[1]), freq=float(tmp[2]), id=tmp[3])
             scene_objects.append(waveform)
 
     cmdname = "#voltage_source"
@@ -99,12 +92,7 @@ def process_multicmds(multicmds):
                 )
             else:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least six parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least six parameters"
                 )
                 raise ValueError
 
@@ -188,12 +176,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
             if len(tmp) < 6:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least six parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least six parameters"
                 )
                 raise ValueError
 
@@ -227,12 +210,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
             if len(tmp) < 10:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least ten parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
                 )
                 raise ValueError
 
@@ -284,9 +262,7 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             if len(tmp) > 1:
-                ex_file = ExcitationFile(
-                    filepath=tmp[0], kind=tmp[1], fill_value=tmp[2]
-                )
+                ex_file = ExcitationFile(filepath=tmp[0], kind=tmp[1], fill_value=tmp[2])
             else:
                 ex_file = ExcitationFile(filepath=tmp[0])
 
@@ -323,12 +299,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
             if len(tmp) != 9:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly nine parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly nine parameters"
                 )
                 raise ValueError
 
@@ -358,16 +329,19 @@ def process_multicmds(multicmds):
             p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
             dl = (float(tmp[6]), float(tmp[7]), float(tmp[8]))
             filename = tmp[10]
+            fileext = "." + filename.split(".")[-1]
 
             try:
                 iterations = int(tmp[9])
                 snapshot = Snapshot(
-                    p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename
+                    p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename, fileext=fileext
                 )
 
             except ValueError:
                 time = float(tmp[9])
-                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, time=time, filename=filename)
+                snapshot = Snapshot(
+                    p1=p1, p2=p2, dl=dl, time=time, filename=filename, fileext=fileext
+                )
 
             scene_objects.append(snapshot)
 
@@ -377,12 +351,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
             if len(tmp) != 5:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly five parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly five parameters"
                 )
                 raise ValueError
 
@@ -536,9 +505,7 @@ def process_multicmds(multicmds):
             p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
             dl = float(tmp[6]), float(tmp[7]), float(tmp[8])
 
-            geometry_view = GeometryView(
-                p1=p1, p2=p2, dl=dl, filename=tmp[9], output_type=tmp[10]
-            )
+            geometry_view = GeometryView(p1=p1, p2=p2, dl=dl, filename=tmp[9], output_type=tmp[10])
             scene_objects.append(geometry_view)
 
     cmdname = "#geometry_objects_write"
@@ -596,12 +563,7 @@ def process_multicmds(multicmds):
 
             if len(tmp) < 2:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least two parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least two parameters"
                 )
                 raise ValueError
 
