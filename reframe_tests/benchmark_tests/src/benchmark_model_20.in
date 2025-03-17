@@ -1,0 +1,7 @@
+#title: Benchmark model
+#domain: 0.2 0.2 0.2
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandotnorm 1 900e6 myWave
+#hertzian_dipole: x 0.1 0.1 0.1 myWave
