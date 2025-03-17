@@ -903,7 +903,7 @@ An example antenna model using a transmission line can be found in the :ref:`exa
 #discrete_plane_wave:
 ---------------------
 
-Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The syntax of the command is:
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The syntax of the command is:
 
 .. code-block:: none
 
