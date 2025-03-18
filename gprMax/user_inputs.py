@@ -379,13 +379,18 @@ class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
         discretised_point = self.translate_to_gap(discretised_point)
         return discretised_point
 
-    def check_point(self, p, cmd_str, name=""):
-        p_t = super().check_point(p, cmd_str, name)
+    def check_point(
+        self, point: Tuple[float, float, float], cmd_str: str, name: str = ""
+    ) -> Tuple[bool, npt.NDArray[np.int32]]:
+        within_grid, discretised_point = super().check_point(point, cmd_str, name)
 
         # Provide user within a warning if they have placed objects within
         # the OS non-working region.
-        if np.less(p_t, self.inner_bound).any() or np.greater(p_t, self.outer_bound).any():
+        if (
+            np.less(discretised_point, self.inner_bound).any()
+            or np.greater(discretised_point, self.outer_bound).any()
+        ):
             logger.warning(
                 f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature."
             )
-        return p_t
+        return within_grid, discretised_point
