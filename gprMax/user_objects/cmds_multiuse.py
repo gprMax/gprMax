@@ -950,11 +950,11 @@ class DiscretePlaneWave(GridUserObject):
             psi -= np.floor(psi / 360) * 360.0
 
         uip = self._create_uip(grid)
-        x_start, y_start, z_start = uip.check_src_rx_point(p1, self.params_str())
-        x_stop, y_stop, z_stop = uip.check_src_rx_point(p2, self.params_str())
+        _, start = uip.check_src_rx_point(p1, self.params_str())
+        _, stop = uip.check_src_rx_point(p2, self.params_str())
 
         DPW = DiscretePlaneWaveUser(grid)
-        DPW.corners = np.array([x_start, y_start, z_start, x_stop, y_stop, z_stop], dtype=np.int32)
+        DPW.corners = np.array([*start, *stop], dtype=np.int32)
         DPW.waveformID = waveform_id
         DPW.initializeDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
 
