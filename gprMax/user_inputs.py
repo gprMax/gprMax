@@ -18,15 +18,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Generic
+from typing import Generic, Tuple
 
 import numpy as np
+import numpy.typing as npt
 from typing_extensions import TypeVar
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 
-from .utilities.utilities import round_value
+from .utilities.utilities import round_int
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ logger = logging.getLogger(__name__)
     encapulsated here.
 """
 
-GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
+GridType = TypeVar("GridType", bound=FDTDGrid)
 
 
 class UserInput(Generic[GridType]):
@@ -48,9 +50,9 @@ class UserInput(Generic[GridType]):
     def __init__(self, grid: GridType):
         self.grid = grid
 
-    def point_within_bounds(self, p, cmd_str, name):
+    def point_within_bounds(self, p: npt.NDArray[np.int32], cmd_str: str, name: str = "") -> bool:
         try:
-            self.grid.within_bounds(p)
+            return self.grid.within_bounds(p)
         except ValueError as err:
             v = ["x", "y", "z"]
             # Discretisation
@@ -64,30 +66,74 @@ class UserInput(Generic[GridType]):
             logger.exception(s)
             raise
 
-    def check_point_within_bounds(self, p) -> bool:
-        try:
-            self.grid.within_bounds(p)
-            return True
-        except ValueError:
-            return False
+    def discretise_static_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
+        """Get the nearest grid index to a continuous static point.
 
-    def grid_upper_bound(self) -> list[int]:
-        return [self.grid.nx, self.grid.ny, self.grid.nz]
+        For a static point, the point of the origin of the grid is
+        ignored. I.e. it is assumed to be at (0, 0, 0). There are no
+        checks of the validity of the point such as bound checking.
 
-    def discretise_point(self, p):
-        """Gets the index of a continuous point with the grid."""
-        rv = np.vectorize(round_value)
-        return rv(p / self.grid.dl)
+        Args:
+            point: x, y, z coordinates of the point in space.
 
-    def round_to_grid(self, p):
-        """Gets the nearest continuous point on the grid from a continuous point
-        in space.
+        Returns:
+            discretised_point: x, y, z indices of the point on the grid.
         """
-        return self.discretise_point(p) * self.grid.dl
+        rv = np.vectorize(round_int, otypes=[np.int32])
+        return rv(point / self.grid.dl)
 
-    def descretised_to_continuous(self, p):
-        """Returns a point given as indices to a continuous point in the real space."""
-        return p * self.grid.dl
+    def round_to_grid_static_point(
+        self, point: Tuple[float, float, float]
+    ) -> npt.NDArray[np.float64]:
+        """Round a continuous static point to the nearest point on the grid.
+
+        For a static point, the point of the origin of the grid is
+        ignored. I.e. it is assumed to be at (0, 0, 0). There are no
+        checks of the validity of the point such as bound checking.
+
+        Args:
+            point: x, y, z coordinates of the point in space.
+
+        Returns:
+            rounded_point: x, y, z coordinates of the nearest continuous
+                point on the grid.
+        """
+        return self.discretise_static_point(point) * self.grid.dl
+
+    def discretise_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
+        """Get the nearest grid index to a continuous static point.
+
+        This function translates user points to the correct index for
+        building objects. Points will be mapped from the user coordinate
+        space to the local coordinate space of the grid. There are no
+        checks of the validity of the point such as bound checking.
+
+        Args:
+            point: x, y, z coordinates of the point in space.
+
+        Returns:
+            discretised_point: x, y, z indices of the point on the grid.
+        """
+        return self.discretise_static_point(point)
+
+    def round_to_grid(self, point: Tuple[float, float, float]) -> npt.NDArray[np.float64]:
+        """Round a continuous static point to the nearest point on the grid.
+
+        The point will be mapped from the user coordinate space to the
+        local coordinate space of the grid. There are no checks of the
+        validity of the point such as bound checking.
+
+        Args:
+            point: x, y, z coordinates of the point in space.
+
+        Returns:
+            rounded_point: x, y, z coordinates of the nearest continuous
+                point on the grid.
+        """
+        return self.discretise_point(point) * self.grid.dl
+
+    def discrete_to_continuous(self, point: npt.NDArray[np.int32]) -> npt.NDArray[np.float64]:
+        return point * self.grid.dl
 
 
 class MainGridUserInput(UserInput[GridType]):
@@ -96,52 +142,195 @@ class MainGridUserInput(UserInput[GridType]):
     def __init__(self, grid):
         super().__init__(grid)
 
-    def check_point(self, p, cmd_str, name=""):
+    def check_point(
+        self, point: Tuple[float, float, float], cmd_str: str, name: str = ""
+    ) -> Tuple[bool, npt.NDArray[np.int32]]:
         """Discretises point and check its within the domain"""
-        p = self.discretise_point(p)
-        self.point_within_bounds(p, cmd_str, name)
-        return p
+        discretised_point = self.discretise_point(point)
+        within_bounds = self.point_within_bounds(discretised_point, cmd_str, name)
+        return within_bounds, discretised_point
 
-    def check_src_rx_point(self, p, cmd_str, name=""):
-        p = self.check_point(p, cmd_str, name)
+    def check_src_rx_point(
+        self, point: Tuple[float, float, float], cmd_str: str, name: str = ""
+    ) -> Tuple[bool, npt.NDArray[np.int32]]:
+        within_bounds, discretised_point = self.check_point(point, cmd_str, name)
 
-        if self.grid.within_pml(p):
+        if self.grid.within_pml(discretised_point):
             logger.warning(
                 f"'{cmd_str}' sources and receivers should not normally be positioned within the PML."
             )
 
-        return p
+        return within_bounds, discretised_point
 
-    def check_box_points(self, p1, p2, cmd_str):
-        p1 = self.check_point(p1, cmd_str, name="lower")
-        p2 = self.check_point(p2, cmd_str, name="upper")
+    def _check_2d_points(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        lower_within_grid, lower_point = self.check_point(p1, cmd_str, "lower")
+        upper_within_grid, upper_point = self.check_point(p2, cmd_str, "upper")
 
-        if np.greater(p1, p2).any():
-            logger.exception(
+        if np.greater(lower_point, upper_point).any() or np.equal(lower_point, upper_point).all():
+            raise ValueError(
                 f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."
             )
-            raise ValueError
 
-        return p1, p2
+        return lower_within_grid and upper_within_grid, lower_point, upper_point
 
-    def check_tri_points(self, p1, p2, p3, cmd_str):
-        p1 = self.check_point(p1, cmd_str, name="vertex_1")
-        p2 = self.check_point(p2, cmd_str, name="vertex_2")
-        p3 = self.check_point(p3, cmd_str, name="vertex_3")
+    def check_output_object_bounds(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        # We only care if the bounds are in the global grid (an error
+        # will be thrown if that is not the case).
+        _, lower_bound, upper_bound = self._check_2d_points(p1, p2, cmd_str)
+        return lower_bound, upper_bound
 
-        return p1, p2, p3
+    def check_box_points(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        return self._check_2d_points(p1, p2, cmd_str)
 
-    def discretise_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of
-        origin of the grid.
+    def check_tri_points(
+        self,
+        p1: Tuple[float, float, float],
+        p2: Tuple[float, float, float],
+        p3: Tuple[float, float, float],
+        cmd_str: str,
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        # We only care if the point are in the global grid (an error
+        # will be thrown if that is not the case).
+        _, p1_checked = self.check_point(p1, cmd_str, name="vertex_1")
+        _, p2_checked = self.check_point(p2, cmd_str, name="vertex_2")
+        _, p3_checked = self.check_point(p3, cmd_str, name="vertex_3")
+
+        return p1_checked, p2_checked, p3_checked
+
+    def check_thickness(
+        self,
+        dimension: str,
+        lower_extent: float,
+        thickness: float,
+        cmd_str: str,
+    ) -> Tuple[bool, float, float]:
+        """Check the thickness of an object in a specified dimension.
+
+        Args:
+            dimension: Dimension to check the thickness value for.
+                This must have value x, y, or z.
+            lower_extent: Lower extent of the object in the specified
+                dimension.
+            thickness: Thickness of the object.
+
+        Raises:
+            ValueError: Raised if dimension has an invalid value.
+
+        Returns:
+            within_grid: True if part of the object is within the
+                current grid. False otherwise.
+            lower_extent: Lower extent limited to the bounds of the
+                grid.
+            thickness: Thickness value such that lower_extent +
+                thickness is within the bounds of the grid.
         """
-        return super().discretise_point(p)
+        if thickness < 0:
+            raise ValueError(f"'{cmd_str}' requires a non negative thickness")
 
-    def round_to_grid_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of
-        origin of the grid.
+        if lower_extent < 0:
+            raise ValueError(
+                f"'{cmd_str}' lower extent should be non negative in the {dimension} dimension"
+            )
+
+        upper_extent = lower_extent + thickness
+
+        if dimension == "x":
+            lower_point = self.discretise_point((lower_extent, 0, 0))
+            upper_point = self.discretise_point((upper_extent, 0, 0))
+            thickness_point = self.discretise_static_point((thickness, 0, 0))
+            index = 0
+        elif dimension == "y":
+            lower_point = self.discretise_point((0, lower_extent, 0))
+            upper_point = self.discretise_point((0, upper_extent, 0))
+            thickness_point = self.discretise_static_point((0, thickness, 0))
+            index = 1
+        elif dimension == "z":
+            lower_point = self.discretise_point((0, 0, lower_extent))
+            upper_point = self.discretise_point((0, 0, upper_extent))
+            thickness_point = self.discretise_static_point((0, 0, thickness))
+            index = 2
+        else:
+            raise ValueError("Dimension should have value x, y, or z")
+
+        try:
+            self.grid.within_bounds(upper_point)
+        except ValueError:
+            raise ValueError(
+                f"'{cmd_str}' extends beyond the size of the model in the {dimension} dimension"
+            )
+
+        # Work with discretised (int) values as reduces imprecision due
+        # to floating point calculations
+        size = self.grid.size[index]
+        lower_extent = lower_point[index]
+        upper_extent = upper_point[index]
+        thickness = thickness_point[index]
+
+        # These should only trigger for MPIGrids.
+        # TODO: Can this be structured so these checks happen in the
+        # MPIGridUserInput object?
+        if lower_extent < 0:
+            thickness += lower_extent
+            lower_extent = 0
+        if upper_extent > size:
+            thickness -= upper_extent - size
+
+        dl = self.grid.dl[index]
+
+        return (
+            lower_extent <= size
+            and upper_extent >= 0
+            and not (upper_extent > size and thickness <= 0),
+            lower_extent * dl,
+            thickness * dl,
+        )
+
+
+class MPIUserInput(MainGridUserInput[MPIGrid]):
+    """Handles (x, y, z) points supplied by the user for MPI grids.
+
+    This class autotranslates points from the global coordinate system
+    to the grid's local coordinate system.
+    """
+
+    def discretise_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
+        """Get the nearest grid index to a continuous static point.
+
+        This function translates user points to the correct index for
+        building objects. Points will be mapped from the global
+        coordinate space to the local coordinate space of the grid.
+        There are no checks of the validity of the point such as bound
+        checking.
+
+        Args:
+            point: x, y, z coordinates of the point in space.
+
+        Returns:
+            discretised_point: x, y, z indices of the point on the grid.
         """
-        return super().discretise_point(p) * self.grid.dl
+        discretised_point = super().discretise_point(point)
+        return self.grid.global_to_local_coordinate(discretised_point)
+
+    def check_box_points(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], cmd_str: str
+    ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        _, lower_point, upper_point = super().check_box_points(p1, p2, cmd_str)
+
+        # Restrict points to the bounds of the local grid
+        lower_point = np.where(lower_point < 0, 0, lower_point)
+        upper_point = np.where(upper_point > self.grid.size, self.grid.size, upper_point)
+
+        return (
+            all(lower_point <= upper_point) and all(lower_point < self.grid.size),
+            lower_point,
+            upper_point,
+        )
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
@@ -160,7 +349,7 @@ class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
 
         self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz], self.inner_bound)
 
-    def translate_to_gap(self, p):
+    def translate_to_gap(self, p) -> npt.NDArray[np.int32]:
         """Translates the user input point to the real point in the subgrid."""
 
         p1 = (p[0] - self.grid.i0 * self.grid.ratio) + self.grid.n_boundary_cells_x
@@ -169,20 +358,26 @@ class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
 
         return np.array([p1, p2, p3])
 
-    def discretise_point(self, p):
-        """Discretises a point. Does not provide any checks. The user enters
-        coordinates relative to self.inner_bound. This function translate
-        the user point to the correct index for building objects.
+    def discretise_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
+        """Get the nearest grid index to a continuous static point.
+
+        This function translates user points to the correct index for
+        building objects. The user enters coordinates relative to
+        self.inner_bound which are mapped to the local coordinate space
+        of the grid. There are no checks of the validity of the point
+        such as bound checking.
+
+        Args:
+            point: x, y, z coordinates of the point in space relative to
+                self.inner_bound.
+
+        Returns:
+            discretised_point: x, y, z indices of the point on the grid.
         """
 
-        p = super().discretise_point(p)
-        p_t = self.translate_to_gap(p)
-        return p_t
-
-    def round_to_grid(self, p):
-        p_t = self.discretise_point(p)
-        p_m = p_t * self.grid.dl
-        return p_m
+        discretised_point = super().discretise_point(point)
+        discretised_point = self.translate_to_gap(discretised_point)
+        return discretised_point
 
     def check_point(self, p, cmd_str, name=""):
         p_t = super().check_point(p, cmd_str, name)
@@ -194,13 +389,3 @@ class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
                 f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature."
             )
         return p_t
-
-    def discretise_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of
-        origin of the grid."""
-        return super().discretise_point(p)
-
-    def round_to_grid_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of
-        origin of the grid."""
-        return super().discretise_point(p) * self.grid.dl

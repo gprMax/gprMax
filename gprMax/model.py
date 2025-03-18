@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import humanize
 import numpy as np
@@ -29,6 +29,10 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.output_controllers.geometry_objects import GeometryObject
+from gprMax.output_controllers.geometry_view_lines import GeometryViewLines
+from gprMax.output_controllers.geometry_view_voxels import GeometryViewVoxels
+from gprMax.output_controllers.geometry_views import GeometryView, save_geometry_views
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -36,13 +40,11 @@ init()
 from tqdm import tqdm
 
 import gprMax.config as config
-
-from .fields_outputs import write_hdf5_outputfile
-from .geometry_outputs import GeometryObjects, GeometryView, save_geometry_views
-from .grid.fdtd_grid import FDTDGrid
-from .snapshots import save_snapshots
-from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
-from .utilities.utilities import get_terminal_width
+from gprMax.fields_outputs import write_hdf5_outputfile
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.snapshots import Snapshot, save_snapshots
+from gprMax.utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
+from gprMax.utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ class Model:
         self.subgrids: List[SubGridBaseGrid] = []
 
         self.geometryviews: List[GeometryView] = []
-        self.geometryobjects: List[GeometryObjects] = []
+        self.geometryobjects: List[GeometryObject] = []
 
         # Monitor memory usage
         self.p = None
@@ -170,6 +172,151 @@ class Model:
 
         return grid
 
+    def set_size(self, size: npt.NDArray[np.int32]):
+        """Set size of the model.
+
+        Args:
+            size: Array to set the size (3 dimensional).
+        """
+        self.nx, self.ny, self.nz = size
+
+    def add_geometry_object(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        basefilename: str,
+    ) -> Optional[GeometryObject]:
+        """Add a geometry object to the model.
+
+        Args:
+            grid: Grid to create a geometry object for.
+            start: Lower extent of the geometry object (x, y, z).
+            stop: Upper extent of the geometry object (x, y, z).
+            basefilename: Output filename of the geometry object.
+
+        Returns:
+            geometry_object: The created geometry object.
+        """
+        geometry_object = GeometryObject(
+            grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename
+        )
+        self.geometryobjects.append(geometry_object)
+        return geometry_object
+
+    def add_geometry_view_voxels(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[GeometryViewVoxels]:
+        """Add a voxel geometry view to the model.
+
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
+            dl: Discritisation of the geometry view (x, y, z).
+            filename: Output filename of the geometry view.
+
+        Returns:
+            geometry_view: The created geometry view.
+        """
+        geometry_view = GeometryViewVoxels(
+            start[0],
+            start[1],
+            start[2],
+            stop[0],
+            stop[1],
+            stop[2],
+            dl[0],
+            dl[1],
+            dl[2],
+            filename,
+            grid,
+        )
+        self.geometryviews.append(geometry_view)
+        return geometry_view
+
+    def add_geometry_view_lines(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[GeometryViewLines]:
+        """Add a lines geometry view to the model.
+
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
+            filename: Output filename of the geometry view.
+
+        Returns:
+            geometry_view: The created geometry view.
+        """
+        geometry_view = GeometryViewLines(
+            start[0],
+            start[1],
+            start[2],
+            stop[0],
+            stop[1],
+            stop[2],
+            filename,
+            grid,
+        )
+        self.geometryviews.append(geometry_view)
+        return geometry_view
+
+    def add_snapshot(
+        self,
+        grid: FDTDGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        time: int,
+        filename: str,
+        fileext: str,
+        outputs: Dict[str, bool],
+    ) -> Optional[Snapshot]:
+        """Add a snapshot to the provided grid.
+
+        Args:
+            grid: Grid to create a snapshot for.
+            start: Lower extent of the snapshot (x, y, z).
+            stop: Upper extent of the snapshot (x, y, z).
+            dl: Discritisation of the snapshot (x, y, z).
+            time: Iteration number to take the snapshot on
+            filename: Output filename of the snapshot.
+            fileext: File extension of the snapshot.
+            outputs: Fields to use in the snapshot.
+
+        Returns:
+            snapshot: The created snapshot.
+        """
+        snapshot = Snapshot(
+            start[0],
+            start[1],
+            start[2],
+            stop[0],
+            stop[1],
+            stop[2],
+            dl[0],
+            dl[1],
+            dl[2],
+            time,
+            filename,
+            fileext,
+            outputs,
+            grid,
+        )
+        # TODO: Move snapshots into the Model
+        grid.snapshots.append(snapshot)
+        return snapshot
+
     def build(self):
         """Builds the Yee cells for a model."""
 
@@ -202,8 +349,11 @@ class Model:
             and not self.geometryobjects
             and config.sim_config.args.geometry_only
         ):
-            logger.exception("\nNo geometry views or geometry objects found.")
-            raise ValueError
+            logger.warning(
+                "Geometry only run specified, but no geometry views or geometry objects found."
+            )
+            return
+
         save_geometry_views(self.geometryviews)
 
         if self.geometryobjects:
@@ -219,7 +369,7 @@ class Model:
                     file=sys.stdout,
                     disable=not config.sim_config.general["progressbars"],
                 )
-                go.write_hdf5(self.title, self.G, pbar)
+                go.write_hdf5(self.title, pbar)
                 pbar.close()
             logger.info("")
 

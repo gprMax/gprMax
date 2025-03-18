@@ -1,14 +1,18 @@
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 import numpy as np
+import numpy.typing as npt
 from mpi4py import MPI
 
 from gprMax import config
 from gprMax.fields_outputs import write_hdf5_outputfile
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
-from gprMax.snapshots import save_snapshots
+from gprMax.output_controllers.geometry_objects import MPIGeometryObject
+from gprMax.output_controllers.geometry_view_lines import MPIGeometryViewLines
+from gprMax.output_controllers.geometry_view_voxels import MPIGeometryViewVoxels
+from gprMax.snapshots import MPISnapshot, Snapshot, save_snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -53,55 +57,182 @@ class MPIModel(Model):
     def is_coordinator(self):
         return self.rank == 0
 
-    def build_geometry(self):
-        self._broadcast_model()
+    def set_size(self, size: npt.NDArray[np.int32]):
+        super().set_size(size)
 
-        super().build_geometry()
+        self.G.calculate_local_extents()
 
-        self._filter_geometry_objects()
+    def add_geometry_object(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        basefilename: str,
+    ) -> Optional[MPIGeometryObject]:
+        """Add a geometry object to the model.
 
-    def _broadcast_model(self):
-        self.title = self.comm.bcast(self.title)
+        Args:
+            grid: Grid to create a geometry object for
+            start: Lower extent of the geometry object (x, y, z)
+            stop: Upper extent of the geometry object (x, y, z)
+            basefilename: Output filename of the geometry object
 
-        self.nx = self.comm.bcast(self.nx)
-        self.ny = self.comm.bcast(self.ny)
-        self.nz = self.comm.bcast(self.nz)
+        Returns:
+            geometry_object: The new geometry object or None if no
+                geometry object was created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            geometry_object = MPIGeometryObject(
+                grid, start[0], start[1], start[2], stop[0], stop[1], stop[2], basefilename
+            )
+            self.geometryobjects.append(geometry_object)
+            return geometry_object
+        else:
+            # The MPIGridView created by the MPIGeometryObject will
+            # create a new communicator using MPI_Split. Calling this
+            # here prevents deadlock if not all ranks create the new
+            # MPIGeometryObject.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
 
-        self.comm.Bcast(self.dl)
-        self.dt = self.comm.bcast(self.dt)
+    def add_geometry_view_voxels(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[MPIGeometryViewVoxels]:
+        """Add a voxel geometry view to the model.
 
-        self.iterations = self.comm.bcast(self.iterations)
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
+            dl: Discritisation of the geometry view (x, y, z).
+            filename: Output filename of the geometry view.
 
-        self.srcsteps = self.comm.bcast(self.srcsteps)
-        self.rxsteps = self.comm.bcast(self.rxsteps)
+        Returns:
+            geometry_view: The new geometry view or None if no geometry
+                view was created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            geometry_view = MPIGeometryViewVoxels(
+                start[0],
+                start[1],
+                start[2],
+                stop[0],
+                stop[1],
+                stop[2],
+                dl[0],
+                dl[1],
+                dl[2],
+                filename,
+                grid,
+            )
+            self.geometryviews.append(geometry_view)
+            return geometry_view
+        else:
+            # The MPIGridView created by MPIGeometryViewVoxels will
+            # create a new communicator using MPI_Split. Calling this
+            # here prevents deadlock if not all ranks create the new
+            # MPIGeometryViewVoxels.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
 
-        model_config = config.get_model_config()
-        model_config.materials["maxpoles"] = self.comm.bcast(model_config.materials["maxpoles"])
-        model_config.ompthreads = self.comm.bcast(model_config.ompthreads)
+    def add_geometry_view_lines(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        filename: str,
+    ) -> Optional[MPIGeometryViewLines]:
+        """Add a lines geometry view to the model.
 
-    def _filter_geometry_objects(self):
-        objects = self.comm.bcast(self.geometryobjects)
-        self.geometryobjects = []
+        Args:
+            grid: Grid to create a geometry view for.
+            start: Lower extent of the geometry view (x, y, z).
+            stop: Upper extent of the geometry view (x, y, z).
+            filename: Output filename of the geometry view.
 
-        for go in objects:
-            start = np.array([go.xs, go.ys, go.zs], dtype=np.intc)
-            stop = np.array([go.xf, go.yf, go.zf], dtype=np.intc)
-            if self.G.global_bounds_overlap_local_grid(start, stop):
-                comm = self.comm.Split()
-                assert isinstance(comm, MPI.Intracomm)
-                start_grid_coord = self.G.get_grid_coord_from_coordinate(start)
-                stop_grid_coord = self.G.get_grid_coord_from_coordinate(stop) + 1
-                go.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
+        Returns:
+            geometry_view: The new geometry view or None if no geometry
+                view was created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            geometry_view = MPIGeometryViewLines(
+                start[0],
+                start[1],
+                start[2],
+                stop[0],
+                stop[1],
+                stop[2],
+                filename,
+                grid,
+            )
+            self.geometryviews.append(geometry_view)
+            return geometry_view
+        else:
+            # The MPIGridView created by MPIGeometryViewLines will
+            # create a new communicator using MPI_Split. Calling this
+            # here prevents deadlock if not all ranks create the new
+            # MPIGeometryViewLines.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
 
-                go.global_size = np.array([go.nx, go.ny, go.nz], dtype=np.intc)
-                start, stop, offset = self.G.limit_global_bounds_to_within_local_grid(start, stop)
-                go.size = stop - start
-                go.start = start
-                go.stop = stop
-                go.offset = offset
-                self.geometryobjects.append(go)
-            else:
-                self.comm.Split(MPI.UNDEFINED)
+    def add_snapshot(
+        self,
+        grid: MPIGrid,
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        dl: npt.NDArray[np.int32],
+        time: int,
+        filename: str,
+        fileext: str,
+        outputs: Dict[str, bool],
+    ) -> Optional[MPISnapshot]:
+        """Add a snapshot to the provided grid.
+
+        Args:
+            grid: Grid to create a snapshot for.
+            start: Lower extent of the snapshot (x, y, z).
+            stop: Upper extent of the snapshot (x, y, z).
+            dl: Discritisation of the snapshot (x, y, z).
+            time: Iteration number to take the snapshot on
+            filename: Output filename of the snapshot.
+            fileext: File extension of the snapshot.
+            outputs: Fields to use in the snapshot.
+
+        Returns:
+            snapshot: The new snapshot or None if no snapshot was
+                created.
+        """
+        if grid.local_bounds_overlap_grid(start, stop):
+            snapshot = MPISnapshot(
+                start[0],
+                start[1],
+                start[2],
+                stop[0],
+                stop[1],
+                stop[2],
+                dl[0],
+                dl[1],
+                dl[2],
+                time,
+                filename,
+                fileext,
+                outputs,
+                grid,
+            )
+            # TODO: Move snapshots into the Model
+            grid.snapshots.append(snapshot)
+            return snapshot
+        else:
+            # The MPIGridView created by MPISnapshot will create a new
+            # communicator using MPI_Split. Calling this here prevents
+            # deadlock if not all ranks create the new MPISnapshot.
+            grid.comm.Split(MPI.UNDEFINED)
+            return None
 
     def write_output_data(self):
         """Writes output data, i.e. field data for receivers and snapshots to

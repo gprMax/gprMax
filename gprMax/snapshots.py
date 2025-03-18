@@ -20,16 +20,17 @@ import logging
 import sys
 from enum import IntEnum, unique
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, Generic, List
 
 import h5py
 import numpy as np
-import numpy.typing as npt
 from evtk.hl import imageToVTK
 from mpi4py import MPI
 from tqdm import tqdm
 
 import gprMax.config as config
+from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.output_controllers.grid_view import GridType, GridView, MPIGridView
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
@@ -52,7 +53,7 @@ def save_snapshots(snapshots: List["Snapshot"]):
     logger.info(f"Snapshot directory: {snapshotdir.resolve()}")
 
     for i, snap in enumerate(snapshots):
-        fn = snapshotdir / Path(snap.filename)
+        fn = snapshotdir / snap.filename
         snap.filename = fn.with_suffix(snap.fileext)
         pbar = tqdm(
             total=snap.nbytes,
@@ -69,7 +70,7 @@ def save_snapshots(snapshots: List["Snapshot"]):
     logger.info("")
 
 
-class Snapshot:
+class Snapshot(Generic[GridType]):
     """Snapshots of the electric and magnetic field values."""
 
     allowableoutputs = {
@@ -95,6 +96,10 @@ class Snapshot:
     # GPU - blocks per grid - set according to largest requested snapshot
     bpg = None
 
+    @property
+    def GRID_VIEW_TYPE(self) -> type[GridView]:
+        return GridView
+
     def __init__(
         self,
         xs: int,
@@ -110,8 +115,7 @@ class Snapshot:
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
-        grid_dl: npt.NDArray[np.float64],
-        grid_dt: float,
+        grid: GridType,
     ):
         """
         Args:
@@ -124,89 +128,62 @@ class Snapshot:
         """
 
         self.fileext = fileext
-        self.filename = filename
+        self.filename = Path(filename)
         self.time = time
         self.outputs = outputs
-        self.grid_dl = grid_dl
-        self.grid_dt = grid_dt
-
-        self.start = np.array([xs, ys, zs], dtype=np.intc)
-        self.stop = np.array([xf, yf, zf], dtype=np.intc)
-        self.step = np.array([dx, dy, dz], dtype=np.intc)
-        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.intc)
-        self.slice: list[slice] = list(map(slice, self.start, self.stop + self.step, self.step))
+        self.grid_view = self.GRID_VIEW_TYPE(grid, xs, ys, zs, xf, yf, zf, dx, dy, dz)
 
         self.nbytes = 0
 
         # Create arrays to hold the field data for snapshot
         self.snapfields = {}
 
+    @property
+    def grid(self) -> GridType:
+        return self.grid_view.grid
+
     # Properties for backwards compatibility
     @property
     def xs(self) -> int:
-        return self.start[0]
+        return self.grid_view.xs
 
     @property
     def ys(self) -> int:
-        return self.start[1]
+        return self.grid_view.ys
 
     @property
     def zs(self) -> int:
-        return self.start[2]
+        return self.grid_view.zs
 
     @property
     def xf(self) -> int:
-        return self.stop[0]
+        return self.grid_view.xf
 
     @property
     def yf(self) -> int:
-        return self.stop[1]
+        return self.grid_view.yf
 
     @property
     def zf(self) -> int:
-        return self.stop[2]
-
-    @property
-    def dx(self) -> int:
-        return self.step[0]
-
-    @property
-    def dy(self) -> int:
-        return self.step[1]
-
-    @property
-    def dz(self) -> int:
-        return self.step[2]
+        return self.grid_view.zf
 
     @property
     def nx(self) -> int:
-        return self.size[0]
+        return self.grid_view.nx
 
     @property
     def ny(self) -> int:
-        return self.size[1]
+        return self.grid_view.ny
 
     @property
     def nz(self) -> int:
-        return self.size[2]
-
-    @property
-    def sx(self) -> slice:
-        return self.slice[0]
-
-    @property
-    def sy(self) -> slice:
-        return self.slice[1]
-
-    @property
-    def sz(self) -> slice:
-        return self.slice[2]
+        return self.grid_view.nz
 
     def initialise_snapfields(self):
         for k, v in self.outputs.items():
             if v:
                 self.snapfields[k] = np.zeros(
-                    (self.nx, self.ny, self.nz),
+                    self.grid_view.size,
                     dtype=config.sim_config.dtypes["float_or_double"],
                 )
                 self.nbytes += self.snapfields[k].nbytes
@@ -217,7 +194,7 @@ class Snapshot:
                     (1, 1, 1), dtype=config.sim_config.dtypes["float_or_double"]
                 )
 
-    def store(self, G):
+    def store(self):
         """Store (in memory) electric and magnetic field values for snapshot.
 
         Args:
@@ -225,12 +202,12 @@ class Snapshot:
         """
 
         # Memory views of field arrays to dimensions required for the snapshot
-        Exslice = np.ascontiguousarray(G.Ex[self.sx, self.sy, self.sz])
-        Eyslice = np.ascontiguousarray(G.Ey[self.sx, self.sy, self.sz])
-        Ezslice = np.ascontiguousarray(G.Ez[self.sx, self.sy, self.sz])
-        Hxslice = np.ascontiguousarray(G.Hx[self.sx, self.sy, self.sz])
-        Hyslice = np.ascontiguousarray(G.Hy[self.sx, self.sy, self.sz])
-        Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
+        Exslice = self.grid_view.get_Ex()
+        Eyslice = self.grid_view.get_Ey()
+        Ezslice = self.grid_view.get_Ez()
+        Hxslice = self.grid_view.get_Hx()
+        Hyslice = self.grid_view.get_Hy()
+        Hzslice = self.grid_view.get_Hz()
 
         # Calculate field values at points (comes from averaging field
         # components in cells)
@@ -286,10 +263,13 @@ class Snapshot:
             if self.outputs.get(k)
         }
 
+        origin = self.grid_view.start * self.grid.dl
+        spacing = self.grid_view.step * self.grid.dl
+
         imageToVTK(
             str(self.filename.with_suffix("")),
-            origin=tuple(self.start * self.step * self.grid_dl),
-            spacing=tuple(self.step * self.grid_dl),
+            origin=tuple(origin),
+            spacing=tuple(spacing),
             cellData=celldata,
         )
 
@@ -312,9 +292,9 @@ class Snapshot:
         f.attrs["gprMax"] = __version__
         # TODO: Output model name (title) and grid name? in snapshot output
         # f.attrs["Title"] = G.title
-        f.attrs["nx_ny_nz"] = (self.nx, self.ny, self.nz)
-        f.attrs["dx_dy_dz"] = self.step * self.grid_dl
-        f.attrs["time"] = self.time * self.grid_dt
+        f.attrs["nx_ny_nz"] = tuple(self.grid_view.size)
+        f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
+        f.attrs["time"] = self.time * self.grid.dt
 
         for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
             if self.outputs[key]:
@@ -337,11 +317,15 @@ class Dir(IntEnum):
     POS = 1
 
 
-class MPISnapshot(Snapshot):
+class MPISnapshot(Snapshot[MPIGrid]):
     H_TAG = 0
     EX_TAG = 1
     EY_TAG = 2
     EZ_TAG = 3
+
+    @property
+    def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
+        return MPIGridView
 
     def __init__(
         self,
@@ -358,27 +342,23 @@ class MPISnapshot(Snapshot):
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
-        grid_dl: npt.NDArray[np.float64],
-        grid_dt: float,
+        grid: MPIGrid,
     ):
-        super().__init__(
-            xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename, fileext, outputs, grid_dl, grid_dt
-        )
+        super().__init__(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename, fileext, outputs, grid)
 
-        self.offset = np.zeros(3, dtype=np.intc)
-        self.global_size = self.size.copy()
+        assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
+        self.comm = self.grid_view.comm
 
-        self.comm: MPI.Cartcomm = None  # type: ignore
-
-    def initialise_snapfields(self):
-        # Start and stop may have changed since initialisation
-        self.size = np.ceil((self.stop - self.start) / self.step).astype(np.intc)
-        return super().initialise_snapfields()
+        # Get neighbours
+        self.neighbours = np.full((3, 2), -1, dtype=int)
+        self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)
+        self.neighbours[Dim.Y] = self.comm.Shift(direction=Dim.Y, disp=1)
+        self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
 
     def has_neighbour(self, dimension: Dim, direction: Dir) -> bool:
         return self.neighbours[dimension][direction] != -1
 
-    def store(self, G):
+    def store(self):
         """Store (in memory) electric and magnetic field values for snapshot.
 
         Args:
@@ -387,31 +367,17 @@ class MPISnapshot(Snapshot):
 
         logger.debug(f"Saving snapshot for iteration: {self.time}")
 
-        # Get neighbours
-        self.neighbours = np.full((3, 2), -1, dtype=int)
-        self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)
-        self.neighbours[Dim.Y] = self.comm.Shift(direction=Dim.Y, disp=1)
-        self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
-
-        # If we do not have a positive neighbour, add an extra step to
-        # make the upper bound inclusive. Otherwise the additional step
-        # will be provided by the received halo.
-        slice_stop = np.where(
-            self.neighbours[:, Dir.POS] == -1,
-            self.stop + self.step,
-            self.stop,
-        )
-        self.slice = list(map(slice, self.start, slice_stop, self.step))
-
         # Memory views of field arrays to dimensions required for the snapshot
-        Exslice = np.ascontiguousarray(G.Ex[self.sx, self.sy, self.sz])
-        Eyslice = np.ascontiguousarray(G.Ey[self.sx, self.sy, self.sz])
-        Ezslice = np.ascontiguousarray(G.Ez[self.sx, self.sy, self.sz])
-        Hxslice = np.ascontiguousarray(G.Hx[self.sx, self.sy, self.sz])
-        Hyslice = np.ascontiguousarray(G.Hy[self.sx, self.sy, self.sz])
-        Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
+        Exslice = self.grid_view.get_Ex()
+        Eyslice = self.grid_view.get_Ey()
+        Ezslice = self.grid_view.get_Ez()
+        Hxslice = self.grid_view.get_Hx()
+        Hyslice = self.grid_view.get_Hy()
+        Hzslice = self.grid_view.get_Hz()
 
         """
+        Halos required by each field to average field components:
+
         Exslice - y + z halo
         Eyslice - x + z halo
         Ezslice - x + y halo
@@ -579,25 +545,23 @@ class MPISnapshot(Snapshot):
         Args:
             pbar: Progress bar class instance.
         """
+        assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
 
         f = h5py.File(self.filename, "w", driver="mpio", comm=self.comm)
 
         f.attrs["gprMax"] = __version__
         # TODO: Output model name (title) and grid name? in snapshot output
         # f.attrs["Title"] = G.title
-        f.attrs["nx_ny_nz"] = self.global_size
-        f.attrs["dx_dy_dz"] = self.step * self.grid_dl
-        f.attrs["time"] = self.time * self.grid_dt
+        f.attrs["nx_ny_nz"] = self.grid_view.global_size
+        f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
+        f.attrs["time"] = self.time * self.grid.dt
+
+        dset_slice = self.grid_view.get_3d_output_slice()
 
         for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
             if self.outputs[key]:
-                dset = f.create_dataset(key, self.global_size)
-                # TODO: Is there a better way to do this slice?
-                start = self.offset
-                stop = start + self.size
-                dset[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = self.snapfields[
-                    key
-                ]
+                dset = f.create_dataset(key, self.grid_view.global_size)
+                dset[dset_slice] = self.snapfields[key]
                 pbar.update(n=self.snapfields[key].nbytes)
 
         f.close()

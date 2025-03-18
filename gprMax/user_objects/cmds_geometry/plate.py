@@ -81,7 +81,13 @@ class Plate(RotatableMixin, GeometryUserObject):
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        plate_within_grid, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+
+        # Exit early if none of the plate is in this grid as there is
+        # nothing else to do.
+        if not plate_within_grid:
+            return
+
         xs, ys, zs = p1
         xf, yf, zf = p2
 
@@ -90,17 +96,16 @@ class Plate(RotatableMixin, GeometryUserObject):
             (xs == xf and (ys == yf or zs == zf))
             or (ys == yf and (xs == xf or zs == zf))
             or (zs == zf and (xs == xf or ys == yf))
+            or (xs != xf and ys != yf and zs != zf)
         ):
-            logger.exception(f"{self.__str__()} the plate is not specified correctly")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} the plate is not specified correctly")
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} material(s) {notfound} do not exist")
 
         # yz-plane plate
         if xs == xf:

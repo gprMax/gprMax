@@ -122,12 +122,10 @@ class Domain(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.nx, model.ny, model.nz = uip.discretise_point(self.domain_size)
-        # TODO: Remove when distribute full build for MPI
-        if isinstance(model.G, MPIGrid):
-            model.G.nx = model.nx
-            model.G.ny = model.ny
-            model.G.nz = model.nz
+
+        discretised_domain_size = uip.discretise_static_point(self.domain_size)
+
+        model.set_size(discretised_domain_size)
 
         if model.nx == 0 or model.ny == 0 or model.nz == 0:
             raise ValueError(f"{self} requires at least one cell in every dimension")
@@ -327,7 +325,7 @@ class PMLFormulation(ModelUserObject):
 
     def build(self, model: Model):
         if self.formulation not in PML.formulations:
-            logger.exception(f"{self} requires the value to be one of {' '.join(PML.formulations)}")
+            raise ValueError(f"{self} requires the value to be one of {' '.join(PML.formulations)}")
 
         model.G.pmls["formulation"] = self.formulation
 
@@ -367,27 +365,23 @@ class PMLThickness(ModelUserObject):
     def build(self, model: Model):
         grid = model.G
 
-        if isinstance(self.thickness, int) or len(self.thickness) == 1:
-            for key in grid.pmls["thickness"].keys():
-                grid.pmls["thickness"][key] = int(self.thickness)
-        elif len(self.thickness) == 6:
-            grid.pmls["thickness"]["x0"] = int(self.thickness[0])
-            grid.pmls["thickness"]["y0"] = int(self.thickness[1])
-            grid.pmls["thickness"]["z0"] = int(self.thickness[2])
-            grid.pmls["thickness"]["xmax"] = int(self.thickness[3])
-            grid.pmls["thickness"]["ymax"] = int(self.thickness[4])
-            grid.pmls["thickness"]["zmax"] = int(self.thickness[5])
-        else:
+        if not (
+            isinstance(self.thickness, int) or len(self.thickness) == 1 or len(self.thickness) == 6
+        ):
             raise ValueError(f"{self} requires either one or six parameter(s)")
 
+        model.G.set_pml_thickness(self.thickness)
+
         # Check each PML does not take up more than half the grid
+        # TODO: MPI ranks not containing a PML will not throw an error
+        # here.
         if (
-            2 * grid.pmls["thickness"]["x0"] >= grid.nx
-            or 2 * grid.pmls["thickness"]["y0"] >= grid.ny
-            or 2 * grid.pmls["thickness"]["z0"] >= grid.nz
-            or 2 * grid.pmls["thickness"]["xmax"] >= grid.nx
-            or 2 * grid.pmls["thickness"]["ymax"] >= grid.ny
-            or 2 * grid.pmls["thickness"]["zmax"] >= grid.nz
+            2 * grid.pmls["thickness"]["x0"] >= model.nx
+            or 2 * grid.pmls["thickness"]["y0"] >= model.ny
+            or 2 * grid.pmls["thickness"]["z0"] >= model.nz
+            or 2 * grid.pmls["thickness"]["xmax"] >= model.nx
+            or 2 * grid.pmls["thickness"]["ymax"] >= model.ny
+            or 2 * grid.pmls["thickness"]["zmax"] >= model.nz
         ):
             raise ValueError(f"{self} has too many cells for the domain size")
 
@@ -525,7 +519,7 @@ class SrcSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.srcsteps = np.array(uip.discretise_point(self.step_size), dtype=np.int32)
+        model.srcsteps = uip.discretise_static_point(self.step_size)
 
         logger.info(
             f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
@@ -562,7 +556,7 @@ class RxSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
-        model.rxsteps = np.array(uip.discretise_point(self.step_size), dtype=np.int32)
+        model.rxsteps = uip.discretise_static_point(self.step_size)
 
         logger.info(
             f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "

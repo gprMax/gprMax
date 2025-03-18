@@ -110,7 +110,13 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        grid_contains_fractal_box, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+
+        # Exit early if none of the fractal box is in this grid as there
+        # is nothing else to do.
+        if not grid_contains_fractal_box:
+            return
+
         xs, ys, zs = p1
         xf, yf, zf = p2
 

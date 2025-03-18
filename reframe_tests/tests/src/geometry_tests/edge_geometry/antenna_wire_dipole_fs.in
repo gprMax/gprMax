@@ -12,4 +12,4 @@
 ## 1mm gap at centre of dipole
 #edge: 0.025 0.025 0.100 0.025 0.025 0.101 free_space
 
-#geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_fs f
+#geometry_objects_write: 0 0 0 0.05 0.05 0.2 full_volume

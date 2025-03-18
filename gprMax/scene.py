@@ -21,6 +21,7 @@ from typing import List, Sequence
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
+from gprMax.mpi_model import MPIModel
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
 from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness

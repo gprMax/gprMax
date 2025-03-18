@@ -31,13 +31,12 @@ from .user_objects.cmds_multiuse import (
     MaterialRange,
     Rx,
     RxArray,
-    Snapshot,
     SoilPeplinski,
     TransmissionLine,
     VoltageSource,
     Waveform,
 )
-from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView
+from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +85,7 @@ def process_multicmds(multicmds):
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
                     start=float(tmp[6]),
-                    end=float(tmp[7]),
+                    stop=float(tmp[7]),
                 )
             else:
                 logger.exception(
@@ -122,7 +121,7 @@ def process_multicmds(multicmds):
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
                     waveform_id=tmp[4],
                     start=float(tmp[5]),
-                    end=float(tmp[6]),
+                    stop=float(tmp[6]),
                 )
             else:
                 logger.exception(
@@ -158,7 +157,7 @@ def process_multicmds(multicmds):
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
                     waveform_id=tmp[4],
                     start=float(tmp[5]),
-                    end=float(tmp[6]),
+                    stop=float(tmp[6]),
                 )
             else:
                 logger.exception(
@@ -192,7 +191,7 @@ def process_multicmds(multicmds):
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
                     start=tmp[6],
-                    end=tmp[7],
+                    stop=tmp[7],
                 )
             else:
                 logger.exception(

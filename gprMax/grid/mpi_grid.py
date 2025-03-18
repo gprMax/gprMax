@@ -31,7 +31,6 @@ from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
-from gprMax.snapshots import MPISnapshot, Snapshot
 from gprMax.sources import Source
 
 logger = logging.getLogger(__name__)
@@ -57,22 +56,18 @@ class MPIGrid(FDTDGrid):
     COORDINATOR_RANK = 0
 
     def __init__(self, comm: MPI.Cartcomm):
-        self.size = np.zeros(3, dtype=np.intc)
-
-        super().__init__()
-
         self.comm = comm
         self.x_comm = comm.Sub([False, True, True])
         self.y_comm = comm.Sub([True, False, True])
         self.z_comm = comm.Sub([True, True, False])
         self.pml_comm = MPI.COMM_NULL
 
-        self.mpi_tasks = np.array(self.comm.dims, dtype=np.intc)
+        self.mpi_tasks = np.array(self.comm.dims, dtype=np.int32)
 
-        self.lower_extent = np.zeros(3, dtype=np.intc)
-        self.upper_extent = np.zeros(3, dtype=np.intc)
+        self.lower_extent = np.zeros(3, dtype=np.int32)
+        self.upper_extent = np.zeros(3, dtype=np.int32)
         self.negative_halo_offset = np.zeros(3, dtype=np.bool_)
-        self.global_size = np.zeros(3, dtype=np.intc)
+        self.global_size = np.zeros(3, dtype=np.int32)
 
         self.neighbours = np.full((3, 2), -1, dtype=int)
         self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)
@@ -81,6 +76,8 @@ class MPIGrid(FDTDGrid):
 
         self.send_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
         self.recv_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
+
+        super().__init__()
 
     @property
     def rank(self) -> int:
@@ -91,28 +88,45 @@ class MPIGrid(FDTDGrid):
         return self.comm.coords
 
     @property
-    def nx(self) -> int:
-        return self.size[Dim.X]
+    def gx(self) -> int:
+        return self.global_size[Dim.X]
 
-    @nx.setter
-    def nx(self, value: int):
-        self.size[Dim.X] = value
-
-    @property
-    def ny(self) -> int:
-        return self.size[Dim.Y]
-
-    @ny.setter
-    def ny(self, value: int):
-        self.size[Dim.Y] = value
+    @gx.setter
+    def gx(self, value: int):
+        self.global_size[Dim.X] = value
 
     @property
-    def nz(self) -> int:
-        return self.size[Dim.Z]
+    def gy(self) -> int:
+        return self.global_size[Dim.Y]
 
-    @nz.setter
-    def nz(self, value: int):
-        self.size[Dim.Z] = value
+    @gy.setter
+    def gy(self, value: int):
+        self.global_size[Dim.Y] = value
+
+    @property
+    def gz(self) -> int:
+        return self.global_size[Dim.Z]
+
+    @gz.setter
+    def gz(self, value: int):
+        self.global_size[Dim.Z] = value
+
+    def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
+        super().set_pml_thickness(thickness)
+
+        # Set PML thickness to zero if not at the edge of the domain
+        if self.has_neighbour(Dim.X, Dir.NEG):
+            self.pmls["thickness"]["x0"] = 0
+        if self.has_neighbour(Dim.X, Dir.POS):
+            self.pmls["thickness"]["xmax"] = 0
+        if self.has_neighbour(Dim.Y, Dir.NEG):
+            self.pmls["thickness"]["y0"] = 0
+        if self.has_neighbour(Dim.Y, Dir.POS):
+            self.pmls["thickness"]["ymax"] = 0
+        if self.has_neighbour(Dim.Z, Dir.NEG):
+            self.pmls["thickness"]["z0"] = 0
+        if self.has_neighbour(Dim.Z, Dir.POS):
+            self.pmls["thickness"]["zmax"] = 0
 
     def is_coordinator(self) -> bool:
         """Test if the current rank is the coordinator.
@@ -123,7 +137,30 @@ class MPIGrid(FDTDGrid):
         """
         return self.rank == self.COORDINATOR_RANK
 
-    def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
+    def create_sub_communicator(
+        self, local_start: npt.NDArray[np.int32], local_stop: npt.NDArray[np.int32]
+    ) -> Optional[MPI.Cartcomm]:
+        if self.local_bounds_overlap_grid(local_start, local_stop):
+            comm = self.comm.Split()
+            assert isinstance(comm, MPI.Intracomm)
+            start_grid_coord = self.get_grid_coord_from_local_coordinate(local_start)
+            # Subtract 1 from local_stop as the upper extent is
+            # exclusive meaning the last coordinate included in the sub
+            # communicator is actually (local_stop - 1).
+            stop_grid_coord = self.get_grid_coord_from_local_coordinate(local_stop - 1) + 1
+            comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
+            return comm
+        else:
+            self.comm.Split(MPI.UNDEFINED)
+            return None
+
+    def get_grid_coord_from_local_coordinate(
+        self, local_coord: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
+        coord = self.local_to_global_coordinate(local_coord)
+        return self.get_grid_coord_from_coordinate(coord)
+
+    def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]:
         """Get the MPI grid coordinate for a global grid coordinate.
 
         Args:
@@ -183,8 +220,8 @@ class MPIGrid(FDTDGrid):
         return [coord_to_rank(coord) for coord in np.ndindex(*(stop - start))]
 
     def global_to_local_coordinate(
-        self, global_coord: npt.NDArray[np.intc]
-    ) -> npt.NDArray[np.intc]:
+        self, global_coord: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
         """Convert a global grid coordinate to a local grid coordinate.
 
         The returned coordinate will be relative to the current MPI
@@ -199,7 +236,9 @@ class MPIGrid(FDTDGrid):
         """
         return global_coord - self.lower_extent
 
-    def local_to_global_coordinate(self, local_coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
+    def local_to_global_coordinate(
+        self, local_coord: npt.NDArray[np.int32]
+    ) -> npt.NDArray[np.int32]:
         """Convert a local grid coordinate to a global grid coordinate.
 
         Args:
@@ -211,7 +250,7 @@ class MPIGrid(FDTDGrid):
         return local_coord + self.lower_extent
 
     def global_coord_inside_grid(
-        self, global_coord: npt.NDArray[np.intc], allow_inside_halo: bool = False
+        self, global_coord: npt.NDArray[np.int32], allow_inside_halo: bool = False
     ) -> bool:
         """Check if a global coordinate falls with in the local grid.
 
@@ -235,19 +274,17 @@ class MPIGrid(FDTDGrid):
 
         return all(global_coord >= lower_bound) and all(global_coord <= upper_bound)
 
-    def global_bounds_overlap_local_grid(
-        self, start: npt.NDArray[np.intc], stop: npt.NDArray[np.intc]
+    def local_bounds_overlap_grid(
+        self, local_start: npt.NDArray[np.int32], local_stop: npt.NDArray[np.int32]
     ) -> bool:
-        local_start = self.global_to_local_coordinate(start)
-        local_stop = self.global_to_local_coordinate(stop)
         return all(local_start < self.size) and all(local_stop > self.negative_halo_offset)
 
     def limit_global_bounds_to_within_local_grid(
         self,
-        start: npt.NDArray[np.intc],
-        stop: npt.NDArray[np.intc],
-        step: npt.NDArray[np.intc] = np.ones(3, dtype=np.intc),
-    ) -> Tuple[npt.NDArray[np.intc], npt.NDArray[np.intc], npt.NDArray[np.intc]]:
+        start: npt.NDArray[np.int32],
+        stop: npt.NDArray[np.int32],
+        step: npt.NDArray[np.int32] = np.ones(3, dtype=np.int32),
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         local_start = self.global_to_local_coordinate(start)
 
         # Bring start into the local grid (and not in the negative halo)
@@ -340,7 +377,7 @@ class MPIGrid(FDTDGrid):
         local grid.
         """
         if self.is_coordinator():
-            snapshots_by_rank: List[List[Optional[Snapshot]]] = [[] for _ in range(self.comm.size)]
+            snapshots_by_rank = [[] for _ in range(self.comm.size)]
             for snapshot in self.snapshots:
                 ranks = self.get_ranks_between_coordinates(snapshot.start, snapshot.stop)
                 for rank in range(
@@ -357,9 +394,7 @@ class MPIGrid(FDTDGrid):
         else:
             snapshots_by_rank = None
 
-        snapshots: List[Optional[MPISnapshot]] = self.comm.scatter(
-            snapshots_by_rank, root=self.COORDINATOR_RANK
-        )
+        snapshots = self.comm.scatter(snapshots_by_rank, root=self.COORDINATOR_RANK)
 
         for snapshot in snapshots:
             if snapshot is None:
@@ -469,37 +504,15 @@ class MPIGrid(FDTDGrid):
         Global properties/objects are broadcast to all ranks whereas
         local properties/objects are scattered to the relevant ranks.
         """
-        self.materials = self.comm.bcast(self.materials, root=self.COORDINATOR_RANK)
-        self.rxs = self.scatter_coord_objects(self.rxs)
-        self.voltagesources = self.scatter_coord_objects(self.voltagesources)
-        self.magneticdipoles = self.scatter_coord_objects(self.magneticdipoles)
-        self.hertziandipoles = self.scatter_coord_objects(self.hertziandipoles)
-        self.transmissionlines = self.scatter_coord_objects(self.transmissionlines)
+        pass
+        # self.scatter_snapshots()
 
-        self.scatter_snapshots()
-
-        self.pmls = self.comm.bcast(self.pmls, root=self.COORDINATOR_RANK)
-        if self.coords[Dim.X] != 0:
-            self.pmls["thickness"]["x0"] = 0
-        if self.coords[Dim.X] != self.mpi_tasks[Dim.X] - 1:
-            self.pmls["thickness"]["xmax"] = 0
-        if self.coords[Dim.Y] != 0:
-            self.pmls["thickness"]["y0"] = 0
-        if self.coords[Dim.Y] != self.mpi_tasks[Dim.Y] - 1:
-            self.pmls["thickness"]["ymax"] = 0
-        if self.coords[Dim.Z] != 0:
-            self.pmls["thickness"]["z0"] = 0
-        if self.coords[Dim.Z] != self.mpi_tasks[Dim.Z] - 1:
-            self.pmls["thickness"]["zmax"] = 0
-
-        if not self.is_coordinator():
-            # TODO: When scatter arrays properly, should initialise these to the local grid size
-            self.initialise_geometry_arrays()
-
-        self.ID = self.scatter_4d_array_with_positive_halo(self.ID)
-        self.solid = self.scatter_3d_array(self.solid)
-        self.rigidE = self.scatter_4d_array(self.rigidE)
-        self.rigidH = self.scatter_4d_array(self.rigidH)
+        # self._halo_swap_array(self.ID[0])
+        # self._halo_swap_array(self.ID[1])
+        # self._halo_swap_array(self.ID[2])
+        # self._halo_swap_array(self.ID[3])
+        # self._halo_swap_array(self.ID[4])
+        # self._halo_swap_array(self.ID[5])
 
     def gather_grid_objects(self):
         """Gather sources and receivers."""
@@ -509,16 +522,6 @@ class MPIGrid(FDTDGrid):
         self.magneticdipoles = self.gather_coord_objects(self.magneticdipoles)
         self.hertziandipoles = self.gather_coord_objects(self.hertziandipoles)
         self.transmissionlines = self.gather_coord_objects(self.transmissionlines)
-
-    def initialise_geometry_arrays(self, use_local_size=False):
-        # TODO: Remove this when scatter geometry arrays rather than broadcast
-        if use_local_size:
-            super().initialise_geometry_arrays()
-        else:
-            self.solid = np.ones(self.global_size, dtype=np.uint32)
-            self.rigidE = np.zeros((12, *self.global_size), dtype=np.int8)
-            self.rigidH = np.zeros((6, *self.global_size), dtype=np.int8)
-            self.ID = np.ones((6, *(self.global_size + 1)), dtype=np.uint32)
 
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
         """Perform a halo swap in the specifed dimension and direction.
@@ -666,7 +669,6 @@ class MPIGrid(FDTDGrid):
             )
             raise ValueError
 
-        self.calculate_local_extents()
         self.set_halo_map()
         self.distribute_grid()
 
@@ -751,6 +753,49 @@ class MPIGrid(FDTDGrid):
         self.upper_extent = self.lower_extent + self.size
 
         logger.debug(
-            f"Local grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent:"
-            f" {self.upper_extent}"
+            f"Global grid size: {self.global_size}, Local grid size: {self.size}, Lower extent:"
+            f" {self.lower_extent}, Upper extent: {self.upper_extent}"
+        )
+
+    def within_bounds(self, local_point: npt.NDArray[np.int32]) -> bool:
+        """Check a local point is within the grid.
+
+        Args:
+            local_point: Point to check.
+
+        Returns:
+            within_bounds: True if the point is within the local grid
+                (i.e. this rank's grid). False otherwise.
+
+        Raises:
+            ValueError: Raised if the point is outside the global grid.
+        """
+
+        gx, gy, gz = self.local_to_global_coordinate(local_point)
+
+        if gx < 0 or gx > self.gx:
+            raise ValueError("x")
+        if gy < 0 or gy > self.gy:
+            raise ValueError("y")
+        if gz < 0 or gz > self.gz:
+            raise ValueError("z")
+
+        return all(local_point >= self.negative_halo_offset) and all(local_point < self.size)
+
+    def within_pml(self, local_point: npt.NDArray[np.int32]) -> bool:
+        """Check if the provided point is within a PML.
+
+        Args:
+            local_point: Point to check. This must use this grid's
+                coordinate system.
+
+        Returns:
+            within_pml: True if the point is within a PML.
+        """
+        # within_pml check will only be valid if the point is also
+        # within the local grid
+        return (
+            super().within_pml(local_point)
+            and all(local_point >= self.negative_halo_offset)
+            and all(local_point <= self.size)
         )

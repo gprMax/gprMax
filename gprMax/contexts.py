@@ -166,13 +166,12 @@ class MPIContext(Context):
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
 
-        requested_mpi_size = np.product(config.sim_config.mpi)
+        requested_mpi_size = np.prod(config.sim_config.mpi)
         if self.comm.size < requested_mpi_size:
-            logger.error(
+            raise ValueError(
                 f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
                 f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
             )
-            raise ValueError
 
         if self.rank >= requested_mpi_size:
             logger.warning(
@@ -186,7 +185,11 @@ class MPIContext(Context):
         return MPIModel()
 
     def run(self) -> Dict:
-        return super().run()
+        try:
+            return super().run()
+        except:
+            logger.exception(f"Rank {self.rank} encountered an error. Aborting...")
+            self.comm.Abort()
 
     def _run_model(self, model_num: int) -> None:
         """Process for running a single model.
@@ -201,9 +204,8 @@ class MPIContext(Context):
 
         if not model_config.reuse_geometry():
             model = self._create_model()
-            if model.is_coordinator():
-                scene = self._get_scene(model_num)
-                scene.create_internal_objects(model)
+            scene = self._get_scene(model_num)
+            scene.create_internal_objects(model)
 
         model.build()
 

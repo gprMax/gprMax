@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 from typing import Literal, Optional, Union
 
+import numpy as np
+import numpy.typing as npt
 import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
 from reframe import RunOnlyRegressionTest, simple_test
@@ -23,7 +25,7 @@ from reframe.core.builtins import (
     variable,
 )
 from reframe.core.exceptions import DependencyError
-from reframe.utility import udeps
+from reframe.utility import osext, udeps
 
 from reframe_tests.tests.regression_checks import RegressionCheck
 from reframe_tests.utilities.deferrable import path_join
@@ -43,6 +45,7 @@ class CreatePyenvTest(RunOnlyRegressionTest):
     valid_systems = ["generic", "archer2:login"]
     valid_prog_environs = ["builtin", "PrgEnv-gnu"]
     modules = ["cray-python"]
+    time_limit = "20m"
 
     prerun_cmds = [
         "python -m venv --system-site-packages --prompt gprMax .venv",
@@ -122,13 +125,14 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-gnu"]
     modules = ["cray-python"]
+    time_limit = "10m"
 
     num_cpus_per_task = 16
     exclusive_access = True
 
     model = parameter()
     sourcesdir = required
-    executable = "time -p python -m gprMax"
+    executable = "python -m gprMax"
 
     regression_checks = variable(typ.List[RegressionCheck], value=[])
 
@@ -389,49 +393,134 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
 
     @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
-        """Extract total runtime from the last task to complete."""
-        return sn.extractsingle(
-            r"real\s+(?P<run_time>\S+)", self.stderr, "run_time", float, self.num_tasks - 1
+        """Extract total runtime from SLURM."""
+        sactt_command = osext.run_command(
+            [
+                "sacct",
+                "--format=JobID,JobName,State,Elapsed",
+                "-j",
+                self.job.jobid,
+            ]
         )
+        hours, minutes, seconds = sn.extractsingle_s(
+            self.job.jobid
+            + r"\.0\s+python\s+COMPLETED\s+(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+)",
+            sactt_command.stdout,
+            ["hours", "minutes", "seconds"],
+            int,
+        )
+
+        return hours * 3600 + minutes * 60 + seconds
 
     @performance_function("s", perf_key="simulation_time")
     def extract_simulation_time(self):
-        """Extract simulation time reported by gprMax."""
+        """Extract average simulation time reported by gprMax."""
+        return sn.round(self.extract_simulation_time_per_rank().sum() / self.num_tasks, 2)
 
-        # sn.extractall throws an error if a group has value None.
-        # Therefore have to handle the < 1 min, >= 1 min and >= 1 hour cases separately.
-        timeframe = sn.extractsingle(
-            r"=== Simulation completed in \S+ (?P<timeframe>hour|minute|second)",
+    # @performance_function("s", perf_key="max_simulation_time")
+    # def extract_max_simulation_time(self):
+    #     """Extract maximum simulation time reported by gprMax."""
+    #     return sn.round(self.extract_simulation_time_per_rank().max(), 2)
+
+    # @performance_function("s", perf_key="min_simulation_time")
+    # def extract_min_simulation_time(self):
+    #     """Extract minimum simulation time reported by gprMax."""
+    #     return sn.round(self.extract_simulation_time_per_rank().min(), 2)
+
+    # @performance_function("s", perf_key="wall_time")
+    # def extract_wall_time(self):
+    #     """Extract total simulation time reported by gprMax."""
+    #     return sn.round(self.extract_simulation_time_per_rank().sum(), 2)
+
+    def extract_simulation_time_per_rank(self) -> npt.NDArray[np.float64]:
+        """Extract simulation time reported by gprMax from each rank.
+
+        Raises:
+            ValueError: Raised if not all ranks report the simulation
+                time.
+
+        Returns:
+            simulation_times: Simulation time for each rank in seconds.
+        """
+        simulation_time = sn.extractall(
+            r"=== Simulation completed in "
+            r"((?<= )(?P<hours>\d+) hours?)?\D*"
+            r"((?<= )(?P<minutes>\d+) minutes?)?\D*"
+            r"((?<= )(?P<seconds>[\d\.]+) seconds?)?\D*=+",
             self.stdout,
-            "timeframe",
+            ["hours", "minutes", "seconds"],
+            lambda x: 0.0 if x is None else float(x),
         )
-        if timeframe == "hour":
-            simulation_time = sn.extractall(
-                r"=== Simulation completed in (?P<hours>\S+) hours?, (?P<minutes>\S+) minutes? and (?P<seconds>\S+) seconds? =*",
-                self.stdout,
-                ["hours", "minutes", "seconds"],
-                float,
+
+        # Check simulation time was reported by all ranks
+        if sn.len(simulation_time) != self.num_tasks:
+            raise ValueError(
+                f"Simulation time not reported for all ranks. Found {sn.len(simulation_time)}, expected {self.num_tasks}"
             )
-            hours = simulation_time[0][0]
-            minutes = simulation_time[0][1]
-            seconds = simulation_time[0][2]
-        elif timeframe == "minute":
-            hours = 0
-            simulation_time = sn.extractall(
-                r"=== Simulation completed in (?P<minutes>\S+) minutes? and (?P<seconds>\S+) seconds? =*",
-                self.stdout,
-                ["minutes", "seconds"],
-                float,
+
+        # Convert hour and minute values to seconds
+        simulation_time = np.array(simulation_time.evaluate())
+
+        simulation_time[:, 0] *= 3600
+        simulation_time[:, 1] *= 60
+
+        # Return simulation time in seconds for each rank
+        return simulation_time.sum(axis=1)
+
+    @performance_function("GB", perf_key="total_memory_use")
+    def extract_total_memory_use(self):
+        """Extract total memory use across all ranks."""
+        return sn.round(self.extract_memory_use_per_rank().sum(), 2)
+
+    @performance_function("GB", perf_key="average_memory_use")
+    def extract_average_memory_use(self):
+        """Extract average memory use for each rank."""
+        return sn.round(self.extract_memory_use_per_rank().sum() / self.num_tasks, 2)
+
+    # @performance_function("GB", perf_key="min_memory_use")
+    # def extract_min_memory_use(self):
+    #     """Extract minimum memory use by a single rank."""
+    #     return sn.round(self.extract_memory_use_per_rank().min(), 2)
+
+    # @performance_function("GB", perf_key="max_memory_use")
+    # def extract_max_memory_use(self):
+    #     """Extract maximum memory use by a single rank."""
+    #     return sn.round(self.extract_memory_use_per_rank().max(), 2)
+
+    def extract_memory_use_per_rank(self) -> npt.NDArray[np.float64]:
+        """Extract gprMax report of the estimated memory use per rank.
+
+        Raises:
+            ValueError: Raised if not all ranks report their estimated
+                memory usage.
+
+        Returns:
+            usages: Estimated memory usage for each rank in GB.
+        """
+        memory_report = sn.extractall(
+            r"Memory used \(estimated\): ~(?P<memory_usage>\S+) (?P<units>\S+)",
+            self.stdout,
+            ["memory_usage", "units"],
+            [float, str],
+        )
+
+        # Check all ranks reported their estimated memory usage
+        if sn.len(memory_report) != self.num_tasks:
+            raise ValueError(
+                f"Memory usage not reported for all ranks. Found {sn.len(memory_report)}, expected {self.num_tasks}"
             )
-            minutes = simulation_time[0][0]
-            seconds = simulation_time[0][1]
-        else:
-            hours = 0
-            minutes = 0
-            seconds = sn.extractsingle(
-                r"=== Simulation completed in (?P<seconds>\S+) seconds? =*",
-                self.stdout,
-                "seconds",
-                float,
-            )
-        return hours * 3600 + minutes * 60 + seconds
+
+        usages = np.zeros(self.num_tasks)
+
+        # Convert all values into GB
+        for index, (value, unit) in enumerate(memory_report):
+            if unit == "MB":
+                value /= 1024
+            elif unit == "KB":
+                value /= 1048576
+            elif unit != "GB":
+                raise ValueError(f"Unknown unit of memory '{unit}'")
+
+            usages[index] = value
+
+        return usages
