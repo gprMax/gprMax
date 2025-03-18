@@ -23,6 +23,13 @@ class TestMagneticDipoleSource(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestDiscretePlaneWaveSource(GprMaxRegressionTest):
+    tags = {"test", "serial", "discrete_plane_wave", "waveform"}
+    sourcesdir = "src/source_tests"
+    model = parameter(["discrete_plane_wave_fs"])
+
+
+@rfm.simple_test
 class TestTransmissionLineSource(GprMaxRegressionTest):
     tags = {"test", "serial", "transmission_line", "waveform"}
     sourcesdir = "src/source_tests"
