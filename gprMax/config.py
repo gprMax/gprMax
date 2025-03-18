@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -74,7 +74,7 @@ class ModelConfig:
                 deviceID = 0
 
             self.device = {
-                "dev": sim_config.get_model_device(deviceID),
+                "dev": sim_config.set_model_device(deviceID),
                 "deviceID": deviceID,
                 "snapsgpu2cpu": False,
             }
@@ -106,7 +106,11 @@ class ModelConfig:
         #                       phase-velocity phase error.
         #   mingridsampling: minimum grid sampling of smallest wavelength for
         #                       physical wave propagation.
-        self.numdispersion = {"highestfreqthres": 40, "maxnumericaldisp": 2, "mingridsampling": 3}
+        self.numdispersion = {
+            "highestfreqthres": 40,
+            "maxnumericaldisp": 2,
+            "mingridsampling": 3,
+        }
 
         # General information to configure materials
         #   maxpoles: Maximum number of dispersive material poles in a model.
@@ -330,6 +334,26 @@ class SimulationConfig:
         self._set_input_file_path()
         self._set_model_start_end()
 
+    def set_model_device(self, deviceID):
+        """Specify pycuda/pyopencl object for model.
+
+        Args:
+            deviceID: int of requested deviceID of compute device.
+
+        Returns:
+            dev: requested pycuda/pyopencl device object.
+        """
+
+        found = False
+        for ID, dev in self.devices["devs"].items():
+            if ID == deviceID:
+                found = True
+                return dev
+
+        if not found:
+            logger.exception(f"Compute device with device ID {deviceID} does not exist.")
+            raise ValueError
+
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.
 
@@ -388,26 +412,6 @@ class SimulationConfig:
 
         self.model_start = modelstart
         self.model_end = modelend
-
-    def get_model_device(self, deviceID):
-        """Specify pycuda/pyopencl object for model.
-
-        Args:
-            deviceID: int of requested deviceID of compute device.
-
-        Returns:
-            dev: requested pycuda/pyopencl device object.
-        """
-
-        found = False
-        for ID, dev in self.devices["devs"].items():
-            if ID == deviceID:
-                found = True
-                return dev
-
-        if not found:
-            logger.error(f"Compute device with device ID {deviceID} does " "not exist.")
-            raise ValueError
 
     def get_model_config(self, model_num: Optional[int] = None) -> ModelConfig:
         """Return ModelConfig instance for specific model.

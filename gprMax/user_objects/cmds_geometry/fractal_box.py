@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -665,7 +665,6 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     self.volume.xs,
                     self.volume.ys,
                     self.volume.zs,
-                    config.get_model_config().ompthreads,
                     waternumID,
                     grassnumID,
                     self.volume.averaging,
@@ -700,7 +699,6 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     self.volume.xs,
                     self.volume.ys,
                     self.volume.zs,
-                    config.get_model_config().ompthreads,
                     0,
                     self.volume.averaging,
                     data,

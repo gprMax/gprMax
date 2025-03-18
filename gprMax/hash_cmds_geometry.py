@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -158,8 +158,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                averaging = check_averaging(tmp[8].lower())
-                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=averaging)
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
@@ -186,8 +185,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 10:
-                averaging = check_averaging(tmp[9].lower())
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=averaging)
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
@@ -215,8 +213,14 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
-                averaging = check_averaging(tmp[10].lower())
-                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9], averaging=averaging)
+                cone = Cone(
+                    p1=p1,
+                    p2=p2,
+                    r1=r1,
+                    r2=r2,
+                    material_id=tmp[9],
+                    averaging=tmp[10].lower(),
+                )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
@@ -258,7 +262,6 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
-                averaging = check_averaging(tmp[10].lower())
                 cylindrical_sector = CylindricalSector(
                     normal=normal,
                     ctr1=ctr1,
@@ -268,7 +271,7 @@ def process_geometrycmds(geometry):
                     r=r,
                     start=start,
                     end=end,
-                    averaging=averaging,
+                    averaging=tmp[10].lower(),
                     material_id=tmp[9],
                 )
 
@@ -306,8 +309,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 7:
-                averaging = check_averaging(tmp[6].lower())
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=averaging)
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6].lower())
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:

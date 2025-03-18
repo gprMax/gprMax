@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -151,7 +151,6 @@ class GeometryObjectsRead(GeometryUserObject):
                 xs,
                 ys,
                 zs,
-                config.get_model_config().ompthreads,
                 numexistmaterials,
                 averaging,
                 data,

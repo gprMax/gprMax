@@ -19,7 +19,12 @@ def mesh_to_plane(mesh, bounding_box, parallel):
 
     current_mesh_indices = set()
     z = 0
-    with tqdm(total=bounding_box[2], desc="Processing Layers", ncols=get_terminal_width() - 1, file=sys.stdout) as pbar:
+    with tqdm(
+        total=bounding_box[2],
+        desc="Processing Layers",
+        ncols=get_terminal_width() - 1,
+        file=sys.stdout,
+    ) as pbar:
         for event_z, status, tri_ind in generate_tri_events(mesh):
             while event_z - z >= 0:
                 mesh_subset = [mesh[ind] for ind in current_mesh_indices]

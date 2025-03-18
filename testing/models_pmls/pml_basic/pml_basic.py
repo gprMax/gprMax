@@ -18,7 +18,9 @@ dxdydz = gprMax.Discretisation(p1=(dl, dl, dl))
 time_window = gprMax.TimeWindow(time=3e-9)
 
 waveform = gprMax.Waveform(wave_type="gaussian", amp=1, freq=1e9, id="mypulse")
-hertzian_dipole = gprMax.HertzianDipole(polarisation="z", p1=(0.050, 0.050, 0.050), waveform_id="mypulse")
+hertzian_dipole = gprMax.HertzianDipole(
+    polarisation="z", p1=(0.050, 0.050, 0.050), waveform_id="mypulse"
+)
 rx = gprMax.Rx(p1=(0.070, 0.070, 0.070))
 
 # PML cases

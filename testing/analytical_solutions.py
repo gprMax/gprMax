@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -164,7 +164,9 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
             tmp = Hy_x / Hy_y
         except ZeroDivisionError:
             tmp = 0
-        fields[timestep, 4] = -tmp * (-(Hy_y / (4 * np.pi * Hr_y**3)) * (f_Hy + (tau_Hy * fdot_Hy)))
+        fields[timestep, 4] = -tmp * (
+            -(Hy_y / (4 * np.pi * Hr_y**3)) * (f_Hy + (tau_Hy * fdot_Hy))
+        )
 
         # Hz
         fields[timestep, 5] = 0

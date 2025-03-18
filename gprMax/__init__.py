@@ -32,6 +32,7 @@ from .user_objects.cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
+    DiscretePlaneWave,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,

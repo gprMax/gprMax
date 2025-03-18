@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -22,6 +22,7 @@ import logging
 import re
 import textwrap
 from shutil import get_terminal_size
+from time import perf_counter as timer_fn
 from typing import Union
 
 import numpy as np
@@ -30,12 +31,6 @@ from colorama import Fore, Style, init
 init()
 
 logger = logging.getLogger(__name__)
-
-try:
-    from time import thread_time as timer_fn
-except ImportError:
-    # thread_time not always available in macOS
-    from time import process_time as timer_fn
 
 
 def get_terminal_width():
@@ -100,7 +95,7 @@ def logo(version):
     )
 
     logo = (
-        """    www.gprmax.com   __  __
+        r"""    www.gprmax.com   __  __
      __ _ _ __  _ __|  \/  | __ ___  __
     / _` | '_ \| '__| |\/| |/ _` \ \/ /
    | (_| | |_) | |  | |  | | (_| |>  <

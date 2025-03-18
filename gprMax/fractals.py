@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -85,7 +85,10 @@ class FractalSurface:
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array(
-            [self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2]
+            [
+                self.weighting[0] * (surfacedims[0]) / 2,
+                self.weighting[1] * (surfacedims[1]) / 2,
+            ]
         )
 
         # 2D array of random numbers to be convolved with the fractal function

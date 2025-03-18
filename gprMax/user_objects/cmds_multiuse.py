@@ -28,7 +28,6 @@ from scipy import interpolate
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
@@ -36,13 +35,11 @@ from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
 from gprMax.materials import RangeMaterial as RangeMaterialUser
 from gprMax.pml import CFS, CFSParameter
 from gprMax.receivers import Rx as RxUser
-from gprMax.snapshots import MPISnapshot as MPISnapshotUser
-from gprMax.snapshots import Snapshot as SnapshotUser
+from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
 from gprMax.sources import HertzianDipole as HertzianDipoleUser
 from gprMax.sources import MagneticDipole as MagneticDipoleUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
-from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     rotate_2point_object,
     rotate_polarisation,
@@ -393,7 +390,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
         x, y, z = uip.discretise_static_point(self.point)
         voltage_source.ID = f"{voltage_source.__class__.__name__}({x},{y},{z})"
         voltage_source.resistance = self.resistance
-        voltage_source.waveform = grid.get_waveform_by_id(self.waveform_id)
+        voltage_source.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
             voltage_source.start = 0
@@ -402,7 +399,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
             voltage_source.start = self.start
             voltage_source.stop = min(self.stop, grid.timewindow)
 
-        voltage_source.calculate_waveform_values(grid.iterations, grid.dt)
+        voltage_source.calculate_waveform_values(grid)
 
         return voltage_source
 
@@ -416,7 +413,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
             f"{self.grid_name(grid)}Voltage source with polarity"
             f" {voltage_source.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
             f" resistance {voltage_source.resistance:.1f} Ohms,"
-            f"{startstop}using waveform {voltage_source.waveform.ID}"
+            f"{startstop}using waveform {voltage_source.waveformID}"
             f" created."
         )
 
@@ -536,7 +533,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         h.ID = f"{h.__class__.__name__}({x},{y},{z})"
-        h.waveform = grid.get_waveform_by_id(self.waveform_id)
+        h.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
             h.start = 0
@@ -545,7 +542,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
             h.start = self.start
             h.stop = min(self.stop, grid.timewindow)
 
-        h.calculate_waveform_values(grid.iterations, grid.dt)
+        h.calculate_waveform_values(grid)
 
         return h
 
@@ -562,14 +559,14 @@ class HertzianDipole(RotatableMixin, GridUserObject):
                 f"{self.grid_name(grid)}Hertzian dipole is a line source"
                 f" in 2D with polarity {hertzian_dipole.polarisation}"
                 f" at {x:g}m, {y:g}m, {z:g}m,{startstop}using"
-                f" waveform {hertzian_dipole.waveform.ID} created."
+                f" waveform {hertzian_dipole.waveformID} created."
             )
         else:
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole with polarity"
                 f" {hertzian_dipole.polarisation} at {x:g}m, {y:g}m,"
                 f" {z:g}m,{startstop}using waveform"
-                f" {hertzian_dipole.waveform.ID} created."
+                f" {hertzian_dipole.waveformID} created."
             )
 
     def build(self, grid: FDTDGrid):
@@ -694,7 +691,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         m.ID = f"{m.__class__.__name__}({x},{y},{z})"
-        m.waveform = grid.get_waveform_by_id(self.waveform_id)
+        m.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
             m.start = 0
@@ -703,7 +700,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
             m.start = self.start
             m.stop = min(self.stop, grid.timewindow)
 
-        m.calculate_waveform_values(grid.iterations, grid.dt)
+        m.calculate_waveform_values(grid)
 
         return m
 
@@ -716,7 +713,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity"
             f" {m.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
-            f"{startstop}using waveform {m.waveform.ID} created."
+            f"{startstop}using waveform {m.waveformID} created."
         )
 
 
@@ -850,7 +847,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         x, y, z = uip.discretise_static_point(self.point)
         t.ID = f"{t.__class__.__name__}({x},{y},{z})"
         t.resistance = self.resistance
-        t.waveform = grid.get_waveform_by_id(self.waveform_id)
+        t.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
             t.start = 0
@@ -859,7 +856,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             t.start = self.start
             t.stop = min(self.stop, grid.timewindow)
 
-        t.calculate_waveform_values(grid.iterations, grid.dt)
+        t.calculate_waveform_values(grid)
         t.calculate_incident_V_I(grid)
 
         return t
@@ -874,8 +871,158 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             f"{self.grid_name(grid)}Transmission line with polarity"
             f" {t.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
             f" resistance {t.resistance:.1f} Ohms,{startstop} using"
-            f" waveform {t.waveform.ID} created."
+            f" waveform {t.waveformID} created."
         )
+
+
+class DiscretePlaneWave(GridUserObject):
+    """
+    Specifies a plane wave implemented using the discrete plane wave formulation.
+
+    Attributes:
+        theta: float required for propagation angle (degrees) of wave.
+        phi: float required for propagation angle (degrees) of wave.
+        psi: float required for polarisation of wave.
+        delta_theta: float optional for tolerance of theta angle to nearest
+                        rational angle.
+        delta_phi: float optional for tolerance to phi angle to nearest
+                        rational angle.
+        p1: tuple required for the lower left position (x, y, z) of the total
+            field, scattered field (TFSF) box.
+        p1: tuple required for the upper right position (x, y, z) of the total
+            field, scattered field (TFSF) box.
+        waveform_id: string required for identifier of waveform used with source.
+        material_id: string optional of material identifier to use as the
+                        background material in the TFSF box.
+        start: float optional to delay start time (secs) of source.
+        stop: float optional to time (secs) to remove source.
+    """
+
+    @property
+    def order(self):
+        return 19
+
+    @property
+    def hash(self):
+        return "#discrete_plane_wave"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            theta = self.kwargs["theta"]
+            phi = self.kwargs["phi"]
+            psi = self.kwargs["psi"]
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            waveform_id = self.kwargs["waveform_id"]
+        except KeyError:
+            logger.exception(f"{self.params_str()} requires at least ten parameters.")
+            raise
+        try:
+            dtheta = self.kwargs["delta_theta"]
+            dphi = self.kwargs["delta_phi"]
+        except KeyError:
+            dtheta = 1.0
+            dphi = 1.0
+
+        # Warn about using a discrete plane wave on GPU
+        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+            logger.exception(
+                f"{self.params_str()} cannot currently be used "
+                + "with the CUDA or OpenCL-based solver. "
+            )
+            raise ValueError
+
+        # Check if there is a waveformID in the waveforms list
+        if not any(x.ID == waveform_id for x in grid.waveforms):
+            logger.exception(
+                f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
+            )
+            raise ValueError
+
+        if theta > 180:
+            theta -= np.floor(theta / 180) * 180.0
+        if phi > 360:
+            phi -= np.floor(phi / 360) * 360.0
+        if psi > 360:
+            psi -= np.floor(psi / 360) * 360.0
+
+        uip = self._create_uip(grid)
+        x_start, y_start, z_start = uip.check_src_rx_point(p1, self.params_str())
+        x_stop, y_stop, z_stop = uip.check_src_rx_point(p2, self.params_str())
+
+        DPW = DiscretePlaneWaveUser(grid)
+        DPW.corners = np.array([x_start, y_start, z_start, x_stop, y_stop, z_stop], dtype=np.int32)
+        DPW.waveformID = waveform_id
+        DPW.initializeDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
+
+        try:
+            DPW.material_ID = self.kwargs["material_id"]
+        except KeyError:
+            DPW.material_ID = 1
+
+        try:
+            # Check source start & source remove time parameters
+            start = self.kwargs["start"]
+            stop = self.kwargs["stop"]
+            if start < 0:
+                logger.exception(
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                )
+                raise ValueError
+            if stop < 0:
+                logger.exception(
+                    self.params_str() + (" time to remove the source should not be less than zero.")
+                )
+                raise ValueError
+            if stop - start <= 0:
+                logger.exception(
+                    self.params_str() + (" duration of the source should not be zero or less.")
+                )
+                raise ValueError
+            DPW.start = start
+            DPW.stop = min(stop, grid.timewindow)
+            startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
+        except KeyError:
+            DPW.start = 0
+            DPW.stop = grid.timewindow
+            startstop = " "
+
+        precompute = True
+        if precompute:
+            DPW.calculate_waveform_values(grid)
+
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave within the TFSF Box "
+            + f"spanning from {p1} m to {p2} m, incident in the direction "
+            + f"theta {theta} degrees and phi {phi} degrees "
+            + startstop
+            + f"using waveform {DPW.waveformID} created."
+        )
+        phi_approx = np.arctan2(DPW.m[1] / grid.dy, DPW.m[0] / grid.dx) * 180 / np.pi
+        theta_approx = (
+            np.arctan2(
+                np.sqrt(
+                    (DPW.m[0] / grid.dx) * (DPW.m[0] / grid.dx)
+                    + (DPW.m[1] / grid.dy) * (DPW.m[1] / grid.dy)
+                ),
+                DPW.m[2] / grid.dz,
+            )
+            * 180
+            / np.pi
+        )
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
+            + "the angles have been approximated to the nearest rational angles "
+            + "with some small tolerance levels. The chosen rational integers are "
+            + f"[m_x, m_y, m_z] : {DPW.m[:3]}. The approximated angles are: "
+            + f"Phi: {phi_approx:.3f} and Theta: {theta_approx:.3f}"
+        )
+
+        grid.discreteplanewaves.append(DPW)
 
 
 class Rx(RotatableMixin, GridUserObject):

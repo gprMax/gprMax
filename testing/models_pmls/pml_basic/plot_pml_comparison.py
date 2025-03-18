@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -74,7 +74,13 @@ for x, PMLID in enumerate(PMLIDs):
         ax.set_ylabel(f"{output} error [dB]")
 
     # Save a PDF/PNG of the figure
-    fig.savefig(basename + "_diffs_" + PMLID + ".pdf", dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+    fig.savefig(
+        basename + "_diffs_" + PMLID + ".pdf",
+        dpi=None,
+        format="pdf",
+        bbox_inches="tight",
+        pad_inches=0.1,
+    )
     # fig.savefig(basename + "_diffs_" + PMLID + ".png", dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

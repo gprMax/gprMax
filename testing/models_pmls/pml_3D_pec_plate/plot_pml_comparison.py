@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -46,12 +46,16 @@ maxerrors = []
 testmodels = [basename + "_" + s for s in PMLIDs]
 
 fig, ax = plt.subplots(
-    subplot_kw=dict(xlabel="Iterations", ylabel="Error [dB]"), figsize=(20, 10), facecolor="w", edgecolor="w"
+    subplot_kw=dict(xlabel="Iterations", ylabel="Error [dB]"),
+    figsize=(20, 10),
+    facecolor="w",
+    edgecolor="w",
 )
 
 for x, model in enumerate(testmodels):
     time, datadiffs = diff_output_files(
-        fn.parent.joinpath(basename + "_ref.h5"), fn.parent.joinpath(basename + str(x + 1) + ".h5")
+        fn.parent.joinpath(basename + "_ref.h5"),
+        fn.parent.joinpath(basename + str(x + 1) + ".h5"),
     )
 
     # Print maximum error value
@@ -60,7 +64,14 @@ for x, model in enumerate(testmodels):
     logger.info(f"{model}: Max. error {maxerrors[x]}")
 
     # Plot diffs (select column to choose field component, 0-Ex, 1-Ey etc..)
-    ax.plot(time[start::], datadiffs[start::, 1], color=next(colors), lw=2, ls=next(lines), label=model)
+    ax.plot(
+        time[start::],
+        datadiffs[start::, 1],
+        color=next(colors),
+        lw=2,
+        ls=next(lines),
+        label=model,
+    )
     ax.set_xticks(np.arange(0, 2200, step=100))
     ax.set_xlim([0, 2100])
     ax.set_yticks(np.arange(-160, 0, step=20))

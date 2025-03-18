@@ -1,8 +1,7 @@
 """A series of models with different domain sizes used for benchmarking.
-    The domain is free space with a simple source (Hertzian Dipole) and
-    receiver at the centre.
+The domain is free space with a simple source (Hertzian Dipole) and
+receiver at the centre.
 """
-
 
 import itertools
 from pathlib import Path

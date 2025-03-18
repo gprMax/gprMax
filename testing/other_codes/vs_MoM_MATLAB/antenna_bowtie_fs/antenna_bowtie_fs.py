@@ -31,7 +31,10 @@ tx_pos = (x / 2, y / 2, z / 2)
 # Source excitation and type
 wave = gprMax.Waveform(wave_type="gaussian", amp=1, freq=1.5e9, id="mypulse")
 tl = gprMax.TransmissionLine(
-    p1=(tx_pos[0], tx_pos[1], tx_pos[2]), polarisation="x", resistance=50, waveform_id="mypulse"
+    p1=(tx_pos[0], tx_pos[1], tx_pos[2]),
+    polarisation="x",
+    resistance=50,
+    waveform_id="mypulse",
 )
 scene.add(wave)
 scene.add(tl)
@@ -59,8 +62,16 @@ scene.add(t2)
 
 # Detailed geometry view around bowtie and feed position
 gv1 = gprMax.GeometryView(
-    p1=(tx_pos[0] - bowtie_dims[0] - 2 * dl, tx_pos[1] - bowtie_dims[1] / 2 - 2 * dl, tx_pos[2] - 2 * dl),
-    p2=(tx_pos[0] + bowtie_dims[0] + 2 * dl, tx_pos[1] + bowtie_dims[1] / 2 + 2 * dl, tx_pos[2] + 2 * dl),
+    p1=(
+        tx_pos[0] - bowtie_dims[0] - 2 * dl,
+        tx_pos[1] - bowtie_dims[1] / 2 - 2 * dl,
+        tx_pos[2] - 2 * dl,
+    ),
+    p2=(
+        tx_pos[0] + bowtie_dims[0] + 2 * dl,
+        tx_pos[1] + bowtie_dims[1] / 2 + 2 * dl,
+        tx_pos[2] + 2 * dl,
+    ),
     dl=(dl, dl, dl),
     filename="antenna_bowtie_fs_pcb",
     output_type="f",

@@ -26,7 +26,13 @@ def convert_files(input_file_paths, discretization, colors=[(0, 0, 0)], pad=1, p
 
     for input_file_path in input_file_paths:
         mesh_obj = mesh.Mesh.from_file(input_file_path)
-        org_mesh = np.hstack((mesh_obj.v0[:, np.newaxis], mesh_obj.v1[:, np.newaxis], mesh_obj.v2[:, np.newaxis]))
+        org_mesh = np.hstack(
+            (
+                mesh_obj.v0[:, np.newaxis],
+                mesh_obj.v1[:, np.newaxis],
+                mesh_obj.v2[:, np.newaxis],
+            )
+        )
         meshes.append(org_mesh)
     vol, scale, shift = convert_meshes(meshes, discretization, parallel)
     vol = np.transpose(vol)

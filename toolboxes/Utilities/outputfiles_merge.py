@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -110,7 +110,9 @@ def merge_files(outputfiles, merged_outputfile=None, removefiles=False):
                 availableoutputs = list(fin[path].keys())
                 for output in availableoutputs:
                     grp.create_dataset(
-                        output, (fout.attrs["Iterations"], len(outputfiles)), dtype=fin[path + "/" + output].dtype
+                        output,
+                        (fout.attrs["Iterations"], len(outputfiles)),
+                        dtype=fin[path + "/" + output].dtype,
                     )
 
         # For all receivers
@@ -139,14 +141,24 @@ if __name__ == "__main__":
     )
     parser.add_argument("basefilename", help="base name of output file series including path")
     parser.add_argument(
-        "-o", "--output-file", default=None, type=str, required=False, help="location to save merged file"
+        "-o",
+        "--output-file",
+        default=None,
+        type=str,
+        required=False,
+        help="location to save merged file",
     )
     parser.add_argument(
-        "--remove-files", action="store_true", default=False, help="flag to remove individual output files after merge"
+        "--remove-files",
+        action="store_true",
+        default=False,
+        help="flag to remove individual output files after merge",
     )
     args = parser.parse_args()
 
     files = glob.glob(args.basefilename + "*.h5")
-    outputfiles = [filename for filename in files if "_merged" not in filename and args.output_file != filename]
+    outputfiles = [
+        filename for filename in files if "_merged" not in filename and args.output_file != filename
+    ]
     outputfiles.sort(key=natural_keys)
     merge_files(outputfiles, merged_outputfile=args.output_file, removefiles=args.remove_files)

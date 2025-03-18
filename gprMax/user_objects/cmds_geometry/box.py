@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -147,7 +147,6 @@ class Box(RotatableMixin, GeometryUserObject):
             yf,
             zs,
             zf,
-            config.get_model_config().ompthreads,
             numID,
             numIDx,
             numIDy,

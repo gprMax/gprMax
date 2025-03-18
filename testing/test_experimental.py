@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
-    description="Plots a comparison of fields between " + "given simulation output and experimental data files.",
+    description="Plots a comparison of fields between "
+    + "given simulation output and experimental data files.",
     usage="cd gprMax; python -m testing.test_experimental modelfile realfile output",
 )
 parser.add_argument("modelfile", help="name of model output file including path")

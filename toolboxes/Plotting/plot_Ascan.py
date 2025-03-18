@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -173,7 +173,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                 # Plotting if no FFT required
                 else:
                     fig, ax = plt.subplots(
-                        subplot_kw=dict(xlabel="Time [s]", ylabel=outputtext + " field strength [V/m]"),
+                        subplot_kw=dict(
+                            xlabel="Time [s]",
+                            ylabel=outputtext + " field strength [V/m]",
+                        ),
                         num=rxpath + " - " + f[rxpath].attrs["Name"],
                         figsize=(20, 10),
                         facecolor="w",
@@ -279,7 +282,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
     if save:
         # Save a PDF of the figure
-        fig.savefig(filename[:-3] + ".pdf", dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+        fig.savefig(
+            filename[:-3] + ".pdf",
+            dpi=None,
+            format="pdf",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
         # Save a PNG of the figure
         # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
         #             bbox_inches='tight', pad_inches=0.1)
@@ -322,9 +331,17 @@ if __name__ == "__main__":
         ],
         nargs="+",
     )
-    parser.add_argument("-fft", action="store_true", default=False, help="plot FFT (single output must be specified)")
     parser.add_argument(
-        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+        "-fft",
+        action="store_true",
+        default=False,
+        help="plot FFT (single output must be specified)",
+    )
+    parser.add_argument(
+        "-save",
+        action="store_true",
+        default=False,
+        help="save plot directly to file, i.e. do not display",
     )
     args = parser.parse_args()
 

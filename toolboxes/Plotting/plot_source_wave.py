@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -90,7 +90,13 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
     if w.freq and w.type != "gaussian" and w.type != "impulse":
         logging.info(f"Centre frequency: {w.freq:g} Hz")
 
-    if w.type in ["gaussian", "gaussiandot", "gaussiandotnorm", "gaussianprime", "gaussiandoubleprime"]:
+    if w.type in [
+        "gaussian",
+        "gaussiandot",
+        "gaussiandotnorm",
+        "gaussianprime",
+        "gaussiandoubleprime",
+    ]:
         delay = 1 / w.freq
         logging.info(f"Time to centre of pulse: {delay:g} s")
     elif w.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
@@ -113,7 +119,9 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
             pltrange = np.where(freqs > 4 * w.freq)[0][0]
         pltrange = np.s_[0:pltrange]
 
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor="w", edgecolor="w")
+        fig, (ax1, ax2) = plt.subplots(
+            nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor="w", edgecolor="w"
+        )
 
         # Plot waveform
         ax1.plot(time, waveform, "r", lw=2)
@@ -143,9 +151,21 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
     if save:
         savefile = Path(__file__).parent / w.type
         # Save a PDF of the figure
-        fig.savefig(savefile.with_suffix(".pdf"), dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
+        fig.savefig(
+            savefile.with_suffix(".pdf"),
+            dpi=None,
+            format="pdf",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
         # Save a PNG of the figure
-        fig.savefig(savefile.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
+        fig.savefig(
+            savefile.with_suffix(".png"),
+            dpi=150,
+            format="png",
+            bbox_inches="tight",
+            pad_inches=0.1,
+        )
 
     return plt
 
@@ -163,16 +183,23 @@ if __name__ == "__main__":
     parser.add_argument("dt", type=float, help="time step to view waveform")
     parser.add_argument("-fft", action="store_true", default=False, help="plot FFT of waveform")
     parser.add_argument(
-        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+        "-save",
+        action="store_true",
+        default=False,
+        help="save plot directly to file, i.e. do not display",
     )
     args = parser.parse_args()
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        logging.exception(f"The waveform must have one of the following types {', '.join(Waveform.types)}")
+        logging.exception(
+            f"The waveform must have one of the following types {', '.join(Waveform.types)}"
+        )
         raise ValueError
     if args.freq <= 0:
-        logging.exception("The waveform requires an excitation frequency value of greater than zero")
+        logging.exception(
+            "The waveform requires an excitation frequency value of greater than zero"
+        )
         raise ValueError
 
     # Create waveform instance

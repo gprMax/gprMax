@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -82,7 +82,10 @@ def diff_output_files(filename1, filename2):
     for i in range(len(outputs2)):
         maxi = np.amax(np.abs(data1[:, i]))
         datadiffs[:, i] = np.divide(
-            np.abs(data2[:, i] - data1[:, i]), maxi, out=np.zeros_like(data1[:, i]), where=maxi != 0
+            np.abs(data2[:, i] - data1[:, i]),
+            maxi,
+            out=np.zeros_like(data1[:, i]),
+            where=maxi != 0,
         )  # Replace any division by zero with zero
 
         # Calculate power (ignore warning from taking a log of any zero values)
