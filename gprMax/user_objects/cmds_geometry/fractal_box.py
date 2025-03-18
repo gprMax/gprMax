@@ -25,7 +25,7 @@ from gprMax.cython.geometry_primitives import build_voxels_from_array, build_vox
 from gprMax.fractals import FractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import ListMaterial
-from gprMax.user_objects.cmds_geometry.cmds_geometry import rotate_2point_object
+from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, rotate_2point_object
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
@@ -100,7 +100,7 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         # Check averaging
         try:
             # Go with user specified averaging
-            averagefractalbox = self.kwargs["averaging"]
+            averagefractalbox = check_averaging(self.kwargs["averaging"])
         except KeyError:
             # If they havent specified - default is no dielectric smoothing for
             # a fractal box.

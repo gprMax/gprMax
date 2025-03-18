@@ -37,9 +37,9 @@ def check_averaging(averaging):
         averaging: boolean for geometry object material averaging.
     """
 
-    if averaging == "y":
+    if averaging.lower() == "y":
         averaging = True
-    elif averaging == "n":
+    elif averaging.lower() == "n":
         averaging = False
     else:
         logger.exception("Averaging should be either y or n")

@@ -24,7 +24,6 @@ from .user_objects.cmds_geometry.add_grass import AddGrass
 from .user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
 from .user_objects.cmds_geometry.box import Box
-from .user_objects.cmds_geometry.cmds_geometry import check_averaging
 from .user_objects.cmds_geometry.cone import Cone
 from .user_objects.cmds_geometry.cylinder import Cylinder
 from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
@@ -124,14 +123,13 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 13:
-                averaging = check_averaging(tmp[12].lower())
                 triangle = Triangle(
                     p1=p1,
                     p2=p2,
                     p3=p3,
                     thickness=thickness,
                     material_id=tmp[11],
-                    averaging=averaging,
+                    averaging=tmp[12],
                 )
 
             # Uniaxial anisotropic case
@@ -158,7 +156,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8].lower())
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8])
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
@@ -185,7 +183,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 10:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9].lower())
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9])
 
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
@@ -219,7 +217,7 @@ def process_geometrycmds(geometry):
                     r1=r1,
                     r2=r2,
                     material_id=tmp[9],
-                    averaging=tmp[10].lower(),
+                    averaging=tmp[10],
                 )
 
             # Uniaxial anisotropic case
@@ -271,7 +269,7 @@ def process_geometrycmds(geometry):
                     r=r,
                     start=start,
                     end=end,
-                    averaging=tmp[10].lower(),
+                    averaging=tmp[10],
                     material_id=tmp[9],
                 )
 
@@ -309,7 +307,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 7:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6].lower())
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6])
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
@@ -337,9 +335,13 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                averaging = check_averaging(tmp[8].lower())
                 ellipsoid = Ellipsoid(
-                    p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], averaging=averaging
+                    p1=p1,
+                    xr=xr,
+                    yr=yr,
+                    zr=zr,
+                    material_id=tmp[7],
+                    averaging=tmp[8],
                 )
 
             # Uniaxial anisotropic case
@@ -400,7 +402,7 @@ def process_geometrycmds(geometry):
                     mixing_model_id=mixing_model_id,
                     id=ID,
                     seed=tmp[14],
-                    averaging=tmp[15].lower(),
+                    averaging=tmp[15],
                 )
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")

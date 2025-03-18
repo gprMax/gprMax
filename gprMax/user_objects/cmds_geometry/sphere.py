@@ -23,6 +23,7 @@ import numpy as np
 from gprMax.cython.geometry_primitives import build_sphere
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
+from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ class Sphere(GeometryUserObject):
         # Check averaging
         try:
             # Try user-specified averaging
-            averagesphere = self.kwargs["averaging"]
+            averagesphere = check_averaging(self.kwargs["averaging"])
         except KeyError:
             # Otherwise go with the grid default
             averagesphere = grid.averagevolumeobjects
