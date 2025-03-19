@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -23,6 +23,7 @@ from .user_objects.cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
+    DiscretePlaneWave,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -201,6 +202,55 @@ def process_multicmds(multicmds):
 
             scene_objects.append(tl)
 
+    cmdname = "#discrete_plane_wave"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 10:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
+                )
+                raise ValueError
+
+            if len(tmp) == 10:
+                plWave = DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi=float(tmp[6]),
+                    phi=float(tmp[7]),
+                    theta=float(tmp[8]),
+                    waveform_id=tmp[9],
+                )
+            elif len(tmp) == 11:
+                plWave = DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi=float(tmp[6]),
+                    phi=float(tmp[7]),
+                    theta=float(tmp[8]),
+                    waveform_id=tmp[9],
+                    material_ID=int(tmp[10]),
+                )
+            elif len(tmp) == 13:
+                plWave = DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi=float(tmp[6]),
+                    phi=float(tmp[7]),
+                    theta=float(tmp[8]),
+                    waveform_id=tmp[9],
+                    material_ID=int(tmp[10]),
+                    start=float(tmp[11]),
+                    stop=float(tmp[12]),
+                )
+            else:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
+                )
+                raise ValueError
+
+            scene_objects.append(plWave)
+
     cmdname = "#excitation_file"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -366,7 +416,11 @@ def process_multicmds(multicmds):
                 alpha.append(float(tmp[pole + 2]))
 
             lorentz_dispersion = AddLorentzDispersion(
-                poles=poles, material_ids=material_ids, er_delta=er_delta, tau=tau, alpha=alpha
+                poles=poles,
+                material_ids=material_ids,
+                er_delta=er_delta,
+                tau=tau,
+                alpha=alpha,
             )
             scene_objects.append(lorentz_dispersion)
 

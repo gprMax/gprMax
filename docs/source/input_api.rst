@@ -222,6 +222,10 @@ Transmission Line
 -----------------
 .. autoclass:: gprMax.cmds_multiuse.TransmissionLine
 
+Discrete Plane Wave
+-------------------
+.. autoclass:: gprMax.cmds_multiuse.DiscretePlaneWave
+
 Excitation File
 ---------------
 .. autoclass:: gprMax.cmds_multiuse.ExcitationFile

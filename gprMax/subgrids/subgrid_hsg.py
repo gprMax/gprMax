@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -673,16 +673,26 @@ class SubGridHSG(SubGridBaseGrid):
 
         # Working region
         xs, ys, zs = self.round_to_grid(
-            (self.i0 * self.dx * self.ratio, self.j0 * self.dy * self.ratio, self.k0 * self.dz * self.ratio)
+            (
+                self.i0 * self.dx * self.ratio,
+                self.j0 * self.dy * self.ratio,
+                self.k0 * self.dz * self.ratio,
+            )
         )
         xf, yf, zf = self.round_to_grid(
-            (self.i1 * self.dx * self.ratio, self.j1 * self.dy * self.ratio, self.k1 * self.dz * self.ratio)
+            (
+                self.i1 * self.dx * self.ratio,
+                self.j1 * self.dy * self.ratio,
+                self.k1 * self.dz * self.ratio,
+            )
         )
 
         logger.info("")
         logger.debug(f"[{self.name}] Type: {self.__class__.__name__}")
         logger.info(f"[{self.name}] Ratio: 1:{self.ratio}")
-        logger.info(f"[{self.name}] Spatial discretisation: {self.dx:g} x " + f"{self.dy:g} x {self.dz:g}m")
+        logger.info(
+            f"[{self.name}] Spatial discretisation: {self.dx:g} x " + f"{self.dy:g} x {self.dz:g}m"
+        )
         logger.info(
             f"[{self.name}] Extent (working region): {xs}m, {ys}m, {zs}m to {xf}m, {yf}m, {zf}m "
             + f"(({self.nwx} x {self.nwy} x {self.nwz} = {self.nwx * self.nwy * self.nwz} cells)"

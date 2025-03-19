@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -65,6 +65,7 @@ class Solver:
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
             self.updates.update_magnetic_sources(iteration)
+            # self.updates.update_plane_waves()
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
             if isinstance(self.updates, SubgridUpdates):

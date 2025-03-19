@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -170,7 +170,9 @@ def get_host_info():
             )
             model = (
                 subprocess.check_output(
-                    ["cat", "/sys/class/dmi/id/product_name"], shell=False, stderr=subprocess.STDOUT
+                    ["cat", "/sys/class/dmi/id/product_name"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
                 .decode("utf-8")
                 .strip()
@@ -248,7 +250,7 @@ def print_host_info(hostinfo):
     """
 
     hyperthreadingstr = (
-        f", {config.sim_config.hostinfo['logicalcores']} " f"cores with Hyper-Threading"
+        f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading"
         if config.sim_config.hostinfo["hyperthreading"]
         else ""
     )
@@ -506,12 +508,12 @@ def detect_cuda_gpus():
 
 
 def print_cuda_info(devs):
-    """"Prints info about detected CUDA-capable GPU(s).
+    """Prints info about detected CUDA-capable GPU(s).
 
     Args:
         devs: dict of detected pycuda device object(s) where where device ID(s)
                 are keys.
-    """ ""
+    """
 
     import pycuda
 
@@ -561,12 +563,12 @@ def detect_opencl():
 
 
 def print_opencl_info(devs):
-    """"Prints info about detected OpenCL-capable device(s).
+    """Prints info about detected OpenCL-capable device(s).
 
     Args:
         devs: dict of detected pyopencl device object(s) where where device ID(s)
                 are keys.
-    """ ""
+    """
 
     import pyopencl as cl
 

@@ -11,11 +11,9 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-
 from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
-
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +138,11 @@ ax.set_yticklabels(yticks)
 ax.grid(True)
 handles, existlabels = ax.get_legend_handles_labels()
 leg = ax.legend(
-    [handles[0], handles[-1]], [existlabels[0], existlabels[-1]], ncol=2, loc=(0.27, -0.12), frameon=False
+    [handles[0], handles[-1]],
+    [existlabels[0], existlabels[-1]],
+    ncol=2,
+    loc=(0.27, -0.12),
+    frameon=False,
 )  # Plot just first and last legend entries
 # leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
 [legobj.set_linewidth(2) for legobj in leg.legendHandles]

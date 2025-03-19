@@ -22,7 +22,9 @@ time_window = gprMax.TimeWindow(iterations=2100)
 tssf = gprMax.TimeStepStabilityFactor(f=0.99)
 
 waveform = gprMax.Waveform(wave_type="gaussiandotnorm", amp=1, freq=9.42e9, id="mypulse")
-hertzian_dipole = gprMax.HertzianDipole(polarisation="z", p1=(0.088, 0.088, 0.089), waveform_id="mypulse")
+hertzian_dipole = gprMax.HertzianDipole(
+    polarisation="z", p1=(0.088, 0.088, 0.089), waveform_id="mypulse"
+)
 rx = gprMax.Rx(p1=(0.113, 0.189, 0.088))
 
 plate = gprMax.Plate(p1=(0.088, 0.088, 0.088), p2=(0.113, 0.188, 0.088), material_id="pec")

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -105,7 +105,7 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
 
         if frac_dim < 0:
             logger.exception(
-                f"{self.__str__()} requires a positive value for the " + "fractal dimension"
+                f"{self.__str__()} requires a positive value for the fractal dimension"
             )
             raise ValueError
         if weighting[0] < 0:
@@ -131,7 +131,10 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
                     f"{self.__str__()} can only be used on the external surfaces of a fractal box"
                 )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
+            fractalrange = (
+                round_value(limits[0] / grid.dx),
+                round_value(limits[1] / grid.dx),
+            )
             # xminus surface
             if xs == volume.xs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.xf:
@@ -165,7 +168,10 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
                     + "surfaces of a fractal box"
                 )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
+            fractalrange = (
+                round_value(limits[0] / grid.dy),
+                round_value(limits[1] / grid.dy),
+            )
             # yminus surface
             if ys == volume.ys:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.yf:
@@ -196,7 +202,10 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
                     + "surfaces of a fractal box"
                 )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
+            fractalrange = (
+                round_value(limits[0] / grid.dz),
+                round_value(limits[1] / grid.dz),
+            )
             # zminus surface
             if zs == volume.zs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.zf:

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -124,7 +124,10 @@ class AddGrass(RotatableMixin, GeometryUserObject):
                     f"{self.__str__()} must specify external surfaces on a fractal box"
                 )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
+            fractalrange = (
+                round_value(limits[0] / grid.dx),
+                round_value(limits[1] / grid.dx),
+            )
             # xminus surface
             if xs == volume.xs:
                 logger.exception(
@@ -151,7 +154,10 @@ class AddGrass(RotatableMixin, GeometryUserObject):
                     f"{self.__str__()} must specify external surfaces on a fractal box"
                 )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
+            fractalrange = (
+                round_value(limits[0] / grid.dy),
+                round_value(limits[1] / grid.dy),
+            )
             # yminus surface
             if ys == volume.ys:
                 logger.exception(
@@ -175,7 +181,10 @@ class AddGrass(RotatableMixin, GeometryUserObject):
                     f"{self.__str__()} must specify external surfaces on a fractal box"
                 )
                 raise ValueError
-            fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
+            fractalrange = (
+                round_value(limits[0] / grid.dz),
+                round_value(limits[1] / grid.dz),
+            )
             # zminus surface
             if zs == volume.zs:
                 logger.exception(

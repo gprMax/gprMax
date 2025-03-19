@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -27,7 +27,7 @@ from gprMax.materials import Material
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import rotate_2point_object
+from .cmds_geometry import check_averaging, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class Box(RotatableMixin, GeometryUserObject):
         # Check averaging
         try:
             # Try user-specified averaging
-            averagebox = self.kwargs["averaging"]
+            averagebox = check_averaging(self.kwargs["averaging"])
         except KeyError:
             # Otherwise go with the grid default
             averagebox = grid.averagevolumeobjects
@@ -147,7 +147,6 @@ class Box(RotatableMixin, GeometryUserObject):
             yf,
             zs,
             zf,
-            config.get_model_config().ompthreads,
             numID,
             numIDx,
             numIDy,

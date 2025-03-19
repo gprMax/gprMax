@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -113,7 +113,11 @@ for i, model in enumerate(testmodels):
         # Tx/Rx position to feed to analytical solution
         rxpos = filetest[path].attrs["Position"]
         txpos = filetest["/srcs/src1/"].attrs["Position"]
-        rxposrelative = ((rxpos[0] - txpos[0]), (rxpos[1] - txpos[1]), (rxpos[2] - txpos[2]))
+        rxposrelative = (
+            (rxpos[0] - txpos[0]),
+            (rxpos[1] - txpos[1]),
+            (rxpos[2] - txpos[2]),
+        )
 
         # Analytical solution of a dipole in free space
         dataref = hertzian_dipole_fs(

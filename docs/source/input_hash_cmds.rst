@@ -622,7 +622,7 @@ For example, to create an orthogonal parallelepiped with fractal distributed pro
 
 .. note::
 
-    * Currently (2024) we are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model. 
+    * Currently (2024) we are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model.
 
 #add_surface_roughness:
 -----------------------
@@ -899,6 +899,29 @@ Time histories of voltage and current values in the transmission line are saved 
 For example, to specify a z directed transmission line source with a resistance of 75 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#transmission_line: z 0.05 0.05 0.05 75 my_gauss_pulse``.
 
 An example antenna model using a transmission line can be found in the :ref:`examples <example-wire-dipole>` section.
+
+#discrete_plane_wave:
+---------------------
+
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The syntax of the command is:
+
+.. code-block:: none
+
+    #discrete_plane_wave: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11]
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
+* ``f7`` is psi which defines the polarisation of the incident plane wave.
+* ``f8`` is phi which defines the azimuthal propagation angle (degrees) of the incident plane wave.
+* ``f9`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
+* ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle of 90 degrees, azimuthal propagation angle of 63.4 degrees, polar propagation angle of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 mypulse``.
+
+.. note::
+
+    * Currently a plane wave can be introduced from the direction of the origin only, if the Total field/scattered field box is considered to be present in the first octant (region in the coordinate space determined by the positive x-axis, positive y-axis, and positive z-axis). The implementation should ideally be able to handle the introduction of the plane wave from any direction but currently it supports 0 <= phi <= 90 degrees and 0 <= theta <= 90 degrees only.
+    * The plane wave implementation was initiated through a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 #rx:
 ----

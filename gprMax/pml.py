@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -252,7 +252,7 @@ class PML:
         kappamin = sum(cfs.kappa.min for cfs in self.CFS)
         if kappamin < 1:
             logger.exception(
-                f"Sum of kappamin value(s) for PML is {kappamin} " "and must be greater than one."
+                f"Sum of kappamin value(s) for PML is {kappamin} and must be greater than one."
             )
             raise ValueError
 

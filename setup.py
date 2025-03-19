@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -33,7 +33,9 @@ from setuptools import Extension, find_packages, setup
 # Check Python version
 MIN_PYTHON_VERSION = (3, 7)
 if sys.version_info[:2] < MIN_PYTHON_VERSION:
-    sys.exit("\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n")
+    sys.exit(
+        "\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n"
+    )
 
 # Importing gprMax _version__.py before building can cause issues.
 with open("gprMax/_version.py", "r") as fd:
@@ -144,9 +146,9 @@ if "cleanall" in sys.argv:
             except OSError:
                 print(f"Could not remove: {filebase}.c")
         # Remove compiled Cython modules
-        libfile = glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.pyd") + glob.glob(
-            os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.so"
-        )
+        libfile = glob.glob(
+            os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.pyd"
+        ) + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.so")
         if libfile:
             libfile = libfile[0]
             try:
@@ -182,7 +184,11 @@ else:
     elif sys.platform == "darwin":
         # Check for Intel or Apple M series CPU
         cpuID = (
-            subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT)
+            subprocess.check_output(
+                "sysctl -n machdep.cpu.brand_string",
+                shell=True,
+                stderr=subprocess.STDOUT,
+            )
             .decode("utf-8")
             .strip()
         )
@@ -214,7 +220,13 @@ else:
             pass
         os.environ["MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET"] = MIN_MACOS_VERSION
         # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
-        compile_args = ["-O3", "-w", "-fopenmp", "-march=native", f"-mmacosx-version-min={MIN_MACOS_VERSION}"]
+        compile_args = [
+            "-O3",
+            "-w",
+            "-fopenmp",
+            "-march=native",
+            f"-mmacosx-version-min={MIN_MACOS_VERSION}",
+        ]
         linker_args = ["-fopenmp", f"-mmacosx-version-min={MIN_MACOS_VERSION}"]
         libraries = ["gomp"]
 
@@ -261,7 +273,8 @@ else:
         version=version,
         author="Craig Warren, Antonis Giannopoulos, and John Hartley",
         url="http://www.gprmax.com",
-        description="Electromagnetic Modelling Software based on the " + "Finite-Difference Time-Domain (FDTD) method",
+        description="Electromagnetic Modelling Software based on the "
+        + "Finite-Difference Time-Domain (FDTD) method",
         long_description=long_description,
         long_description_content_type="text/x-rst",
         license="GPLv3+",
