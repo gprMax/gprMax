@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple, TypeVar, Union
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
-from numpy import empty, ndarray
+from numpy import ndarray
 
 from gprMax import config
 from gprMax.cython.pml_build import pml_sum_er_mr
@@ -687,6 +687,88 @@ class MPIGrid(FDTDGrid):
             self.pml_comm = self.comm.Split(MPI.UNDEFINED)
 
         super().build()
+
+    def update_sources_and_recievers(self):
+        """Update position of sources and receivers.
+
+        If any sources or receivers have stepped outside of the local
+        grid, they will be moved to the correct MPI rank.
+        """
+        super().update_sources_and_recievers()
+
+        # Check it is possible for sources and receivers to have moved
+        model_num = config.sim_config.current_model
+        if (all(self.srcsteps == 0) and all(self.rxsteps == 0)) or model_num == 0:
+            return
+
+        # Get items that are outside the local bounds of the grid
+        items_to_send = list(
+            itertools.filterfalse(
+                lambda x: self.within_bounds(x.coord),
+                itertools.chain(
+                    self.voltagesources,
+                    self.hertziandipoles,
+                    self.magneticdipoles,
+                    self.transmissionlines,
+                    self.discreteplanewaves,
+                    self.rxs,
+                ),
+            )
+        )
+
+        # Map items being sent to the global coordinate space
+        for item in items_to_send:
+            item.coord = self.local_to_global_coordinate(item.coord)
+
+        send_count_by_rank = np.zeros(self.comm.size, dtype=np.int32)
+
+        # Send items to correct rank
+        for rank, items in itertools.groupby(
+            items_to_send, lambda x: self.get_rank_from_coordinate(x.coord)
+        ):
+            self.comm.isend(list(items), rank)
+            send_count_by_rank[rank] += 1
+
+        # Communicate the number of messages sent to each rank
+        if self.is_coordinator():
+            self.comm.Reduce(MPI.IN_PLACE, [send_count_by_rank, MPI.INT32_T], op=MPI.SUM)
+        else:
+            self.comm.Reduce([send_count_by_rank, MPI.INT32_T], None, op=MPI.SUM)
+
+        # Get number of messages this rank will receive
+        messages_to_receive = np.zeros(1, dtype=np.int32)
+        if self.is_coordinator():
+            self.comm.Scatter([send_count_by_rank, MPI.INT32_T], [messages_to_receive, MPI.INT32_T])
+        else:
+            self.comm.Scatter(None, [messages_to_receive, MPI.INT32_T])
+
+        # Receive new items for this rank
+        for _ in range(messages_to_receive[0]):
+            new_items = self.comm.recv(None, MPI.ANY_SOURCE)
+            for item in new_items:
+                item.coord = self.global_to_local_coordinate(item.coord)
+                if isinstance(item, Rx):
+                    self.add_receiver(item)
+                else:
+                    self.add_source(item)
+
+        # If this rank sent any items, remove them from our source and
+        # receiver lists
+        if len(items_to_send) > 0:
+            # Map items sent back to the local coordinate space
+            for item in items_to_send:
+                item.coord = self.global_to_local_coordinate(item.coord)
+
+            filter_items = lambda items: list(
+                filter(lambda item: self.within_bounds(item.coord), items)
+            )
+
+            self.voltagesources = filter_items(self.voltagesources)
+            self.hertziandipoles = filter_items(self.hertziandipoles)
+            self.magneticdipoles = filter_items(self.magneticdipoles)
+            self.transmissionlines = filter_items(self.transmissionlines)
+            self.discreteplanewaves = filter_items(self.discreteplanewaves)
+            self.rxs = filter_items(self.rxs)
 
     def has_neighbour(self, dim: Dim, dir: Dir) -> bool:
         """Test if the current rank has a specified neighbour.

@@ -21,7 +21,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Any, Iterable, List, Literal, Tuple, Union
+from typing import Any, Iterable, List, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -424,6 +424,16 @@ class FDTDGrid:
         logger.info("")
         logger.info(f"Materials [{self.name}]:\n{materialstable.table}\n")
 
+    def update_sources_and_recievers(self):
+        """Update position of sources and receivers."""
+
+        # Adjust position of simple sources and receivers if required
+        model_num = config.sim_config.current_model
+        if any(self.srcsteps != 0):
+            self.update_simple_source_positions(model_num)
+        if any(self.rxsteps != 0):
+            self.update_receiver_positions(model_num)
+
     def _update_positions(
         self, items: Iterable[Union[Source, Rx]], step_size: npt.NDArray[np.int32], step_number: int
     ) -> None:
@@ -438,31 +448,22 @@ class FDTDGrid:
             ValueError: Raised if any of the items would be stepped
                 outside of the grid.
         """
-        if step_size[0] != 0 or step_size[1] != 0 or step_size[2] != 0:
+        if any(step_size > 0):
             for item in items:
                 if step_number == 0:
-                    if (
-                        item.xcoord + step_size[0] * config.sim_config.model_end < 0
-                        or item.xcoord + step_size[0] * config.sim_config.model_end > self.nx
-                        or item.ycoord + step_size[1] * config.sim_config.model_end < 0
-                        or item.ycoord + step_size[1] * config.sim_config.model_end > self.ny
-                        or item.zcoord + step_size[2] * config.sim_config.model_end < 0
-                        or item.zcoord + step_size[2] * config.sim_config.model_end > self.nz
-                    ):
-                        raise ValueError
-                item.coord = item.coordorigin + step_number * step_size
+                    # Check item won't be stepped outside of the grid
+                    end_coord = item.coord + step_size * config.sim_config.model_end
+                    self.within_bounds(end_coord)
+                else:
+                    item.coord = item.coordorigin + step_number * step_size
 
-    def update_simple_source_positions(
-        self, step_size: npt.NDArray[np.int32], step: int = 0
-    ) -> None:
+    def update_simple_source_positions(self, step: int = 0) -> None:
         """Update the positions of sources in the grid.
 
         Move hertzian dipole and magnetic dipole sources. Transmission
         line sources and voltage sources will not be moved.
 
         Args:
-            step_size: Number of grid cells to move the sources each
-                step.
             step: Number of steps to move the sources by.
 
         Raises:
@@ -471,18 +472,16 @@ class FDTDGrid:
         """
         try:
             self._update_positions(
-                itertools.chain(self.hertziandipoles, self.magneticdipoles), step_size, step
+                itertools.chain(self.hertziandipoles, self.magneticdipoles), self.srcsteps, step
             )
         except ValueError as e:
             logger.exception("Source(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    def update_receiver_positions(self, step_size: npt.NDArray[np.int32], step: int = 0) -> None:
+    def update_receiver_positions(self, step: int = 0) -> None:
         """Update the positions of receivers in the grid.
 
         Args:
-            step_size: Number of grid cells to move the receivers each
-                step.
             step: Number of steps to move the receivers by.
 
         Raises:
@@ -490,7 +489,7 @@ class FDTDGrid:
                 outside of the grid.
         """
         try:
-            self._update_positions(self.rxs, step_size, step)
+            self._update_positions(self.rxs, self.rxsteps, step)
         except ValueError as e:
             logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e
