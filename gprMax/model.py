@@ -59,9 +59,6 @@ class Model:
 
         self.iteration = 0  # Current iteration number
 
-        self.srcsteps = np.zeros(3, dtype=np.int32)
-        self.rxsteps = np.zeros(3, dtype=np.int32)
-
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
 
@@ -156,6 +153,22 @@ class Model:
     @timewindow.setter
     def timewindow(self, value: float):
         self.G.timewindow = value
+
+    @property
+    def srcsteps(self) -> npt.NDArray[np.int32]:
+        return self.G.srcsteps
+
+    @srcsteps.setter
+    def srcsteps(self, value: npt.NDArray[np.int32]):
+        self.G.srcsteps = value
+
+    @property
+    def rxsteps(self) -> npt.NDArray[np.int32]:
+        return self.G.rxsteps
+
+    @rxsteps.setter
+    def rxsteps(self, value: npt.NDArray[np.int32]):
+        self.G.rxsteps = value
 
     def _create_grid(self) -> FDTDGrid:
         """Create grid object according to solver.
