@@ -242,6 +242,7 @@ class MPIModel(Model):
         if self.G.snapshots:
             save_snapshots(self.G.snapshots)
 
+        # TODO: Output sources and receivers using parallel I/O
         self.G.gather_grid_objects()
 
         # Write output data to file if they are any receivers in any grids
