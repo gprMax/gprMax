@@ -59,9 +59,6 @@ class Model:
 
         self.iteration = 0  # Current iteration number
 
-        self.srcsteps = np.zeros(3, dtype=np.int32)
-        self.rxsteps = np.zeros(3, dtype=np.int32)
-
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
 
@@ -156,6 +153,22 @@ class Model:
     @timewindow.setter
     def timewindow(self, value: float):
         self.G.timewindow = value
+
+    @property
+    def srcsteps(self) -> npt.NDArray[np.int32]:
+        return self.G.srcsteps
+
+    @srcsteps.setter
+    def srcsteps(self, value: npt.NDArray[np.int32]):
+        self.G.srcsteps = value
+
+    @property
+    def rxsteps(self) -> npt.NDArray[np.int32]:
+        return self.G.rxsteps
+
+    @rxsteps.setter
+    def rxsteps(self, value: npt.NDArray[np.int32]):
+        self.G.rxsteps = value
 
     def _create_grid(self) -> FDTDGrid:
         """Create grid object according to solver.
@@ -320,8 +333,6 @@ class Model:
     def build(self):
         """Builds the Yee cells for a model."""
 
-        G = self.G
-
         # Monitor memory usage
         self.p = psutil.Process()
 
@@ -335,10 +346,7 @@ class Model:
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
 
-        # Adjust position of simple sources and receivers if required
-        model_num = config.sim_config.current_model
-        G.update_simple_source_positions(self.srcsteps, step=model_num)
-        G.update_receiver_positions(self.rxsteps, step=model_num)
+        self.G.update_sources_and_recievers()
 
         self._output_geometry()
 

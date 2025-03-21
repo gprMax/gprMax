@@ -105,9 +105,6 @@ class CPUUpdates(Updates[GridType]):
                 precompute=False,
             )
 
-            # if(self.grid.iteration % 10 == 0):
-            #     np.save('./snapshots/electric_z_{}.npy'.format(self.grid.iteration), self.grid.Ex)
-
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
