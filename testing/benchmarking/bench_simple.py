@@ -35,9 +35,7 @@ for d, threads in itertools.product(domains, ompthreads):
     dxdydz = gprMax.Discretisation(p1=(dl, dl, dl))
     time_window = gprMax.TimeWindow(time=3e-9)
     wv = gprMax.Waveform(wave_type="gaussiandotnorm", amp=1, freq=900e6, id="MySource")
-    src = gprMax.HertzianDipole(
-        p1=(x / 2, y / 2, z / 2), polarisation="x", waveform_id="MySource"
-    )
+    src = gprMax.HertzianDipole(p1=(x / 2, y / 2, z / 2), polarisation="x", waveform_id="MySource")
 
     omp = gprMax.OMPThreads(n=threads)
 

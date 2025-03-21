@@ -1,0 +1,12 @@
+#title: Hertzian dipole in water
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: z 0.050 0.050 0.050 myWave
+#rx: 0.070 0.070 0.070
+
+#material: 4.9 0 1 0 myWater
+#add_dispersion_debye: 1 75.2 9.231e-12 myWater
+#box: 0 0 0 0.100 0.100 0.100 myWater

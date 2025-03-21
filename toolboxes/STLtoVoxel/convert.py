@@ -21,9 +21,7 @@ def convert_file(input_file_path, discretization, pad=1, parallel=False):
     return convert_files([input_file_path], discretization, pad=pad, parallel=parallel)
 
 
-def convert_files(
-    input_file_paths, discretization, colors=[(0, 0, 0)], pad=1, parallel=False
-):
+def convert_files(input_file_paths, discretization, colors=[(0, 0, 0)], pad=1, parallel=False):
     meshes = []
 
     for input_file_path in input_file_paths:

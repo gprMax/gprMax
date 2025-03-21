@@ -6,6 +6,7 @@
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 import logging
+from pathlib import Path
 
 import gprMax
 
@@ -67,6 +68,9 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         logger.exception(
             "This antenna module can only be used with a spatial discretisation of 1mm or 2mm"
         )
+        logger.exception(
+            "This antenna module can only be used with a spatial discretisation of 1mm or 2mm"
+        )
         raise ValueError
 
     # If using parameters from an optimisation
@@ -82,12 +86,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         hdpesig = kwargs["hdpesig"]
         sourceresistance = 195
         rxres = 50
-        absorber1 = gprMax.Material(
-            er=absorber1Er, se=absorber1sig, mr=1, sm=0, id="absorber1"
-        )
-        absorber2 = gprMax.Material(
-            er=absorber2Er, se=absorber2sig, mr=1, sm=0, id="absorber2"
-        )
+        absorber1 = gprMax.Material(er=absorber1Er, se=absorber1sig, mr=1, sm=0, id="absorber1")
+        absorber2 = gprMax.Material(er=absorber2Er, se=absorber2sig, mr=1, sm=0, id="absorber2")
         pcb = gprMax.Material(er=pcbEr, se=pcbsig, mr=1, sm=0, id="pcb")
         hdpe = gprMax.Material(er=hdpeEr, se=hdpesig, mr=1, sm=0, id="hdpe")
         scene_objects.extend((absorber1, absorber2, pcb, hdpe))
@@ -101,9 +101,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         if optstate == "WarrenThesis":
             # Original optimised values from http://hdl.handle.net/1842/4074
             excitationfreq = 1.71e9
-            sourceresistance = (
-                230  # Correction for old (< 123) GprMax3D bug (optimised to 4)
-            )
+            sourceresistance = 230  # Correction for old (< 123) GprMax3D bug (optimised to 4)
             rxres = 925  # Resistance at Rx bowtie
             absorber1 = gprMax.Material(er=1.58, se=0.428, mr=1, sm=0, id="absorber1")
             absorber2 = gprMax.Material(
@@ -111,17 +109,13 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
             )  # Foam modelled as PCB material
             pcb = gprMax.Material(er=3, se=0, mr=1, sm=0, id="pcb")
             hdpe = gprMax.Material(er=2.35, se=0, mr=1, sm=0, id="hdpe")
-            rxres = gprMax.Material(
-                er=3, se=(1 / rxres) * (dy / (dx * dz)), mr=1, sm=0, id="rxres"
-            )
+            rxres = gprMax.Material(er=3, se=(1 / rxres) * (dy / (dx * dz)), mr=1, sm=0, id="rxres")
             scene_objects.extend((absorber1, absorber2, pcb, hdpe, rxres))
 
         elif optstate == "DebyeAbsorber":
             # Same values as WarrenThesis but uses dispersive absorber properties for Eccosorb LS22
             excitationfreq = 1.71e9
-            sourceresistance = (
-                230  # Correction for old (< 123) GprMax3D bug (optimised to 4)
-            )
+            sourceresistance = 230  # Correction for old (< 123) GprMax3D bug (optimised to 4)
             rxres = 925  # Resistance at Rx bowtie
             absorber1 = gprMax.Material(er=1, se=0, mr=1, sm=0, id="absorber1")
             # Eccosorb LS22 3-pole Debye model (https://bitbucket.org/uoyaeg/aegboxts/wiki/Home)
@@ -136,12 +130,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
             )  # Foam modelled as PCB material
             pcb = gprMax.Material(er=3, se=0, mr=1, sm=0, id="pcb")
             hdpe = gprMax.Material(er=2.35, se=0, mr=1, sm=0, id="hdpe")
-            rxres = gprMax.Material(
-                er=3, se=(1 / rxres) * (dy / (dx * dz)), mr=1, sm=0, id="rxres"
-            )
-            scene_objects.extend(
-                (absorber1, absorber1_disp, absorber2, pcb, hdpe, rxres)
-            )
+            rxres = gprMax.Material(er=3, se=(1 / rxres) * (dy / (dx * dz)), mr=1, sm=0, id="rxres")
+            scene_objects.extend((absorber1, absorber1_disp, absorber2, pcb, hdpe, rxres))
 
         elif optstate == "GiannakisPaper":
             # Further optimised values from https://doi.org/10.1109/TGRS.2018.2869027
@@ -337,13 +327,9 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
             p2=(tx[0] - 0.059, tx[1] + 0.002, tx[2]),
             material_id="pec",
         )
-        e3 = gprMax.Edge(
-            p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec"
-        )
+        e3 = gprMax.Edge(p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
         e4 = gprMax.Edge(
-            p1=(tx[0], tx[1] + dz, tx[2]),
-            p2=(tx[0], tx[1] + 0.002, tx[2]),
-            material_id="pec",
+            p1=(tx[0], tx[1] + dz, tx[2]), p2=(tx[0], tx[1] + 0.002, tx[2]), material_id="pec"
         )
         scene_objects.extend((e1, e2, e3, e4))
 
@@ -400,9 +386,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
 
     # Skid
     b10 = gprMax.Box(
-        p1=(x, y, z),
-        p2=(x + casesize[0], y + casesize[1], z + skidthickness),
-        material_id="hdpe",
+        p1=(x, y, z), p2=(x + casesize[0], y + casesize[1], z + skidthickness), material_id="hdpe"
     )
     scene_objects.append(b10)
 
@@ -430,9 +414,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     # Excitation
     if optstate == "WarrenThesis" or optstate == "DebyeAbsorber":
         # Gaussian pulse
-        w1 = gprMax.Waveform(
-            wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian"
-        )
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         vs1 = gprMax.VoltageSource(
             polarisation="y",
             p1=(tx[0], tx[1], tx[2]),
@@ -594,10 +576,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
             p2=(
                 x + casesize[0] - casethickness,
                 y + casesize[1] - casethickness,
-                z
-                + skidthickness
-                + (metalmiddleplateheight - metalboxheight)
-                + metalboxheight,
+                z + skidthickness + (metalmiddleplateheight - metalboxheight) + metalboxheight,
             ),
             material_id="pec",
         )
@@ -685,10 +664,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
             p2=(
                 x + casesize[0] - casethickness,
                 y + casesize[1] - casethickness,
-                z
-                + skidthickness
-                + (metalmiddleplateheight - metalboxheight)
-                + metalboxheight,
+                z + skidthickness + (metalmiddleplateheight - metalboxheight) + metalboxheight,
             ),
             material_id="pec",
         )
@@ -889,22 +865,16 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
 
     # Edges that represent wire between bowtie halves in 2mm model
     e1 = gprMax.Edge(
-        p1=(tx[0] + 0.162, tx[1] - dy, tx[2]),
-        p2=(tx[0] + 0.162, tx[1], tx[2]),
-        material_id="pec",
+        p1=(tx[0] + 0.162, tx[1] - dy, tx[2]), p2=(tx[0] + 0.162, tx[1], tx[2]), material_id="pec"
     )
     e2 = gprMax.Edge(
         p1=(tx[0] + 0.162, tx[1] + dy, tx[2]),
         p2=(tx[0] + 0.162, tx[1] + 2 * dy, tx[2]),
         material_id="pec",
     )
-    e3 = gprMax.Edge(
-        p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec"
-    )
+    e3 = gprMax.Edge(p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
     e4 = gprMax.Edge(
-        p1=(tx[0], tx[1] + dy, tx[2]),
-        p2=(tx[0], tx[1] + 2 * dy, tx[2]),
-        material_id="pec",
+        p1=(tx[0], tx[1] + dy, tx[2]), p2=(tx[0], tx[1] + 2 * dy, tx[2]), material_id="pec"
     )
     scene_objects.extend((p1, p2, t1, t2, p3, p4, t3, t4, e1, e2, e3, e4))
 
@@ -937,9 +907,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
 
     # Source
     if src_type == "voltage_source":
-        w1 = gprMax.Waveform(
-            wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian"
-        )
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         vs1 = gprMax.VoltageSource(
             polarisation="y",
             p1=(tx[0], tx[1], tx[2]),
@@ -948,9 +916,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
         )
         scene_objects.extend((w1, vs1))
     elif src_type == "transmission_line":
-        w1 = gprMax.Waveform(
-            wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian"
-        )
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         tl1 = gprMax.TransmissionLine(
             polarisation="y",
             p1=(tx[0], tx[1], tx[2]),
@@ -976,9 +942,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     # Receiver
     if src_type == "transmission_line":
         # Zero waveform to use with transmission line at receiver output
-        w2 = gprMax.Waveform(
-            wave_type="gaussian", amp=0, freq=excitationfreq, id="my_zero_wave"
-        )
+        w2 = gprMax.Waveform(wave_type="gaussian", amp=0, freq=excitationfreq, id="my_zero_wave")
         tl2 = gprMax.TransmissionLine(
             polarisation="y",
             p1=(tx[0] + 0.162, tx[1], tx[2]),

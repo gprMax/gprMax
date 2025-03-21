@@ -168,9 +168,7 @@ class PSO_DLS(Optimizer):
         assert hasattr(func, "__call__"), "Invalid function handle"
         lb = np.array(lb)
         ub = np.array(ub)
-        assert np.all(ub > lb), (
-            "All upper-bound values must be greater than lower-bound values"
-        )
+        assert np.all(ub > lb), "All upper-bound values must be greater than lower-bound values"
 
         vhigh = np.abs(ub - lb)
         vlow = -vhigh

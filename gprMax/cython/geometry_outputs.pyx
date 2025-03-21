@@ -17,8 +17,80 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+
 cimport numpy as np
 
+
+cpdef get_line_properties(
+    int number_of_lines,
+    int nx,
+    int ny,
+    int nz,
+    np.uint32_t[:, :, :, :] ID
+):
+    """Generate connectivity array and get material ID for each line.
+
+    Args:
+        number_of_lines: Number of lines.
+        nx: Number of points in the x dimension.
+        ny: Number of points in the y dimension.
+        nz: Number of points in the z dimension.
+        ID: memoryview of sampled ID array according to geometry view
+            spatial discretisation.
+
+    Returns:
+        connectivity: NDArray of shape (2 * number_of_lines,) listing
+            the start and end point IDs of each line.
+        material_data: NDArray of shape (number_of_lines,) listing
+            material IDs for each line.
+    """
+    cdef np.ndarray material_data = np.zeros(number_of_lines, dtype=np.uint32)
+    cdef np.ndarray connectivity = np.zeros(2 * number_of_lines, dtype=np.int32)
+    cdef int line_index = 0
+    cdef int connectivity_index = 0
+    cdef int point_id = 0
+
+    cdef int z_step = 1
+    cdef int y_step = nz + 1
+    cdef int x_step = y_step * (ny + 1)
+
+    cdef int i, j, k
+
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+
+                # x-direction cell edge
+                material_data[line_index] = ID[0, i, j, k]
+                connectivity[connectivity_index] = point_id
+                connectivity[connectivity_index + 1] = point_id + x_step
+                line_index += 1
+                connectivity_index += 2
+
+                # y-direction cell edge
+                material_data[line_index] = ID[1, i, j, k]
+                connectivity[connectivity_index] = point_id
+                connectivity[connectivity_index + 1] = point_id + y_step
+                line_index += 1
+                connectivity_index += 2
+
+                # z-direction cell edge
+                material_data[line_index] = ID[2, i, j, k]
+                connectivity[connectivity_index] = point_id
+                connectivity[connectivity_index + 1] = point_id + z_step
+                line_index += 1
+                connectivity_index += 2
+
+                # Next point
+                point_id += 1
+
+            # Skip point at (i, j, nz)
+            point_id += 1
+
+        # Skip points in line (i, ny, t) where 0 <= t <= nz
+        point_id += nz + 1
+
+    return connectivity, material_data
 
 cpdef write_lines(
     float xs,

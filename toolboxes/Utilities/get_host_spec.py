@@ -34,9 +34,7 @@ logging.basicConfig(format="%(message)s", level=logging.INFO)
 # Host machine info.
 hostinfo = get_host_info()
 hyperthreadingstr = (
-    f", {hostinfo['logicalcores']} cores with Hyper-Threading"
-    if hostinfo["hyperthreading"]
-    else ""
+    f", {hostinfo['logicalcores']} cores with Hyper-Threading" if hostinfo["hyperthreading"] else ""
 )
 hostname = f"\n=== {hostinfo['hostname']}"
 logging.info(f"{hostname} {'=' * (get_terminal_width() - len(hostname) - 1)}")

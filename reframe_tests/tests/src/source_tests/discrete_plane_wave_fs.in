@@ -1,0 +1,8 @@
+#title: Discrete plane wave in free-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 myWave
+#rx: 0.070 0.070 0.070

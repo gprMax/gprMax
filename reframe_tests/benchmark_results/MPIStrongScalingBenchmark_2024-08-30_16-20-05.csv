@@ -1,0 +1,11 @@
+cpu_freq,model,num_cpus_per_task,num_nodes,num_tasks,num_tasks_per_node,run_time,simulation_time
+2000000,benchmark_model_40,16,1,8,8,147.94,61.11
+2000000,benchmark_model_40,16,16,128,8,74.45,16.03
+2000000,benchmark_model_40,16,2,16,8,108.6,45.41
+2000000,benchmark_model_40,16,4,32,8,92.18,35.0
+2000000,benchmark_model_40,16,8,64,8,73.71,16.56
+2250000,benchmark_model_40,16,1,8,8,171.95,53.94
+2250000,benchmark_model_40,16,16,128,8,58.13,12.04
+2250000,benchmark_model_40,16,2,16,8,97.73,38.73
+2250000,benchmark_model_40,16,4,32,8,87.61,28.54
+2250000,benchmark_model_40,16,8,64,8,68.29,14.47

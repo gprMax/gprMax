@@ -17,15 +17,18 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from pathlib import Path
 
 import h5py
+
+from gprMax.grid.fdtd_grid import FDTDGrid
 
 from ._version import __version__
 
 logger = logging.getLogger(__name__)
 
 
-def store_outputs(G):
+def store_outputs(G: FDTDGrid, iteration: int):
     """Stores field component values for every receiver and transmission line.
 
     Args:
@@ -33,7 +36,6 @@ def store_outputs(G):
     """
 
     # Assign iteration and fields to local variables
-    iteration = G.iteration
     Ex, Ey, Ez, Hx, Hy, Hz = G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz
 
     for rx in G.rxs:
@@ -45,39 +47,41 @@ def store_outputs(G):
             # Store current component
             else:
                 func = globals()[output]
-                rx.outputs[output][iteration] = func(
-                    rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G
-                )
+                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
 
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
         tl.Itotal[iteration] = tl.current[tl.antpos]
 
 
-def write_hdf5_outputfile(outputfile, G):
+# TODO: Add type information for grid (without a circular dependency)
+def write_hdf5_outputfile(outputfile: Path, title: str, model):
     """Writes an output file in HDF5 (.h5) format.
 
     Args:
         outputfile: string of the name of the output file.
         G: FDTDGrid class describing a grid in a model.
     """
-
     # Create output file and write top-level meta data, meta data for main grid,
     # and any outputs in the main grid
     f = h5py.File(outputfile, "w")
     f.attrs["gprMax"] = __version__
-    f.attrs["Title"] = G.title
-    write_hd5_data(f, G)
+    f.attrs["Title"] = title
+    f.attrs["Iterations"] = model.iterations
+    f.attrs["srcsteps"] = model.srcsteps
+    f.attrs["rxsteps"] = model.rxsteps
+    write_hd5_data(f, model.G)
 
     # Write meta data and data for any subgrids
-    sg_rxs = [True for sg in G.subgrids if sg.rxs]
-    sg_tls = [True for sg in G.subgrids if sg.transmissionlines]
+    sg_rxs = [True for sg in model.subgrids if sg.rxs]
+    sg_tls = [True for sg in model.subgrids if sg.transmissionlines]
     if sg_rxs or sg_tls:
-        for sg in G.subgrids:
+        for sg in model.subgrids:
             grp = f.create_group(f"/subgrids/{sg.name}")
             write_hd5_data(grp, sg, is_subgrid=True)
 
-    logger.basic(f"Written output file: {outputfile.name}")
+    logger.basic("")
+    logger.basic(f"Written output file: {outputfile.name}\n")
 
 
 def write_hd5_data(basegrp, grid, is_subgrid=False):
@@ -90,23 +94,20 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     """
 
     # Write meta data for grid
-    basegrp.attrs["Iterations"] = grid.iterations
     basegrp.attrs["nx_ny_nz"] = (grid.nx, grid.ny, grid.nz)
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
     nsrc = len(
-        grid.voltagesources
-        + grid.hertziandipoles
-        + grid.magneticdipoles
-        + grid.transmissionlines
+        grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles + grid.transmissionlines
     )
     basegrp.attrs["nsrc"] = nsrc
     basegrp.attrs["nrx"] = len(grid.rxs)
-    basegrp.attrs["srcsteps"] = grid.srcsteps
-    basegrp.attrs["rxsteps"] = grid.rxsteps
 
     if is_subgrid:
         # Write additional meta data about subgrid
+        basegrp.attrs["Iterations"] = grid.iterations
+        basegrp.attrs["srcsteps"] = grid.srcsteps
+        basegrp.attrs["rxsteps"] = grid.rxsteps
         basegrp.attrs["is_os_sep"] = grid.is_os_sep
         basegrp.attrs["pml_separation"] = grid.pml_separation
         basegrp.attrs["subgrid_pml_thickness"] = grid.pmls["thickness"]["x0"]
@@ -143,6 +144,10 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         basegrp["tls/tl" + str(tlindex + 1) + "/Vtotal"] = tl.Vtotal
         basegrp["tls/tl" + str(tlindex + 1) + "/Itotal"] = tl.Itotal
 
+    # Ensure the order of receivers is always consistent (Needed for
+    # consistancy when using MPI with multiple receivers)
+    grid.rxs.sort(key=lambda rx: rx.ID)
+
     # Create group, add positional data and write field component arrays for receivers
     for rxindex, rx in enumerate(grid.rxs):
         grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
@@ -170,9 +175,7 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
     if y == 0 or z == 0:
         Ix = 0
     else:
-        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (
-            Hz[x, y, z] - Hz[x, y - 1, z]
-        )
+        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
 
     return Ix
 
@@ -189,9 +192,7 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
     if x == 0 or z == 0:
         Iy = 0
     else:
-        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (
-            Hz[x - 1, y, z] - Hz[x, y, z]
-        )
+        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
 
     return Iy
 
@@ -208,8 +209,6 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     if x == 0 or y == 0:
         Iz = 0
     else:
-        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (
-            Hy[x, y, z] - Hy[x - 1, y, z]
-        )
+        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
 
     return Iz

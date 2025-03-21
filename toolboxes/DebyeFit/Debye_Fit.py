@@ -128,9 +128,7 @@ class Relaxation(object):
         Returns:
             s (str): Info about chosen function and its parameters.
         """
-        print(
-            f"Approximating {self.name} using {self.number_of_debye_poles} Debye poles"
-        )
+        print(f"Approximating {self.name} using {self.number_of_debye_poles} Debye poles")
         print(f"{self.name} parameters: ")
         s = "".join(f"{k:10s} = {v}\n" for k, v in self.params.items())
         print(s)
@@ -239,9 +237,7 @@ class Relaxation(object):
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
         for i in range(0, len(tau)):
-            print(
-                f"Debye {i + 1}|{ee / len(tau):^14.5f}|{weights[i]:^14.5f}|{tau[i]:^25.5f}|"
-            )
+            print(f"Debye {i + 1}|{ee / len(tau):^14.5f}|{weights[i]:^14.5f}|{tau[i]:^25.5f}|")
             print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
@@ -343,12 +339,8 @@ class Relaxation(object):
             avg_err_imag (float): average fractional error
                                   for conductivity (imaginary part)
         """
-        avg_err_real = np.sum(np.abs((rl_exp - self.rl) / (self.rl + 1)) * 100) / len(
-            rl_exp
-        )
-        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (self.im + 1)) * 100) / len(
-            im_exp
-        )
+        avg_err_real = np.sum(np.abs((rl_exp - self.rl) / (self.rl + 1)) * 100) / len(rl_exp)
+        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (self.im + 1)) * 100) / len(im_exp)
         return avg_err_real, avg_err_imag
 
     @staticmethod
@@ -370,8 +362,7 @@ class Relaxation(object):
             file_path = os.path.join("user_libs", "materials", "my_materials.txt")
         else:
             sys.exit(
-                "Cannot save material properties "
-                f"in {os.path.join(fdir, 'my_materials.txt')}!"
+                "Cannot save material properties " f"in {os.path.join(fdir, 'my_materials.txt')}!"
             )
         with open(file_path, "a") as fileH:
             fileH.write(f"## {output[0].split(' ')[-1]}")
@@ -486,8 +477,7 @@ class HavriliakNegami(Relaxation):
         the given parameters."""
         return (
             self.e_inf
-            + self.de
-            / (1 + (1j * 2 * np.pi * self.freq * self.tau_0) ** self.alpha) ** self.beta
+            + self.de / (1 + (1j * 2 * np.pi * self.freq * self.tau_0) ** self.alpha) ** self.beta
         )
 
 
@@ -659,9 +649,7 @@ class Crim(Relaxation):
         if (np.array(d) < 0).sum() != 0:
             sys.exit("The inputs should be positive.")
         if len(self.volumetric_fractions) != len(self.materials):
-            sys.exit(
-                "Number of volumetric volumes does not match the dielectric properties"
-            )
+            sys.exit("Number of volumetric volumes does not match the dielectric properties")
         # Check if the materials are at least two
         if len(self.volumetric_fractions) < 2:
             sys.exit("The materials should be at least 2")
@@ -698,9 +686,7 @@ class Crim(Relaxation):
     def calculation(self):
         """Calculates the Crim function for the given parameters"""
         return np.sum(
-            np.repeat(self.volumetric_fractions, len(self.freq)).reshape(
-                (-1, len(self.materials))
-            )
+            np.repeat(self.volumetric_fractions, len(self.freq)).reshape((-1, len(self.materials)))
             * (
                 self.materials[:, 0]
                 + self.materials[:, 1]
@@ -709,9 +695,7 @@ class Crim(Relaxation):
                     + 1j
                     * 2
                     * np.pi
-                    * np.repeat(self.freq, len(self.materials)).reshape(
-                        (-1, len(self.materials))
-                    )
+                    * np.repeat(self.freq, len(self.materials)).reshape((-1, len(self.materials)))
                     * self.materials[:, 2]
                 )
             )
@@ -776,19 +760,13 @@ class Rawdata(Relaxation):
         # Read the file
         with open(self.filename) as f:
             try:
-                array = np.array(
-                    [[float(x) for x in line.split(self.delimiter)] for line in f]
-                )
+                array = np.array([[float(x) for x in line.split(self.delimiter)] for line in f])
             except ValueError:
                 sys.exit("Error: The inputs should be numeric")
 
         self.set_freq(min(array[:, 0]), max(array[:, 0]), self.f_n)
-        rl_interp = scipy.interpolate.interp1d(
-            array[:, 0], array[:, 1], fill_value="extrapolate"
-        )
-        im_interp = scipy.interpolate.interp1d(
-            array[:, 0], array[:, 2], fill_value="extrapolate"
-        )
+        rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1], fill_value="extrapolate")
+        im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2], fill_value="extrapolate")
         return rl_interp(self.freq) - 1j * im_interp(self.freq)
 
 

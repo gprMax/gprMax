@@ -1,0 +1,8 @@
+#title: Transmission line in free-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussian 1 1e9 mypulse
+#transmission_line: x 0.050 0.050 0.050 35 mypulse
+#rx: 0.070 0.070 0.070

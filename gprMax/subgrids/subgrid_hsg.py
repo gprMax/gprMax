@@ -20,11 +20,7 @@ import logging
 
 import gprMax.config as config
 
-from ..cython.fields_updates_hsg import (
-    update_electric_os,
-    update_is,
-    update_magnetic_os,
-)
+from ..cython.fields_updates_hsg import update_electric_os, update_is, update_magnetic_os
 from .grid import SubGridBaseGrid
 
 logger = logging.getLogger(__name__)
@@ -695,8 +691,7 @@ class SubGridHSG(SubGridBaseGrid):
         logger.debug(f"[{self.name}] Type: {self.__class__.__name__}")
         logger.info(f"[{self.name}] Ratio: 1:{self.ratio}")
         logger.info(
-            f"[{self.name}] Spatial discretisation: {self.dx:g} x "
-            + f"{self.dy:g} x {self.dz:g}m"
+            f"[{self.name}] Spatial discretisation: {self.dx:g} x " + f"{self.dy:g} x {self.dz:g}m"
         )
         logger.info(
             f"[{self.name}] Extent (working region): {xs}m, {ys}m, {zs}m to {xf}m, {yf}m, {zf}m "

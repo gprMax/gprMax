@@ -104,17 +104,12 @@ class Waveform:
         elif self.type == "gaussiandotnorm":
             delay = time - self.chi
             normalise = np.sqrt(np.exp(1) / (2 * self.zeta))
-            ampvalue = (
-                -2 * self.zeta * delay * np.exp(-self.zeta * delay**2) * normalise
-            )
+            ampvalue = -2 * self.zeta * delay * np.exp(-self.zeta * delay**2) * normalise
 
         elif self.type in ["gaussiandotdot", "gaussiandoubleprime"]:
             delay = time - self.chi
             ampvalue = (
-                2
-                * self.zeta
-                * (2 * self.zeta * delay**2 - 1)
-                * np.exp(-self.zeta * delay**2)
+                2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)
             )
 
         elif self.type == "gaussiandotdotnorm":
@@ -132,12 +127,7 @@ class Waveform:
             delay = time - self.chi
             normalise = 1 / (2 * self.zeta)
             ampvalue = -(
-                (
-                    2
-                    * self.zeta
-                    * (2 * self.zeta * delay**2 - 1)
-                    * np.exp(-self.zeta * delay**2)
-                )
+                (2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2))
                 * normalise
             )
 

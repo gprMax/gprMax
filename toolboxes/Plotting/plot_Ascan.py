@@ -81,9 +81,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
         # Check for single output component when doing a FFT
         if fft and not len(outputs) == 1:
-            logger.exception(
-                "A single output must be specified when using " + "the -fft option"
-            )
+            logger.exception("A single output must be specified when using " + "the -fft option")
             raise ValueError
 
         # New plot for each receiver
@@ -122,11 +120,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                     # Set plotting range to -60dB from maximum power or 4 times
                     # frequency at maximum power
                     try:
-                        pltrange = (
-                            np.where(power[freqmaxpower:] < -60)[0][0]
-                            + freqmaxpower
-                            + 1
-                        )
+                        pltrange = np.where(power[freqmaxpower:] < -60)[0][0] + freqmaxpower + 1
                     except:
                         pltrange = freqmaxpower * 4
 
@@ -166,17 +160,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(line2, color="g")
                         plt.setp(ax1, ylabel=outputtext + " field strength [A/m]")
                         plt.setp(stemlines, "color", "g")
-                        plt.setp(
-                            markerline, "markerfacecolor", "g", "markeredgecolor", "g"
-                        )
+                        plt.setp(markerline, "markerfacecolor", "g", "markeredgecolor", "g")
                     elif "I" in outputs[0]:
                         plt.setp(line1, color="b")
                         plt.setp(line2, color="b")
                         plt.setp(ax1, ylabel=outputtext + " current [A]")
                         plt.setp(stemlines, "color", "b")
-                        plt.setp(
-                            markerline, "markerfacecolor", "b", "markeredgecolor", "b"
-                        )
+                        plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
 
                     plt.show()
 

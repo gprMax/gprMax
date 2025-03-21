@@ -34,7 +34,7 @@ Here is an example of a job script for running models, e.g. A-scans to make a B-
 
 In this example, 10 models will be distributed as independent tasks in an HPC environment using MPI.
 
-The ``-mpi`` argument is passed to gprMax which takes the number of MPI tasks to run. This should be the number of models (worker tasks) plus one extra for the master task.
+The ``-taskfarm`` argument is passed to gprMax which takes the number of MPI tasks to run. This should be the number of models (worker tasks) plus one extra for the master task.
 
 The ``NSLOTS`` variable which is required to set the total number of slots/cores for the parallel environment ``-pe mpi`` is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 11 and the number of OpenMP threads per task is 16, so 176 slots are required.
 

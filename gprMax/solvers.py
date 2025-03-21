@@ -16,76 +16,30 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import gprMax.config as config
+from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.model import Model
+from gprMax.updates.mpi_updates import MPIUpdates
 
-from .grid import CUDAGrid, FDTDGrid, OpenCLGrid
+from .grid.cuda_grid import CUDAGrid
+from .grid.fdtd_grid import FDTDGrid
+from .grid.opencl_grid import OpenCLGrid
+from .subgrids.updates import SubgridUpdates
 from .subgrids.updates import create_updates as create_subgrid_updates
-from .updates import CPUUpdates, CUDAUpdates, OpenCLUpdates
+from .updates.cpu_updates import CPUUpdates
+from .updates.cuda_updates import CUDAUpdates
+from .updates.opencl_updates import OpenCLUpdates
+from .updates.updates import Updates
 
-
-def create_G():
-    """Create grid object according to solver.
-
-    Returns:
-        G: FDTDGrid class describing a grid in a model.
-    """
-
-    if config.sim_config.general["solver"] == "cpu":
-        G = FDTDGrid()
-    elif config.sim_config.general["solver"] == "cuda":
-        G = CUDAGrid()
-    elif config.sim_config.general["solver"] == "opencl":
-        G = OpenCLGrid()
-
-    return G
-
-
-def create_solver(G):
-    """Create configured solver object.
-
-    N.B. A large range of different functions exist to advance the time step for
-            dispersive materials. The correct function is set by the
-            set_dispersive_updates method, based on the required numerical
-            precision and dispersive material type.
-            This is done for solvers running on CPU, i.e. where Cython is used.
-            CUDA and OpenCL dispersive material functions are handled through
-            templating and substitution at runtime.
-
-    Args:
-        G: FDTDGrid class describing a grid in a model.
-
-    Returns:
-        solver: Solver object.
-    """
-
-    if config.sim_config.general["subgrid"]:
-        updates = create_subgrid_updates(G)
-        if config.get_model_config().materials["maxpoles"] != 0:
-            # Set dispersive update functions for both SubgridUpdates and
-            # SubgridUpdaters subclasses
-            updates.set_dispersive_updates()
-            for u in updates.updaters:
-                u.set_dispersive_updates()
-        solver = Solver(updates, hsg=True)
-    elif config.sim_config.general["solver"] == "cpu":
-        updates = CPUUpdates(G)
-        if config.get_model_config().materials["maxpoles"] != 0:
-            updates.set_dispersive_updates()
-        solver = Solver(updates)
-    elif config.sim_config.general["solver"] == "cuda":
-        updates = CUDAUpdates(G)
-        solver = Solver(updates)
-    elif config.sim_config.general["solver"] == "opencl":
-        updates = OpenCLUpdates(G)
-        solver = Solver(updates)
-
-    return solver
+logger = logging.getLogger(__name__)
 
 
 class Solver:
     """Generic solver for Update objects"""
 
-    def __init__(self, updates, hsg=False):
+    def __init__(self, updates: Updates):
         """
         Args:
             updates: Updates contains methods to run FDTD algorithm.
@@ -93,7 +47,6 @@ class Solver:
         """
 
         self.updates = updates
-        self.hsg = hsg
         self.solvetime = 0
         self.memused = 0
 
@@ -107,23 +60,75 @@ class Solver:
         self.updates.time_start()
 
         for iteration in iterator:
-            self.updates.store_outputs()
+            self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
-            self.updates.update_magnetic_sources()
-            #self.updates.update_plane_waves()
-            if self.hsg:
+            self.updates.update_magnetic_sources(iteration)
+            # self.updates.update_plane_waves()
+            if isinstance(self.updates, MPIUpdates):
+                self.updates.halo_swap_magnetic()
+            if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()
             self.updates.update_electric_a()
             self.updates.update_electric_pml()
-            self.updates.update_electric_sources()
-            if self.hsg:
+            self.updates.update_electric_sources(iteration)
+            # TODO: Increment iteration here if add Model to Solver
+            if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_1()
             self.updates.update_electric_b()
-            if config.sim_config.general["solver"] == "cuda":
+            if isinstance(self.updates, MPIUpdates):
+                self.updates.halo_swap_electric()
+            if isinstance(self.updates, CUDAUpdates):
                 self.memused = self.updates.calculate_memory_used(iteration)
 
         self.updates.finalise()
         self.solvetime = self.updates.calculate_solve_time()
         self.updates.cleanup()
+
+
+def create_solver(model: Model) -> Solver:
+    """Create configured solver object.
+
+    N.B. A large range of different functions exist to advance the time
+    step for dispersive materials. The correct function is set by the
+    set_dispersive_updates method, based on the required numerical
+    precision and dispersive material type. This is done for solvers
+    running on CPU, i.e. where Cython is used. CUDA and OpenCL
+    dispersive material functions are handled through templating and
+    substitution at runtime.
+
+    Args:
+        model: model containing the main grid and subgrids.
+
+    Returns:
+        solver: Solver object.
+    """
+    grid = model.G
+    if config.sim_config.general["subgrid"]:
+        updates = create_subgrid_updates(model)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            # Set dispersive update functions for both SubgridUpdates and
+            # SubgridUpdaters subclasses
+            updates.set_dispersive_updates()
+            for u in updates.updaters:
+                u.set_dispersive_updates()
+    elif type(grid) is FDTDGrid:
+        updates = CPUUpdates(grid)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            updates.set_dispersive_updates()
+    elif type(grid) is MPIGrid:
+        updates = MPIUpdates(grid)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            updates.set_dispersive_updates()
+    elif type(grid) is CUDAGrid:
+        updates = CUDAUpdates(grid)
+    elif type(grid) is OpenCLGrid:
+        updates = OpenCLUpdates(grid)
+    else:
+        logger.error("Cannot create Solver: Unknown grid type")
+        raise ValueError
+
+    solver = Solver(updates)
+
+    return solver

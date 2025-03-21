@@ -162,9 +162,7 @@ def calculate_antenna_params(
         "yin": yin,
     }
     if tlrxnumber or rxnumber:
-        with np.errstate(
-            divide="ignore"
-        ):  # Ignore warning from taking a log of any zero values
+        with np.errstate(divide="ignore"):  # Ignore warning from taking a log of any zero values
             s21 = 20 * np.log10(s21)
         s21[np.invert(np.isfinite(s21))] = 0
         antennaparams["s21"] = s21
@@ -470,10 +468,11 @@ def mpl_plot(
     # ax.grid(which='both', axis='both', linestyle='-.')
 
     if save:
-        savename1 = filename.stem + "_tl_params"
-        savename1 = filename.parent / savename1
-        savename2 = filename.stem + "_ant_params"
-        savename2 = filename.parent / savename2
+        filepath = Path(filename)
+        savename1 = filepath.stem + "_tl_params"
+        savename1 = filepath.parent / savename1
+        savename2 = filepath.stem + "_ant_params"
+        savename2 = filepath.parent / savename2
         # Save a PDF of the figure
         fig1.savefig(
             savename1.with_suffix(".pdf"),
@@ -510,14 +509,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("outputfile", help="name of output file including path")
     parser.add_argument(
-        "--tltx-num",
-        default=1,
-        type=int,
-        help="transmitter antenna - transmission line number",
+        "--tltx-num", default=1, type=int, help="transmitter antenna - transmission line number"
     )
-    parser.add_argument(
-        "--tlrx-num", type=int, help="receiver antenna - transmission line number"
-    )
+    parser.add_argument("--tlrx-num", type=int, help="receiver antenna - transmission line number")
     parser.add_argument("--rx-num", type=int, help="receiver antenna - output number")
     parser.add_argument(
         "--rx-component",

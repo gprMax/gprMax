@@ -1,0 +1,31 @@
+#title: Single depth PML
+#domain: 0.6 0.6 0.1
+#dx_dy_dz: 0.1 0.1 0.1
+#time_window: 10
+
+#waveform: gaussiandot 1 1e7 myWave
+#hertzian_dipole: z 0.3 0.3 0 myWave
+#rx: 0.1 0.1 0 r01 Hx
+#rx: 0.1 0.2 0 r02 Hx
+#rx: 0.1 0.3 0 r03 Hx
+#rx: 0.1 0.4 0 r04 Hx
+
+#rx: 0.2 0.1 0 r05 Hx
+#rx: 0.2 0.2 0 r06 Hx
+#rx: 0.2 0.3 0 r07 Hx
+#rx: 0.2 0.4 0 r08 Hx
+
+#rx: 0.3 0.1 0 r09 Hx
+#rx: 0.3 0.2 0 r10 Hx
+#rx: 0.3 0.3 0 r11 Hx
+#rx: 0.3 0.4 0 r12 Hx
+
+#rx: 0.4 0.1 0 r13 Hx
+#rx: 0.4 0.2 0 r14 Hx
+#rx: 0.4 0.3 0 r15 Hx
+#rx: 0.4 0.4 0 r16 Hx
+
+#material: 8 0 1 0 half_space
+#box: 0 0 0 0.6 0.3 0.1 half_space
+
+#pml_cells: 1 1 0 1 1 0
