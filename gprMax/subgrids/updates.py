@@ -18,31 +18,35 @@
 
 import logging
 
-from ..updates import CPUUpdates
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.model import Model
+from gprMax.subgrids.grid import SubGridBaseGrid
+
+from ..updates.cpu_updates import CPUUpdates
 from .precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
 from .subgrid_hsg import SubGridHSG
 
 logger = logging.getLogger(__name__)
 
 
-def create_updates(G):
+def create_updates(model: Model):
     """Return the solver for the given subgrids."""
     updaters = []
 
-    for sg in G.subgrids:
+    for sg in model.subgrids:
         sg_type = type(sg)
         if sg_type == SubGridHSG and sg.filter:
-            precursors = PrecursorNodesFiltered(G, sg)
+            precursors = PrecursorNodesFiltered(model.G, sg)
         elif sg_type == SubGridHSG:
-            precursors = PrecursorNodes(G, sg)
+            precursors = PrecursorNodes(model.G, sg)
         else:
             logger.exception(f"{str(sg)} is not a subgrid type")
             raise ValueError
 
-        sgu = SubgridUpdater(sg, precursors, G)
+        sgu = SubgridUpdater(sg, precursors, model.G)
         updaters.append(sgu)
 
-    updates = SubgridUpdates(G, updaters)
+    updates = SubgridUpdates(model.G, updaters)
     return updates
 
 
@@ -64,13 +68,13 @@ class SubgridUpdates(CPUUpdates):
             sg_updater.hsg_2()
 
 
-class SubgridUpdater(CPUUpdates):
+class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
     """Handles updating the electric and magnetic fields of an HSG subgrid.
     The IS, OS, subgrid region and the electric/magnetic sources are updated
     using the precursor regions.
     """
 
-    def __init__(self, subgrid, precursors, G):
+    def __init__(self, subgrid: SubGridBaseGrid, precursors: PrecursorNodes, G: FDTDGrid):
         """
         Args:
             subgrid: SubGrid3d instance to be updated.
@@ -82,7 +86,17 @@ class SubgridUpdater(CPUUpdates):
         super().__init__(subgrid)
         self.precursors = precursors
         self.G = G
-        self.source_iteration = 0
+        self.iteration = 0
+
+    def store_outputs(self):
+        return super().store_outputs(self.iteration)
+
+    def update_electric_sources(self):
+        super().update_electric_sources(self.iteration)
+        self.iteration += 1
+
+    def update_magnetic_sources(self):
+        return super().update_magnetic_sources(self.iteration)
 
     def hsg_1(self):
         """First half of the subgrid update. Takes the time step up to the main

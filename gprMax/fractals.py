@@ -56,7 +56,9 @@ class FractalSurface:
         self.nz = zf - zs
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
-        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        self.dimension = (
+            dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        )
         self.weighting = np.array([1, 1], dtype=np.float64)
         self.fractalrange = (0, 0)
         self.filldepth = 0
@@ -124,11 +126,9 @@ class FractalSurface:
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
         self.fractalsurface = (
-            self.fractalsurface
-            * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
+            self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
             + self.fractalrange[0]
-            - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
-            * fractalmin
+            - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
         )
 
 
@@ -164,7 +164,9 @@ class FractalVolume:
         self.averaging = False
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
-        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        self.dimension = (
+            dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        )
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
         self.fractalsurfaces = []
@@ -174,19 +176,13 @@ class FractalVolume:
 
         # Scale filter according to size of fractal volume
         if self.nx == 1:
-            filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array(
-                [self.ny, self.nz]
-            )
+            filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array([self.ny, self.nz])
             filterscaling = np.insert(filterscaling, 0, 1)
         elif self.ny == 1:
-            filterscaling = np.amin(np.array([self.nx, self.nz])) / np.array(
-                [self.nx, self.nz]
-            )
+            filterscaling = np.amin(np.array([self.nx, self.nz])) / np.array([self.nx, self.nz])
             filterscaling = np.insert(filterscaling, 1, 1)
         elif self.nz == 1:
-            filterscaling = np.amin(np.array([self.nx, self.ny])) / np.array(
-                [self.nx, self.ny]
-            )
+            filterscaling = np.amin(np.array([self.nx, self.ny])) / np.array([self.nx, self.ny])
             filterscaling = np.insert(filterscaling, 2, 1)
         else:
             filterscaling = np.amin(np.array([self.nx, self.ny, self.nz])) / np.array(
@@ -241,9 +237,7 @@ class FractalVolume:
         )
 
         # Bin fractal values
-        bins = np.linspace(
-            np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins
-        )
+        bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
         for j in range(self.ny):
             for k in range(self.nz):
                 self.fractalvolume[:, j, k] = np.digitize(

@@ -39,9 +39,7 @@ if sys.version_info[:2] < MIN_PYTHON_VERSION:
 
 # Importing gprMax _version__.py before building can cause issues.
 with open("gprMax/_version.py", "r") as fd:
-    version = re.search(
-        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE
-    )[1]
+    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE)[1]
 
 
 def build_dispersive_material_templates():
@@ -112,9 +110,7 @@ def build_dispersive_material_templates():
         ]
     )
 
-    with open(
-        os.path.join("gprMax", "cython", "fields_updates_dispersive.pyx"), "w"
-    ) as f:
+    with open(os.path.join("gprMax", "cython", "fields_updates_dispersive.pyx"), "w") as f:
         f.write(r)
 
 
@@ -206,11 +202,7 @@ else:
             # Use newest gcc found
             os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
             if "Apple" in cpuID:
-                rpath = (
-                    "/opt/homebrew/opt/gcc/lib/gcc/"
-                    + gccpath[-1].split(os.sep)[-1][-1]
-                    + "/"
-                )
+                rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
         else:
             raise (
                 f"Cannot find gcc in {gccbasepath}. gprMax requires gcc "

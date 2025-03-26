@@ -1,6 +1,7 @@
 # Python
 *.pyc
 *.pyo
+.venv
 
 # Cython
 *.c
@@ -27,3 +28,11 @@ docs/.buildinfo
 .vscode
 testing/*.out
 testing/*.png
+
+# Output files from running the examples
+examples/*.h5
+examples/*.pdf
+
+# Test coverage files
+.coverage
+cov.xml

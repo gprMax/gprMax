@@ -18,7 +18,7 @@
 
 import logging
 
-from .cmds_singleuse import (
+from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
     OMPThreads,

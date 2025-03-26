@@ -53,17 +53,13 @@ cpdef void create_electric_average(
         G: FDTDGrid class describing a grid in a model.
     """
 
-    # Make an ID composed of the names of the four materials that will be averaged
-    requiredID = (G.materials[numID1].ID + '+' + G.materials[numID2].ID + '+' +
-                  G.materials[numID3].ID + '+' + G.materials[numID4].ID)
+    # Make an ID composed of the names of the four materials that will
+    # be averaged. Sort the names to ensure the same four component
+    # materials always form the same ID.
+    requiredID = Material.create_compound_id(G.materials[numID1], G.materials[numID2], G.materials[numID3], G.materials[numID4])
 
     # Check if this material already exists
-    tmp = requiredID.split('+')
-    material = [x for x in G.materials if
-             x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
-             x.ID.count(tmp[1]) == requiredID.count(tmp[1]) and
-             x.ID.count(tmp[2]) == requiredID.count(tmp[2]) and
-             x.ID.count(tmp[3]) == requiredID.count(tmp[3])]
+    material = [x for x in G.materials if x.ID == requiredID]
 
     if material:
         G.ID[componentID, i, j, k] = material[0].numID
@@ -108,14 +104,10 @@ cpdef void create_magnetic_average(
     """
 
     # Make an ID composed of the names of the two materials that will be averaged
-    requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
+    requiredID = Material.create_compound_id(G.materials[numID1], G.materials[numID2])
 
     # Check if this material already exists
-    tmp = requiredID.split('+')
-    material = [x for x in G.materials if
-                (x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
-                 x.ID.count(tmp[1]) == requiredID.count(tmp[1])) or
-                (x.ID.count(tmp[0]) % 2 == 0 and x.ID.count(tmp[1]) % 2 == 0)]
+    material = [x for x in G.materials if x.ID == requiredID]
 
     if material:
         G.ID[componentID, i, j, k] = material[0].numID

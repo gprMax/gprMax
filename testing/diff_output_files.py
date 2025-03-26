@@ -60,13 +60,9 @@ def diff_output_files(filename1, filename2):
 
     # Arrays for storing time
     time1 = np.zeros((file1.attrs["Iterations"]), dtype=floattype1)
-    time1 = np.linspace(
-        0, (file1.attrs["Iterations"] - 1), num=file1.attrs["Iterations"]
-    )
+    time1 = np.linspace(0, (file1.attrs["Iterations"] - 1), num=file1.attrs["Iterations"])
     time2 = np.zeros((file2.attrs["Iterations"]), dtype=floattype2)
-    time2 = np.linspace(
-        0, (file2.attrs["Iterations"] - 1), num=file2.attrs["Iterations"]
-    )
+    time2 = np.linspace(0, (file2.attrs["Iterations"] - 1), num=file2.attrs["Iterations"])
 
     # Arrays for storing field data
     data1 = np.zeros((file1.attrs["Iterations"], len(outputs1)), dtype=floattype1)

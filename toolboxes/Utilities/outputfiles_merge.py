@@ -71,16 +71,19 @@ def get_output_data(filename, rxnumber, rxcomponent):
     return outputdata, dt
 
 
-def merge_files(outputfiles, removefiles=False):
+def merge_files(outputfiles, merged_outputfile=None, removefiles=False):
     """Merges traces (A-scans) from multiple output files into one new file,
         then optionally removes the series of output files.
 
     Args:
         outputfiles: list of output files to be merged.
         removefiles: boolean flag to remove individual output files after merge.
+        merged_outputfile: string or Path object of location to save the merged
+        output. If not specified a default location is used.
     """
 
-    merged_outputfile = os.path.commonprefix(outputfiles) + "_merged.h5"
+    if merged_outputfile is None:
+        merged_outputfile = os.path.commonprefix(outputfiles) + "_merged.h5"
 
     # Combined output file
     fout = h5py.File(merged_outputfile, "w")
@@ -136,8 +139,14 @@ if __name__ == "__main__":
         + "optionally removes the series of output files.",
         usage="cd gprMax; python -m tools.outputfiles_merge basefilename",
     )
+    parser.add_argument("basefilename", help="base name of output file series including path")
     parser.add_argument(
-        "basefilename", help="base name of output file series including path"
+        "-o",
+        "--output-file",
+        default=None,
+        type=str,
+        required=False,
+        help="location to save merged file",
     )
     parser.add_argument(
         "--remove-files",
@@ -148,6 +157,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     files = glob.glob(args.basefilename + "*.h5")
-    outputfiles = [filename for filename in files if "_merged" not in filename]
+    outputfiles = [
+        filename for filename in files if "_merged" not in filename and args.output_file != filename
+    ]
     outputfiles.sort(key=natural_keys)
-    merge_files(outputfiles, removefiles=args.remove_files)
+    merge_files(outputfiles, merged_outputfile=args.output_file, removefiles=args.remove_files)

@@ -750,9 +750,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     scene_objects.extend((b19, b20))
 
     # Excitation
-    w2 = gprMax.Waveform(
-        wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian"
-    )
+    w2 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
     scene_objects.append(w2)
     vs1 = gprMax.VoltageSource(
         polarisation="y",

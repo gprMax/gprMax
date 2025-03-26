@@ -19,40 +19,84 @@
 from copy import deepcopy
 
 import numpy as np
+import numpy.typing as npt
 
 import gprMax.config as config
-
-from .fields_outputs import Ix, Iy, Iz
-from .utilities.utilities import round_value
+from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
+    calculate1DWaveformValues,
     getIntegerForAngles,
     getProjections,
-    calculate1DWaveformValues,
-    updatePlaneWave,
     getSource,
+    updatePlaneWave,
 )
+from .utilities.utilities import round_value
 
 
 class Source:
     """Super-class which describes a generic source."""
 
     def __init__(self):
-        self.ID = None
+        self.ID: str
         self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.xcoordorigin = None
-        self.ycoordorigin = None
-        self.zcoordorigin = None
-        self.start = None
-        self.stop = None
+        self.coord = np.zeros(3, dtype=np.int32)
+        self.coordorigin = np.zeros(3, dtype=np.int32)
+        self.start = 0.0
+        self.stop = 0.0
         self.waveformID = None
         # Waveform values for sources that need to be calculated on whole timesteps
         self.waveformvalues_wholedt = None
         # Waveform values for sources that need to be calculated on half timesteps
         self.waveformvalues_halfdt = None
+
+    @property
+    def xcoord(self) -> int:
+        return self.coord[0]
+
+    @xcoord.setter
+    def xcoord(self, value: int):
+        self.coord[0] = value
+
+    @property
+    def ycoord(self) -> int:
+        return self.coord[1]
+
+    @ycoord.setter
+    def ycoord(self, value: int):
+        self.coord[1] = value
+
+    @property
+    def zcoord(self) -> int:
+        return self.coord[2]
+
+    @zcoord.setter
+    def zcoord(self, value: int):
+        self.coord[2] = value
+
+    @property
+    def xcoordorigin(self) -> int:
+        return self.coordorigin[0]
+
+    @xcoordorigin.setter
+    def xcoordorigin(self, value: int):
+        self.coordorigin[0] = value
+
+    @property
+    def ycoordorigin(self) -> int:
+        return self.coordorigin[1]
+
+    @ycoordorigin.setter
+    def ycoordorigin(self, value: int):
+        self.coordorigin[1] = value
+
+    @property
+    def zcoordorigin(self) -> int:
+        return self.coordorigin[2]
+
+    @zcoordorigin.setter
+    def zcoordorigin(self, value: int):
+        self.coordorigin[2] = value
 
 
 class VoltageSource(Source):
@@ -103,9 +147,7 @@ class VoltageSource(Source):
                     self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
                         time + 0.5 * G.dt, G.dt
                     )
-                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
-                        time, G.dt
-                    )
+                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
@@ -177,9 +219,7 @@ class VoltageSource(Source):
         newmaterial.ID = f"{material.ID}+{self.ID}"
         newmaterial.numID = len(G.materials)
         newmaterial.averagable = False
-        newmaterial.type += (
-            ",\nvoltage-source" if newmaterial.type else "voltage-source"
-        )
+        newmaterial.type += ",\nvoltage-source" if newmaterial.type else "voltage-source"
 
         # Add conductivity of voltage source to underlying conductivity
         if self.polarisation == "x":
@@ -198,7 +238,7 @@ class HertzianDipole(Source):
 
     def __init__(self):
         super().__init__()
-        self.dl = None
+        self.dl = 0.0
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -310,9 +350,7 @@ class MagneticDipole(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
-                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
-                        time, G.dt
-                    )
+                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
 
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
@@ -373,9 +411,7 @@ def htod_src_arrays(sources, G, queue=None):
     """
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
-    srcinfo2 = np.zeros(
-        (len(sources)), dtype=config.sim_config.dtypes["float_or_double"]
-    )
+    srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
     srcwaves = np.zeros(
         (len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
     )
@@ -428,14 +464,16 @@ class TransmissionLine(Source):
     which is attached virtually to a grid cell.
     """
 
-    def __init__(self, G):
+    def __init__(self, iterations: int, dt: float):
         """
         Args:
-            G: FDTDGrid class describing a grid in a model.
+            iterations: number of iterations
+            dt: time step of the grid
         """
 
         super().__init__()
         self.resistance = None
+        self.iterations = iterations
 
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
@@ -443,11 +481,11 @@ class TransmissionLine(Source):
 
         # Spatial step of transmission line (N.B if the magic time step is
         # used it results in instabilities for certain impedances)
-        self.dl = np.sqrt(3) * config.c * G.dt
+        self.dl = np.sqrt(3) * config.c * dt
 
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
-        self.nl = round_value(0.667 * G.iterations)
+        self.nl = round_value(0.667 * self.iterations)
 
         # Cell position of the one-way injector excitation in the transmission line
         self.srcpos = 5
@@ -455,24 +493,12 @@ class TransmissionLine(Source):
         # Cell position of where line connects to antenna/main grid
         self.antpos = 10
 
-        self.voltage = np.zeros(
-            self.nl, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.current = np.zeros(
-            self.nl, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.Vinc = np.zeros(
-            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.Iinc = np.zeros(
-            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.Vtotal = np.zeros(
-            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.Itotal = np.zeros(
-            G.iterations, dtype=config.sim_config.dtypes["float_or_double"]
-        )
+        self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
+        self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Itotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -508,9 +534,7 @@ class TransmissionLine(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
-                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(
-                        time, G.dt
-                    )
+                    self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
                     self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
                         time + 0.5 * G.dt, G.dt
                     )
@@ -524,7 +548,7 @@ class TransmissionLine(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
-        for iteration in range(G.iterations):
+        for iteration in range(self.iterations):
             self.Iinc[iteration] = self.current[self.antpos]
             self.Vinc[iteration] = self.voltage[self.antpos]
             self.update_current(iteration, G)
@@ -562,9 +586,9 @@ class TransmissionLine(Source):
         )
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (
-            config.c * G.dt / self.dl
-        ) * self.waveformvalues_halfdt[iteration]
+        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[
+            iteration
+        ]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -621,6 +645,7 @@ class TransmissionLine(Source):
             elif self.polarisation == "z":
                 Ez[i, j, k] = -self.voltage[self.antpos] / G.dz
 
+    # TODO: Add type information (if can avoid circular dependency)
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values
             in the main grid.
@@ -641,13 +666,13 @@ class TransmissionLine(Source):
             k = self.zcoord
 
             if self.polarisation == "x":
-                self.current[self.antpos] = Ix(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Ix(i, j, k)
 
             elif self.polarisation == "y":
-                self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Iy(i, j, k)
 
             elif self.polarisation == "z":
-                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Iz(i, j, k)
 
             self.update_current(iteration, G)
 
@@ -681,9 +706,7 @@ class DiscretePlaneWave(Source):
         self.m = np.zeros(3 + 1, dtype=np.int32)  # +1 to store the max(m_x, m_y, m_z)
         self.directions = np.zeros(3, dtype=np.int32)
         self.length = 0
-        self.projections = np.zeros(
-            3, dtype=config.sim_config.dtypes["float_or_double"]
-        )
+        self.projections = np.zeros(3, dtype=config.sim_config.dtypes["float_or_double"])
         self.corners = None
         self.materialID = 1
         self.ds = 0
@@ -793,11 +816,7 @@ class DiscretePlaneWave(Source):
                             G.dt * iteration
                             - (
                                 r
-                                + (
-                                    self.m[(dimension + 1) % 3]
-                                    + self.m[(dimension + 2) % 3]
-                                )
-                                * 0.5
+                                + (self.m[(dimension + 1) % 3] + self.m[(dimension + 2) % 3]) * 0.5
                             )
                             * self.ds
                             / config.c
@@ -806,9 +825,9 @@ class DiscretePlaneWave(Source):
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time -= self.start
-                            self.waveformvalues_wholedt[iteration, dimension, r] = (
-                                waveform.calculate_value(time, G.dt)
-                            )
+                            self.waveformvalues_wholedt[
+                                iteration, dimension, r
+                            ] = waveform.calculate_value(time, G.dt)
 
     def update_plane_wave(
         self,
@@ -876,18 +895,9 @@ class DiscretePlaneWave(Source):
             for dimension in range(3):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
-                    self.H_fields[dimension, r] = self.projections[
-                        dimension
-                    ] * getSource(
+                    self.H_fields[dimension, r] = self.projections[dimension] * getSource(
                         G.iteration * G.dt
-                        - (
-                            r
-                            + (
-                                self.m[(dimension + 1) % 3]
-                                + self.m[(dimension + 2) % 3]
-                            )
-                            * 0.5
-                        )
+                        - (r + (self.m[(dimension + 1) % 3] + self.m[(dimension + 2) % 3]) * 0.5)
                         * self.ds
                         / config.c,
                         waveform.freq,
@@ -995,16 +1005,16 @@ class DiscretePlaneWave(Source):
         for j in range(self.corners[1], self.corners[4] + 1):
             for k in range(self.corners[2], self.corners[5]):
                 # correct Hy at firstX-1/2 by subtracting Ez_inc
-                G.Hy[i - 1, j, k] -= G.updatecoeffsH[
-                    G.ID[4, i, j, k], 1
-                ] * self.getField(i, j, k, self.E_fields, self.m, 2)
+                G.Hy[i - 1, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
+                    i, j, k, self.E_fields, self.m, 2
+                )
 
         for j in range(self.corners[1], self.corners[4]):
             for k in range(self.corners[2], self.corners[5] + 1):
                 # correct Hz at firstX-1/2 by adding Ey_inc
-                G.Hz[i - 1, j, k] += G.updatecoeffsH[
-                    G.ID[5, i, j, k], 1
-                ] * self.getField(i, j, k, self.E_fields, self.m, 1)
+                G.Hz[i - 1, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
+                    i, j, k, self.E_fields, self.m, 1
+                )
 
         i = self.corners[3]
         for j in range(self.corners[1], self.corners[4] + 1):
@@ -1026,16 +1036,16 @@ class DiscretePlaneWave(Source):
         for i in range(self.corners[0], self.corners[3] + 1):
             for k in range(self.corners[2], self.corners[5]):
                 # correct Hx at firstY-1/2 by adding Ez_inc
-                G.Hx[i, j - 1, k] += G.updatecoeffsH[
-                    G.ID[3, i, j, k], 2
-                ] * self.getField(i, j, k, self.E_fields, self.m, 2)
+                G.Hx[i, j - 1, k] += G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
+                    i, j, k, self.E_fields, self.m, 2
+                )
 
         for i in range(self.corners[0], self.corners[3]):
             for k in range(self.corners[2], self.corners[5] + 1):
                 # correct Hz at firstY-1/2 by subtracting Ex_inc
-                G.Hz[i, j - 1, k] -= G.updatecoeffsH[
-                    G.ID[5, i, j, k], 2
-                ] * self.getField(i, j, k, self.E_fields, self.m, 0)
+                G.Hz[i, j - 1, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
+                    i, j, k, self.E_fields, self.m, 0
+                )
 
         j = self.corners[4]
         for i in range(self.corners[0], self.corners[3] + 1):
@@ -1057,16 +1067,16 @@ class DiscretePlaneWave(Source):
         for i in range(self.corners[0], self.corners[3]):
             for j in range(self.corners[1], self.corners[4] + 1):
                 # correct Hy at firstZ-1/2 by adding Ex_inc
-                G.Hy[i, j, k - 1] += G.updatecoeffsH[
-                    G.ID[4, i, j, k], 3
-                ] * self.getField(i, j, k, self.E_fields, self.m, 0)
+                G.Hy[i, j, k - 1] += G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
+                    i, j, k, self.E_fields, self.m, 0
+                )
 
         for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
                 # correct Hx at firstZ-1/2 by subtracting Ey_inc
-                G.Hx[i, j, k - 1] -= G.updatecoeffsH[
-                    G.ID[3, i, j, k], 3
-                ] * self.getField(i, j, k, self.E_fields, self.m, 1)
+                G.Hx[i, j, k - 1] -= G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
+                    i, j, k, self.E_fields, self.m, 1
+                )
 
         k = self.corners[5]
         for i in range(self.corners[0], self.corners[3]):

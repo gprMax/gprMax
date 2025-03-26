@@ -129,9 +129,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
         ax1.set_ylabel("Amplitude")
 
         # Plot frequency spectra
-        markerline, stemlines, baseline = ax2.stem(
-            freqs[pltrange], power[pltrange], "-."
-        )
+        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], "-.")
         plt.setp(baseline, "linewidth", 0)
         plt.setp(stemlines, "color", "r")
         plt.setp(markerline, "markerfacecolor", "r", "markeredgecolor", "r")
@@ -140,9 +138,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
         ax2.set_ylabel("Power [dB]")
 
     else:
-        fig, ax1 = plt.subplots(
-            num=w.type, figsize=(10, 10), facecolor="w", edgecolor="w"
-        )
+        fig, ax1 = plt.subplots(num=w.type, figsize=(10, 10), facecolor="w", edgecolor="w")
 
         # Plot waveform
         ax1.plot(time, waveform, "r", lw=2)
@@ -185,9 +181,7 @@ if __name__ == "__main__":
     parser.add_argument("freq", type=float, help="centre frequency of waveform")
     parser.add_argument("timewindow", help="time window to view waveform")
     parser.add_argument("dt", type=float, help="time step to view waveform")
-    parser.add_argument(
-        "-fft", action="store_true", default=False, help="plot FFT of waveform"
-    )
+    parser.add_argument("-fft", action="store_true", default=False, help="plot FFT of waveform")
     parser.add_argument(
         "-save",
         action="store_true",
@@ -215,7 +209,5 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plthandle = mpl_plot(
-        w, timewindow, args.dt, iterations, fft=args.fft, save=args.save
-    )
+    plthandle = mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, save=args.save)
     plthandle.show()

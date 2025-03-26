@@ -141,8 +141,6 @@ if __name__ == "__main__":
 
     # Plot all receivers from single output file together if required
     if args.gather:
-        plthandle = mpl_plot(
-            args.outputfile, rxsgather, dt, rx, args.rx_component, save=args.save
-        )
+        plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, args.rx_component, save=args.save)
 
     plthandle.show()

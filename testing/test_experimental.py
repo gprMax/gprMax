@@ -37,9 +37,7 @@ parser = argparse.ArgumentParser(
     usage="cd gprMax; python -m testing.test_experimental modelfile realfile output",
 )
 parser.add_argument("modelfile", help="name of model output file including path")
-parser.add_argument(
-    "realfile", help="name of file containing experimental data including path"
-)
+parser.add_argument("realfile", help="name of file containing experimental data including path")
 parser.add_argument("output", help="output to be plotted, i.e. Ex Ey Ez", nargs="+")
 args = parser.parse_args()
 

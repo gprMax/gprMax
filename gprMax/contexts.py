@@ -20,17 +20,24 @@ import datetime
 import gc
 import logging
 import sys
+from typing import Any, Dict, List, Optional
 
 import humanize
+import numpy as np
 from colorama import Fore, Style, init
+
+from gprMax.hash_cmds_file import parse_hash_commands
+from gprMax.mpi_model import MPIModel
+from gprMax.scene import Scene
 
 init()
 
 import gprMax.config as config
+from gprMax.config import ModelConfig
 
 from ._version import __version__, codename
-from .model_build_run import ModelBuildRun
-from .solvers import create_G, create_solver
+from .model import Model
+from .solvers import create_solver
 from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info
 from .utilities.utilities import get_terminal_width, logo, timer
 
@@ -38,26 +45,24 @@ logger = logging.getLogger(__name__)
 
 
 class Context:
-    """Standard context - models are run one after another and each model
-    can exploit parallelisation using either OpenMP (CPU), CUDA (GPU), or
-    OpenCL (CPU/GPU).
+    """Standard context for building and running models.
+
+    Models are run one after another and each model can exploit
+    parallelisation using either OpenMP (CPU), CUDA (GPU), or OpenCL
+    (CPU/GPU).
     """
 
     def __init__(self):
-        self.model_range = range(
-            config.sim_config.model_start, config.sim_config.model_end
-        )
-        self.tsimend = None
-        self.tsimstart = None
+        self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
+        self.sim_start_time = 0
+        self.sim_end_time = 0
 
-    def run(self):
-        """Run the simulation in the correct context.
+    def _start_simulation(self) -> None:
+        """Run pre-simulation steps
 
-        Returns:
-            results: dict that can contain useful results/data from simulation.
+        Start simulation timer. Output copyright notice and host info.
         """
-
-        self.tsimstart = timer()
+        self.sim_start_time = timer()
         self.print_logo_copyright()
         print_host_info(config.sim_config.hostinfo)
         if config.sim_config.general["solver"] == "cuda":
@@ -65,57 +70,159 @@ class Context:
         elif config.sim_config.general["solver"] == "opencl":
             print_opencl_info(config.sim_config.devices["devs"])
 
-        # Clear list of model configs, which can be retained when gprMax is
-        # called in a loop, and want to avoid this.
-        config.model_configs = []
+    def _end_simulation(self) -> None:
+        """Run post-simulation steps
+
+        Stop simulation timer. Output timing information.
+        """
+        self.sim_end_time = timer()
+        self.print_sim_time_taken()
+
+    def run(self) -> Dict:
+        """Run the simulation in the correct context.
+
+        Returns:
+            results: dict that can contain useful results/data from simulation.
+        """
+
+        self._start_simulation()
 
         for i in self.model_range:
-            config.model_num = i
-            model_config = config.ModelConfig()
-            config.model_configs.append(model_config)
+            self._run_model(i)
 
-            # Always create a grid for the first model. The next model to run
-            # only gets a new grid if the geometry is not re-used.
-            if i != 0 and config.sim_config.args.geometry_fixed:
-                config.get_model_config().reuse_geometry = True
-            else:
-                G = create_G()
-
-            model = ModelBuildRun(G)
-            model.build()
-
-            if not config.sim_config.args.geometry_only:
-                solver = create_solver(G)
-                model.solve(solver)
-                del solver, model
-
-            if not config.sim_config.args.geometry_fixed:
-                # Manual garbage collection required to stop memory leak on GPUs
-                # when using pycuda
-                del G
-
-            gc.collect()
-
-        self.tsimend = timer()
-        self.print_sim_time_taken()
+        self._end_simulation()
 
         return {}
 
-    def print_logo_copyright(self):
+    def _run_model(self, model_num: int) -> None:
+        """Process for running a single model.
+
+        Args:
+            model_num: index of model to be run
+        """
+
+        config.sim_config.set_current_model(model_num)
+        model_config = self._create_model_config(model_num)
+        config.sim_config.set_model_config(model_config)
+
+        if not model_config.reuse_geometry():
+            scene = self._get_scene(model_num)
+            model = self._create_model()
+            scene.create_internal_objects(model)
+
+        model.build()
+
+        if not config.sim_config.geometry_only:
+            solver = create_solver(model)
+            model.solve(solver)
+            del solver
+
+        if not config.sim_config.geometry_fixed:
+            # Manual garbage collection required to stop memory leak on GPUs
+            # when using pycuda
+            del model.G, model
+
+        gc.collect()
+
+    def _create_model_config(self, model_num: int) -> ModelConfig:
+        """Create model config and save to global config."""
+        return ModelConfig(model_num)
+
+    def _get_scene(self, model_num: int) -> Scene:
+        # API for multiple scenes / model runs
+        scene = config.sim_config.get_scene(model_num)
+
+        # If there is no scene, process the hash commands
+        if scene is None:
+            scene = Scene()
+            config.sim_config.set_scene(scene, model_num)
+            # Parse the input file into user objects and add them to the scene
+            scene = parse_hash_commands(scene)
+
+        return scene
+
+    def _create_model(self) -> Model:
+        return Model()
+
+    def print_logo_copyright(self) -> None:
         """Prints gprMax logo, version, and copyright/licencing information."""
         logo_copyright = logo(f"{__version__} ({codename})")
         logger.basic(logo_copyright)
 
-    def print_sim_time_taken(self):
+    def print_sim_time_taken(self) -> None:
         """Prints the total simulation time based on context."""
         s = (
-            f"\n=== Simulation completed in "
-            f"{humanize.precisedelta(datetime.timedelta(seconds=self.tsimend - self.tsimstart), format='%0.4f')}"
+            "=== Simulation completed in "
+            f"{humanize.precisedelta(datetime.timedelta(seconds=self.sim_end_time - self.sim_start_time), format='%0.4f')}"
         )
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
 class MPIContext(Context):
+    def __init__(self):
+        super().__init__()
+        from mpi4py import MPI
+
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.rank
+
+        requested_mpi_size = np.prod(config.sim_config.mpi)
+        if self.comm.size < requested_mpi_size:
+            raise ValueError(
+                f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
+                f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
+            )
+
+        if self.rank >= requested_mpi_size:
+            logger.warning(
+                f"Rank {self.rank}: Only {requested_mpi_size} MPI ranks required for the"
+                " dimensions specified. Either increase your MPI dimension size, or request"
+                " fewer MPI tasks."
+            )
+            exit()
+
+    def _create_model(self) -> MPIModel:
+        return MPIModel()
+
+    def run(self) -> Dict:
+        try:
+            return super().run()
+        except:
+            logger.exception(f"Rank {self.rank} encountered an error. Aborting...")
+            self.comm.Abort()
+
+    def _run_model(self, model_num: int) -> None:
+        """Process for running a single model.
+
+        Args:
+            model_num: index of model to be run
+        """
+
+        config.sim_config.set_current_model(model_num)
+        model_config = self._create_model_config(model_num)
+        config.sim_config.set_model_config(model_config)
+
+        if not model_config.reuse_geometry():
+            model = self._create_model()
+            scene = self._get_scene(model_num)
+            scene.create_internal_objects(model)
+
+        model.build()
+
+        if not config.sim_config.geometry_only:
+            solver = create_solver(model)
+            model.solve(solver)
+            del solver
+
+        if not config.sim_config.geometry_fixed:
+            # Manual garbage collection required to stop memory leak on GPUs
+            # when using pycuda
+            del model.G, model
+
+        gc.collect()
+
+
+class TaskfarmContext(Context):
     """Mixed mode MPI/OpenMP/CUDA context - MPI task farm is used to distribute
     models, and each model parallelised using either OpenMP (CPU),
     CUDA (GPU), or OpenCL (CPU/GPU).
@@ -125,23 +232,18 @@ class MPIContext(Context):
         super().__init__()
         from mpi4py import MPI
 
-        from gprMax.mpi import MPIExecutor
+        from gprMax.taskfarm import TaskfarmExecutor
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
-        self.MPIExecutor = MPIExecutor
+        self.TaskfarmExecutor = TaskfarmExecutor
 
-    def _run_model(self, **work):
-        """Process for running a single model.
+    def _create_model_config(self, model_num: int) -> ModelConfig:
+        """Create model config and save to global config.
 
-        Args:
-            work: dict of any additional information that is passed to MPI
-                    workers. By default only model number (i) is used.
+        Set device in model config according to MPI rank.
         """
-
-        # Create configuration for model
-        config.model_num = work["i"]
-        model_config = config.ModelConfig()
+        model_config = super()._create_model_config(model_num)
         # Set GPU deviceID according to worker rank
         if config.sim_config.general["solver"] == "cuda":
             model_config.device = {
@@ -149,23 +251,18 @@ class MPIContext(Context):
                 "deviceID": self.rank - 1,
                 "snapsgpu2cpu": False,
             }
-        config.model_configs = model_config
+        return model_config
 
-        G = create_G()
-        model = ModelBuildRun(G)
-        model.build()
+    def _run_model(self, **work) -> None:
+        """Process for running a single model.
 
-        if not config.sim_config.args.geometry_only:
-            solver = create_solver(G)
-            model.solve(solver)
-            del solver, model
+        Args:
+            work: dict of any additional information that is passed to MPI
+                workers. By default only model number (i) is used.
+        """
+        return super()._run_model(work["i"])
 
-        # Manual garbage collection required to stop memory leak on GPUs when
-        # using pycuda
-        del G
-        gc.collect()
-
-    def run(self):
+    def run(self) -> Optional[List[Optional[Dict]]]:
         """Specialise how the models are run.
 
         Returns:
@@ -173,25 +270,17 @@ class MPIContext(Context):
         """
 
         if self.rank == 0:
-            self.tsimstart = timer()
-            self.print_logo_copyright()
-            print_host_info(config.sim_config.hostinfo)
-            if config.sim_config.general["solver"] == "cuda":
-                print_cuda_info(config.sim_config.devices["devs"])
-            elif config.sim_config.general["solver"] == "opencl":
-                print_opencl_info(config.sim_config.devices["devs"])
+            self._start_simulation()
 
             s = f"\n--- Input file: {config.sim_config.input_file_path}"
             logger.basic(
-                Fore.GREEN
-                + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n"
-                + Style.RESET_ALL
+                Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
             )
 
             sys.stdout.flush()
 
-        # Contruct MPIExecutor
-        executor = self.MPIExecutor(self._run_model, comm=self.comm)
+        # Contruct TaskfarmExecutor
+        executor = self.TaskfarmExecutor(self._run_model, comm=self.comm)
 
         # Check GPU resources versus number of MPI tasks
         if (
@@ -199,7 +288,7 @@ class MPIContext(Context):
             and config.sim_config.general["solver"] == "cuda"
             and executor.size - 1 > len(config.sim_config.devices["devs"])
         ):
-            logger.exception(
+            logger.error(
                 "Not enough GPU resources for number of "
                 "MPI tasks requested. Number of MPI tasks "
                 "should be equal to number of GPUs + 1."
@@ -216,6 +305,5 @@ class MPIContext(Context):
         executor.join()
 
         if executor.is_master():
-            self.tsimend = timer()
-            self.print_sim_time_taken()
+            self._end_simulation()
             return results

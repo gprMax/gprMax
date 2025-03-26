@@ -49,9 +49,7 @@ def get_host_info():
         try:
             manufacturer = (
                 subprocess.check_output(
-                    ["wmic", "csproduct", "get", "vendor"],
-                    shell=False,
-                    stderr=subprocess.STDOUT,
+                    ["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT
                 )
                 .decode("utf-8")
                 .strip()
@@ -83,9 +81,7 @@ def get_host_info():
         try:
             allcpuinfo = (
                 subprocess.check_output(
-                    ["wmic", "cpu", "get", "Name"],
-                    shell=False,
-                    stderr=subprocess.STDOUT,
+                    ["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT
                 )
                 .decode("utf-8")
                 .strip()
@@ -133,9 +129,7 @@ def get_host_info():
         try:
             sockets = (
                 subprocess.check_output(
-                    ["sysctl", "-n", "hw.packages"],
-                    shell=False,
-                    stderr=subprocess.STDOUT,
+                    ["sysctl", "-n", "hw.packages"], shell=False, stderr=subprocess.STDOUT
                 )
                 .decode("utf-8")
                 .strip()
@@ -169,9 +163,7 @@ def get_host_info():
         try:
             manufacturer = (
                 subprocess.check_output(
-                    ["cat", "/sys/class/dmi/id/sys_vendor"],
-                    shell=False,
-                    stderr=subprocess.STDOUT,
+                    ["cat", "/sys/class/dmi/id/sys_vendor"], shell=False, stderr=subprocess.STDOUT
                 )
                 .decode("utf-8")
                 .strip()
@@ -195,10 +187,7 @@ def get_host_info():
             myenv = {**os.environ, "LANG": "en_US.utf8"}
             cpuIDinfo = (
                 subprocess.check_output(
-                    ["cat", "/proc/cpuinfo"],
-                    shell=False,
-                    stderr=subprocess.STDOUT,
-                    env=myenv,
+                    ["cat", "/proc/cpuinfo"], shell=False, stderr=subprocess.STDOUT, env=myenv
                 )
                 .decode("utf-8")
                 .strip()
@@ -208,9 +197,7 @@ def get_host_info():
                     cpuID = re.sub(".*model name.*:", "", line, 1).strip()
                     cpuID = " ".join(cpuID.split())
             allcpuinfo = (
-                subprocess.check_output(
-                    ["lscpu"], shell=False, stderr=subprocess.STDOUT, env=myenv
-                )
+                subprocess.check_output(["lscpu"], shell=False, stderr=subprocess.STDOUT, env=myenv)
                 .decode("utf-8")
                 .strip()
             )
@@ -268,7 +255,7 @@ def print_host_info(hostinfo):
         else ""
     )
     logger.basic(
-        f"\n{config.sim_config.hostinfo['hostname']} | "
+        f"{config.sim_config.hostinfo['hostname']} | "
         f"{config.sim_config.hostinfo['machineID']} | "
         f"{hostinfo['sockets']} x {hostinfo['cpuID']} "
         f"({hostinfo['physicalcores']} cores{hyperthreadingstr}) | "

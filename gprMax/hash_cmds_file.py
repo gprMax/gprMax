@@ -49,9 +49,7 @@ def process_python_include_code(inputfile, usernamespace):
 
     # Strip out any newline characters and comments that must begin with double hashes
     inputlines = [
-        line.rstrip()
-        for line in inputfile
-        if (not line.startswith("##") and line.rstrip("\n"))
+        line.rstrip() for line in inputfile if (not line.startswith("##") and line.rstrip("\n"))
     ]
 
     # Rewind input file in preparation for any subsequent reading function
@@ -152,9 +150,7 @@ def process_include_files(hashcmds):
             # See if file exists at specified path and if not try input file directory
             includefile = Path(includefile)
             if not includefile.exists():
-                includefile = Path(
-                    config.sim_config.input_file_path.parent, includefile
-                )
+                includefile = Path(config.sim_config.input_file_path.parent, includefile)
 
             with open(includefile, "r") as f:
                 # Strip out any newline characters and comments that must begin with double hashes
@@ -289,6 +285,15 @@ def check_cmd_names(processedlines, checkessential=True):
     lindex = 0
     while lindex < len(processedlines):
         cmd = processedlines[lindex].split(":")
+
+        # Check the command name and parameters were both found
+        if len(cmd) < 2:
+            logger.error(
+                f"Unable to identify command and parameters in '{processedlines[lindex].strip()}'."
+                " There must be a colon ':' between the command name and parameters."
+            )
+            exit(1)
+
         cmdname = cmd[0]
         cmdparams = cmd[1]
 
@@ -323,9 +328,7 @@ def check_cmd_names(processedlines, checkessential=True):
                 singlecmds[cmdname] = cmd[1].strip(" \t\n")
             else:
                 logger.exception(
-                    "You can only have a single instance of "
-                    + cmdname
-                    + " in your model"
+                    "You can only have a single instance of " + cmdname + " in your model"
                 )
                 raise SyntaxError
 
@@ -399,8 +402,7 @@ def parse_hash_commands(scene):
             if key != "__builtins__":
                 uservars += f"{key}: {value}, "
         logger.info(
-            f"Constants/variables used/available for Python scripting: "
-            + f"{{{uservars[:-2]}}}\n"
+            f"Constants/variables used/available for Python scripting: " + f"{{{uservars[:-2]}}}\n"
         )
 
         # Write a file containing the input commands after Python or include

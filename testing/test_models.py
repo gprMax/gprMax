@@ -23,11 +23,14 @@ from pathlib import Path
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from colorama import Fore, Style
 
 import gprMax
+from gprMax.utilities.logging import logging_config
 from testing.analytical_solutions import hertzian_dipole_fs
 
 logger = logging.getLogger(__name__)
+logging_config(name=__name__)
 
 if sys.platform == "linux":
     plt.switch_backend("agg")
@@ -100,9 +103,7 @@ for i, model in enumerate(testmodels):
         timeref = timetest
 
         # Arrays for storing field data
-        datatest = np.zeros(
-            (filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_double
-        )
+        datatest = np.zeros((filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_double)
         for ID, name in enumerate(outputstest):
             datatest[:, ID] = filetest[path + str(name)][:]
             if np.any(np.isnan(datatest[:, ID])):
@@ -174,9 +175,7 @@ for i, model in enumerate(testmodels):
         )
 
         # Arrays for storing field data
-        dataref = np.zeros(
-            (fileref.attrs["Iterations"], len(outputsref)), dtype=float_or_doubleref
-        )
+        dataref = np.zeros((fileref.attrs["Iterations"], len(outputsref)), dtype=float_or_doubleref)
         datatest = np.zeros(
             (filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_doubletest
         )
@@ -289,30 +288,22 @@ for i, model in enumerate(testmodels):
     # fig2.savefig(savediffs.with_suffix('.pdf'), dpi=None, format='pdf',
     #              bbox_inches='tight', pad_inches=0.1)
     fig1.savefig(
-        file.with_suffix(".png"),
-        dpi=150,
-        format="png",
-        bbox_inches="tight",
-        pad_inches=0.1,
+        file.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1
     )
     fig2.savefig(
-        filediffs.with_suffix(".png"),
-        dpi=150,
-        format="png",
-        bbox_inches="tight",
-        pad_inches=0.1,
+        filediffs.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1
     )
 
 # Summary of results
 for name, data in sorted(testresults.items()):
     if "analytical" in name:
         logger.info(
-            f"Test '{name}.in' using v.{data['Test version']} compared "
-            f"to analytical solution. Max difference {data['Max diff']:.2f}dB."
+            Fore.CYAN + f"Test '{name}.in' using v.{data['Test version']} compared "
+            f"to analytical solution. Max difference {data['Max diff']:.2f}dB." + Style.RESET_ALL
         )
     else:
         logger.info(
-            f"Test '{name}.in' using v.{data['Test version']} compared to "
+            Fore.CYAN + f"Test '{name}.in' using v.{data['Test version']} compared to "
             f"reference solution using v.{data['Ref version']}. Max difference "
-            f"{data['Max diff']:.2f}dB."
+            f"{data['Max diff']:.2f}dB." + Style.RESET_ALL
         )

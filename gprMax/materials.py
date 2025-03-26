@@ -30,7 +30,7 @@ class Material:
     their properties and update coefficients.
     """
 
-    def __init__(self, numID, ID):
+    def __init__(self, numID: int, ID: str):
         """
         Args:
             numID: int for numeric I of the material.
@@ -48,6 +48,82 @@ class Material:
         self.se = 0.0
         self.mr = 1.0
         self.sm = 0.0
+
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, Material):
+            return self.ID == value.ID
+        else:
+            raise TypeError(
+                f"'==' not supported between instances of 'Material' and '{type(value)}'"
+            )
+
+    def __lt__(self, value: "Material") -> bool:
+        """Less than comparator for two Materials.
+
+        Only non-compound materials (i.e. default or user added
+        materials) are guaranteed to have the same numID for the same
+        material across MPI ranks. Therefore compound materials are
+        sorted by ID and non-compound materials are always less than
+        compound materials.
+        """
+        if not isinstance(value, Material):
+            raise TypeError(
+                f"'<' not supported between instances of 'Material' and '{type(value)}'"
+            )
+        elif self.is_compound_material() and value.is_compound_material():
+            return self.ID < value.ID
+        else:
+            return value.is_compound_material() or self.numID < value.numID
+
+    def __gt__(self, value: "Material") -> bool:
+        """Greater than comparator for two Materials.
+
+        Only non-compound materials (i.e. default or user added
+        materials) are guaranteed to have the same numID for the same
+        material across MPI ranks. Therefore compound materials are
+        sorted by ID and are always greater than non-compound materials.
+        """
+        if not isinstance(value, Material):
+            raise TypeError(
+                f"'>' not supported between instances of 'Material' and '{type(value)}'"
+            )
+        elif self.is_compound_material() and value.is_compound_material():
+            return self.ID > value.ID
+        else:
+            return self.is_compound_material() or self.numID > value.numID
+
+    def is_compound_material(self) -> bool:
+        """Check if a material is a compound material.
+
+        The ID of a compound material comprises of the component
+        material IDs joined by a '+' symbol. Therefore we check for a
+        compound material by looking for a '+' symbol in the material
+        ID.
+
+        Returns:
+            is_compound_material: True if material is a compound
+                material. False otherwise.
+        """
+        return self.ID.count("+") > 0
+
+    @staticmethod
+    def create_compound_id(*materials: "Material") -> str:
+        """Create a compound ID from existing materials.
+
+        The new ID will be the IDs of the existing materials joined by a
+        '+' symbol. The component IDs will be sorted alphabetically and
+        if two materials are provided, the compound ID will contain each
+        material twice.
+
+        Args:
+            *materials: Materials to use to create the compound ID.
+
+        Returns:
+            compound_id: New compound id.
+        """
+        if len(materials) == 2:
+            materials += materials
+        return "+".join(sorted([material.ID for material in materials]))
 
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
@@ -168,9 +244,7 @@ class DispersiveMaterial(Material):
                 # tau for Lorentz materials are pole frequencies
                 # alpha for Lorentz materials are the damping coefficients
                 wp2 = (2 * np.pi * self.tau[x]) ** 2
-                self.w[x] = -1j * (
-                    (wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x] ** 2)
-                )
+                self.w[x] = -1j * ((wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x] ** 2))
                 self.q[x] = -self.alpha[x] + (1j * np.sqrt(wp2 - self.alpha[x] ** 2))
             elif "drude" in self.type:
                 # tau for Drude materials are pole frequencies
@@ -242,13 +316,7 @@ class PeplinskiSoil:
     """
 
     def __init__(
-        self,
-        ID,
-        sandfraction,
-        clayfraction,
-        bulkdensity,
-        sandpartdensity,
-        watervolfraction,
+        self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction
     ):
         """
         Args:
@@ -292,9 +360,7 @@ class PeplinskiSoil:
         erealw = watereri + (waterdeltaer / (1 + (w * watertau) ** 2))
 
         a = 0.65  # Experimentally derived constant
-        es = (
-            1.01 + 0.44 * self.rs
-        ) ** 2 - 0.062  #  Relative permittivity of sand particles
+        es = (1.01 + 0.44 * self.rs) ** 2 - 0.062  #  Relative permittivity of sand particles
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
 
@@ -330,9 +396,7 @@ class PeplinskiSoil:
             eri = er - (muiter[0] ** (b2 / a) * waterdeltaer)
 
             # Effective conductivity
-            sig = muiter[0] ** (b2 / a) * (
-                (sigf * (self.rs - self.rb)) / (self.rs * muiter[0])
-            )
+            sig = muiter[0] ** (b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
 
             # Create individual materials
             m = DispersiveMaterial(len(G.materials), None)
@@ -425,9 +489,7 @@ class RangeMaterial:
             sm = romaterials[iter]
 
             # Check to see if the material already exists before creating a new one
-            requiredID = (
-                f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
-            )
+            requiredID = f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
             material = next((x for x in G.materials if x.ID == requiredID), None)
             if iter == 0 and material:
                 self.matID.append(material.numID)
@@ -477,9 +539,7 @@ class ListMaterial:
             self.matID.append(material.numID)
 
             if not material:
-                logger.exception(
-                    self.__str__() + f" material(s) {material} do not exist"
-                )
+                logger.exception(self.__str__() + f" material(s) {material} do not exist")
                 raise ValueError
 
 
@@ -518,9 +578,7 @@ def calculate_water_properties(T=25, S=0):
     # Properties of water from: https://doi.org/10.1109/JOE.1977.1145319
     eri = 4.9
     er = 88.045 - 0.4147 * T + 6.295e-4 * T**2 + 1.075e-5 * T**3
-    tau = (1 / (2 * np.pi)) * (
-        1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 5.096e-16 * T**3
-    )
+    tau = (1 / (2 * np.pi)) * (1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 5.096e-16 * T**3)
 
     delta = 25 - T
     beta = (
@@ -672,15 +730,11 @@ def process_materials(G):
         ]
         if config.get_model_config().materials["maxpoles"] > 0:
             if "debye" in material.type:
-                materialtext.append(
-                    "\n".join(f"{deltaer:g}" for deltaer in material.deltaer)
-                )
+                materialtext.append("\n".join(f"{deltaer:g}" for deltaer in material.deltaer))
                 materialtext.append("\n".join(f"{tau:g}" for tau in material.tau))
                 materialtext.extend(["", "", ""])
             elif "lorentz" in material.type:
-                materialtext.append(
-                    ", ".join(f"{deltaer:g}" for deltaer in material.deltaer)
-                )
+                materialtext.append(", ".join(f"{deltaer:g}" for deltaer in material.deltaer))
                 materialtext.append("")
                 materialtext.append(", ".join(f"{tau:g}" for tau in material.tau))
                 materialtext.append(", ".join(f"{alpha:g}" for alpha in material.alpha))
@@ -693,9 +747,7 @@ def process_materials(G):
             else:
                 materialtext.extend(["", "", "", "", ""])
 
-        materialtext.extend(
-            (f"{material.mr:g}", f"{material.sm:g}", material.averagable)
-        )
+        materialtext.extend((f"{material.mr:g}", f"{material.sm:g}", material.averagable))
         materialsdata.append(materialtext)
 
     return materialsdata

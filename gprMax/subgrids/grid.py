@@ -17,13 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from abc import ABC, abstractmethod
 
-from ..grid import FDTDGrid
+from gprMax.grid.fdtd_grid import FDTDGrid
 
 logger = logging.getLogger(__name__)
 
 
-class SubGridBaseGrid(FDTDGrid):
+class SubGridBaseGrid(FDTDGrid, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
@@ -35,6 +36,8 @@ class SubGridBaseGrid(FDTDGrid):
 
         # Name of the grid
         self.name = kwargs["id"]
+        self.parent_grid: FDTDGrid
+        self.iterations = 0
 
         self.filter = kwargs["filter"]
 
@@ -62,3 +65,23 @@ class SubGridBaseGrid(FDTDGrid):
         self.n_boundary_cells_z = d_to_pml + self.pmls["thickness"]["z0"]
 
         self.interpolation = kwargs["interpolation"]
+
+    @abstractmethod
+    def update_magnetic_is(self, precursors):
+        pass
+
+    @abstractmethod
+    def update_electric_is(self, precursors):
+        pass
+
+    @abstractmethod
+    def update_electric_os(self, main_grid):
+        pass
+
+    @abstractmethod
+    def update_magnetic_os(self, main_grid):
+        pass
+
+    @abstractmethod
+    def print_info(self):
+        pass
