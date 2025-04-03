@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Optional
+
 import numpy as np
 from scipy import fftpack
 
@@ -135,7 +137,17 @@ class FractalSurface:
 class FractalVolume:
     """Fractal volumes."""
 
-    def __init__(self, xs, xf, ys, yf, zs, zf, dimension, seed):
+    def __init__(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        dimension: float,
+        seed: Optional[int],
+    ):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal volume.
