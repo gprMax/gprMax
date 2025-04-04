@@ -219,8 +219,16 @@ class TestEllipsoidGeometryMpi(MpiMixin, TestEllipsoidGeometry):
 @rfm.simple_test
 class TestFractalBoxGeometryMpi(MpiMixin, TestFractalBoxGeometry):
     tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
-    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    mpi_layout = parameter([[1, 2, 2], [1, 3, 3], [1, 4, 4]])
     test_dependency = TestFractalBoxGeometry
+
+
+@rfm.simple_test
+class TestFractalBoxGeometryMpi_2(MpiMixin, TestFractalBoxGeometry):
+    tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
+    mpi_layout = parameter([[2, 4, 4], [4, 2, 4], [4, 4, 2]])
+    test_dependency = TestFractalBoxGeometry
+    model = parameter(["fractal_box_half", "fractal_box_small"])
 
 
 @rfm.simple_test
