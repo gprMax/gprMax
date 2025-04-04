@@ -70,9 +70,14 @@ cpdef void generate_fractal3D(
     int nx,
     int ny,
     int nz,
+    int ox,
+    int oy,
+    int oz,
+    int gx,
+    int gy,
+    int gz,
     int nthreads,
     float D,
-    np.int32_t[:] global_size,
     np.float64_t[:] weighting,
     np.float64_t[:] v1,
     np.complex128_t[:, :, ::1] A,
@@ -97,17 +102,17 @@ cpdef void generate_fractal3D(
     cdef double v2x, v2y, v2z, rr, B
     cdef int sx, sy, sz
 
-    sx = global_size[0] // 2
-    sy = global_size[1] // 2
-    sz = global_size[2] // 2
+    sx = gx // 2
+    sy = gy // 2
+    sz = gz // 2
 
     for i in prange(nx, nogil=True, schedule='static', num_threads=nthreads):
         for j in range(ny):
             for k in range(nz):
                 # Positional vector for current position
-                v2x = ((weighting[0] * i) + sx) % global_size[0]
-                v2y = ((weighting[1] * j) + sy) % global_size[1]
-                v2z = ((weighting[2] * k) + sz) % global_size[2]
+                v2x = ((weighting[0] * (i + ox)) + sx) % gx
+                v2y = ((weighting[1] * (j + oy)) + sy) % gy
+                v2z = ((weighting[2] * (k + oz)) + sz) % gz
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**(1/2)

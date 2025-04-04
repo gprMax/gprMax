@@ -22,8 +22,9 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
-from gprMax.fractals import FractalVolume
+from gprMax.fractals import FractalVolume, MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import ListMaterial
 from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, rotate_2point_object
 from gprMax.user_objects.rotatable import RotatableMixin
@@ -110,12 +111,7 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
-        grid_contains_fractal_box, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-
-        # Exit early if none of the fractal box is in this grid as there
-        # is nothing else to do.
-        if not grid_contains_fractal_box:
-            return
+        p1, p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
 
         xs, ys, zs = p1
         xf, yf, zf = p2
@@ -172,7 +168,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             )
             raise ValueError
 
-        self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        if isinstance(grid, MPIGrid):
+            self.volume = MPIFractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed, grid)
+        else:
+            self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.volume.ID = ID
         self.volume.operatingonID = mixing_model_id
         self.volume.nbins = nbins
@@ -685,7 +684,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     )
                     raise ValueError
                 else:
-                    self.volume.generate_fractal_volume()
+                    if not self.volume.generate_fractal_volume():
+                        return
                     for i in range(0, self.volume.nx):
                         for j in range(0, self.volume.ny):
                             for k in range(0, self.volume.nz):

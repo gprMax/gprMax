@@ -32,7 +32,6 @@ from typing_extensions import TypeVar
 from gprMax import config
 from gprMax.cython.pml_build import pml_average_er_mr
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
-from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
@@ -111,7 +110,7 @@ class FDTDGrid:
         # Materials used by this grid
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
-        self.fractalvolumes: List[FractalVolume] = []
+        self.fractalvolumes = []  # List[FractalVolume]
 
         # Sources and receivers contained inside this grid
         self.waveforms: List[Waveform] = []
