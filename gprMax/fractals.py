@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from mpi4py import MPI
@@ -27,6 +27,7 @@ from scipy import fftpack
 import gprMax.config as config
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.output_controllers.grid_view import MPIGridView
+from gprMax.utilities.mpi import Dim, Dir, get_diagonal_neighbour, get_neighbour
 
 from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from .utilities.utilities import round_value
@@ -163,11 +164,6 @@ class FractalVolume:
 
         self.ID = None
         self.operatingonID = None
-        self.start = np.array([xs, ys, zs], dtype=np.int32)
-        self.stop = np.array([xf, yf, zf], dtype=np.int32)
-        self.size = self.stop - self.start
-        self.original_start = self.start.copy()
-        self.original_stop = self.stop.copy()
         self.xs = xs
         self.xf = xf
         self.ys = ys
@@ -310,107 +306,82 @@ class MPIFractalVolume(FractalVolume):
         zf: int,
         dimension: float,
         seed: Optional[int],
-        grid: MPIGrid,
+        comm: MPI.Cartcomm,
+        ux: int,
+        uy: int,
+        uz: int,
     ):
         super().__init__(xs, xf, ys, yf, zs, zf, dimension, seed)
-        self.grid = grid
+        self.comm = comm
+        self.upper_bound = np.array([ux, uy, uz])
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
 
-        if self.grid.local_bounds_overlap_grid(self.start, self.stop):
-            grid_view = MPIGridView(self.grid, self.xs, self.ys, self.zs, self.xf, self.yf, self.zf)
-        else:
-            # The MPIGridView will create a new communicator using
-            # MPI_Split. Calling this here prevents deadlock if not all
-            # ranks need to generate the fractal volume.
-            self.grid.comm.Split(MPI.UNDEFINED)
+        self.start = np.array([self.xs, self.ys, self.zs], dtype=np.int32)
+        self.stop = np.array([self.xf, self.yf, self.zf], dtype=np.int32)
+        self.size = self.stop - self.start
+
+        if any(self.stop < 0):
+            self.comm.Split(MPI.UNDEFINED)
             return False
+        else:
+            comm = self.comm.Split()
+            assert isinstance(comm, MPI.Intracomm)
+            min_coord = np.array(self.comm.coords, dtype=np.int32)
+            max_coord = min_coord + 1
+            comm.Allreduce(MPI.IN_PLACE, min_coord, MPI.MIN)
+            comm.Allreduce(MPI.IN_PLACE, max_coord, MPI.MAX)
+            self.comm = comm.Create_cart((max_coord - min_coord).tolist())
 
         # Scale filter according to size of fractal volume
-        sorted_size = np.sort(grid_view.global_size)
+        sorted_size = np.sort(self.size)
         min_size = sorted_size[1] if sorted_size[0] == 1 else sorted_size[0]
-        filterscaling = np.where(grid_view.global_size == 1, 1, min_size / grid_view.global_size)
+        filterscaling = np.where(self.size == 1, 1, min_size / self.size)
 
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = self.weighting * grid_view.global_size / 2
+        v1 = self.weighting * self.size / 2
 
         # 3D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
 
-        # print(type(grid_view.comm))
-
-        # fft = PFFT(
-        #     grid_view.comm,
-        #     shape=tuple(grid_view.global_size),
-        #     axes=(0, 1, 2),
-        #     dtype=self.dtype,
-        #     collapse=False,
-        #     backend="fftw",
-        # )
-        # A = newDistArray(fft, False)
-        if all([dim > 1 for dim in grid_view.comm.dims]):
+        if all([dim > 1 for dim in self.comm.dims]):
             raise ValueError(
                 "Fractal volume must be positioned such that its MPI decomposition is 1 in at least"
-                f" 1 dimension. Current decompostion is: {grid_view.comm.dims}"
+                f" 1 dimension. Current decompostion is: {self.comm.dims}"
             )
 
-        comm = Subcomm(grid_view.comm)
-        A = DistArray(grid_view.global_size, comm, dtype=self.dtype)
+        subcomm = Subcomm(self.comm)
+        A = DistArray(self.size, subcomm, dtype=self.dtype)
         fft = PFFT(
             None,
-            axes=tuple(np.argsort(grid_view.comm.dims)[::-1]),
+            axes=tuple(np.argsort(self.comm.dims)[::-1]),
             darray=A,
             collapse=False,
             backend="fftw",
         )
 
-        print(A.alignment)
-
-        # Decomposition of A may be different to the MPIGrid and GridView
-        start = np.array(A.substart)
+        # Decomposition of A may be different to the MPIGrid
+        substart = np.array(A.substart)
         shape = np.array(A.shape)
 
         for index in np.ndindex(*A.global_shape):
             index = np.array(index)
-            if any(index < start) or any(index >= start + shape):
+            if any(index < substart) or any(index >= substart + shape):
                 rng.standard_normal()
             else:
-                index -= start
+                index -= substart
                 A[index[0], index[1], index[2]] = rng.standard_normal()
 
-        print(A.shape)
-        print(A.global_shape)
-        print(A.dtype)
-
-        print(A)
-
-        fft.forward()
-
-        print(A.shape)
-        print(A.global_shape)
-        print(A.dtype)
-
-        print(A)
-
         A_hat = newDistArray(fft)
+        assert isinstance(A_hat, DistArray)
 
         # 3D FFT
         fft.forward(A, A_hat, normalize=False)
         A_hat_out = np.zeros_like(A_hat)
-
-        # A = fftpack.fftn(A)
-        # Shift the zero frequency component to the centre of the array
-        # A = fftpack.fftshift(A)
-
-        print(A_hat)
-
-        print("Calling generate_fractal3D")
-        print(A_hat.shape)
-        print(A_hat.dtype)
 
         # Generate fractal
         generate_fractal3D(
@@ -431,34 +402,9 @@ class MPIFractalVolume(FractalVolume):
             A_hat_out,
         )
 
-        print("Returned generate_fractal3D")
-
-        print(A_hat_out)
-
-        print(A_hat_out.shape)
-        print(A_hat_out.dtype)
-
-        # print("A_hat_out -> A_hat")
-
-        # print(A.shape)
-        # print(out.shape)
-        # print(A.dtype)
-        # print(out.dtype)
-        # print(A.size)
-        # print(out.size)
-
-        # A_hat[:] = A_hat_out
-
-        # print(A.shape)
-        # print(A.global_shape)
-
-        # Shift the zero frequency component to the start of the array
-        # self.fractalvolume = fftpack.ifftshift(self.fractalvolume)
         # Set DC component of FFT to zero
-        if all(start == 0):
+        if all(substart == 0):
             A_hat_out[0, 0, 0] = 0
-
-        print("Backward transform")
 
         # Take the real part (numerical errors can give rise to an imaginary part)
         # of the IFFT, and convert type to floattype. N.B calculation of fractals
@@ -467,48 +413,248 @@ class MPIFractalVolume(FractalVolume):
             config.sim_config.dtypes["float_or_double"], copy=False
         )
 
-        print(Aj)
-
-        print(Aj.shape)
-        print(Aj.dtype)
-
         min_value = np.array(np.amin(Aj), dtype=config.sim_config.dtypes["float_or_double"])
         max_value = np.array(np.amax(Aj), dtype=config.sim_config.dtypes["float_or_double"])
-        print(f"min: {min_value}")
-        print(f"max: {max_value}")
 
-        grid_view.comm.Allreduce(MPI.IN_PLACE, [min_value, MPI.FLOAT], MPI.MIN)
-        print(f"min: {min_value}")
-        grid_view.comm.Allreduce(MPI.IN_PLACE, [max_value, MPI.FLOAT], MPI.MAX)
-        print(f"max: {max_value}")
+        self.comm.Allreduce(MPI.IN_PLACE, min_value, MPI.MIN)
+        self.comm.Allreduce(MPI.IN_PLACE, max_value, MPI.MAX)
 
-        self.fractalvolume = np.zeros_like(Aj)
+        fractalvolume_initial = np.zeros_like(Aj)
 
         # Bin fractal values
         bins = np.linspace(min_value, max_value, self.nbins)
         for j in range(shape[1]):
             for k in range(shape[2]):
-                self.fractalvolume[:, j, k] = np.digitize(Aj[:, j, k], bins, right=True)
+                fractalvolume_initial[:, j, k] = np.digitize(Aj[:, j, k], bins, right=True)
 
-        # self.fractalvolume = A.copy()  # np.zeros(grid_view.size, dtype=self.dtype)
+        # Negative means send to negative neighbour
+        # Positive means receive from negative neighbour
+        negative_offset = np.where(self.start >= 0, 0, self.start + substart)
 
-        print(self.fractalvolume.shape)
-        print(self.fractalvolume.dtype)
+        # Negative means send to positive neighbour
+        # Positive means receive from positive neighbour
+        positive_offset = self.upper_bound - (self.start + substart + shape)
 
-        # self.fractalvolume = A.copy()  # np.zeros(grid_view.size, dtype=self.dtype)
+        print(
+            f"start: {self.start}, substart: {substart}, shape: {shape}, upper_bound = {self.upper_bound}"
+        )
+        print(f"negative_offset: {negative_offset}, positive_offset: {positive_offset}")
+
+        self.fractalvolume = np.zeros(
+            self.upper_bound - np.where(self.start < 0, 0, self.start),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+
+        requests: List[MPI.Request] = []
+
+        static_dimension = Dim(A.alignment)
+        dims = [dim for dim in Dim if dim != static_dimension]
+        dims = (dims[0], dims[1])
+
+        negative_offset = (negative_offset[dims[0]], negative_offset[dims[1]])
+        positive_offset = (positive_offset[dims[0]], positive_offset[dims[1]])
+
+        negative_spacing = (max(negative_offset[0], 0), max(negative_offset[1], 0))
+        positive_spacing = (max(positive_offset[0], 0), max(positive_offset[1], 0))
+
+        slices = [slice(None)] * 3
+        slices[dims[0]], slices[dims[1]] = self.create_slices(
+            negative_spacing, positive_spacing, None, None
+        )
+
+        negative_spacing = (abs(min(negative_offset[0], 0)), abs(min(negative_offset[1], 0)))
+        positive_spacing = (abs(min(positive_offset[0], 0)), abs(min(positive_offset[1], 0)))
+
+        initial_slices = [slice(None)] * 3
+        initial_slices[dims[0]], initial_slices[dims[1]] = self.create_slices(
+            negative_spacing, positive_spacing, None, None
+        )
+
+        self.fractalvolume[slices[0], slices[1], slices[2]] = fractalvolume_initial[
+            initial_slices[0], initial_slices[1], initial_slices[2]
+        ]
+
         print(self.fractalvolume)
 
-        print("Complete")
+        sections = [
+            (Dir.NEG, None),
+            (Dir.POS, None),
+            (None, Dir.NEG),
+            (None, Dir.POS),
+            (Dir.NEG, Dir.NEG),
+            (Dir.NEG, Dir.POS),
+            (Dir.POS, Dir.NEG),
+            (Dir.POS, Dir.POS),
+        ]
+
+        for section in sections:
+            self.check_send(
+                fractalvolume_initial,
+                negative_offset,
+                positive_offset,
+                dims,
+                section,
+            )
+
+            request = self.check_receive(
+                self.fractalvolume,
+                negative_offset,
+                positive_offset,
+                dims,
+                section,
+            )
+
+            if request is not None:
+                requests.append(request)
+
+        if len(requests) > 0:
+            requests[0].Waitall(requests)
+
+        print(self.fractalvolume.shape)
 
         self.nx = self.fractalvolume.shape[0]
         self.ny = self.fractalvolume.shape[1]
         self.nz = self.fractalvolume.shape[2]
 
-        self.xs = 1 if self.xs < 0 else self.xs
-        self.ys = 1 if self.ys < 0 else self.ys
-        self.zs = 1 if self.zs < 0 else self.zs
+        self.xs = 0 if self.xs < 0 else self.xs
+        self.ys = 0 if self.ys < 0 else self.ys
+        self.zs = 0 if self.zs < 0 else self.zs
 
         return True
+
+    def check_send(
+        self,
+        array,
+        negative_offset: Tuple[int, int],
+        positive_offset: Tuple[int, int],
+        dims: Tuple[Dim, Dim],
+        dirs: Union[Tuple[Dir, None], Tuple[None, Dir], Tuple[Dir, Dir]],
+    ):
+        should_send = lambda i: (
+            dirs[i] is None
+            or (negative_offset[i] < 0 if dirs[i] == Dir.NEG else positive_offset[i] < 0)
+        )
+
+        print(
+            f"Checking send. dims: {dims}, dirs: {dirs}, negative_offset: {negative_offset}, positive_offset: {positive_offset}"
+        )
+
+        if should_send(0) and should_send(1):
+            slices = [slice(None)] * 3
+
+            if dirs[1] is None:
+                negative_spacing = (abs(negative_offset[0]), max(0, -negative_offset[1]))
+                positive_spacing = (abs(positive_offset[0]), max(0, -positive_offset[1]))
+                rank = get_neighbour(self.comm, dims[0], dirs[0])
+                slices[dims[0]], slices[dims[1]] = self.create_slices(
+                    negative_spacing, positive_spacing, dirs[0], None
+                )
+            elif dirs[0] is None:
+                negative_spacing = (max(0, -negative_offset[0]), abs(negative_offset[1]))
+                positive_spacing = (max(0, -positive_offset[0]), abs(positive_offset[1]))
+                rank = get_neighbour(self.comm, dims[1], dirs[1])
+                slices[dims[0]], slices[dims[1]] = self.create_slices(
+                    negative_spacing, positive_spacing, None, dirs[1]
+                )
+            else:
+                negative_spacing = (abs(negative_offset[0]), abs(negative_offset[1]))
+                positive_spacing = (abs(positive_offset[0]), abs(positive_offset[1]))
+                rank = get_diagonal_neighbour(self.comm, dims[0], dirs[0], dims[1], dirs[1])
+                slices[dims[0]], slices[dims[1]] = self.create_slices(
+                    negative_spacing, positive_spacing, dirs[0], dirs[1]
+                )
+
+            print(f"Sending to rank {rank}")
+            print(slices)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).shape)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).dtype)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]))
+
+            self.comm.Send(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]), rank)
+
+    def check_receive(
+        self,
+        array,
+        negative_offset: Tuple[int, int],
+        positive_offset: Tuple[int, int],
+        dims: Tuple[Dim, Dim],
+        dirs: Union[Tuple[Dir, None], Tuple[None, Dir], Tuple[Dir, Dir]],
+    ) -> Optional[MPI.Request]:
+        should_send = lambda i: (
+            dirs[i] is None
+            or (negative_offset[i] > 0 if dirs[i] == Dir.NEG else positive_offset[i] > 0)
+        )
+
+        print(
+            f"Checking receive. dims: {dims}, dirs: {dirs}, negative_offset: {negative_offset}, positive_offset: {positive_offset}"
+        )
+
+        if should_send(0) and should_send(1):
+            slices = [slice(None)] * 3
+
+            if dirs[1] is None:
+                negative_spacing = (abs(negative_offset[0]), max(0, negative_offset[1]))
+                positive_spacing = (abs(positive_offset[0]), max(0, positive_offset[1]))
+                rank = get_neighbour(self.comm, dims[0], dirs[0])
+                slices[dims[0]], slices[dims[1]] = self.create_slices(
+                    negative_spacing, positive_spacing, dirs[0], None
+                )
+            elif dirs[0] is None:
+                negative_spacing = (max(0, negative_offset[0]), abs(negative_offset[1]))
+                positive_spacing = (max(0, positive_offset[0]), abs(positive_offset[1]))
+                rank = get_neighbour(self.comm, dims[1], dirs[1])
+                slices[dims[0]], slices[dims[1]] = self.create_slices(
+                    negative_spacing, positive_spacing, None, dirs[1]
+                )
+            else:
+                negative_spacing = (abs(negative_offset[0]), abs(negative_offset[1]))
+                positive_spacing = (abs(positive_offset[0]), abs(positive_offset[1]))
+                rank = get_diagonal_neighbour(self.comm, dims[0], dirs[0], dims[1], dirs[1])
+                slices[dims[0]], slices[dims[1]] = self.create_slices(
+                    negative_spacing, positive_spacing, dirs[0], dirs[1]
+                )
+
+            print(f"Receiving from rank {rank}")
+            print(slices)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).shape)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).dtype)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]))
+
+            self.comm.Recv(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]), rank)
+            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]))
+            return None
+        else:
+            return None
+
+    def create_slices(
+        self,
+        negative_offset: Tuple[int, int],
+        positive_offset: Tuple[int, int],
+        dir1: Optional[Dir],
+        dir2: Optional[Dir],
+    ) -> Tuple[slice, slice]:
+        n1, n2 = negative_offset
+        p1, p2 = positive_offset
+
+        if dir1 == Dir.NEG:
+            slice1 = slice(n1)
+        elif dir1 == Dir.POS:
+            slice1 = slice(-p1 - 1, None)
+        elif p1 != 0:
+            slice1 = slice(n1, -p1)
+        else:
+            slice1 = slice(n1, None)
+
+        if dir2 == Dir.NEG:
+            slice2 = slice(n2)
+        elif dir2 == Dir.POS:
+            slice2 = slice(-p2 - 1, None)
+        elif p2 != 0:
+            slice2 = slice(n2, -p2)
+        else:
+            slice2 = slice(n2, None)
+
+        return slice1, slice2
 
 
 class Grass:

@@ -169,7 +169,20 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             raise ValueError
 
         if isinstance(grid, MPIGrid):
-            self.volume = MPIFractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed, grid)
+            self.volume = MPIFractalVolume(
+                xs,
+                xf,
+                ys,
+                yf,
+                zs,
+                zf,
+                frac_dim,
+                seed,
+                grid.comm,
+                min(grid.nx, xf),
+                min(grid.ny, yf),
+                min(grid.nz, zf),
+            )
         else:
             self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.volume.ID = ID
