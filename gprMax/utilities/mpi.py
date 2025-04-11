@@ -1,4 +1,5 @@
 from enum import IntEnum, unique
+from typing import Union
 
 import numpy as np
 import numpy.typing as npt
@@ -14,6 +15,7 @@ class Dim(IntEnum):
 
 @unique
 class Dir(IntEnum):
+    NONE = -1
     NEG = 0
     POS = 1
 
@@ -32,12 +34,11 @@ def get_neighbour(comm: MPI.Cartcomm, dim: Dim, dir: Dir) -> int:
     return neighbours[dir]
 
 
-def get_diagonal_neighbour(comm: MPI.Cartcomm, dim1: Dim, dir1: Dir, dim2: Dim, dir2: Dir) -> int:
-    assert dim1 != dim2
-
+def get_relative_neighbour(
+    comm: MPI.Cartcomm, dirs: npt.NDArray[np.int32], disp: Union[int, npt.NDArray[np.int32]] = 1
+) -> int:
     offset = np.zeros(3)
-    offset[dim1] = 1 if dir1 == Dir.POS else -1
-    offset[dim2] = 1 if dir2 == Dir.POS else -1
+    offset = np.select([dirs == Dir.NEG, dirs == Dir.POS], [-disp, disp], default=0)
 
     coord = comm.coords + offset
 

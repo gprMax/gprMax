@@ -19,6 +19,7 @@
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
 from mpi4py import MPI
 from mpi4py_fft import PFFT, DistArray, newDistArray
 from mpi4py_fft.pencil import Subcomm
@@ -27,7 +28,7 @@ from scipy import fftpack
 import gprMax.config as config
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.output_controllers.grid_view import MPIGridView
-from gprMax.utilities.mpi import Dim, Dir, get_diagonal_neighbour, get_neighbour
+from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
 
 from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from .utilities.utilities import round_value
@@ -225,12 +226,8 @@ class FractalVolume:
         rng = np.random.default_rng(seed=self.seed)
         A = rng.standard_normal(size=(self.nx, self.ny, self.nz))
 
-        print(A)
-
         # 3D FFT
         A = fftpack.fftn(A)
-
-        print(A)
 
         # Generate fractal
         generate_fractal3D(
@@ -251,8 +248,6 @@ class FractalVolume:
             self.fractalvolume,
         )
 
-        print(self.fractalvolume)
-
         # Set DC component of FFT to zero
         self.fractalvolume[0, 0, 0] = 0
         # Take the real part (numerical errors can give rise to an imaginary part)
@@ -262,11 +257,6 @@ class FractalVolume:
             config.sim_config.dtypes["float_or_double"], copy=False
         )
 
-        print(self.fractalvolume)
-
-        print("min:", np.amin(self.fractalvolume))
-        print("max:", np.amax(self.fractalvolume))
-
         # Bin fractal values
         bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
         for j in range(self.ny):
@@ -274,8 +264,6 @@ class FractalVolume:
                 self.fractalvolume[:, j, k] = np.digitize(
                     self.fractalvolume[:, j, k], bins, right=True
                 )
-
-        print(self.fractalvolume)
 
         return True
 
@@ -474,13 +462,19 @@ class MPIFractalVolume(FractalVolume):
             initial_slices[0], initial_slices[1], initial_slices[2]
         ]
 
-        print(self.fractalvolume)
+        # Negative means send to negative neighbour
+        # Positive means receive from negative neighbour
+        negative_offset = np.where(self.start >= 0, 0, self.start + substart)
+
+        # Negative means send to positive neighbour
+        # Positive means receive from positive neighbour
+        positive_offset = self.upper_bound - (self.start + substart + shape)
 
         sections = [
-            (Dir.NEG, None),
-            (Dir.POS, None),
-            (None, Dir.NEG),
-            (None, Dir.POS),
+            (Dir.NEG, Dir.NONE),
+            (Dir.POS, Dir.NONE),
+            (Dir.NONE, Dir.NEG),
+            (Dir.NONE, Dir.POS),
             (Dir.NEG, Dir.NEG),
             (Dir.NEG, Dir.POS),
             (Dir.POS, Dir.NEG),
@@ -488,20 +482,22 @@ class MPIFractalVolume(FractalVolume):
         ]
 
         for section in sections:
+            dirs = np.full(3, Dir.NONE)
+            dirs[dims[0]] = section[0]
+            dirs[dims[1]] = section[1]
+
             self.check_send(
                 fractalvolume_initial,
                 negative_offset,
                 positive_offset,
-                dims,
-                section,
+                dirs,
             )
 
             request = self.check_receive(
                 self.fractalvolume,
                 negative_offset,
                 positive_offset,
-                dims,
-                section,
+                dirs,
             )
 
             if request is not None:
@@ -510,119 +506,81 @@ class MPIFractalVolume(FractalVolume):
         if len(requests) > 0:
             requests[0].Waitall(requests)
 
-        print(self.fractalvolume.shape)
-
         self.nx = self.fractalvolume.shape[0]
         self.ny = self.fractalvolume.shape[1]
         self.nz = self.fractalvolume.shape[2]
 
-        self.xs = 0 if self.xs < 0 else self.xs
-        self.ys = 0 if self.ys < 0 else self.ys
-        self.zs = 0 if self.zs < 0 else self.zs
+        self.xs = max(0, self.xs)
+        self.ys = max(0, self.ys)
+        self.zs = max(0, self.zs)
 
         return True
 
     def check_send(
         self,
-        array,
-        negative_offset: Tuple[int, int],
-        positive_offset: Tuple[int, int],
-        dims: Tuple[Dim, Dim],
-        dirs: Union[Tuple[Dir, None], Tuple[None, Dir], Tuple[Dir, Dir]],
+        array: npt.NDArray[np.float32],
+        negative_offset: npt.NDArray[np.int32],
+        positive_offset: npt.NDArray[np.int32],
+        dirs: npt.NDArray[np.int32],
     ):
-        should_send = lambda i: (
-            dirs[i] is None
-            or (negative_offset[i] < 0 if dirs[i] == Dir.NEG else positive_offset[i] < 0)
-        )
+        if all(
+            np.logical_or(
+                dirs == Dir.NONE,
+                np.where(dirs == Dir.NEG, negative_offset < 0, positive_offset < 0),
+            )
+        ):
+            negative_spacing = np.where(
+                dirs == Dir.NONE,
+                np.maximum(-negative_offset, 0),
+                np.abs(negative_offset),
+            )
 
-        print(
-            f"Checking send. dims: {dims}, dirs: {dirs}, negative_offset: {negative_offset}, positive_offset: {positive_offset}"
-        )
+            positive_spacing = np.where(
+                dirs == Dir.NONE,
+                np.maximum(-positive_offset, 0),
+                np.abs(positive_offset),
+            )
 
-        if should_send(0) and should_send(1):
-            slices = [slice(None)] * 3
+            rank = get_relative_neighbour(self.comm, dirs)
 
-            if dirs[1] is None:
-                negative_spacing = (abs(negative_offset[0]), max(0, -negative_offset[1]))
-                positive_spacing = (abs(positive_offset[0]), max(0, -positive_offset[1]))
-                rank = get_neighbour(self.comm, dims[0], dirs[0])
-                slices[dims[0]], slices[dims[1]] = self.create_slices(
-                    negative_spacing, positive_spacing, dirs[0], None
-                )
-            elif dirs[0] is None:
-                negative_spacing = (max(0, -negative_offset[0]), abs(negative_offset[1]))
-                positive_spacing = (max(0, -positive_offset[0]), abs(positive_offset[1]))
-                rank = get_neighbour(self.comm, dims[1], dirs[1])
-                slices[dims[0]], slices[dims[1]] = self.create_slices(
-                    negative_spacing, positive_spacing, None, dirs[1]
-                )
-            else:
-                negative_spacing = (abs(negative_offset[0]), abs(negative_offset[1]))
-                positive_spacing = (abs(positive_offset[0]), abs(positive_offset[1]))
-                rank = get_diagonal_neighbour(self.comm, dims[0], dirs[0], dims[1], dirs[1])
-                slices[dims[0]], slices[dims[1]] = self.create_slices(
-                    negative_spacing, positive_spacing, dirs[0], dirs[1]
-                )
+            shape = np.array(array.shape, dtype=np.int32)
+            mpi_type = self.create_mpi_type(
+                shape, negative_spacing, positive_spacing, dirs, sending=True
+            )
 
-            print(f"Sending to rank {rank}")
-            print(slices)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).shape)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).dtype)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]))
-
-            self.comm.Send(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]), rank)
+            self.comm.Isend([array, mpi_type], rank)
 
     def check_receive(
         self,
         array,
-        negative_offset: Tuple[int, int],
-        positive_offset: Tuple[int, int],
-        dims: Tuple[Dim, Dim],
-        dirs: Union[Tuple[Dir, None], Tuple[None, Dir], Tuple[Dir, Dir]],
+        negative_offset: npt.NDArray[np.int32],
+        positive_offset: npt.NDArray[np.int32],
+        dirs: npt.NDArray[np.int32],
     ) -> Optional[MPI.Request]:
-        should_send = lambda i: (
-            dirs[i] is None
-            or (negative_offset[i] > 0 if dirs[i] == Dir.NEG else positive_offset[i] > 0)
-        )
+        if all(
+            np.logical_or(
+                dirs == Dir.NONE,
+                np.where(dirs == Dir.NEG, negative_offset > 0, positive_offset > 0),
+            )
+        ):
+            negative_spacing = np.where(
+                dirs == Dir.NONE,
+                np.maximum(negative_offset, 0),
+                np.abs(negative_offset),
+            )
 
-        print(
-            f"Checking receive. dims: {dims}, dirs: {dirs}, negative_offset: {negative_offset}, positive_offset: {positive_offset}"
-        )
+            positive_spacing = np.where(
+                dirs == Dir.NONE,
+                np.maximum(positive_offset, 0),
+                np.abs(positive_offset),
+            )
 
-        if should_send(0) and should_send(1):
-            slices = [slice(None)] * 3
+            rank = get_relative_neighbour(self.comm, dirs)
 
-            if dirs[1] is None:
-                negative_spacing = (abs(negative_offset[0]), max(0, negative_offset[1]))
-                positive_spacing = (abs(positive_offset[0]), max(0, positive_offset[1]))
-                rank = get_neighbour(self.comm, dims[0], dirs[0])
-                slices[dims[0]], slices[dims[1]] = self.create_slices(
-                    negative_spacing, positive_spacing, dirs[0], None
-                )
-            elif dirs[0] is None:
-                negative_spacing = (max(0, negative_offset[0]), abs(negative_offset[1]))
-                positive_spacing = (max(0, positive_offset[0]), abs(positive_offset[1]))
-                rank = get_neighbour(self.comm, dims[1], dirs[1])
-                slices[dims[0]], slices[dims[1]] = self.create_slices(
-                    negative_spacing, positive_spacing, None, dirs[1]
-                )
-            else:
-                negative_spacing = (abs(negative_offset[0]), abs(negative_offset[1]))
-                positive_spacing = (abs(positive_offset[0]), abs(positive_offset[1]))
-                rank = get_diagonal_neighbour(self.comm, dims[0], dirs[0], dims[1], dirs[1])
-                slices[dims[0]], slices[dims[1]] = self.create_slices(
-                    negative_spacing, positive_spacing, dirs[0], dirs[1]
-                )
+            shape = np.array(array.shape, dtype=np.int32)
+            mpi_type = self.create_mpi_type(shape, negative_spacing, positive_spacing, dirs)
 
-            print(f"Receiving from rank {rank}")
-            print(slices)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).shape)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]).dtype)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]))
-
-            self.comm.Recv(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]), rank)
-            print(np.ascontiguousarray(array[slices[0], slices[1], slices[2]]))
-            return None
+            return self.comm.Irecv([array, mpi_type], rank)
         else:
             return None
 
@@ -632,29 +590,54 @@ class MPIFractalVolume(FractalVolume):
         positive_offset: Tuple[int, int],
         dir1: Optional[Dir],
         dir2: Optional[Dir],
+        sending: bool = False,
     ) -> Tuple[slice, slice]:
         n1, n2 = negative_offset
         p1, p2 = positive_offset
 
         if dir1 == Dir.NEG:
-            slice1 = slice(n1)
+            slice1 = slice(n1 + sending)
         elif dir1 == Dir.POS:
-            slice1 = slice(-p1 - 1, None)
+            slice1 = slice(-p1 - sending, None)
         elif p1 != 0:
             slice1 = slice(n1, -p1)
         else:
             slice1 = slice(n1, None)
 
         if dir2 == Dir.NEG:
-            slice2 = slice(n2)
+            slice2 = slice(n2 + sending)
         elif dir2 == Dir.POS:
-            slice2 = slice(-p2 - 1, None)
+            slice2 = slice(-p2 - sending, None)
         elif p2 != 0:
             slice2 = slice(n2, -p2)
         else:
             slice2 = slice(n2, None)
 
         return slice1, slice2
+
+    def create_mpi_type(
+        self,
+        shape: npt.NDArray[np.int32],
+        negative_offset: npt.NDArray[np.int32],
+        positive_offset: npt.NDArray[np.int32],
+        dirs: npt.NDArray[np.int32],
+        sending: bool = False,
+    ) -> MPI.Datatype:
+        starts = np.select(
+            [dirs == Dir.NEG, dirs == Dir.POS],
+            [0, shape - positive_offset - sending],
+            default=negative_offset,
+        ).tolist()
+
+        subshape = np.select(
+            [dirs == Dir.NEG, dirs == Dir.POS],
+            [negative_offset + sending, positive_offset + sending],
+            default=shape - negative_offset - positive_offset,
+        ).tolist()
+
+        mpi_type = MPI.FLOAT.Create_subarray(shape.tolist(), subshape, starts)
+        mpi_type.Commit()
+        return mpi_type
 
 
 class Grass:
