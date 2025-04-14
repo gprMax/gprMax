@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -33,6 +34,7 @@ from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
 from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from .utilities.utilities import round_value
 
+logger = logging.getLogger(__name__)
 np.seterr(divide="raise")
 
 
@@ -415,52 +417,13 @@ class MPIFractalVolume(FractalVolume):
             for k in range(shape[2]):
                 fractalvolume_initial[:, j, k] = np.digitize(Aj[:, j, k], bins, right=True)
 
-        # Negative means send to negative neighbour
-        # Positive means receive from negative neighbour
-        negative_offset = np.where(self.start >= 0, 0, self.start + substart)
-
-        # Negative means send to positive neighbour
-        # Positive means receive from positive neighbour
-        positive_offset = self.upper_bound - (self.start + substart + shape)
-
-        print(
-            f"start: {self.start}, substart: {substart}, shape: {shape}, upper_bound = {self.upper_bound}"
-        )
-        print(f"negative_offset: {negative_offset}, positive_offset: {positive_offset}")
-
         self.fractalvolume = np.zeros(
             self.upper_bound - np.where(self.start < 0, 0, self.start),
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
-        requests: List[MPI.Request] = []
-
         static_dimension = Dim(A.alignment)
         dims = [dim for dim in Dim if dim != static_dimension]
-        dims = (dims[0], dims[1])
-
-        negative_offset = (negative_offset[dims[0]], negative_offset[dims[1]])
-        positive_offset = (positive_offset[dims[0]], positive_offset[dims[1]])
-
-        negative_spacing = (max(negative_offset[0], 0), max(negative_offset[1], 0))
-        positive_spacing = (max(positive_offset[0], 0), max(positive_offset[1], 0))
-
-        slices = [slice(None)] * 3
-        slices[dims[0]], slices[dims[1]] = self.create_slices(
-            negative_spacing, positive_spacing, None, None
-        )
-
-        negative_spacing = (abs(min(negative_offset[0], 0)), abs(min(negative_offset[1], 0)))
-        positive_spacing = (abs(min(positive_offset[0], 0)), abs(min(positive_offset[1], 0)))
-
-        initial_slices = [slice(None)] * 3
-        initial_slices[dims[0]], initial_slices[dims[1]] = self.create_slices(
-            negative_spacing, positive_spacing, None, None
-        )
-
-        self.fractalvolume[slices[0], slices[1], slices[2]] = fractalvolume_initial[
-            initial_slices[0], initial_slices[1], initial_slices[2]
-        ]
 
         # Negative means send to negative neighbour
         # Positive means receive from negative neighbour
@@ -469,6 +432,30 @@ class MPIFractalVolume(FractalVolume):
         # Negative means send to positive neighbour
         # Positive means receive from positive neighbour
         positive_offset = self.upper_bound - (self.start + substart + shape)
+
+        dirs = np.full(3, Dir.NONE)
+
+        shape = np.array(fractalvolume_initial.shape, dtype=np.int32)
+        starts, subshape = self.calculate_starts_and_subshape(
+            shape, -negative_offset, -positive_offset, dirs, sending=True
+        )
+
+        ends = starts + subshape
+        local_fractalvolume = fractalvolume_initial[
+            starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]
+        ]
+
+        shape = np.array(self.fractalvolume.shape, dtype=np.int32)
+        starts, subshape = self.calculate_starts_and_subshape(
+            shape, negative_offset, positive_offset, dirs
+        )
+
+        ends = starts + subshape
+        self.fractalvolume[
+            starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]
+        ] = local_fractalvolume
+
+        requests: List[MPI.Request] = []
 
         sections = [
             (Dir.NEG, Dir.NONE),
@@ -482,25 +469,42 @@ class MPIFractalVolume(FractalVolume):
         ]
 
         for section in sections:
-            dirs = np.full(3, Dir.NONE)
             dirs[dims[0]] = section[0]
             dirs[dims[1]] = section[1]
+            rank = get_relative_neighbour(self.comm, dirs)
 
-            self.check_send(
-                fractalvolume_initial,
-                negative_offset,
-                positive_offset,
-                dirs,
-            )
+            if rank == -1:
+                continue
 
-            request = self.check_receive(
-                self.fractalvolume,
-                negative_offset,
-                positive_offset,
-                dirs,
-            )
+            # Check if any data to send
+            if all(
+                np.logical_or(
+                    dirs == Dir.NONE,
+                    np.where(dirs == Dir.NEG, negative_offset <= 0, positive_offset <= 0),
+                )
+            ):
+                shape = np.array(fractalvolume_initial.shape, dtype=np.int32)
+                mpi_type = self.create_mpi_type(
+                    shape, -negative_offset, -positive_offset, dirs, sending=True
+                )
 
-            if request is not None:
+                logger.debug(f"Sending fractal volume to rank {rank}, MPI type={mpi_type.decode()}")
+                self.comm.Isend([fractalvolume_initial, mpi_type], rank)
+
+            # Check if any data to receive
+            if all(
+                np.logical_or(
+                    dirs == Dir.NONE,
+                    np.where(dirs == Dir.NEG, negative_offset > 0, positive_offset > 0),
+                )
+            ):
+                shape = np.array(self.fractalvolume.shape, dtype=np.int32)
+                mpi_type = self.create_mpi_type(shape, negative_offset, positive_offset, dirs)
+
+                logger.debug(
+                    f"Receiving fractal volume from rank {rank}, MPI type={mpi_type.decode()}"
+                )
+                request = self.comm.Irecv([self.fractalvolume, mpi_type], rank)
                 requests.append(request)
 
         if len(requests) > 0:
@@ -516,104 +520,39 @@ class MPIFractalVolume(FractalVolume):
 
         return True
 
-    def check_send(
+    def calculate_starts_and_subshape(
         self,
-        array: npt.NDArray[np.float32],
+        shape: npt.NDArray[np.int32],
         negative_offset: npt.NDArray[np.int32],
         positive_offset: npt.NDArray[np.int32],
         dirs: npt.NDArray[np.int32],
-    ):
-        if all(
-            np.logical_or(
-                dirs == Dir.NONE,
-                np.where(dirs == Dir.NEG, negative_offset < 0, positive_offset < 0),
-            )
-        ):
-            negative_spacing = np.where(
-                dirs == Dir.NONE,
-                np.maximum(-negative_offset, 0),
-                np.abs(negative_offset),
-            )
-
-            positive_spacing = np.where(
-                dirs == Dir.NONE,
-                np.maximum(-positive_offset, 0),
-                np.abs(positive_offset),
-            )
-
-            rank = get_relative_neighbour(self.comm, dirs)
-
-            shape = np.array(array.shape, dtype=np.int32)
-            mpi_type = self.create_mpi_type(
-                shape, negative_spacing, positive_spacing, dirs, sending=True
-            )
-
-            self.comm.Isend([array, mpi_type], rank)
-
-    def check_receive(
-        self,
-        array,
-        negative_offset: npt.NDArray[np.int32],
-        positive_offset: npt.NDArray[np.int32],
-        dirs: npt.NDArray[np.int32],
-    ) -> Optional[MPI.Request]:
-        if all(
-            np.logical_or(
-                dirs == Dir.NONE,
-                np.where(dirs == Dir.NEG, negative_offset > 0, positive_offset > 0),
-            )
-        ):
-            negative_spacing = np.where(
-                dirs == Dir.NONE,
-                np.maximum(negative_offset, 0),
-                np.abs(negative_offset),
-            )
-
-            positive_spacing = np.where(
-                dirs == Dir.NONE,
-                np.maximum(positive_offset, 0),
-                np.abs(positive_offset),
-            )
-
-            rank = get_relative_neighbour(self.comm, dirs)
-
-            shape = np.array(array.shape, dtype=np.int32)
-            mpi_type = self.create_mpi_type(shape, negative_spacing, positive_spacing, dirs)
-
-            return self.comm.Irecv([array, mpi_type], rank)
-        else:
-            return None
-
-    def create_slices(
-        self,
-        negative_offset: Tuple[int, int],
-        positive_offset: Tuple[int, int],
-        dir1: Optional[Dir],
-        dir2: Optional[Dir],
         sending: bool = False,
-    ) -> Tuple[slice, slice]:
-        n1, n2 = negative_offset
-        p1, p2 = positive_offset
+    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
+        negative_offset = np.where(
+            dirs == Dir.NONE,
+            np.maximum(negative_offset, 0),
+            np.abs(negative_offset),
+        )
 
-        if dir1 == Dir.NEG:
-            slice1 = slice(n1 + sending)
-        elif dir1 == Dir.POS:
-            slice1 = slice(-p1 - sending, None)
-        elif p1 != 0:
-            slice1 = slice(n1, -p1)
-        else:
-            slice1 = slice(n1, None)
+        positive_offset = np.where(
+            dirs == Dir.NONE,
+            np.maximum(positive_offset, 0),
+            np.abs(positive_offset),
+        )
 
-        if dir2 == Dir.NEG:
-            slice2 = slice(n2 + sending)
-        elif dir2 == Dir.POS:
-            slice2 = slice(-p2 - sending, None)
-        elif p2 != 0:
-            slice2 = slice(n2, -p2)
-        else:
-            slice2 = slice(n2, None)
+        starts = np.select(
+            [dirs == Dir.NEG, dirs == Dir.POS],
+            [0, shape - positive_offset - sending],
+            default=negative_offset,
+        )
 
-        return slice1, slice2
+        subshape = np.select(
+            [dirs == Dir.NEG, dirs == Dir.POS],
+            [negative_offset + sending, positive_offset + sending],
+            default=shape - negative_offset - positive_offset,
+        )
+
+        return starts, subshape
 
     def create_mpi_type(
         self,
@@ -623,19 +562,11 @@ class MPIFractalVolume(FractalVolume):
         dirs: npt.NDArray[np.int32],
         sending: bool = False,
     ) -> MPI.Datatype:
-        starts = np.select(
-            [dirs == Dir.NEG, dirs == Dir.POS],
-            [0, shape - positive_offset - sending],
-            default=negative_offset,
-        ).tolist()
+        starts, subshape = self.calculate_starts_and_subshape(
+            shape, negative_offset, positive_offset, dirs, sending
+        )
 
-        subshape = np.select(
-            [dirs == Dir.NEG, dirs == Dir.POS],
-            [negative_offset + sending, positive_offset + sending],
-            default=shape - negative_offset - positive_offset,
-        ).tolist()
-
-        mpi_type = MPI.FLOAT.Create_subarray(shape.tolist(), subshape, starts)
+        mpi_type = MPI.FLOAT.Create_subarray(shape.tolist(), subshape.tolist(), starts.tolist())
         mpi_type.Commit()
         return mpi_type
 
