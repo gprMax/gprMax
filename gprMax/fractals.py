@@ -167,15 +167,8 @@ class FractalVolume:
 
         self.ID = None
         self.operatingonID = None
-        self.xs = xs
-        self.xf = xf
-        self.ys = ys
-        self.yf = yf
-        self.zs = zs
-        self.zf = zf
-        self.nx = xf - xs
-        self.ny = yf - ys
-        self.nz = zf - zs
+        self.start = np.array([xs, ys, zs], dtype=np.int32)
+        self.stop = np.array([xf, yf, zf], dtype=np.int32)
         self.originalxs = xs
         self.originalxf = xf
         self.originalys = ys
@@ -191,6 +184,70 @@ class FractalVolume:
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
         self.fractalsurfaces = []
+
+    @property
+    def xs(self) -> int:
+        return self.start[0]
+
+    @xs.setter
+    def xs(self, value: int):
+        self.start[0] = value
+
+    @property
+    def ys(self) -> int:
+        return self.start[1]
+
+    @ys.setter
+    def ys(self, value: int):
+        self.start[1] = value
+
+    @property
+    def zs(self) -> int:
+        return self.start[2]
+
+    @zs.setter
+    def zs(self, value: int):
+        self.start[2] = value
+
+    @property
+    def xf(self) -> int:
+        return self.stop[0]
+
+    @xf.setter
+    def xf(self, value: int):
+        self.stop[0] = value
+
+    @property
+    def yf(self) -> int:
+        return self.stop[1]
+
+    @yf.setter
+    def yf(self, value: int):
+        self.stop[1] = value
+
+    @property
+    def zf(self) -> int:
+        return self.stop[2]
+
+    @zf.setter
+    def zf(self, value: int):
+        self.stop[2] = value
+
+    @property
+    def size(self) -> npt.NDArray[np.int32]:
+        return self.stop - self.start
+
+    @property
+    def nx(self) -> int:
+        return self.xf - self.xs
+
+    @property
+    def ny(self) -> int:
+        return self.yf - self.ys
+
+    @property
+    def nz(self) -> int:
+        return self.zf - self.zs
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
@@ -307,10 +364,6 @@ class MPIFractalVolume(FractalVolume):
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
-
-        self.start = np.array([self.xs, self.ys, self.zs], dtype=np.int32)
-        self.stop = np.array([self.xf, self.yf, self.zf], dtype=np.int32)
-        self.size = self.stop - self.start
 
         # Exit early if this rank does not contain the Fractal Volume
         # The size of a fractal volume can increase if a Fractal Surface
@@ -511,13 +564,13 @@ class MPIFractalVolume(FractalVolume):
         if len(requests) > 0:
             requests[0].Waitall(requests)
 
-        self.nx = self.fractalvolume.shape[0]
-        self.ny = self.fractalvolume.shape[1]
-        self.nz = self.fractalvolume.shape[2]
+        # Update start and stop to local bounds
+        self.start = np.maximum(self.start, 0)
+        self.stop = np.minimum(self.stop, self.upper_bound)
 
-        self.xs = max(0, self.xs)
-        self.ys = max(0, self.ys)
-        self.zs = max(0, self.zs)
+        logger.debug(
+            f"Generated fractal volume: start={self.start}, stop={self.stop}, size={self.size}"
+        )
 
         return True
 
