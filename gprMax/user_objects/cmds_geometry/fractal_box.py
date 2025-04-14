@@ -179,9 +179,9 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 frac_dim,
                 seed,
                 grid.comm,
-                min(grid.nx, xf),
-                min(grid.ny, yf),
-                min(grid.nz, zf),
+                grid.nx,
+                grid.ny,
+                grid.nz,
             )
         else:
             self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)

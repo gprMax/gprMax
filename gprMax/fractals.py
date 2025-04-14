@@ -312,10 +312,15 @@ class MPIFractalVolume(FractalVolume):
         self.stop = np.array([self.xf, self.yf, self.zf], dtype=np.int32)
         self.size = self.stop - self.start
 
+        # Exit early if this rank does not contain the Fractal Volume
+        # The size of a fractal volume can increase if a Fractal Surface
+        # is attached. Hence the check needs to happen here once that
+        # has happened.
         if any(self.stop < 0):
             self.comm.Split(MPI.UNDEFINED)
             return False
         else:
+            # Create new cartsesian communicator for the Fractal Volume
             comm = self.comm.Split()
             assert isinstance(comm, MPI.Intracomm)
             min_coord = np.array(self.comm.coords, dtype=np.int32)
@@ -323,6 +328,13 @@ class MPIFractalVolume(FractalVolume):
             comm.Allreduce(MPI.IN_PLACE, min_coord, MPI.MIN)
             comm.Allreduce(MPI.IN_PLACE, max_coord, MPI.MAX)
             self.comm = comm.Create_cart((max_coord - min_coord).tolist())
+
+        # Check domain decomosition is valid for the Fractal Volume
+        if all([dim > 1 for dim in self.comm.dims]):
+            raise ValueError(
+                "Fractal volume must be positioned such that its MPI decomposition is 1 in at least"
+                f" 1 dimension. Current decompostion is: {self.comm.dims}"
+            )
 
         # Scale filter according to size of fractal volume
         sorted_size = np.sort(self.size)
@@ -335,15 +347,6 @@ class MPIFractalVolume(FractalVolume):
         # Positional vector at centre of array, scaled by weighting
         v1 = self.weighting * self.size / 2
 
-        # 3D array of random numbers to be convolved with the fractal function
-        rng = np.random.default_rng(seed=self.seed)
-
-        if all([dim > 1 for dim in self.comm.dims]):
-            raise ValueError(
-                "Fractal volume must be positioned such that its MPI decomposition is 1 in at least"
-                f" 1 dimension. Current decompostion is: {self.comm.dims}"
-            )
-
         subcomm = Subcomm(self.comm)
         A = DistArray(self.size, subcomm, dtype=self.dtype)
         fft = PFFT(
@@ -355,15 +358,19 @@ class MPIFractalVolume(FractalVolume):
         )
 
         # Decomposition of A may be different to the MPIGrid
-        substart = np.array(A.substart)
-        shape = np.array(A.shape)
+        A_shape = np.array(A.shape)
+        A_substart = np.array(A.substart)
+        static_dimension = Dim(A.alignment)
+
+        # 3D array of random numbers to be convolved with the fractal function
+        rng = np.random.default_rng(seed=self.seed)
 
         for index in np.ndindex(*A.global_shape):
             index = np.array(index)
-            if any(index < substart) or any(index >= substart + shape):
+            if any(index < A_substart) or any(index >= A_substart + A_shape):
                 rng.standard_normal()
             else:
-                index -= substart
+                index -= A_substart
                 A[index[0], index[1], index[2]] = rng.standard_normal()
 
         A_hat = newDistArray(fft)
@@ -371,7 +378,6 @@ class MPIFractalVolume(FractalVolume):
 
         # 3D FFT
         fft.forward(A, A_hat, normalize=False)
-        A_hat_out = np.zeros_like(A_hat)
 
         # Generate fractal
         generate_fractal3D(
@@ -389,74 +395,67 @@ class MPIFractalVolume(FractalVolume):
             self.weighting,
             v1,
             A_hat,
-            A_hat_out,
+            A_hat,
         )
 
         # Set DC component of FFT to zero
-        if all(substart == 0):
-            A_hat_out[0, 0, 0] = 0
+        if all(A_substart == 0):
+            A_hat[0, 0, 0] = 0
+
+        # Inverse 3D FFT transform
+        fft.backward(A_hat, A, normalize=True)
 
         # Take the real part (numerical errors can give rise to an imaginary part)
         # of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        Aj = np.real(fft.backward(A_hat_out, normalize=True)).astype(
-            config.sim_config.dtypes["float_or_double"], copy=False
-        )
+        A = np.real(A).astype(config.sim_config.dtypes["float_or_double"], copy=False)
 
-        min_value = np.array(np.amin(Aj), dtype=config.sim_config.dtypes["float_or_double"])
-        max_value = np.array(np.amax(Aj), dtype=config.sim_config.dtypes["float_or_double"])
-
+        # Allreduce to get min and max values in the fractal volume
+        min_value = np.array(np.amin(A), dtype=config.sim_config.dtypes["float_or_double"])
+        max_value = np.array(np.amax(A), dtype=config.sim_config.dtypes["float_or_double"])
         self.comm.Allreduce(MPI.IN_PLACE, min_value, MPI.MIN)
         self.comm.Allreduce(MPI.IN_PLACE, max_value, MPI.MAX)
 
-        fractalvolume_initial = np.zeros_like(Aj)
-
         # Bin fractal values
         bins = np.linspace(min_value, max_value, self.nbins)
-        for j in range(shape[1]):
-            for k in range(shape[2]):
-                fractalvolume_initial[:, j, k] = np.digitize(Aj[:, j, k], bins, right=True)
+        for j in range(A_shape[1]):
+            for k in range(A_shape[2]):
+                A[:, j, k] = np.digitize(A[:, j, k], bins, right=True)
 
+        # Distribute A (DistArray) to match the MPIGrid decomposition
+        local_shape = np.minimum(self.stop, self.upper_bound) - np.maximum(self.start, 0)
         self.fractalvolume = np.zeros(
-            self.upper_bound - np.where(self.start < 0, 0, self.start),
+            local_shape,
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
-        static_dimension = Dim(A.alignment)
-        dims = [dim for dim in Dim if dim != static_dimension]
-
         # Negative means send to negative neighbour
         # Positive means receive from negative neighbour
-        negative_offset = np.where(self.start >= 0, 0, self.start + substart)
+        negative_offset = np.where(self.start >= 0, 0, self.start + A_substart)
 
         # Negative means send to positive neighbour
         # Positive means receive from positive neighbour
-        positive_offset = self.upper_bound - (self.start + substart + shape)
+        positive_offset = np.minimum(self.stop, self.upper_bound) - (
+            self.start + A_substart + A_shape
+        )
 
         dirs = np.full(3, Dir.NONE)
 
-        shape = np.array(fractalvolume_initial.shape, dtype=np.int32)
         starts, subshape = self.calculate_starts_and_subshape(
-            shape, -negative_offset, -positive_offset, dirs, sending=True
+            A_shape, -negative_offset, -positive_offset, dirs, sending=True
         )
-
         ends = starts + subshape
-        local_fractalvolume = fractalvolume_initial[
-            starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]
-        ]
+        A_local = A[starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]]
 
-        shape = np.array(self.fractalvolume.shape, dtype=np.int32)
         starts, subshape = self.calculate_starts_and_subshape(
-            shape, negative_offset, positive_offset, dirs
+            local_shape, negative_offset, positive_offset, dirs
         )
-
         ends = starts + subshape
-        self.fractalvolume[
-            starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]
-        ] = local_fractalvolume
+        self.fractalvolume[starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]] = A_local
 
         requests: List[MPI.Request] = []
 
+        # Need to check neighbours in each direction (2D plane)
         sections = [
             (Dir.NEG, Dir.NONE),
             (Dir.POS, Dir.NONE),
@@ -468,11 +467,15 @@ class MPIFractalVolume(FractalVolume):
             (Dir.POS, Dir.POS),
         ]
 
+        # Dimensions of the 2D plane
+        dims = [dim for dim in Dim if dim != static_dimension]
+
         for section in sections:
             dirs[dims[0]] = section[0]
             dirs[dims[1]] = section[1]
             rank = get_relative_neighbour(self.comm, dirs)
 
+            # Skip if no neighbour
             if rank == -1:
                 continue
 
@@ -483,13 +486,12 @@ class MPIFractalVolume(FractalVolume):
                     np.where(dirs == Dir.NEG, negative_offset <= 0, positive_offset <= 0),
                 )
             ):
-                shape = np.array(fractalvolume_initial.shape, dtype=np.int32)
                 mpi_type = self.create_mpi_type(
-                    shape, -negative_offset, -positive_offset, dirs, sending=True
+                    A_shape, -negative_offset, -positive_offset, dirs, sending=True
                 )
 
                 logger.debug(f"Sending fractal volume to rank {rank}, MPI type={mpi_type.decode()}")
-                self.comm.Isend([fractalvolume_initial, mpi_type], rank)
+                self.comm.Isend([A, mpi_type], rank)
 
             # Check if any data to receive
             if all(
@@ -498,8 +500,7 @@ class MPIFractalVolume(FractalVolume):
                     np.where(dirs == Dir.NEG, negative_offset > 0, positive_offset > 0),
                 )
             ):
-                shape = np.array(self.fractalvolume.shape, dtype=np.int32)
-                mpi_type = self.create_mpi_type(shape, negative_offset, positive_offset, dirs)
+                mpi_type = self.create_mpi_type(local_shape, negative_offset, positive_offset, dirs)
 
                 logger.debug(
                     f"Receiving fractal volume from rank {rank}, MPI type={mpi_type.decode()}"
