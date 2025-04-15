@@ -108,11 +108,13 @@ class FractalSurface:
 
         # 2D FFT
         A = fftpack.fftn(A)
-        # Shift the zero frequency component to the centre of the array
-        A = fftpack.fftshift(A)
 
         # Generate fractal
         generate_fractal2D(
+            surfacedims[0],
+            surfacedims[1],
+            0,
+            0,
             surfacedims[0],
             surfacedims[1],
             config.get_model_config().ompthreads,
@@ -122,8 +124,7 @@ class FractalSurface:
             A,
             self.fractalsurface,
         )
-        # Shift the zero frequency component to start of the array
-        self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
+
         # Set DC component of FFT to zero
         self.fractalsurface[0, 0] = 0
         # Take the real part (numerical errors can give rise to an imaginary part)

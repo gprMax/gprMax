@@ -223,27 +223,21 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 for surface in self.volume.fractalsurfaces:
                     if surface.surfaceID == "xminus":
                         if surface.fractalrange[0] < self.volume.xs:
-                            self.volume.nx += self.volume.xs - surface.fractalrange[0]
                             self.volume.xs = surface.fractalrange[0]
                     elif surface.surfaceID == "xplus":
                         if surface.fractalrange[1] > self.volume.xf:
-                            self.volume.nx += surface.fractalrange[1] - self.volume.xf
                             self.volume.xf = surface.fractalrange[1]
                     elif surface.surfaceID == "yminus":
                         if surface.fractalrange[0] < self.volume.ys:
-                            self.volume.ny += self.volume.ys - surface.fractalrange[0]
                             self.volume.ys = surface.fractalrange[0]
                     elif surface.surfaceID == "yplus":
                         if surface.fractalrange[1] > self.volume.yf:
-                            self.volume.ny += surface.fractalrange[1] - self.volume.yf
                             self.volume.yf = surface.fractalrange[1]
                     elif surface.surfaceID == "zminus":
                         if surface.fractalrange[0] < self.volume.zs:
-                            self.volume.nz += self.volume.zs - surface.fractalrange[0]
                             self.volume.zs = surface.fractalrange[0]
                     elif surface.surfaceID == "zplus":
                         if surface.fractalrange[1] > self.volume.zf:
-                            self.volume.nz += surface.fractalrange[1] - self.volume.zf
                             self.volume.zf = surface.fractalrange[1]
 
                 # If there is only 1 bin then a normal material is being used,

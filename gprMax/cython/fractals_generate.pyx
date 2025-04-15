@@ -26,6 +26,10 @@ from gprMax.config cimport float_or_double_complex
 cpdef void generate_fractal2D(
     int nx,
     int ny,
+    int ox,
+    int oy,
+    int gx,
+    int gy,
     int nthreads,
     float D,
     np.float64_t[:] weighting,
@@ -50,12 +54,16 @@ cpdef void generate_fractal2D(
 
     cdef Py_ssize_t i, j
     cdef double v2x, v2y, rr, B
+    cdef int sx, sy
+
+    sx = gx // 2
+    sy = gy // 2
 
     for i in prange(nx, nogil=True, schedule='static', num_threads=nthreads):
         for j in range(ny):
                 # Positional vector for current position
-                v2x = weighting[0] * i
-                v2y = weighting[1] * j
+                v2x = weighting[0] * ((i + ox + sx) % gx)
+                v2y = weighting[1] * ((j + oy + sy) % gy)
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2)**(1/2)
