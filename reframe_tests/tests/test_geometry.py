@@ -101,7 +101,9 @@ class TestEllipsoidGeometry(GprMaxRegressionTest):
 class TestFractalBoxGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
     sourcesdir = "src/geometry_tests/fractal_box_geometry"
-    model = parameter(["fractal_box_full"])
+    model = parameter(
+        ["fractal_box_full", "fractal_box_half", "fractal_box_small", "fractal_box_weighted"]
+    )
 
 
 # TODO: Add Mixin class to enable testing that invalid geometry throws an error
