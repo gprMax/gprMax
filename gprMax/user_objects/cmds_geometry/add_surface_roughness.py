@@ -20,7 +20,7 @@ import logging
 
 import numpy as np
 
-from gprMax.fractals.fractals import FractalSurface
+from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject

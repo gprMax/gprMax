@@ -20,7 +20,8 @@ import logging
 
 import numpy as np
 
-from gprMax.fractals.fractals import FractalSurface, Grass
+from gprMax.fractals.fractal_surface import FractalSurface
+from gprMax.fractals.grass import Grass
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_grass
 from gprMax.user_objects.rotatable import RotatableMixin
