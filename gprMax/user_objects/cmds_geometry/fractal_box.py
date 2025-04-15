@@ -22,7 +22,7 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
-from gprMax.fractals import FractalVolume, MPIFractalVolume
+from gprMax.fractals.fractals import FractalVolume, MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import ListMaterial

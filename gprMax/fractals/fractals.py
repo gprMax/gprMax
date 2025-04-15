@@ -27,12 +27,11 @@ from mpi4py_fft.pencil import Subcomm
 from scipy import fftpack
 
 import gprMax.config as config
+from gprMax.cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.output_controllers.grid_view import MPIGridView
 from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
-
-from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
-from .utilities.utilities import round_value
+from gprMax.utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
 np.seterr(divide="raise")
