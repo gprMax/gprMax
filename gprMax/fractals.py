@@ -56,15 +56,8 @@ class FractalSurface:
 
         self.ID = None
         self.surfaceID = None
-        self.xs = xs
-        self.xf = xf
-        self.ys = ys
-        self.yf = yf
-        self.zs = zs
-        self.zf = zf
-        self.nx = xf - xs
-        self.ny = yf - ys
-        self.nz = zf - zs
+        self.start = np.array([xs, ys, zs], dtype=np.int32)
+        self.stop = np.array([xf, yf, zf], dtype=np.int32)
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
         self.dimension = (
@@ -74,6 +67,70 @@ class FractalSurface:
         self.fractalrange = (0, 0)
         self.filldepth = 0
         self.grass = []
+
+    @property
+    def xs(self) -> int:
+        return self.start[0]
+
+    @xs.setter
+    def xs(self, value: int):
+        self.start[0] = value
+
+    @property
+    def ys(self) -> int:
+        return self.start[1]
+
+    @ys.setter
+    def ys(self, value: int):
+        self.start[1] = value
+
+    @property
+    def zs(self) -> int:
+        return self.start[2]
+
+    @zs.setter
+    def zs(self, value: int):
+        self.start[2] = value
+
+    @property
+    def xf(self) -> int:
+        return self.stop[0]
+
+    @xf.setter
+    def xf(self, value: int):
+        self.stop[0] = value
+
+    @property
+    def yf(self) -> int:
+        return self.stop[1]
+
+    @yf.setter
+    def yf(self, value: int):
+        self.stop[1] = value
+
+    @property
+    def zf(self) -> int:
+        return self.stop[2]
+
+    @zf.setter
+    def zf(self, value: int):
+        self.stop[2] = value
+
+    @property
+    def size(self) -> npt.NDArray[np.int32]:
+        return self.stop - self.start
+
+    @property
+    def nx(self) -> int:
+        return self.xf - self.xs
+
+    @property
+    def ny(self) -> int:
+        return self.yf - self.ys
+
+    @property
+    def nz(self) -> int:
+        return self.zf - self.zs
 
     def get_surface_dims(self):
         """Gets the dimensions of the fractal surface based on surface plane."""
