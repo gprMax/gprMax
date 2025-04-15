@@ -2,7 +2,7 @@ import reframe as rfm
 from reframe.core.builtins import parameter, run_before
 
 from reframe_tests.tests.mixins import AntennaModelMixin, MpiMixin
-from reframe_tests.tests.standard_tests import GprMaxRegressionTest
+from reframe_tests.tests.standard_tests import GprMaxGeometryTest, GprMaxRegressionTest
 
 """Reframe regression tests for models defining geometry
 """
@@ -98,7 +98,7 @@ class TestEllipsoidGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestFractalBoxGeometry(GprMaxRegressionTest):
+class TestFractalBoxGeometry(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
     sourcesdir = "src/geometry_tests/fractal_box_geometry"
     model = parameter(

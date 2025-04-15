@@ -22,3 +22,7 @@ class GprMaxGeometryViewTest(GeometryViewMixin, GeometryOnlyMixin, GprMaxBaseTes
 
 class GprMaxGeometryObjectTest(GeometryObjectMixin, GeometryOnlyMixin, GprMaxBaseTest):
     pass
+
+
+class GprMaxGeometryTest(GeometryObjectMixin, ReceiverMixin, GprMaxBaseTest):
+    geometry_objects = ["full_volume"]
