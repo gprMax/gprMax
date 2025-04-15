@@ -110,9 +110,9 @@ cpdef void generate_fractal3D(
         for j in range(ny):
             for k in range(nz):
                 # Positional vector for current position
-                v2x = ((weighting[0] * (i + ox)) + sx) % gx
-                v2y = ((weighting[1] * (j + oy)) + sy) % gy
-                v2z = ((weighting[2] * (k + oz)) + sz) % gz
+                v2x = weighting[0] * ((i + ox + sx) % gx)
+                v2y = weighting[1] * ((j + oy + sy) % gy)
+                v2z = weighting[2] * ((k + oz + sz) % gz)
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**(1/2)
