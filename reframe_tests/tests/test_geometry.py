@@ -9,6 +9,20 @@ from reframe_tests.tests.standard_tests import GprMaxGeometryTest, GprMaxRegress
 
 
 @rfm.simple_test
+class TestAddSurfaceRoughness(GprMaxGeometryTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "roughness"}
+    sourcesdir = "src/geometry_tests/add_surface_roughness_geometry"
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            "add_surface_roughness_half",
+            "add_surface_roughness_small",
+            "add_surface_roughness_weighted",
+        ]
+    )
+
+
+@rfm.simple_test
 class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/geometry_tests/box_geometry"
