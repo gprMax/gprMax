@@ -161,6 +161,13 @@ class TestTriangleGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestAddSurfaceRoughnessMpi(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 1, 2], [3, 3, 1], [1, 4, 4]])
+    test_dependency = TestAddSurfaceRoughness
+
+
+@rfm.simple_test
 class TestBoxGeometryDefaultPmlMpi(MpiMixin, TestBoxGeometryDefaultPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
@@ -219,12 +226,22 @@ class TestEllipsoidGeometryMpi(MpiMixin, TestEllipsoidGeometry):
 @rfm.simple_test
 class TestFractalBoxGeometryMpi(MpiMixin, TestFractalBoxGeometry):
     tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
-    mpi_layout = parameter([[1, 2, 2], [1, 3, 3], [1, 4, 4]])
+    mpi_layout = parameter([[2, 2, 1], [1, 3, 3], [4, 1, 4]])
     test_dependency = TestFractalBoxGeometry
 
 
 @rfm.simple_test
-class TestFractalBoxGeometryMpi_2(MpiMixin, TestFractalBoxGeometry):
+class TestFractalBoxGeometryMpiDecomposition(MpiMixin, TestFractalBoxGeometry):
+    """Extra Fractal Box test.
+
+    This tests that so long as the area covered by the fractal box has
+    an MPI decomposition of 1 in a dimension, the model will run
+    successfully.
+
+    N.B: These tests would fail if run using the 'fractal_box_full'
+    model.
+    """
+
     tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
     mpi_layout = parameter([[2, 4, 4], [4, 2, 4], [4, 4, 2]])
     test_dependency = TestFractalBoxGeometry
