@@ -254,6 +254,14 @@ class MPIFractalVolume(FractalVolume):
         self.comm = comm
         self.upper_bound = np.array([ux, uy, uz])
 
+        # Limit the original start and stop to within the local bounds
+        self.originalxs = max(self.originalxs, 0)
+        self.originalxf = min(self.originalxf, ux)
+        self.originalys = max(self.originalys, 0)
+        self.originalyf = min(self.originalyf, uy)
+        self.originalzs = max(self.originalzs, 0)
+        self.originalzf = min(self.originalzf, uz)
+
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
 

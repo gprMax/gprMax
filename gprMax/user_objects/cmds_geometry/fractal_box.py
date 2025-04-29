@@ -211,13 +211,6 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             self.do_pre_build = False
         else:
             if self.volume.fractalsurfaces:
-                self.volume.originalxs = self.volume.xs
-                self.volume.originalxf = self.volume.xf
-                self.volume.originalys = self.volume.ys
-                self.volume.originalyf = self.volume.yf
-                self.volume.originalzs = self.volume.zs
-                self.volume.originalzf = self.volume.zf
-
                 # Extend the volume to accomodate any rough surfaces, grass,
                 # or roots
                 for surface in self.volume.fractalsurfaces:
