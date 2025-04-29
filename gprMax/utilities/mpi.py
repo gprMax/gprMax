@@ -37,7 +37,6 @@ def get_neighbour(comm: MPI.Cartcomm, dim: Dim, dir: Dir) -> int:
 def get_relative_neighbour(
     comm: MPI.Cartcomm, dirs: npt.NDArray[np.int32], disp: Union[int, npt.NDArray[np.int32]] = 1
 ) -> int:
-    offset = np.zeros(3)
     offset = np.select([dirs == Dir.NEG, dirs == Dir.POS], [-disp, disp], default=0)
 
     coord = comm.coords + offset
