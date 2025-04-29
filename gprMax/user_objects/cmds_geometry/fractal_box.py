@@ -252,7 +252,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     )
                     self.volume.fractalvolume *= materialnumID
                 else:
-                    self.volume.generate_fractal_volume()
+                    if not self.volume.generate_fractal_volume():
+                        return
                     for i in range(0, self.volume.nx):
                         for j in range(0, self.volume.ny):
                             for k in range(0, self.volume.nz):
@@ -268,6 +269,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 # TODO: Allow extract of rough surface profile (to print/file?)
                 for surface in self.volume.fractalsurfaces:
                     if surface.surfaceID == "xminus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nx),
+                        )
                         for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                             for j in range(surface.ys, surface.yf):
                                 for k in range(surface.zs, surface.zf):
@@ -291,6 +296,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         ] = 0
 
                     elif surface.surfaceID == "xplus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nx),
+                        )
                         if not surface.ID:
                             for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for j in range(surface.ys, surface.yf):
@@ -399,6 +408,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         root += 1
 
                     elif surface.surfaceID == "yminus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.ny),
+                        )
                         for i in range(surface.xs, surface.xf):
                             for j in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for k in range(surface.zs, surface.zf):
@@ -422,6 +435,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         ] = 0
 
                     elif surface.surfaceID == "yplus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.ny),
+                        )
                         if not surface.ID:
                             for i in range(surface.xs, surface.xf):
                                 for j in range(surface.fractalrange[0], surface.fractalrange[1]):
@@ -530,6 +547,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         root += 1
 
                     elif surface.surfaceID == "zminus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nz),
+                        )
                         for i in range(surface.xs, surface.xf):
                             for j in range(surface.ys, surface.yf):
                                 for k in range(surface.fractalrange[0], surface.fractalrange[1]):
@@ -553,6 +574,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         ] = 0
 
                     elif surface.surfaceID == "zplus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nz),
+                        )
                         if not surface.ID:
                             for i in range(surface.xs, surface.xf):
                                 for j in range(surface.ys, surface.yf):
