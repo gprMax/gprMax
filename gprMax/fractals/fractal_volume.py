@@ -261,7 +261,9 @@ class MPIFractalVolume(FractalVolume):
         # The size of a fractal volume can increase if a Fractal Surface
         # is attached. Hence the check needs to happen here once that
         # has happened.
-        if any(self.stop < 0):
+        # TODO: Check if this should be any(self.start > self.upper_bound)
+        # or any(self.start >= self.upper_bound)
+        if any(self.stop < 0) or any(self.start > self.upper_bound):
             self.comm.Split(MPI.UNDEFINED)
             return False
         else:
