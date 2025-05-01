@@ -61,12 +61,8 @@ class FractalVolume:
         self.operatingonID = None
         self.start = np.array([xs, ys, zs], dtype=np.int32)
         self.stop = np.array([xf, yf, zf], dtype=np.int32)
-        self.originalxs = xs
-        self.originalxf = xf
-        self.originalys = ys
-        self.originalyf = yf
-        self.originalzs = zs
-        self.originalzf = zf
+        self.original_start = self.start.copy()
+        self.original_stop = self.stop.copy()
         self.averaging = False
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
@@ -140,6 +136,54 @@ class FractalVolume:
     @property
     def nz(self) -> int:
         return self.zf - self.zs
+
+    @property
+    def originalxs(self) -> int:
+        return self.original_start[0]
+
+    @originalxs.setter
+    def originalxs(self, value: int):
+        self.original_start[0] = value
+
+    @property
+    def originalys(self) -> int:
+        return self.original_start[1]
+
+    @originalys.setter
+    def originalys(self, value: int):
+        self.original_start[1] = value
+
+    @property
+    def originalzs(self) -> int:
+        return self.original_start[2]
+
+    @originalzs.setter
+    def originalzs(self, value: int):
+        self.original_start[2] = value
+
+    @property
+    def originalxf(self) -> int:
+        return self.original_stop[0]
+
+    @originalxf.setter
+    def originalxf(self, value: int):
+        self.original_stop[0] = value
+
+    @property
+    def originalyf(self) -> int:
+        return self.original_stop[1]
+
+    @originalyf.setter
+    def originalyf(self, value: int):
+        self.original_stop[1] = value
+
+    @property
+    def originalzf(self) -> int:
+        return self.original_stop[2]
+
+    @originalzf.setter
+    def originalzf(self, value: int):
+        self.original_stop[2] = value
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
@@ -255,12 +299,13 @@ class MPIFractalVolume(FractalVolume):
         self.upper_bound = np.array([ux, uy, uz])
 
         # Limit the original start and stop to within the local bounds
-        self.originalxs = max(self.originalxs, 0)
-        self.originalxf = min(self.originalxf, ux)
-        self.originalys = max(self.originalys, 0)
-        self.originalyf = min(self.originalyf, uy)
-        self.originalzs = max(self.originalzs, 0)
-        self.originalzf = min(self.originalzf, uz)
+        self.original_start = np.maximum(self.original_start, 0)
+        self.original_stop = np.minimum(self.original_stop, self.upper_bound)
+
+        # Ensure original_stop is not less than original_start
+        self.original_stop = np.where(
+            self.original_stop < self.original_start, self.original_start, self.original_stop
+        )
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
