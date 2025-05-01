@@ -72,8 +72,10 @@ class Material:
             )
         elif self.is_compound_material() and value.is_compound_material():
             return self.ID < value.ID
+        elif not self.is_compound_material() and not value.is_compound_material():
+            return self.numID < value.numID
         else:
-            return value.is_compound_material() or self.numID < value.numID
+            return value.is_compound_material()
 
     def __gt__(self, value: "Material") -> bool:
         """Greater than comparator for two Materials.
@@ -89,8 +91,10 @@ class Material:
             )
         elif self.is_compound_material() and value.is_compound_material():
             return self.ID > value.ID
+        elif not self.is_compound_material() and not value.is_compound_material():
+            return self.numID > value.numID
         else:
-            return self.is_compound_material() or self.numID > value.numID
+            return self.is_compound_material()
 
     def is_compound_material(self) -> bool:
         """Check if a material is a compound material.
