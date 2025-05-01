@@ -77,8 +77,7 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
         if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
             volume = volumes[0]
         else:
-            logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
 
         uip = self._create_uip(grid)
         _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -86,19 +85,16 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
         xf, yf, zf = p2
 
         if depth <= 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the depth of water")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} requires a positive value for the depth of water")
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-                raise ValueError
+                raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} can only be used on the external surfaces of a fractal box"
                 )
-                raise ValueError
             # xminus surface
             if xs == volume.xs:
                 requestedsurface = "xminus"
@@ -110,13 +106,11 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
 
         elif ys == yf:
             if zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-                raise ValueError
+                raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} can only be used on the external surfaces of a fractal box"
                 )
-                raise ValueError
             # yminus surface
             if ys == volume.ys:
                 requestedsurface = "yminus"
@@ -128,10 +122,9 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} can only be used on the external surfaces of a fractal box"
                 )
-                raise ValueError
             # zminus surface
             if zs == volume.zs:
                 requestedsurface = "zminus"
@@ -142,15 +135,13 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
             filldepth = filldepthcells * grid.dz
 
         else:
-            logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
 
         surface = next((x for x in volume.fractalsurfaces if x.surfaceID == requestedsurface), None)
         if not surface:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} specified surface {requestedsurface} does not have a rough surface applied"
             )
-            raise ValueError
 
         surface.filldepth = filldepthcells
 
@@ -159,11 +150,10 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
             surface.filldepth < surface.fractalrange[0]
             or surface.filldepth > surface.fractalrange[1]
         ):
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a value for the depth of water that lies with the "
                 f"range of the requested surface roughness"
             )
-            raise ValueError
 
         # Check to see if water has been already defined as a material
         if not any(x.ID == "water" for x in grid.materials):
@@ -172,11 +162,10 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
         # Check if time step for model is suitable for using water
         water = next((x for x in grid.materials if x.ID == "water"))
         if testwater := next((x for x in water.tau if x < grid.dt), None):
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires the time step for the model "
                 f"to be less than the relaxation time required to model water."
             )
-            raise ValueError
 
         logger.info(
             f"{self.grid_name(grid)}Water on surface from {xs * grid.dx:g}m, "
