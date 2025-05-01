@@ -168,6 +168,13 @@ class TestAddSurfaceRoughnessMpi(MpiMixin, TestAddSurfaceRoughness):
 
 
 @rfm.simple_test
+class TestAddSurfaceWaterMpi(MpiMixin, TestAddSurfaceWater):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness", "water"}
+    mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddSurfaceWater
+
+
+@rfm.simple_test
 class TestBoxGeometryDefaultPmlMpi(MpiMixin, TestBoxGeometryDefaultPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
