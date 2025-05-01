@@ -80,59 +80,58 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
             raise ValueError(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
 
         uip = self._create_uip(grid)
-        _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-        xs, ys, zs = p1
-        xf, yf, zf = p2
+        discretised_p1, discretised_p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
+        xs, ys, zs = discretised_p1
+        xf, yf, zf = discretised_p2
 
         if depth <= 0:
             raise ValueError(f"{self.__str__()} requires a positive value for the depth of water")
 
         # Check for valid orientations
+        if np.count_nonzero(discretised_p1 == discretised_p2) != 1:
+            raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
+
         if xs == xf:
-            if ys == yf or zs == zf:
-                raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
-            if xs not in [volume.xs, volume.xf]:
-                raise ValueError(
-                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
-                )
             # xminus surface
             if xs == volume.xs:
                 requestedsurface = "xminus"
             # xplus surface
             elif xf == volume.xf:
                 requestedsurface = "xplus"
-            filldepthcells = round_value(depth / grid.dx)
-            filldepth = filldepthcells * grid.dx
-
-        elif ys == yf:
-            if zs == zf:
-                raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
-            if ys not in [volume.ys, volume.yf]:
+            else:
                 raise ValueError(
                     f"{self.__str__()} can only be used on the external surfaces of a fractal box"
                 )
+            filldepthcells = uip.discretise_point((depth, 0, 0))[0]
+            filldepth = uip.round_to_grid_static_point((depth, 0, 0))[0]
+
+        elif ys == yf:
             # yminus surface
             if ys == volume.ys:
                 requestedsurface = "yminus"
             # yplus surface
             elif yf == volume.yf:
                 requestedsurface = "yplus"
-            filldepthcells = round_value(depth / grid.dy)
-            filldepth = filldepthcells * grid.dy
-
-        elif zs == zf:
-            if zs not in [volume.zs, volume.zf]:
+            else:
                 raise ValueError(
                     f"{self.__str__()} can only be used on the external surfaces of a fractal box"
                 )
+            filldepthcells = uip.discretise_point((0, depth, 0))[1]
+            filldepth = uip.round_to_grid_static_point((0, depth, 0))[1]
+
+        elif zs == zf:
             # zminus surface
             if zs == volume.zs:
                 requestedsurface = "zminus"
             # zplus surface
             elif zf == volume.zf:
                 requestedsurface = "zplus"
-            filldepthcells = round_value(depth / grid.dz)
-            filldepth = filldepthcells * grid.dz
+            else:
+                raise ValueError(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
+            filldepthcells = uip.discretise_point((0, 0, depth))[2]
+            filldepth = uip.round_to_grid_static_point((0, 0, depth))[2]
 
         else:
             raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
@@ -167,9 +166,12 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
                 f"to be less than the relaxation time required to model water."
             )
 
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
         logger.info(
-            f"{self.grid_name(grid)}Water on surface from {xs * grid.dx:g}m, "
-            f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, "
-            f"{yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, "
-            f"added to {surface.operatingonID}."
+            f"{self.grid_name(grid)}Water on surface from {p3[0]:g}m,"
+            f" {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m,"
+            f" {p4[2]:g}m with depth {filldepth:g}m, added to"
+            f" {surface.operatingonID}."
         )
