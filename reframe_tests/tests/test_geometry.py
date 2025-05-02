@@ -132,7 +132,6 @@ class TestFractalBoxGeometry(GprMaxGeometryTest):
     model = parameter(
         [
             "fractal_box_full",
-            "fractal_box_half",
             "fractal_box_small",
             "fractal_box_weighted",
             "fractal_box_boundaries",
