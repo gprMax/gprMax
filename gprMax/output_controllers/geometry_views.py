@@ -178,7 +178,7 @@ class Metadata(Generic[GridType]):
         file_handler.add_field_data("dx_dy_dz", self.dx_dy_dz)
         file_handler.add_field_data("nx_ny_nz", self.nx_ny_nz)
 
-        self.write_material_ids(file_handler)
+        file_handler.add_field_data("material_ids", self.materials)
 
         if not self.materials_only:
             if self.pml_thickness is not None:
@@ -191,9 +191,6 @@ class Metadata(Generic[GridType]):
             if self.receiver_ids is not None and self.receiver_positions is not None:
                 file_handler.add_field_data("receiver_ids", self.receiver_ids)
                 file_handler.add_field_data("receivers", self.receiver_positions)
-
-    def write_material_ids(self, file_handler: VtkHdfFile):
-        file_handler.add_field_data("material_ids", self.materials)
 
     def pml_gv_comment(self) -> Optional[npt.NDArray[np.int64]]:
         grid = self.grid
@@ -291,22 +288,3 @@ class MPIMetadata(Metadata[MPIGrid]):
         objects = dict(sorted(objects.items()))
 
         return (list(objects.keys()), np.array(list(objects.values()))) if objects else None
-
-    def write_material_ids(self, file_handler: VtkHdfFile):
-        assert isinstance(self.grid_view, MPIGridView)
-
-        # Only rank 0 has all the material data. However, creating the
-        # 'material_ids' dataset is a collective operation, so all ranks
-        # need to know the shape and datatype of the dataset.
-        if self.materials is None:
-            buffer = np.empty(2, dtype=np.int32)
-        else:
-            shape = len(self.materials)
-            max_length = max([len(m) for m in self.materials])
-            buffer = np.array([shape, max_length], dtype=np.int32)
-
-        self.grid_view.comm.Bcast([buffer, MPI.INT32_T])
-        shape, max_length = buffer
-        dtype = h5py.string_dtype(length=int(max_length))
-
-        file_handler.add_field_data("material_ids", self.materials, shape=(shape,), dtype=dtype)

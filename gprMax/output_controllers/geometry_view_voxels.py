@@ -98,5 +98,13 @@ class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
             self.spacing,
             comm=self.grid_view.comm,
         ) as f:
-            self.metadata.write_to_vtkhdf(f)
             f.add_cell_data("Material", self.material_data, self.grid_view.offset)
+
+        # Write metadata in serial as it contains variable length
+        # strings which currently cannot be written by HDF5 using
+        # parallel I/O
+        if self.grid_view.comm.rank == 0:
+            with VtkImageData(
+                self.filename, self.grid_view.global_size, self.origin, self.spacing, mode="r+"
+            ) as f:
+                self.metadata.write_to_vtkhdf(f)

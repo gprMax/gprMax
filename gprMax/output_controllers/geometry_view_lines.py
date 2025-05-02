@@ -181,5 +181,18 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
             self.cell_offsets,
             comm=self.grid_view.comm,
         ) as f:
-            self.metadata.write_to_vtkhdf(f)
             f.add_cell_data("Material", self.material_data, self.grid_view.offset)
+
+        # Write metadata in serial as it contains variable length
+        # strings which currently cannot be written by HDF5 using
+        # parallel I/O
+        if self.grid_view.comm.rank == 0:
+            with VtkUnstructuredGrid(
+                self.filename,
+                self.points,
+                self.cell_types,
+                self.connectivity,
+                self.cell_offsets,
+                mode="r+",
+            ) as f:
+                self.metadata.write_to_vtkhdf(f)
