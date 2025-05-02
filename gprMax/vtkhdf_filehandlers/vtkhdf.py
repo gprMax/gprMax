@@ -37,7 +37,12 @@ class VtkHdfFile(AbstractContextManager):
     def __enter__(self):
         return self
 
-    def __init__(self, filename: Union[str, PathLike], comm: Optional[MPI.Comm] = None) -> None:
+    def __init__(
+        self,
+        filename: Union[str, PathLike],
+        mode: str = "w",
+        comm: Optional[MPI.Comm] = None,
+    ) -> None:
         """Create a new VtkHdfFile.
 
         If the file already exists, it will be overriden. Required
@@ -49,6 +54,12 @@ class VtkHdfFile(AbstractContextManager):
         Args:
             filename: Name of the file (can be a file path). The file
                 extension will be set to '.vtkhdf'.
+            mode (optional): Mode to open the file. Valid modes are
+                - r Readonly, file must exist
+                - r+ Read/write, file must exist
+                - w Create file, truncate if exists (default)
+                - w- or x Create file, fail if exists
+                - a Read/write if exists, create otherwise
             comm (optional): MPI communicator containing all ranks that
                 want to write to the file.
 
@@ -66,11 +77,11 @@ class VtkHdfFile(AbstractContextManager):
 
         # Check if the filehandler should use an MPI driver
         if self.comm is None:
-            self.file_handler = h5py.File(self.filename, "w")
+            self.file_handler = h5py.File(self.filename, mode)
         else:
-            self.file_handler = h5py.File(self.filename, "w", driver="mpio", comm=self.comm)
+            self.file_handler = h5py.File(self.filename, mode, driver="mpio", comm=self.comm)
 
-        self.root_group = self.file_handler.create_group(self.ROOT_GROUP)
+        self.root_group = self.file_handler.require_group(self.ROOT_GROUP)
 
         # Set required Version and Type root attributes
         self._set_root_attribute(self.VERSION_ATTR, self.VERSION)

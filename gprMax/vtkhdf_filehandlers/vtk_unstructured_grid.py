@@ -38,6 +38,7 @@ class VtkUnstructuredGrid(VtkHdfFile):
         cell_types: npt.NDArray[VtkCellType],
         connectivity: npt.NDArray,
         cell_offsets: npt.NDArray,
+        mode: str = "w",
         comm: Optional[MPI.Comm] = None,
     ) -> None:
         """Create a new VtkUnstructuredGrid file.
@@ -63,13 +64,19 @@ class VtkUnstructuredGrid(VtkHdfFile):
                 and corresponds to a point in the points array.
             cell_offsets: Array listing where each cell starts and ends
                 in the connectivity array. It has shape (C + 1,).
+            mode (optional): Mode to open the file. Valid modes are
+                - r Readonly, file must exist
+                - r+ Read/write, file must exist
+                - w Create file, truncate if exists (default)
+                - w- or x Create file, fail if exists
+                - a Read/write if exists, create otherwise
             comm (optional): MPI communicator containing all ranks that
                 want to write to the file.
 
         Raises:
             Value Error: Raised if argument dimensions are invalid.
         """
-        super().__init__(filename, comm)
+        super().__init__(filename, mode, comm)
 
         if len(cell_offsets) != len(cell_types) + 1:
             raise ValueError(

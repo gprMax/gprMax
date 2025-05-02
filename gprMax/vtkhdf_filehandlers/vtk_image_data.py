@@ -33,6 +33,7 @@ class VtkImageData(VtkHdfFile):
         origin: Optional[npt.NDArray[np.float32]] = None,
         spacing: Optional[npt.NDArray[np.float32]] = None,
         direction: Optional[npt.NDArray[np.float32]] = None,
+        mode: str = "w",
         comm: Optional[MPI.Comm] = None,
     ):
         """Create a new VtkImageData file.
@@ -58,10 +59,16 @@ class VtkImageData(VtkHdfFile):
                 I.e. [[1, 0, 0], [0, 1, 0], [0, 0, 1]] and
                 [1, 0, 0, 0, 1, 0, 0, 0, 1] are equivalent. Default
                 [[1, 0, 0], [0, 1, 0], [0, 0, 1]].
+            mode (optional): Mode to open the file. Valid modes are
+                - r Readonly, file must exist
+                - r+ Read/write, file must exist
+                - w Create file, truncate if exists (default)
+                - w- or x Create file, fail if exists
+                - a Read/write if exists, create otherwise
             comm (optional): MPI communicator containing all ranks that
                 want to write to the file.
         """
-        super().__init__(filename, comm)
+        super().__init__(filename, mode, comm)
 
         if len(shape) == 0:
             raise ValueError(f"Shape must not be empty.")
