@@ -9,6 +9,13 @@ from reframe_tests.tests.standard_tests import GprMaxGeometryTest, GprMaxRegress
 
 
 @rfm.simple_test
+class TestAddGrass(GprMaxGeometryTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
+    sourcesdir = "src/geometry_tests/add_grass_geometry"
+    model = parameter(["add_grass_full", "add_grass_small"])
+
+
+@rfm.simple_test
 class TestAddSurfaceRoughness(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "roughness"}
     sourcesdir = "src/geometry_tests/add_surface_roughness_geometry"
@@ -27,13 +34,6 @@ class TestAddSurfaceWater(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "roughness", "water"}
     sourcesdir = "src/geometry_tests/add_surface_water_geometry"
     model = parameter(["add_surface_water_full", "add_surface_water_small"])
-
-
-@rfm.simple_test
-class TestAddGrass(GprMaxGeometryTest):
-    tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
-    sourcesdir = "src/geometry_tests/add_grass_geometry"
-    model = parameter(["add_grass_full", "add_grass_small"])
 
 
 @rfm.simple_test
@@ -158,6 +158,13 @@ class TestTriangleGeometry(GprMaxRegressionTest):
 
 """Test MPI Functionality
 """
+
+
+@rfm.simple_test
+class TestAddGrassMpi(TestAddGrass):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "grass"}
+    mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddGrass
 
 
 @rfm.simple_test
