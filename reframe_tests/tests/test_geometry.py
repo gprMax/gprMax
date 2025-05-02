@@ -130,7 +130,13 @@ class TestFractalBoxGeometry(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
     sourcesdir = "src/geometry_tests/fractal_box_geometry"
     model = parameter(
-        ["fractal_box_full", "fractal_box_half", "fractal_box_small", "fractal_box_weighted"]
+        [
+            "fractal_box_full",
+            "fractal_box_half",
+            "fractal_box_small",
+            "fractal_box_weighted",
+            "fractal_box_boundaries",
+        ]
     )
 
 
