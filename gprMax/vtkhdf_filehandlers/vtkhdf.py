@@ -239,38 +239,61 @@ class VtkHdfFile(AbstractContextManager):
                 and offset are invalid.
         """
 
-        # If dtype is a string and using parallel I/O, ensure using
-        # fixed length strings
-        if isinstance(dtype, np.dtype) and self.comm is not None:
-            string_info = h5py.check_string_dtype(dtype)
-            if string_info is not None and string_info.length is None:
-                logger.warning(
-                    "HDF5 does not support variable length strings with parallel I/O."
-                    " Using fixed length strings instead."
-                )
-                dtype = h5py.string_dtype(encoding="ascii", length=0)
-
+        # Ensure data is a numpy array
         if not isinstance(data, np.ndarray):
             data = np.array(data, dtype=dtype)
             if data.ndim < 1:
                 data = np.expand_dims(data, axis=-1)
 
-        if data.dtype.kind == "U":
-            if dtype is not None:  # Only log warning if user specified a data type
+        string_info = None
+
+        # Warn if string data type will be converted from unicode to a
+        # byte array (ascii). Only output a warning if the user
+        # specified dtype
+        if dtype is not None and np.dtype(dtype).kind == "U":
+            logger.warning(
+                "NumPy UTF-32 ('U' dtype) is not supported by HDF5."
+                " Converting to bytes array ('S' dtype)."
+            )
+
+        # Ensure dtype is a numpy dtype
+        if dtype is None:
+            dtype = data.dtype
+        elif isinstance(dtype, np.dtype):
+            string_info = h5py.check_string_dtype(dtype)
+
+            # Warn if user specified h5py string data type is invalid
+            if string_info is not None and string_info.encoding == "utf-8":
                 logger.warning(
-                    "NumPy UTF-32 ('U' dtype) is not supported by HDF5."
-                    " Converting to bytes array ('S' dtype)."
+                    "utf-8 encoding is not supported by VTKHDF. Converting to ascii encoding."
                 )
-            data = data.astype("S")
+
+            if string_info is not None and string_info.length is not None:
+                if self.comm is None:
+                    logger.warning(
+                        "Fixed length strings are not supported by VTKHDF."
+                        " Converting to variable length strings."
+                    )
+                else:
+                    logger.warning(
+                        "HDF5 does not support variable length strings with parallel I/O."
+                        " Using fixed length strings instead."
+                    )
+                    logger.warning(
+                        "VTKHDF does not support fixed length strings. File readers may generate"
+                        " error messages when reading in a VTKHDF file containing fixed length"
+                        " strings."
+                    )
+        else:
+            dtype = np.dtype(dtype)
 
         # Explicitly define string datatype
-        # VTKHDF only supports ascii strings (not UTF-8)
-        if data.dtype.kind == "S":
-            dtype = h5py.string_dtype(encoding="ascii", length=data.dtype.itemsize)
+        # VTKHDF only supports variable length ascii strings (not UTF-8)
+        if dtype.kind == "U" or dtype.kind == "S" or string_info is not None:
+            # If using parallel I/O, use fixed length strings
+            length = None if self.comm is None else 0
+            dtype = h5py.string_dtype(encoding="ascii", length=length)
             data = data.astype(dtype)
-
-        elif dtype is None:
-            dtype = data.dtype
 
         # VTKHDF stores datasets using ZYX ordering rather than XYZ
         if xyz_data_ordering:
@@ -348,8 +371,10 @@ class VtkHdfFile(AbstractContextManager):
             if string_info is not None and string_info.length is None:
                 raise TypeError(
                     "HDF5 does not support variable length strings with parallel I/O."
-                    " Use fixed length strings instead."
+                    " Use a serial driver or fixed length strings instead."
                 )
+
+        string_info = h5py.check_string_dtype(dtype)
 
         if dtype.kind == "U":
             logger.warning(
@@ -357,10 +382,19 @@ class VtkHdfFile(AbstractContextManager):
                 " Converting to bytes array ('S' dtype)."
             )
 
+        if string_info is not None and string_info.encoding == "utf-8":
+            logger.warning(
+                "utf-8 encoding is not supported by VTKHDF. Converting to ascii encoding."
+            )
+
         # Explicitly define string datatype
-        # VTKHDF only supports ascii strings (not UTF-8)
-        if dtype.kind == "U" or dtype.kind == "S":
-            dtype = h5py.string_dtype(encoding="ascii", length=dtype.itemsize)
+        # VTKHDF only supports variable length ascii strings (not UTF-8)
+        if (
+            dtype.kind == "U"
+            or dtype.kind == "S"
+            or (string_info is not None and string_info.encoding == "utf-8")
+        ):
+            dtype = h5py.string_dtype(encoding="ascii", length=None)
 
         logger.debug(f"Creating dataset '{path}', shape: {shape}, dtype: {dtype}")
 
