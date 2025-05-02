@@ -30,6 +30,13 @@ class TestAddSurfaceWater(GprMaxGeometryTest):
 
 
 @rfm.simple_test
+class TestAddGrass(GprMaxGeometryTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
+    sourcesdir = "src/geometry_tests/add_grass_geometry"
+    model = parameter(["add_grass_full", "add_grass_small"])
+
+
+@rfm.simple_test
 class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/geometry_tests/box_geometry"
