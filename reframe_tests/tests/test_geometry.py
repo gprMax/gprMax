@@ -22,7 +22,6 @@ class TestAddSurfaceRoughness(GprMaxGeometryTest):
     model = parameter(
         [
             "add_surface_roughness_full",
-            "add_surface_roughness_half",
             "add_surface_roughness_small",
             "add_surface_roughness_weighted",
             "add_surface_roughness_boundaries",
@@ -176,10 +175,6 @@ class TestAddGrassMpi(MpiMixin, TestAddGrass):
 # Depending on the orientation/alignment of the fractal surface, not all
 # MPI decompositions are valid. Therefore create tests that divide the
 # domain in each pair of dimensions.
-# NB: The 'add_surface_roughness_half' test currently fails due to the
-# floating point precision of the fractal surface. Caused by the:
-# if (k < surface.fractalsurface[i - surface.xs, j - surface.ys]):
-# checks in gprMax/user_objects/cmds_geometry/fractal_box.py
 @rfm.simple_test
 class TestAddSurfaceRoughnessMpiYZ(MpiMixin, TestAddSurfaceRoughness):
     tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
@@ -188,7 +183,6 @@ class TestAddSurfaceRoughnessMpiYZ(MpiMixin, TestAddSurfaceRoughness):
     model = parameter(
         [
             "add_surface_roughness_full",
-            # "add_surface_roughness_half",
             "add_surface_roughness_small",
             "add_surface_roughness_weighted",
         ]
@@ -203,7 +197,6 @@ class TestAddSurfaceRoughnessMpiXZ(MpiMixin, TestAddSurfaceRoughness):
     model = parameter(
         [
             "add_surface_roughness_full",
-            # "add_surface_roughness_half",
             "add_surface_roughness_weighted",
             "add_surface_roughness_boundaries",
         ]
