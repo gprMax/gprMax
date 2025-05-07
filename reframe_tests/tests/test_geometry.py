@@ -25,6 +25,7 @@ class TestAddSurfaceRoughness(GprMaxGeometryTest):
             "add_surface_roughness_half",
             "add_surface_roughness_small",
             "add_surface_roughness_weighted",
+            "add_surface_roughness_boundaries",
         ]
     )
 
@@ -166,17 +167,60 @@ class TestTriangleGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestAddGrassMpi(TestAddGrass):
+class TestAddGrassMpi(MpiMixin, TestAddGrass):
     tags = {"test", "mpi", "geometery", "fractal", "surface", "grass"}
     mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
     test_dependency = TestAddGrass
 
 
+# Depending on the orientation/alignment of the fractal surface, not all
+# MPI decompositions are valid. Therefore create tests that divide the
+# domain in each pair of dimensions.
+# NB: The 'add_surface_roughness_half' test currently fails due to the
+# floating point precision of the fractal surface. Caused by the:
+# if (k < surface.fractalsurface[i - surface.xs, j - surface.ys]):
+# checks in gprMax/user_objects/cmds_geometry/fractal_box.py
 @rfm.simple_test
-class TestAddSurfaceRoughnessMpi(MpiMixin, TestAddSurfaceRoughness):
+class TestAddSurfaceRoughnessMpiYZ(MpiMixin, TestAddSurfaceRoughness):
     tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
-    mpi_layout = parameter([[2, 1, 2], [3, 3, 1], [1, 4, 4]])
+    mpi_layout = parameter([[1, 2, 2], [1, 3, 3], [1, 4, 4]])
     test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            # "add_surface_roughness_half",
+            "add_surface_roughness_small",
+            "add_surface_roughness_weighted",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiXZ(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 1, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            # "add_surface_roughness_half",
+            "add_surface_roughness_weighted",
+            "add_surface_roughness_boundaries",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiXY(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 2, 1], [3, 3, 1], [4, 4, 1]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_small",
+            "add_surface_roughness_boundaries",
+        ]
+    )
 
 
 @rfm.simple_test

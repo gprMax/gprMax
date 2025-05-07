@@ -217,10 +217,10 @@ class MPIFractalSurface(FractalSurface):
 
         # Exit early if this rank does not contain the Fractal Surface
         if (
-            any(self.stop[dims] < 0)
-            or any(self.start[dims] > self.upper_bound[dims])
-            or self.fractalrange[1] < 0
-            or self.fractalrange[0] > self.upper_bound[static_dimension]
+            any(self.stop[dims] <= 0)
+            or any(self.start[dims] >= self.upper_bound[dims])
+            or self.fractalrange[1] <= 0
+            or self.fractalrange[0] >= self.upper_bound[static_dimension]
         ):
             self.comm.Split(MPI.UNDEFINED)
             # Update start and stop to local bounds
@@ -336,7 +336,7 @@ class MPIFractalSurface(FractalSurface):
 
         # Negative means send to negative neighbour
         # Positive means receive from negative neighbour
-        negative_offset = np.where(self.start[dims] >= 0, 0, self.start[dims] + A_substart)
+        negative_offset = np.where(self.start[dims] >= 0, A_substart, self.start[dims] + A_substart)
 
         # Negative means send to positive neighbour
         # Positive means receive from positive neighbour
