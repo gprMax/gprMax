@@ -28,6 +28,7 @@ from scipy import fftpack
 
 from gprMax import config
 from gprMax.cython.fractals_generate import generate_fractal3D
+from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
 from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
 from gprMax.utilities.utilities import round_value
 
@@ -439,13 +440,13 @@ class MPIFractalVolume(FractalVolume):
 
         dirs = np.full(3, Dir.NONE)
 
-        starts, subshape = self.calculate_starts_and_subshape(
+        starts, subshape = calculate_starts_and_subshape(
             A_shape, -negative_offset, -positive_offset, dirs, sending=True
         )
         ends = starts + subshape
         A_local = A[starts[0] : ends[0], starts[1] : ends[1], starts[2] : ends[2]]
 
-        starts, subshape = self.calculate_starts_and_subshape(
+        starts, subshape = calculate_starts_and_subshape(
             local_shape, negative_offset, positive_offset, dirs
         )
         ends = starts + subshape
@@ -479,12 +480,13 @@ class MPIFractalVolume(FractalVolume):
 
             # Check if any data to send
             if all(
-                np.logical_or(
+                np.select(
+                    [dirs == Dir.NEG, dirs == Dir.POS],
+                    [negative_offset <= 0, positive_offset <= 0],
                     dirs == Dir.NONE,
-                    np.where(dirs == Dir.NEG, negative_offset <= 0, positive_offset <= 0),
                 )
             ):
-                mpi_type = self.create_mpi_type(
+                mpi_type = create_mpi_type(
                     A_shape, -negative_offset, -positive_offset, dirs, sending=True
                 )
 
@@ -493,12 +495,13 @@ class MPIFractalVolume(FractalVolume):
 
             # Check if any data to receive
             if all(
-                np.logical_or(
+                np.select(
+                    [dirs == Dir.NEG, dirs == Dir.POS],
+                    [negative_offset > 0, positive_offset > 0],
                     dirs == Dir.NONE,
-                    np.where(dirs == Dir.NEG, negative_offset > 0, positive_offset > 0),
                 )
             ):
-                mpi_type = self.create_mpi_type(local_shape, negative_offset, positive_offset, dirs)
+                mpi_type = create_mpi_type(local_shape, negative_offset, positive_offset, dirs)
 
                 logger.debug(
                     f"Receiving fractal volume from rank {rank}, MPI type={mpi_type.decode()}"
@@ -518,53 +521,3 @@ class MPIFractalVolume(FractalVolume):
         )
 
         return True
-
-    def calculate_starts_and_subshape(
-        self,
-        shape: npt.NDArray[np.int32],
-        negative_offset: npt.NDArray[np.int32],
-        positive_offset: npt.NDArray[np.int32],
-        dirs: npt.NDArray[np.int32],
-        sending: bool = False,
-    ) -> Tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
-        negative_offset = np.where(
-            dirs == Dir.NONE,
-            np.maximum(negative_offset, 0),
-            np.abs(negative_offset),
-        )
-
-        positive_offset = np.where(
-            dirs == Dir.NONE,
-            np.maximum(positive_offset, 0),
-            np.abs(positive_offset),
-        )
-
-        starts = np.select(
-            [dirs == Dir.NEG, dirs == Dir.POS],
-            [0, shape - positive_offset - sending],
-            default=negative_offset,
-        )
-
-        subshape = np.select(
-            [dirs == Dir.NEG, dirs == Dir.POS],
-            [negative_offset + sending, positive_offset + sending],
-            default=shape - negative_offset - positive_offset,
-        )
-
-        return starts, subshape
-
-    def create_mpi_type(
-        self,
-        shape: npt.NDArray[np.int32],
-        negative_offset: npt.NDArray[np.int32],
-        positive_offset: npt.NDArray[np.int32],
-        dirs: npt.NDArray[np.int32],
-        sending: bool = False,
-    ) -> MPI.Datatype:
-        starts, subshape = self.calculate_starts_and_subshape(
-            shape, negative_offset, positive_offset, dirs, sending
-        )
-
-        mpi_type = MPI.FLOAT.Create_subarray(shape.tolist(), subshape.tolist(), starts.tolist())
-        mpi_type.Commit()
-        return mpi_type
