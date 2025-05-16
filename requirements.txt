@@ -107,7 +107,7 @@ stack-data==0.2.0
 terminado==0.17.1
 terminaltables==3.1.10
 tinycss2==1.2.1
-tornado==6.3.3
+tornado==6.4.2
 tqdm==4.67.1
 traitlets==5.7.1
 typing_extensions==4.9.0
