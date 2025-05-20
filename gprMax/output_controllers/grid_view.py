@@ -1,6 +1,6 @@
 import logging
 from itertools import chain
-from typing import Generic, Tuple
+from typing import Generic, List, Tuple
 
 import numpy as np
 import numpy.typing as npt
@@ -501,6 +501,8 @@ class MPIGridView(GridView[MPIGrid]):
         # Send all materials to the coordinating rank
         materials_by_rank = self.comm.gather(local_materials, root=0)
 
+        requests: List[MPI.Request] = []
+
         if materials_by_rank is not None:
             # Filter out duplicate materials and sort by material ID
             all_materials = np.fromiter(chain.from_iterable(materials_by_rank), dtype=Material)
@@ -511,7 +513,10 @@ class MPIGridView(GridView[MPIGrid]):
             # new IDs of each material it sent to send back
             for rank in range(1, self.comm.size):
                 new_material_ids = np.where(np.isin(self.materials, materials_by_rank[rank]))[0]
-                self.comm.Isend([new_material_ids.astype(np.int32), MPI.INT], rank)
+
+                # astype() always returns a copy, so it should be safe to use Isend here
+                request = self.comm.Isend([new_material_ids.astype(np.int32), MPI.INT], rank)
+                requests.append(request)
 
             new_material_ids = np.where(np.isin(self.materials, materials_by_rank[0]))[0]
             new_material_ids = new_material_ids.astype(np.int32)
@@ -529,3 +534,6 @@ class MPIGridView(GridView[MPIGrid]):
 
         # Create map from material ID to 0 - number of materials
         self.map_materials_func = np.vectorize(lambda id: materials_map[id])
+
+        if len(requests) > 0:
+            requests[0].Waitall(requests)
