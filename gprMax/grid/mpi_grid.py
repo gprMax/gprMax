@@ -69,13 +69,15 @@ class MPIGrid(FDTDGrid):
         self.negative_halo_offset = np.zeros(3, dtype=np.bool_)
         self.global_size = np.zeros(3, dtype=np.int32)
 
-        self.neighbours = np.full((3, 2), -1, dtype=int)
+        self.neighbours = np.full((3, 2), -1, dtype=np.int32)
         self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)
         self.neighbours[Dim.Y] = self.comm.Shift(direction=Dim.Y, disp=1)
         self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
 
         self.send_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
         self.recv_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
+        self.send_requests: List[MPI.Request] = []
+        self.recv_requests: List[MPI.Request] = []
 
         super().__init__()
 
@@ -351,15 +353,10 @@ class MPIGrid(FDTDGrid):
         """
         neighbour = self.neighbours[dim][dir]
         if neighbour != -1:
-            self.comm.Sendrecv(
-                [array, self.send_halo_map[dim][dir]],
-                neighbour,
-                0,
-                [array, self.recv_halo_map[dim][dir]],
-                neighbour,
-                0,
-                None,
-            )
+            send_request = self.comm.Isend([array, self.send_halo_map[dim][dir]], neighbour)
+            recv_request = self.comm.Irecv([array, self.recv_halo_map[dim][dir]], neighbour)
+            self.send_requests.append(send_request)
+            self.recv_requests.append(recv_request)
 
     def _halo_swap_by_dimension(self, array: ndarray, dim: Dim):
         """Perform halo swaps in the specifed dimension.
@@ -392,16 +389,44 @@ class MPIGrid(FDTDGrid):
     def halo_swap_electric(self):
         """Perform halo swaps for electric field arrays."""
 
+        # Ensure send requests for the magnetic field have completed
+        # The magnetic field arrays may change after this halo swap in
+        # the magnetic update step
+        if len(self.send_requests) > 0:
+            self.send_requests[0].Waitall(self.send_requests)
+            self.send_requests = []
+
         self._halo_swap_array(self.Ex)
         self._halo_swap_array(self.Ey)
         self._halo_swap_array(self.Ez)
 
+        # Wait for all receive requests to complete
+        # Don't need to wait for send requests yet as the electric
+        # field arrays won't be changed during the magnetic update steps
+        if len(self.recv_requests) > 0:
+            self.recv_requests[0].Waitall(self.recv_requests)
+            self.recv_requests = []
+
     def halo_swap_magnetic(self):
         """Perform halo swaps for magnetic field arrays."""
+
+        # Ensure send requests for the electric field have completed
+        # The electric field arrays will change after this halo swap in
+        # the electric update step
+        if len(self.send_requests) > 0:
+            self.send_requests[0].Waitall(self.send_requests)
+            self.send_requests = []
 
         self._halo_swap_array(self.Hx)
         self._halo_swap_array(self.Hy)
         self._halo_swap_array(self.Hz)
+
+        # Wait for all receive requests to complete
+        # Don't need to wait for send requests yet as the magnetic
+        # field arrays won't be changed during the electric update steps
+        if len(self.recv_requests) > 0:
+            self.recv_requests[0].Waitall(self.recv_requests)
+            self.recv_requests = []
 
     def _construct_pml(self, pml_ID: str, thickness: int) -> MPIPML:
         """Build instance of MPIPML and set the MPI communicator.
