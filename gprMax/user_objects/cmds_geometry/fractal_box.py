@@ -22,9 +22,8 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
-from gprMax.fractals.fractal_volume import FractalVolume, MPIFractalVolume
+from gprMax.fractals.fractal_volume import MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import ListMaterial
 from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, rotate_2point_object
 from gprMax.user_objects.rotatable import RotatableMixin
@@ -168,23 +167,7 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             )
             raise ValueError
 
-        if isinstance(grid, MPIGrid):
-            self.volume = MPIFractalVolume(
-                xs,
-                xf,
-                ys,
-                yf,
-                zs,
-                zf,
-                frac_dim,
-                seed,
-                grid.comm,
-                grid.nx,
-                grid.ny,
-                grid.nz,
-            )
-        else:
-            self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        self.volume = grid.add_fractal_volume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.volume.ID = ID
         self.volume.operatingonID = mixing_model_id
         self.volume.nbins = nbins

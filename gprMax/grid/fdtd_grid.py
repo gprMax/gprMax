@@ -21,7 +21,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Any, Iterable, List, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -32,6 +32,7 @@ from typing_extensions import TypeVar
 from gprMax import config
 from gprMax.cython.pml_build import pml_average_er_mr
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
+from gprMax.fractals.fractal_volume import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
@@ -110,7 +111,7 @@ class FDTDGrid:
         # Materials used by this grid
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
-        self.fractalvolumes = []  # List[FractalVolume]
+        self.fractalvolumes: List[FractalVolume] = []
 
         # Sources and receivers contained inside this grid
         self.waveforms: List[Waveform] = []
@@ -183,6 +184,21 @@ class FDTDGrid:
             self.pmls["thickness"]["xmax"] = int(thickness[3])
             self.pmls["thickness"]["ymax"] = int(thickness[4])
             self.pmls["thickness"]["zmax"] = int(thickness[5])
+
+    def add_fractal_volume(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> FractalVolume:
+        volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        self.fractalvolumes.append(volume)
+        return volume
 
     def add_source(self, source: Source):
         if isinstance(source, VoltageSource):
