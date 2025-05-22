@@ -9,15 +9,22 @@ from reframe_tests.tests.standard_tests import GprMaxGeometryTest, GprMaxRegress
 
 
 @rfm.simple_test
+class TestAddGrass(GprMaxGeometryTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
+    sourcesdir = "src/geometry_tests/add_grass_geometry"
+    model = parameter(["add_grass_full", "add_grass_small"])
+
+
+@rfm.simple_test
 class TestAddSurfaceRoughness(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "roughness"}
     sourcesdir = "src/geometry_tests/add_surface_roughness_geometry"
     model = parameter(
         [
             "add_surface_roughness_full",
-            "add_surface_roughness_half",
             "add_surface_roughness_small",
             "add_surface_roughness_weighted",
+            "add_surface_roughness_boundaries",
         ]
     )
 
@@ -27,13 +34,6 @@ class TestAddSurfaceWater(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "roughness", "water"}
     sourcesdir = "src/geometry_tests/add_surface_water_geometry"
     model = parameter(["add_surface_water_full", "add_surface_water_small"])
-
-
-@rfm.simple_test
-class TestAddGrass(GprMaxGeometryTest):
-    tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
-    sourcesdir = "src/geometry_tests/add_grass_geometry"
-    model = parameter(["add_grass_full", "add_grass_small"])
 
 
 @rfm.simple_test
@@ -130,7 +130,12 @@ class TestFractalBoxGeometry(GprMaxGeometryTest):
     tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
     sourcesdir = "src/geometry_tests/fractal_box_geometry"
     model = parameter(
-        ["fractal_box_full", "fractal_box_half", "fractal_box_small", "fractal_box_weighted"]
+        [
+            "fractal_box_full",
+            "fractal_box_small",
+            "fractal_box_weighted",
+            "fractal_box_boundaries",
+        ]
     )
 
 
@@ -158,6 +163,64 @@ class TestTriangleGeometry(GprMaxRegressionTest):
 
 """Test MPI Functionality
 """
+
+
+@rfm.simple_test
+class TestAddGrassMpi(MpiMixin, TestAddGrass):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "grass"}
+    mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddGrass
+
+
+# Depending on the orientation/alignment of the fractal surface, not all
+# MPI decompositions are valid. Therefore create tests that divide the
+# domain in each pair of dimensions.
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiYZ(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[1, 2, 2], [1, 3, 3], [1, 4, 4]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            "add_surface_roughness_small",
+            "add_surface_roughness_weighted",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiXZ(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 1, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            "add_surface_roughness_weighted",
+            "add_surface_roughness_boundaries",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiXY(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 2, 1], [3, 3, 1], [4, 4, 1]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_small",
+            "add_surface_roughness_boundaries",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceWaterMpi(MpiMixin, TestAddSurfaceWater):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness", "water"}
+    mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddSurfaceWater
 
 
 @rfm.simple_test
@@ -219,8 +282,26 @@ class TestEllipsoidGeometryMpi(MpiMixin, TestEllipsoidGeometry):
 @rfm.simple_test
 class TestFractalBoxGeometryMpi(MpiMixin, TestFractalBoxGeometry):
     tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
-    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    mpi_layout = parameter([[2, 2, 1], [1, 3, 3], [4, 1, 4]])
     test_dependency = TestFractalBoxGeometry
+
+
+@rfm.simple_test
+class TestFractalBoxGeometryMpiDecomposition(MpiMixin, TestFractalBoxGeometry):
+    """Extra Fractal Box test.
+
+    This tests that so long as the area covered by the fractal box has
+    an MPI decomposition of 1 in a dimension, the model will run
+    successfully.
+
+    N.B: These tests would fail if run using the 'fractal_box_full'
+    model.
+    """
+
+    tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
+    mpi_layout = parameter([[2, 4, 4], [4, 2, 4], [4, 4, 2]])
+    test_dependency = TestFractalBoxGeometry
+    model = parameter(["fractal_box_small"])
 
 
 @rfm.simple_test

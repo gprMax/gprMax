@@ -28,6 +28,8 @@ from numpy import ndarray
 
 from gprMax import config
 from gprMax.cython.pml_build import pml_sum_er_mr
+from gprMax.fractals.fractal_surface import MPIFractalSurface
+from gprMax.fractals.fractal_volume import MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
@@ -129,6 +131,34 @@ class MPIGrid(FDTDGrid):
             self.pmls["thickness"]["z0"] = 0
         if self.has_neighbour(Dim.Z, Dir.POS):
             self.pmls["thickness"]["zmax"] = 0
+
+    def add_fractal_volume(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> MPIFractalVolume:
+        volume = MPIFractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed, self.comm, self.size)
+        self.fractalvolumes.append(volume)
+        return volume
+
+    def create_fractal_surface(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> MPIFractalSurface:
+        return MPIFractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed, self.comm, self.size)
 
     def is_coordinator(self) -> bool:
         """Test if the current rank is the coordinator.

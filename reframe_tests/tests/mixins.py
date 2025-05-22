@@ -29,7 +29,7 @@ else:
 class ReceiverMixin(GprMaxMixin):
     number_of_receivers = variable(int, value=-1)
 
-    @run_after("setup")
+    @run_after("setup", always_last=True)
     def add_receiver_regression_checks(self):
         reference_file = self.build_reference_filepath(self.output_file)
 
