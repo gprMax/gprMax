@@ -10,6 +10,7 @@ from scipy import fftpack
 
 from gprMax import config
 from gprMax.cython.fractals_generate import generate_fractal2D
+from gprMax.fractals.grass import Grass
 from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
 from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
 
@@ -43,9 +44,9 @@ class FractalSurface:
             dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         )
         self.weighting = np.array([1, 1], dtype=np.float64)
-        self.fractalrange = (0, 0)
+        self.fractalrange: Tuple[int, int] = (0, 0)
         self.filldepth = 0
-        self.grass = []
+        self.grass: List[Grass] = []
 
     @property
     def xs(self) -> int:

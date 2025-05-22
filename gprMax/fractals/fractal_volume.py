@@ -17,7 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -28,7 +28,9 @@ from scipy import fftpack
 
 from gprMax import config
 from gprMax.cython.fractals_generate import generate_fractal3D
+from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
+from gprMax.materials import ListMaterial, PeplinskiSoil, RangeMaterial
 from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
 from gprMax.utilities.utilities import round_value
 
@@ -72,7 +74,8 @@ class FractalVolume:
         )
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
-        self.fractalsurfaces = []
+        self.mixingmodel: Optional[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = None
+        self.fractalsurfaces: List[FractalSurface] = []
 
     @property
     def xs(self) -> int:
