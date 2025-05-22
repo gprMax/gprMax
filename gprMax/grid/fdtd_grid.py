@@ -32,6 +32,7 @@ from typing_extensions import TypeVar
 from gprMax import config
 from gprMax.cython.pml_build import pml_average_er_mr
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
+from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.fractal_volume import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
@@ -199,6 +200,19 @@ class FDTDGrid:
         volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.fractalvolumes.append(volume)
         return volume
+
+    def create_fractal_surface(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> FractalSurface:
+        return FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
 
     def add_source(self, source: Source):
         if isinstance(source, VoltageSource):

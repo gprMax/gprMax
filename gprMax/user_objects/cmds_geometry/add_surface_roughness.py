@@ -20,12 +20,9 @@ import logging
 
 import numpy as np
 
-from gprMax.fractals.fractal_surface import FractalSurface, MPIFractalSurface
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
-from gprMax.utilities.utilities import round_value
 
 from .cmds_geometry import rotate_2point_object
 
@@ -201,12 +198,7 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
         # direction).
         uip.point_within_bounds(grid_bound, f"{self.__str__()}")
 
-        if isinstance(grid, MPIGrid):
-            surface = MPIFractalSurface(
-                xs, xf, ys, yf, zs, zf, frac_dim, seed, grid.comm, grid.nx, grid.ny, grid.nz
-            )
-        else:
-            surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        surface = grid.create_fractal_surface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.surfaceID = requestedsurface
         surface.fractalrange = fractalrange
         surface.operatingonID = volume.ID

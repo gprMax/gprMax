@@ -193,13 +193,11 @@ class MPIFractalSurface(FractalSurface):
         dimension: float,
         seed: Optional[int],
         comm: MPI.Cartcomm,
-        ux: int,
-        uy: int,
-        uz: int,
+        upper_bound: npt.NDArray[np.int32],
     ):
         super().__init__(xs, xf, ys, yf, zs, zf, dimension, seed)
         self.comm = comm
-        self.upper_bound = np.array([ux, uy, uz])
+        self.upper_bound = upper_bound
 
     def generate_fractal_surface(self):
         """Generate a 2D array with a fractal distribution."""
