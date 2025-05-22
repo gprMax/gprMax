@@ -35,5 +35,5 @@ class GprMaxGeometryObjectsReadWriteTest(
     pass
 
 
-class GprMaxGeometryTest(GeometryObjectMixin, ReceiverMixin, GprMaxBaseTest):
-    geometry_objects = ["full_volume"]
+class GprMaxGeometryTest(GeometryObjectsWriteMixin, ReceiverMixin, GprMaxBaseTest):
+    geometry_objects_write = ["full_volume"]
