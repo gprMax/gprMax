@@ -25,8 +25,8 @@ import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.hash_cmds_file import get_user_objects
+from gprMax.output_controllers.read_geometry_object import ReadGeometryObject
 from gprMax.user_objects.user_objects import GeometryUserObject
-from gprMax.utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +49,6 @@ class GeometryObjectsRead(GeometryUserObject):
             logger.exception(f"{self.__str__()} requires exactly five parameters")
             raise
 
-        # Discretise the point using uip object. This has different behaviour
-        # depending on the type of uip object. So we can use it for
-        # the main grid or the subgrid.
-        uip = self._create_uip(grid)
-        xs, ys, zs = uip.discretise_point(p1)
-
         # See if material file exists at specified path and if not try input
         # file directory
         matfile = Path(matfile)
@@ -75,9 +69,21 @@ class GeometryObjectsRead(GeometryUserObject):
                 if (line.startswith("#") and not line.startswith("##") and line.rstrip("\n"))
             ]
 
+        # Avoid redefining default builtin materials
+        pec = f"#material: 1 inf 1 0 pec{{{matstr}}}\n"
+        free_space = f"#material: 1 0 1 0 free_space{{{matstr}}}\n"
+        if materials[0] == pec and materials[1] == free_space:
+            materials.pop(0)
+            materials.pop(1)
+            numexistmaterials -= 2
+        elif materials[0] == pec or materials[0] == free_space:
+            materials.pop(0)
+            numexistmaterials -= 1
+
         # Build scene
         # API for multiple scenes / model runs
         scene = config.get_model_config().get_scene()
+        assert scene is not None
         material_objs = get_user_objects(materials, checkessential=False)
         for material_obj in material_objs:
             scene.add(material_obj)
@@ -99,69 +105,53 @@ class GeometryObjectsRead(GeometryUserObject):
         if not geofile.exists():
             geofile = Path(config.sim_config.input_file_path.parent, geofile)
 
-        # Open geometry object file and read/check spatial resolution attribute
-        f = h5py.File(geofile, "r")
-        dx_dy_dz = f.attrs["dx_dy_dz"]
-        if round_value(
-            (dx_dy_dz[0] / grid.dx) != 1
-            or round_value(dx_dy_dz[1] / grid.dy) != 1
-            or round_value(dx_dy_dz[2] / grid.dz) != 1
-        ):
-            logger.exception(
-                f"{self.__str__()} requires the spatial resolution "
-                "of the geometry objects file to match the spatial "
-                "resolution of the model"
-            )
-            raise ValueError
+        # Discretise the point using uip object. This has different behaviour
+        # depending on the type of uip object. So we can use it for
+        # the main grid, MPI grids or the subgrid.
+        uip = self._create_uip(grid)
+        discretised_p1 = uip.discretise_point(p1)
+        p2 = uip.round_to_grid_static_point(p1)
 
-        data = f["/data"][:]
+        with ReadGeometryObject(geofile, grid, discretised_p1, numexistmaterials) as f:
+            # Check spatial resolution attribute
+            if not f.has_valid_discritisation():
+                raise ValueError(
+                    f"{self.__str__()} requires the spatial resolution "
+                    "of the geometry objects file to match the spatial "
+                    "resolution of the model"
+                )
 
-        # Should be int16 to allow for -1 which indicates background, i.e.
-        # don't build anything, but AustinMan/Woman maybe uint16
-        if data.dtype != "int16":
-            data = data.astype("int16")
+            if f.has_rigid_arrays() and f.has_ID_array():
+                f.read_data()
+                f.read_ID()
+                f.read_rigidE()
+                f.read_rigidH()
 
-        # Look to see if rigid and ID arrays are present (these should be
-        # present if the original geometry objects were written from gprMax)
-        try:
-            rigidE = f["/rigidE"][:]
-            rigidH = f["/rigidH"][:]
-            ID = f["/ID"][:]
-            grid.solid[
-                xs : xs + data.shape[0], ys : ys + data.shape[1], zs : zs + data.shape[2]
-            ] = (data + numexistmaterials)
-            grid.rigidE[
-                :, xs : xs + rigidE.shape[1], ys : ys + rigidE.shape[2], zs : zs + rigidE.shape[3]
-            ] = rigidE
-            grid.rigidH[
-                :, xs : xs + rigidH.shape[1], ys : ys + rigidH.shape[2], zs : zs + rigidH.shape[3]
-            ] = rigidH
-            grid.ID[:, xs : xs + ID.shape[1], ys : ys + ID.shape[2], zs : zs + ID.shape[3]] = (
-                ID + numexistmaterials
-            )
-            logger.info(
-                f"{self.grid_name(grid)}Geometry objects from file {geofile} "
-                f"inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, "
-                f"{zs * grid.dz:g}m, with corresponding materials file "
-                f"{matfile}."
-            )
-        except KeyError:
-            averaging = False
-            build_voxels_from_array(
-                xs,
-                ys,
-                zs,
-                numexistmaterials,
-                averaging,
-                data,
-                grid.solid,
-                grid.rigidE,
-                grid.rigidH,
-                grid.ID,
-            )
-            logger.info(
-                f"{self.grid_name(grid)}Geometry objects from file "
-                f"(voxels only){geofile} inserted at {xs * grid.dx:g}m, "
-                f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding "
-                f"materials file {matfile}."
-            )
+                logger.info(
+                    f"{self.grid_name(grid)}Geometry objects from file {geofile}"
+                    f" inserted at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
+                    f" with corresponding materials file"
+                    f" {matfile}."
+                )
+            else:
+                data = f.get_data()
+                if data is not None:
+                    averaging = False
+                    build_voxels_from_array(
+                        discretised_p1[0],
+                        discretised_p1[1],
+                        discretised_p1[2],
+                        numexistmaterials,
+                        averaging,
+                        data,
+                        grid.solid,
+                        grid.rigidE,
+                        grid.rigidH,
+                        grid.ID,
+                    )
+                logger.info(
+                    f"{self.grid_name(grid)}Geometry objects from file "
+                    f"(voxels only){geofile} inserted at {p2[0]:g}m, "
+                    f"{p2[1]:g}m, {p2[2]:g}m, with corresponding "
+                    f"materials file {matfile}."
+                )

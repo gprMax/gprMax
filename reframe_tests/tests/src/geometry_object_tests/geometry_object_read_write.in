@@ -8,12 +8,6 @@
 
 #rx: 0.08 0.08 0.08
 
-#material: 4.9 0 1 0 myWater
-#material: 2 0 1.4 0 unusedMaterial
-#material: 3 0 2 0 boxMaterial
-
-#sphere: 0.05 0.05 0.05 0.03 myWater y
-#box: 0.01 0.01 0.01 0.09 0.025 0.025 boxMaterial y
-
+#geometry_objects_read: 0 0 0 full_volume_read.h5 full_volume_read_materials.txt
 #geometry_objects_write: 0.02 0.02 0.02 0.06 0.06 0.06 partial_volume
-#geometry_objects_write: 0 0 0 0.1 0.1 0.1 full_volume
+#geometry_objects_write:  0 0 0 0.1 0.1 0.1 full_volume

@@ -161,9 +161,11 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         if self.test_dependency is None:
             return None
 
-        # Always filter by the model parameter, but allow child classes
+        # Always filter by the model parameter (unless the test
+        # dependency only runs a single model), but allow child classes
         # (or mixins) to override how models are filtered.
-        kwargs.setdefault("model", self.model)
+        if len(self.test_dependency.model.values) > 1:
+            kwargs.setdefault("model", self.model)
 
         variant_nums = self.test_dependency.get_variant_nums(**kwargs)
 

@@ -98,8 +98,11 @@ class GridView(Generic[GridType]):
     def nz(self) -> int:
         return self.size[2]
 
-    def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+    def getter_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
+
+        This is used to slice and get a view of arrays owned by the
+        grid.
 
         Args:
             dimension: Dimension to create the slice object for. Values
@@ -119,7 +122,150 @@ class GridView(Generic[GridType]):
 
         return slice(self.start[dimension], stop, self.step[dimension])
 
-    def slice_array(self, array: npt.NDArray, upper_bound_exclusive: bool = True) -> npt.NDArray:
+    def setter_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        """Create a slice object for the specified dimension.
+
+        This is used to slice arrays owned by the grid in order to set
+        their value.
+
+        Args:
+            dimension: Dimension to create the slice object for. Values
+                0, 1, and 2 map to the x, y, and z dimensions
+                respectively.
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: Slice object
+        """
+        return self.getter_slice(dimension, upper_bound_exclusive)
+
+    def get_output_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        """Create an output slice object for the specified dimension.
+
+        This provides a slice of the grid view for the section of the
+        grid view managed by this process. This can be used when writing
+        out arrays provided by the grid view as part of a collective
+        operation.
+
+        For example:
+        ```
+        dset_slice = (
+                grid_view.get_output_slice(0),
+                grid_view.get_output_slice(1),
+                grid_view.get_output_slice(2),
+            )
+
+        dset[dset_slice] = grid_view.get_solid()
+        ```
+
+        Args:
+            dimension: Dimension to create the slice object for. Values
+                0, 1, and 2 map to the x, y, and z dimensions
+                respectively.
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: Slice object
+        """
+        if upper_bound_exclusive:
+            size = self.size[dimension]
+        else:
+            size = self.size[dimension] + 1
+
+        return slice(0, size)
+
+    def get_3d_output_slice(self, upper_bound_exclusive: bool = True) -> Tuple[slice, slice, slice]:
+        """Create a 3D output slice object.
+
+        This provides a slice of the grid view for the section of the
+        grid view managed by this process. This can be used when writing
+        out arrays provided by the grid view as part of a collective
+        operation.
+
+        For example:
+        `dset[grid_view.get_3d_output_slice()] = grid_view.get_solid()`
+
+        Args:
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: 3D Slice object
+        """
+        return (
+            self.get_output_slice(0, upper_bound_exclusive),
+            self.get_output_slice(1, upper_bound_exclusive),
+            self.get_output_slice(2, upper_bound_exclusive),
+        )
+
+    def get_read_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        """Create a read slice object for the specified dimension.
+
+        This provides a slice of the grid view for the section of the
+        grid view managed by this rank. This can be used when reading
+        arrays provided by the grid view as part of a collective
+        operation.
+
+        For example:
+        ```
+        dset_slice = (
+                grid_view.get_read_slice(0),
+                grid_view.get_read_slice(1),
+                grid_view.get_read_slice(2),
+            )
+
+        grid_view.set_solid(dset[dset_slice])
+        ```
+
+        Args:
+            dimension: Dimension to create the slice object for. Values
+                0, 1, and 2 map to the x, y, and z dimensions
+                respectively.
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: Slice object
+        """
+        return self.get_output_slice(dimension, upper_bound_exclusive)
+
+    def get_3d_read_slice(self, upper_bound_exclusive: bool = True) -> Tuple[slice, slice, slice]:
+        """Create a 3D read slice object.
+
+        This provides a slice of the grid view for the section of the
+        grid view managed by this rank. This can be used when reading
+        arrays provided by the grid view as part of a collective
+        operation.
+
+        For example:
+        ```
+        solid = dset[grid_view.get_3d_read_slice()]
+        grid_view.set_solid(solid)
+        ```
+
+        Args:
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: 3D Slice object
+        """
+        return (
+            self.get_read_slice(0, upper_bound_exclusive),
+            self.get_read_slice(1, upper_bound_exclusive),
+            self.get_read_slice(2, upper_bound_exclusive),
+        )
+
+    def get_array_slice(
+        self, array: npt.NDArray, upper_bound_exclusive: bool = True
+    ) -> npt.NDArray:
         """Slice an array according to the dimensions of the grid view.
 
         It is assumed the last 3 dimensions of the provided array
@@ -142,11 +288,40 @@ class GridView(Generic[GridType]):
         return np.ascontiguousarray(
             array[
                 ...,
-                self.get_slice(0, upper_bound_exclusive),
-                self.get_slice(1, upper_bound_exclusive),
-                self.get_slice(2, upper_bound_exclusive),
+                self.getter_slice(0, upper_bound_exclusive),
+                self.getter_slice(1, upper_bound_exclusive),
+                self.getter_slice(2, upper_bound_exclusive),
             ]
         )
+
+    def set_array_slice(
+        self, array: npt.NDArray, value: npt.NDArray, upper_bound_exclusive: bool = True
+    ):
+        """Set value of an array according to the dimensions of the grid view.
+
+        It is assumed the last 3 dimensions of the array represent the
+        x, y, z spacial information. Other dimensions will not be
+        sliced.
+
+        E.g. If setting the value of an array of shape (10, 100, 50, 50)
+        the new values should have shape (10, x, y, z) where x, y, and z
+        are specified by the size/shape of the grid view.
+
+        Args:
+            array: Array to set the values of. Must have at least 3
+                dimensions.
+            value: New values. Its shape must match 'array' after
+                'array' has been sliced.
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+        """
+        array[
+            ...,
+            self.setter_slice(0, upper_bound_exclusive),
+            self.setter_slice(1, upper_bound_exclusive),
+            self.setter_slice(2, upper_bound_exclusive),
+        ] = value
 
     def initialise_materials(self, filter_materials: bool = True):
         """Create a new ID map for materials in the grid view.
@@ -209,32 +384,64 @@ class GridView(Generic[GridType]):
             ID: View of the ID array.
         """
         if self._ID is None or force_refresh:
-            self._ID = self.slice_array(self.grid.ID, upper_bound_exclusive=False)
+            self._ID = self.get_array_slice(self.grid.ID, upper_bound_exclusive=False)
         return self._ID
+
+    def set_ID(self, value: npt.NDArray[np.uint32]):
+        """Set the value of the ID array.
+
+        Args:
+            value: Array of new values.
+        """
+        self.set_array_slice(self.grid.ID, value, upper_bound_exclusive=False)
 
     def get_solid(self) -> npt.NDArray[np.uint32]:
         """Get a view of the solid array.
 
         Returns:
-            solid: View of the solid array
+            solid: View of the solid array.
         """
-        return self.slice_array(self.grid.solid)
+        return self.get_array_slice(self.grid.solid)
+
+    def set_solid(self, value: npt.NDArray[np.uint32]):
+        """Set the value of the solid array.
+
+        Args:
+            value: Array of new values.
+        """
+        self.set_array_slice(self.grid.solid, value)
 
     def get_rigidE(self) -> npt.NDArray[np.int8]:
         """Get a view of the rigidE array.
 
         Returns:
-            rigidE: View of the rigidE array
+            rigidE: View of the rigidE array.
         """
-        return self.slice_array(self.grid.rigidE)
+        return self.get_array_slice(self.grid.rigidE)
+
+    def set_rigidE(self, value: npt.NDArray[np.uint32]):
+        """Set the value of the rigidE array.
+
+        Args:
+            value: Array of new values.
+        """
+        self.set_array_slice(self.grid.rigidE, value)
 
     def get_rigidH(self) -> npt.NDArray[np.int8]:
         """Get a view of the rigidH array.
 
         Returns:
-            rigidH: View of the rigidH array
+            rigidH: View of the rigidH array.
         """
-        return self.slice_array(self.grid.rigidH)
+        return self.get_array_slice(self.grid.rigidH)
+
+    def set_rigidH(self, value: npt.NDArray[np.uint32]):
+        """Set the value of the rigidH array.
+
+        Args:
+            value: Array of new values.
+        """
+        self.set_array_slice(self.grid.rigidH, value)
 
     def get_Ex(self) -> npt.NDArray[np.float32]:
         """Get a view of the Ex array.
@@ -242,7 +449,7 @@ class GridView(Generic[GridType]):
         Returns:
             Ex: View of the Ex array
         """
-        return self.slice_array(self.grid.Ex, upper_bound_exclusive=False)
+        return self.get_array_slice(self.grid.Ex, upper_bound_exclusive=False)
 
     def get_Ey(self) -> npt.NDArray[np.float32]:
         """Get a view of the Ey array.
@@ -250,7 +457,7 @@ class GridView(Generic[GridType]):
         Returns:
             Ey: View of the Ey array
         """
-        return self.slice_array(self.grid.Ey, upper_bound_exclusive=False)
+        return self.get_array_slice(self.grid.Ey, upper_bound_exclusive=False)
 
     def get_Ez(self) -> npt.NDArray[np.float32]:
         """Get a view of the Ez array.
@@ -258,7 +465,7 @@ class GridView(Generic[GridType]):
         Returns:
             Ez: View of the Ez array
         """
-        return self.slice_array(self.grid.Ez, upper_bound_exclusive=False)
+        return self.get_array_slice(self.grid.Ez, upper_bound_exclusive=False)
 
     def get_Hx(self) -> npt.NDArray[np.float32]:
         """Get a view of the Hx array.
@@ -266,7 +473,7 @@ class GridView(Generic[GridType]):
         Returns:
             Hx: View of the Hx array
         """
-        return self.slice_array(self.grid.Hx, upper_bound_exclusive=False)
+        return self.get_array_slice(self.grid.Hx, upper_bound_exclusive=False)
 
     def get_Hy(self) -> npt.NDArray[np.float32]:
         """Get a view of the Hy array.
@@ -274,7 +481,7 @@ class GridView(Generic[GridType]):
         Returns:
             Hy: View of the Hy array
         """
-        return self.slice_array(self.grid.Hy, upper_bound_exclusive=False)
+        return self.get_array_slice(self.grid.Hy, upper_bound_exclusive=False)
 
     def get_Hz(self) -> npt.NDArray[np.float32]:
         """Get a view of the Hz array.
@@ -282,7 +489,7 @@ class GridView(Generic[GridType]):
         Returns:
             Hz: View of the Hz array
         """
-        return self.slice_array(self.grid.Hz, upper_bound_exclusive=False)
+        return self.get_array_slice(self.grid.Hz, upper_bound_exclusive=False)
 
 
 class MPIGridView(GridView[MPIGrid]):
@@ -386,8 +593,11 @@ class MPIGridView(GridView[MPIGrid]):
     def gz(self) -> int:
         return self.global_size[2]
 
-    def get_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+    def getter_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.
+
+        This is used to slice and get a view of arrays owned by the
+        grid.
 
         Args:
             dimension: Dimension to create the slice object for. Values
@@ -408,6 +618,35 @@ class MPIGridView(GridView[MPIGrid]):
             stop = self.stop[dimension] + self.step[dimension]
 
         return slice(self.start[dimension], stop, self.step[dimension])
+
+    def setter_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        """Create a slice object for the specified dimension.
+
+        This is used to slice arrays owned by the grid in order to set
+        their value.
+
+        Args:
+            dimension: Dimension to create the slice object for. Values
+                0, 1, and 2 map to the x, y, and z dimensions
+                respectively.
+            upper_bound_exclusive: Optionally specify if the upper bound
+                of the slice should be exclusive or inclusive. Defaults
+                to True.
+
+        Returns:
+            slice: Slice object
+        """
+        if upper_bound_exclusive:
+            stop = self.stop[dimension]
+        else:
+            stop = self.stop[dimension] + self.step[dimension]
+
+        if self.has_negative_neighbour[dimension]:
+            start = self.start[dimension] - self.step[dimension]
+        else:
+            start = self.start[dimension]
+
+        return slice(start, stop, self.step[dimension])
 
     def get_output_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create an output slice object for the specified dimension.
@@ -450,30 +689,48 @@ class MPIGridView(GridView[MPIGrid]):
 
         return slice(offset, offset + size)
 
-    def get_3d_output_slice(self, upper_bound_exclusive: bool = True) -> Tuple[slice, slice, slice]:
-        """Create a 3D output slice object.
+    def get_read_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
+        """Create a read slice object for the specified dimension.
 
         This provides a slice of the grid view for the section of the
-        grid view managed by this rank. This can be used when writing
-        out arrays provided by the grid view as part of a collective
+        grid view managed by this rank. This can be used when reading
+        arrays provided by the grid view as part of a collective
         operation.
 
         For example:
-        `dset[grid_view.get_3d_output_slice()] = grid_view.get_solid()`
+        ```
+        dset_slice = (
+                grid_view.get_read_slice(0),
+                grid_view.get_read_slice(1),
+                grid_view.get_read_slice(2),
+            )
+
+        grid_view.get_solid()[:] = dset[dset_slice]
+        ```
 
         Args:
+            dimension: Dimension to create the slice object for. Values
+                0, 1, and 2 map to the x, y, and z dimensions
+                respectively.
             upper_bound_exclusive: Optionally specify if the upper bound
                 of the slice should be exclusive or inclusive. Defaults
                 to True.
 
         Returns:
-            slice: 3D Slice object
+            slice: Slice object
         """
-        return (
-            self.get_output_slice(0, upper_bound_exclusive),
-            self.get_output_slice(1, upper_bound_exclusive),
-            self.get_output_slice(2, upper_bound_exclusive),
-        )
+        if upper_bound_exclusive:
+            size = self.size[dimension]
+        else:
+            size = self.size[dimension] + 1
+
+        offset = self.offset[dimension] // self.step[dimension]
+
+        if self.has_negative_neighbour[dimension]:
+            offset -= 1
+            size += 1
+
+        return slice(offset, offset + size)
 
     def initialise_materials(self, filter_materials: bool = True):
         """Create a new ID map for materials in the grid view.
