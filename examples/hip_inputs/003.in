@@ -1,0 +1,14 @@
+#title: Simple model with Hertzian dipole (no PML, Drude-dispersive)
+#domain: 0.4 0.3 0.3   
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 1000
+
+#material: 1.7 0 1 0 saltwater
+#add_dispersion_drude: 2 1.0e14 1.0e12 5.0e13 5.0e11 saltwater
+
+#waveform: ricker 1 1.5e9 my_ricker
+#hertzian_dipole: z 0.15 0.15 0.15 my_ricker
+#rx: 0.15 0.15 0.14
+
+#box: 0 0 0 0.4 0.3 0.3 saltwater
+#pml_cells: 0

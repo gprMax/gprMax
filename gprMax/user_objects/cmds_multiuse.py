@@ -1394,8 +1394,8 @@ class AddLorentzDispersion(GridUserObject):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
-            omega = self.kwargs["omega"]
-            delta = self.kwargs["delta"]
+            omega = self.kwargs["tau"]
+            delta = self.kwargs["alpha"]
             material_ids = self.kwargs["material_ids"]
         except KeyError:
             logger.exception(f"{self.params_str()} requires at least five parameters.")
@@ -1478,7 +1478,7 @@ class AddDrudeDispersion(GridUserObject):
     def build(self, grid: FDTDGrid):
         try:
             poles = self.kwargs["poles"]
-            omega = self.kwargs["omega"]
+            omega = self.kwargs["tau"]
             alpha = self.kwargs["alpha"]
             material_ids = self.kwargs["material_ids"]
         except KeyError:
