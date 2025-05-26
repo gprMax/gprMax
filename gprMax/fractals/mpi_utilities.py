@@ -51,12 +51,6 @@ def create_mpi_type(
     starts, subshape = calculate_starts_and_subshape(
         shape, negative_offset, positive_offset, dirs, sending
     )
-
-    print(
-        f"create_mpi_type: shape={shape}, negative_offset={negative_offset}, positive_offset={positive_offset}, dirs={dirs}, sending={sending}"
-    )
-    print(f"create_mpi_type: starts={starts}, subshape={subshape}")
-
     mpi_type = MPI.FLOAT.Create_subarray(shape.tolist(), subshape.tolist(), starts.tolist())
     mpi_type.Commit()
     return mpi_type
