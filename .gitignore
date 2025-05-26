@@ -32,6 +32,7 @@ testing/*.png
 # Output files from running the examples
 examples/*.h5
 examples/*.pdf
+examples/hip_inputs/*.h5
 
 # Test coverage files
 .coverage

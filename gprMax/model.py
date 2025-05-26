@@ -29,6 +29,7 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.grid.hip_grid import HIPGrid
 from gprMax.output_controllers.geometry_objects import GeometryObject
 from gprMax.output_controllers.geometry_view_lines import GeometryViewLines
 from gprMax.output_controllers.geometry_view_voxels import GeometryViewVoxels
@@ -182,7 +183,8 @@ class Model:
             grid = CUDAGrid()
         elif config.sim_config.general["solver"] == "opencl":
             grid = OpenCLGrid()
-
+        elif config.sim_config.general["solver"] == "hip":
+            grid = HIPGrid()
         return grid
 
     def set_size(self, size: npt.NDArray[np.int32]):
@@ -483,13 +485,20 @@ class Model:
                     f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
                     f"This may lead to degraded performance."
                 )
-        elif config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        elif config.sim_config.general["solver"] in ["cuda", "opencl", "hip"]:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
                 platformname = (
                     " ".join(config.get_model_config().device["dev"].platform.name.split())
                     + " with "
                 )
+                devicename = (
+                    f'Device {config.get_model_config().device["deviceID"]}: '
+                    f'{" ".join(config.get_model_config().device["dev"].name.split())}'
+                )
+            elif config.sim_config.general["solver"] == "hip":
+                solvername = "HIP"
+                platformname = ""
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name.split())}'
@@ -538,7 +547,7 @@ class Model:
             f"Memory used (estimated): "
             + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}"
         )
-        logger.info(
-            f"Time taken: "
-            + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}\n"
-        )
+        # logger.info(
+        #     f"Time taken: "
+        #     + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}\n"
+        # )

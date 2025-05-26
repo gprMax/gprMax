@@ -34,7 +34,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities.host_info import detect_cuda_gpus, detect_opencl, get_host_info
+from .utilities.host_info import detect_cuda_gpus, detect_opencl, get_host_info, detect_hip_gpus
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -57,9 +57,11 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to
         #           fit on the memory of the GPU. If True this will slow
         #           performance significantly.
-        if sim_config.general["solver"] in ["cuda", "opencl"]:
+        if sim_config.general["solver"] in ["cuda", "opencl", "hip"]:
             if sim_config.general["solver"] == "cuda":
                 devs = sim_config.args.gpu
+            elif sim_config.general["solver"] == "hip":
+                devs = sim_config.args.hip
             else:  # opencl
                 devs = sim_config.args.opencl
 
@@ -214,6 +216,7 @@ class SimulationConfig:
         self.geometry_only: bool = args.geometry_only
         self.gpu: Union[List[str], bool] = args.gpu
         self.mpi: List[int] = args.mpi
+        self.hip: Union[List[str], bool] = args.hip
         self.number_of_models: int = args.n
         self.opencl: Union[List[str], bool] = args.opencl
         self.output_file_path: str = args.outputfile
@@ -285,6 +288,18 @@ class SimulationConfig:
 
             # Add pycuda available GPU(s)
             self.devices["devs"] = detect_cuda_gpus()
+            
+        # HIP
+        if self.hip is not None:
+            self.general["solver"] = "hip"
+            # Both single and double precision are possible on HIP, but single
+            # provides best performance.
+            self.general["precision"] = "single"
+            self.devices = {
+                "devs": [],
+                "hipcc_opts": None,
+            }
+            self.devices["devs"] = detect_hip_gpus()
 
         # OpenCL
         if self.opencl is not None:

@@ -25,7 +25,7 @@ import textwrap
 from shutil import get_terminal_size
 from time import perf_counter as timer_fn
 from typing import Union
-
+from hip import hip, hiprtc
 import numpy as np
 from colorama import Fore, Style, init
 
@@ -225,3 +225,17 @@ def fft_power(waveform, dt):
 def timer():
     """Time in fractional seconds."""
     return timer_fn()
+
+def hip_check(call_result):
+    err = call_result[0]
+    result = call_result[1:]
+    if len(result) == 1:
+        result = result[0]
+    if isinstance(err, hip.hipError_t) and err != hip.hipError_t.hipSuccess:
+        raise RuntimeError(str(err))
+    elif (
+        isinstance(err, hiprtc.hiprtcResult)
+        and err != hiprtc.hiprtcResult.HIPRTC_SUCCESS
+    ):
+        raise RuntimeError(str(err))
+    return result

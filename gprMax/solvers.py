@@ -25,12 +25,14 @@ from gprMax.model import Model
 from gprMax.updates.mpi_updates import MPIUpdates
 
 from .grid.cuda_grid import CUDAGrid
+from .grid.hip_grid import HIPGrid
 from .grid.fdtd_grid import FDTDGrid
 from .grid.opencl_grid import OpenCLGrid
 from .subgrids.updates import SubgridUpdates
 from .subgrids.updates import create_updates as create_subgrid_updates
 from .updates.cpu_updates import CPUUpdates
 from .updates.cuda_updates import CUDAUpdates
+from .updates.hip_updates import HIPUpdates
 from .updates.opencl_updates import OpenCLUpdates
 from .updates.updates import Updates
 
@@ -82,6 +84,8 @@ class Solver:
                 self.updates.halo_swap_electric()
             if isinstance(self.updates, CUDAUpdates):
                 self.memused = self.updates.calculate_memory_used(iteration)
+            if isinstance(self.updates, HIPUpdates):
+                self.memused = self.updates.calculate_memory_used(iteration)
 
         self.updates.finalise()
         self.solvetime = self.updates.calculate_solve_time()
@@ -126,6 +130,9 @@ def create_solver(model: Model) -> Solver:
         updates = CUDAUpdates(grid)
     elif type(grid) is OpenCLGrid:
         updates = OpenCLUpdates(grid)
+    elif type(grid) is HIPGrid:
+        updates = HIPUpdates(grid)
+        
     else:
         logger.error("Cannot create Solver: Unknown grid type")
         raise ValueError

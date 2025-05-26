@@ -27,7 +27,7 @@ import sys
 import humanize
 import psutil
 
-import gprMax.config as config
+from .. import config
 
 logger = logging.getLogger(__name__)
 
@@ -465,6 +465,53 @@ def has_pyopencl():
         pyopencl = False
     return pyopencl
 
+def has_hip():
+    """Checks if HIP module is installed."""
+    hip = True
+    try:
+        import hip
+    except ImportError:
+        hip = False
+    return hip
+
+def detect_hip_gpus():
+    """Gets information about HIP-capable GPU(s).
+
+    Returns:
+        gpus: dict of detected hip device object(s) where where device ID(s)
+                are keys.
+    """
+
+    gpus = {}
+
+    hip_reqs = (
+        "To use gprMax with HIP you must:"
+        "\n 1) install hipify"
+        "\n 2) install AMD ROCm (https://rocm.docs.amd.com/en/latest/Installation.html)"
+        "\n 3) have an AMD HIP-Enabled GPU (https://rocm.docs.amd.com/en/latest/Installation.html#supported-hardware)"
+    )
+
+    if has_hip():
+        # import hip
+
+        # # Check and list any HIP-Enabled GPUs
+        # deviceIDsavail = []
+        # if hip.Device.count() == 0:
+        #     logger.warning("No AMD HIP-Enabled GPUs detected!\n" + hip_reqs)
+        # elif "HIP_VISIBLE_DEVICES" in os.environ:
+        #     deviceIDsavail = os.environ.get("HIP_VISIBLE_DEVICES")
+        #     deviceIDsavail = [int(s) for s in deviceIDsavail.split(",")]
+        # else:
+        #     deviceIDsavail = range(hip.Device.count())
+
+        # # Gather information about detected GPUs
+        # for ID in deviceIDsavail:
+            gpus[0] = gpu(0, "AMD GPU", 65536)  # Placeholder for actual device info
+
+    else:
+        logger.warning("hip not detected!\n" + hip_reqs)
+
+    return gpus
 
 def detect_cuda_gpus():
     """Gets information about CUDA-capable GPU(s).
@@ -591,3 +638,32 @@ def print_opencl_info(devs):
             f"          |--->Device {ID}: {type} | {' '.join(dev.name.split())} | "
             f"{humanize.naturalsize(dev.global_mem_size, True)}"
         )
+def print_hip_info(devs):
+    """Prints info about detected HIP-capable device(s).
+
+    Args:
+        devs: dict of detected hip device object(s) where where device ID(s)
+                are keys.
+    """
+
+    import hip
+
+    logger.basic("|--->HIP:")
+    logger.debug(f"HIP: {hip.__version__}")
+
+    for ID, dev in devs.items():
+        logger.basic(
+            f"     |--->Device {ID}: {' '.join(dev.name.split())} | "
+            f"{humanize.naturalsize(dev.total_memory(), True)}"
+        )
+
+class gpu(object):
+    """Class to hold information about a GPU."""
+
+    def __init__(self, ID, name, total_memory):
+        self.ID = ID
+        self.name = name
+        self.total_memory = total_memory
+
+    def __str__(self):
+        return f"GPU {self.ID}: {self.name} | {humanize.naturalsize(self.total_memory, True)}"
