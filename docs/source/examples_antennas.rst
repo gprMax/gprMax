@@ -28,7 +28,7 @@ You can view the results (see :ref:`output` section and README.rst for the ``too
 
 .. code-block:: none
 
-    python -m tools.plot_antenna_params examples/antenna_wire_dipole_fs.h5
+    python -m toolboxes.Plotting.plot_antenna_params examples/antenna_wire_dipole_fs.h5
 
 .. _antenna_wire_dipole_fs_tl_params:
 
@@ -90,7 +90,7 @@ When the simulation is run two geometry files for the antenna are produced along
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan examples/antenna_like_MALA_1200_fs.h5 --outputs Ey
+    python -m toolboxes.Plotting.plot_Ascan examples/antenna_like_MALA_1200_fs.h5 --outputs Ey
 
 :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y-axis).
 
@@ -135,7 +135,7 @@ After merging the A-scans into a single file you can now view an image of the B-
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan examples/cylinder_Bscan_GSSI_1500_merged.h5 Ey
+    python -m toolboxes.Plotting.plot_Bscan examples/cylinder_Bscan_GSSI_1500_merged.h5 Ey
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 
