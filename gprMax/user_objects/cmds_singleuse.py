@@ -1,5 +1,6 @@
-# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
+#                          and Nathan Mannall
 #
 # This file is part of gprMax.
 #
@@ -15,6 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 import logging
 from typing import Optional, Tuple, Union
 

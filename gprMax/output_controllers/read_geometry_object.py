@@ -1,3 +1,22 @@
+# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
+#                          and Nathan Mannall
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 from contextlib import AbstractContextManager
 from os import PathLike
 from types import TracebackType
@@ -11,33 +30,6 @@ from mpi4py import MPI
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.output_controllers.grid_view import GridView, MPIGridView
-
-
-def create_read_geometry_object(
-    filename: PathLike,
-    grid: FDTDGrid,
-    start: npt.NDArray[np.int32],
-    num_existing_materials: int,
-):
-    if isinstance(grid, MPIGrid) and not grid.local_bounds_overlap_grid(start, stop):
-        # The MPIGridView created by the ReadGeometryObject will
-        # create a new communicator using MPI_Split. Calling this
-        # here prevents deadlock if not all ranks create the new
-        # ReadGeometryObject.
-        grid.comm.Split(MPI.UNDEFINED)
-        return None
-    else:
-        return ReadGeometryObject(
-            filename,
-            grid,
-            start[0],
-            start[1],
-            start[2],
-            stop[0],
-            stop[1],
-            stop[2],
-            num_existing_materials,
-        )
 
 
 class ReadGeometryObject(AbstractContextManager):
