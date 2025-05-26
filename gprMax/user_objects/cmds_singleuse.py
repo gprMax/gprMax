@@ -133,7 +133,7 @@ class Domain(ModelUserObject):
         logger.info(
             f"Domain size: {self.domain_size[0]:g} x {self.domain_size[1]:g} x "
             + f"{self.domain_size[2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
-            + f"{(model.nx * model.ny * model.nz):g} cells)"
+            + f"{(model.cells):g} cells)"
         )
 
         # Set mode and switch off appropriate PMLs for 2D models

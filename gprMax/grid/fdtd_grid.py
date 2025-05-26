@@ -776,7 +776,7 @@ class FDTDGrid:
         mem_use = 0
 
         for vol in self.fractalvolumes:
-            mem_use += vol.nx * vol.ny * vol.nz * vol.dtype.itemsize
+            mem_use += np.prod(vol.start) * vol.dtype.itemsize
             for surface in vol.fractalsurfaces:
                 surfacedims = surface.get_surface_dims()
                 mem_use += surfacedims[0] * surfacedims[1] * surface.dtype.itemsize
