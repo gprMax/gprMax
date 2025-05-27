@@ -28,7 +28,7 @@ import humanize
 import psutil
 
 from .. import config
-
+from .utilities import hip_check
 logger = logging.getLogger(__name__)
 
 
@@ -486,28 +486,22 @@ def detect_hip_gpus():
 
     hip_reqs = (
         "To use gprMax with HIP you must:"
-        "\n 1) install hipify"
-        "\n 2) install AMD ROCm (https://rocm.docs.amd.com/en/latest/Installation.html)"
-        "\n 3) have an AMD HIP-Enabled GPU (https://rocm.docs.amd.com/en/latest/Installation.html#supported-hardware)"
+        "\n 1) install AMD ROCm (https://rocm.docs.amd.com/en/latest/Installation.html)"
+        "\n 2) have an AMD HIP-Enabled GPU (https://rocm.docs.amd.com/en/latest/Installation.html#supported-hardware)"
+        "\n 3) install the hip python module (https://rocm.docs.amd.com/projects/hip-python/en/latest/index.html)"
     )
 
     if has_hip():
-        # import hip
-
-        # # Check and list any HIP-Enabled GPUs
-        # deviceIDsavail = []
-        # if hip.Device.count() == 0:
-        #     logger.warning("No AMD HIP-Enabled GPUs detected!\n" + hip_reqs)
-        # elif "HIP_VISIBLE_DEVICES" in os.environ:
-        #     deviceIDsavail = os.environ.get("HIP_VISIBLE_DEVICES")
-        #     deviceIDsavail = [int(s) for s in deviceIDsavail.split(",")]
-        # else:
-        #     deviceIDsavail = range(hip.Device.count())
-
-        # # Gather information about detected GPUs
-        # for ID in deviceIDsavail:
-            gpus[0] = gpu(0, "AMD GPU", 65536)  # Placeholder for actual device info
-
+        from hip import hip
+        props = hip.hipDeviceProp_t()
+        i = 0
+        while True:
+            try:
+                hip_check(hip.hipGetDeviceProperties(props, i))
+                gpus[i] = props
+                i += 1
+            except:
+                break
     else:
         logger.warning("hip not detected!\n" + hip_reqs)
 
@@ -656,14 +650,3 @@ def print_hip_info(devs):
             f"     |--->Device {ID}: {' '.join(dev.name.split())} | "
             f"{humanize.naturalsize(dev.total_memory(), True)}"
         )
-
-class gpu(object):
-    """Class to hold information about a GPU."""
-
-    def __init__(self, ID, name, total_memory):
-        self.ID = ID
-        self.name = name
-        self.total_memory = total_memory
-
-    def __str__(self):
-        return f"GPU {self.ID}: {self.name} | {humanize.naturalsize(self.total_memory, True)}"

@@ -501,7 +501,7 @@ class Model:
                 platformname = ""
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '
-                    f'{" ".join(config.get_model_config().device["dev"].name.split())}'
+                    f'{" ".join(config.get_model_config().device["dev"].name.decode().split())}'
                 )
             else:
                 solvername = "CUDA"

@@ -18,7 +18,7 @@ from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from gprMax.sources import htod_src_arrays
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
-from ..hip_code.load_hip_kernals import update_e_hip
+from ..hip_code.load_hip_kernals import HipManager
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +27,8 @@ class HIPUpdates(Updates[HIPGrid]):
 
     def __init__(self, G: HIPGrid):
         self.G = G
-    
+        self.hip_manager = HipManager(G)
+
     def store_outputs(self, iteration: int) -> None:
         """Stores field component values for every receiver and transmission line."""
         #print("store_outputs not implemented in HIPUpdates")
@@ -60,8 +61,8 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_electric_a(self) -> None:
         """Updates electric field components."""
-        update_e_hip(self.G)
-        print("update_electric_a on HIP")
+        self.hip_manager.update_e_hip()
+        # print("update_electric_a on HIP")
 
     
     def update_electric_pml(self) -> None:
