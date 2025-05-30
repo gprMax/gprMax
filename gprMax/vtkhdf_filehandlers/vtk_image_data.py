@@ -18,13 +18,13 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from os import PathLike
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
+from mpi4py.MPI import Intracomm
 
-from gprMax.vtkhdf_filehandlers.vtkhdf import VtkHdfFile
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkFileType, VtkHdfFile
 
 
 class VtkImageData(VtkHdfFile):
@@ -34,16 +34,14 @@ class VtkImageData(VtkHdfFile):
     https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#image-data
     """
 
+    TYPE = VtkFileType.IMAGE_DATA
+
     DIRECTION_ATTR = "Direction"
     ORIGIN_ATTR = "Origin"
     SPACING_ATTR = "Spacing"
     WHOLE_EXTENT_ATTR = "WholeExtent"
 
     DIMENSIONS = 3
-
-    @property
-    def TYPE(self) -> Literal["ImageData"]:
-        return "ImageData"
 
     def __init__(
         self,
@@ -52,8 +50,7 @@ class VtkImageData(VtkHdfFile):
         origin: Optional[npt.NDArray[np.float32]] = None,
         spacing: Optional[npt.NDArray[np.float32]] = None,
         direction: Optional[npt.NDArray[np.float32]] = None,
-        mode: str = "w",
-        comm: Optional[MPI.Comm] = None,
+        comm: Optional[Intracomm] = None,
     ):
         """Create a new VtkImageData file.
 
@@ -78,16 +75,10 @@ class VtkImageData(VtkHdfFile):
                 I.e. [[1, 0, 0], [0, 1, 0], [0, 0, 1]] and
                 [1, 0, 0, 0, 1, 0, 0, 0, 1] are equivalent. Default
                 [[1, 0, 0], [0, 1, 0], [0, 0, 1]].
-            mode (optional): Mode to open the file. Valid modes are
-                - r Readonly, file must exist
-                - r+ Read/write, file must exist
-                - w Create file, truncate if exists (default)
-                - w- or x Create file, fail if exists
-                - a Read/write if exists, create otherwise
             comm (optional): MPI communicator containing all ranks that
                 want to write to the file.
         """
-        super().__init__(filename, mode, comm)
+        super().__init__(filename, self.TYPE, "w", comm)
 
         if len(shape) == 0:
             raise ValueError(f"Shape must not be empty.")

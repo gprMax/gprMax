@@ -27,6 +27,7 @@ from gprMax.output_controllers.geometry_views import GeometryView, Metadata, MPI
 from gprMax.output_controllers.grid_view import GridType, MPIGridView
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkHdfFile
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,5 @@ class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
         # strings which currently cannot be written by HDF5 using
         # parallel I/O
         if self.grid_view.comm.rank == 0:
-            with VtkImageData(
-                self.filename, self.grid_view.global_size, self.origin, self.spacing, mode="r+"
-            ) as f:
+            with VtkHdfFile(self.filename, VtkImageData.TYPE, mode="r+") as f:
                 self.metadata.write_to_vtkhdf(f)

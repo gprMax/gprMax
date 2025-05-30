@@ -29,7 +29,7 @@ from gprMax.output_controllers.geometry_views import GeometryView, Metadata, MPI
 from gprMax.output_controllers.grid_view import GridType, MPIGridView
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
-from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkHdfFile
 
 logger = logging.getLogger(__name__)
 
@@ -131,18 +131,18 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
 
         ID = self.grid_view.get_ID()
 
-        x = np.arange(self.grid_view.gx + 1, dtype=np.float64)
-        y = np.arange(self.grid_view.gy + 1, dtype=np.float64)
-        z = np.arange(self.grid_view.gz + 1, dtype=np.float64)
+        x = np.arange(self.grid_view.nx + 1, dtype=np.float64)
+        y = np.arange(self.grid_view.ny + 1, dtype=np.float64)
+        z = np.arange(self.grid_view.nz + 1, dtype=np.float64)
         coords = np.meshgrid(x, y, z, indexing="ij")
         self.points = np.vstack(list(map(np.ravel, coords))).T
-        self.points += self.grid_view.global_start
+        self.points += self.grid_view.global_start + self.grid_view.offset
         self.points *= self.grid_view.step * self.grid.dl
 
         # Each point is the 'source' for 3 lines.
         # NB: Excluding points at the far edge of the geometry as those
         # are the 'source' for no lines
-        n_lines = 3 * np.prod(self.grid_view.global_size)
+        n_lines = 3 * np.prod(self.grid_view.size)
 
         self.cell_types = np.full(n_lines, VtkCellType.LINE)
         self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
@@ -182,18 +182,11 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
             self.cell_offsets,
             comm=self.grid_view.comm,
         ) as f:
-            f.add_cell_data("Material", self.material_data, self.grid_view.offset)
+            f.add_cell_data("Material", self.material_data)
 
         # Write metadata in serial as it contains variable length
         # strings which currently cannot be written by HDF5 using
         # parallel I/O
         if self.grid_view.comm.rank == 0:
-            with VtkUnstructuredGrid(
-                self.filename,
-                self.points,
-                self.cell_types,
-                self.connectivity,
-                self.cell_offsets,
-                mode="r+",
-            ) as f:
+            with VtkHdfFile(self.filename, VtkUnstructuredGrid.TYPE, mode="r+") as f:
                 self.metadata.write_to_vtkhdf(f)
