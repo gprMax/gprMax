@@ -74,7 +74,7 @@ The following steps provide guidance on how to install gprMax:
 3. Build and install gprMax
 
 1. Install Python, the required Python packages, and get the gprMax source
-------------------------------------------------------------------
+--------------------------------------------------------------------------
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
