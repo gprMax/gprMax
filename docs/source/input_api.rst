@@ -77,103 +77,103 @@ Creating a model scene
 
 Domain
 ------
-.. autoclass:: gprMax.cmds_singleuse.Domain
+.. autoclass:: gprMax.user_objects.cmds_singleuse.Domain
 
 Discretisation
 --------------
-.. autoclass:: gprMax.cmds_singleuse.Discretisation
+.. autoclass:: gprMax.user_objects.cmds_singleuse.Discretisation
 
 Time Window
 -----------
-.. autoclass:: gprMax.cmds_singleuse.TimeWindow
+.. autoclass:: gprMax.user_objects.cmds_singleuse.TimeWindow
 
 General functions
 =================
 
 Title
 -----
-.. autoclass:: gprMax.cmds_singleuse.Title
+.. autoclass:: gprMax.user_objects.cmds_singleuse.Title
 
 Number of OpenMP threads
 ------------------------
-.. autoclass:: gprMax.cmds_singleuse.OMPThreads
+.. autoclass:: gprMax.user_objects.cmds_singleuse.OMPThreads
 
 Time Step Stability Factor
 --------------------------
-.. autoclass:: gprMax.cmds_singleuse.TimeStepStabilityFactor
+.. autoclass:: gprMax.user_objects.cmds_singleuse.TimeStepStabilityFactor
 
 Output Directory
 ----------------
-.. autoclass:: gprMax.cmds_singleuse.OutputDir
+.. autoclass:: gprMax.user_objects.cmds_singleuse.OutputDir
 
 Material functions
 ==================
 
 Material
 --------
-.. autoclass:: gprMax.cmds_multiuse.Material
+.. autoclass:: gprMax.user_objects.cmds_multiuse.Material
 
 Debye Dispersion
 ----------------
-.. autoclass:: gprMax.cmds_multiuse.AddDebyeDispersion
+.. autoclass:: gprMax.user_objects.cmds_multiuse.AddDebyeDispersion
 
 Lorentz Dispersion
 ------------------
-.. autoclass:: gprMax.cmds_multiuse.AddLorentzDispersion
+.. autoclass:: gprMax.user_objects.cmds_multiuse.AddLorentzDispersion
 
 Drude Dispersion
 ----------------
-.. autoclass:: gprMax.cmds_multiuse.AddDrudeDispersion
+.. autoclass:: gprMax.user_objects.cmds_multiuse.AddDrudeDispersion
 
 Soil Peplinski
 --------------
-.. autoclass:: gprMax.cmds_multiuse.SoilPeplinski
+.. autoclass:: gprMax.user_objects.cmds_multiuse.SoilPeplinski
 
 
 Object construction functions
 =============================
 
-Object construction commands are processed in the order they appear in the scene. Therefore space in the model allocated to a specific material using for example the :class:`gprMax.cmds_geometry.box.Box` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
+Object construction commands are processed in the order they appear in the scene. Therefore space in the model allocated to a specific material using for example the :class:`gprMax.user_objects.cmds_geometry.box.Box` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
 
 Box
 ---
-.. autoclass:: gprMax.cmds_geometry.box.Box
+.. autoclass:: gprMax.user_objects.cmds_geometry.box.Box
 
 Cone
 ----
-.. autoclass:: gprMax.cmds_geometry.cone.Cone
+.. autoclass:: gprMax.user_objects.cmds_geometry.cone.Cone
 
 Cylinder
 --------
-.. autoclass:: gprMax.cmds_geometry.cylinder.Cylinder
+.. autoclass:: gprMax.user_objects.cmds_geometry.cylinder.Cylinder
 
 Cylindrical Sector
 ------------------
-.. autoclass:: gprMax.cmds_geometry.cylindrical_sector.CylindricalSector
+.. autoclass:: gprMax.user_objects.cmds_geometry.cylindrical_sector.CylindricalSector
 
 Edge
 ----
-.. autoclass:: gprMax.cmds_geometry.edge.Edge
+.. autoclass:: gprMax.user_objects.cmds_geometry.edge.Edge
 
 Ellipsoid
 ---------
-.. autoclass:: gprMax.cmds_geometry.ellipsoid.Ellipsoid
+.. autoclass:: gprMax.user_objects.cmds_geometry.ellipsoid.Ellipsoid
 
 Plate
 -----
-.. autoclass:: gprMax.cmds_geometry.plate.Plate
+.. autoclass:: gprMax.user_objects.cmds_geometry.plate.Plate
 
 Sphere
 ------
-.. autoclass:: gprMax.cmds_geometry.sphere.Sphere
+.. autoclass:: gprMax.user_objects.cmds_geometry.sphere.Sphere
 
 Triangle
 --------
-.. autoclass:: gprMax.cmds_geometry.triangle.Triangle
+.. autoclass:: gprMax.user_objects.cmds_geometry.triangle.Triangle
 
 Fractal Box
 -----------
-.. autoclass:: gprMax.cmds_geometry.fractal_box.FractalBox
+.. autoclass:: gprMax.user_objects.cmds_geometry.fractal_box.FractalBox
 
 .. note::
 
@@ -181,74 +181,74 @@ Fractal Box
 
 Add Grass
 ---------
-.. autoclass:: gprMax.cmds_geometry.add_grass.AddGrass
+.. autoclass:: gprMax.user_objects.cmds_geometry.add_grass.AddGrass
 
 Add Surface Roughness
 ---------------------
-.. autoclass:: gprMax.cmds_geometry.add_surface_roughness.AddSurfaceRoughness
+.. autoclass:: gprMax.user_objects.cmds_geometry.add_surface_roughness.AddSurfaceRoughness
 
 Add Surface Water
 -----------------
-.. autoclass:: gprMax.cmds_geometry.add_surface_water.AddSurfaceWater
+.. autoclass:: gprMax.user_objects.cmds_geometry.add_surface_water.AddSurfaceWater
 
 Geometry View
 -------------
-.. autoclass:: gprMax.cmds_multiuse.GeometryView
+.. autoclass:: gprMax.user_objects.cmds_multiuse.GeometryView
 
 Geometry Objects Write
 ----------------------
-.. autoclass:: gprMax.cmds_multiuse.GeometryObjectsWrite
+.. autoclass:: gprMax.user_objects.cmds_multiuse.GeometryObjectsWrite
 
 Source and output functions
 ===========================
 
 Waveform
 --------
-.. autoclass:: gprMax.cmds_multiuse.Waveform
+.. autoclass:: gprMax.user_objects.cmds_multiuse.Waveform
 
 Voltage Source
 --------------
-.. autoclass:: gprMax.cmds_multiuse.VoltageSource
+.. autoclass:: gprMax.user_objects.cmds_multiuse.VoltageSource
 
 Hertzian Dipole Source
 ----------------------
-.. autoclass:: gprMax.cmds_multiuse.HertzianDipole
+.. autoclass:: gprMax.user_objects.cmds_multiuse.HertzianDipole
 
 Magnetic Dipole Source
 ----------------------
-.. autoclass:: gprMax.cmds_multiuse.MagneticDipole
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MagneticDipole
 
 Transmission Line
 -----------------
-.. autoclass:: gprMax.cmds_multiuse.TransmissionLine
+.. autoclass:: gprMax.user_objects.cmds_multiuse.TransmissionLine
 
 Discrete Plane Wave
 -------------------
-.. autoclass:: gprMax.cmds_multiuse.DiscretePlaneWave
+.. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWave
 
 Excitation File
 ---------------
-.. autoclass:: gprMax.cmds_multiuse.ExcitationFile
+.. autoclass:: gprMax.user_objects.cmds_multiuse.ExcitationFile
 
 Receiver
 --------
-.. autoclass:: gprMax.cmds_multiuse.Rx
+.. autoclass:: gprMax.user_objects.cmds_multiuse.Rx
 
 Receiver Array
 --------------
-.. autoclass:: gprMax.cmds_multiuse.RxArray
+.. autoclass:: gprMax.user_objects.cmds_multiuse.RxArray
 
 Source Steps
 ------------
-.. autoclass:: gprMax.cmds_singleuse.SrcSteps
+.. autoclass:: gprMax.user_objects.cmds_singleuse.SrcSteps
 
 Receiver Steps
 --------------
-.. autoclass:: gprMax.cmds_singleuse.RxSteps
+.. autoclass:: gprMax.user_objects.cmds_singleuse.RxSteps
 
 Snapshot
 --------
-.. autoclass:: gprMax.cmds_multiuse.Snapshot
+.. autoclass:: gprMax.user_objects.cmds_multiuse.Snapshot
 
 Subgrid
 -------
@@ -264,13 +264,13 @@ The default behaviour for the absorbing boundary conditions (ABC) is first order
 
 PML properties
 --------------
-.. autoclass:: gprMax.cmds_singleuse.PMLProps
+.. autoclass:: gprMax.user_objects.cmds_singleuse.PMLProps
 
 PML CFS
 -------
 Allows you control of the specific parameters that are used to build each order of the PML. Up to a second order PML can currently be specified, i.e. by using two ``PMLCFS`` commands.
 
-.. autoclass:: gprMax.cmds_multiuse.PMLCFS
+.. autoclass:: gprMax.user_objects.cmds_multiuse.PMLCFS
 
 The CFS values (which are internally specified) used for the default standard first order PML are:
 * ``alphascalingprofile = 'constant'``
