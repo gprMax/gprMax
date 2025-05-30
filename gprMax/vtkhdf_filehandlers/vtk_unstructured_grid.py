@@ -252,7 +252,7 @@ class VtkUnstructuredGrid(VtkHdfFile):
 
         shape[0] = self.global_number_of_points
 
-        return super().add_point_data(name, data, shape, self.points_offset)
+        return super()._add_point_data(name, data, shape, self.points_offset)
 
     def add_cell_data(self, name: str, data: npt.NDArray):
         """Add cell data to the VTKHDF file.
@@ -280,4 +280,4 @@ class VtkUnstructuredGrid(VtkHdfFile):
 
         shape[0] = self.global_number_of_cells
 
-        return super().add_cell_data(name, data, shape, self.cells_offset)
+        return super()._add_cell_data(name, data, shape, self.cells_offset)

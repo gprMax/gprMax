@@ -482,7 +482,7 @@ class VtkHdfFile(AbstractContextManager):
 
         self.file_handler.create_dataset(path, shape=shape, dtype=dtype)
 
-    def add_point_data(
+    def _add_point_data(
         self,
         name: str,
         data: npt.NDArray,
@@ -502,7 +502,7 @@ class VtkHdfFile(AbstractContextManager):
         dataset_path = self._build_dataset_path("PointData", name)
         self._write_dataset(dataset_path, data, shape=shape, offset=offset)
 
-    def add_cell_data(
+    def _add_cell_data(
         self,
         name: str,
         data: npt.NDArray,

@@ -177,7 +177,7 @@ class VtkImageData(VtkHdfFile):
                 "If no offset is specified, data.shape must be one larger in each dimension than"
                 f" this vtkImageData object. {data.shape} != {points_shape}"
             )
-        return super().add_point_data(name, data, points_shape, offset)
+        return super()._add_point_data(name, data, points_shape, offset)
 
     def add_cell_data(
         self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
@@ -198,4 +198,4 @@ class VtkImageData(VtkHdfFile):
                 "If no offset is specified, data.shape must match the dimensions of this"
                 f" VtkImageData object. {data.shape} != {self.shape}"
             )
-        return super().add_cell_data(name, data, self.shape, offset)
+        return super()._add_cell_data(name, data, self.shape, offset)
