@@ -14,7 +14,7 @@ build:
       - python -m pip install sphinx_rtd_theme
 
 conda:
-  environment: conda_env.yml
+  environment: conda_env_no_mpi.yml
 
 python:
   install:
