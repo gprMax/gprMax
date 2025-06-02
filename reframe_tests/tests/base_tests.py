@@ -248,6 +248,20 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
             # Set the matplotlib cache to the work filesystem
             self.env_vars["MPLCONFIGDIR"] = "${HOME/home/work}/.config/matplotlib"
 
+    def build_output_file_path(self, filename: str) -> Path:
+        """Build output file Path object from filename.
+
+        Using a function to build this allows mixins to reuse or
+        override it if needed.
+
+        Args:
+            filename: Name of output file with no file extension.
+
+        Returns:
+            Path: Output file Path object
+        """
+        return Path(f"{filename}.h5")
+
     @run_after("init")
     def set_file_paths(self):
         """Set default test input and output files.
@@ -256,7 +270,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         later in the pipeline.
         """
         self.input_file = Path(f"{self.model}.in")
-        self.output_file = Path(f"{self.model}.h5")
+        self.output_file = self.build_output_file_path(self.model)
 
     @run_before("run")
     def configure_test_run(self):
