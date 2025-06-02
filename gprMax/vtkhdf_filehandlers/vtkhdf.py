@@ -29,9 +29,14 @@ from typing import Optional, Tuple, Union
 import h5py
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
+from mpi4py.MPI import Intracomm
 
 logger = logging.getLogger(__name__)
+
+
+class VtkFileType(str, Enum):
+    IMAGE_DATA = "ImageData"
+    UNSTRUCTURED_GRID = "UnstructuredGrid"
 
 
 class VtkHdfFile(AbstractContextManager):
@@ -48,19 +53,15 @@ class VtkHdfFile(AbstractContextManager):
     class Dataset(str, Enum):
         pass
 
-    @property
-    @abstractmethod
-    def TYPE(self) -> str:
-        pass
-
     def __enter__(self):
         return self
 
     def __init__(
         self,
         filename: Union[str, PathLike],
-        mode: str = "w",
-        comm: Optional[MPI.Comm] = None,
+        vtk_file_type: VtkFileType,
+        mode: str = "r",
+        comm: Optional[Intracomm] = None,
     ) -> None:
         """Create a new VtkHdfFile.
 
@@ -74,9 +75,9 @@ class VtkHdfFile(AbstractContextManager):
             filename: Name of the file (can be a file path). The file
                 extension will be set to '.vtkhdf'.
             mode (optional): Mode to open the file. Valid modes are
-                - r Readonly, file must exist
+                - r Readonly, file must exist (default)
                 - r+ Read/write, file must exist
-                - w Create file, truncate if exists (default)
+                - w Create file, truncate if exists
                 - w- or x Create file, fail if exists
                 - a Read/write if exists, create otherwise
             comm (optional): MPI communicator containing all ranks that
@@ -100,14 +101,16 @@ class VtkHdfFile(AbstractContextManager):
         else:
             self.file_handler = h5py.File(self.filename, mode, driver="mpio", comm=self.comm)
 
+        logger.debug(f"Opened file '{self.filename}'")
+
         self.root_group = self.file_handler.require_group(self.ROOT_GROUP)
 
         # Set required Version and Type root attributes
-        self._set_root_attribute(self.VERSION_ATTR, self.VERSION)
+        self._check_root_attribute(self.VERSION_ATTR, self.VERSION)
 
-        type_as_ascii = self.TYPE.encode("ascii")
-        self._set_root_attribute(
-            self.TYPE_ATTR, type_as_ascii, h5py.string_dtype("ascii", len(type_as_ascii))
+        type_as_ascii = vtk_file_type.encode("ascii")
+        self._check_root_attribute(
+            self.TYPE_ATTR, type_as_ascii, dtype=h5py.string_dtype("ascii", len(type_as_ascii))
         )
 
     def __exit__(
@@ -135,6 +138,55 @@ class VtkHdfFile(AbstractContextManager):
         """Close the file handler"""
         self.file_handler.close()
 
+    def _check_root_attribute(
+        self,
+        attribute: str,
+        expected_value: npt.ArrayLike,
+        dtype: npt.DTypeLike = None,
+    ):
+        """Check root attribute is present and warn if not valid.
+
+        If the attribute exists in the file that has been opened, the
+        value will be checked against the expected value with a warning
+        produced if they differ. If the attribute has not been set, it
+        will be set to the expected value unless the file has been
+        opened in readonly mode.
+
+        Args:
+            attribute: Name of the attribute.
+            expected_value: Expected value of the attribute.
+            dtype (optional): Data type of the attribute. Overrides
+                expected_value.dtype if the attribute is set by
+                this function.
+
+        Returns:
+            value: True if the attribute is present in the root VTKHDF
+                group. False otherwise.
+        """
+        if self._has_root_attribute(attribute):
+            value = self._get_root_attribute(attribute)
+            if np.any(value != expected_value):
+                logger.warning(
+                    f"VTKHDF version mismatch. Expected '{expected_value}', but found '{value}'."
+                )
+        elif self.file_handler.mode == "r+":
+            self._set_root_attribute(attribute, expected_value, dtype=dtype)
+        else:
+            logger.warning(f"Required VTKHDF attribute '{attribute}' not found.")
+
+    def _has_root_attribute(self, attribute: str) -> bool:
+        """Check if attribute is present in the root VTKHDF group.
+
+        Args:
+            attribute: Name of the attribute.
+
+        Returns:
+            value: True if the attribute is present in the root VTKHDF
+                group. False otherwise.
+        """
+        value = self.root_group.attrs.get(attribute)
+        return value is not None
+
     def _get_root_attribute(self, attribute: str) -> npt.NDArray:
         """Get attribute from the root VTKHDF group if it exists.
 
@@ -147,8 +199,8 @@ class VtkHdfFile(AbstractContextManager):
         Raises:
             KeyError: Raised if the attribute is not present as a key.
         """
-        value = self.root_group.attrs[attribute]
-        if isinstance(value, h5py.Empty):
+        value = self.root_group.attrs.get(attribute)
+        if value is None:
             raise KeyError(f"Attribute '{attribute}' not present in /{self.ROOT_GROUP} group")
         return value
 
@@ -329,11 +381,11 @@ class VtkHdfFile(AbstractContextManager):
         if xyz_data_ordering:
             data = data.transpose()
 
-        if shape is not None:
-            shape = np.flip(shape)
+            if shape is not None:
+                shape = np.flip(shape)
 
-        if offset is not None:
-            offset = np.flip(offset)
+            if offset is not None:
+                offset = np.flip(offset)
 
         logger.debug(
             f"Writing dataset '{path}', shape: {shape}, data.shape: {data.shape}, dtype: {dtype}"
@@ -430,7 +482,7 @@ class VtkHdfFile(AbstractContextManager):
 
         self.file_handler.create_dataset(path, shape=shape, dtype=dtype)
 
-    def add_point_data(
+    def _add_point_data(
         self,
         name: str,
         data: npt.NDArray,
@@ -450,7 +502,7 @@ class VtkHdfFile(AbstractContextManager):
         dataset_path = self._build_dataset_path("PointData", name)
         self._write_dataset(dataset_path, data, shape=shape, offset=offset)
 
-    def add_cell_data(
+    def _add_cell_data(
         self,
         name: str,
         data: npt.NDArray,
