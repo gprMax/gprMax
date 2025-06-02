@@ -143,7 +143,7 @@ class FractalSurface:
 
         return surfacedims
 
-    def generate_fractal_surface(self):
+    def generate_fractal_surface(self) -> bool:
         """Generate a 2D array with a fractal distribution."""
 
         surfacedims = self.get_surface_dims()
@@ -199,6 +199,8 @@ class FractalSurface:
             - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
         )
 
+        return True
+
 
 class MPIFractalSurface(FractalSurface):
     def __init__(
@@ -218,7 +220,7 @@ class MPIFractalSurface(FractalSurface):
         self.comm = comm
         self.upper_bound = upper_bound
 
-    def generate_fractal_surface(self):
+    def generate_fractal_surface(self) -> bool:
         """Generate a 2D array with a fractal distribution."""
 
         if self.xs == self.xf:
@@ -247,7 +249,7 @@ class MPIFractalSurface(FractalSurface):
             self.start = np.minimum(self.start, self.upper_bound)
             self.stop = np.maximum(self.stop, 0)
             self.stop = np.minimum(self.stop, self.upper_bound)
-            return
+            return False
         else:
             # Create new cartsesian communicator for the Fractal Surface
             comm = self.comm.Split(color=color)
@@ -262,8 +264,17 @@ class MPIFractalSurface(FractalSurface):
         # Check domain decomosition is valid for the Fractal Volume
         if all([dim > 1 for dim in self.comm.dims]):
             raise ValueError(
-                "Fractal surface must be positioned such that its MPI decomposition is 1 in at least"
-                f" 1 dimension. Current decompostion is: {self.comm.dims}"
+                "Fractal surface must be positioned such that its MPI decomposition is 1 in at"
+                f" least 1 dimension. Current decompostion is: {self.comm.dims}"
+            )
+
+        # Check domain decomosition is valid for the Fractal Volume
+        if len(self.grass) > 0 and self.comm.size > 1:
+            raise ValueError(
+                "Grass cannot currently be split across multiple MPI rank. Either change the MPI "
+                " decomposition such that the grass object is contained within a single MPI rank,"
+                " or divide the grass object into multiple sections. Current decompostion is:"
+                f" {self.comm.dims}"
             )
 
         surfacedims = self.get_surface_dims()
@@ -445,3 +456,5 @@ class MPIFractalSurface(FractalSurface):
         logger.debug(
             f"Generated fractal surface: start={self.start}, stop={self.stop}, size={self.size}, fractalrange={self.fractalrange}"
         )
+
+        return True

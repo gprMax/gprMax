@@ -168,7 +168,8 @@ class TestTriangleGeometry(GprMaxRegressionTest):
 @rfm.simple_test
 class TestAddGrassMpi(MpiMixin, TestAddGrass):
     tags = {"test", "mpi", "geometery", "fractal", "surface", "grass"}
-    mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
+    mpi_layout = parameter([[2, 2, 2]])
+    model = parameter(["add_grass_small"])
     test_dependency = TestAddGrass
 
 

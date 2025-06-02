@@ -116,27 +116,23 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal dimension"
             )
-            raise ValueError
         if weighting[0] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the x direction"
             )
-            raise ValueError
         if weighting[1] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the y direction"
             )
-            raise ValueError
         if weighting[2] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the z direction"
             )
         if n_materials < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the number of bins")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} requires a positive value for the number of bins")
 
         # Find materials to use to build fractal volume, either from mixing
         # models or normal materials.
@@ -146,26 +142,23 @@ class FractalBox(RotatableMixin, GeometryUserObject):
 
         if mixingmodel:
             if nbins == 1:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} must be used with more than one material from the mixing model."
                 )
-                raise ValueError
             if isinstance(mixingmodel, ListMaterial) and nbins > len(mixingmodel.mat):
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} too many materials/bins "
                     "requested compared to materials in "
                     "mixing model."
                 )
-                raise ValueError
             # Create materials from mixing model as number of bins now known
             # from fractal_box command.
             mixingmodel.calculate_properties(nbins, grid)
         elif not material:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} mixing model or material with "
                 + "ID {mixing_model_id} does not exist"
             )
-            raise ValueError
 
         self.volume = grid.add_fractal_volume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.volume.ID = ID
@@ -685,12 +678,11 @@ class FractalBox(RotatableMixin, GeometryUserObject):
 
             else:
                 if self.volume.nbins == 1:
-                    logger.exception(
+                    raise ValueError(
                         f"{self.__str__()} is being used with a "
                         "single material and no modifications, "
                         "therefore please use a #box command instead."
                     )
-                    raise ValueError
                 else:
                     if not self.volume.generate_fractal_volume():
                         return

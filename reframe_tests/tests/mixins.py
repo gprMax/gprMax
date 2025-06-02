@@ -35,7 +35,8 @@ class ReceiverMixin(GprMaxMixin):
     def add_receiver_regression_checks(self):
         test_dependency = self.get_test_dependency()
         if test_dependency is not None:
-            reference_file = self.build_reference_filepath(test_dependency.output_file)
+            output_file = self.build_output_file_path(test_dependency.model)
+            reference_file = self.build_reference_filepath(output_file)
         else:
             reference_file = self.build_reference_filepath(self.output_file)
 

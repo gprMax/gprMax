@@ -173,14 +173,22 @@ class AddGrass(RotatableMixin, GeometryUserObject):
         else:
             raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
 
-        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        surface = grid.create_fractal_surface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.ID = "grass"
         surface.surfaceID = requestedsurface
+
+        # Create grass geometry parameters
+        # Add grass to the surface here as an MPIFractalSurface needs to
+        # know if grass is present when generate_fractal_surface() is
+        # called
+        g = Grass(n_blades, surface.seed)
+        surface.grass.append(g)
 
         # Set the fractal range to scale the fractal distribution between zero and one
         surface.fractalrange = (0, 1)
         surface.operatingonID = volume.ID
-        surface.generate_fractal_surface()
+        if not surface.generate_fractal_surface():
+            return
         if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
             raise ValueError(
                 f"{self.__str__()} the specified surface is not large "
@@ -219,10 +227,6 @@ class AddGrass(RotatableMixin, GeometryUserObject):
             surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(
                 surface.fractalrange[0], surface.fractalrange[1], size=1
             )
-
-        # Create grass geometry parameters
-        g = Grass(n_blades, surface.seed)
-        surface.grass.append(g)
 
         # Check to see if grass has been already defined as a material
         if not any(x.ID == "grass" for x in grid.materials):
