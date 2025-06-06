@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -30,8 +30,8 @@ from mpi4py import MPI
 from tqdm import tqdm
 
 import gprMax.config as config
+from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.grid_view import GridType, GridView, MPIGridView
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields

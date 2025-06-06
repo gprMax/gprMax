@@ -303,18 +303,6 @@ class GeometryView(OutputUserObject):
         self.filename = filename
         self.output_type = output_type
 
-    def geometry_view_constructor(self, output_type):
-        """Selects appropriate class for geometry view dependent on geometry
-        view type, i.e. normal or fine.
-        """
-
-        if output_type == "n":
-            from gprMax.geometry_outputs import GeometryViewVoxels as GeometryViewUser
-        else:
-            from gprMax.geometry_outputs import GeometryViewLines as GeometryViewUser
-
-        return GeometryViewUser
-
     def build(self, model: Model, grid: FDTDGrid):
         uip = self._create_uip(grid)
         discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(

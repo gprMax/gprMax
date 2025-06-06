@@ -27,9 +27,9 @@ import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
 
+from gprMax.geometry_outputs.grid_view import GridView, MPIGridView
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.grid_view import GridView, MPIGridView
 
 
 class ReadGeometryObject(AbstractContextManager):

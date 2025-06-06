@@ -28,10 +28,10 @@ from tqdm import tqdm
 
 from gprMax import config
 from gprMax._version import __version__
+from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import Material
-from gprMax.output_controllers.grid_view import GridType, GridView, MPIGridView
 
 
 class GeometryObject(Generic[GridType]):

@@ -31,8 +31,8 @@ from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax._version import __version__
+from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.grid_view import GridType, GridView, MPIGridView
 from gprMax.receivers import Rx
 from gprMax.sources import Source
 from gprMax.utilities.utilities import get_terminal_width

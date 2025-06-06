@@ -24,9 +24,9 @@ import h5py
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array
+from gprMax.geometry_outputs.geometry_objects_read import ReadGeometryObject
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.hash_cmds_file import get_user_objects
-from gprMax.output_controllers.read_geometry_object import ReadGeometryObject
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)

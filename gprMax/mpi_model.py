@@ -7,11 +7,11 @@ from mpi4py import MPI
 
 from gprMax import config
 from gprMax.fields_outputs import write_hdf5_outputfile
+from gprMax.geometry_outputs.geometry_objects import MPIGeometryObject
+from gprMax.geometry_outputs.geometry_view_lines import MPIGeometryViewLines
+from gprMax.geometry_outputs.geometry_view_voxels import MPIGeometryViewVoxels
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
-from gprMax.output_controllers.geometry_objects import MPIGeometryObject
-from gprMax.output_controllers.geometry_view_lines import MPIGeometryViewLines
-from gprMax.output_controllers.geometry_view_voxels import MPIGeometryViewVoxels
 from gprMax.snapshots import MPISnapshot, Snapshot, save_snapshots
 
 logger = logging.getLogger(__name__)

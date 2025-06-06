@@ -22,9 +22,9 @@ import logging
 import numpy as np
 
 from gprMax._version import __version__
+from gprMax.geometry_outputs.geometry_views import GeometryView, Metadata, MPIMetadata
+from gprMax.geometry_outputs.grid_view import GridType, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.geometry_views import GeometryView, Metadata, MPIMetadata
-from gprMax.output_controllers.grid_view import GridType, MPIGridView
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkHdfFile

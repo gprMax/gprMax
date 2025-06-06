@@ -27,12 +27,12 @@ import numpy.typing as npt
 import psutil
 from colorama import Fore, Style, init
 
+from gprMax.geometry_outputs.geometry_objects import GeometryObject
+from gprMax.geometry_outputs.geometry_view_lines import GeometryViewLines
+from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels
+from gprMax.geometry_outputs.geometry_views import GeometryView, save_geometry_views
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
-from gprMax.output_controllers.geometry_objects import GeometryObject
-from gprMax.output_controllers.geometry_view_lines import GeometryViewLines
-from gprMax.output_controllers.geometry_view_voxels import GeometryViewVoxels
-from gprMax.output_controllers.geometry_views import GeometryView, save_geometry_views
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
