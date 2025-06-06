@@ -19,7 +19,6 @@
 
 import itertools
 import logging
-from enum import IntEnum, unique
 from typing import List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -35,23 +34,11 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
 from gprMax.sources import Source
+from gprMax.utilities.mpi import Dim, Dir
 
 logger = logging.getLogger(__name__)
 
 CoordType = TypeVar("CoordType", bound=Union[Rx, Source])
-
-
-@unique
-class Dim(IntEnum):
-    X = 0
-    Y = 1
-    Z = 2
-
-
-@unique
-class Dir(IntEnum):
-    NEG = 0
-    POS = 1
 
 
 class MPIGrid(FDTDGrid):
