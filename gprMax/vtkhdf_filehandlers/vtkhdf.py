@@ -136,6 +136,7 @@ class VtkHdfFile(AbstractContextManager):
 
     def close(self) -> None:
         """Close the file handler"""
+        logger.debug(f"Closed file '{self.filename}'")
         self.file_handler.close()
 
     def _check_root_attribute(
