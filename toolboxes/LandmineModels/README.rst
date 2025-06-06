@@ -74,7 +74,7 @@ The input file for inserting the PMN landmine, with the lower left corner 10mm f
     #geometry_objects_read: 0.010 0.010 0.010 ../toolboxes/LandmineModels/PMN_1x1x1.h5 ../toolboxes/LandmineModels/PMN_materials.txt
     #geometry_view: 0 0 0 0.136 0.176 0.070 0.001 0.001 0.001 landmine_PMN_fs n
 
-For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
+For further information on the ``#geometry_objects_read`` command see the section on :ref:`object contruction commands<object-construction-commands>`.
 
 .. figure:: ../../images_shared/PMA.png
     :width: 600 px
