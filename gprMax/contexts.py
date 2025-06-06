@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -187,7 +187,11 @@ class MPIContext(Context):
 
     def run(self) -> Dict:
         try:
-            return super().run()
+            result = super().run()
+            logger.debug("Waiting for all ranks to finish.")
+            self.comm.Barrier()
+            logger.debug("Completed.")
+            return result
         except:
             logger.exception(f"Rank {self.rank} encountered an error. Aborting...")
             self.comm.Abort()
