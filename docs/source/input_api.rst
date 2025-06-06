@@ -69,65 +69,67 @@ The essential functions are:
 
 Running model(s)
 ----------------
-.. autofunction:: gprMax.gprMax.run
+.. autofunction:: gprMax.run
 
 Creating a model scene
 ----------------------
-.. autoclass:: gprMax.scene.Scene
+.. autoclass:: gprMax.Scene
+    :members: add
 
 Domain
 ------
-.. autoclass:: gprMax.cmds_singleuse.Domain
+.. autoclass:: gprMax.Domain
+    :members: __init__
 
 Discretisation
 --------------
-.. autoclass:: gprMax.cmds_singleuse.Discretisation
+.. autoclass:: gprMax.Discretisation
 
 Time Window
 -----------
-.. autoclass:: gprMax.cmds_singleuse.TimeWindow
+.. autoclass:: gprMax.TimeWindow
 
 General functions
 =================
 
 Title
 -----
-.. autoclass:: gprMax.cmds_singleuse.Title
+.. autoclass:: gprMax.Title
 
 Number of OpenMP threads
 ------------------------
-.. autoclass:: gprMax.cmds_singleuse.OMPThreads
+.. autoclass:: gprMax.OMPThreads
 
 Time Step Stability Factor
 --------------------------
-.. autoclass:: gprMax.cmds_singleuse.TimeStepStabilityFactor
+.. autoclass:: gprMax.TimeStepStabilityFactor
 
 Output Directory
 ----------------
-.. autoclass:: gprMax.cmds_singleuse.OutputDir
+.. autoclass:: gprMax.OutputDir
 
 Material functions
 ==================
 
 Material
 --------
-.. autoclass:: gprMax.cmds_multiuse.Material
+.. autoclass:: gprMax.Material
 
 Debye Dispersion
 ----------------
-.. autoclass:: gprMax.cmds_multiuse.AddDebyeDispersion
+.. autoclass:: gprMax.AddDebyeDispersion
 
 Lorentz Dispersion
 ------------------
-.. autoclass:: gprMax.cmds_multiuse.AddLorentzDispersion
+.. autoclass:: gprMax.AddLorentzDispersion
 
 Drude Dispersion
 ----------------
-.. autoclass:: gprMax.cmds_multiuse.AddDrudeDispersion
+.. autoclass:: gprMax.AddDrudeDispersion
 
 Soil Peplinski
 --------------
-.. autoclass:: gprMax.cmds_multiuse.SoilPeplinski
+.. autoclass:: gprMax.SoilPeplinski
 
 
 Object construction functions
@@ -137,43 +139,43 @@ Object construction commands are processed in the order they appear in the scene
 
 Box
 ---
-.. autoclass:: gprMax.cmds_geometry.box.Box
+.. autoclass:: gprMax.Box
 
 Cone
 ----
-.. autoclass:: gprMax.cmds_geometry.cone.Cone
+.. autoclass:: gprMax.Cone
 
 Cylinder
 --------
-.. autoclass:: gprMax.cmds_geometry.cylinder.Cylinder
+.. autoclass:: gprMax.Cylinder
 
 Cylindrical Sector
 ------------------
-.. autoclass:: gprMax.cmds_geometry.cylindrical_sector.CylindricalSector
+.. autoclass:: gprMax.CylindricalSector
 
 Edge
 ----
-.. autoclass:: gprMax.cmds_geometry.edge.Edge
+.. autoclass:: gprMax.Edge
 
 Ellipsoid
 ---------
-.. autoclass:: gprMax.cmds_geometry.ellipsoid.Ellipsoid
+.. autoclass:: gprMax.Ellipsoid
 
 Plate
 -----
-.. autoclass:: gprMax.cmds_geometry.plate.Plate
+.. autoclass:: gprMax.Plate
 
 Sphere
 ------
-.. autoclass:: gprMax.cmds_geometry.sphere.Sphere
+.. autoclass:: gprMax.Sphere
 
 Triangle
 --------
-.. autoclass:: gprMax.cmds_geometry.triangle.Triangle
+.. autoclass:: gprMax.Triangle
 
 Fractal Box
 -----------
-.. autoclass:: gprMax.cmds_geometry.fractal_box.FractalBox
+.. autoclass:: gprMax.FractalBox
 
 .. note::
 
@@ -181,78 +183,78 @@ Fractal Box
 
 Add Grass
 ---------
-.. autoclass:: gprMax.cmds_geometry.add_grass.AddGrass
+.. autoclass:: gprMax.AddGrass
 
 Add Surface Roughness
 ---------------------
-.. autoclass:: gprMax.cmds_geometry.add_surface_roughness.AddSurfaceRoughness
+.. autoclass:: gprMax.AddSurfaceRoughness
 
 Add Surface Water
 -----------------
-.. autoclass:: gprMax.cmds_geometry.add_surface_water.AddSurfaceWater
+.. autoclass:: gprMax.AddSurfaceWater
 
 Geometry View
 -------------
-.. autoclass:: gprMax.cmds_multiuse.GeometryView
+.. autoclass:: gprMax.GeometryView
 
 Geometry Objects Write
 ----------------------
-.. autoclass:: gprMax.cmds_multiuse.GeometryObjectsWrite
+.. autoclass:: gprMax.GeometryObjectsWrite
 
 Source and output functions
 ===========================
 
 Waveform
 --------
-.. autoclass:: gprMax.cmds_multiuse.Waveform
+.. autoclass:: gprMax.Waveform
 
 Voltage Source
 --------------
-.. autoclass:: gprMax.cmds_multiuse.VoltageSource
+.. autoclass:: gprMax.VoltageSource
 
 Hertzian Dipole Source
 ----------------------
-.. autoclass:: gprMax.cmds_multiuse.HertzianDipole
+.. autoclass:: gprMax.HertzianDipole
 
 Magnetic Dipole Source
 ----------------------
-.. autoclass:: gprMax.cmds_multiuse.MagneticDipole
+.. autoclass:: gprMax.MagneticDipole
 
 Transmission Line
 -----------------
-.. autoclass:: gprMax.cmds_multiuse.TransmissionLine
+.. autoclass:: gprMax.TransmissionLine
 
 Discrete Plane Wave
 -------------------
-.. autoclass:: gprMax.cmds_multiuse.DiscretePlaneWave
+.. autoclass:: gprMax.DiscretePlaneWave
 
 Excitation File
 ---------------
-.. autoclass:: gprMax.cmds_multiuse.ExcitationFile
+.. autoclass:: gprMax.ExcitationFile
 
 Receiver
 --------
-.. autoclass:: gprMax.cmds_multiuse.Rx
+.. autoclass:: gprMax.Rx
 
 Receiver Array
 --------------
-.. autoclass:: gprMax.cmds_multiuse.RxArray
+.. autoclass:: gprMax.RxArray
 
 Source Steps
 ------------
-.. autoclass:: gprMax.cmds_singleuse.SrcSteps
+.. autoclass:: gprMax.SrcSteps
 
 Receiver Steps
 --------------
-.. autoclass:: gprMax.cmds_singleuse.RxSteps
+.. autoclass:: gprMax.RxSteps
 
 Snapshot
 --------
-.. autoclass:: gprMax.cmds_multiuse.Snapshot
+.. autoclass:: gprMax.Snapshot
 
 Subgrid
 -------
-.. autoclass:: gprMax.subgrids.user_objects.SubGridHSG
+.. autoclass:: gprMax.SubGridHSG
 
 
 .. _pml-tuning:
@@ -264,13 +266,13 @@ The default behaviour for the absorbing boundary conditions (ABC) is first order
 
 PML properties
 --------------
-.. autoclass:: gprMax.cmds_singleuse.PMLProps
+.. autoclass:: gprMax.PMLProps
 
 PML CFS
 -------
 Allows you control of the specific parameters that are used to build each order of the PML. Up to a second order PML can currently be specified, i.e. by using two ``PMLCFS`` commands.
 
-.. autoclass:: gprMax.cmds_multiuse.PMLCFS
+.. autoclass:: gprMax.PMLCFS
 
 The CFS values (which are internally specified) used for the default standard first order PML are:
 * ``alphascalingprofile = 'constant'``
