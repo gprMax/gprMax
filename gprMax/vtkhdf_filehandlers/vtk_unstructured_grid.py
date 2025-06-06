@@ -107,17 +107,21 @@ class VtkUnstructuredGrid(VtkHdfFile):
                 " Some connectivity data will be ignored"
             )
 
-        number_of_cells = len(cell_types)
-        number_of_connectivity_ids = len(connectivity)
-        number_of_points = len(points)
+        self._number_of_cells = len(cell_types)
+        self._number_of_connectivity_ids = len(connectivity)
+        self._number_of_points = len(points)
 
         if self.comm is None:
             self.partition = 0
-            self._write_root_dataset(self.Dataset.NUMBER_OF_CELLS, number_of_cells)
+            self._global_number_of_cells = self._number_of_cells
+            self._global_number_of_points = self._number_of_points
+            self._cells_offset = np.zeros(1, dtype=np.int32)
+            self._points_offsets = np.zeros(2, dtype=np.int32)
+            self._write_root_dataset(self.Dataset.NUMBER_OF_CELLS, self._number_of_cells)
             self._write_root_dataset(
-                self.Dataset.NUMBER_OF_CONNECTIVITY_IDS, number_of_connectivity_ids
+                self.Dataset.NUMBER_OF_CONNECTIVITY_IDS, self._number_of_connectivity_ids
             )
-            self._write_root_dataset(self.Dataset.NUMBER_OF_POINTS, number_of_points)
+            self._write_root_dataset(self.Dataset.NUMBER_OF_POINTS, self._number_of_points)
             self._write_root_dataset(self.Dataset.TYPES, cell_types)
             self._write_root_dataset(self.Dataset.POINTS, points, xyz_data_ordering=False)
             self._write_root_dataset(self.Dataset.CONNECTIVITY, connectivity)
@@ -130,22 +134,43 @@ class VtkUnstructuredGrid(VtkHdfFile):
 
             self._write_root_dataset(
                 self.Dataset.NUMBER_OF_CELLS,
-                number_of_cells,
+                self._number_of_cells,
                 shape=partition_shape,
                 offset=partition_offset,
             )
             self._write_root_dataset(
                 self.Dataset.NUMBER_OF_CONNECTIVITY_IDS,
-                number_of_connectivity_ids,
+                self._number_of_connectivity_ids,
                 shape=partition_shape,
                 offset=partition_offset,
             )
             self._write_root_dataset(
                 self.Dataset.NUMBER_OF_POINTS,
-                number_of_points,
+                self._number_of_points,
                 shape=partition_shape,
                 offset=partition_offset,
             )
+
+            self._global_number_of_cells = self.comm.allreduce(self._number_of_cells, MPI.SUM)
+            self._global_number_of_points = self.comm.allreduce(self._number_of_points, MPI.SUM)
+
+            self._cells_offset = np.full(1, self._number_of_cells, dtype=np.int32)
+            self.comm.Exscan(MPI.IN_PLACE, self._cells_offset)
+
+            self._points_offsets = np.array([self._number_of_points, 0], dtype=np.int32)
+            self.comm.Exscan(MPI.IN_PLACE, self._points_offsets)
+
+            connectivity_shape = np.array([self._number_of_connectivity_ids], dtype=np.int32)
+            self.comm.Allreduce(MPI.IN_PLACE, connectivity_shape)
+
+            connectivity_offset = np.array([self._number_of_connectivity_ids], dtype=np.int32)
+            self.comm.Exscan(MPI.IN_PLACE, connectivity_offset)
+
+            # Exscan leaves these undefined for rank 0
+            if self.comm.rank == 0:
+                connectivity_offset = np.zeros(1, dtype=np.int32)
+                self._cells_offset = np.zeros(1, dtype=np.int32)
+                self._points_offsets = np.zeros(2, dtype=np.int32)
 
             cells_shape = np.array([self.global_number_of_cells], dtype=np.int32)
             self._write_root_dataset(
@@ -160,15 +185,6 @@ class VtkUnstructuredGrid(VtkHdfFile):
                 offset=self.points_offset,
                 xyz_data_ordering=False,
             )
-
-            connectivity_shape = np.array([number_of_connectivity_ids], dtype=np.int32)
-            self.comm.Allreduce(MPI.IN_PLACE, connectivity_shape)
-            connectivity_offset = np.array([number_of_connectivity_ids], dtype=np.int32)
-            self.comm.Exscan(MPI.IN_PLACE, connectivity_offset)
-
-            # Exscan leaves this undefined for rank 0
-            if self.comm.rank == 0:
-                connectivity_offset = np.zeros(1, dtype=np.int32)
 
             self._write_root_dataset(
                 self.Dataset.CONNECTIVITY,
@@ -191,39 +207,31 @@ class VtkUnstructuredGrid(VtkHdfFile):
 
     @property
     def number_of_cells(self) -> int:
-        number_of_cells = self._get_root_dataset(self.Dataset.NUMBER_OF_CELLS)
-        return number_of_cells[self.partition]
+        return self._number_of_cells
 
     @property
     def global_number_of_cells(self) -> int:
-        number_of_cells = self._get_root_dataset(self.Dataset.NUMBER_OF_CELLS)
-        return np.sum(number_of_cells, dtype=int)
+        return self._global_number_of_cells
 
     @property
     def cells_offset(self) -> npt.NDArray[np.int32]:
-        number_of_cells = self._get_root_dataset(self.Dataset.NUMBER_OF_CELLS)
-        return np.sum(number_of_cells[: self.partition], dtype=np.int32, keepdims=True)
+        return self._cells_offset
 
     @property
     def number_of_connectivity_ids(self) -> int:
-        number_of_connectivity_ids = self._get_root_dataset(self.Dataset.NUMBER_OF_CONNECTIVITY_IDS)
-        return number_of_connectivity_ids[self.partition]
+        return self._number_of_connectivity_ids
 
     @property
     def number_of_points(self) -> int:
-        number_of_points = self._get_root_dataset(self.Dataset.NUMBER_OF_POINTS)
-        return number_of_points[self.partition]
+        return self._number_of_points
 
     @property
     def global_number_of_points(self) -> int:
-        number_of_points = self._get_root_dataset(self.Dataset.NUMBER_OF_POINTS)
-        return np.sum(number_of_points, dtype=int)
+        return self._global_number_of_points
 
     @property
     def points_offset(self) -> npt.NDArray[np.int32]:
-        number_of_points = self._get_root_dataset(self.Dataset.NUMBER_OF_POINTS)
-        offset = np.sum(number_of_points[: self.partition], dtype=np.int32)
-        return np.array([offset, 0], dtype=np.int32)
+        return self._points_offsets
 
     def add_point_data(self, name: str, data: npt.NDArray):
         """Add point data to the VTKHDF file.
