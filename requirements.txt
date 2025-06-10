@@ -92,7 +92,7 @@ pyzmq==25.1.2
 qtconsole==5.5.1
 QtPy==2.4.1
 referencing==0.30.2
-requests==2.31.0
+requests==2.32.4
 rfc3339-validator==0.1.4
 rfc3986-validator==0.1.1
 rpds-py==0.10.6
