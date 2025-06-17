@@ -274,7 +274,7 @@ class GeometryView(OutputUserObject):
         p2: tuple required for upper right (x,y,z) coordinates of volume of
                 geometry view in metres.
         dl: tuple required for spatial discretisation of geometry view in metres.
-        output_tuple: string required for per-cell 'n' (normal) or per-cell-edge
+        output_type: string required for per-cell 'n' (normal) or per-cell-edge
                         'f' (fine) geometry views.
         filename: string required for filename where geometry view will be
                     stored in the same directory as input file.
