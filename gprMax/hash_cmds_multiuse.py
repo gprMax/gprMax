@@ -408,20 +408,20 @@ def process_multicmds(multicmds):
             poles = int(tmp[0])
             material_ids = tmp[(3 * poles) + 1 : len(tmp)]
             er_delta = []
-            tau = []
-            alpha = []
+            omega = []
+            delta = []
 
             for pole in range(1, 3 * poles, 3):
                 er_delta.append(float(tmp[pole]))
-                tau.append(float(tmp[pole + 1]))
-                alpha.append(float(tmp[pole + 2]))
+                omega.append(float(tmp[pole + 1]))
+                delta.append(float(tmp[pole + 2]))
 
             lorentz_dispersion = AddLorentzDispersion(
                 poles=poles,
                 material_ids=material_ids,
                 er_delta=er_delta,
-                tau=tau,
-                alpha=alpha,
+                omega=omega,
+                delta=delta,
             )
             scene_objects.append(lorentz_dispersion)
 
@@ -443,15 +443,15 @@ def process_multicmds(multicmds):
 
             poles = int(tmp[0])
             material_ids = tmp[(3 * poles) + 1 : len(tmp)]
-            tau = []
-            alpha = []
+            omega = []
+            gamma = []
 
             for pole in range(1, 2 * poles, 2):
-                tau.append(float(tmp[pole]))
-                alpha.append(float(tmp[pole + 1]))
+                omega.append(float(tmp[pole]))
+                gamma.append(float(tmp[pole + 1]))
 
             drude_dispersion = AddDrudeDispersion(
-                poles=poles, material_ids=material_ids, tau=tau, alpha=alpha
+                poles=poles, material_ids=material_ids, omega=omega, gamma=gamma
             )
             scene_objects.append(drude_dispersion)
 

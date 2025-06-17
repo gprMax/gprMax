@@ -1,5 +1,6 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Tobias Schruff
+#                 Authors: Craig Warren, Antonis Giannopoulos, Tobias Schruff,
+#                          John Hartley, and Nathan Mannall
 #
 # This file is part of gprMax.
 #
