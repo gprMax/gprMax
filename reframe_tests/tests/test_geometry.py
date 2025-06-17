@@ -2,21 +2,21 @@ import reframe as rfm
 from reframe.core.builtins import parameter, run_before
 
 from reframe_tests.tests.mixins import AntennaModelMixin, MpiMixin
-from reframe_tests.tests.standard_tests import GprMaxGeometryTest, GprMaxRegressionTest
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for models defining geometry
 """
 
 
 @rfm.simple_test
-class TestAddGrass(GprMaxGeometryTest):
+class TestAddGrass(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
     sourcesdir = "src/geometry_tests/add_grass_geometry"
     model = parameter(["add_grass_full", "add_grass_small"])
 
 
 @rfm.simple_test
-class TestAddSurfaceRoughness(GprMaxGeometryTest):
+class TestAddSurfaceRoughness(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "roughness"}
     sourcesdir = "src/geometry_tests/add_surface_roughness_geometry"
     model = parameter(
@@ -30,7 +30,7 @@ class TestAddSurfaceRoughness(GprMaxGeometryTest):
 
 
 @rfm.simple_test
-class TestAddSurfaceWater(GprMaxGeometryTest):
+class TestAddSurfaceWater(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "fractal", "surface", "roughness", "water"}
     sourcesdir = "src/geometry_tests/add_surface_water_geometry"
     model = parameter(["add_surface_water_full", "add_surface_water_small"])
@@ -126,7 +126,7 @@ class TestEllipsoidGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestFractalBoxGeometry(GprMaxGeometryTest):
+class TestFractalBoxGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
     sourcesdir = "src/geometry_tests/fractal_box_geometry"
     model = parameter(

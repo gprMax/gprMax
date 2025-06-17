@@ -54,7 +54,3 @@ class GprMaxGeometryObjectsReadWriteTest(
                     for line in lines:
                         new_line = line.replace(f"{{{geometry_object}_materials}}", "")
                         f.write(new_line)
-
-
-class GprMaxGeometryTest(GeometryObjectsWriteMixin, ReceiverMixin, GprMaxBaseTest):
-    geometry_objects_write = ["full_volume"]

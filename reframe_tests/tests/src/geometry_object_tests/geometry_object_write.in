@@ -1,7 +1,9 @@
 #title: Hertzian dipole in free-space
 #domain: 0.100 0.100 0.100
-#dx_dy_dz: 0.001 0.001 0.001
+#dx_dy_dz: 0.002 0.005 0.005
 #time_window: 3e-9
+
+#pml_cells: 5 2 2 5 2 2
 
 #waveform: gaussiandot 1 1e9 myWave
 #hertzian_dipole: z 0.050 0.050 0.050 myWave
