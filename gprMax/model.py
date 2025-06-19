@@ -476,10 +476,16 @@ class Model:
 
         # Print information about and check OpenMP threads
         if config.sim_config.general["solver"] == "cpu":
+            if config.sim_config.mpi:
+                backend = "MPI+OpenMP"
+                layout = f"{np.prod(config.sim_config.mpi)} MPI rank(s) and {config.get_model_config().ompthreads} thread(s) per rank"
+            else:
+                backend = "OpenMP"
+                layout = f"{config.get_model_config().ompthreads} thread(s)"
             logger.basic(
                 f"Model {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
                 f"on {config.sim_config.hostinfo['hostname']} "
-                f"with OpenMP backend using {config.get_model_config().ompthreads} thread(s)"
+                f"with {backend} backend using {layout}"
             )
             if config.get_model_config().ompthreads > config.sim_config.hostinfo["physicalcores"]:
                 logger.warning(
