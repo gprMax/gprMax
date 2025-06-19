@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -21,10 +21,8 @@ import logging
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import numpy.typing as npt
 
 from gprMax import config
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.pml import PML
 from gprMax.user_objects.user_objects import ModelUserObject

@@ -99,8 +99,8 @@ class Model:
         self.G.nz = value
 
     @property
-    def cells(self) -> np.int64:
-        return np.prod(self.G.size)
+    def cells(self) -> np.uint64:
+        return np.prod(self.G.size, dtype=np.uint64)
 
     @property
     def dx(self) -> float:
