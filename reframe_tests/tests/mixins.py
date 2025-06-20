@@ -67,7 +67,7 @@ class SnapshotMixin(GprMaxMixin):
         Args:
             snapshot: Name of the snapshot.
         """
-        return Path(f"{self.model}_snaps", snapshot).with_suffix(".h5")
+        return Path(f"{self.model}_snaps", snapshot)
 
     @run_after("setup")
     def add_snapshot_regression_checks(self):
@@ -82,7 +82,7 @@ class SnapshotMixin(GprMaxMixin):
 
         for snapshot in self.snapshots:
             snapshot_file = self.build_snapshot_filepath(snapshot)
-            reference_file = self.build_reference_filepath(snapshot)
+            reference_file = self.build_reference_filepath(snapshot, suffix=snapshot_file.suffix)
             regression_check = SnapshotRegressionCheck(snapshot_file, reference_file)
             self.regression_checks.append(regression_check)
 

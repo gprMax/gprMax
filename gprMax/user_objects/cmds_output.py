@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -24,7 +24,6 @@ import numpy as np
 import numpy.typing as npt
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.snapshots import Snapshot as SnapshotUser
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -121,9 +120,7 @@ class Snapshot(OutputUserObject):
         # correction has been applied.
         while any(discretised_upper_bound < upper_bound):
             try:
-                uip.point_within_bounds(
-                    upper_bound, f"[{upper_bound[0]}, {upper_bound[1]}, {upper_bound[2]}]"
-                )
+                grid.within_bounds(upper_bound)
                 upper_bound_within_grid = True
             except ValueError:
                 upper_bound_within_grid = False
@@ -214,12 +211,6 @@ class Snapshot(OutputUserObject):
                 f" Valid options are: {' '.join(SnapshotUser.fileexts)}."
             )
 
-        # TODO: Allow VTKHDF files when they are implemented
-        if isinstance(grid, MPIGrid) and self.file_extension != ".h5":
-            raise ValueError(
-                f"{self.params_str()} currently only '.h5' snapshots are compatible with MPI."
-            )
-
         if self.outputs is None:
             outputs = dict.fromkeys(SnapshotUser.allowableoutputs, True)
         else:
@@ -258,8 +249,7 @@ class Snapshot(OutputUserObject):
                 f" {dl[0]:g}m, {dl[1]:g}m, {dl[2]:g}m, at"
                 f" {snapshot.time * grid.dt:g} secs with field outputs"
                 f" {', '.join([k for k, v in outputs.items() if v])} "
-                f" and filename {snapshot.filename}{snapshot.fileext}"
-                " will be created."
+                f" and filename {snapshot.filename} will be created."
             )
 
 
