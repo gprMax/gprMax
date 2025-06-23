@@ -95,7 +95,7 @@ end_time = time.time()
 print(f"kernel launch took {end_time-start_time:.3f} seconds")
 # copy result back
 hip_check(hip.hipMemcpy(x_h,x_d,num_bytes,hip.hipMemcpyKind.hipMemcpyDeviceToHost))
-
+print(x_h[0:10])
 for i,x_h_i in enumerate(x_h):
     if not math.isclose(x_h_i,x_expected[i],rel_tol=1e-6):
         raise RuntimeError(f"values do not match, {x_h[i]=} vs. {x_expected[i]=}, {i=}")

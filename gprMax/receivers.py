@@ -125,6 +125,14 @@ def htod_rx_arrays(G, queue=None):
         rxcoords_dev = clarray.to_device(queue, rxcoords)
         rxs_dev = clarray.to_device(queue, rxs)
 
+    elif config.sim_config.general["solver"] == "hip":
+        from .utilities.utilities import hip_check
+        from hip import hip, hiprtc
+        rxcoords_dev = hip_check(hip.hipMalloc(rxcoords.nbytes))
+        rxs_dev = hip_check(hip.hipMalloc(rxs.nbytes))
+        hip_check(hip.hipMemcpy(rxcoords_dev, rxcoords, rxcoords.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(rxs_dev, rxs, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+
     return rxcoords_dev, rxs_dev
 
 
