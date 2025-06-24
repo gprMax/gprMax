@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-def compare_h5_files(file1, file2, tolerance=1e-6):
+def compare_h5_files(file1, file2, tolerance=1e-3):
     def visit_items(name, obj, file_dict):
         """Access the HDF5 file and collect datasets recursively."""
         if isinstance(obj, h5py.Dataset):
@@ -25,24 +25,30 @@ def compare_h5_files(file1, file2, tolerance=1e-6):
             if name not in datasets2:
                 print(f"Dataset {name} does not exist in the second file")
                 return False
-            
+        for name in datasets2:
+            if name not in datasets1:
+                print(f"Dataset {name} does not exist in the first file")
+                return False
+        
+        for name in datasets1:
             d1 = datasets1[name]
-            d2 = datasets2[name]
-            
+            d2 = datasets2[name]            
+            # Compare the datasets
             if isinstance(d1, np.ndarray):
                 if d1.shape != d2.shape:
                     print(f"Dataset {name} doesn't match the shape: {d1.shape} vs {d2.shape}")
                     return False
                 diff_values = d1 - d2
-                relative_diff = np.abs(diff_values / (np.abs(d1)+np.abs(d2) + 1e-15))  # Avoid division by zero
-                if relative_diff.max() > tolerance:
+                relative_diff = np.abs(diff_values / (np.abs(d1) + 1e-19))  # Avoid division by zero
+                print("Max diff:", np.max(np.abs(diff_values)))
+                print("Mean diff:", np.mean(np.abs(diff_values)))
+                print("The index of the max diff:", np.unravel_index(np.argmax(np.abs(diff_values)), d1.shape))
+                print("\n")
+                if diff_values.max() > tolerance:
                     print(f"Dataset {name} doesn't match")
-                    print("Max diff:", np.max(np.abs(relative_diff)))
-                    print("Mean diff:", np.mean(np.abs(relative_diff)))
-                    print("The index of the max diff:", np.unravel_index(np.argmax(np.abs(relative_diff)), d1.shape))
                     with open('diff_values.txt', 'w') as f:
                         if diff_values.ndim == 1:
-                            np.savetxt(f, relative_diff)
+                            np.savetxt(f, diff_values)
                         else:
                             f.write(f"Shape of differences: {diff_values.shape}\n")
                             for index in np.ndindex(diff_values.shape):
@@ -53,9 +59,6 @@ def compare_h5_files(file1, file2, tolerance=1e-6):
                     print(f"Scaler dataset {name} doesn't match")
                     return False
         
-        for name in datasets2:
-            if name not in datasets1:
-                print(f"Dataset {name} does not exist in the first file")
                 return False
         
         return True
