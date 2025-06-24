@@ -1,0 +1,11 @@
+#title: Simple model with Hertzian dipole (no PML, non-dispersive)
+#domain: 0.4 0.3 0.3   
+#dx_dy_dz: 0.002 0.002 0.002 
+#time_window: 1000
+
+#waveform: ricker 1 1.5e9 my_ricker
+#hertzian_dipole: z 0.1 0.1 0.1 my_ricker
+#rx: 0.2 0.15 0.15
+
+#box: 0 0 0 0.4 0.3 0.3 free_space
+#pml_cells: 0

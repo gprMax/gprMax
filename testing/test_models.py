@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from colorama import Fore, Style
 
-import gprMax
+from gprMax import run
 from gprMax.utilities.logging import logging_config
 from testing.analytical_solutions import hertzian_dipole_fs
 
@@ -44,28 +44,28 @@ if sys.platform == "linux":
 """
 
 # Specify directory with set of models to test
-modelset = "models_basic"
+modelset = "models_hip"
 # modelset += 'models_advanced'
 
 basepath = Path(__file__).parents[0] / modelset
 
 # List of available basic test models
-testmodels = [
-    "hertzian_dipole_fs_analytical",
-    "2D_ExHyHz",
-    "2D_EyHxHz",
-    "2D_EzHxHy",
-    "cylinder_Ascan_2D",
-    "hertzian_dipole_fs",
-    "hertzian_dipole_hs",
-    "hertzian_dipole_dispersive",
-    "antenna_wire_dipole_fs",
-    "magnetic_dipole_fs",
-]
+# testmodels = [
+#     "hertzian_dipole_fs_analytical",
+#     "2D_ExHyHz",
+#     "2D_EyHxHz",
+#     "2D_EzHxHy",
+#     "cylinder_Ascan_2D",
+#     "hertzian_dipole_fs",
+#     "hertzian_dipole_hs",
+#     "hertzian_dipole_dispersive",
+#     "antenna_wire_dipole_fs",
+#     "magnetic_dipole_fs",
+# ]
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
-
+testmodels = ["000"]
 # Select a specific model if desired
 # testmodels = [testmodels[0]]
 testresults = dict.fromkeys(testmodels)
@@ -79,7 +79,7 @@ for i, model in enumerate(testmodels):
 
     # Run model
     file = basepath / model / model
-    gprMax.run(inputfile=file.with_suffix(".in"), gpu=None, opencl=None)
+    run(inputfile=file.with_suffix(".in"), gpu=None, opencl=None, hip=[0])
 
     # Special case for analytical comparison
     if model == "hertzian_dipole_fs_analytical":

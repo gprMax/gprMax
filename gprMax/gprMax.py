@@ -33,6 +33,7 @@ args_defaults = {
     "taskfarm": False,
     "mpi": None,
     "gpu": None,
+    "hip": None,
     "opencl": None,
     "subgrid": False,
     "autotranslate": False,
@@ -74,6 +75,10 @@ help_msg = {
     "gpu": (
         "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific"
         " GPU card(s)."
+    ),
+    "hip": (
+        "(list/bool, opt): Flag to use AMD HIP or list of AMD HIP device ID(s) for specific"
+        " compute device(s)."
     ),
     "opencl": (
         "(list/bool, opt): Flag to use OpenCL or list of OpenCL device ID(s) for specific compute"
@@ -122,6 +127,7 @@ def run(
     taskfarm=args_defaults["taskfarm"],
     mpi=args_defaults["mpi"],
     gpu=args_defaults["gpu"],
+    hip=args_defaults["hip"],
     opencl=args_defaults["opencl"],
     subgrid=args_defaults["subgrid"],
     autotranslate=args_defaults["autotranslate"],
@@ -203,6 +209,7 @@ def run(
             "taskfarm": taskfarm,
             "mpi": mpi,
             "gpu": gpu,
+            "hip": hip,
             "opencl": opencl,
             "subgrid": subgrid,
             "autotranslate": autotranslate,
@@ -247,6 +254,7 @@ def cli():
         help=help_msg["mpi"],
     )
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
+    parser.add_argument("-hip", type=int, action="append", nargs="*", help=help_msg["hip"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument(
         "--geometry-only",

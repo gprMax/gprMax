@@ -224,7 +224,7 @@ class CPUUpdates(Updates[GridType]):
         return timer() - self.timestart
 
     def finalise(self):
-        print(self.grid.rxs[0].outputs)
+        pass
 
     def cleanup(self):
         pass
