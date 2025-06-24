@@ -4,8 +4,8 @@
 #time_window: 1000
 
 #waveform: ricker 1 1.5e9 my_ricker
-#hertzian_dipole: z 0 0 0 my_ricker
-#rx: 0 0 0
+#hertzian_dipole: z 0.08 0.08 0.08 my_ricker
+#rx: 0.2 0.15 0.15
 
 #box: 0 0 0 0.4 0.3 0.3 free_space
 #pml_cells: 0
