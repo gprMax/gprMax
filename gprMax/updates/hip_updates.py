@@ -47,7 +47,6 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""
-        #print("update_magnetic not implemented in HIPUpdates")
         self.hip_manager.update_m_hip()
 
     
@@ -64,7 +63,6 @@ class HIPUpdates(Updates[HIPGrid]):
     def update_electric_a(self) -> None:
         """Updates electric field components."""
         self.hip_manager.update_e_a_hip()
-        # print("update_electric_a on HIP")
 
     
     def update_electric_pml(self) -> None:
@@ -104,12 +102,10 @@ class HIPUpdates(Updates[HIPGrid]):
             rxs = np.zeros((len(Rx.allowableoutputs_dev), self.grid.iterations, len(self.grid.rxs)),
         dtype=config.sim_config.dtypes["float_or_double"])
         hip_check(hip.hipMemcpy(rxs, self.hip_manager.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
-        print(rxs[2,:,0])
         for i in range(len(self.grid.rxs)):
             rx = self.grid.rxs[i].outputs
             for j, output in enumerate(Rx.allowableoutputs_dev):
                 rx[output] = rxs[j, :, i]
-        print(self.grid.rxs[0].outputs)   
 
     def cleanup(self) -> None:
         """Cleanup the updates, releasing any resources."""

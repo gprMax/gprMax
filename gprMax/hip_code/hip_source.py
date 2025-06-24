@@ -42,7 +42,6 @@ update_e_a =  Template("""
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
-    // printf("update_e_a: x = %d, y = %d, z = %d ", x, y, z);
 
     // Convert the linear index to subscripts for 4D material ID array
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
@@ -63,7 +62,7 @@ update_e_a =  Template("""
         Ey[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEy,0)] * Ey[IDX3D_FIELDS(x,y,z)] +
                                     updatecoeffsE[IDX2D_MAT(materialEy,3)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)]) -
                                     updatecoeffsE[IDX2D_MAT(materialEy,1)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x-1,y,z)]);
-    }
+                       }
 
     // Ez component
     if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
@@ -71,7 +70,6 @@ update_e_a =  Template("""
         Ez[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEz,0)] * Ez[IDX3D_FIELDS(x,y,z)] +
                                     updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) -
                                     updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]);
-        // printf("Hy[IDX3D_FIELDS(x,y,z)] = %f    ",Hy[IDX3D_FIELDS(x,y,z)]);
     }
 
 }
@@ -84,7 +82,7 @@ update_m = Template("""
     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
     #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-
+    #define A ($NY_FIELDS * $NZ_FIELDS)
     extern "C" __global__ void update_magnetic(int NX,
                                                 int NY,
                                                 int NZ,
@@ -202,13 +200,9 @@ update_hertzian_dipole = Template("""
 
             // 'z' polarised source
             else if (polarisation == 2) {
-                // printf("iteration= %d, srcwaveforms= %f, Ez= %f    ",iteration,srcwaveforms[IDX2D_SRCWAVES(i,iteration)], Ez[IDX3D_FIELDS(x,y,z)]);
-
                 int materialEz = ID[IDX4D_ID(2,x,y,z)];
                 Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
-                //printf("iteration= %f    ",iteration);
-
             }
         }
     }
@@ -250,7 +244,6 @@ store_outputs = Template("""
         rxs[IDX3D_RXS(3,iteration,i)] = Hx[IDX3D_FIELDS(x,y,z)];
         rxs[IDX3D_RXS(4,iteration,i)] = Hy[IDX3D_FIELDS(x,y,z)];
         rxs[IDX3D_RXS(5,iteration,i)] = Hz[IDX3D_FIELDS(x,y,z)];
-        // printf("store_outputs: x = %d, y = %d, z = %d, i = %d, Ex = %f, Ey = %f, Ez = %f, Hx = %f, Hy = %f, Hz = %f", x, y, z, i, Ex[IDX3D_FIELDS(x,y,z)], Ey[IDX3D_FIELDS(x,y,z)], Ez[IDX3D_FIELDS(x,y,z)], Hx[IDX3D_FIELDS(x,y,z)], Hy[IDX3D_FIELDS(x,y,z)], Hz[IDX3D_FIELDS(x,y,z)]);
     }
 }
 

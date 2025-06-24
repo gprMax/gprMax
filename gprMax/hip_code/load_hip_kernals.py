@@ -13,11 +13,13 @@ floattype = 'float'
 class HipManager:
     def __init__(self, G: HIPGrid):
         self.grid = G
-        print(f"Ex: {self.grid.Ez}")
         self.module = None
         self.kernel = None
         self.prog = None
         self.update_e_kernel = None
+        self.update_m_kernel = None
+        self.update_hertzian_dipole_kernel = None
+        self.store_outputs_kernel = None
         if config.get_model_config().materials["maxpoles"] > 0:
             self.NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             self.NX_T = self.grid.Tx.shape[1]
@@ -50,7 +52,7 @@ class HipManager:
         self.len_rxs = int(6 * self.grid.iterations * len(self.grid.rxs)/4)
         self.len_rxcoords = int(len(self.grid.rxs) * 3)
         self.block = hip.dim3(x=1024)
-        self.grid_hip = hip.dim3(x=214748367 )
+        self.grid_hip = hip.dim3(x=65536)
 
         self.compile_kernels()
 
@@ -202,12 +204,12 @@ class HipManager:
                     ctypes.c_int(self.grid.ny),
                     ctypes.c_int(self.grid.nz),
                     self.ID_d,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
                     self.Hx_d,
                     self.Hy_d,
                     self.Hz_d,
+                    self.Ex_d,
+                    self.Ey_d,
+                    self.Ez_d,
                     self.updatecoeffsE_d,
                     self.updatecoeffsH_d,
                 )
