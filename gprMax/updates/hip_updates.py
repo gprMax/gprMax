@@ -74,7 +74,10 @@ class HIPUpdates(Updates[HIPGrid]):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
-        self.hip_manager.update_hertzian_dipole_hip(iteration)
+        if self.grid.hertziandipoles:
+            self.hip_manager.update_hertzian_dipole_hip(iteration)
+        if self.grid.voltagesources:
+            self.hip_manager.update_voltage_source_hip(iteration)
 
     
     def update_electric_b(self) -> None:

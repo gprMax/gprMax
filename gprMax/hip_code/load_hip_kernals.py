@@ -1,6 +1,6 @@
 from hip import hip, hiprtc
 from ..utilities.utilities import hip_check
-from .hip_source import update_e_a, update_m, update_hertzian_dipole, store_outputs
+from .hip_source import update_e_a, update_m, update_hertzian_dipole, store_outputs, update_voltage_source
 import numpy as np
 import ctypes
 from .. import config
@@ -20,6 +20,7 @@ class HipManager:
         self.update_m_kernel = None
         self.update_hertzian_dipole_kernel = None
         self.store_outputs_kernel = None
+        self.update_voltage_source_kernel = None
         if config.get_model_config().materials["maxpoles"] > 0:
             self.NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             self.NX_T = self.grid.Tx.shape[1]
@@ -67,6 +68,7 @@ class HipManager:
         self.compile_kernels_m()
         self.compile_kernels_hertzian_dipole()
         self.compile_store_outputs()
+        self.compile_kernels_voltage_sources()
 
 
 
@@ -149,6 +151,27 @@ class HipManager:
         self.module = hip_check(hip.hipModuleLoadData(code))
         self.store_outputs_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"store_outputs"))
         print(f"Compiling store_outputs Done")
+
+    def compile_kernels_voltage_sources(self):
+        source_update_voltage_source = update_voltage_source.substitute(REAL=floattype, COMPLEX=floattype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T, NY_SRCINFO=4, NY_SRCWAVES=self.grid.iterations)
+        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_voltage_source.encode(), b"update_voltage_source", 0, [], []))
+        props = hip.hipDeviceProp_t()
+        hip_check(hip.hipGetDeviceProperties(props,0))
+        arch = props.gcnArchName
+        cflags = [b"--offload-arch="+arch]
+        err, = hiprtc.hiprtcCompileProgram(self.prog, len(cflags), cflags)
+        if err != hiprtc.hiprtcResult.HIPRTC_SUCCESS:
+            log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(self.prog))
+            log = bytearray(log_size)
+            hip_check(hiprtc.hiprtcGetProgramLog(self.prog, log))
+            raise RuntimeError(log.decode())
+        code_size = hip_check(hiprtc.hiprtcGetCodeSize(self.prog))
+        code = bytearray(code_size)
+        hip_check(hiprtc.hiprtcGetCode(self.prog, code))
+        self.module = hip_check(hip.hipModuleLoadData(code))
+        self.update_voltage_source_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_voltage_source"))
+        print(f"Compiling update_voltage_source Done")
+
 
     def free_resources(self):
         """Free resources allocated on the device."""
@@ -269,6 +292,39 @@ class HipManager:
                     self.Hx_d,
                     self.Hy_d,
                     self.Hz_d,
+                )
+            )
+        )
+
+    def update_voltage_source_hip(self, iteration):
+        (
+            self.srcinfo1_dev,
+            self.srcinfo2_dev,
+            self.srcwaves_dev
+        ) = htod_src_arrays(self.grid.voltagesources, self.grid)
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.update_voltage_source_kernel,
+                *self.grid_hip, # grid
+                *self.block,  # self.block
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(len(self.grid.voltagesources)),
+                    ctypes.c_int(iteration),
+                    ctypes.c_float(self.grid.dx),
+                    ctypes.c_float(self.grid.dy),
+                    ctypes.c_float(self.grid.dz),
+                    self.srcinfo1_dev,
+                    self.srcinfo2_dev,
+                    self.srcwaves_dev,
+                    self.ID_d,
+                    self.Ex_d,
+                    self.Ey_d,
+                    self.Ez_d,
+                    self.updatecoeffsE_d,
+                    self.updatecoeffsH_d,
                 )
             )
         )

@@ -65,7 +65,7 @@ basepath = Path(__file__).parents[0] / modelset
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
-testmodels = ["000"]
+testmodels = ["200"]
 # Select a specific model if desired
 # testmodels = [testmodels[0]]
 testresults = dict.fromkeys(testmodels)
