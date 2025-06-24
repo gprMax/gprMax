@@ -250,7 +250,7 @@ store_outputs = Template("""
 """)
 
 update_voltage_source = Template("""
-                                     // Macros for converting subscripts to linear index:
+    // Macros for converting subscripts to linear index:
     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
@@ -330,6 +330,74 @@ update_voltage_source = Template("""
             else {
                 Ez[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dz;
             }
+        }
+    }
+}
+""")
+
+update_magnetic_dipole = Template("""
+    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+    #define IDX2D_SRCINFO(m, n) (m)*$NY_SRCINFO+(n)
+    #define IDX2D_SRCWAVES(m, n) (m)*($NY_SRCWAVES)+(n)
+
+    extern "C"  __global__ void update_magnetic_dipole(int NMAGDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Hx,
+                                            $REAL *Hy,
+                                            $REAL *Hz,
+                                            const $REAL* __restrict__ updatecoeffsE,
+                                            const $REAL* __restrict__ updatecoeffsH) {
+
+    // Updates electric field values for Hertzian dipole sources.
+    //
+    //  Args:
+    //      NMAGDIPOLE: Total number of magnetic dipoles in the model.
+    //      iteration: Iteration number of simulation.
+    //      dx, dy, dz: Spatial discretisations.
+    //      srcinfo1: Source cell coordinates and polarisation information.
+    //      srcinfo2: Other source information, e.g. length, resistance etc...
+    //      srcwaveforms: Source waveform values.
+    //      ID, H: Access to ID and field component arrays.
+
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i < NMAGDIPOLE) {
+
+        int x, y, z, polarisation;
+
+        x = srcinfo1[IDX2D_SRCINFO(i,0)];
+        y = srcinfo1[IDX2D_SRCINFO(i,1)];
+        z = srcinfo1[IDX2D_SRCINFO(i,2)];
+        polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
+
+        // 'x' polarised source
+        if (polarisation == 0) {
+            int materialHx = ID[IDX4D_ID(3,x,y,z)];
+            Hx[IDX3D_FIELDS(x,y,z)] = Hx[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
+        }
+
+        // 'y' polarised source
+        else if (polarisation == 1) {
+            int materialHy = ID[IDX4D_ID(4,x,y,z)];
+            Hy[IDX3D_FIELDS(x,y,z)] = Hy[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
+        }
+
+        // 'z' polarised source
+        else if (polarisation == 2) {
+            int materialHz = ID[IDX4D_ID(5,x,y,z)];
+            Hz[IDX3D_FIELDS(x,y,z)] = Hz[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
         }
     }
 }

@@ -57,7 +57,7 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_magnetic_sources(self, iteration: int) -> None:
         """Updates magnetic field components from sources."""
-        #print("update_magnetic_sources not implemented in HIPUpdates")
+        self.hip_manager.update_magnetic_dipole_hip(iteration)
 
     
     def update_electric_a(self) -> None:
