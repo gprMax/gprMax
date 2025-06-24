@@ -456,6 +456,16 @@ def htod_src_arrays(sources, G, queue=None):
         srcinfo1_dev = clarray.to_device(queue, srcinfo1)
         srcinfo2_dev = clarray.to_device(queue, srcinfo2)
         srcwaves_dev = clarray.to_device(queue, srcwaves)
+    elif config.sim_config.general["solver"] == "hip":
+        from hip import hip, hiprtc
+        from gprMax.utilities.utilities import hip_check
+
+        srcinfo1_dev = hip_check(hip.hipMalloc(srcinfo1.nbytes))
+        srcinfo2_dev = hip_check(hip.hipMalloc(srcinfo2.nbytes))
+        srcwaves_dev = hip_check(hip.hipMalloc(srcwaves.nbytes))
+        hip_check(hip.hipMemcpy(srcinfo1_dev, srcinfo1, srcinfo1.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(srcinfo2_dev, srcinfo2, srcinfo2.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(srcwaves_dev, srcwaves, srcwaves.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
 
     return srcinfo1_dev, srcinfo2_dev, srcwaves_dev
 

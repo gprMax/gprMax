@@ -4,7 +4,8 @@ from importlib import import_module
 import humanize
 import numpy as np
 from jinja2 import Environment, PackageLoader
-
+from ..utilities.utilities import hip_check
+from hip import hip, hiprtc
 from gprMax import config
 from gprMax.cuda_opencl import (
     knl_fields_updates,
@@ -26,12 +27,12 @@ class HIPUpdates(Updates[HIPGrid]):
     """HIP updates for the FDTD algorithm."""
 
     def __init__(self, G: HIPGrid):
-        self.G = G
+        super().__init__(G)
         self.hip_manager = HipManager(G)
 
     def store_outputs(self, iteration: int) -> None:
         """Stores field component values for every receiver and transmission line."""
-        #print("store_outputs not implemented in HIPUpdates")
+        self.hip_manager.store_outputs_hip(iteration)
 
     
     def store_snapshots(self, iteration: int) -> None:
@@ -46,7 +47,7 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""
-        #print("update_magnetic not implemented in HIPUpdates")
+        self.hip_manager.update_m_hip()
 
     
     def update_magnetic_pml(self) -> None:
@@ -61,8 +62,7 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_electric_a(self) -> None:
         """Updates electric field components."""
-        self.hip_manager.update_e_hip()
-        # print("update_electric_a on HIP")
+        self.hip_manager.update_e_a_hip()
 
     
     def update_electric_pml(self) -> None:
@@ -74,7 +74,7 @@ class HIPUpdates(Updates[HIPGrid]):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
-        #print("update_electric_sources not implemented in HIPUpdates")
+        self.hip_manager.update_hertzian_dipole_hip(iteration)
 
     
     def update_electric_b(self) -> None:
@@ -97,11 +97,19 @@ class HIPUpdates(Updates[HIPGrid]):
 
     def finalise(self) -> None:
         """Finalise the updates, releasing any resources."""
-        #print("finalise not implemented in HIPUpdates")
+        if self.grid.rxs:
+            from gprMax.receivers import Rx
+            rxs = np.zeros((len(Rx.allowableoutputs_dev), self.grid.iterations, len(self.grid.rxs)),
+        dtype=config.sim_config.dtypes["float_or_double"])
+        hip_check(hip.hipMemcpy(rxs, self.hip_manager.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        for i in range(len(self.grid.rxs)):
+            rx = self.grid.rxs[i].outputs
+            for j, output in enumerate(Rx.allowableoutputs_dev):
+                rx[output] = rxs[j, :, i]
 
     def cleanup(self) -> None:
         """Cleanup the updates, releasing any resources."""
-        #print("cleanup not implemented in HIPUpdates")
+        self.hip_manager.free_resources()
 
     def calculate_memory_used(self, iteration: int) -> int:
         #print("calculate_memory_used not implemented in HIPUpdates")
