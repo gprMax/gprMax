@@ -23,4 +23,3 @@ dependencies:
 #  - pyopencl
   - terminaltables
   - tqdm
-  - git+https://github.com/craig-warren/PyEVTK.git
