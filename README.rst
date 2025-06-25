@@ -105,7 +105,8 @@ The following steps provide guidance on how to install gprMax:
 
 1. Install Python, required Python packages, and get the gprMax source code from GitHub
 2. Install a C compiler which supports OpenMP
-3. Build and install gprMax
+3. [Optional] Build h5py against Parallel HDF5
+4. Build and install gprMax
 
 1. Install Python, the required Python packages, and get the gprMax source
 --------------------------------------------------------------------------
@@ -186,7 +187,41 @@ Alternatively, if you are using Windows 10/11 you can install the `Windows Subsy
 instructions for gprMax. Note however that currently, WSL does not aim to support GUI desktops or
 applications, e.g. Gnome, KDE, etc...
 
-3. Build and install gprMax
+3. [Optional] Build h5py against Parallel HDF5
+----------------------------------------------
+
+If you plan to use the :ref:`MPI domain decomposition functionality
+<mpi_domain_decomposition>` available in gprMax, h5py must be
+built with MPI support.
+
+Install with conda
+^^^^^^^^^^^^^^^^^^
+
+h5py can be installed with MPI support in a conda environment with:
+
+.. code:: bash
+
+    conda install "h5py>=2.9=mpi*"
+
+Install with pip
+^^^^^^^^^^^^^^^^
+
+Set your default compiler to the ``mpicc`` wrapper and build h5py with
+the ``HDF5_MPI`` environment variable:
+
+.. code:: bash
+
+    export CC=mpicc
+    export HDF5_MPI="ON"
+    pip install --no-binary=h5py h5py  # Add --no-cache-dir if pip has cached a previous build of h5py
+
+.. note::
+
+    Further guidance on building h5py against a parallel build of HDF5
+    is available in the `h5py documentation
+    <https://docs.h5py.org/en/stable/build.html#building-against-parallel-hdf5>`_.
+
+4. Build and install gprMax
 ---------------------------
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
