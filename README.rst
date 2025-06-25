@@ -238,21 +238,81 @@ When you are finished using gprMax, the conda environment can be deactivated usi
 Optional command line arguments
 -------------------------------
 
-====================== ========= ===========
-Argument name          Type      Description
-====================== ========= ===========
-``-n``                 integer   Number of required simulation runs. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60``
-``-i``                 integer   Model number to start/restart the simulation from. It would typically be used to restart a series of models from a specific model number, with the n argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces.
-``-taskfarm``          integer   number of Message Passing Interface (MPI) tasks, i.e. master + workers, for MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -taskfarm 61``. For further details see the `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
-``-gpu``               list/bool Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s), e.g. ``-gpu 0 1``
-``-opencl``            list/bool Flag to use OpenCL or list of OpenCL device ID(s) for specific compute device(s).
-``--geometry-only``    flag      Build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax examples/heterogeneous_soil.in --geometry-only``
-``--geometry-fixed``   flag      Run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
-``--write-processed``  flag      Write another input file after any Python blocks and include commands in the original input file have been processed. Useful for checking that any Python blocks are being correctly processed into gprMax commands.
-``--log-level``        integer   Level of logging to use, see the ` Python logging module <https://docs.python.org/3/library/logging.html>`_.
-``--log-file``         bool      Write logging information to file.
-``-h`` or ``--help``   flag      used to get help on command line options.
-====================== ========= ===========
+..  list-table::
+    :widths: 40 10 50
+    :header-rows: 1
+
+    * - Argument name
+      - Type
+      - Description
+    * - ``-o`` or ``-outputfile``
+      - string
+      - File path to save the output data.
+    * - ``-n``
+      - integer
+      - Number of required simulation runs. This option can be used to run a series of models, e.g.
+        to create a B-scan with 60 traces:
+        ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60``
+    * - ``-i``
+      - integer
+      - Model number to start/restart the simulation from. It would typically be used to restart a
+        series of models from a specific model number, with the n argument, e.g. to restart from
+        A-scan 45 when creating a B-scan with 60 traces.
+    * - ``-t`` or ``--taskfarm``
+      - flag
+      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined
+        with ``-n`` to allow individual models to be farmed out using a MPI taskfarm, e.g. to create
+        a B-scan with 60 traces and use MPI to farm out each trace:
+        ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
+        `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
+    * - ``--mpi``
+      - list
+      - Flag to use Message Passing Interface (MPI) to divide the model between MPI ranks. Three
+        integers should be provided to define the number of MPI processes (min 1) in the x, y, and z
+        dimensions.
+    * - ``-gpu``
+      - list/bool
+      - Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s), e.g.
+        ``-gpu 0 1``
+    * - ``-opencl``
+      - list/bool
+      - Flag to use OpenCL or list of OpenCL device ID(s) for specific compute device(s).
+    * - ``--geometry-only``
+      - flag
+      - Build a model and produce any geometry views but do not run the simulation, e.g. to check
+        the geometry of a model is correct:
+        ``(gprMax)$ python -m gprMax examples/heterogeneous_soil.in --geometry-only``
+    * - ``--geometry-fixed``
+      - flag
+      - Run a series of models where the geometry does not change between models, e.g. a B-scan
+        where *only* the position of simple sources and receivers, moved using ``#src_steps`` and
+        ``#rx_steps``, changes between models.
+    * - ``--write-processed``
+      - flag
+      - Write another input file after any Python blocks and include commands in the original input
+        file have been processed. Useful for checking that any Python blocks are being correctly
+        processed into gprMax commands.
+    * - ``--show-progress-bars``
+      - flag
+      - Forces progress bars to be displayed - by default, progress bars are displayed when the log
+        level is info (20) or less.
+    * - ``--hide-progress-bars``
+      - flag
+      - Forces progress bars to be displayed - by default, progress bars are hidden when the log
+        level is greater than info (20).
+    * - ``--log-level``
+      - integer
+      - Level of logging to use, see the `Python logging module <https://docs.python.org/3/library/logging.html>`_.
+    * - ``--log-file``
+      - flag
+      - Write logging information to file.
+    * - ``--log-all-ranks``
+      - flag
+      - Write logging information from all MPI ranks. Default behaviour only provides log output
+        from rank 0. When used with --log-file, each rank will write to an individual file.
+    * - ``-h`` or ``--help``
+      - flag
+      - Used to get help on command line options.
 
 Updating gprMax
 ===============
