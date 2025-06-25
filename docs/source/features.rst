@@ -67,3 +67,12 @@ Open source, robust, file formats
 Alongside improvements to the input file there is a new output file format – `HDF5 <http://www.hdfgroup.org/HDF5/>`_ – to manage the larger and more complex data sets that are being generated. HDF5 is a robust, portable and extensible format with a number of free readers available. For further details see the :ref:`Simulation Output <output>` section.
 
 In addition, the `Visualization Toolkit (VTK) <http://www.vtk.org>`_ is being used for improved handling and viewing of the detailed 3D FDTD geometry meshes. The VTK is an open-source system for 3D computer graphics, image processing and visualisation. It also has a number of free readers available including `Paraview <http://www.paraview.org>`_. For further details see the :ref:`geometry view command <geometryview>`.
+
+.. note::
+
+    As of June 2025, gprMax uses the `VTKHDF file format
+    <https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#vtkhdf-file-format>`_
+    rather than the previous `XML file format
+    <https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#xml-file-formats>`_
+    in order to better support parallel I/O. The Paraview macro has been
+    updated to reflect this change.

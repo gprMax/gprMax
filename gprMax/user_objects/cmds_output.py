@@ -49,7 +49,7 @@ class Snapshot(OutputUserObject):
                             must be specified for point in time at which the
                             snapshot will be taken.
         fileext: optional string to indicate type for snapshot file, either
-                            '.vti' (default) or '.h5'
+                            '.vtkhdf' (default) or '.h5'
         outputs: optional list of outputs for receiver. It can be any
                     selection from Ex, Ey, Ez, Hx, Hy, or Hz.
     """

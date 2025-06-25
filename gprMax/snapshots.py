@@ -237,7 +237,7 @@ class Snapshot(Generic[GridType]):
         )
 
     def write_file(self, pbar: tqdm):
-        """Writes snapshot file either as VTK ImageData (.vti) format
+        """Writes snapshot file either as VTK ImageData (.vtkhdf) format
             or HDF5 format (.h5) files
 
         Args:
