@@ -13,10 +13,10 @@
 #$ -R y
 
 ### Parallel environment ($NSLOTS):
-#$ -pe mpi 128
+#$ -pe mpi 176
 
 ### Job script name:
-#$ -N gprmax_omp_mpi.sh
+#$ -N gprmax_omp_taskfarm.sh
 #####################################################################################
 
 ### Initialise environment module
@@ -34,4 +34,4 @@ export OMP_NUM_THREADS=16
 
 ### Run gprMax with input file
 cd $HOME/gprMax
-mpirun -n 8 python -m gprMax mymodel.in --mpi 2 2 2
+mpirun -n 11 python -m gprMax mymodel.in -n 10 --taskfarm
