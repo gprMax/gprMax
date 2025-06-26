@@ -19,13 +19,13 @@
 
 import logging
 from os import PathLike
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
 
-from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkHdfFile
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkFileType, VtkHdfFile
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,8 @@ class VtkUnstructuredGrid(VtkHdfFile):
     https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#unstructured-grid
     """
 
+    TYPE = VtkFileType.UNSTRUCTURED_GRID
+
     class Dataset(VtkHdfFile.Dataset):
         CONNECTIVITY = "Connectivity"
         NUMBER_OF_CELLS = "NumberOfCells"
@@ -46,10 +48,6 @@ class VtkUnstructuredGrid(VtkHdfFile):
         POINTS = "Points"
         TYPES = "Types"
 
-    @property
-    def TYPE(self) -> Literal["UnstructuredGrid"]:
-        return "UnstructuredGrid"
-
     def __init__(
         self,
         filename: Union[str, PathLike],
@@ -57,7 +55,7 @@ class VtkUnstructuredGrid(VtkHdfFile):
         cell_types: npt.NDArray[VtkCellType],
         connectivity: npt.NDArray,
         cell_offsets: npt.NDArray,
-        comm: Optional[MPI.Comm] = None,
+        comm: Optional[MPI.Intracomm] = None,
     ) -> None:
         """Create a new VtkUnstructuredGrid file.
 
@@ -88,7 +86,7 @@ class VtkUnstructuredGrid(VtkHdfFile):
         Raises:
             Value Error: Raised if argument dimensions are invalid.
         """
-        super().__init__(filename, comm)
+        super().__init__(filename, self.TYPE, "w", comm)
 
         if len(cell_offsets) != len(cell_types) + 1:
             raise ValueError(
@@ -109,39 +107,140 @@ class VtkUnstructuredGrid(VtkHdfFile):
                 " Some connectivity data will be ignored"
             )
 
-        self._write_root_dataset(self.Dataset.CONNECTIVITY, connectivity)
-        self._write_root_dataset(self.Dataset.NUMBER_OF_CELLS, len(cell_types))
-        self._write_root_dataset(self.Dataset.NUMBER_OF_CONNECTIVITY_IDS, len(connectivity))
-        self._write_root_dataset(self.Dataset.NUMBER_OF_POINTS, len(points))
-        self._write_root_dataset(self.Dataset.OFFSETS, cell_offsets)
-        self._write_root_dataset(self.Dataset.POINTS, points, xyz_data_ordering=False)
-        self._write_root_dataset(self.Dataset.TYPES, cell_types)
+        self._number_of_cells = len(cell_types)
+        self._number_of_connectivity_ids = len(connectivity)
+        self._number_of_points = len(points)
+
+        if self.comm is None:
+            self.partition = 0
+            self._global_number_of_cells = self._number_of_cells
+            self._global_number_of_points = self._number_of_points
+            self._cells_offset = np.zeros(1, dtype=np.int32)
+            self._points_offsets = np.zeros(2, dtype=np.int32)
+            self._write_root_dataset(self.Dataset.NUMBER_OF_CELLS, self._number_of_cells)
+            self._write_root_dataset(
+                self.Dataset.NUMBER_OF_CONNECTIVITY_IDS, self._number_of_connectivity_ids
+            )
+            self._write_root_dataset(self.Dataset.NUMBER_OF_POINTS, self._number_of_points)
+            self._write_root_dataset(self.Dataset.TYPES, cell_types)
+            self._write_root_dataset(self.Dataset.POINTS, points, xyz_data_ordering=False)
+            self._write_root_dataset(self.Dataset.CONNECTIVITY, connectivity)
+            self._write_root_dataset(self.Dataset.OFFSETS, cell_offsets)
+        else:
+            # Write partition information for each rank
+            self.partition = self.comm.rank
+            partition_offset = np.array([self.partition], dtype=np.int32)
+            partition_shape = np.array([self.comm.size], dtype=np.int32)
+
+            self._write_root_dataset(
+                self.Dataset.NUMBER_OF_CELLS,
+                self._number_of_cells,
+                shape=partition_shape,
+                offset=partition_offset,
+            )
+            self._write_root_dataset(
+                self.Dataset.NUMBER_OF_CONNECTIVITY_IDS,
+                self._number_of_connectivity_ids,
+                shape=partition_shape,
+                offset=partition_offset,
+            )
+            self._write_root_dataset(
+                self.Dataset.NUMBER_OF_POINTS,
+                self._number_of_points,
+                shape=partition_shape,
+                offset=partition_offset,
+            )
+
+            self._global_number_of_cells = self.comm.allreduce(self._number_of_cells, MPI.SUM)
+            self._global_number_of_points = self.comm.allreduce(self._number_of_points, MPI.SUM)
+
+            self._cells_offset = np.full(1, self._number_of_cells, dtype=np.int32)
+            self.comm.Exscan(MPI.IN_PLACE, self._cells_offset)
+
+            self._points_offsets = np.array([self._number_of_points, 0], dtype=np.int32)
+            self.comm.Exscan(MPI.IN_PLACE, self._points_offsets)
+
+            connectivity_shape = np.array([self._number_of_connectivity_ids], dtype=np.int32)
+            self.comm.Allreduce(MPI.IN_PLACE, connectivity_shape)
+
+            connectivity_offset = np.array([self._number_of_connectivity_ids], dtype=np.int32)
+            self.comm.Exscan(MPI.IN_PLACE, connectivity_offset)
+
+            # Exscan leaves these undefined for rank 0
+            if self.comm.rank == 0:
+                connectivity_offset = np.zeros(1, dtype=np.int32)
+                self._cells_offset = np.zeros(1, dtype=np.int32)
+                self._points_offsets = np.zeros(2, dtype=np.int32)
+
+            cells_shape = np.array([self.global_number_of_cells], dtype=np.int32)
+            self._write_root_dataset(
+                self.Dataset.TYPES, cell_types, shape=cells_shape, offset=self.cells_offset
+            )
+
+            points_shape = np.array([self.global_number_of_points, 3], dtype=np.int32)
+            self._write_root_dataset(
+                self.Dataset.POINTS,
+                points,
+                shape=points_shape,
+                offset=self.points_offset,
+                xyz_data_ordering=False,
+            )
+
+            self._write_root_dataset(
+                self.Dataset.CONNECTIVITY,
+                connectivity,
+                shape=connectivity_shape,
+                offset=connectivity_offset,
+            )
+
+            # The OFFSETS dataset has size C + 1 for each partition.
+            # Account for the +1 by addding the partition index to the
+            # offset and MPI communicator size to the shape
+            cell_offsets_offset = self.cells_offset + self.partition
+            cell_offsets_shape = cells_shape + self.comm.size
+            self._write_root_dataset(
+                self.Dataset.OFFSETS,
+                cell_offsets,
+                shape=cell_offsets_shape,
+                offset=cell_offsets_offset,
+            )
 
     @property
     def number_of_cells(self) -> int:
-        number_of_cells = self._get_root_dataset(self.Dataset.NUMBER_OF_CELLS)
-        return np.sum(number_of_cells, dtype=np.int32)
+        return self._number_of_cells
+
+    @property
+    def global_number_of_cells(self) -> int:
+        return self._global_number_of_cells
+
+    @property
+    def cells_offset(self) -> npt.NDArray[np.int32]:
+        return self._cells_offset
 
     @property
     def number_of_connectivity_ids(self) -> int:
-        number_of_connectivity_ids = self._get_root_dataset(self.Dataset.NUMBER_OF_CONNECTIVITY_IDS)
-        return np.sum(number_of_connectivity_ids, dtype=np.int32)
+        return self._number_of_connectivity_ids
 
     @property
     def number_of_points(self) -> int:
-        number_of_points = self._get_root_dataset(self.Dataset.NUMBER_OF_POINTS)
-        return np.sum(number_of_points, dtype=np.int32)
+        return self._number_of_points
 
-    def add_point_data(
-        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
-    ):
+    @property
+    def global_number_of_points(self) -> int:
+        return self._global_number_of_points
+
+    @property
+    def points_offset(self) -> npt.NDArray[np.int32]:
+        return self._points_offsets
+
+    def add_point_data(self, name: str, data: npt.NDArray):
         """Add point data to the VTKHDF file.
 
         Args:
             name: Name of the dataset.
-            data: Data to be saved.
-            offset (optional): Offset to store the provided data at. Can
-                be omitted if data provides the full dataset.
+            data: Data to be saved. The length of the date must match
+                the number of points in the partition owned by this
+                rank.
 
         Raises:
             ValueError: Raised if data has invalid dimensions.
@@ -159,18 +258,17 @@ class VtkUnstructuredGrid(VtkHdfFile):
         elif number_of_dimensions == 2 and shape[1] != 1 and shape[1] != 3:
             raise ValueError(f"The second dimension should have shape 1 or 3, not {shape[1]}")
 
-        return super().add_point_data(name, data, shape, offset)
+        shape[0] = self.global_number_of_points
 
-    def add_cell_data(
-        self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
-    ):
+        return super()._add_point_data(name, data, shape, self.points_offset)
+
+    def add_cell_data(self, name: str, data: npt.NDArray):
         """Add cell data to the VTKHDF file.
 
         Args:
             name: Name of the dataset.
-            data: Data to be saved.
-            offset (optional): Offset to store the provided data at. Can
-                be omitted if data provides the full dataset.
+            data: Data to be saved. The length of the date must match
+                the number of cells in the partition owned by this rank.
 
         Raises:
             ValueError: Raised if data has invalid dimensions.
@@ -182,10 +280,12 @@ class VtkUnstructuredGrid(VtkHdfFile):
             raise ValueError(f"Data must have 1 or 2 dimensions, not {number_of_dimensions}.")
         elif len(data) != self.number_of_cells:
             raise ValueError(
-                "Length of data must match the number of cells in the vtkUnstructuredGrid."
-                f" {len(data)} != {self.number_of_cells}"
+                f"Length of data must match the number of cells in partition {self.partition} of the"
+                f" vtkUnstructuredGrid. {len(data)} != {self.number_of_cells}"
             )
         elif number_of_dimensions == 2 and shape[1] != 1 and shape[1] != 3:
             raise ValueError(f"The second dimension should have shape 1 or 3, not {shape[1]}")
 
-        return super().add_cell_data(name, data, shape, offset)
+        shape[0] = self.global_number_of_cells
+
+        return super()._add_cell_data(name, data, shape, self.cells_offset)

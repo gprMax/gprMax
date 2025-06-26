@@ -6,6 +6,9 @@
 
 .. image:: images_shared/gprMax_logo_small.png
     :target: http://www.gprmax.com
+    :alt: gprMax
+
+.. include_in_docs_after_this_label
 
 ***************
 Getting Started
@@ -208,6 +211,6 @@ Periodically you should update conda and the required Python packages. With the 
 
 
 Thanks To Our Contributors ✨🔗
-==========================
+===============================
 .. image:: https://contrib.rocks/image?repo=gprMax/gprMax
    :target: https://github.com/gprMax/gprMax/graphs/contributors

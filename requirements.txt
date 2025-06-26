@@ -9,6 +9,7 @@ jinja2
 jupyter
 matplotlib
 mpi4py
+mpi4py-fft
 numpy<2
 numpy-stl
 pandas

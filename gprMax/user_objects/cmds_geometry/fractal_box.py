@@ -23,7 +23,6 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
-from gprMax.fractals import FractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import ListMaterial
 from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, rotate_2point_object
@@ -111,38 +110,29 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
-        grid_contains_fractal_box, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-
-        # Exit early if none of the fractal box is in this grid as there
-        # is nothing else to do.
-        if not grid_contains_fractal_box:
-            return
+        p1, p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
 
         xs, ys, zs = p1
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal dimension"
             )
-            raise ValueError
         if weighting[0] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the x direction"
             )
-            raise ValueError
         if weighting[1] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the y direction"
             )
-            raise ValueError
         if weighting[2] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the z direction"
             )
         if n_materials < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the number of bins")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} requires a positive value for the number of bins")
 
         # Find materials to use to build fractal volume, either from mixing
         # models or normal materials.
@@ -152,28 +142,25 @@ class FractalBox(RotatableMixin, GeometryUserObject):
 
         if mixingmodel:
             if nbins == 1:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} must be used with more than one material from the mixing model."
                 )
-                raise ValueError
             if isinstance(mixingmodel, ListMaterial) and nbins > len(mixingmodel.mat):
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} too many materials/bins "
                     "requested compared to materials in "
                     "mixing model."
                 )
-                raise ValueError
             # Create materials from mixing model as number of bins now known
             # from fractal_box command.
             mixingmodel.calculate_properties(nbins, grid)
         elif not material:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} mixing model or material with "
                 + "ID {mixing_model_id} does not exist"
             )
-            raise ValueError
 
-        self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        self.volume = grid.add_fractal_volume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.volume.ID = ID
         self.volume.operatingonID = mixing_model_id
         self.volume.nbins = nbins
@@ -200,39 +187,26 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             self.do_pre_build = False
         else:
             if self.volume.fractalsurfaces:
-                self.volume.originalxs = self.volume.xs
-                self.volume.originalxf = self.volume.xf
-                self.volume.originalys = self.volume.ys
-                self.volume.originalyf = self.volume.yf
-                self.volume.originalzs = self.volume.zs
-                self.volume.originalzf = self.volume.zf
-
                 # Extend the volume to accomodate any rough surfaces, grass,
                 # or roots
                 for surface in self.volume.fractalsurfaces:
                     if surface.surfaceID == "xminus":
                         if surface.fractalrange[0] < self.volume.xs:
-                            self.volume.nx += self.volume.xs - surface.fractalrange[0]
                             self.volume.xs = surface.fractalrange[0]
                     elif surface.surfaceID == "xplus":
                         if surface.fractalrange[1] > self.volume.xf:
-                            self.volume.nx += surface.fractalrange[1] - self.volume.xf
                             self.volume.xf = surface.fractalrange[1]
                     elif surface.surfaceID == "yminus":
                         if surface.fractalrange[0] < self.volume.ys:
-                            self.volume.ny += self.volume.ys - surface.fractalrange[0]
                             self.volume.ys = surface.fractalrange[0]
                     elif surface.surfaceID == "yplus":
                         if surface.fractalrange[1] > self.volume.yf:
-                            self.volume.ny += surface.fractalrange[1] - self.volume.yf
                             self.volume.yf = surface.fractalrange[1]
                     elif surface.surfaceID == "zminus":
                         if surface.fractalrange[0] < self.volume.zs:
-                            self.volume.nz += self.volume.zs - surface.fractalrange[0]
                             self.volume.zs = surface.fractalrange[0]
                     elif surface.surfaceID == "zplus":
                         if surface.fractalrange[1] > self.volume.zf:
-                            self.volume.nz += surface.fractalrange[1] - self.volume.zf
                             self.volume.zf = surface.fractalrange[1]
 
                 # If there is only 1 bin then a normal material is being used,
@@ -247,7 +221,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     )
                     self.volume.fractalvolume *= materialnumID
                 else:
-                    self.volume.generate_fractal_volume()
+                    if not self.volume.generate_fractal_volume():
+                        return
                     for i in range(0, self.volume.nx):
                         for j in range(0, self.volume.ny):
                             for k in range(0, self.volume.nz):
@@ -263,6 +238,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 # TODO: Allow extract of rough surface profile (to print/file?)
                 for surface in self.volume.fractalsurfaces:
                     if surface.surfaceID == "xminus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nx),
+                        )
                         for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                             for j in range(surface.ys, surface.yf):
                                 for k in range(surface.zs, surface.zf):
@@ -286,6 +265,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         ] = 0
 
                     elif surface.surfaceID == "xplus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nx),
+                        )
                         if not surface.ID:
                             for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for j in range(surface.ys, surface.yf):
@@ -394,6 +377,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         root += 1
 
                     elif surface.surfaceID == "yminus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.ny),
+                        )
                         for i in range(surface.xs, surface.xf):
                             for j in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for k in range(surface.zs, surface.zf):
@@ -417,6 +404,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         ] = 0
 
                     elif surface.surfaceID == "yplus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.ny),
+                        )
                         if not surface.ID:
                             for i in range(surface.xs, surface.xf):
                                 for j in range(surface.fractalrange[0], surface.fractalrange[1]):
@@ -525,6 +516,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         root += 1
 
                     elif surface.surfaceID == "zminus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nz),
+                        )
                         for i in range(surface.xs, surface.xf):
                             for j in range(surface.ys, surface.yf):
                                 for k in range(surface.fractalrange[0], surface.fractalrange[1]):
@@ -548,6 +543,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                         ] = 0
 
                     elif surface.surfaceID == "zplus":
+                        surface.fractalrange = (
+                            max(surface.fractalrange[0], 0),
+                            min(surface.fractalrange[1], grid.nz),
+                        )
                         if not surface.ID:
                             for i in range(surface.xs, surface.xf):
                                 for j in range(surface.ys, surface.yf):
@@ -679,14 +678,14 @@ class FractalBox(RotatableMixin, GeometryUserObject):
 
             else:
                 if self.volume.nbins == 1:
-                    logger.exception(
+                    raise ValueError(
                         f"{self.__str__()} is being used with a "
                         "single material and no modifications, "
                         "therefore please use a #box command instead."
                     )
-                    raise ValueError
                 else:
-                    self.volume.generate_fractal_volume()
+                    if not self.volume.generate_fractal_volume():
+                        return
                     for i in range(0, self.volume.nx):
                         for j in range(0, self.volume.ny):
                             for k in range(0, self.volume.nz):

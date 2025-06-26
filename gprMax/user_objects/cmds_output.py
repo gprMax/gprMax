@@ -274,7 +274,7 @@ class GeometryView(OutputUserObject):
         p2: tuple required for upper right (x,y,z) coordinates of volume of
                 geometry view in metres.
         dl: tuple required for spatial discretisation of geometry view in metres.
-        output_tuple: string required for per-cell 'n' (normal) or per-cell-edge
+        output_type: string required for per-cell 'n' (normal) or per-cell-edge
                         'f' (fine) geometry views.
         filename: string required for filename where geometry view will be
                     stored in the same directory as input file.
@@ -302,18 +302,6 @@ class GeometryView(OutputUserObject):
         self.dl = dl
         self.filename = filename
         self.output_type = output_type
-
-    def geometry_view_constructor(self, output_type):
-        """Selects appropriate class for geometry view dependent on geometry
-        view type, i.e. normal or fine.
-        """
-
-        if output_type == "n":
-            from gprMax.geometry_outputs import GeometryViewVoxels as GeometryViewUser
-        else:
-            from gprMax.geometry_outputs import GeometryViewLines as GeometryViewUser
-
-        return GeometryViewUser
 
     def build(self, model: Model, grid: FDTDGrid):
         uip = self._create_uip(grid)

@@ -359,6 +359,8 @@ For example for a soil with sand fraction 0.5, clay fraction 0.5, bulk density :
 
     Further information on the Peplinski soil model and our implementation can be found in 'Giannakis, I. (2016). Realistic numerical modelling of Ground Penetrating Radar for landmine detection. The University of Edinburgh, United Kingdom. (http://hdl.handle.net/1842/20449)'
 
+.. _object-construction-commands:
+
 Object construction commands
 ============================
 

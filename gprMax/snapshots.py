@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -19,7 +19,6 @@
 
 import logging
 import sys
-from enum import IntEnum, unique
 from pathlib import Path
 from typing import Dict, Generic, List
 
@@ -30,8 +29,9 @@ from mpi4py import MPI
 from tqdm import tqdm
 
 import gprMax.config as config
+from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.output_controllers.grid_view import GridType, GridView, MPIGridView
+from gprMax.utilities.mpi import Dim, Dir
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
@@ -303,19 +303,6 @@ class Snapshot(Generic[GridType]):
                 pbar.update(n=self.snapfields[key].nbytes)
 
         f.close()
-
-
-@unique
-class Dim(IntEnum):
-    X = 0
-    Y = 1
-    Z = 2
-
-
-@unique
-class Dir(IntEnum):
-    NEG = 0
-    POS = 1
 
 
 class MPISnapshot(Snapshot[MPIGrid]):

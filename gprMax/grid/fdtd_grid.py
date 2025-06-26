@@ -22,7 +22,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Any, Iterable, List, Tuple, Union
+from typing import Any, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -33,7 +33,8 @@ from typing_extensions import TypeVar
 from gprMax import config
 from gprMax.cython.pml_build import pml_average_er_mr
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
-from gprMax.fractals import FractalVolume
+from gprMax.fractals.fractal_surface import FractalSurface
+from gprMax.fractals.fractal_volume import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
@@ -185,6 +186,34 @@ class FDTDGrid:
             self.pmls["thickness"]["xmax"] = int(thickness[3])
             self.pmls["thickness"]["ymax"] = int(thickness[4])
             self.pmls["thickness"]["zmax"] = int(thickness[5])
+
+    def add_fractal_volume(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> FractalVolume:
+        volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        self.fractalvolumes.append(volume)
+        return volume
+
+    def create_fractal_surface(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> FractalSurface:
+        return FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
 
     def add_source(self, source: Source):
         if isinstance(source, VoltageSource):
@@ -748,7 +777,7 @@ class FDTDGrid:
         mem_use = 0
 
         for vol in self.fractalvolumes:
-            mem_use += vol.nx * vol.ny * vol.nz * vol.dtype.itemsize
+            mem_use += np.prod(vol.start) * vol.dtype.itemsize
             for surface in vol.fractalsurfaces:
                 surfacedims = surface.get_surface_dims()
                 mem_use += surfacedims[0] * surfacedims[1] * surface.dtype.itemsize

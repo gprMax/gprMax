@@ -69,11 +69,12 @@ The essential functions are:
 
 Running model(s)
 ----------------
-.. autofunction:: gprMax.gprMax.run
+.. autofunction:: gprMax.run
 
 Creating a model scene
 ----------------------
-.. autoclass:: gprMax.scene.Scene
+.. autoclass:: gprMax.Scene
+    :members: add
 
 Domain
 ------
@@ -193,11 +194,11 @@ Add Surface Water
 
 Geometry View
 -------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.GeometryView
+.. autoclass:: gprMax.user_objects.cmds_output.GeometryView
 
 Geometry Objects Write
 ----------------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.GeometryObjectsWrite
+.. autoclass:: gprMax.user_objects.cmds_output.GeometryObjectsWrite
 
 Source and output functions
 ===========================
@@ -248,11 +249,11 @@ Receiver Steps
 
 Snapshot
 --------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.Snapshot
+.. autoclass:: gprMax.user_objects.cmds_output.Snapshot
 
 Subgrid
 -------
-.. autoclass:: gprMax.subgrids.user_objects.SubGridHSG
+.. autoclass:: gprMax.SubGridHSG
 
 
 .. _pml-tuning:
@@ -262,7 +263,15 @@ PML functions
 
 The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. The PML can be customised using the following commands:
 
-PML properties
+PML Formulation
+---------------
+.. autoclass:: gprMax.user_objects.cmds_singleuse.PMLFormulation
+
+PML Thickness
+-------------
+.. autoclass:: gprMax.user_objects.cmds_singleuse.PMLThickness
+
+PML Properties
 --------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.PMLProps
 

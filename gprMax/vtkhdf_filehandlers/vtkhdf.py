@@ -29,9 +29,14 @@ from typing import Optional, Tuple, Union
 import h5py
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
+from mpi4py.MPI import Intracomm
 
 logger = logging.getLogger(__name__)
+
+
+class VtkFileType(str, Enum):
+    IMAGE_DATA = "ImageData"
+    UNSTRUCTURED_GRID = "UnstructuredGrid"
 
 
 class VtkHdfFile(AbstractContextManager):
@@ -48,15 +53,16 @@ class VtkHdfFile(AbstractContextManager):
     class Dataset(str, Enum):
         pass
 
-    @property
-    @abstractmethod
-    def TYPE(self) -> str:
-        pass
-
     def __enter__(self):
         return self
 
-    def __init__(self, filename: Union[str, PathLike], comm: Optional[MPI.Comm] = None) -> None:
+    def __init__(
+        self,
+        filename: Union[str, PathLike],
+        vtk_file_type: VtkFileType,
+        mode: str = "r",
+        comm: Optional[Intracomm] = None,
+    ) -> None:
         """Create a new VtkHdfFile.
 
         If the file already exists, it will be overriden. Required
@@ -68,6 +74,12 @@ class VtkHdfFile(AbstractContextManager):
         Args:
             filename: Name of the file (can be a file path). The file
                 extension will be set to '.vtkhdf'.
+            mode (optional): Mode to open the file. Valid modes are
+                - r Readonly, file must exist (default)
+                - r+ Read/write, file must exist
+                - w Create file, truncate if exists
+                - w- or x Create file, fail if exists
+                - a Read/write if exists, create otherwise
             comm (optional): MPI communicator containing all ranks that
                 want to write to the file.
 
@@ -85,18 +97,20 @@ class VtkHdfFile(AbstractContextManager):
 
         # Check if the filehandler should use an MPI driver
         if self.comm is None:
-            self.file_handler = h5py.File(self.filename, "w")
+            self.file_handler = h5py.File(self.filename, mode)
         else:
-            self.file_handler = h5py.File(self.filename, "w", driver="mpio", comm=self.comm)
+            self.file_handler = h5py.File(self.filename, mode, driver="mpio", comm=self.comm)
 
-        self.root_group = self.file_handler.create_group(self.ROOT_GROUP)
+        logger.debug(f"Opened file '{self.filename}'")
+
+        self.root_group = self.file_handler.require_group(self.ROOT_GROUP)
 
         # Set required Version and Type root attributes
-        self._set_root_attribute(self.VERSION_ATTR, self.VERSION)
+        self._check_root_attribute(self.VERSION_ATTR, self.VERSION)
 
-        type_as_ascii = self.TYPE.encode("ascii")
-        self._set_root_attribute(
-            self.TYPE_ATTR, type_as_ascii, h5py.string_dtype("ascii", len(type_as_ascii))
+        type_as_ascii = vtk_file_type.encode("ascii")
+        self._check_root_attribute(
+            self.TYPE_ATTR, type_as_ascii, dtype=h5py.string_dtype("ascii", len(type_as_ascii))
         )
 
     def __exit__(
@@ -122,7 +136,57 @@ class VtkHdfFile(AbstractContextManager):
 
     def close(self) -> None:
         """Close the file handler"""
+        logger.debug(f"Closed file '{self.filename}'")
         self.file_handler.close()
+
+    def _check_root_attribute(
+        self,
+        attribute: str,
+        expected_value: npt.ArrayLike,
+        dtype: npt.DTypeLike = None,
+    ):
+        """Check root attribute is present and warn if not valid.
+
+        If the attribute exists in the file that has been opened, the
+        value will be checked against the expected value with a warning
+        produced if they differ. If the attribute has not been set, it
+        will be set to the expected value unless the file has been
+        opened in readonly mode.
+
+        Args:
+            attribute: Name of the attribute.
+            expected_value: Expected value of the attribute.
+            dtype (optional): Data type of the attribute. Overrides
+                expected_value.dtype if the attribute is set by
+                this function.
+
+        Returns:
+            value: True if the attribute is present in the root VTKHDF
+                group. False otherwise.
+        """
+        if self._has_root_attribute(attribute):
+            value = self._get_root_attribute(attribute)
+            if np.any(value != expected_value):
+                logger.warning(
+                    f"VTKHDF version mismatch. Expected '{expected_value}', but found '{value}'."
+                )
+        elif self.file_handler.mode == "r+":
+            self._set_root_attribute(attribute, expected_value, dtype=dtype)
+        else:
+            logger.warning(f"Required VTKHDF attribute '{attribute}' not found.")
+
+    def _has_root_attribute(self, attribute: str) -> bool:
+        """Check if attribute is present in the root VTKHDF group.
+
+        Args:
+            attribute: Name of the attribute.
+
+        Returns:
+            value: True if the attribute is present in the root VTKHDF
+                group. False otherwise.
+        """
+        value = self.root_group.attrs.get(attribute)
+        return value is not None
 
     def _get_root_attribute(self, attribute: str) -> npt.NDArray:
         """Get attribute from the root VTKHDF group if it exists.
@@ -136,8 +200,8 @@ class VtkHdfFile(AbstractContextManager):
         Raises:
             KeyError: Raised if the attribute is not present as a key.
         """
-        value = self.root_group.attrs[attribute]
-        if isinstance(value, h5py.Empty):
+        value = self.root_group.attrs.get(attribute)
+        if value is None:
             raise KeyError(f"Attribute '{attribute}' not present in /{self.ROOT_GROUP} group")
         return value
 
@@ -258,48 +322,71 @@ class VtkHdfFile(AbstractContextManager):
                 and offset are invalid.
         """
 
-        # If dtype is a string and using parallel I/O, ensure using
-        # fixed length strings
-        if isinstance(dtype, np.dtype) and self.comm is not None:
-            string_info = h5py.check_string_dtype(dtype)
-            if string_info is not None and string_info.length is None:
-                logger.warning(
-                    "HDF5 does not support variable length strings with parallel I/O."
-                    " Using fixed length strings instead."
-                )
-                dtype = h5py.string_dtype(encoding="ascii", length=0)
-
+        # Ensure data is a numpy array
         if not isinstance(data, np.ndarray):
             data = np.array(data, dtype=dtype)
             if data.ndim < 1:
                 data = np.expand_dims(data, axis=-1)
 
-        if data.dtype.kind == "U":
-            if dtype is not None:  # Only log warning if user specified a data type
+        string_info = None
+
+        # Warn if string data type will be converted from unicode to a
+        # byte array (ascii). Only output a warning if the user
+        # specified dtype
+        if dtype is not None and np.dtype(dtype).kind == "U":
+            logger.warning(
+                "NumPy UTF-32 ('U' dtype) is not supported by HDF5."
+                " Converting to bytes array ('S' dtype)."
+            )
+
+        # Ensure dtype is a numpy dtype
+        if dtype is None:
+            dtype = data.dtype
+        elif isinstance(dtype, np.dtype):
+            string_info = h5py.check_string_dtype(dtype)
+
+            # Warn if user specified h5py string data type is invalid
+            if string_info is not None and string_info.encoding == "utf-8":
                 logger.warning(
-                    "NumPy UTF-32 ('U' dtype) is not supported by HDF5."
-                    " Converting to bytes array ('S' dtype)."
+                    "utf-8 encoding is not supported by VTKHDF. Converting to ascii encoding."
                 )
-            data = data.astype("S")
+
+            if string_info is not None and string_info.length is not None:
+                if self.comm is None:
+                    logger.warning(
+                        "Fixed length strings are not supported by VTKHDF."
+                        " Converting to variable length strings."
+                    )
+                else:
+                    logger.warning(
+                        "HDF5 does not support variable length strings with parallel I/O."
+                        " Using fixed length strings instead."
+                    )
+                    logger.warning(
+                        "VTKHDF does not support fixed length strings. File readers may generate"
+                        " error messages when reading in a VTKHDF file containing fixed length"
+                        " strings."
+                    )
+        else:
+            dtype = np.dtype(dtype)
 
         # Explicitly define string datatype
-        # VTKHDF only supports ascii strings (not UTF-8)
-        if data.dtype.kind == "S":
-            dtype = h5py.string_dtype(encoding="ascii", length=data.dtype.itemsize)
+        # VTKHDF only supports variable length ascii strings (not UTF-8)
+        if dtype.kind == "U" or dtype.kind == "S" or string_info is not None:
+            # If using parallel I/O, use fixed length strings
+            length = None if self.comm is None else 0
+            dtype = h5py.string_dtype(encoding="ascii", length=length)
             data = data.astype(dtype)
-
-        elif dtype is None:
-            dtype = data.dtype
 
         # VTKHDF stores datasets using ZYX ordering rather than XYZ
         if xyz_data_ordering:
             data = data.transpose()
 
-        if shape is not None:
-            shape = np.flip(shape)
+            if shape is not None:
+                shape = np.flip(shape)
 
-        if offset is not None:
-            offset = np.flip(offset)
+            if offset is not None:
+                offset = np.flip(offset)
 
         logger.debug(
             f"Writing dataset '{path}', shape: {shape}, data.shape: {data.shape}, dtype: {dtype}"
@@ -367,8 +454,10 @@ class VtkHdfFile(AbstractContextManager):
             if string_info is not None and string_info.length is None:
                 raise TypeError(
                     "HDF5 does not support variable length strings with parallel I/O."
-                    " Use fixed length strings instead."
+                    " Use a serial driver or fixed length strings instead."
                 )
+
+        string_info = h5py.check_string_dtype(dtype)
 
         if dtype.kind == "U":
             logger.warning(
@@ -376,16 +465,25 @@ class VtkHdfFile(AbstractContextManager):
                 " Converting to bytes array ('S' dtype)."
             )
 
+        if string_info is not None and string_info.encoding == "utf-8":
+            logger.warning(
+                "utf-8 encoding is not supported by VTKHDF. Converting to ascii encoding."
+            )
+
         # Explicitly define string datatype
-        # VTKHDF only supports ascii strings (not UTF-8)
-        if dtype.kind == "U" or dtype.kind == "S":
-            dtype = h5py.string_dtype(encoding="ascii", length=dtype.itemsize)
+        # VTKHDF only supports variable length ascii strings (not UTF-8)
+        if (
+            dtype.kind == "U"
+            or dtype.kind == "S"
+            or (string_info is not None and string_info.encoding == "utf-8")
+        ):
+            dtype = h5py.string_dtype(encoding="ascii", length=None)
 
         logger.debug(f"Creating dataset '{path}', shape: {shape}, dtype: {dtype}")
 
         self.file_handler.create_dataset(path, shape=shape, dtype=dtype)
 
-    def add_point_data(
+    def _add_point_data(
         self,
         name: str,
         data: npt.NDArray,
@@ -405,7 +503,7 @@ class VtkHdfFile(AbstractContextManager):
         dataset_path = self._build_dataset_path("PointData", name)
         self._write_dataset(dataset_path, data, shape=shape, offset=offset)
 
-    def add_cell_data(
+    def _add_cell_data(
         self,
         name: str,
         data: npt.NDArray,

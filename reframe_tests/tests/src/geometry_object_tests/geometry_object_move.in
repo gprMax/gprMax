@@ -1,0 +1,14 @@
+#title: Hertzian dipole in free-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.002 0.005 0.005
+#time_window: 3e-9
+
+#pml_cells: 5 2 2 5 2 2
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: z 0.050 0.050 0.050 myWave
+
+#rx: 0.08 0.08 0.08
+
+#geometry_objects_read: 0.03 0.03 0.03 full_volume_read.h5 full_volume_read_materials.txt
+#geometry_objects_write: 0.05 0.05 0.05 0.09 0.09 0.09 partial_volume
