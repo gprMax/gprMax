@@ -75,7 +75,7 @@ Package overview
 * ``requirements.txt`` is a configuration file for pip that sets up a Python environment with all the required Python packages for gprMax.
 * ``setup.py`` is the centre of all activity in building, distributing, and installing gprMax, including building and compiling the Cython extension modules.
 
-
+.. _installation:
 
 Installation
 ============

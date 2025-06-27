@@ -1,37 +1,39 @@
-#!/bin/sh
-#####################################################################################
-### Change to current working directory:
-#$ -cwd
-
-### Specify runtime (hh:mm:ss):
-#$ -l h_rt=01:00:00
-
-### Email options:
-#$ -m ea -M joe.bloggs@email.com
-
-### Resource reservation:
-#$ -R y
-
-### Parallel environment ($NSLOTS):
-#$ -pe mpi 128
+#!/bin/bash
 
 ### Job script name:
-#$ -N gprmax_omp_mpi.sh
-#####################################################################################
+#SBATCH --job-name="gprMax MPI demo"
 
-### Initialise environment module
-. /etc/profile.d/modules.sh
+### Number of MPI tasks:
+#SBATCH --ntasks=8
 
-### Load and activate Anaconda environment for gprMax, i.e. Python 3 and required packages
-module load anaconda
-source activate gprMax
+### Number of CPUs (OpenMP threads) per task:
+#SBATCH --cpus-per-task=16
 
-### Load OpenMPI
-module load openmpi
+### Runtime limit:
+#SBATCH --time=0:10:0
 
-### Set number of OpenMP threads per MPI task (each gprMax model)
-export OMP_NUM_THREADS=16
+### Partition and quality of service to use (these control the type and
+### amount of resources allowed to request):
+#SBATCH --partition=standard
+#SBATCH --qos=standard
 
-### Run gprMax with input file
-cd $HOME/gprMax
-mpirun -n 8 python -m gprMax mymodel.in --mpi 2 2 2
+### Hints to control MPI task layout:
+#SBATCH --hint=nomultithread
+#SBATCH --distribution=block:block
+
+
+# Set number of OpenMP threads from SLURM environment variables
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+# Ensure the cpus-per-task option is propagated to srun commands
+export SRUN_CPUS_PER_TASK=$SLURM_CPUS_PER_TASK
+
+# Load system modules
+module load PrgEnv-gnu
+module load cray-python
+
+# Load Python virtual environment
+source .venv/bin/activate
+
+# Run gprMax with input file
+srun python -m gprMax my_model.in --mpi 2 2 2
