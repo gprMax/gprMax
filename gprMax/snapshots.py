@@ -328,7 +328,7 @@ class MPISnapshot(Snapshot[MPIGrid]):
         self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
 
     def has_neighbour(self, dimension: Dim, direction: Dir) -> bool:
-        return self.neighbours[dimension][direction] != -1
+        return self.neighbours[dimension][direction] >= 0
 
     def store(self):
         """Store (in memory) electric and magnetic field values for snapshot.
