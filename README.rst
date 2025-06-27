@@ -36,7 +36,7 @@ For further information on referencing gprMax visit the `Publications section of
 Package overview
 ================
 
-.. code-block:: bash
+.. code-block:: none
 
     gprMax/
         docs/
@@ -103,7 +103,7 @@ macOS
 
 * Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. That said, it is still useful to have Xcode (with command line tools) installed. It can be downloaded from the App Store. Once Xcode is installed, download and install the `Homebrew package manager <http://brew.sh>`_ and then to install gcc, run:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ brew install gcc
 
@@ -143,7 +143,7 @@ macOS
 ^^^^^
 * FFTW can be installed using the `Homebrew package manager <http://brew.sh>`_:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ brew install fftw
 
@@ -160,7 +160,7 @@ We recommend using Miniconda to install Python and the required Python packages 
 * `Download and install Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Choose the Python 3.x version for your platform. We recommend choosing the installation options to: install Miniconda only for your user account; add Miniconda to your PATH environment variable; and register Miniconda Python as your default Python. See the `Quick Install page <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ for help installing Miniconda.
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ conda update conda
     $ conda install git
@@ -187,20 +187,20 @@ Install with conda
 
 h5py can be installed with MPI support in a conda environment with:
 
-.. code:: bash
+.. code:: console
 
-    conda install "h5py>=2.9=mpi*"
+    (gprMax)$ conda install "h5py>=2.9=mpi*"
 
 Install with pip
 ^^^^^^^^^^^^^^^^
 
 Set your default compiler to the ``mpicc`` wrapper and build h5py with the ``HDF5_MPI`` environment variable:
 
-.. code:: bash
+.. code:: console
 
-    export CC=mpicc
-    export HDF5_MPI="ON"
-    pip install --no-binary=h5py h5py  # Add --no-cache-dir if pip has cached a previous build of h5py
+    (gprMax)$ export CC=mpicc
+    (gprMax)$ export HDF5_MPI="ON"
+    (gprMax)$ pip install --no-binary=h5py h5py  # Add --no-cache-dir if pip has cached a previous build of h5py
 
 Further guidance on building h5py against a parallel build of HDF5 is available in the `h5py documentation <https://docs.h5py.org/en/stable/build.html#building-against-parallel-hdf5>`_.
 
@@ -212,7 +212,7 @@ Once you have installed the aforementioned tools follow these steps to build and
 
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows), **navigate into the directory above the gprMax package**, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
-.. code-block:: bash
+.. code-block:: console
 
     (gprMax)$ pip install -e gprMax
 
@@ -227,19 +227,19 @@ Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top
 
 Basic usage of gprMax is:
 
-.. code-block:: bash
+.. code-block:: console
 
     (gprMax)$ python -m gprMax path_to/name_of_input_file
 
 For example to run one of the test models:
 
-.. code-block:: bash
+.. code-block:: console
 
     (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in
 
 When the simulation is complete you can plot the A-scan using:
 
-.. code-block:: bash
+.. code-block:: console
 
     (gprMax)$ python -m toolboxes.Plotting.plot_Ascan examples/cylinder_Ascan_2D.h5
 
@@ -249,6 +249,10 @@ When you are finished using gprMax, the conda environment can be deactivated usi
 
 Optional command line arguments
 -------------------------------
+
+.. warning::
+
+    ``-mpi`` has been depreciated in favour of ``--taskfarm``. Additionally, ``--mpi`` controls the new MPI domain decomposition functionality.
 
 ..  list-table::
     :widths: 40 10 50
@@ -304,7 +308,7 @@ Optional command line arguments
     * - ``--log-all-ranks``
       - flag
       - Write logging information from all MPI ranks. Default behaviour only provides log output
-        from rank 0. When used with --log-file, each rank will write to an individual file.
+        from rank 0. When used with ``--log-file``, each rank will write to an individual file.
     * - ``-h`` or ``--help``
       - flag
       - Used to get help on command line options.
@@ -314,7 +318,7 @@ Updating gprMax
 
 * The safest and simplest way to upgrade gprMax is to uninstall, clone the latest version, and re-install the software. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the directory above the gprMax package, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following command:
 
-.. code-block:: bash
+.. code-block:: console
 
     (gprMax)$ pip uninstall gprMax
     (gprMax)$ git clone https://github.com/gprMax/gprMax.git
@@ -328,7 +332,7 @@ Updating conda and Python packages
 
 Periodically you should update conda and the required Python packages. With the gprMax environment deactivated and from the top-level gprMax directory, run the following commands:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ conda update conda
     $ conda env update -f conda_env.yml
