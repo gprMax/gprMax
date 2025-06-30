@@ -54,6 +54,13 @@ Run one of the 2D test models:
 
 The ``--mpi`` argument passed to gprMax takes three integers to define the number of MPI processes in the x, y, and z dimensions to form a cartesian grid. The product of these three numbers shoud equal the number of MPI ranks. In this case ``2 x 2 x 1 = 4``.
 
+.. figure:: ../../images_shared/mpi_domain_decomposition.png
+    :width: 80%
+    :align: center
+    :alt: MPI domain decomposition diagram
+
+    Example decomposition using 8 MPI ranks in a 2 x 2 x 2 pattern (specified with ``--mpi 2 2 2``). The full model (left) is evenly divided across MPI ranks (right).
+
 .. _fractal_domain_decomposition:
 
 Decomposition of Fractal Geometry
@@ -65,9 +72,10 @@ There are some restrictions when using MPI domain decomposition with :ref:`fract
 
     gprMax will throw an error during the model build phase if the MPI decomposition is incompatible with the model geometry.
 
-**#fractal_box**
+#fractal_box
+############
 
-When a ``#fractal_box`` has a mixing model attached, it will perform a parallel fast Fourier transforms (FFTs) as part of its construction. When performing a parallel FFT in 3D space, the decomposition must be either 1D or 2D - it cannot be decomposed in all 3 dimensions. To support this, the MPI domain decomposition of the fractal box must have size one in at least one dimension:
+When a fractal box has a mixing model attached, it will perform a parallel fast Fourier transforms (FFTs) as part of its construction. When performing a parallel FFT in 3D space, the decomposition must be either 1D or 2D - it cannot be decomposed in all 3 dimensions. To support this, the MPI domain decomposition of the fractal box must have size one in at least one dimension:
 
 .. _fractal_domain_decomposition_figure:
 .. figure:: ../../images_shared/fractal_domain_decomposition.png
@@ -78,15 +86,19 @@ When a ``#fractal_box`` has a mixing model attached, it will perform a parallel 
 
     This does not necessarily mean the whole model domain needs to be divided this way. So long as the volume covered by the fractal box is divided into either slabs or pencils, the model can be built. This includes the volume covered by attached surfaces added by the ``#add_surface_water``, ``#add_surface_roughness``, or ``#add_grass`` commands.
 
-**#add_surface_roughness**
+#add_surface_roughness
+######################
 
 When adding surface roughness, a parallel fast Fourier transform is applied across the 2D surface of a fractal box. Therefore, the MPI domain decomposition across the surface must be size one in at least one dimension.
 
 For example, in figure :numref:`fractal_domain_decomposition_figure`, surface roughness can be attached to any surface when using the slab decomposition. However, if using the pencil decomposition, it could not be attached to the XY surfaces.
 
-**#add_grass**
+#add_grass
+##########
 
-Domain decomposition of grass is not currently supported. Grass can still be built in a model so long as it is fully contained within a single MPI rank.
+.. warning::
+
+    Domain decomposition of grass is not currently supported. Grass can still be built in a model so long as it is fully contained within a single MPI rank.
 
 Task farm
 ---------
