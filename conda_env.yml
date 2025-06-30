@@ -18,6 +18,7 @@ dependencies:
 - pip:
   - humanize
   - mpi4py
+  - mpi4py-fft
   - numpy-stl
 #  - pycuda
 #  - pyopencl
