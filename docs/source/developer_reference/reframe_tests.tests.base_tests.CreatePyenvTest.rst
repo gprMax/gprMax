@@ -7,14 +7,14 @@ CreatePyenvTest
 
 .. autoclass:: CreatePyenvTest
 
-
+   
    .. automethod:: __init__
 
-
+   
    .. rubric:: Methods
 
    .. autosummary::
-
+   
       ~CreatePyenvTest.__init__
       ~CreatePyenvTest.check_performance
       ~CreatePyenvTest.check_requirements_installed
@@ -44,15 +44,15 @@ CreatePyenvTest
       ~CreatePyenvTest.skip_if
       ~CreatePyenvTest.skip_if_no_procinfo
       ~CreatePyenvTest.user_deps
+   
+   
 
-
-
-
-
+   
+   
    .. rubric:: Attributes
 
    .. autosummary::
-
+   
       ~CreatePyenvTest.build_job
       ~CreatePyenvTest.build_stderr
       ~CreatePyenvTest.build_stdout
@@ -117,3 +117,5 @@ CreatePyenvTest
       ~CreatePyenvTest.extra_resources
       ~CreatePyenvTest.build_locally
       ~CreatePyenvTest.ci_extras
+   
+   
