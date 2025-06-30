@@ -430,19 +430,19 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) < 5:
+            if len(tmp) < 4:
                 logger.exception(
                     "'"
                     + cmdname
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " requires at least five parameters"
+                    + " requires at least four parameters"
                 )
                 raise ValueError
 
             poles = int(tmp[0])
-            material_ids = tmp[(3 * poles) + 1 : len(tmp)]
+            material_ids = tmp[(2 * poles) + 1 : len(tmp)]
             omega = []
             gamma = []
 
