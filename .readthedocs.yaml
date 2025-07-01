@@ -9,7 +9,7 @@ build:
   os: ubuntu-22.04
   apt_packages:
     - mpich
-    - fftw3
+    - libfftw3-dev
   tools:
     python: "mambaforge-22.9"
   jobs:
