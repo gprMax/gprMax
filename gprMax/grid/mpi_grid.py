@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -370,7 +370,7 @@ class MPIGrid(FDTDGrid):
             dir: Direction of halo to swap.
         """
         neighbour = self.neighbours[dim][dir]
-        if neighbour != -1:
+        if neighbour >= 0:
             send_request = self.comm.Isend([array, self.send_halo_map[dim][dir]], neighbour)
             recv_request = self.comm.Irecv([array, self.recv_halo_map[dim][dir]], neighbour)
             self.send_requests.append(send_request)
@@ -637,7 +637,7 @@ class MPIGrid(FDTDGrid):
             has_neighbour: True if the current rank has a neighbour in
                 the specified dimension and direction.
         """
-        return self.neighbours[dim][dir] != -1
+        return self.neighbours[dim][dir] >= 0
 
     def set_halo_map(self):
         """Create MPI DataTypes for field array halo exchanges."""

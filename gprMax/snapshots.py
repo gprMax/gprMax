@@ -24,7 +24,6 @@ from typing import Dict, Generic, List
 
 import h5py
 import numpy as np
-from evtk.hl import imageToVTK
 from mpi4py import MPI
 from tqdm import tqdm
 
@@ -32,6 +31,7 @@ import gprMax.config as config
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.utilities.mpi import Dim, Dir
+from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
@@ -54,8 +54,7 @@ def save_snapshots(snapshots: List["Snapshot"]):
     logger.info(f"Snapshot directory: {snapshotdir.resolve()}")
 
     for i, snap in enumerate(snapshots):
-        fn = snapshotdir / snap.filename
-        snap.filename = fn.with_suffix(snap.fileext)
+        snap.filename = snapshotdir / snap.filename
         pbar = tqdm(
             total=snap.nbytes,
             leave=True,
@@ -83,9 +82,9 @@ class Snapshot(Generic[GridType]):
         "Hz": None,
     }
 
-    # Snapshots can be output as VTK ImageData (.vti) format or
+    # Snapshots can be output as VTK ImageData (.vtkhdf) format or
     # HDF5 format (.h5) files
-    fileexts = [".vti", ".h5"]
+    fileexts = [".vtkhdf", ".h5"]
 
     # Dimensions of largest requested snapshot
     nx_max = 0
@@ -124,12 +123,12 @@ class Snapshot(Generic[GridType]):
             dx, dy, dz: ints for the spatial discretisation in cells.
             time: int for the iteration number to take the snapshot on.
             filename: string for the filename to save to.
-            fileext: optional string for the file extension.
-            outputs: optional dict of booleans for fields to use for snapshot.
+            fileext: string for the file extension.
+            outputs: dict of booleans for fields to use for snapshot.
         """
 
         self.fileext = fileext
-        self.filename = Path(filename)
+        self.filename = Path(filename).with_suffix(fileext)
         self.time = time
         self.outputs = outputs
         self.grid_view = self.GRID_VIEW_TYPE(grid, xs, ys, zs, xf, yf, zf, dx, dy, dz)
@@ -238,7 +237,7 @@ class Snapshot(Generic[GridType]):
         )
 
     def write_file(self, pbar: tqdm):
-        """Writes snapshot file either as VTK ImageData (.vti) format
+        """Writes snapshot file either as VTK ImageData (.vtkhdf) format
             or HDF5 format (.h5) files
 
         Args:
@@ -246,41 +245,26 @@ class Snapshot(Generic[GridType]):
             G: FDTDGrid class describing a grid in a model.
         """
 
-        if self.fileext == ".vti":
+        if self.fileext == ".vtkhdf":
             self.write_vtk(pbar)
         elif self.fileext == ".h5":
             self.write_hdf5(pbar)
 
     def write_vtk(self, pbar: tqdm):
-        """Writes snapshot file in VTK ImageData (.vti) format.
+        """Writes snapshot file in VTK ImageData (.vtkhdf) format.
 
         Args:
             pbar: Progress bar class instance.
         """
 
-        celldata = {
-            k: self.snapfields[k]
-            for k in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]
-            if self.outputs.get(k)
-        }
-
         origin = self.grid_view.start * self.grid.dl
         spacing = self.grid_view.step * self.grid.dl
 
-        imageToVTK(
-            str(self.filename.with_suffix("")),
-            origin=tuple(origin),
-            spacing=tuple(spacing),
-            cellData=celldata,
-        )
-
-        pbar.update(
-            n=len(celldata)
-            * self.nx
-            * self.ny
-            * self.nz
-            * np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
-        )
+        with VtkImageData(self.filename, self.grid_view.size, origin, spacing) as f:
+            for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
+                if self.outputs[key]:
+                    f.add_cell_data(key, self.snapfields[key])
+                    pbar.update(n=self.snapfields[key].nbytes)
 
     def write_hdf5(self, pbar: tqdm):
         """Writes snapshot file in HDF5 (.h5) format.
@@ -344,7 +328,7 @@ class MPISnapshot(Snapshot[MPIGrid]):
         self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
 
     def has_neighbour(self, dimension: Dim, direction: Dir) -> bool:
-        return self.neighbours[dimension][direction] != -1
+        return self.neighbours[dimension][direction] >= 0
 
     def store(self):
         """Store (in memory) electric and magnetic field values for snapshot.
@@ -526,6 +510,25 @@ class MPISnapshot(Snapshot[MPIGrid]):
             self.snapfields["Hy"],
             self.snapfields["Hz"],
         )
+
+    def write_vtk(self, pbar: tqdm):
+        """Writes snapshot file in VTK ImageData (.vtkhdf) format.
+
+        Args:
+            pbar: Progress bar class instance.
+        """
+        assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
+
+        origin = self.grid_view.global_start * self.grid.dl
+        spacing = self.grid_view.step * self.grid.dl
+
+        with VtkImageData(
+            self.filename, self.grid_view.global_size, origin, spacing, comm=self.comm
+        ) as f:
+            for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
+                if self.outputs.get(key):
+                    f.add_cell_data(key, self.snapfields[key], self.grid_view.offset)
+                    pbar.update(n=self.snapfields[key].nbytes)
 
     def write_hdf5(self, pbar: tqdm):
         """Writes snapshot file in HDF5 (.h5) format.

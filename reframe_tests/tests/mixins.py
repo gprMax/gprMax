@@ -29,16 +29,25 @@ else:
 
 
 class ReceiverMixin(GprMaxMixin):
+    """Add regression tests for receivers.
+
+    Attributes:
+        number_of_receivers (int): Number of receivers to run regression
+            checks on. For values of 0 or less, the whole output file
+            will be checked. Default -1.
+    """
+
     number_of_receivers = variable(int, value=-1)
 
     @run_after("setup", always_last=True)
     def add_receiver_regression_checks(self):
+        """Add a regression check for each receiver."""
         test_dependency = self.get_test_dependency()
-        if test_dependency is not None:
+        if test_dependency is None:
+            reference_file = self.build_reference_filepath(self.output_file)
+        else:
             output_file = self.build_output_file_path(test_dependency.model)
             reference_file = self.build_reference_filepath(output_file)
-        else:
-            reference_file = self.build_reference_filepath(self.output_file)
 
         if self.number_of_receivers > 0:
             for i in range(self.number_of_receivers):
@@ -54,6 +63,8 @@ class ReceiverMixin(GprMaxMixin):
 class SnapshotMixin(GprMaxMixin):
     """Add regression tests for snapshots.
 
+    The test will be skipped if no snapshots are specified.
+
     Attributes:
         snapshots (list[str]): List of snapshots to run regression
             checks on.
@@ -67,7 +78,7 @@ class SnapshotMixin(GprMaxMixin):
         Args:
             snapshot: Name of the snapshot.
         """
-        return Path(f"{self.model}_snaps", snapshot).with_suffix(".h5")
+        return Path(f"{self.model}_snaps", snapshot)
 
     @run_after("setup")
     def add_snapshot_regression_checks(self):
@@ -82,7 +93,7 @@ class SnapshotMixin(GprMaxMixin):
 
         for snapshot in self.snapshots:
             snapshot_file = self.build_snapshot_filepath(snapshot)
-            reference_file = self.build_reference_filepath(snapshot)
+            reference_file = self.build_reference_filepath(snapshot, suffix=snapshot_file.suffix)
             regression_check = SnapshotRegressionCheck(snapshot_file, reference_file)
             self.regression_checks.append(regression_check)
 
@@ -114,10 +125,32 @@ class GeometryObjectMixinBase(GprMaxMixin):
 
 
 class GeometryObjectsReadMixin(GeometryObjectMixinBase):
+    """Read geometry object(s) created by a test dependency.
+
+    This mixin must be used with a test dependency.
+
+    The test will also be skipped if no geometry objects have been
+    specified, or if the test dependency did not create a specified
+    geometry object.
+
+    Attributes:
+        geometry_objects_read (dict[str, str]): Mapping of geometry
+            objects. The keys are the name of the geometry object(s)
+            created by the test dependency. The values are the name
+            expected by the current test.
+
+    """
+
     geometry_objects_read = variable(typ.Dict[str, str], value={})
 
     @run_after("setup")
     def copy_geometry_objects_from_test_dependency(self):
+        """Copy geometry objects to be read to the stage directory.
+
+        The test will be skipped if no test dependency if provided, no
+        geometry objects have been specified, or if the test dependency
+        did not create a specified geometry object.
+        """
         self.skip_if(
             len(self.geometry_objects_read) < 0,
             f"Must provide a list of geometry objects being read by the test.",
@@ -162,6 +195,8 @@ class GeometryObjectsReadMixin(GeometryObjectMixinBase):
 class GeometryObjectsWriteMixin(GeometryObjectMixinBase):
     """Add regression tests for geometry objects.
 
+    The test will be skipped if no geometry objects have been specified.
+
     Attributes:
         geometry_objects_write (list[str]): List of geometry objects to
             run regression checks on.
@@ -173,7 +208,8 @@ class GeometryObjectsWriteMixin(GeometryObjectMixinBase):
     def add_geometry_object_regression_checks(self):
         """Add a regression check for each geometry object.
 
-        The test will be skipped if no geometry objects have been specified.
+        The test will be skipped if no geometry objects have been
+        specified.
         """
         self.skip_if(
             len(self.geometry_objects_write) < 0,
@@ -203,6 +239,8 @@ class GeometryObjectsWriteMixin(GeometryObjectMixinBase):
 class GeometryViewMixin(GprMaxMixin):
     """Add regression tests for geometry views.
 
+    The test will be skipped if no geometry views have been specified.
+
     Attributes:
         geometry_views (list[str]): List of geometry views to run
             regression checks on.
@@ -222,7 +260,8 @@ class GeometryViewMixin(GprMaxMixin):
     def add_geometry_view_regression_checks(self):
         """Add a regression check for each geometry view.
 
-        The test will be skipped if no geometry views have been specified.
+        The test will be skipped if no geometry views have been
+        specified.
         """
         self.skip_if(
             len(self.geometry_views) < 0,
@@ -251,7 +290,17 @@ class MpiMixin(GprMaxMixin):
 
     Attributes:
         mpi_layout (parameter[list[int]]): ReFrame parameter to specify
-            how MPI tasks should be arranged.
+            how MPI tasks should be arranged. This allows the same test
+            to be run in multiple MPI configurations. E.g::
+
+                mpi_layout = parameter([
+                    [2, 2, 2],
+                    [3, 3, 3],
+                    [4, 4, 4],
+                ])
+
+            will generate three tests with 8, 27, and 64 MPI tasks
+            respectively.
     """
 
     mpi_layout = parameter()
@@ -267,7 +316,14 @@ class BScanMixin(GprMaxMixin):
     """Test a B-scan model - a model with a moving source and receiver.
 
     Attributes:
-        num_models (parameter[int]): Number of models to run.
+        num_models (parameter[int]): ReFrame parameter to specify the
+            number of models to run. This allows the same test
+            to be run in multiple configurations. E.g::
+
+                mpi_layout = parameter([10, 60])
+
+            will generate two tests that run 10 and 60 models
+            respectively.
     """
 
     num_models = parameter()
@@ -307,7 +363,11 @@ class BScanMixin(GprMaxMixin):
 
 
 class TaskfarmMixin(GprMaxMixin):
-    """Run test using GprMax taskfarm functionality."""
+    """Run test using GprMax taskfarm functionality.
+
+    Attributes:
+        num_tasks (int): Number of tasks required by this test.
+    """
 
     # TODO: Make this a required variabe, or create a new variable to
     # proxy it.

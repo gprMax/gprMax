@@ -18,9 +18,9 @@ dependencies:
 - pip:
   - humanize
   - mpi4py
+  - mpi4py-fft
   - numpy-stl
 #  - pycuda
 #  - pyopencl
   - terminaltables
   - tqdm
-  - git+https://github.com/craig-warren/PyEVTK.git
