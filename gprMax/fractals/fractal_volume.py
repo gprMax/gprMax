@@ -366,13 +366,36 @@ class MPIFractalVolume(FractalVolume):
         # 3D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
 
-        for index in np.ndindex(*A.global_shape):
-            index = np.array(index)
-            if any(index < A_substart) or any(index >= A_substart + A_shape):
-                rng.standard_normal()
-            else:
-                index -= A_substart
-                A[index[0], index[1], index[2]] = rng.standard_normal()
+        # We need to generate random numbers for the whole domain in the
+        # correct order (and throw away ones we don't need) to ensure
+        # reproducibility when running with MPI domain decomposition
+        cells_per_row = A.global_shape[Dim.Z]
+        cells_per_plane = A.global_shape[Dim.Y] * cells_per_row
+
+        # Skip forward in the x dimension
+        planes_to_skip = A_substart[Dim.X]
+        rng.standard_normal(size=planes_to_skip * cells_per_plane)
+
+        for plane in range(A_shape[Dim.X]):
+            # Skip forward in the y dimension
+            rows_to_skip = A_substart[Dim.Y]
+            rng.standard_normal(size=rows_to_skip * cells_per_row)
+
+            for row in range(A_shape[Dim.Y]):
+                # Skip forward in the z dimension
+                columns_to_skip = A_substart[Dim.Z]
+                rng.standard_normal(size=columns_to_skip)
+
+                # Generate column of numbers in the z dimension
+                A[plane, row, :] = rng.standard_normal(size=A_shape[Dim.Z])
+
+                # Skip rest of the z dimension
+                columns_to_skip = A.global_shape[Dim.Z] - columns_to_skip - A_shape[Dim.Z]
+                rng.standard_normal(size=columns_to_skip)
+
+            # Skip rest of the y dimension
+            rows_to_skip = A.global_shape[Dim.Y] - rows_to_skip - A_shape[Dim.Y]
+            rng.standard_normal(size=rows_to_skip * cells_per_row)
 
         A_hat = newDistArray(fft)
         assert isinstance(A_hat, DistArray)
