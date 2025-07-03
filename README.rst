@@ -89,7 +89,7 @@ The following steps provide guidance on how to install gprMax:
 5. [Optional] Build h5py against Parallel HDF5
 6. Build and install gprMax
 
-7. Install a C compiler which supports OpenMP
+1. Install a C compiler which supports OpenMP
 ---------------------------------------------
 
 Linux
