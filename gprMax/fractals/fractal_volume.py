@@ -369,33 +369,36 @@ class MPIFractalVolume(FractalVolume):
         # We need to generate random numbers for the whole domain in the
         # correct order (and throw away ones we don't need) to ensure
         # reproducibility when running with MPI domain decomposition
+
+        # We use the following terms:
+        # x - number of planes
+        # y - number of rows
+        # z - number of cells
         cells_per_row = A.global_shape[Dim.Z]
         cells_per_plane = A.global_shape[Dim.Y] * cells_per_row
 
-        # Skip forward in the x dimension
-        planes_to_skip = A_substart[Dim.X]
-        rng.standard_normal(size=planes_to_skip * cells_per_plane)
+        skip_to_next_row = cells_per_row - A_shape[Dim.Z]
+        skip_to_next_plane = cells_per_plane - (A_shape[Dim.Y] * cells_per_row)
 
-        for plane in range(A_shape[Dim.X]):
-            # Skip forward in the y dimension
-            rows_to_skip = A_substart[Dim.Y]
-            rng.standard_normal(size=rows_to_skip * cells_per_row)
+        # Skip to the start of the fractal volume
+        rng.standard_normal(size=A_substart[Dim.X] * cells_per_plane)
+        rng.standard_normal(size=A_substart[Dim.Y] * cells_per_row)
+        rng.standard_normal(size=A_substart[Dim.Z])
 
+        # Generate numbers for the first row of the first plane
+        A[0, 0, :] = rng.standard_normal(size=A_shape[Dim.Z])
+
+        # Generate remaining numbers for the first plane
+        for row in range(1, A_shape[Dim.Y]):
+            rng.standard_normal(size=skip_to_next_row)
+            A[0, row, :] = rng.standard_normal(size=A_shape[Dim.Z])
+
+        # Generate numbers for the remaining planes
+        for plane in range(1, A_shape[Dim.X]):
+            rng.standard_normal(size=skip_to_next_plane)
             for row in range(A_shape[Dim.Y]):
-                # Skip forward in the z dimension
-                columns_to_skip = A_substart[Dim.Z]
-                rng.standard_normal(size=columns_to_skip)
-
-                # Generate column of numbers in the z dimension
+                rng.standard_normal(size=skip_to_next_row)
                 A[plane, row, :] = rng.standard_normal(size=A_shape[Dim.Z])
-
-                # Skip rest of the z dimension
-                columns_to_skip = A.global_shape[Dim.Z] - columns_to_skip - A_shape[Dim.Z]
-                rng.standard_normal(size=columns_to_skip)
-
-            # Skip rest of the y dimension
-            rows_to_skip = A.global_shape[Dim.Y] - rows_to_skip - A_shape[Dim.Y]
-            rng.standard_normal(size=rows_to_skip * cells_per_row)
 
         A_hat = newDistArray(fft)
         assert isinstance(A_hat, DistArray)
