@@ -298,16 +298,31 @@ class MPIFractalSurface(FractalSurface):
         A_shape = np.array(A.shape)
         A_substart = np.array(A.substart)
 
-        # 3D array of random numbers to be convolved with the fractal function
+        # 2D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
 
-        for index in np.ndindex(*A.global_shape):
-            index = np.array(index)
-            if any(index < A_substart) or any(index >= A_substart + A_shape):
-                rng.standard_normal()
-            else:
-                index -= A_substart
-                A[index[0], index[1]] = rng.standard_normal()
+        # We need to generate random numbers for the whole domain in the
+        # correct order (and throw away ones we don't need) to ensure
+        # reproducibility when running with MPI domain decomposition
+
+        # We use the following terms:
+        # x - number of rows
+        # y - number of cells
+        cells_per_row = A.global_shape[Dim.Y]
+
+        skip_to_next_row = cells_per_row - A_shape[Dim.Y]
+
+        # Skip to the start of the fractal surface
+        rng.standard_normal(size=A_substart[Dim.X] * cells_per_row)
+        rng.standard_normal(size=A_substart[Dim.Y])
+
+        # Generate numbers for the first row
+        A[0, :] = rng.standard_normal(size=A_shape[Dim.Y])
+
+        # Generate numbers for the remaining rows
+        for row in range(1, A_shape[Dim.X]):
+            rng.standard_normal(size=skip_to_next_row)
+            A[row, :] = rng.standard_normal(size=A_shape[Dim.Y])
 
         A_hat = newDistArray(fft)
         assert isinstance(A_hat, DistArray)
