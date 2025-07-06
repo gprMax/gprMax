@@ -48,6 +48,21 @@ store_outputs = {
                                     __global const $REAL* restrict Hz
                                     """
     ),
+    "args_metal": Template(
+        """
+                               kernel void store_outputs(device const int& NRX,
+                                                    device const int& iteration,
+                                                    device const int* rxcoords,
+                                                    device float* rxs,
+                                                    device const float* Ex,
+                                                    device const float* Ey,
+                                                    device const float* Ez,
+                                                    device const float* Hx,
+                                                    device const float* Hy,
+                                                    device const float* Hz,
+                                                    uint i [[thread_position_in_grid]])
+                                """
+    ),
     "func": Template(
         """
     // Stores field component values for every receiver in the model.

@@ -656,6 +656,17 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
         snapHx_dev = clarray.to_device(queue, snapHx)
         snapHy_dev = clarray.to_device(queue, snapHy)
         snapHz_dev = clarray.to_device(queue, snapHz)
+    
+    elif config.sim_config.general["solver"] == "metal":
+        # Metal doesn't use a queue parameter, need to get device from config
+        dev = config.get_model_config().device["dev"]
+        
+        snapEx_dev = dev.newBufferWithBytes_length_options_(snapEx, snapEx.nbytes, 0)
+        snapEy_dev = dev.newBufferWithBytes_length_options_(snapEy, snapEy.nbytes, 0)
+        snapEz_dev = dev.newBufferWithBytes_length_options_(snapEz, snapEz.nbytes, 0)
+        snapHx_dev = dev.newBufferWithBytes_length_options_(snapHx, snapHx.nbytes, 0)
+        snapHy_dev = dev.newBufferWithBytes_length_options_(snapHy, snapHy.nbytes, 0)
+        snapHz_dev = dev.newBufferWithBytes_length_options_(snapHz, snapHz.nbytes, 0)
 
     return snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev
 

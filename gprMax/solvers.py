@@ -26,12 +26,14 @@ from gprMax.updates.mpi_updates import MPIUpdates
 
 from .grid.cuda_grid import CUDAGrid
 from .grid.fdtd_grid import FDTDGrid
+from .grid.metal_grid import MetalGrid
 from .grid.opencl_grid import OpenCLGrid
 from .subgrids.updates import SubgridUpdates
 from .subgrids.updates import create_updates as create_subgrid_updates
 from .updates.cpu_updates import CPUUpdates
 from .updates.cuda_updates import CUDAUpdates
 from .updates.opencl_updates import OpenCLUpdates
+from .updates.metal_updates import MetalUpdates
 from .updates.updates import Updates
 
 logger = logging.getLogger(__name__)
@@ -126,6 +128,8 @@ def create_solver(model: Model) -> Solver:
         updates = CUDAUpdates(grid)
     elif type(grid) is OpenCLGrid:
         updates = OpenCLUpdates(grid)
+    elif type(grid) is MetalGrid:
+        updates = MetalUpdates(grid)
     else:
         logger.error("Cannot create Solver: Unknown grid type")
         raise ValueError

@@ -1,0 +1,14 @@
+#title: A-scan from a metal cylinder buried in a dielectric half-space - 10 iterations example
+#domain: 0.050 0.050 0.050
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 1.67e-11
+#pml_cells: 0
+
+#material: 6 0 1 0 half_space
+
+#waveform: ricker 1 1.5e9 my_ricker
+#hertzian_dipole: x 0.025 0.025 0.025 my_ricker
+#rx: 0.025 0.025 0.025
+
+#box: 0 0 0 0.050 0.030 0.050 half_space
+#cylinder: 0.025 0.015 0 0.025 0.015 0.050 0.005 pec

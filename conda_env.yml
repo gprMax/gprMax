@@ -19,6 +19,7 @@ dependencies:
   - humanize
   - mpi4py
   - numpy-stl
+  - pyobjc-framework-metal
 #  - pycuda
 #  - pyopencl
   - terminaltables

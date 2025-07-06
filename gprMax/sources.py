@@ -456,6 +456,12 @@ def htod_src_arrays(sources, G, queue=None):
         srcinfo1_dev = clarray.to_device(queue, srcinfo1)
         srcinfo2_dev = clarray.to_device(queue, srcinfo2)
         srcwaves_dev = clarray.to_device(queue, srcwaves)
+    elif config.sim_config.general["solver"] == "metal":
+        # Metal doesn't use a queue parameter, need to get device from config
+        dev = config.get_model_config().device["dev"]
+        srcinfo1_dev = dev.newBufferWithBytes_length_options_(srcinfo1.tobytes(), srcinfo1.nbytes, 0)
+        srcinfo2_dev = dev.newBufferWithBytes_length_options_(srcinfo2.tobytes(), srcinfo2.nbytes, 0)
+        srcwaves_dev = dev.newBufferWithBytes_length_options_(srcwaves.tobytes(), srcwaves.nbytes, 0)
 
     return srcinfo1_dev, srcinfo2_dev, srcwaves_dev
 

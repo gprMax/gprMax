@@ -72,6 +72,33 @@ store_snapshot = {
                                     __global $REAL *snapHz
                                 """
     ),
+    "args_metal": Template(
+        """
+                                        kernel void store_snapshot(device const int& p,
+                                                    device const int& xs,
+                                                    device const int& xf,
+                                                    device const int& ys,
+                                                    device const int& yf,
+                                                    device const int& zs,
+                                                    device const int& zf,
+                                                    device const int& dx,
+                                                    device const int& dy,
+                                                    device const int& dz,
+                                                    device const float* Ex, 
+                                                    device const float* Ey,
+                                                    device const float* Ez,   
+                                                    device const float* Hx,   
+                                                    device const float* Hy,   
+                                                    device const float* Hz,    
+                                                    device float* snapEx,   
+                                                    device float* snapEy,    
+                                                    device float* snapEz,  
+                                                    device float* snapHx,    
+                                                    device float* snapHy,   
+                                                    device float* snapHz,    
+                                                    uint i [[thread_position_in_grid]])
+                                        """
+    ),
     "func": Template(
         """
     // Stores field values for a snapshot.

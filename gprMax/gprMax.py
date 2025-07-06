@@ -34,6 +34,7 @@ args_defaults = {
     "mpi": None,
     "gpu": None,
     "opencl": None,
+    "metal": None,
     "subgrid": False,
     "autotranslate": False,
     "geometry_only": False,
@@ -79,6 +80,7 @@ help_msg = {
         "(list/bool, opt): Flag to use OpenCL or list of OpenCL device ID(s) for specific compute"
         " device(s)."
     ),
+    "metal": "(list/bool, opt): Flag to use Apple Metal or list of Apple Metal GPU device ID(s) for specific GPU card(s).",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": (
         "(bool, opt): For sub-gridding - auto translate objects with main grid coordinates to their"
@@ -123,6 +125,7 @@ def run(
     mpi=args_defaults["mpi"],
     gpu=args_defaults["gpu"],
     opencl=args_defaults["opencl"],
+    metal=args_defaults["metal"],
     subgrid=args_defaults["subgrid"],
     autotranslate=args_defaults["autotranslate"],
     geometry_only=args_defaults["geometry_only"],
@@ -166,6 +169,8 @@ def run(
             GPU device ID(s) for specific GPU card(s).
         opencl: optional list/boolean to use OpenCL or list of OpenCL
             device ID(s) for specific compute device(s).
+        metal: optional list/boolean to use Apple Metal or list of Apple
+            Metal GPU device ID(s) for specific GPU card(s).
         subgrid: optional boolean to use sub-gridding.
         autotranslate: optional boolean for sub-gridding to auto
             translate objects with main grid coordinates to their
@@ -204,6 +209,7 @@ def run(
             "mpi": mpi,
             "gpu": gpu,
             "opencl": opencl,
+            "metal": metal,
             "subgrid": subgrid,
             "autotranslate": autotranslate,
             "geometry_only": geometry_only,
@@ -248,6 +254,7 @@ def cli():
     )
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
+    parser.add_argument("-metal", type=int, action="append", nargs="*", help=help_msg["metal"])
     parser.add_argument(
         "--geometry-only",
         action="store_true",
@@ -327,7 +334,7 @@ def run_main(args):
     # MPI running to divide model between ranks
     elif config.sim_config.args.mpi is not None:
         context = MPIContext()
-    # Standard running (OpenMP/CUDA/OpenCL)
+    # Standard running (OpenMP/CUDA/OpenCL/Metal)
     else:
         context = Context()
 
