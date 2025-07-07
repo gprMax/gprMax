@@ -711,3 +711,4 @@ class MetalUpdates:
 
     def cleanup(self):
         pass
+

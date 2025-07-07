@@ -1,7 +1,7 @@
-#title: A-scan from a metal cylinder buried in a dielectric half-space - 10 iterations example
+#title: A-scan from a metal cylinder buried in a dielectric half-space - 1000 iterations test
 #domain: 0.050 0.050 0.050
 #dx_dy_dz: 0.001 0.001 0.001
-#time_window: 1.67e-11
+#time_window: 1.925830e-09
 #pml_cells: 0
 
 #material: 6 0 1 0 half_space
