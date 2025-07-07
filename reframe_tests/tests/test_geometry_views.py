@@ -28,6 +28,10 @@ class TestGeometryViewVoxelMPI(MpiMixin, TestGeometryViewVoxel):
     test_dependency = TestGeometryViewVoxel
 
 
+# Fails as the VTKHDF file format for unstructured grids uses seperate
+# partitions for each MPI rank. This means the internal structure of the
+# file is dependant on the number MPI ranks and just directly comparing
+# the files does not check correctness.
 @rfm.simple_test
 class TestGeometryViewFineMPI(MpiMixin, TestGeometryViewFine):
     tags = {"test", "mpi", "geometry only", "geometry view"}
