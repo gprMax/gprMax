@@ -238,6 +238,9 @@ class TestBoxGeometryNoPmlMpi(MpiMixin, TestBoxGeometryNoPml):
     test_dependency = TestBoxGeometryNoPml
 
 
+# Fails for the 'non_axis_aligned_cone' model due to slight differences
+# in the model built by the MPI and non-MPI implementations. This is
+# caused by floating point errors when building the geometry.
 @rfm.simple_test
 class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
     tags = {"test", "mpi", "geometery", "cone"}
@@ -245,6 +248,9 @@ class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
     test_dependency = TestConeGeometry
 
 
+# Fails for the 'non_axis_aligned_cylinder' model due to slight
+# differences in the model built by the MPI and non-MPI implementations.
+# This is caused by floating point errors when building the geometry.
 @rfm.simple_test
 class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
     tags = {"test", "mpi", "geometery", "cylindrical", "sector", "cylindrical_sector"}
@@ -319,6 +325,9 @@ class TestSphereGeometryMpi(MpiMixin, TestSphereGeometry):
     test_dependency = TestSphereGeometry
 
 
+# Fails for the 'triangle_z_rigid' model due to slight differences in
+# the model built by the MPI and non-MPI implementations. This is
+# caused by floating point errors when building the geometry.
 @rfm.simple_test
 class TestTriangleGeometryMpi(MpiMixin, TestTriangleGeometry):
     tags = {"test", "mpi", "geometery", "triangle"}
