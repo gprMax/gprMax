@@ -81,8 +81,8 @@ class MetalUpdates:
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
-        # if self.grid.pmls["slabs"]:
-        #     self._set_pml_knls()
+        if self.grid.pmls["slabs"]:
+            self._set_pml_knls()
         if self.grid.rxs:
             self._set_rx_knl()
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
@@ -195,43 +195,40 @@ class MetalUpdates:
             "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
         )
 
-        subs = {
-            "CUDA_IDX": "",
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "NX_FIELDS": self.grid.nx + 1,
-            "NY_FIELDS": self.grid.ny + 1,
-            "NZ_FIELDS": self.grid.nz + 1,
-            "NX_ID": self.grid.ID.shape[1],
-            "NY_ID": self.grid.ID.shape[2],
-            "NZ_ID": self.grid.ID.shape[3],
-        }
-
         # Set workgroup size, initialise arrays on compute device, and get
         # kernel functions
         for pml in self.grid.pmls["slabs"]:
-            pml.set_queue(self.queue)
-            pml.htod_field_arrays()
+            pml.set_queue(self.cmdqueue)
+            pml.htod_field_arrays(self.dev)
             knl_name = f"order{len(pml.CFS)}_{pml.direction}"
             knl_electric_name = getattr(knl_pml_updates_electric, knl_name)
             knl_magnetic_name = getattr(knl_pml_updates_magnetic, knl_name)
 
-            pml.update_electric_dev = self.elwiseknl(
-                self.ctx,
-                knl_electric_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
-                knl_electric_name["func"].substitute(subs),
-                f"pml_updates_electric_{knl_name}",
-                preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
-            )
+            # Build and compile electric field PML kernel
+            func_name = f"pml_updates_electric_{knl_name}"
+            subs_name_args_pml = self.subs_name_args.copy()
+            subs_name_args_pml["FUNC"] = func_name
+            bld = self._build_knl(knl_electric_name, subs_name_args_pml, self.subs_func)
+            
+            lib, error = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
+            if lib is None:
+                print(f"Electric PML kernel compilation failed: {error}")
+                raise RuntimeError(f"Failed to compile electric PML kernel: {error}")
+            pml.update_electric_dev = lib.newFunctionWithName_(func_name)
+            pml.psoE = self.dev.newComputePipelineStateWithFunction_error_(pml.update_electric_dev, None)[0]
 
-            pml.update_magnetic_dev = self.elwiseknl(
-                self.ctx,
-                knl_magnetic_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
-                knl_magnetic_name["func"].substitute(subs),
-                f"pml_updates_magnetic_{knl_name}",
-                preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
-            )
+            # Build and compile magnetic field PML kernel
+            func_name = f"pml_updates_magnetic_{knl_name}"
+            subs_name_args_pml = self.subs_name_args.copy()
+            subs_name_args_pml["FUNC"] = func_name
+            bld = self._build_knl(knl_magnetic_name, subs_name_args_pml, self.subs_func)
+            
+            lib, error = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
+            if lib is None:
+                print(f"Magnetic PML kernel compilation failed: {error}")
+                raise RuntimeError(f"Failed to compile magnetic PML kernel: {error}")
+            pml.update_magnetic_dev = lib.newFunctionWithName_(func_name)
+            pml.psoH = self.dev.newComputePipelineStateWithFunction_error_(pml.update_magnetic_dev, None)[0]
 
     def _set_rx_knl(self):
         """Receivers - initialises arrays on compute device, prepares kernel and

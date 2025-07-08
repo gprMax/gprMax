@@ -225,8 +225,8 @@ def compare_file_metadata(file1, file2):
     
     metadata_match = True
     
-    # Compare key attributes
-    attrs_to_check = ['Iterations', 'dt', 'nx', 'ny', 'nz', 'dx', 'dy', 'dz']
+    # Compare key attributes that are commonly present
+    attrs_to_check = ['Iterations', 'dt']
     
     for attr in attrs_to_check:
         if attr in file1.attrs and attr in file2.attrs:

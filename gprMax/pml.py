@@ -687,6 +687,167 @@ class OpenCLPML(PML):
         event.wait()
 
 
+class MetalPML(PML):
+    """Perfectly Matched Layer (PML) Absorbing Boundary Conditions (ABC) for
+    solving on GPU using Apple Metal.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(MetalPML, self).__init__(*args, **kwargs)
+
+    def htod_field_arrays(self, dev=None):
+        """Initialises PML field and coefficient arrays on GPU."""
+        
+        # Create Metal buffers for all PML arrays using device's method
+        if dev is None:
+            raise RuntimeError("Metal device not provided. PML arrays cannot be initialized.")
+        
+        # Store shapes before creating buffers (since Metal buffers don't have shape attribute)
+        self.EPhi1_shape = self.EPhi1.shape
+        self.EPhi2_shape = self.EPhi2.shape  
+        self.HPhi1_shape = self.HPhi1.shape
+        self.HPhi2_shape = self.HPhi2.shape
+            
+        self.ERA_dev = dev.newBufferWithBytes_length_options_(self.ERA, 
+                                                                        self.ERA.nbytes, 0)
+        self.ERB_dev = dev.newBufferWithBytes_length_options_(self.ERB, 
+                                                                        self.ERB.nbytes, 0)
+        self.ERE_dev = dev.newBufferWithBytes_length_options_(self.ERE, 
+                                                                        self.ERE.nbytes, 0)
+        self.ERF_dev = dev.newBufferWithBytes_length_options_(self.ERF, 
+                                                                        self.ERF.nbytes, 0)
+        self.HRA_dev = dev.newBufferWithBytes_length_options_(self.HRA, 
+                                                                        self.HRA.nbytes, 0)
+        self.HRB_dev = dev.newBufferWithBytes_length_options_(self.HRB, 
+                                                                        self.HRB.nbytes, 0)
+        self.HRE_dev = dev.newBufferWithBytes_length_options_(self.HRE, 
+                                                                        self.HRE.nbytes, 0)
+        self.HRF_dev = dev.newBufferWithBytes_length_options_(self.HRF, 
+                                                                        self.HRF.nbytes, 0)
+        self.EPhi1_dev = dev.newBufferWithBytes_length_options_(self.EPhi1, 
+                                                                          self.EPhi1.nbytes, 0)
+        self.EPhi2_dev = dev.newBufferWithBytes_length_options_(self.EPhi2, 
+                                                                          self.EPhi2.nbytes, 0)
+        self.HPhi1_dev = dev.newBufferWithBytes_length_options_(self.HPhi1, 
+                                                                          self.HPhi1.nbytes, 0)
+        self.HPhi2_dev = dev.newBufferWithBytes_length_options_(self.HPhi2, 
+                                                                          self.HPhi2.nbytes, 0)
+
+    def set_queue(self, queue):
+        """Sets the command queue for the PML."""
+        self.queue = queue
+
+    def update_electric(self):
+        """Updates electric field components with the PML correction on the GPU using Metal."""
+        
+        # Create command buffer and encoder
+        cmdbuffer = self.queue.commandBuffer()
+        cmpencoder = cmdbuffer.computeCommandEncoder()
+        cmpencoder.setComputePipelineState_(self.psoE)
+        
+        # Set scalar parameters
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.xs).tobytes(), 4, 0)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.xf).tobytes(), 4, 1)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.ys).tobytes(), 4, 2)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.yf).tobytes(), 4, 3)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.zs).tobytes(), 4, 4)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.zf).tobytes(), 4, 5)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi1_shape[1]).tobytes(), 4, 6)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi1_shape[2]).tobytes(), 4, 7)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi1_shape[3]).tobytes(), 4, 8)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[1]).tobytes(), 4, 9)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[2]).tobytes(), 4, 10)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[3]).tobytes(), 4, 11)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.thickness).tobytes(), 4, 12)
+        
+        # Set buffer arguments
+        cmpencoder.setBuffer_offset_atIndex_(self.G.ID_dev, 0, 13)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Ex_dev, 0, 14)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Ey_dev, 0, 15)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Ez_dev, 0, 16)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Hx_dev, 0, 17)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Hy_dev, 0, 18)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Hz_dev, 0, 19)
+        cmpencoder.setBuffer_offset_atIndex_(self.EPhi1_dev, 0, 20)
+        cmpencoder.setBuffer_offset_atIndex_(self.EPhi2_dev, 0, 21)
+        cmpencoder.setBuffer_offset_atIndex_(self.ERA_dev, 0, 22)
+        cmpencoder.setBuffer_offset_atIndex_(self.ERB_dev, 0, 23)
+        cmpencoder.setBuffer_offset_atIndex_(self.ERE_dev, 0, 24)
+        cmpencoder.setBuffer_offset_atIndex_(self.ERF_dev, 0, 25)
+        d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
+        cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
+        
+        # Calculate thread groups (similar to CUDA blocks)
+        total_threads = (self.EPhi1_shape[1] + 1) * (self.EPhi1_shape[2] + 1) * (self.EPhi1_shape[3] + 1)
+        threads_per_group = 64  # Common thread group size for Metal
+        num_groups = (total_threads + threads_per_group - 1) // threads_per_group
+        
+        # Dispatch threads
+        cmpencoder.dispatchThreads_threadsPerThreadgroup_(
+            (total_threads, 1, 1),
+            (threads_per_group, 1, 1)
+        )
+        
+        cmpencoder.endEncoding()
+        cmdbuffer.commit()
+        cmdbuffer.waitUntilCompleted()
+
+    def update_magnetic(self):
+        """Updates magnetic field components with the PML correction on the GPU using Metal."""
+        
+        # Create command buffer and encoder
+        cmdbuffer = self.queue.commandBuffer()
+        cmpencoder = cmdbuffer.computeCommandEncoder()
+        cmpencoder.setComputePipelineState_(self.psoH)
+        
+        # Set scalar parameters
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.xs).tobytes(), 4, 0)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.xf).tobytes(), 4, 1)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.ys).tobytes(), 4, 2)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.yf).tobytes(), 4, 3)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.zs).tobytes(), 4, 4)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.zf).tobytes(), 4, 5)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi1_shape[1]).tobytes(), 4, 6)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi1_shape[2]).tobytes(), 4, 7)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi1_shape[3]).tobytes(), 4, 8)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi2_shape[1]).tobytes(), 4, 9)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi2_shape[2]).tobytes(), 4, 10)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi2_shape[3]).tobytes(), 4, 11)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.thickness).tobytes(), 4, 12)
+        
+        # Set buffer arguments
+        cmpencoder.setBuffer_offset_atIndex_(self.G.ID_dev, 0, 13)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Ex_dev, 0, 14)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Ey_dev, 0, 15)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Ez_dev, 0, 16)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Hx_dev, 0, 17)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Hy_dev, 0, 18)
+        cmpencoder.setBuffer_offset_atIndex_(self.G.Hz_dev, 0, 19)
+        cmpencoder.setBuffer_offset_atIndex_(self.HPhi1_dev, 0, 20)
+        cmpencoder.setBuffer_offset_atIndex_(self.HPhi2_dev, 0, 21)
+        cmpencoder.setBuffer_offset_atIndex_(self.HRA_dev, 0, 22)
+        cmpencoder.setBuffer_offset_atIndex_(self.HRB_dev, 0, 23)
+        cmpencoder.setBuffer_offset_atIndex_(self.HRE_dev, 0, 24)
+        cmpencoder.setBuffer_offset_atIndex_(self.HRF_dev, 0, 25)
+        d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
+        cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
+        
+        # Calculate thread groups (similar to CUDA blocks)
+        total_threads = (self.HPhi1_shape[1] + 1) * (self.HPhi1_shape[2] + 1) * (self.HPhi1_shape[3] + 1)
+        threads_per_group = 64  # Common thread group size for Metal
+        num_groups = (total_threads + threads_per_group - 1) // threads_per_group
+        
+        # Dispatch threads
+        cmpencoder.dispatchThreads_threadsPerThreadgroup_(
+            (total_threads, 1, 1),
+            (threads_per_group, 1, 1)
+        )
+        
+        cmpencoder.endEncoding()
+        cmdbuffer.commit()
+        cmdbuffer.waitUntilCompleted()
+
+
 class MPIPML(PML):
     comm: MPI.Cartcomm
     global_comm: MPI.Comm
