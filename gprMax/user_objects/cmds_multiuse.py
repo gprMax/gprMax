@@ -1448,7 +1448,7 @@ class AddLorentzDispersion(GridUserObject):
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
                 f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
                 f"omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
-                f"and gamma={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} created."
+                f"and delta={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} created."
             )
 
 
@@ -1478,8 +1478,8 @@ class AddDrudeDispersion(GridUserObject):
     def build(self, grid: FDTDGrid):
         try:
             poles = self.kwargs["poles"]
-            omega = self.kwargs["tau"]
-            alpha = self.kwargs["alpha"]
+            omega = self.kwargs["omega"]
+            gamma = self.kwargs["gamma"]
             material_ids = self.kwargs["material_ids"]
         except KeyError:
             logger.exception(f"{self.params_str()} requires at least four parameters.")
@@ -1507,9 +1507,9 @@ class AddDrudeDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = False
             for i in range(poles):
-                if omega[i] > 0 and alpha[i] > grid.dt:
+                if omega[i] > 0 and gamma[i] > grid.dt:
                     disp_material.tau.append(omega[i])
-                    disp_material.alpha.append(alpha[i])
+                    disp_material.gamma.append(gamma[i])
                 else:
                     logger.exception(
                         f"{self.params_str()} requires positive "
@@ -1529,7 +1529,7 @@ class AddDrudeDispersion(GridUserObject):
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
                 f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
-                f"and gamma={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} secs created."
+                f"and gamma={', '.join(f'{gamma:4.3e}' for gamma in disp_material.gamma)} secs created."
             )
 
 

@@ -393,6 +393,8 @@ class SimulationConfig:
                 self.dtypes["C_complex"] = "pycuda::complex<float>"
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cfloat"
+            elif self.general["solver"] == "hip":
+                self.dtypes["C_complex"] = "hipFloatComplex"
 
         elif self.general["precision"] == "double":
             self.dtypes = {
@@ -407,6 +409,8 @@ class SimulationConfig:
                 self.dtypes["C_complex"] = "pycuda::complex<double>"
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cdouble"
+            elif self.general["solver"] == "hip":
+                self.dtypes["C_complex"] = "hipDoubleComplex"
 
     def _set_input_file_path(self):
         """Sets input file path for CLI or API."""

@@ -62,7 +62,10 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_electric_a(self) -> None:
         """Updates electric field components."""
-        self.hip_manager.update_e_a_hip()
+        if config.get_model_config().materials["maxpoles"] == 0:
+            self.hip_manager.update_e_hip()
+        else:
+            self.hip_manager.update_electric_dispersive_A_hip()
 
     
     def update_electric_pml(self) -> None:
@@ -87,7 +90,7 @@ class HIPUpdates(Updates[HIPGrid]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        #print("update_electric_b not implemented in HIPUpdates")
+        self.hip_manager.update_electric_dispersive_B_hip()
 
     def time_start(self) -> None:
         """Starts timer used to calculate solving time for model."""

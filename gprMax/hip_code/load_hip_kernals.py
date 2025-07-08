@@ -1,6 +1,6 @@
 from hip import hip, hiprtc
 from ..utilities.utilities import hip_check
-from .hip_source import update_e_a, update_m, update_hertzian_dipole, store_outputs, update_voltage_source, update_magnetic_dipole
+from .hip_source import update_e, update_m, update_hertzian_dipole, store_outputs, update_voltage_source, update_magnetic_dipole, update_electric_dispersive_A, update_electric_dispersive_B
 import numpy as np
 import ctypes
 from .. import config
@@ -9,7 +9,8 @@ from gprMax.sources import htod_src_arrays
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 import random
 floattype = 'float'
-
+# complextype = config.get_model_config().materials["dispersiveCdtype"]
+complextype = 'hipFloatComplex'
 class HipManager:
     def __init__(self, G: HIPGrid):
         self.grid = G
@@ -21,6 +22,8 @@ class HipManager:
         self.update_hertzian_dipole_kernel = None
         self.store_outputs_kernel = None
         self.update_voltage_source_kernel = None
+        self.update_electric_dispersive_A_kernel = None
+        self.update_electric_dispersive_B_kernel = None
         if config.get_model_config().materials["maxpoles"] > 0:
             self.NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             self.NX_T = self.grid.Tx.shape[1]
@@ -38,6 +41,10 @@ class HipManager:
         self.Hx_d = hip_check(hip.hipMalloc(self.grid.Hx.nbytes))
         self.Hy_d = hip_check(hip.hipMalloc(self.grid.Hy.nbytes))
         self.Hz_d = hip_check(hip.hipMalloc(self.grid.Hz.nbytes))
+        self.Tx_d = hip_check(hip.hipMalloc(self.grid.Tx.nbytes))
+        self.Ty_d = hip_check(hip.hipMalloc(self.grid.Ty.nbytes))
+        self.Tz_d = hip_check(hip.hipMalloc(self.grid.Tz.nbytes))
+        self.updatecoeffsdispersive_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsdispersive.nbytes))
         self.updatecoeffsE_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsE.nbytes))
         self.updatecoeffsH_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsH.nbytes))
         hip_check(hip.hipMemcpy(self.ID_d, self.grid.ID, self.grid.ID.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
@@ -49,6 +56,10 @@ class HipManager:
         hip_check(hip.hipMemcpy(self.Hz_d, self.grid.Hz, self.grid.Hz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
         hip_check(hip.hipMemcpy(self.updatecoeffsE_d, self.grid.updatecoeffsE, self.grid.updatecoeffsE.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
         hip_check(hip.hipMemcpy(self.updatecoeffsH_d, self.grid.updatecoeffsH, self.grid.updatecoeffsH.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(self.Tx_d, self.grid.Tx, self.grid.Tx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(self.Ty_d, self.grid.Ty, self.grid.Ty.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(self.Tz_d, self.grid.Tz, self.grid.Tz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(self.updatecoeffsdispersive_d, self.grid.updatecoeffsdispersive, self.grid.updatecoeffsdispersive.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
         self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid)
         self.len_rxs = int(6 * self.grid.iterations * len(self.grid.rxs)/4)
         self.len_rxcoords = int(len(self.grid.rxs) * 3)
@@ -64,18 +75,21 @@ class HipManager:
         arch = props.gcnArchName
         print(f"Compiling kernel for {arch}")
 
-        self.compile_kernels_e_a()
+        self.compile_kernels_e()
         self.compile_kernels_m()
         self.compile_kernels_hertzian_dipole()
         self.compile_store_outputs()
         self.compile_kernels_voltage_sources()
         self.compile_kernels_magnetic_sources()
+        self.compile_kernels_e_dispersive_A()
+        self.compile_kernels_e_dispersive_B()  
+        print("All kernels compiled successfully.")
 
 
 
-    def compile_kernels_e_a(self):
-        source_update_e_a = update_e_a.substitute(REAL=floattype, COMPLEX=floattype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
-        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_e_a.encode(), b"update_e_a", 0, [], []))
+    def compile_kernels_e(self):
+        source_update_e = update_e.substitute(REAL=floattype, COMPLEX=floattype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
+        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_e.encode(), b"update_e", 0, [], []))
         props = hip.hipDeviceProp_t()
         hip_check(hip.hipGetDeviceProperties(props,0))
         arch = props.gcnArchName
@@ -90,8 +104,8 @@ class HipManager:
         code = bytearray(code_size)
         hip_check(hiprtc.hiprtcGetCode(self.prog, code))
         self.module = hip_check(hip.hipModuleLoadData(code))
-        self.update_e_a_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_e_a"))
-        print(f"Compiling update_e_a Done")
+        self.update_e_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_e"))
+        print(f"Compiling update_e Done")
     
     def compile_kernels_m(self):
         source_update_m = update_m.substitute(REAL=floattype, COMPLEX=floattype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
@@ -193,6 +207,45 @@ class HipManager:
         self.update_magnetic_dipole_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_magnetic_dipole"))
         print(f"Compiling update_magnetic_dipole Done")
 
+    def compile_kernels_e_dispersive_A(self):
+        source_update_electric_dispersive_A = update_electric_dispersive_A.substitute(REAL=floattype, COMPLEX=complextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
+        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_electric_dispersive_A.encode(), b"update_electric_dispersive_A", 0, [], []))
+        props = hip.hipDeviceProp_t()
+        hip_check(hip.hipGetDeviceProperties(props,0))
+        arch = props.gcnArchName
+        cflags = [b"--offload-arch="+arch]
+        err, = hiprtc.hiprtcCompileProgram(self.prog, len(cflags), cflags)
+        if err != hiprtc.hiprtcResult.HIPRTC_SUCCESS:
+            log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(self.prog))
+            log = bytearray(log_size)
+            hip_check(hiprtc.hiprtcGetProgramLog(self.prog, log))
+            raise RuntimeError(log.decode())
+        code_size = hip_check(hiprtc.hiprtcGetCodeSize(self.prog))
+        code = bytearray(code_size)
+        hip_check(hiprtc.hiprtcGetCode(self.prog, code))
+        self.module = hip_check(hip.hipModuleLoadData(code))
+        self.update_electric_dispersive_A_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_electric_dispersive_A"))
+        print(f"Compiling update_electric_dispersive_A Done")
+    
+    def compile_kernels_e_dispersive_B(self):
+        source_update_electric_dispersive_B = update_electric_dispersive_B.substitute(REAL=floattype, COMPLEX=complextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
+        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_electric_dispersive_B.encode(), b"update_electric_dispersive_B", 0, [], []))
+        props = hip.hipDeviceProp_t()
+        hip_check(hip.hipGetDeviceProperties(props,0))
+        arch = props.gcnArchName
+        cflags = [b"--offload-arch="+arch]
+        err, = hiprtc.hiprtcCompileProgram(self.prog, len(cflags), cflags)
+        if err != hiprtc.hiprtcResult.HIPRTC_SUCCESS:
+            log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(self.prog))
+            log = bytearray(log_size)
+            hip_check(hiprtc.hiprtcGetProgramLog(self.prog, log))
+            raise RuntimeError(log.decode())
+        code_size = hip_check(hiprtc.hiprtcGetCodeSize(self.prog))
+        code = bytearray(code_size)
+        hip_check(hiprtc.hiprtcGetCode(self.prog, code))
+        self.module = hip_check(hip.hipModuleLoadData(code))
+        self.update_electric_dispersive_B_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_electric_dispersive_B"))
+        print(f"Compiling update_electric_dispersive_B Done")
 
     def free_resources(self):
         """Free resources allocated on the device."""
@@ -208,10 +261,10 @@ class HipManager:
         hip_check(hip.hipFree(self.rxcoords_dev))
         hip_check(hip.hipFree(self.rxs_dev))
 
-    def update_e_a_hip(self):
+    def update_e_hip(self):
         hip_check(
             hip.hipModuleLaunchKernel(
-                self.update_e_a_kernel,
+                self.update_e_kernel,
                 *self.grid_hip, # grid
                 *self.block,  # self.block
                 sharedMemBytes=128,
@@ -377,6 +430,64 @@ class HipManager:
                     self.Hx_d,
                     self.Hy_d,
                     self.Hz_d,
+                    self.updatecoeffsE_d,
+                    self.updatecoeffsH_d,
+                )
+            )
+        )
+
+    def update_electric_dispersive_A_hip(self):
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.update_electric_dispersive_A_kernel,
+                *self.grid_hip, # grid
+                *self.block,  # self.block
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(self.grid.nx),
+                    ctypes.c_int(self.grid.ny),
+                    ctypes.c_int(self.grid.nz),
+                    ctypes.c_int(config.get_model_config().materials["maxpoles"]),
+                    self.updatecoeffsdispersive_d,
+                    self.Tx_d,
+                    self.Ty_d,
+                    self.Tz_d,
+                    self.ID_d,
+                    self.Ex_d,
+                    self.Ey_d,
+                    self.Ez_d,
+                    self.Hx_d,
+                    self.Hy_d,
+                    self.Hz_d,
+                    self.updatecoeffsE_d,
+                    self.updatecoeffsH_d,
+                )
+            )
+        )
+    def update_electric_dispersive_B_hip(self):
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.update_electric_dispersive_B_kernel,
+                *self.grid_hip, # grid
+                *self.block,  # self.block
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(self.grid.nx),
+                    ctypes.c_int(self.grid.ny),
+                    ctypes.c_int(self.grid.nz),
+                    ctypes.c_int(config.get_model_config().materials["maxpoles"]),
+                    self.updatecoeffsdispersive_d,
+                    self.Tx_d,
+                    self.Ty_d,
+                    self.Tz_d,
+                    self.ID_d,
+                    self.Ex_d,
+                    self.Ey_d,
+                    self.Ez_d,
                     self.updatecoeffsE_d,
                     self.updatecoeffsH_d,
                 )
