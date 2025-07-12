@@ -8,9 +8,14 @@ from gprMax.grid.hip_grid import HIPGrid
 from gprMax.sources import htod_src_arrays
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 import random
+from gprMax.hip_code import E_HORIPML, M_HORIPML
+from importlib import import_module
+from gprMax.hip_code.macros import macros
+
 floattype = 'float'
 # complextype = config.get_model_config().materials["dispersiveCdtype"]
 complextype = 'hipFloatComplex'
+
 class HipManager:
     def __init__(self, G: HIPGrid):
         self.grid = G
@@ -24,6 +29,24 @@ class HipManager:
         self.update_voltage_source_kernel = None
         self.update_electric_dispersive_A_kernel = None
         self.update_electric_dispersive_B_kernel = None
+        
+        self.subs_name_args = {
+            "REAL": floattype,
+            "COMPLEX": floattype,
+        }
+        # Substitutions in function bodies
+        self.subs_func = {
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "NX_FIELDS": self.grid.nx + 1,
+            "NY_FIELDS": self.grid.ny + 1,
+            "NZ_FIELDS": self.grid.nz + 1,
+            "NX_ID": self.grid.ID.shape[1],
+            "NY_ID": self.grid.ID.shape[2],
+            "NZ_ID": self.grid.ID.shape[3],
+        }
+        self.macros = macros
+
         if config.get_model_config().materials["maxpoles"] > 0:
             self.NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             self.NX_T = self.grid.Tx.shape[1]
@@ -67,6 +90,63 @@ class HipManager:
         self.grid_hip = hip.dim3(x=65536)
 
         self.compile_kernels()
+        self._set_pml_knls()
+        print("compiling done")
+
+    def _set_pml_knls(self):
+        """PMLS - prepares kernels and gets kernel functions."""
+        knl_pml_updates_electric = import_module(
+            "gprMax.hip_code.E_" + self.grid.pmls["formulation"]
+        )
+        knl_pml_updates_magnetic = import_module(
+            "gprMax.hip_code.M_" + self.grid.pmls["formulation"]
+        )
+
+        # Initialise arrays on GPU, set block per grid, and get kernel functions
+        for pml in self.grid.pmls["slabs"]:
+            knl_name = f"order{len(pml.CFS)}_{pml.direction}"
+            self.subs_name_args["FUNC"] = knl_name
+
+            knl_electric = getattr(knl_pml_updates_electric, knl_name)
+            bld = self._construct_knl(knl_electric, self.subs_name_args, self.subs_func, self.macros)
+            knlE = self._build_knl(bld, knl_name)
+            pml.update_electric_dev = knlE
+
+            knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
+            bld = self._construct_knl(knl_magnetic, self.subs_name_args, self.subs_fun, self.macros)
+            knlH = self.source_module(bld, knl_name)
+            pml.update_magnetic_dev = knlH
+            self._copy_mat_coeffs(knlE, knlH)
+
+    def _construct_knl(self, knl_func, subs_name_args, subs_func, macros):
+        name_plus_args = knl_func["args_hip"].substitute(subs_name_args)
+        func_body = knl_func["func"].substitute(subs_func)
+        knl = macros + name_plus_args + "{" + func_body + "}"
+
+        return knl
+    
+    def _build_knl(self, bld, name):
+        source_bld = bld
+        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_bld.encode(), name.encode(), 0, [], []))
+        props = hip.hipDeviceProp_t()
+        hip_check(hip.hipGetDeviceProperties(props,0))
+        arch = props.gcnArchName
+        cflags = [b"--offload-arch="+arch]
+        err, = hiprtc.hiprtcCompileProgram(self.prog, len(cflags), cflags)
+        if err != hiprtc.hiprtcResult.HIPRTC_SUCCESS:
+            log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(self.prog))
+            log = bytearray(log_size)
+            hip_check(hiprtc.hiprtcGetProgramLog(self.prog, log))
+            raise RuntimeError(log.decode())
+        code_size = hip_check(hiprtc.hiprtcGetCodeSize(self.prog))
+        code = bytearray(code_size)
+        hip_check(hiprtc.hiprtcGetCode(self.prog, code))
+        module = hip_check(hip.hipModuleLoadData(code))
+        bld_kernel = hip_check(hip.hipModuleGetFunction(self.module, name.encode()))
+        print(f"Compiling {name} Done")
+        return bld_kernel
+
+
 
     def compile_kernels(self):
         props = hip.hipDeviceProp_t()
