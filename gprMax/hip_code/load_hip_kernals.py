@@ -33,17 +33,42 @@ class HipManager:
         self.subs_name_args = {
             "REAL": floattype,
             "COMPLEX": floattype,
+            "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "NX_FIELDS": str(self.grid.nx + 1),
+            "NY_FIELDS": str(self.grid.ny + 1),
+            "NZ_FIELDS": str(self.grid.nz + 1),
+            "NX_ID": str(self.grid.ID.shape[1]),
+            "NY_ID": str(self.grid.ID.shape[2]),
+            "NZ_ID": str(self.grid.ID.shape[3]),
+            "N_updatecoeffsE": str(self.grid.updatecoeffsE.size), 
+            "N_updatecoeffsH": str(self.grid.updatecoeffsH.size),
+            "NY_MATCOEFFS": str(self.grid.updatecoeffsE.shape[1]),
+            "NX_FIELDS": str(self.grid.nx + 1), 
+            "NY_FIELDS": str(self.grid.ny + 1), 
+            "NZ_FIELDS": str(self.grid.nz + 1), 
+            "NX_ID": str(self.grid.ID.shape[1]), 
+            "NY_ID": str(self.grid.ID.shape[2]), 
+            "NZ_ID": str(self.grid.ID.shape[3]), 
         }
         # Substitutions in function bodies
         self.subs_func = {
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "REAL": floattype,
             "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
-            "NX_FIELDS": self.grid.nx + 1,
+            "NX_FIELDS": str(self.grid.nx + 1),
             "NY_FIELDS": self.grid.ny + 1,
             "NZ_FIELDS": self.grid.nz + 1,
             "NX_ID": self.grid.ID.shape[1],
             "NY_ID": self.grid.ID.shape[2],
             "NZ_ID": self.grid.ID.shape[3],
+            "N_updatecoeffsE": self.grid.updatecoeffsE.size, 
+            "N_updatecoeffsH": self.grid.updatecoeffsH.size,
+            "NY_MATCOEFFS": self.grid.updatecoeffsE.shape[1],
+            "NX_FIELDS": self.grid.nx + 1, 
+            "NY_FIELDS": self.grid.ny + 1, 
+            "NZ_FIELDS": self.grid.nz + 1, 
+            "NX_ID": self.grid.ID.shape[1], 
+            "NY_ID": self.grid.ID.shape[2], 
+            "NZ_ID": self.grid.ID.shape[3], 
         }
         self.macros = macros
 
@@ -57,41 +82,40 @@ class HipManager:
             self.NX_T = 1
             self.NY_T = 1
             self.NZ_T = 1
-        self.ID_d = hip_check(hip.hipMalloc(self.grid.ID.nbytes))
-        self.Ex_d = hip_check(hip.hipMalloc(self.grid.Ex.nbytes))
-        self.Ey_d = hip_check(hip.hipMalloc(self.grid.Ey.nbytes))
-        self.Ez_d = hip_check(hip.hipMalloc(self.grid.Ez.nbytes))
-        self.Hx_d = hip_check(hip.hipMalloc(self.grid.Hx.nbytes))
-        self.Hy_d = hip_check(hip.hipMalloc(self.grid.Hy.nbytes))
-        self.Hz_d = hip_check(hip.hipMalloc(self.grid.Hz.nbytes))
-        self.Tx_d = hip_check(hip.hipMalloc(self.grid.Tx.nbytes))
-        self.Ty_d = hip_check(hip.hipMalloc(self.grid.Ty.nbytes))
-        self.Tz_d = hip_check(hip.hipMalloc(self.grid.Tz.nbytes))
-        self.updatecoeffsdispersive_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsdispersive.nbytes))
-        self.updatecoeffsE_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsE.nbytes))
-        self.updatecoeffsH_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsH.nbytes))
-        hip_check(hip.hipMemcpy(self.ID_d, self.grid.ID, self.grid.ID.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Ex_d, self.grid.Ex, self.grid.Ex.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Ey_d, self.grid.Ey, self.grid.Ey.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Ez_d, self.grid.Ez, self.grid.Ez.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Hx_d, self.grid.Hx, self.grid.Hx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Hy_d, self.grid.Hy, self.grid.Hy.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Hz_d, self.grid.Hz, self.grid.Hz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.updatecoeffsE_d, self.grid.updatecoeffsE, self.grid.updatecoeffsE.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.updatecoeffsH_d, self.grid.updatecoeffsH, self.grid.updatecoeffsH.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Tx_d, self.grid.Tx, self.grid.Tx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Ty_d, self.grid.Ty, self.grid.Ty.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.Tz_d, self.grid.Tz, self.grid.Tz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.updatecoeffsdispersive_d, self.grid.updatecoeffsdispersive, self.grid.updatecoeffsdispersive.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid)
+        # self.ID_dev = hip_check(hip.hipMalloc(self.grid.ID.nbytes))
+        # self.Ex_dev = hip_check(hip.hipMalloc(self.grid.Ex.nbytes))
+        # self.Ey_dev = hip_check(hip.hipMalloc(self.grid.Ey.nbytes))
+        # self.Ez_dev = hip_check(hip.hipMalloc(self.grid.Ez.nbytes))
+        # self.Hx_dev = hip_check(hip.hipMalloc(self.grid.Hx.nbytes))
+        # self.Hy_dev = hip_check(hip.hipMalloc(self.grid.Hy.nbytes))
+        # self.Hz_dev = hip_check(hip.hipMalloc(self.grid.Hz.nbytes))
+        # self.Tx_d = hip_check(hip.hipMalloc(self.grid.Tx.nbytes))
+        # self.Ty_d = hip_check(hip.hipMalloc(self.grid.Ty.nbytes))
+        # self.Tz_d = hip_check(hip.hipMalloc(self.grid.Tz.nbytes))
+        # self.updatecoeffsdispersive_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsdispersive.nbytes))
+        # self.updatecoeffsE_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsE.nbytes))
+        # self.updatecoeffsH_d = hip_check(hip.hipMalloc(self.grid.updatecoeffsH.nbytes))
+        # hip_check(hip.hipMemcpy(self.ID_dev, self.grid.ID, self.grid.ID.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Ex_dev, self.grid.Ex, self.grid.Ex.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Ey_dev, self.grid.Ey, self.grid.Ey.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Ez_dev, self.grid.Ez, self.grid.Ez.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Hx_dev, self.grid.Hx, self.grid.Hx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Hy_dev, self.grid.Hy, self.grid.Hy.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Hz_dev, self.grid.Hz, self.grid.Hz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.updatecoeffsE_d, self.grid.updatecoeffsE, self.grid.updatecoeffsE.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.updatecoeffsH_d, self.grid.updatecoeffsH, self.grid.updatecoeffsH.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Tx_d, self.grid.Tx, self.grid.Tx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Ty_d, self.grid.Ty, self.grid.Ty.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.Tz_d, self.grid.Tz, self.grid.Tz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # hip_check(hip.hipMemcpy(self.updatecoeffsdispersive_d, self.grid.updatecoeffsdispersive, self.grid.updatecoeffsdispersive.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        # self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid)
         self.len_rxs = int(6 * self.grid.iterations * len(self.grid.rxs)/4)
         self.len_rxcoords = int(len(self.grid.rxs) * 3)
         self.block = hip.dim3(x=1024)
         self.grid_hip = hip.dim3(x=65536)
 
         self.compile_kernels()
-        self._set_pml_knls()
-        print("compiling done")
+
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
@@ -104,6 +128,8 @@ class HipManager:
 
         # Initialise arrays on GPU, set block per grid, and get kernel functions
         for pml in self.grid.pmls["slabs"]:
+            pml.htod_field_arrays()
+            pml.set_blocks_per_grid()
             knl_name = f"order{len(pml.CFS)}_{pml.direction}"
             self.subs_name_args["FUNC"] = knl_name
 
@@ -113,37 +139,36 @@ class HipManager:
             pml.update_electric_dev = knlE
 
             knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
-            bld = self._construct_knl(knl_magnetic, self.subs_name_args, self.subs_fun, self.macros)
-            knlH = self.source_module(bld, knl_name)
+            bld = self._construct_knl(knl_magnetic, self.subs_name_args, self.subs_func, self.macros)
+            knlH = self._build_knl(bld, knl_name)
             pml.update_magnetic_dev = knlH
-            self._copy_mat_coeffs(knlE, knlH)
+            print(f"Compiling {knl_name} Done")
+
 
     def _construct_knl(self, knl_func, subs_name_args, subs_func, macros):
-        name_plus_args = knl_func["args_hip"].substitute(subs_name_args)
+        name_plus_args = macros.substitute(subs_name_args) + 'extern "C"' + knl_func["args_hip"].substitute(subs_name_args)
         func_body = knl_func["func"].substitute(subs_func)
-        knl = macros + name_plus_args + "{" + func_body + "}"
+        knl = name_plus_args + "{" + func_body + "}"
 
         return knl
     
     def _build_knl(self, bld, name):
-        source_bld = bld
-        self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_bld.encode(), name.encode(), 0, [], []))
+        prog = hip_check(hiprtc.hiprtcCreateProgram(bld.encode(), name.encode(), 0, [], []))
         props = hip.hipDeviceProp_t()
         hip_check(hip.hipGetDeviceProperties(props,0))
         arch = props.gcnArchName
         cflags = [b"--offload-arch="+arch]
-        err, = hiprtc.hiprtcCompileProgram(self.prog, len(cflags), cflags)
+        err, = hiprtc.hiprtcCompileProgram(prog, len(cflags), cflags)
         if err != hiprtc.hiprtcResult.HIPRTC_SUCCESS:
-            log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(self.prog))
+            log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(prog))
             log = bytearray(log_size)
-            hip_check(hiprtc.hiprtcGetProgramLog(self.prog, log))
+            hip_check(hiprtc.hiprtcGetProgramLog(prog, log))
             raise RuntimeError(log.decode())
-        code_size = hip_check(hiprtc.hiprtcGetCodeSize(self.prog))
+        code_size = hip_check(hiprtc.hiprtcGetCodeSize(prog))
         code = bytearray(code_size)
-        hip_check(hiprtc.hiprtcGetCode(self.prog, code))
+        hip_check(hiprtc.hiprtcGetCode(prog, code))
         module = hip_check(hip.hipModuleLoadData(code))
-        bld_kernel = hip_check(hip.hipModuleGetFunction(self.module, name.encode()))
-        print(f"Compiling {name} Done")
+        bld_kernel = hip_check(hip.hipModuleGetFunction(module, name.encode()))
         return bld_kernel
 
 
@@ -163,7 +188,8 @@ class HipManager:
         self.compile_kernels_magnetic_sources()
         self.compile_kernels_e_dispersive_A()
         self.compile_kernels_e_dispersive_B()  
-        print("All kernels compiled successfully.")
+        self._set_pml_knls()
+        print("compiling done")
 
 
 
@@ -204,7 +230,7 @@ class HipManager:
         code = bytearray(code_size)
         hip_check(hiprtc.hiprtcGetCode(self.prog, code))
         self.module = hip_check(hip.hipModuleLoadData(code))
-        self.update_m_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_magnetic"))
+        self.update_m_kernel = hip_check(hip.hipModuleGetFunction(self.module, b"update_m"))
         print(f"Compiling update_m Done")
 
     def compile_kernels_hertzian_dipole(self):
@@ -329,17 +355,17 @@ class HipManager:
 
     def free_resources(self):
         """Free resources allocated on the device."""
-        hip_check(hip.hipFree(self.ID_d))
-        hip_check(hip.hipFree(self.Ex_d))
-        hip_check(hip.hipFree(self.Ey_d))
-        hip_check(hip.hipFree(self.Ez_d))
-        hip_check(hip.hipFree(self.Hx_d))
-        hip_check(hip.hipFree(self.Hy_d))
-        hip_check(hip.hipFree(self.Hz_d))
+        hip_check(hip.hipFree(self.grid.ID_dev))
+        hip_check(hip.hipFree(self.grid.Ex_dev))
+        hip_check(hip.hipFree(self.grid.Ey_dev))
+        hip_check(hip.hipFree(self.grid.Ez_dev))
+        hip_check(hip.hipFree(self.grid.Hx_dev))
+        hip_check(hip.hipFree(self.grid.Hy_dev))
+        hip_check(hip.hipFree(self.grid.Hz_dev))
         hip_check(hip.hipModuleUnload(self.module))
         hip_check(hiprtc.hiprtcDestroyProgram(self.prog.createRef()))
-        hip_check(hip.hipFree(self.rxcoords_dev))
-        hip_check(hip.hipFree(self.rxs_dev))
+        hip_check(hip.hipFree(self.grid.rxcoords_dev))
+        hip_check(hip.hipFree(self.grid.rxs_dev))
 
     def update_e_hip(self):
         hip_check(
@@ -354,15 +380,15 @@ class HipManager:
                     ctypes.c_int(self.grid.nx),
                     ctypes.c_int(self.grid.ny),
                     ctypes.c_int(self.grid.nz),
-                    self.ID_d,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
-                    self.Hx_d,
-                    self.Hy_d,
-                    self.Hz_d,
-                    self.updatecoeffsE_d,
-                    self.updatecoeffsH_d,
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
                 )
             )
         )
@@ -380,15 +406,15 @@ class HipManager:
                     ctypes.c_int(self.grid.nx),
                     ctypes.c_int(self.grid.ny),
                     ctypes.c_int(self.grid.nz),
-                    self.ID_d,
-                    self.Hx_d,
-                    self.Hy_d,
-                    self.Hz_d,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
-                    self.updatecoeffsE_d,
-                    self.updatecoeffsH_d,
+                    self.grid.ID_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
                 )
             )
         )
@@ -416,12 +442,12 @@ class HipManager:
                 self.srcinfo1_dev,
                 self.srcinfo2_dev,
                 self.srcwaves_dev,
-                self.ID_d,
-                self.Ex_d,
-                self.Ey_d,
-                self.Ez_d,
-                self.updatecoeffsE_d,
-                self.updatecoeffsH_d,
+                self.grid.ID_dev,
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                self.grid.updatecoeffsE_d,
+                self.grid.updatecoeffsH_d,
                 )
             )
         )
@@ -438,14 +464,14 @@ class HipManager:
                 extra=(
                     ctypes.c_int(len(self.grid.rxs)),
                     ctypes.c_int(iteration),
-                    self.rxcoords_dev,
-                    self.rxs_dev,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
-                    self.Hx_d,
-                    self.Hy_d,
-                    self.Hz_d,
+                    self.grid.rxcoords_dev,
+                    self.grid.rxs_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
                 )
             )
         )
@@ -473,12 +499,12 @@ class HipManager:
                     self.srcinfo1_dev,
                     self.srcinfo2_dev,
                     self.srcwaves_dev,
-                    self.ID_d,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
-                    self.updatecoeffsE_d,
-                    self.updatecoeffsH_d,
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
                 )
             )
         )
@@ -506,12 +532,12 @@ class HipManager:
                     self.srcinfo1_dev,
                     self.srcinfo2_dev,
                     self.srcwaves_dev,
-                    self.ID_d,
-                    self.Hx_d,
-                    self.Hy_d,
-                    self.Hz_d,
-                    self.updatecoeffsE_d,
-                    self.updatecoeffsH_d,
+                    self.grid.ID_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
                 )
             )
         )
@@ -530,19 +556,19 @@ class HipManager:
                     ctypes.c_int(self.grid.ny),
                     ctypes.c_int(self.grid.nz),
                     ctypes.c_int(config.get_model_config().materials["maxpoles"]),
-                    self.updatecoeffsdispersive_d,
-                    self.Tx_d,
-                    self.Ty_d,
-                    self.Tz_d,
-                    self.ID_d,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
-                    self.Hx_d,
-                    self.Hy_d,
-                    self.Hz_d,
-                    self.updatecoeffsE_d,
-                    self.updatecoeffsH_d,
+                    self.grid.updatecoeffsdispersive_d,
+                    self.grid.Tx_d,
+                    self.grid.Ty_d,
+                    self.grid.Tz_d,
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
                 )
             )
         )
@@ -560,16 +586,16 @@ class HipManager:
                     ctypes.c_int(self.grid.ny),
                     ctypes.c_int(self.grid.nz),
                     ctypes.c_int(config.get_model_config().materials["maxpoles"]),
-                    self.updatecoeffsdispersive_d,
-                    self.Tx_d,
-                    self.Ty_d,
-                    self.Tz_d,
-                    self.ID_d,
-                    self.Ex_d,
-                    self.Ey_d,
-                    self.Ez_d,
-                    self.updatecoeffsE_d,
-                    self.updatecoeffsH_d,
+                    self.grid.updatecoeffsdispersive_d,
+                    self.grid.Tx_d,
+                    self.grid.Ty_d,
+                    self.grid.Tz_d,
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
                 )
             )
         )

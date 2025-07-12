@@ -83,7 +83,7 @@ update_m = Template("""
     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
     #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
     #define A ($NY_FIELDS * $NZ_FIELDS)
-    extern "C" __global__ void update_magnetic(int NX,
+    extern "C" __global__ void update_m(int NX,
                                                 int NY,
                                                 int NZ,
                                                 const unsigned int* __restrict__ ID,

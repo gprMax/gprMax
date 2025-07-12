@@ -29,6 +29,13 @@ class HIPUpdates(Updates[HIPGrid]):
     def __init__(self, G: HIPGrid):
         super().__init__(G)
         self.hip_manager = HipManager(G)
+        self._set_field_knls()
+
+    def _set_field_knls(self):
+        self.grid.htod_geometry_arrays()
+        self.grid.htod_field_arrays()
+        # if config.get_model_config().materials["maxpoles"] > 0:
+        self.grid.htod_dispersive_arrays()
 
     def store_outputs(self, iteration: int) -> None:
         """Stores field component values for every receiver and transmission line."""
@@ -52,7 +59,8 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_magnetic_pml(self) -> None:
         """Updates magnetic field components with the PML correction."""
-        #print("update_magnetic_pml not implemented in HIPUpdates")
+        for pml in self.grid.pmls["slabs"]:
+            pml.update_magnetic()
 
     
     def update_magnetic_sources(self, iteration: int) -> None:
@@ -70,7 +78,8 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_electric_pml(self) -> None:
         """Updates electric field components with the PML correction."""
-        #print("update_electric_pml not implemented in HIPUpdates")
+        for pml in self.grid.pmls["slabs"]:
+            pml.update_electric()
 
     
     def update_electric_sources(self, iteration: int) -> None:
@@ -107,7 +116,7 @@ class HIPUpdates(Updates[HIPGrid]):
             from gprMax.receivers import Rx
             rxs = np.zeros((len(Rx.allowableoutputs_dev), self.grid.iterations, len(self.grid.rxs)),
         dtype=config.sim_config.dtypes["float_or_double"])
-        hip_check(hip.hipMemcpy(rxs, self.hip_manager.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(rxs, self.hip_manager.grid.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
         for i in range(len(self.grid.rxs)):
             rx = self.grid.rxs[i].outputs
             for j, output in enumerate(Rx.allowableoutputs_dev):

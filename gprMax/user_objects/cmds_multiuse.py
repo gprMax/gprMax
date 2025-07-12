@@ -1394,8 +1394,8 @@ class AddLorentzDispersion(GridUserObject):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
-            omega = self.kwargs["tau"]
-            delta = self.kwargs["alpha"]
+            omega = self.kwargs["omega"]
+            delta = self.kwargs["delta"]
             material_ids = self.kwargs["material_ids"]
         except KeyError:
             logger.exception(f"{self.params_str()} requires at least five parameters.")

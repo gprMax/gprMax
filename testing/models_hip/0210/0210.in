@@ -8,5 +8,5 @@
 #rx: 0.2 0.15 0.15
 
 #box: 0 0 0 0.4 0.3 0.3 free_space
-#pml_cells: 10 10 10 10 10 10
+#pml_cells: 0 20 0 0 20 0
 #pml_formulation: HORIPML

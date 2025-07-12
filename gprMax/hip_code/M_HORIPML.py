@@ -48,7 +48,9 @@ x_args = {
                                           const $REAL* __restrict__ RB,
                                           const $REAL* __restrict__ RE,
                                           const $REAL* __restrict__ RF,
-                                          $REAL d)
+                                          $REAL d,
+                                          const $REAL* __restrict__ updatecoeffsE,
+                                          const $REAL* __restrict__ updatecoeffsH)
                     """
     )
 }
@@ -82,7 +84,9 @@ y_args = {
                                           const $REAL* __restrict__ RB,
                                           const $REAL* __restrict__ RE,
                                           const $REAL* __restrict__ RF,
-                                          $REAL d)
+                                          $REAL d,
+                                          const $REAL* __restrict__ updatecoeffsE,
+                                          const $REAL* __restrict__ updatecoeffsH)
                     """
     )
 }
@@ -116,7 +120,9 @@ z_args = {
                                           const $REAL* __restrict__ RB,
                                           const $REAL* __restrict__ RE,
                                           const $REAL* __restrict__ RF,
-                                          $REAL d)
+                                          $REAL d,
+                                          const $REAL* __restrict__ updatecoeffsE,
+                                          const $REAL* __restrict__ updatecoeffsH)
                     """
     )
 }

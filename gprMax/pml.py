@@ -27,6 +27,9 @@ from mpi4py import MPI
 import gprMax.config as config
 
 from .cython.pml_build import pml_average_er_mr, pml_sum_er_mr
+from hip import hip, hiprtc
+from gprMax.utilities.utilities import hip_check
+import ctypes
 
 logger = logging.getLogger(__name__)
 
@@ -685,6 +688,214 @@ class OpenCLPML(PML):
             config.sim_config.dtypes["float_or_double"](self.d),
         )
         event.wait()
+
+class HIPPML(PML):
+    """Perfectly Matched Layer (PML) Absorbing Boundary Conditions (ABC) for
+    solving on GPU using HIP.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(HIPPML, self).__init__(*args, **kwargs)
+        self.tpb = 1024
+
+    def htod_field_arrays(self):
+        """Initialises PML field and coefficient arrays on GPU."""
+        self.ERA_dev = hip_check(hip.hipMalloc(self.ERA.nbytes))
+        hip_check(hip.hipMemcpy(self.ERA_dev, self.ERA, self.ERA.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.ERE_dev = hip_check(hip.hipMalloc(self.ERE.nbytes))
+        hip_check(hip.hipMemcpy(self.ERE_dev, self.ERE, self.ERE.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.ERB_dev = hip_check(hip.hipMalloc(self.ERB.nbytes))
+        hip_check(hip.hipMemcpy(self.ERB_dev, self.ERB, self.ERB.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.ERF_dev = hip_check(hip.hipMalloc(self.ERF.nbytes))
+        hip_check(hip.hipMemcpy(self.ERF_dev, self.ERF, self.ERF.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.HRA_dev = hip_check(hip.hipMalloc(self.HRA.nbytes))
+        hip_check(hip.hipMemcpy(self.HRA_dev, self.HRA, self.HRA.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.HRE_dev = hip_check(hip.hipMalloc(self.HRE.nbytes))
+        hip_check(hip.hipMemcpy(self.HRE_dev, self.HRE, self.HRE.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.HRB_dev = hip_check(hip.hipMalloc(self.HRB.nbytes))
+        hip_check(hip.hipMemcpy(self.HRB_dev, self.HRB, self.HRB.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.HRF_dev = hip_check(hip.hipMalloc(self.HRF.nbytes))
+        hip_check(hip.hipMemcpy(self.HRF_dev, self.HRF, self.HRF.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.EPhi1_dev = hip_check(hip.hipMalloc(self.EPhi1.nbytes))
+        hip_check(hip.hipMemcpy(self.EPhi1_dev, self.EPhi1, self.EPhi1.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.EPhi2_dev = hip_check(hip.hipMalloc(self.EPhi2.nbytes))
+        hip_check(hip.hipMemcpy(self.EPhi2_dev, self.EPhi2, self.EPhi2.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.HPhi1_dev = hip_check(hip.hipMalloc(self.HPhi1.nbytes))
+        hip_check(hip.hipMemcpy(self.HPhi1_dev, self.HPhi1, self.HPhi1.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        self.HPhi2_dev = hip_check(hip.hipMalloc(self.HPhi2.nbytes))
+        hip_check(hip.hipMemcpy(self.HPhi2_dev, self.HPhi2, self.HPhi2.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+
+    def set_blocks_per_grid(self):
+        """Sets the blocks per grid size used for updating the PML field arrays
+        on a GPU."""
+        self.bpg = int(
+                np.ceil(
+                    (
+                        (self.EPhi1.shape[1] + 1)
+                        * (self.EPhi1.shape[2] + 1)
+                        * (self.EPhi1.shape[3] + 1)
+                    )
+                    / self.tpb
+                )
+            )
+        
+
+    def update_electric(self):
+        """Updates electric field components with the PML correction on the GPU."""
+        # self.update_electric_dev(
+        #     np.int32(self.xs),
+        #     np.int32(self.xf),
+        #     np.int32(self.ys),
+        #     np.int32(self.yf),
+        #     np.int32(self.zs),
+        #     np.int32(self.zf),
+        #     np.int32(self.EPhi1_dev.shape[1]),
+        #     np.int32(self.EPhi1_dev.shape[2]),
+        #     np.int32(self.EPhi1_dev.shape[3]),
+        #     np.int32(self.EPhi2_dev.shape[1]),
+        #     np.int32(self.EPhi2_dev.shape[2]),
+        #     np.int32(self.EPhi2_dev.shape[3]),
+        #     np.int32(self.thickness),
+        #     self.G.ID_dev.gpudata,
+        #     self.G.Ex_dev.gpudata,
+        #     self.G.Ey_dev.gpudata,
+        #     self.G.Ez_dev.gpudata,
+        #     self.G.Hx_dev.gpudata,
+        #     self.G.Hy_dev.gpudata,
+        #     self.G.Hz_dev.gpudata,
+        #     self.EPhi1_dev.gpudata,
+        #     self.EPhi2_dev.gpudata,
+        #     self.ERA_dev.gpudata,
+        #     self.ERB_dev.gpudata,
+        #     self.ERE_dev.gpudata,
+        #     self.ERF_dev.gpudata,
+        #     config.sim_config.dtypes["float_or_double"](self.d),
+        #     block=self.G.tpb,
+        #     grid=self.bpg,
+        # )
+        self.block = hip.dim3(x=self.tpb)
+        self.grid_hip = hip.dim3(x=self.bpg)
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.update_electric_dev,
+                *self.block,
+                *self.grid_hip,
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(self.xs),
+                    ctypes.c_int(self.xf),
+                    ctypes.c_int(self.ys),
+                    ctypes.c_int(self.yf),
+                    ctypes.c_int(self.zs),
+                    ctypes.c_int(self.zf),
+                    ctypes.c_int(self.EPhi1.shape[1]),
+                    ctypes.c_int(self.EPhi1.shape[2]),
+                    ctypes.c_int(self.EPhi1.shape[3]),
+                    ctypes.c_int(self.EPhi2.shape[1]),
+                    ctypes.c_int(self.EPhi2.shape[2]),
+                    ctypes.c_int(self.EPhi2.shape[3]),
+                    ctypes.c_int(self.thickness),
+                    self.G.ID_dev,
+                    self.G.Ex_dev,
+                    self.G.Ey_dev,
+                    self.G.Ez_dev,
+                    self.G.Hx_dev,
+                    self.G.Hy_dev,
+                    self.G.Hz_dev,
+                    self.EPhi1_dev,
+                    self.EPhi2_dev,
+                    self.ERA_dev,
+                    self.ERB_dev,
+                    self.ERE_dev,
+                    self.ERF_dev,
+                    ctypes.c_float(self.d),
+                    self.G.updatecoeffsE_d,
+                    self.G.updatecoeffsH_d,
+                )
+            )
+        )
+
+
+
+    def update_magnetic(self):
+        """Updates magnetic field components with the PML correction on the GPU."""
+        # self.update_magnetic_dev(
+        #     np.int32(self.xs),
+        #     np.int32(self.xf),
+        #     np.int32(self.ys),
+        #     np.int32(self.yf),
+        #     np.int32(self.zs),
+        #     np.int32(self.zf),
+        #     np.int32(self.HPhi1_dev.shape[1]),
+        #     np.int32(self.HPhi1_dev.shape[2]),
+        #     np.int32(self.HPhi1_dev.shape[3]),
+        #     np.int32(self.HPhi2_dev.shape[1]),
+        #     np.int32(self.HPhi2_dev.shape[2]),
+        #     np.int32(self.HPhi2_dev.shape[3]),
+        #     np.int32(self.thickness),
+        #     self.G.ID_dev.gpudata,
+        #     self.G.Ex_dev.gpudata,
+        #     self.G.Ey_dev.gpudata,
+        #     self.G.Ez_dev.gpudata,
+        #     self.G.Hx_dev.gpudata,
+        #     self.G.Hy_dev.gpudata,
+        #     self.G.Hz_dev.gpudata,
+        #     self.HPhi1_dev.gpudata,
+        #     self.HPhi2_dev.gpudata,
+        #     self.HRA_dev.gpudata,
+        #     self.HRB_dev.gpudata,
+        #     self.HRE_dev.gpudata,
+        #     self.HRF_dev.gpudata,
+        #     config.sim_config.dtypes["float_or_double"](self.d),
+        #     block=self.G.tpb,
+        #     grid=self.bpg,
+        # )
+        self.block = hip.dim3(x=self.tpb)
+        self.grid_hip = hip.dim3(x=self.bpg)
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.update_magnetic_dev,
+                *self.block,
+                *self.grid_hip,
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(self.xs),
+                    ctypes.c_int(self.xf),
+                    ctypes.c_int(self.ys),
+                    ctypes.c_int(self.yf),
+                    ctypes.c_int(self.zs),
+                    ctypes.c_int(self.zf),
+                    ctypes.c_int(self.HPhi1.shape[1]),
+                    ctypes.c_int(self.HPhi1.shape[2]),
+                    ctypes.c_int(self.HPhi1.shape[3]),
+                    ctypes.c_int(self.HPhi2.shape[1]),
+                    ctypes.c_int(self.HPhi2.shape[2]),
+                    ctypes.c_int(self.HPhi2.shape[3]),
+                    ctypes.c_int(self.thickness),
+                    self.G.ID_dev,
+                    self.G.Ex_dev,
+                    self.G.Ey_dev,
+                    self.G.Ez_dev,
+                    self.G.Hx_dev,
+                    self.G.Hy_dev,
+                    self.G.Hz_dev,
+                    self.HPhi1_dev,
+                    self.HPhi2_dev,
+                    self.HRA_dev,
+                    self.HRB_dev,
+                    self.HRE_dev,
+                    self.HRF_dev,
+                    ctypes.c_float(self.d),
+                    self.G.updatecoeffsE_d,
+                    self.G.updatecoeffsH_d,
+                )
+            )
+        )
+
 
 
 class MPIPML(PML):
