@@ -466,7 +466,7 @@ update_electric_dispersive_A = Template("""
         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + hipCrealf(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,pole*3)]) * hipCrealf(Tx[IDX4D_T(pole,x_T,y_T,z_T)]);
+            phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,pole*3)]) * $GETREAL(Tx[IDX4D_T(pole,x_T,y_T,z_T)]);
             Tx[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEx,1+(pole*3))] * Tx[IDX4D_T(pole,x_T,y_T,z_T)] +
                                             updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
         }
@@ -481,7 +481,7 @@ update_electric_dispersive_A = Template("""
         int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + hipCrealf(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,pole*3)]) * hipCrealf(Ty[IDX4D_T(pole,x_T,y_T,z_T)]);
+            phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,pole*3)]) * $GETREAL(Ty[IDX4D_T(pole,x_T,y_T,z_T)]);
             Ty[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEy,1+(pole*3))] * Ty[IDX4D_T(pole,x_T,y_T,z_T)] +
                                             updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
         }
@@ -496,7 +496,7 @@ update_electric_dispersive_A = Template("""
         int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + hipCrealf(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,pole*3)]) * hipCrealf(Tz[IDX4D_T(pole,x_T,y_T,z_T)]);
+            phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,pole*3)]) * $GETREAL(Tz[IDX4D_T(pole,x_T,y_T,z_T)]);
             Tz[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEz,1+(pole*3))] * Tz[IDX4D_T(pole,x_T,y_T,z_T)] +
                                             updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
         }

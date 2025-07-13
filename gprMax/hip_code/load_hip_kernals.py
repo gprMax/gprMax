@@ -11,10 +11,10 @@ import random
 from gprMax.hip_code import E_HORIPML, M_HORIPML
 from importlib import import_module
 from gprMax.hip_code.macros import macros
-
+from gprMax import config
 floattype = 'float'
 # complextype = config.get_model_config().materials["dispersiveCdtype"]
-complextype = 'hipFloatComplex'
+
 
 class HipManager:
     def __init__(self, G: HIPGrid):
@@ -29,7 +29,13 @@ class HipManager:
         self.update_voltage_source_kernel = None
         self.update_electric_dispersive_A_kernel = None
         self.update_electric_dispersive_B_kernel = None
-        
+        self.complextype = config.get_model_config().materials["dispersiveCdtype"]
+        self.get_real = "hipCrealf"
+        if self.complextype is None:
+            self.complextype = "hipFloatComplex"
+        if self.complextype is "float":
+            self.get_real = ""
+        print(config.get_model_config().materials["dispersiveCdtype"])
         self.subs_name_args = {
             "REAL": floattype,
             "COMPLEX": floattype,
@@ -314,7 +320,7 @@ class HipManager:
         print(f"Compiling update_magnetic_dipole Done")
 
     def compile_kernels_e_dispersive_A(self):
-        source_update_electric_dispersive_A = update_electric_dispersive_A.substitute(REAL=floattype, COMPLEX=complextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
+        source_update_electric_dispersive_A = update_electric_dispersive_A.substitute(GETREAL=self.get_real, REAL=floattype, COMPLEX=self.complextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
         self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_electric_dispersive_A.encode(), b"update_electric_dispersive_A", 0, [], []))
         props = hip.hipDeviceProp_t()
         hip_check(hip.hipGetDeviceProperties(props,0))
@@ -334,7 +340,7 @@ class HipManager:
         print(f"Compiling update_electric_dispersive_A Done")
     
     def compile_kernels_e_dispersive_B(self):
-        source_update_electric_dispersive_B = update_electric_dispersive_B.substitute(REAL=floattype, COMPLEX=complextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
+        source_update_electric_dispersive_B = update_electric_dispersive_B.substitute(GETREAL=self.get_real, REAL=floattype, COMPLEX=self.complextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.NY_MATDISPCOEFFS, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.NX_T, NY_T=self.NY_T, NZ_T=self.NZ_T)
         self.prog = hip_check(hiprtc.hiprtcCreateProgram(source_update_electric_dispersive_B.encode(), b"update_electric_dispersive_B", 0, [], []))
         props = hip.hipDeviceProp_t()
         hip_check(hip.hipGetDeviceProperties(props,0))

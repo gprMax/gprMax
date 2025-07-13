@@ -1,7 +1,7 @@
 #title: Simple model with Hertzian dipole (no PML, Debye-dispersive)
 #domain: 0.4 0.3 0.3   
 #dx_dy_dz: 0.002 0.002 0.002
-#time_window: 1000
+#time_window: 5000
 
 #material: 4.9 0 1 0 my_water
 #add_dispersion_debye: 1 75.2 9.231e-12 my_water
