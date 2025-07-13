@@ -777,16 +777,8 @@ class MetalPML(PML):
         d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
         
-        # Calculate thread groups (similar to CUDA blocks)
-        total_threads = (self.EPhi1_shape[1] + 1) * (self.EPhi1_shape[2] + 1) * (self.EPhi1_shape[3] + 1)
-        threads_per_group = 64  # Common thread group size for Metal
-        num_groups = (total_threads + threads_per_group - 1) // threads_per_group
-        
-        # Dispatch threads
-        cmpencoder.dispatchThreads_threadsPerThreadgroup_(
-            (total_threads, 1, 1),
-            (threads_per_group, 1, 1)
-        )
+        # Dispatch threads using grid's thread configuration
+        cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
         
         cmpencoder.endEncoding()
         cmdbuffer.commit()
@@ -832,16 +824,8 @@ class MetalPML(PML):
         d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
         
-        # Calculate thread groups (similar to CUDA blocks)
-        total_threads = (self.HPhi1_shape[1] + 1) * (self.HPhi1_shape[2] + 1) * (self.HPhi1_shape[3] + 1)
-        threads_per_group = 64  # Common thread group size for Metal
-        num_groups = (total_threads + threads_per_group - 1) // threads_per_group
-        
-        # Dispatch threads
-        cmpencoder.dispatchThreads_threadsPerThreadgroup_(
-            (total_threads, 1, 1),
-            (threads_per_group, 1, 1)
-        )
+        # Dispatch threads using grid's thread configuration
+        cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
         
         cmpencoder.endEncoding()
         cmdbuffer.commit()
