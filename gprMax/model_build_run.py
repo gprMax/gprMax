@@ -79,7 +79,7 @@ from gprMax.utilities import round32
 from gprMax.utilities import timer
 from gprMax.yee_cell_build_ext import build_electric_components
 from gprMax.yee_cell_build_ext import build_magnetic_components
-
+from gprMax.nfft import solve_cpu_nfft
 
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
@@ -368,7 +368,9 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Main FDTD solving functions for either CPU or GPU
         if G.gpu is None:
-            tsolve = solve_cpu(currentmodelrun, modelend, G)
+            print("MAIN FDTD STARTS HERE")
+            # tsolve = solve_cpu(currentmodelrun, modelend, G)
+            tsolve = solve_cpu_nfft(currentmodelrun, modelend, G)
         else:
             tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
