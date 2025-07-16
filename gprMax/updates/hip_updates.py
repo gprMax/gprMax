@@ -19,7 +19,6 @@ from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from gprMax.sources import htod_src_arrays
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
-from ..hip_code.load_hip_kernals import HipManager
 import ctypes
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,7 @@ class HIPUpdates(Updates[HIPGrid]):
         }
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
         self._set_macros()
-        self._set_pml_knls()
+        
 
         self.knl_tmpls = {
             "update_e" : knl_fields_updates.update_electric,
@@ -97,6 +96,7 @@ class HIPUpdates(Updates[HIPGrid]):
             knl_tmpl = self.knl_tmpls[knl_name]
             self.knls[knl_name] = self._build_knl(knl_tmpl, knl_name)
             print(f"Compiling {knl_name} Done")
+        self._set_pml_knls()
 
     def _set_field_knls(self):
         self.grid.htod_geometry_arrays()
@@ -127,6 +127,7 @@ class HIPUpdates(Updates[HIPGrid]):
             knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
             knlH = self._build_knl(knl_magnetic, knl_name)
             pml.update_magnetic_dev = knlH
+            print(f"Compiling {knl_name} Done")
             
 
     def _build_knl(self, knl_func, name):
