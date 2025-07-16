@@ -66,7 +66,7 @@ if epsr:
     mr = 1
     z1 = np.sqrt(mr / epsr) * z0
     v1 = c / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1 / c * (180 / np.pi))
+    thetac = np.round(np.arcsin(v1 / c * (180 / np.pi)))
     wavelength = v1 / f
 
 # Print some useful information
