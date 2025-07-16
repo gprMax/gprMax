@@ -52,6 +52,25 @@ update_hertzian_dipole = {
                                             __global $REAL *Ez
                                         """
     ),
+    "args_hip": Template(
+        """
+    extern "C" __global__ void update_hertzian_dipole(int NHERTZDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Ex,
+                                            $REAL *Ey,
+                                            $REAL *Ez,
+                                            const $REAL* __restrict__ updatecoeffsE,
+                                            const $REAL* __restrict__ updatecoeffsH)
+
+    """
+    ),
     "func": Template(
         """
     // Updates electric field values for Hertzian dipole sources.
@@ -136,6 +155,24 @@ update_magnetic_dipole = {
                                             __global $REAL *Hz
                                         """
     ),
+    "args_hip": Template(
+        """
+    extern "C"  __global__ void update_magnetic_dipole(int NMAGDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Hx,
+                                            $REAL *Hy,
+                                            $REAL *Hz,
+                                            const $REAL* __restrict__ updatecoeffsE,
+                                            const $REAL* __restrict__ updatecoeffsH)
+    """
+    ),
     "func": Template(
         """
     // Updates electric field values for Hertzian dipole sources.
@@ -217,6 +254,24 @@ update_voltage_source = {
                                             __global $REAL *Ey,
                                             __global $REAL *Ez
                                         """
+    ),
+    "args_hip": Template(
+        """
+    extern "C" __global__ void update_voltage_source(int NVOLTSRC,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Ex,
+                                            $REAL *Ey,
+                                            $REAL *Ez,
+                                            const $REAL* __restrict__ updatecoeffsE,
+                                            const $REAL* __restrict__ updatecoeffsH) 
+    """
     ),
     "func": Template(
         """

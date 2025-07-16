@@ -75,139 +75,139 @@ from string import Template
 # }
 #     """)
 
-update_m = Template("""
-    // Macros for converting subscripts to linear index:
-    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-    #define A ($NY_FIELDS * $NZ_FIELDS)
-    extern "C" __global__ void update_m(int NX,
-                                                int NY,
-                                                int NZ,
-                                                const unsigned int* __restrict__ ID,
-                                                $REAL *Hx,
-                                                $REAL *Hy,
-                                                $REAL *Hz,
-                                                const $REAL* __restrict__ Ex,
-                                                const $REAL* __restrict__ Ey,
-                                                const $REAL* __restrict__ Ez,
-                                                const $REAL* __restrict__ updatecoeffsE,
-                                                const $REAL* __restrict__ updatecoeffsH) {
+# update_m = Template("""
+#     // Macros for converting subscripts to linear index:
+#     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+#     #define A ($NY_FIELDS * $NZ_FIELDS)
+#     extern "C" __global__ void update_m(int NX,
+#                                                 int NY,
+#                                                 int NZ,
+#                                                 const unsigned int* __restrict__ ID,
+#                                                 $REAL *Hx,
+#                                                 $REAL *Hy,
+#                                                 $REAL *Hz,
+#                                                 const $REAL* __restrict__ Ex,
+#                                                 const $REAL* __restrict__ Ey,
+#                                                 const $REAL* __restrict__ Ez,
+#                                                 const $REAL* __restrict__ updatecoeffsE,
+#                                                 const $REAL* __restrict__ updatecoeffsH) {
 
-        // Magnetic field updates - normal materials.
-        //
-        //  Args:
-        //      NX, NY, NZ: Number of cells of the model domain.
-        //      ID, E, H: Access to ID and field component arrays.
+#         // Magnetic field updates - normal materials.
+#         //
+#         //  Args:
+#         //      NX, NY, NZ: Number of cells of the model domain.
+#         //      ID, E, H: Access to ID and field component arrays.
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+#         int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-        // Convert the linear index to subscripts for 3D field arrays
-        int x = i / ($NY_FIELDS * $NZ_FIELDS);
-        int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-        int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+#         // Convert the linear index to subscripts for 3D field arrays
+#         int x = i / ($NY_FIELDS * $NZ_FIELDS);
+#         int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+#         int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
-        // Convert the linear index to subscripts for 4D material ID array
-        int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-        int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-        int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+#         // Convert the linear index to subscripts for 4D material ID array
+#         int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+#         int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+#         int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-        // Hx component
-        if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
-            int materialHx = ID[IDX4D_ID(3,x_ID,y_ID,z_ID)];
-            Hx[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHx,0)] * Hx[IDX3D_FIELDS(x,y,z)] -
-                                        updatecoeffsH[IDX2D_MAT(materialHx,2)] * (Ez[IDX3D_FIELDS(x,y+1,z)] - Ez[IDX3D_FIELDS(x,y,z)]) +
-                                        updatecoeffsH[IDX2D_MAT(materialHx,3)] * (Ey[IDX3D_FIELDS(x,y,z+1)] - Ey[IDX3D_FIELDS(x,y,z)]);
-        }
+#         // Hx component
+#         if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
+#             int materialHx = ID[IDX4D_ID(3,x_ID,y_ID,z_ID)];
+#             Hx[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHx,0)] * Hx[IDX3D_FIELDS(x,y,z)] -
+#                                         updatecoeffsH[IDX2D_MAT(materialHx,2)] * (Ez[IDX3D_FIELDS(x,y+1,z)] - Ez[IDX3D_FIELDS(x,y,z)]) +
+#                                         updatecoeffsH[IDX2D_MAT(materialHx,3)] * (Ey[IDX3D_FIELDS(x,y,z+1)] - Ey[IDX3D_FIELDS(x,y,z)]);
+#         }
 
-        // Hy component
-        if (NY != 1 && x >= 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
-            int materialHy = ID[IDX4D_ID(4,x_ID,y_ID,z_ID)];
-            Hy[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHy,0)] * Hy[IDX3D_FIELDS(x,y,z)] -
-                                        updatecoeffsH[IDX2D_MAT(materialHy,3)] * (Ex[IDX3D_FIELDS(x,y,z+1)] - Ex[IDX3D_FIELDS(x,y,z)]) +
-                                        updatecoeffsH[IDX2D_MAT(materialHy,1)] * (Ez[IDX3D_FIELDS(x+1,y,z)] - Ez[IDX3D_FIELDS(x,y,z)]);
-        }
+#         // Hy component
+#         if (NY != 1 && x >= 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
+#             int materialHy = ID[IDX4D_ID(4,x_ID,y_ID,z_ID)];
+#             Hy[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHy,0)] * Hy[IDX3D_FIELDS(x,y,z)] -
+#                                         updatecoeffsH[IDX2D_MAT(materialHy,3)] * (Ex[IDX3D_FIELDS(x,y,z+1)] - Ex[IDX3D_FIELDS(x,y,z)]) +
+#                                         updatecoeffsH[IDX2D_MAT(materialHy,1)] * (Ez[IDX3D_FIELDS(x+1,y,z)] - Ez[IDX3D_FIELDS(x,y,z)]);
+#         }
 
-        // Hz component
-        if (NZ != 1 && x >= 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
-            int materialHz = ID[IDX4D_ID(5,x_ID,y_ID,z_ID)];
-            Hz[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHz,0)] * Hz[IDX3D_FIELDS(x,y,z)] -
-                                        updatecoeffsH[IDX2D_MAT(materialHz,1)] * (Ey[IDX3D_FIELDS(x+1,y,z)] - Ey[IDX3D_FIELDS(x,y,z)]) +
-                                        updatecoeffsH[IDX2D_MAT(materialHz,2)] * (Ex[IDX3D_FIELDS(x,y+1,z)] - Ex[IDX3D_FIELDS(x,y,z)]);
-        }
-    }
-    """)
+#         // Hz component
+#         if (NZ != 1 && x >= 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
+#             int materialHz = ID[IDX4D_ID(5,x_ID,y_ID,z_ID)];
+#             Hz[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHz,0)] * Hz[IDX3D_FIELDS(x,y,z)] -
+#                                         updatecoeffsH[IDX2D_MAT(materialHz,1)] * (Ey[IDX3D_FIELDS(x+1,y,z)] - Ey[IDX3D_FIELDS(x,y,z)]) +
+#                                         updatecoeffsH[IDX2D_MAT(materialHz,2)] * (Ex[IDX3D_FIELDS(x,y+1,z)] - Ex[IDX3D_FIELDS(x,y,z)]);
+#         }
+#     }
+#     """)
 
-update_hertzian_dipole = Template("""    
-    // Macros for converting subscripts to linear index:
-    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define IDX2D_SRCINFO(m, n) (m)*$NY_SRCINFO+(n)
-    #define IDX2D_SRCWAVES(m, n) (m)*($NY_SRCWAVES)+(n)
+# update_hertzian_dipole = Template("""    
+#     // Macros for converting subscripts to linear index:
+#     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define IDX2D_SRCINFO(m, n) (m)*$NY_SRCINFO+(n)
+#     #define IDX2D_SRCWAVES(m, n) (m)*($NY_SRCWAVES)+(n)
 
-    extern "C" __global__ void update_hertzian_dipole(int NHERTZDIPOLE,
-                                            int iteration,
-                                            $REAL dx,
-                                            $REAL dy,
-                                            $REAL dz,
-                                            const int* __restrict__ srcinfo1,
-                                            const $REAL* __restrict__ srcinfo2,
-                                            const $REAL* __restrict__ srcwaveforms,
-                                            const unsigned int* __restrict__ ID,
-                                            $REAL *Ex,
-                                            $REAL *Ey,
-                                            $REAL *Ez,
-                                            const $REAL* __restrict__ updatecoeffsE,
-                                            const $REAL* __restrict__ updatecoeffsH) {
-        // Updates electric field values for Hertzian dipole sources.
-        //
-        //  Args:
-        //      NHERTZDIPOLE: Total number of Hertzian dipoles in the model.
-        //      iteration: Iteration number of simulation.
-        //      dx, dy, dz: Spatial discretisations.
-        //      srcinfo1: Source cell coordinates and polarisation information.
-        //      srcinfo2: Other source information, e.g. length, resistance etc...
-        //      srcwaveforms: Source waveform values.
-        //      ID, E: Access to ID and field component arrays.
+#     extern "C" __global__ void update_hertzian_dipole(int NHERTZDIPOLE,
+#                                             int iteration,
+#                                             $REAL dx,
+#                                             $REAL dy,
+#                                             $REAL dz,
+#                                             const int* __restrict__ srcinfo1,
+#                                             const $REAL* __restrict__ srcinfo2,
+#                                             const $REAL* __restrict__ srcwaveforms,
+#                                             const unsigned int* __restrict__ ID,
+#                                             $REAL *Ex,
+#                                             $REAL *Ey,
+#                                             $REAL *Ez,
+#                                             const $REAL* __restrict__ updatecoeffsE,
+#                                             const $REAL* __restrict__ updatecoeffsH) {
+#         // Updates electric field values for Hertzian dipole sources.
+#         //
+#         //  Args:
+#         //      NHERTZDIPOLE: Total number of Hertzian dipoles in the model.
+#         //      iteration: Iteration number of simulation.
+#         //      dx, dy, dz: Spatial discretisations.
+#         //      srcinfo1: Source cell coordinates and polarisation information.
+#         //      srcinfo2: Other source information, e.g. length, resistance etc...
+#         //      srcwaveforms: Source waveform values.
+#         //      ID, E: Access to ID and field component arrays.
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+#         int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-        if (i < NHERTZDIPOLE) {
-            $REAL dl;
-            int x, y, z, polarisation;
+#         if (i < NHERTZDIPOLE) {
+#             $REAL dl;
+#             int x, y, z, polarisation;
 
-            x = srcinfo1[IDX2D_SRCINFO(i,0)];
-            y = srcinfo1[IDX2D_SRCINFO(i,1)];
-            z = srcinfo1[IDX2D_SRCINFO(i,2)];
-            polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
-            dl = srcinfo2[i];
-            // 'x' polarised source
-            if (polarisation == 0) {
-                int materialEx = ID[IDX4D_ID(0,x,y,z)];
-                Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
-            }
+#             x = srcinfo1[IDX2D_SRCINFO(i,0)];
+#             y = srcinfo1[IDX2D_SRCINFO(i,1)];
+#             z = srcinfo1[IDX2D_SRCINFO(i,2)];
+#             polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
+#             dl = srcinfo2[i];
+#             // 'x' polarised source
+#             if (polarisation == 0) {
+#                 int materialEx = ID[IDX4D_ID(0,x,y,z)];
+#                 Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
+#                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
+#             }
 
-            // 'y' polarised source
-            else if (polarisation == 1) {
-                int materialEy = ID[IDX4D_ID(1,x,y,z)];
-                Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
-            }
+#             // 'y' polarised source
+#             else if (polarisation == 1) {
+#                 int materialEy = ID[IDX4D_ID(1,x,y,z)];
+#                 Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
+#                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
+#             }
 
-            // 'z' polarised source
-            else if (polarisation == 2) {
-                int materialEz = ID[IDX4D_ID(2,x,y,z)];
-                Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
-            }
-        }
-    }
-"""
-)
+#             // 'z' polarised source
+#             else if (polarisation == 2) {
+#                 int materialEz = ID[IDX4D_ID(2,x,y,z)];
+#                 Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
+#                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
+#             }
+#         }
+#     }
+# """
+# )
 
 store_outputs = Template("""
     #define IDX3D_RXS(i, j, k) (i)*($NY_RXS)*($NZ_RXS)+(j)*($NZ_RXS)+(k)
@@ -249,91 +249,91 @@ store_outputs = Template("""
 
 """)
 
-update_voltage_source = Template("""
-    // Macros for converting subscripts to linear index:
-    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define IDX2D_SRCINFO(m, n) (m)*$NY_SRCINFO+(n)
-    #define IDX2D_SRCWAVES(m, n) (m)*($NY_SRCWAVES)+(n)
+# update_voltage_source = Template("""
+#     // Macros for converting subscripts to linear index:
+#     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define IDX2D_SRCINFO(m, n) (m)*$NY_SRCINFO+(n)
+#     #define IDX2D_SRCWAVES(m, n) (m)*($NY_SRCWAVES)+(n)
 
-    extern "C" __global__ void update_voltage_source(int NVOLTSRC,
-                                            int iteration,
-                                            $REAL dx,
-                                            $REAL dy,
-                                            $REAL dz,
-                                            const int* __restrict__ srcinfo1,
-                                            const $REAL* __restrict__ srcinfo2,
-                                            const $REAL* __restrict__ srcwaveforms,
-                                            const unsigned int* __restrict__ ID,
-                                            $REAL *Ex,
-                                            $REAL *Ey,
-                                            $REAL *Ez,
-                                            const $REAL* __restrict__ updatecoeffsE,
-                                            const $REAL* __restrict__ updatecoeffsH) {
+#     extern "C" __global__ void update_voltage_source(int NVOLTSRC,
+#                                             int iteration,
+#                                             $REAL dx,
+#                                             $REAL dy,
+#                                             $REAL dz,
+#                                             const int* __restrict__ srcinfo1,
+#                                             const $REAL* __restrict__ srcinfo2,
+#                                             const $REAL* __restrict__ srcwaveforms,
+#                                             const unsigned int* __restrict__ ID,
+#                                             $REAL *Ex,
+#                                             $REAL *Ey,
+#                                             $REAL *Ez,
+#                                             const $REAL* __restrict__ updatecoeffsE,
+#                                             const $REAL* __restrict__ updatecoeffsH) {
 
-    // Updates electric field values for voltage sources.
-    //
-    //  Args:
-    //      NVOLTSRC: Total number of voltage sources in the model.
-    //      iteration: Iteration number of simulation.
-    //      dx, dy, dz: Spatial discretisations.
-    //      srcinfo1: Source cell coordinates and polarisation information.
-    //      srcinfo2: Other source information, e.g. length, resistance etc...
-    //      srcwaveforms: Source waveform values.
-    //      ID, E: Access to ID and field component arrays.
+#     // Updates electric field values for voltage sources.
+#     //
+#     //  Args:
+#     //      NVOLTSRC: Total number of voltage sources in the model.
+#     //      iteration: Iteration number of simulation.
+#     //      dx, dy, dz: Spatial discretisations.
+#     //      srcinfo1: Source cell coordinates and polarisation information.
+#     //      srcinfo2: Other source information, e.g. length, resistance etc...
+#     //      srcwaveforms: Source waveform values.
+#     //      ID, E: Access to ID and field component arrays.
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+#     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (i < NVOLTSRC) {
+#     if (i < NVOLTSRC) {
 
-        $REAL resistance;
-        int x, y, z, polarisation;
+#         $REAL resistance;
+#         int x, y, z, polarisation;
 
-        x = srcinfo1[IDX2D_SRCINFO(i,0)];
-        y = srcinfo1[IDX2D_SRCINFO(i,1)];
-        z = srcinfo1[IDX2D_SRCINFO(i,2)];
-        polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
-        resistance = srcinfo2[i];
+#         x = srcinfo1[IDX2D_SRCINFO(i,0)];
+#         y = srcinfo1[IDX2D_SRCINFO(i,1)];
+#         z = srcinfo1[IDX2D_SRCINFO(i,2)];
+#         polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
+#         resistance = srcinfo2[i];
 
-        // 'x' polarised source
-        if (polarisation == 0) {
-            if (resistance != 0) {
-                int materialEx = ID[IDX4D_ID(0,x,y,z)];
-                Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dy * dz));
-            }
-            else {
-                Ex[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dx;
-            }
-        }
+#         // 'x' polarised source
+#         if (polarisation == 0) {
+#             if (resistance != 0) {
+#                 int materialEx = ID[IDX4D_ID(0,x,y,z)];
+#                 Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
+#                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dy * dz));
+#             }
+#             else {
+#                 Ex[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dx;
+#             }
+#         }
 
-        // 'y' polarised source
-        else if (polarisation == 1) {
-            if (resistance != 0) {
-                int materialEy = ID[IDX4D_ID(1,x,y,z)];
-                Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dz));
-            }
-            else {
-                Ey[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dy;
-            }
-        }
+#         // 'y' polarised source
+#         else if (polarisation == 1) {
+#             if (resistance != 0) {
+#                 int materialEy = ID[IDX4D_ID(1,x,y,z)];
+#                 Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
+#                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dz));
+#             }
+#             else {
+#                 Ey[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dy;
+#             }
+#         }
 
-        // 'z' polarised source
-        else if (polarisation == 2) {
-            if (resistance != 0) {
-                int materialEz = ID[IDX4D_ID(2,x,y,z)];
-                Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dy));
-            }
-            else {
-                Ez[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dz;
-            }
-        }
-    }
-}
-""")
+#         // 'z' polarised source
+#         else if (polarisation == 2) {
+#             if (resistance != 0) {
+#                 int materialEz = ID[IDX4D_ID(2,x,y,z)];
+#                 Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
+#                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dy));
+#             }
+#             else {
+#                 Ez[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dz;
+#             }
+#         }
+#     }
+# }
+# """)
 
 update_magnetic_dipole = Template("""
     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)

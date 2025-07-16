@@ -76,12 +76,18 @@ class HIPUpdates(Updates[HIPGrid]):
             "update_m" : knl_fields_updates.update_magnetic,
             "update_electric_dispersive_A" : knl_fields_updates.update_electric_dispersive_A_hip,
             "update_electric_dispersive_B" : knl_fields_updates.update_electric_dispersive_B_hip,
+            "update_hertzian_dipole" : knl_source_updates.update_hertzian_dipole,
+            "update_voltage_source": knl_source_updates.update_voltage_source,
+            "update_magnetic_dipole" : knl_source_updates.update_magnetic_dipole,
             }
         self.knls = {
             "update_e" : None,
             "update_m" : None,
             "update_electric_dispersive_A" : None,
             "update_electric_dispersive_B" : None,
+            "update_hertzian_dipole" : None,
+            "update_voltage_source": None,
+            "update_magnetic_dipole": None,
         }
         for knl_name in self.knl_tmpls:
             knl_tmpl = self.knl_tmpls[knl_name]
@@ -218,7 +224,37 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_magnetic_sources(self, iteration: int) -> None:
         """Updates magnetic field components from sources."""
-        self.hip_manager.update_magnetic_dipole_hip(iteration)
+        (
+            self.srcinfo1_dev,
+            self.srcinfo2_dev,
+            self.srcwaves_dev
+        ) = htod_src_arrays(self.grid.magneticdipoles, self.grid)
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.knls["update_magnetic_dipole"],
+                *self.grid_hip, # grid
+                *self.block,  # self.block
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(len(self.grid.magneticdipoles)),
+                    ctypes.c_int(iteration),
+                    ctypes.c_float(self.grid.dx),
+                    ctypes.c_float(self.grid.dy),
+                    ctypes.c_float(self.grid.dz),
+                    self.srcinfo1_dev,
+                    self.srcinfo2_dev,
+                    self.srcwaves_dev,
+                    self.grid.ID_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
+                )
+            )
+        )
 
     
     def update_electric_a(self) -> None:
@@ -292,9 +328,72 @@ class HIPUpdates(Updates[HIPGrid]):
         update any Hertzian dipole sources last.
         """
         if self.grid.hertziandipoles:
-            self.hip_manager.update_hertzian_dipole_hip(iteration)
+            (
+            self.srcinfo1_dev,
+            self.srcinfo2_dev,
+            self.srcwaves_dev
+            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid)
+
+            hip_check(
+                hip.hipModuleLaunchKernel(
+                    self.knls["update_hertzian_dipole"],
+                    *self.grid_hip, # grid
+                    *self.block,  # self.block
+                    sharedMemBytes=128,
+                    stream=None,
+                    kernelParams=None,
+                    extra=(
+                    ctypes.c_int(len(self.grid.hertziandipoles)),
+                    ctypes.c_int(iteration),
+                    ctypes.c_float(self.grid.dx),
+                    ctypes.c_float(self.grid.dy),
+                    ctypes.c_float(self.grid.dz),
+                    self.srcinfo1_dev,
+                    self.srcinfo2_dev,
+                    self.srcwaves_dev,
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
+                    )
+                )
+            )
+
         if self.grid.voltagesources:
-            self.hip_manager.update_voltage_source_hip(iteration)
+                    (
+            self.srcinfo1_dev,
+            self.srcinfo2_dev,
+            self.srcwaves_dev
+        ) = htod_src_arrays(self.grid.voltagesources, self.grid)
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.knls["update_voltage_source"],
+                *self.grid_hip, # grid
+                *self.block,  # self.block
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(len(self.grid.voltagesources)),
+                    ctypes.c_int(iteration),
+                    ctypes.c_float(self.grid.dx),
+                    ctypes.c_float(self.grid.dy),
+                    ctypes.c_float(self.grid.dz),
+                    self.srcinfo1_dev,
+                    self.srcinfo2_dev,
+                    self.srcwaves_dev,
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.updatecoeffsE_d,
+                    self.grid.updatecoeffsH_d,
+                )
+            )
+        )
+
 
     
     def update_electric_b(self) -> None:
