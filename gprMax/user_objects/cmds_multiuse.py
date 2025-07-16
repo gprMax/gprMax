@@ -1509,7 +1509,7 @@ class AddDrudeDispersion(GridUserObject):
             for i in range(poles):
                 if omega[i] > 0 and gamma[i] > grid.dt:
                     disp_material.tau.append(omega[i])
-                    disp_material.gamma.append(gamma[i])
+                    disp_material.alpha.append(gamma[i])
                 else:
                     logger.exception(
                         f"{self.params_str()} requires positive "
@@ -1529,7 +1529,7 @@ class AddDrudeDispersion(GridUserObject):
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
                 f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
-                f"and gamma={', '.join(f'{gamma:4.3e}' for gamma in disp_material.gamma)} secs created."
+                f"and gamma={', '.join(f'{gamma:4.3e}' for gamma in disp_material.alpha)} secs created."
             )
 
 
