@@ -22,7 +22,7 @@ from string import Template
 x_args = {
     "hip": Template(
         """
-                    __global__ void $FUNC(int xs,
+                extern "C"    __global__ void $FUNC(int xs,
                                           int xf,
                                           int ys,
                                           int yf,
@@ -58,7 +58,7 @@ x_args = {
 y_args = {
     "hip": Template(
         """
-                    __global__ void $FUNC(int xs,
+                extern "C"    __global__ void $FUNC(int xs,
                                           int xf,
                                           int ys,
                                           int yf,
@@ -94,7 +94,7 @@ y_args = {
 z_args = {
     "hip": Template(
         """
-                    __global__ void $FUNC(int xs,
+                extern "C"    __global__ void $FUNC(int xs,
                                           int xf,
                                           int ys,
                                           int yf,

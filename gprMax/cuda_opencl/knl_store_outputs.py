@@ -48,6 +48,20 @@ store_outputs = {
                                     __global const $REAL* restrict Hz
                                     """
     ),
+    "args_hip": Template(
+        """
+            extern "C" __global__ void store_outputs(int NRX,
+                                                    int iteration,
+                                                    const int* __restrict__ rxcoords,
+                                                    $REAL *rxs,
+                                                    const $REAL* __restrict__ Ex,
+                                                    const $REAL* __restrict__ Ey,
+                                                    const $REAL* __restrict__ Ez,
+                                                    const $REAL* __restrict__ Hx,
+                                                    const $REAL* __restrict__ Hy,
+                                                    const $REAL* __restrict__ Hz)
+        """
+    ),
     "func": Template(
         """
     // Stores field component values for every receiver in the model.

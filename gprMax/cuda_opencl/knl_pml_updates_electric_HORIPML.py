@@ -82,6 +82,39 @@ x_args = {
                         $REAL d
                     """
     ),
+        "hip": Template(
+        """
+                extern "C"    __global__ void $FUNC(int xs,
+                                        int xf,
+                                        int ys,
+                                        int yf,
+                                        int zs,
+                                        int zf,
+                                        int NX_PHI1,
+                                        int NY_PHI1,
+                                        int NZ_PHI1,
+                                        int NX_PHI2,
+                                        int NY_PHI2,
+                                        int NZ_PHI2,
+                                        int NY_R,
+                                        const unsigned int* __restrict__ ID,
+                                        const $REAL* __restrict__ Ex,
+                                        $REAL *Ey,
+                                        $REAL *Ez,
+                                        const $REAL* __restrict__ Hx,
+                                        const $REAL* __restrict__ Hy,
+                                        const $REAL* __restrict__ Hz,
+                                        $REAL *PHI1,
+                                        $REAL *PHI2,
+                                        const $REAL* __restrict__ RA,
+                                        const $REAL* __restrict__ RB,
+                                        const $REAL* __restrict__ RE,
+                                        const $REAL* __restrict__ RF,
+                                        $REAL d,
+                                        const $REAL* __restrict__ updatecoeffsE,
+                                        const $REAL* __restrict__ updatecoeffsH)
+                    """
+    ),
 }
 
 y_args = {
@@ -147,6 +180,40 @@ y_args = {
                         $REAL d
                     """
     ),
+        "hip": Template(
+        """
+                extern "C"    __global__ void $FUNC(int xs,
+                                        int xf,
+                                        int ys,
+                                        int yf,
+                                        int zs,
+                                        int zf,
+                                        int NX_PHI1,
+                                        int NY_PHI1,
+                                        int NZ_PHI1,
+                                        int NX_PHI2,
+                                        int NY_PHI2,
+                                        int NZ_PHI2,
+                                        int NY_R,
+                                        const unsigned int* __restrict__ ID,
+                                        $REAL *Ex,
+                                        const $REAL* __restrict__ Ey,
+                                        $REAL *Ez,
+                                        const $REAL* __restrict__ Hx,
+                                        const $REAL* __restrict__ Hy,
+                                        const $REAL* __restrict__ Hz,
+                                        $REAL *PHI1,
+                                        $REAL *PHI2,
+                                        const $REAL* __restrict__ RA,
+                                        const $REAL* __restrict__ RB,
+                                        const $REAL* __restrict__ RE,
+                                        const $REAL* __restrict__ RF,
+                                        $REAL d,
+                                        const $REAL* __restrict__ updatecoeffsE,
+                                        const $REAL* __restrict__ updatecoeffsH)
+                    """
+    ),
+
 }
 
 z_args = {
@@ -212,11 +279,45 @@ z_args = {
                         $REAL d
                     """
     ),
+        "hip": Template(
+        """
+                extern "C"    __global__ void $FUNC(int xs,
+                                        int xf,
+                                        int ys,
+                                        int yf,
+                                        int zs,
+                                        int zf,
+                                        int NX_PHI1,
+                                        int NY_PHI1,
+                                        int NZ_PHI1,
+                                        int NX_PHI2,
+                                        int NY_PHI2,
+                                        int NZ_PHI2,
+                                        int NY_R,
+                                        const unsigned int* __restrict__ ID,
+                                        $REAL *Ex,
+                                        $REAL *Ey,
+                                        const $REAL* __restrict__ Ez,
+                                        const $REAL* __restrict__ Hx,
+                                        const $REAL* __restrict__ Hy,
+                                        const $REAL* __restrict__ Hz,
+                                        $REAL *PHI1,
+                                        $REAL *PHI2,
+                                        const $REAL* __restrict__ RA,
+                                        const $REAL* __restrict__ RB,
+                                        const $REAL* __restrict__ RE,
+                                        const $REAL* __restrict__ RF,
+                                        $REAL d,
+                                        const $REAL* __restrict__ updatecoeffsE,
+                                        const $REAL* __restrict__ updatecoeffsH)
+                    """
+    ),
 }
 
 order1_xminus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_hip": x_args["hip"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xminus slab.
@@ -295,6 +396,7 @@ order1_xminus = {
 order2_xminus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_hip": x_args["hip"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xminus slab.
@@ -389,6 +491,7 @@ order2_xminus = {
 order1_xplus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_hip": x_args["hip"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xplus slab.
@@ -467,6 +570,7 @@ order1_xplus = {
 order2_xplus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_hip": x_args["hip"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xplus slab.
@@ -560,6 +664,7 @@ order2_xplus = {
 order1_yminus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_hip": y_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yminus slab.
@@ -638,6 +743,7 @@ order1_yminus = {
 order2_yminus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_hip": y_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yminus slab.
@@ -732,6 +838,7 @@ order2_yminus = {
 order1_yplus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_hip": y_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yplus slab.
@@ -810,6 +917,7 @@ order1_yplus = {
 order2_yplus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_hip": y_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yplus slab.
@@ -904,6 +1012,7 @@ order2_yplus = {
 order1_zminus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_hip": z_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zminus slab.
@@ -982,6 +1091,7 @@ order1_zminus = {
 order2_zminus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_hip": z_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zminus slab.
@@ -1076,6 +1186,7 @@ order2_zminus = {
 order1_zplus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_hip": z_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zplus slab.
@@ -1154,6 +1265,7 @@ order1_zplus = {
 order2_zplus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_hip": z_args["hip"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zplus slab.

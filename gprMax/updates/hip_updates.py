@@ -29,7 +29,7 @@ class HIPUpdates(Updates[HIPGrid]):
 
     def __init__(self, G: HIPGrid):
         super().__init__(G)
-        self.hip_manager = HipManager(G)
+        # self.hip_manager = HipManager(G)
         self._set_field_knls()
         self._set_dispersive()
         self.floattype = config.sim_config.dtypes["C_float_or_double"]
@@ -71,6 +71,8 @@ class HIPUpdates(Updates[HIPGrid]):
         }
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
         self._set_macros()
+        self._set_pml_knls()
+
         self.knl_tmpls = {
             "update_e" : knl_fields_updates.update_electric,
             "update_m" : knl_fields_updates.update_magnetic,
@@ -79,6 +81,7 @@ class HIPUpdates(Updates[HIPGrid]):
             "update_hertzian_dipole" : knl_source_updates.update_hertzian_dipole,
             "update_voltage_source": knl_source_updates.update_voltage_source,
             "update_magnetic_dipole" : knl_source_updates.update_magnetic_dipole,
+            "store_outputs": knl_store_outputs.store_outputs
             }
         self.knls = {
             "update_e" : None,
@@ -88,17 +91,44 @@ class HIPUpdates(Updates[HIPGrid]):
             "update_hertzian_dipole" : None,
             "update_voltage_source": None,
             "update_magnetic_dipole": None,
+            "store_outputs": None,
         }
         for knl_name in self.knl_tmpls:
             knl_tmpl = self.knl_tmpls[knl_name]
             self.knls[knl_name] = self._build_knl(knl_tmpl, knl_name)
+            print(f"Compiling {knl_name} Done")
 
     def _set_field_knls(self):
         self.grid.htod_geometry_arrays()
         self.grid.htod_field_arrays()
         if config.get_model_config().materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays()
-    
+
+    def _set_pml_knls(self):
+        """PMLS - prepares kernels and gets kernel functions."""
+        knl_pml_updates_electric = import_module(
+            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+        )
+        knl_pml_updates_magnetic = import_module(
+            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+        )
+
+        # Initialise arrays on GPU, set block per grid, and get kernel functions
+        for pml in self.grid.pmls["slabs"]:
+            pml.htod_field_arrays()
+            pml.set_blocks_per_grid()
+            knl_name = f"order{len(pml.CFS)}_{pml.direction}"
+            self.subs_name_args["FUNC"] = knl_name
+
+            knl_electric = getattr(knl_pml_updates_electric, knl_name)
+            knlE = self._build_knl(knl_electric, knl_name)
+            pml.update_electric_dev = knlE
+
+            knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
+            knlH = self._build_knl(knl_magnetic, knl_name)
+            pml.update_magnetic_dev = knlH
+            
+
     def _build_knl(self, knl_func, name):
         name_plus_args = knl_func["args_hip"].substitute(self.subs_name_args)
         func_body = knl_func["func"].substitute(self.subs_func)
@@ -120,6 +150,7 @@ class HIPUpdates(Updates[HIPGrid]):
         module = hip_check(hip.hipModuleLoadData(code))
         bld_kernel = hip_check(hip.hipModuleGetFunction(module, name.encode()))
         return bld_kernel
+    
     def _set_dispersive(self):
         if config.get_model_config().materials["maxpoles"] > 0:
             self.NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
@@ -134,7 +165,6 @@ class HIPUpdates(Updates[HIPGrid]):
 
     def _set_macros(self):
         """Common macros to be used in kernels."""
-
         # Set specific values for any dispersive materials
         if config.get_model_config().materials["maxpoles"] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
@@ -173,9 +203,42 @@ class HIPUpdates(Updates[HIPGrid]):
             NZ_SNAPS=Snapshot.nz_max,
         )
 
+    def free_resources(self):
+        """Free resources allocated on the device."""
+        hip_check(hip.hipFree(self.grid.ID_dev))
+        hip_check(hip.hipFree(self.grid.Ex_dev))
+        hip_check(hip.hipFree(self.grid.Ey_dev))
+        hip_check(hip.hipFree(self.grid.Ez_dev))
+        hip_check(hip.hipFree(self.grid.Hx_dev))
+        hip_check(hip.hipFree(self.grid.Hy_dev))
+        hip_check(hip.hipFree(self.grid.Hz_dev))
+        hip_check(hip.hipFree(self.grid.rxcoords_dev))
+        hip_check(hip.hipFree(self.grid.rxs_dev))
+
     def store_outputs(self, iteration: int) -> None:
         """Stores field component values for every receiver and transmission line."""
-        self.hip_manager.store_outputs_hip(iteration)
+        hip_check(
+            hip.hipModuleLaunchKernel(
+                self.knls["store_outputs"],
+                *self.grid_hip, # grid
+                *self.block,  # self.block
+                sharedMemBytes=128,
+                stream=None,
+                kernelParams=None,
+                extra=(
+                    ctypes.c_int(len(self.grid.rxs)),
+                    ctypes.c_int(iteration),
+                    self.grid.rxcoords_dev,
+                    self.grid.rxs_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                )
+            )
+        )
 
     
     def store_snapshots(self, iteration: int) -> None:
@@ -446,7 +509,7 @@ class HIPUpdates(Updates[HIPGrid]):
             from gprMax.receivers import Rx
             rxs = np.zeros((len(Rx.allowableoutputs_dev), self.grid.iterations, len(self.grid.rxs)),
         dtype=config.sim_config.dtypes["float_or_double"])
-        hip_check(hip.hipMemcpy(rxs, self.hip_manager.grid.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(rxs, self.grid.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
         for i in range(len(self.grid.rxs)):
             rx = self.grid.rxs[i].outputs
             for j, output in enumerate(Rx.allowableoutputs_dev):
@@ -454,7 +517,7 @@ class HIPUpdates(Updates[HIPGrid]):
 
     def cleanup(self) -> None:
         """Cleanup the updates, releasing any resources."""
-        self.hip_manager.free_resources()
+        self.free_resources()
 
     def calculate_memory_used(self, iteration: int) -> int:
         #print("calculate_memory_used not implemented in HIPUpdates")
