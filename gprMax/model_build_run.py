@@ -35,7 +35,7 @@ from gprMax.constants import floattype
 from gprMax.constants import complextype
 from gprMax.constants import cudafloattype
 from gprMax.constants import cudacomplextype
-from gprMax.exceptions import GeneralError
+from gprMax.exceptions import GeneralError, CmdInputError
 
 from gprMax.fields_outputs import store_outputs
 from gprMax.fields_outputs import kernel_template_store_outputs
@@ -172,6 +172,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             if G.gpu is None:
                 print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
             else:
+                if G.cylindrical:
+                    raise GeneralError("gpu has yet to be supported with cylindrical")
                 print('\nMemory (RAM) required: ~{} host + ~{} GPU\n'.format(human_size(G.memoryusage), human_size(G.memoryusage)))
 
         # Initialise an array for volumetric material IDs (solid), boolean
@@ -193,18 +195,21 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                 print('PML: switched off')
             pass  # If all the PMLs are switched off don't need to build anything
         else:
-            # Set default CFS parameters for PML if not given
-            if not G.cfs:
-                G.cfs = [CFS()]
-            if G.messages:
-                if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-                    pmlinfo = str(G.pmlthickness['x0'])
-                else:
-                    pmlinfo = ''
-                    for key, value in G.pmlthickness.items():
-                        pmlinfo += '{}: {}, '.format(key, value)
-                    pmlinfo = pmlinfo[:-2] + ' cells'
-                print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+            if not G.cylindrical:
+                # Set default CFS parameters for PML if not given
+                if not G.cfs:
+                    G.cfs = [CFS()]
+                if G.messages:
+                    if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
+                        pmlinfo = str(G.pmlthickness['x0'])
+                    else:
+                        pmlinfo = ''
+                        for key, value in G.pmlthickness.items():
+                            pmlinfo += '{}: {}, '.format(key, value)
+                        pmlinfo = pmlinfo[:-2] + ' cells'
+                    print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+            else:
+
             pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
             build_pmls(G, pbar)
             pbar.close()

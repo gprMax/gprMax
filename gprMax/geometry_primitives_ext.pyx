@@ -688,6 +688,23 @@ cpdef void build_box(
                 for k in range(zs, zf + 1):
                     ID[5, i, j, k] = numIDz
 
+cpdef void build_cylinder_cyl(
+            int r_width,
+            int z_min,
+            int z_max,
+            int numID,
+            int numIDr,
+            int numIDphi,
+            int numIDz,
+            bint averaging,
+            np.uint32_t[:, :, ::1] solid,
+            np.int8_t[:, :, :, ::1] rigidE,
+            np.int8_t[:, :, :, ::1] rigidH,
+            np.uint32_t[:, :, :, ::1] ID
+    ):
+    #With cylindrical, a box will take the shape of the cut of a cylinder which is 1 cell wide
+    build_box(0, r_width, 0, 1, z_min, z_max, numID, numIDr, numIDphi, numIDz, averaging, solid, rigidE, rigidH, ID)
+
 
 cpdef void build_cylinder(
                     float x1,
@@ -868,7 +885,6 @@ cpdef void build_cylinder(
 
                     if build:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
-
 
 cpdef void build_sphere(
                     int xc,

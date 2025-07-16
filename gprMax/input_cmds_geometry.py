@@ -26,7 +26,7 @@ from tqdm import tqdm
 from gprMax.constants import floattype
 from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
-from gprMax.exceptions import CmdInputError
+from gprMax.exceptions import CmdInputError, GeneralError
 from gprMax.fractals import FractalSurface
 from gprMax.fractals import FractalVolume
 from gprMax.fractals import Grass
@@ -43,6 +43,7 @@ from gprMax.geometry_primitives_ext import build_cylindrical_sector
 from gprMax.geometry_primitives_ext import build_sphere
 from gprMax.geometry_primitives_ext import build_voxels_from_array
 from gprMax.geometry_primitives_ext import build_voxels_from_array_mask
+from gprMax.geometry_primitives_ext import build_cylinder_cyl
 from gprMax.materials import Material
 from gprMax.utilities import round_value
 from gprMax.utilities import get_terminal_width
@@ -69,6 +70,8 @@ def process_geometrycmds(geometry, G):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) != 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
 
@@ -146,6 +149,8 @@ def process_geometrycmds(geometry, G):
                     tqdm.write('Geometry objects from file (voxels only) {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
         elif tmp[0] == '#edge:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
 
@@ -205,6 +210,8 @@ def process_geometrycmds(geometry, G):
                 tqdm.write('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
 
         elif tmp[0] == '#plate:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
 
@@ -313,6 +320,8 @@ def process_geometrycmds(geometry, G):
                 tqdm.write('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#triangle:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 12:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
 
@@ -432,7 +441,91 @@ def process_geometrycmds(geometry, G):
                 else:
                     tqdm.write('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m of material(s) {} created.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, ', '.join(materialsrequested)))
 
+        elif tmp[0] == '#cylinder_cyl:':
+            if not G.cylindrical:
+                raise GeneralError(tmp[0], " implemented only in cylindrical")
+            if len(tmp) < 4:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least four parameters')
+
+            # Isotropic case
+            elif len(tmp) == 5:
+                materialrequested = [tmp[4]]
+                average_cyl_cyl = G.averagevolumeobjects
+
+            # Isotropic case with no user specified averaging
+            elif len(tmp) == 6:
+                materialrequested = [tmp[4]]
+                if tmp[8].lower() == 'y':
+                    averagebox = True
+                elif tmp[8].lower() == 'n':
+                    averagebox = False
+                else:
+                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires averaging to be either y or n')
+
+            #Uniaxial anisotropic case
+            elif len(tmp) == 7:
+                materialrequested = tmp[4:]
+
+            else:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+
+            r_width = round_value(tmp[1]/G.dr_cyl)
+            z_min = round_value(tmp[2] / G.dz_cyl)
+            z_max = round_value(tmp[3] / G.dz_cyl)
+
+            if r_width < 0 or r_width > G.nr_cyl:
+                raise CmdInputError("The r-direction should be greater than 0 and included in the domain")
+            if z_min < 0 or z_min > G.nz_cyl:
+                raise CmdInputError("The lower z-coordinate should be greater than 0 and included in the domain")
+            if z_max < 0 or z_max > G.nz_cyl:
+                raise CmdInputError("The higher z-coordinate should be greater than 0 and included in the domain")
+
+            # Look up requested materials in existing list of material instances
+            materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
+
+            if len(materials) != len(materialsrequested):
+                notfound = [x for x in materialsrequested if x not in materials]
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
+
+            # Isotropic case
+            if len(materials) == 1:
+                averaging = materials[0].averagable and averagebox
+                numID = numIDr = numIDphi= numIDz = materials[0].numID
+
+            # Uniaxial anisotropic case
+            elif len(materials) == 3:
+                averaging = False
+                numIDr = materials[0].numID
+                numIDphi = materials[1].numID
+                numIDz = materials[2].numID
+                requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
+                averagedmaterial = [x for x in G.materials if x.ID == requiredID]
+                if averagedmaterial:
+                    numID = averagedmaterial.numID
+                else:
+                    numID = len(G.materials)
+                    m = Material(numID, requiredID)
+                    m.type = 'dielectric-smoothed'
+                    # Create dielectric-smoothed constituents for material
+                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
+                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
+                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+
+                    # Append the new material object to the materials list
+                    G.materials.append(m)
+            build_cylinder_cyl(r_width, z_min, z_max, numID, numIDr, numIDphi, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
+
+            if G.messages:
+                if averaging:
+                    dielectricsmoothing = 'on'
+                else:
+                    dielectricsmoothing = 'off'
+                tqdm.write('Cylinder cut from r = 0m, z = {:g}m, to r = {:g}m, z =  {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(z_min * G.dz_cyl, r_width * G.dr_cyl, z_max * G.dz_cyl, ', '.join(materialsrequested), dielectricsmoothing))
+
         elif tmp[0] == '#box:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
 
@@ -525,6 +618,8 @@ def process_geometrycmds(geometry, G):
                 tqdm.write('Box from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested), dielectricsmoothing))
 
         elif tmp[0] == '#cylinder:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 9:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eight parameters')
 
@@ -606,6 +701,8 @@ def process_geometrycmds(geometry, G):
                 tqdm.write('Cylinder with face centres {:g}m, {:g}m, {:g}m and {:g}m, {:g}m, {:g}m, with radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, r, ', '.join(materialsrequested), dielectricsmoothing))
 
         elif tmp[0] == '#cylindrical_sector:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 10:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least nine parameters')
 
@@ -730,6 +827,8 @@ def process_geometrycmds(geometry, G):
                     tqdm.write('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#sphere:':
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least five parameters')
 
@@ -808,7 +907,8 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#fractal_box:':
             # Default is no dielectric smoothing for a fractal box
             averagefractalbox = False
-
+            if G.cylindrical:
+                raise GeneralError(tmp[0], " not yet implemented in cylindrical")
             if len(tmp) < 14:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least thirteen parameters')
             elif len(tmp) == 14:
@@ -1311,6 +1411,8 @@ def process_geometrycmds(geometry, G):
 
                 # Apply any rough surfaces and add any surface water to the 3D mask array
                 for surface in volume.fractalsurfaces:
+                    if G.cylindrical:
+                        raise GeneralError(tmp[0], " not yet implemented in cylindrical")
                     if surface.surfaceID == 'xminus':
                         for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                             for j in range(surface.ys, surface.yf):

@@ -36,7 +36,8 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 """
 
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
-
+Coordinate_cyl_tuple = namedtuple('Coordinate_cyl', ['r', 'z'])
+Coordinate_z_tuple = namedtuple('Coordinate_z', ['z'])
 
 class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
@@ -44,7 +45,17 @@ class Coordinate(Coordinate_tuple):
     def __str__(self):
         return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
 
+class Coordinate_cyl(Coordinate_cyl_tuple):
+    """Subclass of a namedtuple where __str__ outputs 'r z'"""
 
+    def __str__(self):
+        return '{:g} {:g}'.format(self.r, self.z)
+
+class Coordinate_z(Coordinate_z_tuple):
+    """Subclass of a namedtuple where __str__ outputs 'z'"""
+
+    def __str__(self):
+        return '{:g}'.format(self.z)
 def command(cmd, *parameters):
     """
     Helper function. Prints the gprMax #<cmd>: <parameters>. None is ignored
@@ -153,6 +164,63 @@ def rotate90_plate(xs, ys, xf, yf, rotate90origin):
     yf = yfnew
 
     return xs, ys, xf, yf
+
+def cylindrical(cyl= False):
+    """Prints the gprMax #cylindrical command
+
+    Args:
+        cyl: True if there is cylindrical symmetry, False otherwise
+
+    Returns:
+        True if cylindrical is mentionned, False otherwise
+    """
+
+    command('cylindrical',cyl)
+
+    return cyl
+
+def domain_cyl(r, z):
+    """Prints the gprMax #domain command.
+
+        Args:
+            r, z (float): Extent of the domain in the r and z directions. The phi direction is 2*pi.
+
+        Returns:
+            domain_cyl (Coordinate_cyl): Namedtuple of the extent of the domain.
+        """
+    domain_cyl = Coordinate_cyl(r, z)
+    command('domain_cyl',domain_cyl)
+
+    return domain_cyl
+
+def dr_dz(r, z):
+    """Prints the gprMax #dr_dz command.
+
+        Args:
+            r, z (float): Spatial resolution in the r, and z directions.
+
+        Returns:
+            dr_dz (float): Tuple of the spatial resolutions.
+        """
+
+    dr_dz = Coordinate_cyl(r, z)
+    command('dr_dz',dr_dz)
+
+    return dr_dz
+
+def m(m_phi):
+    """Prints the gprMax #m command.
+
+    Args:
+        m_phi (int): integer set for the cylindrical symmetry: e^(im*phi)
+
+    Returns:
+        m (int): the aforementioned integer"""
+
+    m = m_phi
+    command('m',m)
+
+    return m
 
 
 def domain(x, y, z):
@@ -367,6 +435,26 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging='', rotate90origin=()):
 
     return s, f
 
+def cylinder_cyl(r_width, z_min, z_max, material, averaging=''):
+    """
+
+    Args:
+        r_width (float): radius of the cylinder
+        z_min (float): lower bound of the cylinder
+        z_max (float): higher bound of the cylinder
+        material (str): material
+        averaging (str): Turn averaging on or off
+
+    Returns:
+        s, f (tuple): 2 tuples for the start and finish coordinates
+    """
+
+    s = Coordinate_z(z_min)
+    f = Coordinate_cyl(r_width, z_max)
+    command('cylinder_cyl', s, f, material, averaging)
+
+    return s, f
+
 
 def sphere(x, y, z, radius, material, averaging=''):
     """Prints the gprMax #sphere command.
@@ -471,7 +559,7 @@ def waveform(shape, amplitude, frequency, identifier):
 
 
 def hertzian_dipole(polarisation, f1, f2, f3, identifier,
-                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+                    t0=None, t_remove=None, dxdy=None, rotate90origin=(), cylindrical= False):
     """Prints the #hertzian_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -500,7 +588,10 @@ def hertzian_dipole(polarisation, f1, f2, f3, identifier,
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
-    c = Coordinate(f1, f2, f3)
+    if not cylindrical:
+        c = Coordinate(f1, f2, f3)
+    else:
+        c = Coordinate_cyl(f1,f2)
     # since command ignores None, this is safe:
     command('hertzian_dipole', polarisation, str(c), identifier, t0, t_remove)
 

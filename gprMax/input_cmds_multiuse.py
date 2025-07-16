@@ -25,7 +25,7 @@ from tqdm import tqdm
 
 from gprMax.constants import z0
 from gprMax.constants import floattype
-from gprMax.exceptions import CmdInputError
+from gprMax.exceptions import CmdInputError, GeneralError
 from gprMax.geometry_outputs import GeometryView
 from gprMax.geometry_outputs import GeometryObjects
 from gprMax.materials import Material
@@ -60,6 +60,14 @@ def process_multicmds(multicmds, G):
             s = "'{}: {} ' {} {}-coordinate is not within the model domain".format(cmdname, ' '.join(tmp), name, err.args[0])
             raise CmdInputError(s)
 
+    def check_coordinates_cylindrical(r, z, name= ''):
+        try:
+            G.within_bounds(r_cyl=r, z_cyl=z)
+        except ValueError as err:
+            s = "'{}: {} ' {} {}-coordinate is not within the model domain".format(cmdname, ' '.join(tmp), name,
+                                                                                   err.args[0])
+            raise CmdInputError(s)
+
     # Waveform definitions
     cmdname = '#waveform'
     if multicmds[cmdname] is not None:
@@ -90,8 +98,6 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 6:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
             # Check polarity & position parameters
             polarisation = tmp[0].lower()
@@ -103,35 +109,72 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
             elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
+            elif 'Cylindrical' in G.mode and (polarisation != 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in Cylindrical mode')
 
-            xcoord = G.calculate_coord('x', tmp[1])
-            ycoord = G.calculate_coord('y', tmp[2])
-            zcoord = G.calculate_coord('z', tmp[3])
-            resistance = float(tmp[4])
+            if not G.cylindrical:
+                if len(tmp) < 6:
+                    raise CmdInputError(
+                        "'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+                resistance = float(tmp[4])
+                if resistance < 0:
+                    raise CmdInputError(
+                        "'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
+                    # Check if there is a waveformID in the waveforms list
+                if not any(x.ID == tmp[5] for x in G.waveforms):
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(
+                        tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
 
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-            if resistance < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
+                xcoord = G.calculate_coord('x', tmp[1])
+                ycoord = G.calculate_coord('y', tmp[2])
+                zcoord = G.calculate_coord('z', tmp[3])
 
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[5] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
+                check_coordinates(xcoord, ycoord, zcoord)
+                if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
+                    print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
-            v = VoltageSource()
-            v.polarisation = polarisation
-            v.xcoord = xcoord
-            v.ycoord = ycoord
-            v.zcoord = zcoord
-            v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
+                v = VoltageSource()
+                v.polarisation = polarisation
+                v.xcoord = xcoord
+                v.ycoord = ycoord
+                v.zcoord = zcoord
+                v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
+                v.waveformID = tmp[5]
+            else:
+                if len(tmp) < 4:
+                    raise CmdInputError(
+                        "'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+                zcoord_cyl = G.calculate_coord('z_cyl', tmp[1])
+                resistance = float(tmp[2])
+                if resistance < 0:
+                    raise CmdInputError(
+                        "'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
+                    # Check if there is a waveformID in the waveforms list
+                if not any(x.ID == tmp[3] for x in G.waveforms):
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(
+                        tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
+
+                check_coordinates_cylindrical(1, zcoord_cyl)
+                #To have a cylindrical symmetry, the source must be at r=0
+                if zcoord_cyl > G.pmlthickness_cyl['zmax'] or zcoord_cyl < G.pmlthickness_cyl['z0']:
+                    print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
+
+                v = VoltageSource()
+                v.polarisation = 'z' #Necessary for the symmetry
+                v.zcoord_cyl = zcoord_cyl
+                v.ID = v.__class__.__name__ + '(' + '0'  + ',' + str(v.zcoord_cyl) + ')'
+                v.waveformID = tmp[3]
+
             v.resistance = resistance
-            v.waveformID = tmp[5]
 
-            if len(tmp) > 6:
+            if (len(tmp) > 6 and not G.cylindrical) or (len(tmp) > 4 and G.cylindrical):
                 # Check source start & source remove time parameters
-                start = float(tmp[6])
-                stop = float(tmp[7])
+                if G.cylindrical:
+                    start = float(tmp[4])
+                    stop = float(tmp[5])
+                else:
+                    start = float(tmp[6])
+                    stop = float(tmp[7])
                 if start < 0:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
                 if stop < 0:
@@ -152,7 +195,10 @@ def process_multicmds(multicmds, G):
             v.calculate_waveform_values(G)
 
             if G.messages:
-                print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
+                if not G.cylindrical:
+                    print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
+                else:
+                    print('Voltage source with polarity {} at {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.zcoord_cyl * G.dz_cyl, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
 
             G.voltagesources.append(v)
 
@@ -174,42 +220,68 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
             elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
+            elif 'Cylindrical' in G.mode and (polarisation != 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in Cylindrical mode')
 
-            xcoord = G.calculate_coord('x', tmp[1])
-            ycoord = G.calculate_coord('y', tmp[2])
-            zcoord = G.calculate_coord('z', tmp[3])
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
+            if not G.cylindrical:
+                xcoord = G.calculate_coord('x', tmp[1])
+                ycoord = G.calculate_coord('y', tmp[2])
+                zcoord = G.calculate_coord('z', tmp[3])
+                check_coordinates(xcoord, ycoord, zcoord)
+                if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
+                    print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[4] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
+                # Check if there is a waveformID in the waveforms list
+                if not any(x.ID == tmp[4] for x in G.waveforms):
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
 
-            h = HertzianDipole()
-            h.polarisation = polarisation
+                h = HertzianDipole()
+                h.polarisation = polarisation
 
-            # Set length of dipole to grid size in polarisation direction
-            if h.polarisation == 'x':
-                h.dl = G.dx
-            elif h.polarisation == 'y':
-                h.dl = G.dy
-            elif h.polarisation == 'z':
-                h.dl = G.dz
+                # Set length of dipole to grid size in polarisation direction
+                if h.polarisation == 'x':
+                    h.dl = G.dx
+                elif h.polarisation == 'y':
+                    h.dl = G.dy
+                elif h.polarisation == 'z':
+                    h.dl = G.dz
 
-            h.xcoord = xcoord
-            h.ycoord = ycoord
-            h.zcoord = zcoord
-            h.xcoordorigin = xcoord
-            h.ycoordorigin = ycoord
-            h.zcoordorigin = zcoord
-            h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
-            h.waveformID = tmp[4]
+                h.xcoord = xcoord
+                h.ycoord = ycoord
+                h.zcoord = zcoord
+                h.xcoordorigin = xcoord
+                h.ycoordorigin = ycoord
+                h.zcoordorigin = zcoord
+                h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
+                h.waveformID = tmp[4]
+            else:
+                zcoord_cyl = G.calculate_coord('z_cyl', tmp[1])
+                check_coordinates_cylindrical(1, zcoord_cyl)
 
-            if len(tmp) > 5:
+                # To have a cylindrical symmetry, the source must be at r=0
+                if zcoord_cyl > G.pmlthickness_cyl['zmax'] or zcoord_cyl < G.pmlthickness_cyl['z0']:
+                    print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
+
+                # Check if there is a waveformID in the waveforms list
+                if not any(x.ID == tmp[2] for x in G.waveforms):
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
+
+                h = HertzianDipole()
+                h.polarisation = 'z'
+                h.dl = G.dz_cyl
+                h.zcoord_cyl = zcoord_cyl
+                h.zcoordorigin_cyl = zcoord_cyl
+                h.ID = h.__class__.__name__ + '(' + '0' + ',' + str(h.zcoord_cyl) + ')'
+                h.waveformID = tmp[2]
+
+            if (len(tmp) > 5 and not G.cylindrical) or (len(tmp) > 3 and G.cylindrical):
                 # Check source start & source remove time parameters
-                start = float(tmp[5])
-                stop = float(tmp[6])
+                if G.cylindrical:
+                    start = float(tmp[3])
+                    stop = float(tmp[4])
+                else:
+                    start = float(tmp[5])
+                    stop = float(tmp[6])
                 if start < 0:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
                 if stop < 0:
@@ -232,6 +304,8 @@ def process_multicmds(multicmds, G):
             if G.messages:
                 if G.mode == '2D':
                     print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
+                elif G.mode == 'cylindrical':
+                    print('Hertzian dipole with polarity {} at r = 0m, {:g}m,'.format(h.polarisation, h.zcoord_cyl * G.dz_cyl) + startstop + 'using waveform {} created.'.format(h.waveformID))
                 else:
                     print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
 
@@ -240,6 +314,8 @@ def process_multicmds(multicmds, G):
     # Magnetic dipole
     cmdname = '#magnetic_dipole'
     if multicmds[cmdname] is not None:
+        if G.cylindrical:
+            raise CmdInputError(cmdname + " not supported for cylindrical")
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
@@ -309,6 +385,8 @@ def process_multicmds(multicmds, G):
     # Transmission line
     cmdname = '#transmission_line'
     if multicmds[cmdname] is not None:
+        if G.cylindrical:
+            raise CmdInputError(cmdname + " not supported for cylindrical")
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 6:
@@ -391,48 +469,90 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
 
             # Check position parameters
-            xcoord = round_value(float(tmp[0]) / G.dx)
-            ycoord = round_value(float(tmp[1]) / G.dy)
-            zcoord = round_value(float(tmp[2]) / G.dz)
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
+            if not G.cylindrical:
+                xcoord = round_value(float(tmp[0]) / G.dx)
+                ycoord = round_value(float(tmp[1]) / G.dy)
+                zcoord = round_value(float(tmp[2]) / G.dz)
+                check_coordinates(xcoord, ycoord, zcoord)
+                if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
+                    print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
-            r = Rx()
-            r.xcoord = xcoord
-            r.ycoord = ycoord
-            r.zcoord = zcoord
-            r.xcoordorigin = xcoord
-            r.ycoordorigin = ycoord
-            r.zcoordorigin = zcoord
+                r = Rx()
+                r.xcoord = xcoord
+                r.ycoord = ycoord
+                r.zcoord = zcoord
+                r.xcoordorigin = xcoord
+                r.ycoordorigin = ycoord
+                r.zcoordorigin = zcoord
 
-            # If no ID or outputs are specified, use default
-            if len(tmp) == 3:
-                r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
-                for key in Rx.defaultoutputs:
-                    r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
-            else:
-                r.ID = tmp[3]
-                # Get allowable outputs
-                if G.gpu is not None:
-                    allowableoutputs = Rx.gpu_allowableoutputs
+                # If no ID or outputs are specified, use default
+                if len(tmp) == 3:
+                    r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
+                    for key in Rx.defaultoutputs:
+                        r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
                 else:
-                    allowableoutputs = Rx.allowableoutputs
-                # Check and add field output names
-                for field in tmp[4::]:
-                    if field in allowableoutputs:
-                        r.outputs[field] = np.zeros(G.iterations, dtype=floattype)
+                    r.ID = tmp[3]
+                    # Get allowable outputs
+                    if G.gpu is not None:
+                        allowableoutputs = Rx.gpu_allowableoutputs
                     else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
+                        allowableoutputs = Rx.allowableoutputs
+                    # Check and add field output names
+                    for field in tmp[4::]:
+                        if field in allowableoutputs:
+                            r.outputs[field] = np.zeros(G.iterations, dtype=floattype)
+                        else:
+                            raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
 
-            if G.messages:
-                print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
+                if G.messages:
+                    print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx,r.ycoord * G.dy,r.zcoord * G.dz,', '.join(r.outputs)))
+
+            else:
+                rcoord_cyl = round_value(float(tmp[0]) / G.dr_cyl)
+                phicoord_cyl = float(tmp[1])
+                zcoord_cyl = round_value(float(tmp[2]) / G.dz_cyl)
+
+                if rcoord_cyl < G.nr_cyl - G.pmlthickness_cyl['xmax'] or zcoord_cyl < G.pmlthickness_cyl['z0'] or zcoord_cyl > G.nz - G.pmlthickness_cyl['zmax']:
+                    print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
+
+                r = Rx()
+                r.rcoord_cyl = rcoord_cyl
+                r.phicoord_cyl = phicoord_cyl
+                r.zcoord_cyl = zcoord_cyl
+                r.rcoordorigin_cyl = rcoord_cyl
+                r.phicoordorigin_cyl = phicoord_cyl
+                r.zcoordorigin_cyl = zcoord_cyl
+
+                if len(tmp) == 3:
+                    r.ID = r.__class__.__name__ + '(' + str(r.rcoord_cyl) + ',' + str(r.phicoord_cyl) + ',' + str(r.zcoord_cyl) + ')'
+                    for key in Rx.defaultoutputs_cyl:
+                        r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
+
+                else:
+                    r.ID = tmp[3]
+                    # Get allowable outputs
+                    if G.gpu is not None:
+                        raise GeneralError("gpu computation not supported yet for cylindrical")
+                        # allowableoutputs = Rx.gpu_allowableoutputs
+                    else:
+                        allowableoutputs = Rx.allowableoutputs_cyl
+                    # Check and add field output names
+                    for field in tmp[4::]:
+                        if field in allowableoutputs:
+                            r.outputs[field] = np.zeros(G.iterations, dtype=floattype)
+                        else:
+                            raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
+
+                if G.messages:
+                    print('Receiver at r = {:g}m, phi = {:g}rad, z = {:g}m with output component(s) {} created.'.format(r.rcoord_cyl * G.dr_cyl, r.phicoord_cyl, r.zcoord_cyl * G.dz_cyl, ', '.join(r.outputs)))
 
             G.rxs.append(r)
 
     # Receiver array
     cmdname = '#rx_array'
     if multicmds[cmdname] is not None:
+        if G.cylindrical:
+            raise GeneralError(cmdname + " not supported yet for cylindrical")
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 9:

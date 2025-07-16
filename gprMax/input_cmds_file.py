@@ -191,21 +191,26 @@ def check_cmd_names(processedlines, checkessential=True):
     # Essential commands neccessary to run a gprMax model
     essentialcmds = ['#domain', '#dx_dy_dz', '#time_window']
 
+    #Essential commands in case of cylindrical
+    essentialcmds_cyl = ['#domain_cyl', '#dr_dz', '#time_window', '#m']
+
     # Commands that there should only be one instance of in a model
-    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_formulation', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi', '#output_dir'], None)
+    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_formulation', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi', '#output_dir',
+                                'domain_cyl', '#dr_dz', '#m', '#cylindrical'], None)
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
     multiplecmds = {key: [] for key in ['#geometry_view', '#geometry_objects_write', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_array', '#snapshot', '#pml_cfs', '#include_file']}
 
     # Geometry object building commands that there can be multiple instances
     # of in a model - these will be lists within the dictionary
-    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
+    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass', '#cylindrical']
     # List to store all geometry object commands in order from input file
     geometry = []
 
     # Check if command names are valid, if essential commands are present, and
     # add command parameters to appropriate dictionary values or lists
     countessentialcmds = 0
+    countessentialcmds_cyl = 0
     lindex = 0
     while(lindex < len(processedlines)):
         cmd = processedlines[lindex].split(':')
@@ -226,6 +231,9 @@ def check_cmd_names(processedlines, checkessential=True):
         if cmdname in essentialcmds:
             countessentialcmds += 1
 
+        if cmdname in essentialcmds_cyl:
+            countessentialcmds_cyl += 1
+
         # Assign command parameters as values to dictionary keys
         if cmdname in singlecmds:
             if singlecmds[cmdname] is None:
@@ -242,7 +250,9 @@ def check_cmd_names(processedlines, checkessential=True):
         lindex += 1
 
     if checkessential:
-        if (countessentialcmds < len(essentialcmds)):
+        if (countessentialcmds < len(essentialcmds) and countessentialcmds_cyl == 0):
             raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+        elif (countessentialcmds < len(essentialcmds_cyl) and countessentialcmds == 0):
+            raise CmdInputError('Your input file is missing essential commands required to run a model with cylindrical symmetry+6+6+. Essential commands are: ' + ', '.join(essentialcmds_cyl))
 
     return singlecmds, multiplecmds, geometry
