@@ -31,6 +31,7 @@ class HIPUpdates(Updates[HIPGrid]):
         super().__init__(G)
         self.hip_manager = HipManager(G)
         self._set_field_knls()
+        self._set_dispersive()
         self.floattype = config.sim_config.dtypes["C_float_or_double"]
         self.complextype = config.get_model_config().materials["dispersiveCdtype"]
         self.get_real = "hipCrealf"
@@ -63,16 +64,24 @@ class HIPUpdates(Updates[HIPGrid]):
             "NX_ID": str(self.grid.ID.shape[1]), 
             "NY_ID": str(self.grid.ID.shape[2]), 
             "NZ_ID": str(self.grid.ID.shape[3]), 
+            "GETREAL": self.get_real,
+            "NX_T": self.NX_T, 
+            "NY_T": self.NY_T, 
+            "NZ_T": self.NZ_T,
         }
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
         self._set_macros()
         self.knl_tmpls = {
             "update_e" : knl_fields_updates.update_electric,
             "update_m" : knl_fields_updates.update_magnetic,
+            "update_electric_dispersive_A" : knl_fields_updates.update_electric_dispersive_A_hip,
+            "update_electric_dispersive_B" : knl_fields_updates.update_electric_dispersive_B_hip,
             }
         self.knls = {
             "update_e" : None,
             "update_m" : None,
+            "update_electric_dispersive_A" : None,
+            "update_electric_dispersive_B" : None,
         }
         for knl_name in self.knl_tmpls:
             knl_tmpl = self.knl_tmpls[knl_name]
@@ -105,7 +114,18 @@ class HIPUpdates(Updates[HIPGrid]):
         module = hip_check(hip.hipModuleLoadData(code))
         bld_kernel = hip_check(hip.hipModuleGetFunction(module, name.encode()))
         return bld_kernel
-    
+    def _set_dispersive(self):
+        if config.get_model_config().materials["maxpoles"] > 0:
+            self.NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
+            self.NX_T = self.grid.Tx.shape[1]
+            self.NY_T = self.grid.Tx.shape[2]
+            self.NZ_T = self.grid.Tx.shape[3]
+        else:  # Set to one any substitutions for dispersive materials.
+            self.NY_MATDISPCOEFFS = 1
+            self.NX_T = 1
+            self.NY_T = 1
+            self.NZ_T = 1
+
     def _set_macros(self):
         """Common macros to be used in kernels."""
 
@@ -229,7 +249,36 @@ class HIPUpdates(Updates[HIPGrid]):
                 )
             )
         else:
-            self.hip_manager.update_electric_dispersive_A_hip()
+            hip_check(
+                hip.hipModuleLaunchKernel(
+                    self.knls["update_electric_dispersive_A"],
+                    *self.grid_hip, # grid
+                    *self.block,  # self.block
+                    sharedMemBytes=128,
+                    stream=None,
+                    kernelParams=None,
+                    extra=(
+                        ctypes.c_int(self.grid.nx),
+                        ctypes.c_int(self.grid.ny),
+                        ctypes.c_int(self.grid.nz),
+                        ctypes.c_int(config.get_model_config().materials["maxpoles"]),
+                        self.grid.updatecoeffsdispersive_dev,
+                        self.grid.Tx_d,
+                        self.grid.Ty_d,
+                        self.grid.Tz_d,
+                        self.grid.ID_dev,
+                        self.grid.Ex_dev,
+                        self.grid.Ey_dev,
+                        self.grid.Ez_dev,
+                        self.grid.Hx_dev,
+                        self.grid.Hy_dev,
+                        self.grid.Hz_dev,
+                        self.grid.updatecoeffsE_d,
+                        self.grid.updatecoeffsH_d,
+                    )
+                )
+            )
+
 
     
     def update_electric_pml(self) -> None:
@@ -256,7 +305,32 @@ class HIPUpdates(Updates[HIPGrid]):
         source updates.
         """
         if config.get_model_config().materials["maxpoles"] > 0:
-            self.hip_manager.update_electric_dispersive_B_hip()
+            hip_check(
+                hip.hipModuleLaunchKernel(
+                    self.knls["update_electric_dispersive_B"],
+                    *self.grid_hip, # grid
+                    *self.block,  # self.block
+                    sharedMemBytes=128,
+                    stream=None,
+                    kernelParams=None,
+                    extra=(
+                        ctypes.c_int(self.grid.nx),
+                        ctypes.c_int(self.grid.ny),
+                        ctypes.c_int(self.grid.nz),
+                        ctypes.c_int(config.get_model_config().materials["maxpoles"]),
+                        self.grid.updatecoeffsdispersive_dev,
+                        self.grid.Tx_d,
+                        self.grid.Ty_d,
+                        self.grid.Tz_d,
+                        self.grid.ID_dev,
+                        self.grid.Ex_dev,
+                        self.grid.Ey_dev,
+                        self.grid.Ez_dev,
+                        self.grid.updatecoeffsE_d,
+                        self.grid.updatecoeffsH_d,
+                    )
+                )
+            )
 
     def time_start(self) -> None:
         """Starts timer used to calculate solving time for model."""

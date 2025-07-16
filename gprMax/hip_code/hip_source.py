@@ -403,193 +403,193 @@ update_magnetic_dipole = Template("""
 }
 """)
 
-update_electric_dispersive_A = Template("""
-    #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define INDEX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-    #include <hip/hip_complex.h>
-    extern "C" __global__ void update_electric_dispersive_A(int NX,
-                                    int NY,
-                                    int NZ,
-                                    int MAXPOLES,
-                                    const $COMPLEX* __restrict__ updatecoeffsdispersive,
-                                    $COMPLEX *Tx,
-                                    $COMPLEX *Ty,
-                                    $COMPLEX *Tz,
-                                    const unsigned int* __restrict__ ID,
-                                    $REAL *Ex,
-                                    $REAL *Ey,
-                                    $REAL *Ez,
-                                    const $REAL* __restrict__ Hx,
-                                    const $REAL* __restrict__ Hy,
-                                    const $REAL* __restrict__ Hz,
-                                    const $REAL* __restrict__ updatecoeffsE,
-                                    const $REAL* __restrict__ updatecoeffsH) {
+# update_electric_dispersive_A = Template("""
+#     #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define INDEX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+#     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+#     #include <hip/hip_complex.h>
+#     extern "C" __global__ void update_electric_dispersive_A(int NX,
+#                                     int NY,
+#                                     int NZ,
+#                                     int MAXPOLES,
+#                                     const $COMPLEX* __restrict__ updatecoeffsdispersive,
+#                                     $COMPLEX *Tx,
+#                                     $COMPLEX *Ty,
+#                                     $COMPLEX *Tz,
+#                                     const unsigned int* __restrict__ ID,
+#                                     $REAL *Ex,
+#                                     $REAL *Ey,
+#                                     $REAL *Ez,
+#                                     const $REAL* __restrict__ Hx,
+#                                     const $REAL* __restrict__ Hy,
+#                                     const $REAL* __restrict__ Hz,
+#                                     const $REAL* __restrict__ updatecoeffsE,
+#                                     const $REAL* __restrict__ updatecoeffsH) {
 
-    // Electric field updates - dispersive materials - part A of updates to electric
-    //                              field values when dispersive materials
-    //                              (with multiple poles) are present.
-    //
-    //  Args:
-    //      NX, NY, NZ: Number of cells of the model domain.
-    //      MAXPOLES: Maximum number of dispersive material poles present in model.
-    //      updatedispersivecoeffs, T, ID, E, H: Access to update coefficients,
-    //                                              dispersive, ID and field
-    //                                              component arrays.
+#     // Electric field updates - dispersive materials - part A of updates to electric
+#     //                              field values when dispersive materials
+#     //                              (with multiple poles) are present.
+#     //
+#     //  Args:
+#     //      NX, NY, NZ: Number of cells of the model domain.
+#     //      MAXPOLES: Maximum number of dispersive material poles present in model.
+#     //      updatedispersivecoeffs, T, ID, E, H: Access to update coefficients,
+#     //                                              dispersive, ID and field
+#     //                                              component arrays.
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+#     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Convert the linear index to subscripts for 3D field arrays
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+#     // Convert the linear index to subscripts for 3D field arrays
+#     int x = i / ($NY_FIELDS * $NZ_FIELDS);
+#     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+#     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
-    // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+#     // Convert the linear index to subscripts for 4D material ID array
+#     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+#     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+#     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-    // Convert the linear index to subscripts for 4D dispersive array
-    int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
-    int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
+#     // Convert the linear index to subscripts for 4D dispersive array
+#     int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
+#     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
+#     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
 
-    // Ex component
-    if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
-        int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
-        $REAL phi = 0;
-        for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,pole*3)]) * $GETREAL(Tx[IDX4D_T(pole,x_T,y_T,z_T)]);
-            Tx[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEx,1+(pole*3))] * Tx[IDX4D_T(pole,x_T,y_T,z_T)] +
-                                            updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
-        }
-        Ex[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEx,0)] * Ex[IDX3D_FIELDS(x,y,z)] +
-                                    updatecoeffsE[IDX2D_MAT(materialEx,2)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x,y-1,z)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEx,3)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x,y,z-1)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEx,4)] * phi;
-    }
+#     // Ex component
+#     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
+#         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
+#         $REAL phi = 0;
+#         for (int pole = 0; pole < MAXPOLES; pole++) {
+#             phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,pole*3)]) * $GETREAL(Tx[IDX4D_T(pole,x_T,y_T,z_T)]);
+#             Tx[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEx,1+(pole*3))] * Tx[IDX4D_T(pole,x_T,y_T,z_T)] +
+#                                             updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
+#         }
+#         Ex[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEx,0)] * Ex[IDX3D_FIELDS(x,y,z)] +
+#                                     updatecoeffsE[IDX2D_MAT(materialEx,2)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x,y-1,z)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEx,3)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x,y,z-1)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEx,4)] * phi;
+#     }
 
-    // Ey component
-    if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
-        int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
-        $REAL phi = 0;
-        for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,pole*3)]) * $GETREAL(Ty[IDX4D_T(pole,x_T,y_T,z_T)]);
-            Ty[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEy,1+(pole*3))] * Ty[IDX4D_T(pole,x_T,y_T,z_T)] +
-                                            updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
-        }
-        Ey[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEy,0)] * Ey[IDX3D_FIELDS(x,y,z)] +
-                                    updatecoeffsE[IDX2D_MAT(materialEy,3)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEy,1)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x-1,y,z)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEy,4)] * phi;
-    }
+#     // Ey component
+#     if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
+#         int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
+#         $REAL phi = 0;
+#         for (int pole = 0; pole < MAXPOLES; pole++) {
+#             phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,pole*3)]) * $GETREAL(Ty[IDX4D_T(pole,x_T,y_T,z_T)]);
+#             Ty[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEy,1+(pole*3))] * Ty[IDX4D_T(pole,x_T,y_T,z_T)] +
+#                                             updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
+#         }
+#         Ey[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEy,0)] * Ey[IDX3D_FIELDS(x,y,z)] +
+#                                     updatecoeffsE[IDX2D_MAT(materialEy,3)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEy,1)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x-1,y,z)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEy,4)] * phi;
+#     }
 
-    // Ez component
-    if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
-        int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
-        $REAL phi = 0;
-        for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,pole*3)]) * $GETREAL(Tz[IDX4D_T(pole,x_T,y_T,z_T)]);
-            Tz[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEz,1+(pole*3))] * Tz[IDX4D_T(pole,x_T,y_T,z_T)] +
-                                            updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
-        }
-        Ez[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEz,0)] * Ez[IDX3D_FIELDS(x,y,z)] +
-                                    updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEz,4)] * phi;
-    }
-}
+#     // Ez component
+#     if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
+#         int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
+#         $REAL phi = 0;
+#         for (int pole = 0; pole < MAXPOLES; pole++) {
+#             phi = phi + $GETREAL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,pole*3)]) * $GETREAL(Tz[IDX4D_T(pole,x_T,y_T,z_T)]);
+#             Tz[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEz,1+(pole*3))] * Tz[IDX4D_T(pole,x_T,y_T,z_T)] +
+#                                             updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
+#         }
+#         Ez[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEz,0)] * Ez[IDX3D_FIELDS(x,y,z)] +
+#                                     updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEz,4)] * phi;
+#     }
+# }
 
-""")
+# """)
 
-update_electric_dispersive_B = Template("""
-    #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define INDEX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-    #include <hip/hip_complex.h>
+# update_electric_dispersive_B = Template("""
+#     #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define INDEX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+#     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+#     #include <hip/hip_complex.h>
 
-    extern "C" __global__ void update_electric_dispersive_B(int NX,
-                                    int NY,
-                                    int NZ,
-                                    int MAXPOLES,
-                                    const $COMPLEX* __restrict__ updatecoeffsdispersive,
-                                    $COMPLEX *Tx,
-                                    $COMPLEX *Ty,
-                                    $COMPLEX *Tz,
-                                    const unsigned int* __restrict__ ID,
-                                    const $REAL* __restrict__ Ex,
-                                    const $REAL* __restrict__ Ey,
-                                    const $REAL* __restrict__ Ez,
-                                    const $REAL* __restrict__ updatecoeffsE,
-                                    const $REAL* __restrict__ updatecoeffsH){
-    // Electric field updates - dispersive materials - part B of updates to electric
-    //                              field values when dispersive materials
-    //                              (with multiple poles) are present.
-    //
-    //  Args:
-    //      NX, NY, NZ: Number of cells of the model domain.
-    //      MAXPOLES: Maximum number of dispersive material poles present in model.
-    //      updatedispersivecoeffs, T, ID, E, H: Access to update coefficients,
-    //                                              dispersive, ID and field
-    //                                              component arrays.
+#     extern "C" __global__ void update_electric_dispersive_B(int NX,
+#                                     int NY,
+#                                     int NZ,
+#                                     int MAXPOLES,
+#                                     const $COMPLEX* __restrict__ updatecoeffsdispersive,
+#                                     $COMPLEX *Tx,
+#                                     $COMPLEX *Ty,
+#                                     $COMPLEX *Tz,
+#                                     const unsigned int* __restrict__ ID,
+#                                     const $REAL* __restrict__ Ex,
+#                                     const $REAL* __restrict__ Ey,
+#                                     const $REAL* __restrict__ Ez,
+#                                     const $REAL* __restrict__ updatecoeffsE,
+#                                     const $REAL* __restrict__ updatecoeffsH){
+#     // Electric field updates - dispersive materials - part B of updates to electric
+#     //                              field values when dispersive materials
+#     //                              (with multiple poles) are present.
+#     //
+#     //  Args:
+#     //      NX, NY, NZ: Number of cells of the model domain.
+#     //      MAXPOLES: Maximum number of dispersive material poles present in model.
+#     //      updatedispersivecoeffs, T, ID, E, H: Access to update coefficients,
+#     //                                              dispersive, ID and field
+#     //                                              component arrays.
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+#     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Convert the linear index to subscripts for 3D field arrays
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+#     // Convert the linear index to subscripts for 3D field arrays
+#     int x = i / ($NY_FIELDS * $NZ_FIELDS);
+#     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+#     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
-    // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+#     // Convert the linear index to subscripts for 4D material ID array
+#     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+#     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+#     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-    // Convert the linear index to subscripts for 4D dispersive array
-    int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
-    int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
+#     // Convert the linear index to subscripts for 4D dispersive array
+#     int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
+#     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
+#     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
 
 
-    // Ex component
-    if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
-        int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
-        for (int pole = 0; pole < MAXPOLES; pole++) {
-            Tx[IDX4D_T(pole,x_T,y_T,z_T)] = Tx[IDX4D_T(pole,x_T,y_T,z_T)] -
-                                                updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
-        }
-    }
+#     // Ex component
+#     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
+#         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
+#         for (int pole = 0; pole < MAXPOLES; pole++) {
+#             Tx[IDX4D_T(pole,x_T,y_T,z_T)] = Tx[IDX4D_T(pole,x_T,y_T,z_T)] -
+#                                                 updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
+#         }
+#     }
 
-    // Ey component
-    if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
-        int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
-        for (int pole = 0; pole < MAXPOLES; pole++) {
-            Ty[IDX4D_T(pole,x_T,y_T,z_T)] = Ty[IDX4D_T(pole,x_T,y_T,z_T)] -
-                                                updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
-        }
-    }
+#     // Ey component
+#     if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
+#         int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
+#         for (int pole = 0; pole < MAXPOLES; pole++) {
+#             Ty[IDX4D_T(pole,x_T,y_T,z_T)] = Ty[IDX4D_T(pole,x_T,y_T,z_T)] -
+#                                                 updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
+#         }
+#     }
 
-    // Ez component
-    if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
-        int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
-        for (int pole = 0; pole < MAXPOLES; pole++) {
-            Tz[IDX4D_T(pole,x_T,y_T,z_T)] = Tz[IDX4D_T(pole,x_T,y_T,z_T)] -
-                                                updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
-        }
-    }
-}
-""")
+#     // Ez component
+#     if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
+#         int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
+#         for (int pole = 0; pole < MAXPOLES; pole++) {
+#             Tz[IDX4D_T(pole,x_T,y_T,z_T)] = Tz[IDX4D_T(pole,x_T,y_T,z_T)] -
+#                                                 updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
+#         }
+#     }
+# }
+# """)
