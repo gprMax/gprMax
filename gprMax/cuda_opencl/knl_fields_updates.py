@@ -48,6 +48,24 @@ update_electric = {
                         __global const $REAL* restrict Hz
                     """
     ),
+    
+    "args_hip": Template(
+        """
+    extern "C" __global__ void update_e(int NX,
+                                        int NY, 
+                                        int NZ, 
+                                        const unsigned int* __restrict__ ID, 
+                                        $REAL *Ex, 
+                                        $REAL *Ey, 
+                                        $REAL *Ez, 
+                                        const $REAL* __restrict__ Hx, 
+                                        const $REAL* __restrict__ Hy, 
+                                        const $REAL* __restrict__ Hz,
+                                        const $REAL* __restrict__ updatecoeffsE,
+                                        const $REAL* __restrict__ updatecoeffsH)
+                    """
+    ),
+
     "func": Template(
         """
     // Electric field updates - normal materials.
@@ -123,6 +141,24 @@ update_magnetic = {
                         __global const $REAL* restrict Ey,
                         __global const $REAL* restrict Ez
                     """
+    ),
+
+    "args_hip": Template(
+        """
+    extern "C" __global__ void update_m(int NX,
+                                                int NY,
+                                                int NZ,
+                                                const unsigned int* __restrict__ ID,
+                                                $REAL *Hx,
+                                                $REAL *Hy,
+                                                $REAL *Hz,
+                                                const $REAL* __restrict__ Ex,
+                                                const $REAL* __restrict__ Ey,
+                                                const $REAL* __restrict__ Ez,
+                                                const $REAL* __restrict__ updatecoeffsE,
+                                                const $REAL* __restrict__ updatecoeffsH) 
+
+    """
     ),
     "func": Template(
         """

@@ -3,8 +3,8 @@
 #dx_dy_dz: 0.002 0.002 0.002
 #time_window: 5000
 
-#material: 129 6.3e7 1  my_silver
-#add_dispersion_drude: 2 1.38e16 2.73e13 my_silver
+#material: 6.9 6.3e7 1 0 my_silver
+#add_dispersion_drude: 1 1.38e16 2.73e13 my_silver
 
 #waveform: ricker 1 1.5e9 my_ricker
 #hertzian_dipole: z 0.1 0.1 0.1 my_ricker

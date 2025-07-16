@@ -48,11 +48,11 @@ class HIPGrid(FDTDGrid):
         self.Tx_d = hip_check(hip.hipMalloc(self.Tx.nbytes))
         self.Ty_d = hip_check(hip.hipMalloc(self.Ty.nbytes))
         self.Tz_d = hip_check(hip.hipMalloc(self.Tz.nbytes))
-        self.updatecoeffsdispersive_d = hip_check(hip.hipMalloc(self.updatecoeffsdispersive.nbytes))
+        self.updatecoeffsdispersive_dev = hip_check(hip.hipMalloc(self.updatecoeffsdispersive.nbytes))
         hip_check(hip.hipMemcpy(self.Tx_d, self.Tx, self.Tx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
         hip_check(hip.hipMemcpy(self.Ty_d, self.Ty, self.Ty.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
         hip_check(hip.hipMemcpy(self.Tz_d, self.Tz, self.Tz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
-        hip_check(hip.hipMemcpy(self.updatecoeffsdispersive_d, self.updatecoeffsdispersive, self.updatecoeffsdispersive.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(self.updatecoeffsdispersive_dev, self.updatecoeffsdispersive, self.updatecoeffsdispersive.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
 
 
 

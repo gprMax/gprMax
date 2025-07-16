@@ -1,79 +1,79 @@
 from string import Template
 
-update_e =  Template("""
-    // Macros for converting subscripts to linear index:
-    #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define INDEX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
-    #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-    #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
-    #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-    #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
-    #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+# update_e =  Template("""
+#     // Macros for converting subscripts to linear index:
+#     #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define INDEX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
+#     #define IDX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
+#     #define IDX2D_MATDISP(m, n) (m)*($NY_MATDISPCOEFFS)+(n)
+#     #define IDX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#     #define IDX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
+#     #define IDX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
                        
-    /////////////////////////////////////////////////
-    // Electric field updates - standard materials //
-    /////////////////////////////////////////////////
+#     /////////////////////////////////////////////////
+#     // Electric field updates - standard materials //
+#     /////////////////////////////////////////////////
 
-    extern "C" __global__ void update_e(int NX,
-                                        int NY, 
-                                        int NZ, 
-                                        const unsigned int* __restrict__ ID, 
-                                        $REAL *Ex, 
-                                        $REAL *Ey, 
-                                        $REAL *Ez, 
-                                        const $REAL* __restrict__ Hx, 
-                                        const $REAL* __restrict__ Hy, 
-                                        const $REAL* __restrict__ Hz,
-                                        const $REAL* __restrict__ updatecoeffsE,
-                                        const $REAL* __restrict__ updatecoeffsH) {
+#     extern "C" __global__ void update_e(int NX,
+#                                         int NY, 
+#                                         int NZ, 
+#                                         const unsigned int* __restrict__ ID, 
+#                                         $REAL *Ex, 
+#                                         $REAL *Ey, 
+#                                         $REAL *Ez, 
+#                                         const $REAL* __restrict__ Hx, 
+#                                         const $REAL* __restrict__ Hy, 
+#                                         const $REAL* __restrict__ Hz,
+#                                         const $REAL* __restrict__ updatecoeffsE,
+#                                         const $REAL* __restrict__ updatecoeffsH) {
 
-    // Electric field updates - normal materials.
-    //
-    //  Args:
-    //      NX, NY, NZ: Number of cells of the model domain.
-    //      ID, E, H: Access to ID and field component arrays.
+#     // Electric field updates - normal materials.
+#     //
+#     //  Args:
+#     //      NX, NY, NZ: Number of cells of the model domain.
+#     //      ID, E, H: Access to ID and field component arrays.
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+#     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Convert the linear index to subscripts for 3D field arrays
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+#     // Convert the linear index to subscripts for 3D field arrays
+#     int x = i / ($NY_FIELDS * $NZ_FIELDS);
+#     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+#     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
-    // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+#     // Convert the linear index to subscripts for 4D material ID array
+#     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+#     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+#     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-    // Ex component
-    if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
-        int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
-        Ex[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEx,0)] * Ex[IDX3D_FIELDS(x,y,z)] +
-                                    updatecoeffsE[IDX2D_MAT(materialEx,2)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x,y-1,z)]) -
-                                updatecoeffsE[IDX2D_MAT(materialEx,3)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x,y,z-1)]);
-    }
+#     // Ex component
+#     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
+#         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
+#         Ex[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEx,0)] * Ex[IDX3D_FIELDS(x,y,z)] +
+#                                     updatecoeffsE[IDX2D_MAT(materialEx,2)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x,y-1,z)]) -
+#                                 updatecoeffsE[IDX2D_MAT(materialEx,3)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x,y,z-1)]);
+#     }
 
-    // Ey component
-    if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
-        int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
-        Ey[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEy,0)] * Ey[IDX3D_FIELDS(x,y,z)] +
-                                    updatecoeffsE[IDX2D_MAT(materialEy,3)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEy,1)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x-1,y,z)]);
-                       }
+#     // Ey component
+#     if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
+#         int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
+#         Ey[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEy,0)] * Ey[IDX3D_FIELDS(x,y,z)] +
+#                                     updatecoeffsE[IDX2D_MAT(materialEy,3)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEy,1)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x-1,y,z)]);
+#                        }
 
-    // Ez component
-    if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
-        int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
-        Ez[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEz,0)] * Ez[IDX3D_FIELDS(x,y,z)] +
-                                    updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) -
-                                    updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]);
-    }
+#     // Ez component
+#     if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
+#         int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
+#         Ez[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEz,0)] * Ez[IDX3D_FIELDS(x,y,z)] +
+#                                     updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) -
+#                                     updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]);
+#     }
 
-}
-    """)
+# }
+#     """)
 
 update_m = Template("""
     // Macros for converting subscripts to linear index:
