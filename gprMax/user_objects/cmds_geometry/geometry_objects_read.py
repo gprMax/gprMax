@@ -91,7 +91,7 @@ class GeometryObjectsRead(GeometryUserObject):
         free_space = f"#material: 1 0 1 0 free_space{{{matstr}}}\n"
         if materials[0] == pec and materials[1] == free_space:
             materials.pop(0)
-            materials.pop(1)
+            materials.pop(0)
             numexistmaterials -= 2
         elif materials[0] == pec or materials[0] == free_space:
             materials.pop(0)
