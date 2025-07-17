@@ -9,11 +9,13 @@ build:
   os: ubuntu-22.04
   apt_packages:
     - mpich
+    - libfftw3-dev
   tools:
     python: "mambaforge-22.9"
   jobs:
     post_create_environment:
       - python -m pip install sphinx_rtd_theme
+      - python -m pip install reframe-hpc
 
 conda:
   environment: conda_env.yml
