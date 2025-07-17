@@ -69,7 +69,7 @@ def logo(version):
     licenseinfo2 = 'gprMax is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.'
     licenseinfo3 = 'You should have received a copy of the GNU General Public License along with gprMax.  If not, see www.gnu.org/licenses.'
 
-    logo = """    www.gprmax.com   __  __
+    logo = r"""    www.gprmax.com   __  __
      __ _ _ __  _ __|  \/  | __ ___  __
     / _` | '_ \| '__| |\/| |/ _` \ \/ /
    | (_| | |_) | |  | |  | | (_| |>  <
@@ -298,11 +298,11 @@ def get_host_info():
             allcpuinfo = subprocess.check_output("lscpu", shell=True, env=my_env, stderr=subprocess.STDOUT).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
-                    sockets = int(re.sub("\D", "", line.strip()))
+                    sockets = int(re.sub("\\D", "", line.strip()))
                 if 'Thread(s) per core' in line:
-                    threadspercore = int(re.sub("\D", "", line.strip()))
+                    threadspercore = int(re.sub("\\D", "", line.strip()))
                 if 'Core(s) per socket' in line:
-                    corespersocket = int(re.sub("\D", "", line.strip()))
+                    corespersocket = int(re.sub("\\D", "", line.strip()))
         except subprocess.CalledProcessError:
             pass
 
