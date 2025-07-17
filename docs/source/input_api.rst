@@ -196,6 +196,10 @@ Geometry View
 -------------
 .. autoclass:: gprMax.user_objects.cmds_output.GeometryView
 
+Geometry Objects Read
+----------------------
+.. autoclass:: gprMax.user_objects.cmds_geometry.geometry_objects_read.GeometryObjectsRead
+
 Geometry Objects Write
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_output.GeometryObjectsWrite

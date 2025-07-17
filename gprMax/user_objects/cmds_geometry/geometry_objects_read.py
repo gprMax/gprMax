@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -33,6 +33,22 @@ logger = logging.getLogger(__name__)
 
 
 class GeometryObjectsRead(GeometryUserObject):
+    """Allows you to insert pre-defined geometry into a model.
+
+    The geometry is specified using a 3D array of integer numbers stored
+    in a HDF5 file. The integer numbers must correspond to the order of
+    a list of ``#material`` commands specified in a text file.
+
+    Attributes:
+        p1: list of lower left (x,y,z) coordinates in the domain where
+            the lower left corner of the geometry array should be
+            placed.
+        geofile: string path to and filename of the HDF5 file that
+            contains an integer array which defines the geometry.
+        matfile: string path to and filename of the text file that
+            contains ``#material`` commands.
+    """
+
     @property
     def hash(self):
         return "#geometry_objects_read"
@@ -75,7 +91,7 @@ class GeometryObjectsRead(GeometryUserObject):
         free_space = f"#material: 1 0 1 0 free_space{{{matstr}}}\n"
         if materials[0] == pec and materials[1] == free_space:
             materials.pop(0)
-            materials.pop(1)
+            materials.pop(0)
             numexistmaterials -= 2
         elif materials[0] == pec or materials[0] == free_space:
             materials.pop(0)

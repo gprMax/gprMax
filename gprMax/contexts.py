@@ -169,10 +169,11 @@ class MPIContext(Context):
 
         requested_mpi_size = np.prod(config.sim_config.mpi)
         if self.comm.size < requested_mpi_size:
-            raise ValueError(
+            logger.error(
                 f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
                 f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
             )
+            exit()
 
         if self.rank >= requested_mpi_size:
             logger.warning(

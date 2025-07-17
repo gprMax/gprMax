@@ -29,6 +29,16 @@ extensions = [
     "sphinx.ext.autosummary",
 ]
 
+autodoc_mock_imports = [
+    "h5py",
+    "humanize",
+    "mpi4py_fft",
+    "mpi4py",
+    "psutil",
+    "terminaltables",
+    "tqdm",
+]
+
 # Figure numbering
 numfig = True
 
