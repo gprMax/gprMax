@@ -135,7 +135,7 @@ class ReadGeometryObject(AbstractContextManager):
         if data.dtype != "int16":
             data = data.astype("int16")
 
-        return data + self.num_existing_materials
+        return data
 
     def read_rigidE(self):
         if self.grid_view is None:
