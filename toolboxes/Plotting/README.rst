@@ -42,7 +42,7 @@ gprMax produces a separate output file for each trace (A-scan) in the B-scan. Th
 
 .. code-block:: none
 
-    python -m toolboxes.plotting.plot_Bscan outputfile rx-component
+    python -m toolboxes.Plotting.plot_Bscan outputfile rx-component
 
 where:
 
@@ -56,7 +56,7 @@ This module uses matplotlib to plot the input impedance (resistance and reactanc
 
 .. code-block:: none
 
-    python -m toolboxes.plotting.plot_antenna_params outputfile
+    python -m toolboxes.Plotting.plot_antenna_params outputfile
 
 where ``outputfile`` is the name of output file including the path.
 
@@ -71,7 +71,7 @@ For example to plot the input impedance, s11 and s21 parameters from a simulatio
 
 .. code-block:: none
 
-    python -m toolboxes.plotting.plot_antenna_params outputfile --tltx-num 1 --tlrx-num 2
+    python -m toolboxes.Plotting.plot_antenna_params outputfile --tltx-num 1 --tlrx-num 2
 
 
 .. _waveforms:
@@ -83,7 +83,7 @@ This module uses matplotlib to plot one of the built-in waveforms in the time an
 
 .. code-block:: none
 
-    python -m toolboxes.plotting.plot_source_wave type amp freq timewindow dt
+    python -m toolboxes.Plotting.plot_source_wave type amp freq timewindow dt
 
 where:
 
