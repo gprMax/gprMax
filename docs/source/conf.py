@@ -37,6 +37,7 @@ autodoc_mock_imports = [
     "psutil",
     "terminaltables",
     "tqdm",
+    "gprMax.cython",
 ]
 
 # Figure numbering
