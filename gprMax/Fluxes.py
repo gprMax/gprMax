@@ -100,7 +100,7 @@ class Flux(object):
 
         self.cells_number = (int(Nx), int(Ny), int(Nz), 3)
 
-    def save_fields_fluxes(self, G: FDTDGrid, iteration):   
+    def save_fields_fluxes(self, G: FDTDGrid, iteration, save_fields_fluxes_gpu= None):   
         if not G.scattering:
             if G.gpu is None:
                 save_fields_fluxes_pyx(
@@ -112,13 +112,11 @@ class Flux(object):
                     G.dt, G.nthreads, iteration
                 )
             else:
-                save_fields_fluxes_pyx(
-                    G.Ex_gpu.get(), G.Ey_gpu.get(), G.Ez_gpu.get(), G.Hx_gpu.get(), G.Hy_gpu.get(), G.Hz_gpu.get(), self.omega,
-                    self.E_fft_transform, self.H_fft_transform,
-                    self.cells_range['x'][0], self.cells_range['y'][0], self.cells_range['z'][0],
-                    len(self.cells_range['x']), len(self.cells_range['y']), len(self.cells_range['z']), len(self.wavelengths),
-                    int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
-                    G.dt, G.nthreads, iteration
+                save_fields_fluxes_gpu(len(self.wavelengths),
+                                        self.cells_number[0], self.cells_number[1], self.cells_number[2],
+                                        G.Ex_gpu, G.Ey_gpu, G.Ez_gpu, G.Hx_gpu, G.Hy_gpu, G.Hz_gpu,
+                                        self.wavelengths, self.E_fft_transform, self.H_fft_transform,
+                                        iteration, G.dt
                 )
         else:
             if G.gpu is None:
@@ -142,22 +140,18 @@ class Flux(object):
                     )
             else:
                 if G.empty_sim:
-                    save_fields_fluxes_pyx(
-                        G.Ex_gpu.get(), G.Ey_gpu.get(), G.Ez_gpu.get(), G.Hx_gpu.get(), G.Hy_gpu.get(), G.Hz_gpu.get(), self.omega,
-                        self.E_fft_transform_empty, self.H_fft_transform_empty,
-                        self.cells_range['x'][0], self.cells_range['y'][0], self.cells_range['z'][0],
-                        len(self.cells_range['x']), len(self.cells_range['y']), len(self.cells_range['z']), len(self.wavelengths),
-                        int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
-                        G.dt, G.nthreads, iteration
+                    save_fields_fluxes_gpu(len(self.wavelengths),
+                                        self.cells_number[0], self.cells_number[1], self.cells_number[2],
+                                        G.Ex_gpu, G.Ey_gpu, G.Ez_gpu, G.Hx_gpu, G.Hy_gpu, G.Hz_gpu,
+                                        self.wavelengths, self.E_fft_transform_empty, self.H_fft_transform_empty,
+                                        iteration, G.dt
                     )
                 else:
-                    save_fields_fluxes_pyx(
-                        G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.omega,
-                        self.E_fft_transform_scatt, self.H_fft_transform_scatt,
-                        self.cells_range['x'][0], self.cells_range['y'][0], self.cells_range['z'][0],
-                        len(self.cells_range['x']), len(self.cells_range['y']), len(self.cells_range['z']), len(self.wavelengths),
-                        int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
-                        G.dt, G.nthreads, iteration
+                    save_fields_fluxes_gpu(len(self.wavelengths),
+                                        self.cells_number[0], self.cells_number[1], self.cells_number[2],
+                                        G.Ex_gpu, G.Ey_gpu, G.Ez_gpu, G.Hx_gpu, G.Hy_gpu, G.Hz_gpu,
+                                        self.wavelengths, self.E_fft_transform_scatt, self.H_fft_transform_scatt,
+                                        iteration, G.dt
                     )
 
     def convert_to_scattering(self):
@@ -358,6 +352,8 @@ def solve_cpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
         for flux in G.fluxes:
             flux.save_fields_fluxes(G, iteration)
 
+    for flux in G.fluxes:
+        flux.convert_to_scattering()
     tsolve = timer() - tsolvestart
     return tsolve
 
@@ -434,7 +430,10 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
             pml.gpu_initialise_arrays()
             pml.gpu_get_update_funcs(kernels_pml_electric, kernels_pml_magnetic)
             pml.gpu_set_blocks_per_grid(G)
-
+    
+    #FFT functions
+    kernel_fields_fluxes_gpu = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, COMPLEX= cudacomplextype, NX_FIELDS=G.nx, NY_FIELDS=G.ny, NZ_FIELDS=G.nz, NC=3), options=compiler_opts)
+    save_fields_fluxes_gpu = kernel_fields_fluxes_gpu.get_function("save_fields_fluxes_gpu")
     # Receivers
     if G.rxs:
         # Initialise arrays on GPU
@@ -583,7 +582,10 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
                                       block=G.tpb, grid=G.bpg)
             
         for flux in G.fluxes:
-            flux.save_fields_fluxes(G, iteration)
+            flux.save_fields_fluxes(G, iteration, save_fields_fluxes_gpu)
+    
+    for flux in G.fluxes:
+        flux.convert_to_scattering()
 
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
