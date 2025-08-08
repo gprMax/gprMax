@@ -22,6 +22,8 @@ from cython.parallel import prange
 
 from gprMax.constants cimport floattype_t
 from gprMax.constants cimport complextype_t
+from scipy.constants import epsilon_0 as e0
+from scipy.constants import mu_0 as mu0
 
 
 ###############################################

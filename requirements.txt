@@ -78,6 +78,7 @@ ptyprocess==0.7.0
 pur==7.3.1
 pure-eval==0.2.2
 pycparser==2.21
+pycuda==2024.1
 Pygments==2.15.1
 pyOpenSSL==24.0.0
 pyparsing==3.0.9

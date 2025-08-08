@@ -131,7 +131,7 @@ class GeometryView(object):
         if self.fileext == '.vti':
             # Create arrays and add numeric IDs for PML, sources and receivers
             # (0 is not set, 1 is PML, srcs and rxs numbered thereafter)
-            self.srcs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
+            self.srcs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int16)
             self.rxs = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int16)
             for pml in G.pmls:
                 self.srcs_pml[pml.xs:pml.xf, pml.ys:pml.yf, pml.zs:pml.zf] = 1

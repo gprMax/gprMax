@@ -175,7 +175,7 @@ if USE_CYTHON:
                            compiler_directives={
                                'boundscheck': False,
                                'wraparound': False,
-                               'initializedcheck': False,
+                               'initializedcheck': True,
                                'embedsignature': True,
                                'language_level': 3
                            },

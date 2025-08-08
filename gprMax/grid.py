@@ -34,7 +34,6 @@ from gprMax.pml import PML
 from gprMax.utilities import fft_power
 from gprMax.utilities import human_size
 from gprMax.utilities import round_value
-import gprMax.Fluxes as Fluxes
 
 class Grid(object):
     """Generic grid/mesh."""
@@ -51,14 +50,6 @@ class Grid(object):
         self.k_max = self.nz - 1
         self.grid = grid
 
-
-        self.dr_cyl = 1
-        self.dz_cyl = 1
-        self.nr_cyl = 1
-        self.nz_cyl = 1
-        self.i_max_cyl = self.nr_cyl - 1
-        self.j_max_cyl = 1
-        self.k_max_cyl = self.nz_cyl - 1
 
     def n_edges(self):
         i = self.nx
@@ -162,25 +153,21 @@ class FDTDGrid(Grid):
         self.srcsteps = [0, 0, 0]
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
-        self.surface_flux = []
-
-        #Adding the cylindrical coordinates if rotational symmetry
-        #The fields will be described as follows: f(M) = g(r,z)*exp(im*phi)
-        # with i**2 = -1
+        self.fluxes = []
+        self.total_flux = None
+        self.scattering = False
+        self.empty_sim = True
+        self.scattering_geometrycmds = None
+        self.scatteringgeometry = None
+        self.box_fluxes_enumerate = [] 
 
         self.cylindrical = False
-        self.dr_cyl = 0
-        self.dz_cyl = 0
-        self.nr_cyl = 0
-        self.nz_cyl = 0
-        self.m_cyl = 0
-        self.pmlthickness_cyl = OrderedDict((key, 10) for key in PML.boundaryIDs_cyl)
 
-    def initialise_surface(self, corners: list[np.ndarray], center = None, radius= None):
-        if (center is None) and (radius is None):
-            self.surface_flux.append(Fluxes.SurfaceFlux(corners))
-        else:
-            self.surface_flux.append(Fluxes.SurfaceFlux(cylindrical=True, center= center, radius= radius))
+    #def initialise_surface(self, corners: list[np.ndarray], center = None, radius= None):
+    #    if (center is None) and (radius is None):
+    #        self.surface_flux.append(Fluxes.SurfaceFlux(corners))
+    #    else:
+    #        self.surface_flux.append(Fluxes.SurfaceFlux(cylindrical=True, center= center, radius= radius))
 
     def initialise_geometry_arrays(self):
         """
@@ -190,38 +177,21 @@ class FDTDGrid(Grid):
         Solid and ID arrays are initialised to free_space (one);
             rigid arrays to allow dielectric smoothing (zero).
         """
-        if not self.cylindrical:
-            self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
-            self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
-            self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
-            self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
-            self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
-        else:
-            #We can deduce the phi dependency from just the values of the fields at one point
-            self.solid = np.ones((self.nr_cyl, 1, self.nz_cyl), dtype=np.uint32)
-            self.rigidE = np.zeros((12, self.nr_cyl, 1, self.nz_cyl), dtype=np.int8)
-            self.rigidH = np.zeros((6, self.nr_cyl, 1, self.nz_cyl), dtype=np.int8)
-            self.ID = np.ones((6, self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=np.uint32)
-            self.IDlookup = {'Er': 0, 'Ephi': 1, 'Ez': 2, 'Hr': 3, 'Hphi': 4, 'Hz': 5}
+        self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
+        self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
+        self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
+        self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
+        self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
 
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
-        if not self.cylindrical:
-            self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
-            self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
-            self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
-            self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
-            self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
-            self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
-
-        else:
-            self.Er_cyl = np.zeros((self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=floattype)
-            self.E_phi_cyl = np.zeros((self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=floattype)
-            self.Ez_cyl = np.zeros((self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=floattype)
-            self.Hr_cyl = np.zeros((self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=floattype)
-            self.H_phi_cyl = np.zeros((self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=floattype)
-            self.Hz_cyl = np.zeros((self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=floattype)
+        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
@@ -230,21 +200,14 @@ class FDTDGrid(Grid):
 
     def initialise_dispersive_arrays(self):
         """Initialise arrays for storing coefficients when there are dispersive materials present."""
-        if not self.cylindrical:
-            self.Tx = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-            self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-            self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-        else:
-            #There is a symmetry
-            self.Tr_cyl = np.zeros((Material.maxpoles, self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=complextype)
-            self.T_phi = np.zeros((Material.maxpoles, self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=complextype)
-            self.Tz_cyl = np.zeros((Material.maxpoles, self.nr_cyl + 1, 1, self.nz_cyl + 1), dtype=complextype)
-        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
+        self.Tx = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
+        self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
+        self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
 
     def memory_estimate_basic(self):
         """Estimate the amount of memory (RAM) required to run a model."""
         ### Ajouter les coordonnées cylindriques
-        if self.cylindrical:
+        if not self.cylindrical:
             stdoverhead = 50e6
 
             solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
@@ -382,7 +345,7 @@ def dispersion_analysis(G):
 
                 waveformvalues = np.zeros(G.iterations)
                 for iteration in range(G.iterations):
-                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
+                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt, G.cylindrical)
 
                 # Ensure source waveform is not being overly truncated before attempting any FFT
                 if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:

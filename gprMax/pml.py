@@ -162,7 +162,7 @@ class PML(object):
     # xplus, yplus, zplus - absorption increases in positive direction of x-axis, y-axis, or z-axis
     directions = ['xminus', 'yminus', 'zminus', 'xplus', 'yplus', 'zplus']
 
-    def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
+    def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0, rs_cyl = 0, rf_cyl = 0, zs_cyl = 0, zf_cyl = 0):
         """
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
@@ -363,7 +363,6 @@ class PML(object):
 
         self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1_gpu.shape[1]), np.int32(self.HPhi1_gpu.shape[2]), np.int32(self.HPhi1_gpu.shape[3]), np.int32(self.HPhi2_gpu.shape[1]), np.int32(self.HPhi2_gpu.shape[2]), np.int32(self.HPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
-
 def build_pmls(G, pbar):
     """
     This function builds instances of the PML and calculates the initial
@@ -374,7 +373,6 @@ def build_pmls(G, pbar):
         G (class): Grid class instance - holds essential parameters describing the model.
         pbar (class): Progress bar class instance.
     """
-
     for key, value in G.pmlthickness.items():
         if value > 0:
             sumer = 0  # Sum of relative permittivities in PML slab

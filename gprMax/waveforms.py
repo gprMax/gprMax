@@ -54,7 +54,7 @@ class Waveform(object):
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
 
-    def calculate_value(self, time, dt):
+    def calculate_value(self, time, dt, cylindrical):
         """Calculates value of the waveform at a specific time.
 
         Args:

@@ -22,6 +22,7 @@ import h5py
 
 from gprMax._version import __version__
 from gprMax.grid import Ix, Iy, Iz
+import numpy as np
 
 
 def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
@@ -32,7 +33,6 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
         Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
-
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components
@@ -47,8 +47,7 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
         tl.Itotal[iteration] = tl.current[tl.antpos]
-
-
+        
 kernel_template_store_outputs = Template("""
 
 // Macros for converting subscripts to linear index:
@@ -97,47 +96,67 @@ def write_hdf5_outputfile(outputfile, G):
         outputfile (str): Name of the output file.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
-
+    
     f = h5py.File(outputfile, 'w')
     f.attrs['gprMax'] = __version__
     f.attrs['Title'] = G.title
     f.attrs['Iterations'] = G.iterations
-    f.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
-    f.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
     f.attrs['dt'] = G.dt
-    nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
-    f.attrs['nsrc'] = nsrc
     f.attrs['nrx'] = len(G.rxs)
-    f.attrs['srcsteps'] = G.srcsteps
-    f.attrs['rxsteps'] = G.rxsteps
+    if not G.cylindrical:
+        f.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
+        f.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
+        f.attrs['srcsteps'] = G.srcsteps
+        f.attrs['rxsteps'] = G.rxsteps
+        nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
+        f.attrs['nsrc'] = nsrc
 
-    # Create group for sources (except transmission lines); add type and positional data attributes
-    srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
-    for srcindex, src in enumerate(srclist):
-        grp = f.create_group('/srcs/src' + str(srcindex + 1))
-        grp.attrs['Type'] = type(src).__name__
-        grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
+        # Create group for sources (except transmission lines); add type and positional data attributes
+        srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
+        for srcindex, src in enumerate(srclist):
+            grp = f.create_group('/srcs/src' + str(srcindex + 1))
+            grp.attrs['Type'] = type(src).__name__
+            grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 
-    # Create group for transmission lines; add positional data, line resistance and
-    # line discretisation attributes; write arrays for line voltages and currents
-    for tlindex, tl in enumerate(G.transmissionlines):
-        grp = f.create_group('/tls/tl' + str(tlindex + 1))
-        grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
-        grp.attrs['Resistance'] = tl.resistance
-        grp.attrs['dl'] = tl.dl
-        # Save incident voltage and current
-        grp['Vinc'] = tl.Vinc
-        grp['Iinc'] = tl.Iinc
-        # Save total voltage and current
-        f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
-        f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
+        # Create group for transmission lines; add positional data, line resistance and
+        # line discretisation attributes; write arrays for line voltages and currents
+        for tlindex, tl in enumerate(G.transmissionlines):
+            grp = f.create_group('/tls/tl' + str(tlindex + 1))
+            grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
+            grp.attrs['Resistance'] = tl.resistance
+            grp.attrs['dl'] = tl.dl
+            # Save incident voltage and current
+            grp['Vinc'] = tl.Vinc
+            grp['Iinc'] = tl.Iinc
+            # Save total voltage and current
+            f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
+            f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
 
-    # Create group, add positional data and write field component arrays for receivers
-    for rxindex, rx in enumerate(G.rxs):
-        grp = f.create_group('/rxs/rx' + str(rxindex + 1))
-        if rx.ID:
-            grp.attrs['Name'] = rx.ID
-        grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
+        # Create group, add positional data and write field component arrays for receivers
+        for rxindex, rx in enumerate(G.rxs):
+            grp = f.create_group('/rxs/rx' + str(rxindex + 1))
+            if rx.ID:
+                grp.attrs['Name'] = rx.ID
+            grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
 
-        for output in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
+            for output in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
+    else:
+        f.attrs['nr_nz'] = (G.nr_cyl, G.nz_cyl)
+        f.attrs['dr_dz'] = (G.dr_cyl, G.dz_cyl)
+        nsrc = len(G.voltagesources + G.hertziandipoles)
+        f.attrs['nsrc'] = nsrc
+
+        srclist = G.voltagesources + G.hertziandipoles
+        for srcindex, src in enumerate(srclist):
+            grp = f.create_group('/srcs/src' + str(srcindex + 1))
+            grp.attrs['Type'] = type(src).__name__
+            grp.attrs['Position'] = (src.rcoord_cyl * G.dr_cyl, src.zcoord_cyl * G.dz_cyl)
+        
+        for rxindex, rx in enumerate(G.rxs):
+            grp = f.create_group('/rxs/rx' + str(rxindex + 1))
+            if rx.ID:
+                grp.attrs['Name'] = rx.ID
+            grp.attrs['Position'] = (rx.rcoord_cyl * G.dr_cyl, rx.phicoord_cyl ,rx.zcoord_cyl * G.dz_cyl)
+            for output in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]

@@ -165,63 +165,6 @@ def rotate90_plate(xs, ys, xf, yf, rotate90origin):
 
     return xs, ys, xf, yf
 
-def cylindrical(cyl= False):
-    """Prints the gprMax #cylindrical command
-
-    Args:
-        cyl: True if there is cylindrical symmetry, False otherwise
-
-    Returns:
-        True if cylindrical is mentionned, False otherwise
-    """
-
-    command('cylindrical',cyl)
-
-    return cyl
-
-def domain_cyl(r, z):
-    """Prints the gprMax #domain command.
-
-        Args:
-            r, z (float): Extent of the domain in the r and z directions. The phi direction is 2*pi.
-
-        Returns:
-            domain_cyl (Coordinate_cyl): Namedtuple of the extent of the domain.
-        """
-    domain_cyl = Coordinate_cyl(r, z)
-    command('domain_cyl',domain_cyl)
-
-    return domain_cyl
-
-def dr_dz(r, z):
-    """Prints the gprMax #dr_dz command.
-
-        Args:
-            r, z (float): Spatial resolution in the r, and z directions.
-
-        Returns:
-            dr_dz (float): Tuple of the spatial resolutions.
-        """
-
-    dr_dz = Coordinate_cyl(r, z)
-    command('dr_dz',dr_dz)
-
-    return dr_dz
-
-def m(m_phi):
-    """Prints the gprMax #m command.
-
-    Args:
-        m_phi (int): integer set for the cylindrical symmetry: e^(im*phi)
-
-    Returns:
-        m (int): the aforementioned integer"""
-
-    m = m_phi
-    command('m',m)
-
-    return m
-
 
 def domain(x, y, z):
     """Prints the gprMax #domain command.
@@ -432,26 +375,6 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging='', rotate90origin=()):
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     command('box', s, f, material, averaging)
-
-    return s, f
-
-def cylinder_cyl(r_width, z_min, z_max, material, averaging=''):
-    """
-
-    Args:
-        r_width (float): radius of the cylinder
-        z_min (float): lower bound of the cylinder
-        z_max (float): higher bound of the cylinder
-        material (str): material
-        averaging (str): Turn averaging on or off
-
-    Returns:
-        s, f (tuple): 2 tuples for the start and finish coordinates
-    """
-
-    s = Coordinate_z(z_min)
-    f = Coordinate_cyl(r_width, z_max)
-    command('cylinder_cyl', s, f, material, averaging)
 
     return s, f
 

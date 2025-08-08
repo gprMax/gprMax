@@ -72,7 +72,6 @@ class Material(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         HA = (m0 * self.mr / G.dt) + 0.5 * self.sm
         HB = (m0 * self.mr / G.dt) - 0.5 * self.sm
         self.DA = HB / HA
@@ -80,6 +79,7 @@ class Material(object):
         self.DBy = (1 / G.dy) * 1 / HA
         self.DBz = (1 / G.dz) * 1 / HA
         self.srcm = 1 / HA
+
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -199,7 +199,7 @@ def process_materials(G):
         # Store all update coefficients together
         G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
         G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
-
+    
         # Store coefficients for any dispersive materials
         if Material.maxpoles > 0:
             z = 0
