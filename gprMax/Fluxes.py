@@ -65,17 +65,16 @@ class Flux(object):
                 self.E_fft_transform_empty = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
                 self.E_fft_transform_scatt = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
                 self.H_fft_transform_empty = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-                self.H_fft_transform_scatt = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-            else:
-                import pycuda.gpuarray as gpuarray
-                self.E_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-                self.E_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-                self.H_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-                self.H_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-                
+                self.H_fft_transform_scatt = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)            
         self.E_fft_transform = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
         self.H_fft_transform = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
 
+    def initialise_arrays_fft_gpu(self, G:FDTDGrid):
+        import pycuda.gpuarray as gpuarray
+        self.E_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.E_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
         
     def set_number_cells(self, G: FDTDGrid):
         """Defines the cells that are part of the surface flux."""
@@ -266,7 +265,7 @@ def solve_scattering(currentmodelrun, modelend, G:FDTDGrid):
     if G.gpu is None:
         G.initialise_dispersive_arrays()
     else:
-        G.gpu_initialise_dispersive_arrays
+        G.gpu_initialise_dispersive_arrays()
     process_materials(G)
     G.empty_sim = False
 
@@ -384,6 +383,9 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
     dev = drv.Device(G.gpu.deviceID)
     ctx = dev.make_context()
 
+    if G.scattering:
+        for flux in G.fluxes:
+            flux.initialise_arrays_fft_gpu(G)
     # Electric and magnetic field updates - prepare kernels, and get kernel functions
     if Material.maxpoles > 0:
         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
