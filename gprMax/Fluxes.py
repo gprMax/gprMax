@@ -52,29 +52,29 @@ from gprMax.constants import cudacomplextype
 class Flux(object):
     possible_normals = ['x', 'y', 'z']
     possible_direction = ['plus', 'minus']
-    def __init__(self, G, normal, direction, bottom_left_corner, top_right_corner, wavelenghts):
+    def __init__(self, G, normal, direction, bottom_left_corner, top_right_corner, wavelengths):
         self.bottom_left_corner = bottom_left_corner
         self.top_right_corner = top_right_corner
         self.normal = normal
         self.direction = direction
         self.set_number_cells(G)
-        self.wavelengths = wavelenghts
-        self.omega = 2*np.pi * 299792458 / wavelenghts
+        self.wavelengths = wavelengths
+        self.omega = 2*np.pi * 299792458 / wavelengths
         if G.scattering:
             if G.gpu is None:
-                self.E_fft_transform_empty = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-                self.E_fft_transform_scatt = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-                self.H_fft_transform_empty = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-                self.H_fft_transform_scatt = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)            
-        self.E_fft_transform = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-        self.H_fft_transform = np.zeros((len(wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.E_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.E_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.H_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.H_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)            
+        self.E_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+        self.H_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
 
     def initialise_arrays_fft_gpu(self, G:FDTDGrid):
         import pycuda.gpuarray as gpuarray
-        self.E_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        self.E_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        self.H_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        self.H_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(self.wavelenghts), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.E_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.E_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_empty = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_scatt = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
         
     def set_number_cells(self, G: FDTDGrid):
         """Defines the cells that are part of the surface flux."""
