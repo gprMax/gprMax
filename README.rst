@@ -84,9 +84,9 @@ The following steps provide guidance on how to install gprMax:
 
 1. Install a C compiler which supports OpenMP
 2. Install MPI
-3. Install FFTW
-4. Install Python, required Python packages, and get the gprMax source code from GitHub
-5. [Optional] Build h5py against Parallel HDF5
+3. Install Python, required Python packages, and get the gprMax source code from GitHub
+4. [Optional] Build h5py against Parallel HDF5
+5. [Optional] Install mpi4py_fft
 6. Build and install gprMax
 
 1. Install a C compiler which supports OpenMP
@@ -130,29 +130,7 @@ Microsoft Windows
 * It is recommended to use `Microsoft MPI <https://docs.microsoft.com/en-us/message-passing-interface/microsoft-mpi>`_. Download and install both the .exe and .msi files.
 
 
-3. Install FFTW
----------------
-If you are running gprMax on a HPC system, FFTW may be available already - consult your site's documentation. Otherwise you will need to install it yourself.
-
-Linux
-^^^^^
-* It is possible binaries are available via your package manager. E.g. ``libfftw3-dev`` on Ubuntu.
-* Otherwise you can find the latest source code on the `fftw downloads page <https://fftw.org/download.html>`_. There are instructions to build from source in the `fftw docs <https://fftw.org/fftw3_doc/Installation-on-Unix.html>`_.
-
-macOS
-^^^^^
-* FFTW can be installed using the `Homebrew package manager <http://brew.sh>`_:
-
-.. code-block:: console
-
-    $ brew install fftw
-
-Microsoft Windows
-^^^^^^^^^^^^^^^^^
-* There is guidance to install FFTW on Windows available `here <https://fftw.org/install/windows.html>`_.
-
-
-4. Install Python, the required Python packages, and get the gprMax source
+3. Install Python, the required Python packages, and get the gprMax source
 --------------------------------------------------------------------------
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
@@ -177,7 +155,7 @@ If you are using Arch Linux (https://www.archlinux.org/) you may need to also in
 
 .. _h5py_mpi:
 
-5. [Optional] Build h5py against Parallel HDF5
+4. [Optional] Build h5py against Parallel HDF5
 ----------------------------------------------
 
 If you plan to use the :ref:`MPI domain decomposition functionality <mpi_domain_decomposition>` available in gprMax, h5py must be built with MPI support.
@@ -203,6 +181,60 @@ Set your default compiler to the ``mpicc`` wrapper and build h5py with the ``HDF
     (gprMax)$ pip install --no-binary=h5py h5py  # Add --no-cache-dir if pip has cached a previous build of h5py
 
 Further guidance on building h5py against a parallel build of HDF5 is available in the `h5py documentation <https://docs.h5py.org/en/stable/build.html#building-against-parallel-hdf5>`_.
+
+
+5. [Optional] Install mpi4py_fft
+--------------------------------
+
+If you plan to use the :ref:`MPI domain decomposition functionality <mpi_domain_decomposition>` available in gprMax with :ref:`fractal user objects <fractals>`, you need to install mpi4py_fft.
+
+Install FFTW
+^^^^^^^^^^^^
+
+FFTW is a required dependency of mpi4py_fft, however, if you are running gprMax on a HPC system, FFTW may be available already - consult your site's documentation. Otherwise you will need to install it yourself.
+
+Linux
+#####
+
+* It is possible binaries are available via your package manager. E.g. ``libfftw3-dev`` on Ubuntu.
+* Otherwise you can find the latest source code on the `fftw downloads page <https://fftw.org/download.html>`_. There are instructions to build from source in the `fftw docs <https://fftw.org/fftw3_doc/Installation-on-Unix.html>`_.
+
+macOS
+#####
+
+* FFTW can be installed using the `Homebrew package manager <http://brew.sh>`_:
+
+.. code-block:: console
+
+    $ brew install fftw
+
+Microsoft Windows
+#################
+
+* While FFTW can be installed on Windows (guidance `here <https://fftw.org/install/windows.html>`_), it is not possible to build mpi4py_fft using the MSVC compiler.
+* Therefore, we recommend using `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then following the Linux install instructions for gprMax.
+
+Install mpi4py_fft with conda
+^^^^^^^^^^^^^^^^^^
+
+mpi4py_fft can be installed in a conda environment with:
+
+.. code:: console
+
+    (gprMax)$ conda install -c conda-forge mpi4py_fft
+
+Install mpi4py_fft with pip
+^^^^^^^^^^^^^^^^
+
+mpi4py_fft can be installed using pip with:
+
+.. code:: console
+
+    (gprMax)$ pip install mpi4py_fft
+
+.. tip::
+
+    It may be necessary to tell mpi4py_fft where FFTW is installed. This can be done by setting the `FFTW_INCLUDE_DIR` and `FFTW_LIBRARY_DIR` environment variables to the appropriate paths.
 
 
 6. Build and install gprMax
