@@ -18,13 +18,11 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
-from mpi4py_fft import PFFT, DistArray, newDistArray
-from mpi4py_fft.pencil import Subcomm
 from scipy import fftpack
 
 from gprMax import config
@@ -33,7 +31,6 @@ from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
 from gprMax.materials import ListMaterial, PeplinskiSoil, RangeMaterial
 from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
-from gprMax.utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
 np.seterr(divide="raise")
@@ -312,6 +309,11 @@ class MPIFractalVolume(FractalVolume):
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
+
+        # Import from mpi4py_fft
+        # This is an optional dependency so only import if required
+        from mpi4py_fft import PFFT, DistArray, newDistArray
+        from mpi4py_fft.pencil import Subcomm
 
         # Exit early if this rank does not contain the Fractal Volume
         # The size of a fractal volume can increase if a Fractal Surface

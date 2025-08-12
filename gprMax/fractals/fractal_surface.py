@@ -23,8 +23,6 @@ from typing import List, Optional, Tuple
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
-from mpi4py_fft import PFFT, DistArray, newDistArray
-from mpi4py_fft.pencil import Subcomm
 from scipy import fftpack
 
 from gprMax import config
@@ -222,6 +220,11 @@ class MPIFractalSurface(FractalSurface):
 
     def generate_fractal_surface(self) -> bool:
         """Generate a 2D array with a fractal distribution."""
+
+        # Import from mpi4py_fft
+        # This is an optional dependency so only import if required
+        from mpi4py_fft import PFFT, DistArray, newDistArray
+        from mpi4py_fft.pencil import Subcomm
 
         if self.xs == self.xf:
             color = self.xs
