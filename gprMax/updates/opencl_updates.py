@@ -530,7 +530,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if self.grid.hertziandipoles:
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
-                np.int32(self.grid.iteration),
+                np.int32(iteration),
                 config.sim_config.dtypes["float_or_double"](self.grid.dx),
                 config.sim_config.dtypes["float_or_double"](self.grid.dy),
                 config.sim_config.dtypes["float_or_double"](self.grid.dz),
@@ -543,7 +543,6 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ez_dev,
             )
 
-        self.grid.iteration += 1
 
     def update_electric_b(self):
         """If there are any dispersive materials do 2nd part of dispersive
