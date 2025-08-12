@@ -522,12 +522,12 @@ class HIPUpdates(Updates[HIPGrid]):
         if self.grid.rxs:
             from gprMax.receivers import Rx
             rxs = np.zeros((len(Rx.allowableoutputs_dev), self.grid.iterations, len(self.grid.rxs)),
-        dtype=config.sim_config.dtypes["float_or_double"])
-        hip_check(hip.hipMemcpy(rxs, self.grid.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
-        for i in range(len(self.grid.rxs)):
-            rx = self.grid.rxs[i].outputs
-            for j, output in enumerate(Rx.allowableoutputs_dev):
-                rx[output] = rxs[j, :, i]
+            dtype=config.sim_config.dtypes["float_or_double"])
+            hip_check(hip.hipMemcpy(rxs, self.grid.rxs_dev, rxs.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+            for i in range(len(self.grid.rxs)):
+                rx = self.grid.rxs[i].outputs
+                for j, output in enumerate(Rx.allowableoutputs_dev):
+                    rx[output] = rxs[j, :, i]
 
     def cleanup(self) -> None:
         """Cleanup the updates, releasing any resources."""
@@ -543,16 +543,29 @@ class HIPUpdates(Updates[HIPGrid]):
             Memory (RAM) used on GPU.
         """
         memused = 0
-        # memused += self.grid.ID.nbytes
-        # memused += self.grid.Ex.nbytes
-        # memused += self.grid.Ey.nbytes
-        # memused += self.grid.Ez.nbytes
-        # memused += self.grid.Hx.nbytes
-        # memused += self.grid.Hy.nbytes
-        # memused += self.grid.Hz.nbytes
-        # if config.get_model_config().materials["maxpoles"] > 0:
-        #     memused += self.grid.updatecoeffsdispersive_dev.nbytes
-        #     memused += self.grid.Tx.nbytes
-        #     memused += self.grid.Ty.nbytes
-        #     memused += self.grid.Tz.nbytes
+        memused += self.grid.ID.nbytes
+        memused += self.grid.Ex.nbytes
+        memused += self.grid.Ey.nbytes
+        memused += self.grid.Ez.nbytes
+        memused += self.grid.Hx.nbytes
+        memused += self.grid.Hy.nbytes
+        memused += self.grid.Hz.nbytes
+        float_or_double = 4 if config.sim_config.dtypes["float_or_double"] == "float" else 8
+        if config.get_model_config().materials["maxpoles"] > 0:
+            memused += self.grid.updatecoeffsdispersive.nbytes
+            memused += self.grid.Tx.nbytes
+            memused += self.grid.Ty.nbytes
+            memused += self.grid.Tz.nbytes
+        if self.grid.hertziandipoles:
+            memused += len(self.grid.hertziandipoles) * 4 * 8  # srcinfo1: 4 * int32
+            memused += len(self.grid.hertziandipoles) * float_or_double
+            memused += len(self.grid.hertziandipoles) * self.grid.iterations * float_or_double
+        if self.grid.voltagesources:
+            memused += len(self.grid.voltagesources) * 4 * 8  # srcinfo1: 4 * int32
+            memused += len(self.grid.voltagesources) * float_or_double
+            memused += len(self.grid.voltagesources) * self.grid.iterations * float_or_double
+        if self.grid.magneticdipoles:
+            memused += len(self.grid.magneticdipoles) * 4 * 8
+            memused += len(self.grid.magneticdipoles) * float_or_double
+            memused += len(self.grid.magneticdipoles) * self.grid.iterations * float_or_double
         return memused
