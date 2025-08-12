@@ -189,7 +189,7 @@ h5py can be installed with MPI support in a conda environment with:
 
 .. code:: console
 
-    (gprMax)$ conda install "h5py>=2.9=mpi*"
+    (gprMax)$ conda install -c conda-forge "h5py>=2.9=mpi*"
 
 Install with pip
 ^^^^^^^^^^^^^^^^
