@@ -214,7 +214,7 @@ Microsoft Windows
 * While FFTW can be installed on Windows (guidance `here <https://fftw.org/install/windows.html>`_), it is not possible to build mpi4py_fft using the MSVC compiler.
 * Therefore, we recommend using `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then following the Linux install instructions for gprMax.
 
-Install mpi4py_fft with conda
+Install with conda
 ^^^^^^^^^^^^^^^^^^
 
 mpi4py_fft can be installed in a conda environment with:
@@ -223,7 +223,7 @@ mpi4py_fft can be installed in a conda environment with:
 
     (gprMax)$ conda install -c conda-forge mpi4py_fft
 
-Install mpi4py_fft with pip
+Install with pip
 ^^^^^^^^^^^^^^^^
 
 mpi4py_fft can be installed using pip with:
@@ -234,7 +234,7 @@ mpi4py_fft can be installed using pip with:
 
 .. tip::
 
-    It may be necessary to tell mpi4py_fft where FFTW is installed. This can be done by setting the `FFTW_INCLUDE_DIR` and `FFTW_LIBRARY_DIR` environment variables to the appropriate paths.
+    It may be necessary to tell mpi4py_fft where FFTW is installed. This can be done by setting the ``FFTW_INCLUDE_DIR`` and ``FFTW_LIBRARY_DIR`` environment variables to the appropriate paths.
 
 
 6. Build and install gprMax
