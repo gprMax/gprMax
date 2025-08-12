@@ -110,6 +110,13 @@ class HIPUpdates(Updates[HIPGrid]):
             self.voltage_srcinfo2_dev,
             self.voltage_srcwaves_dev
             ) = htod_src_arrays(self.grid.voltagesources, self.grid)
+        if self.grid.magneticdipoles:
+            (
+            self.magnetic_srcinfo1_dev,
+            self.magnetic_srcinfo2_dev,
+            self.magnetic_srcwaves_dev
+            ) = htod_src_arrays(self.grid.magneticdipoles, self.grid)
+
 
 
 
@@ -303,39 +310,35 @@ class HIPUpdates(Updates[HIPGrid]):
     
     def update_magnetic_sources(self, iteration: int) -> None:
         """Updates magnetic field components from sources."""
-        (
-            self.srcinfo1_dev,
-            self.srcinfo2_dev,
-            self.srcwaves_dev
-        ) = htod_src_arrays(self.grid.magneticdipoles, self.grid)
-        self.block_ = hip.dim3(x=round32(len(self.grid.voltagesources))+1)
-        self.grid_hip_ = hip.dim3(x=1)
-        hip_check(
-            hip.hipModuleLaunchKernel(
-                self.knls["update_magnetic_dipole"],
-                *self.grid_hip_,  # grid
-                *self.block_,  # self.block
-                sharedMemBytes=128,
-                stream=None,
-                kernelParams=None,
-                extra=(
-                    ctypes.c_int(len(self.grid.magneticdipoles)),
-                    ctypes.c_int(iteration),
-                    ctypes.c_float(self.grid.dx),
-                    ctypes.c_float(self.grid.dy),
-                    ctypes.c_float(self.grid.dz),
-                    self.srcinfo1_dev,
-                    self.srcinfo2_dev,
-                    self.srcwaves_dev,
-                    self.grid.ID_dev,
-                    self.grid.Hx_dev,
-                    self.grid.Hy_dev,
-                    self.grid.Hz_dev,
-                    self.grid.updatecoeffsE_d,
-                    self.grid.updatecoeffsH_d,
+        if self.grid.magneticdipoles:
+            self.block_ = hip.dim3(x=round32(len(self.grid.voltagesources))+1)
+            self.grid_hip_ = hip.dim3(x=1)
+            hip_check(
+                hip.hipModuleLaunchKernel(
+                    self.knls["update_magnetic_dipole"],
+                    *self.grid_hip_,  # grid
+                    *self.block_,  # self.block
+                    sharedMemBytes=128,
+                    stream=None,
+                    kernelParams=None,
+                    extra=(
+                        ctypes.c_int(len(self.grid.magneticdipoles)),
+                        ctypes.c_int(iteration),
+                        ctypes.c_float(self.grid.dx),
+                        ctypes.c_float(self.grid.dy),
+                        ctypes.c_float(self.grid.dz),
+                        self.magnetic_srcinfo1_dev,
+                        self.magnetic_srcinfo2_dev,
+                        self.magnetic_srcwaves_dev,
+                        self.grid.ID_dev,
+                        self.grid.Hx_dev,
+                        self.grid.Hy_dev,
+                        self.grid.Hz_dev,
+                        self.grid.updatecoeffsE_d,
+                        self.grid.updatecoeffsH_d,
+                    )
                 )
             )
-        )
 
     
     def update_electric_a(self) -> None:
