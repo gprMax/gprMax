@@ -1,0 +1,7 @@
+#domain: 0.6 0.6 0.6
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandotnorm 1 900e6 MySource
+#hertzian_dipole: x 0.05 0.05 0.05 MySource
+#rx: 0.05 0.05 0.05
