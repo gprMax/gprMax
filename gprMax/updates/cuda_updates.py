@@ -312,7 +312,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self.snapHx_dev,
             self.snapHy_dev,
             self.snapHz_dev,
-        ) = htod_snapshot_array(self.grid)
+        ) = htod_snapshot_array(self.grid.snapshots)
 
         self.subs_func.update(
             {

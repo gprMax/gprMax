@@ -344,7 +344,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.snapHx_dev,
             self.snapHy_dev,
             self.snapHz_dev,
-        ) = htod_snapshot_array(self.grid, self.queue)
+        ) = htod_snapshot_array(self.grid.snapshots, self.queue)
         self.store_snapshot_dev = self.elwiseknl(
             self.ctx,
             knl_snapshots.store_snapshot["args_opencl"].substitute(
