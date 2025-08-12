@@ -25,7 +25,7 @@ from typing import Dict, Generic, List
 
 import h5py
 import numpy as np
-from evtk.hl import imageToVTK
+from pyevtk.hl import imageToVTK
 from mpi4py import MPI
 from tqdm import tqdm
 

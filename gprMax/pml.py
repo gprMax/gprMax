@@ -738,6 +738,7 @@ class HIPPML(PML):
                     / self.tpb
                 )
             )
+        self.bpg = self.bpg if self.bpg < 1025 else 1024  
         
 
     def update_electric(self):

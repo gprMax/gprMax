@@ -542,12 +542,14 @@ class Model:
             mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
         elif config.sim_config.general["solver"] == "opencl":
             mem_str = f" host + unknown for device"
+        elif config.sim_config.general["solver"] == "hip":
+            mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
 
         logger.info(
             f"Memory used (estimated): "
             + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}"
         )
-        # logger.info(
-        #     f"Time taken: "
-        #     + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}\n"
-        # )
+        logger.info(
+            f"Time taken for the solver: "
+            + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}\n"
+        )

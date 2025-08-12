@@ -20,6 +20,7 @@ from gprMax.sources import htod_src_arrays
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
 import ctypes
+import datetime
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +98,20 @@ class HIPUpdates(Updates[HIPGrid]):
             self.knls[knl_name] = self._build_knl(knl_tmpl, knl_name)
             print(f"Compiling {knl_name} Done")
         self._set_pml_knls()
+        if self.grid.hertziandipoles:
+            (
+            self.hertzian_srcinfo1_dev,
+            self.hertzian_srcinfo2_dev,
+            self.hertzian_srcwaves_dev
+            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid)
+        if self.grid.voltagesources:
+            (
+            self.voltage_srcinfo1_dev,
+            self.voltage_srcinfo2_dev,
+            self.voltage_srcwaves_dev
+            ) = htod_src_arrays(self.grid.voltagesources, self.grid)
+
+
 
     def _set_field_knls(self):
         self.grid.htod_geometry_arrays()
@@ -293,11 +308,13 @@ class HIPUpdates(Updates[HIPGrid]):
             self.srcinfo2_dev,
             self.srcwaves_dev
         ) = htod_src_arrays(self.grid.magneticdipoles, self.grid)
+        self.block_ = hip.dim3(x=round32(len(self.grid.voltagesources))+1)
+        self.grid_hip_ = hip.dim3(x=1)
         hip_check(
             hip.hipModuleLaunchKernel(
                 self.knls["update_magnetic_dipole"],
-                *self.grid_hip, # grid
-                *self.block,  # self.block
+                *self.grid_hip_,  # grid
+                *self.block_,  # self.block
                 sharedMemBytes=128,
                 stream=None,
                 kernelParams=None,
@@ -392,17 +409,14 @@ class HIPUpdates(Updates[HIPGrid]):
         update any Hertzian dipole sources last.
         """
         if self.grid.hertziandipoles:
-            (
-            self.srcinfo1_dev,
-            self.srcinfo2_dev,
-            self.srcwaves_dev
-            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid)
+            self.block_ = hip.dim3(x=round32(len(self.grid.hertziandipoles))+1)
+            self.grid_hip_ = hip.dim3(x=1)
 
             hip_check(
                 hip.hipModuleLaunchKernel(
                     self.knls["update_hertzian_dipole"],
-                    *self.grid_hip, # grid
-                    *self.block,  # self.block
+                    *self.grid_hip_, # grid
+                    *self.block_,  # self.block
                     sharedMemBytes=128,
                     stream=None,
                     kernelParams=None,
@@ -412,9 +426,9 @@ class HIPUpdates(Updates[HIPGrid]):
                     ctypes.c_float(self.grid.dx),
                     ctypes.c_float(self.grid.dy),
                     ctypes.c_float(self.grid.dz),
-                    self.srcinfo1_dev,
-                    self.srcinfo2_dev,
-                    self.srcwaves_dev,
+                    self.hertzian_srcinfo1_dev,
+                    self.hertzian_srcinfo2_dev,
+                    self.hertzian_srcwaves_dev,
                     self.grid.ID_dev,
                     self.grid.Ex_dev,
                     self.grid.Ey_dev,
@@ -426,37 +440,34 @@ class HIPUpdates(Updates[HIPGrid]):
             )
 
         if self.grid.voltagesources:
-                    (
-            self.srcinfo1_dev,
-            self.srcinfo2_dev,
-            self.srcwaves_dev
-        ) = htod_src_arrays(self.grid.voltagesources, self.grid)
-        hip_check(
-            hip.hipModuleLaunchKernel(
-                self.knls["update_voltage_source"],
-                *self.grid_hip, # grid
-                *self.block,  # self.block
-                sharedMemBytes=128,
-                stream=None,
-                kernelParams=None,
-                extra=(
-                    ctypes.c_int(len(self.grid.voltagesources)),
-                    ctypes.c_int(iteration),
-                    ctypes.c_float(self.grid.dx),
-                    ctypes.c_float(self.grid.dy),
-                    ctypes.c_float(self.grid.dz),
-                    self.srcinfo1_dev,
-                    self.srcinfo2_dev,
-                    self.srcwaves_dev,
-                    self.grid.ID_dev,
-                    self.grid.Ex_dev,
-                    self.grid.Ey_dev,
-                    self.grid.Ez_dev,
-                    self.grid.updatecoeffsE_d,
-                    self.grid.updatecoeffsH_d,
+            self.block_ = hip.dim3(x=round32(len(self.grid.voltagesources))+1)
+            self.grid_hip_ = hip.dim3(x=1)
+            hip_check(
+                hip.hipModuleLaunchKernel(
+                    self.knls["update_voltage_source"],
+                    *self.grid_hip_, # grid
+                    *self.block_,  # self.block
+                    sharedMemBytes=128,
+                    stream=None,
+                    kernelParams=None,
+                    extra=(
+                        ctypes.c_int(len(self.grid.voltagesources)),
+                        ctypes.c_int(iteration),
+                        ctypes.c_float(self.grid.dx),
+                        ctypes.c_float(self.grid.dy),
+                        ctypes.c_float(self.grid.dz),
+                        self.voltage_srcinfo1_dev,
+                        self.voltage_srcinfo2_dev,
+                        self.voltage_srcwaves_dev,
+                        self.grid.ID_dev,
+                        self.grid.Ex_dev,
+                        self.grid.Ey_dev,
+                        self.grid.Ez_dev,
+                        self.grid.updatecoeffsE_d,
+                        self.grid.updatecoeffsH_d,
+                    )
                 )
             )
-        )
 
 
     
@@ -497,12 +508,11 @@ class HIPUpdates(Updates[HIPGrid]):
 
     def time_start(self) -> None:
         """Starts timer used to calculate solving time for model."""
-        #print("time_start not implemented in HIPUpdates")
+        self.start_time = datetime.datetime.now()
 
     def calculate_solve_time(self) -> float:
         """Calculates solving time for model."""
-        #print("calculate_solve_time not implemented in HIPUpdates")
-        return 0.0
+        return (datetime.datetime.now() - self.start_time).total_seconds()
 
     def finalise(self) -> None:
         """Finalise the updates, releasing any resources."""
@@ -521,5 +531,25 @@ class HIPUpdates(Updates[HIPGrid]):
         self.free_resources()
 
     def calculate_memory_used(self, iteration: int) -> int:
-        #print("calculate_memory_used not implemented in HIPUpdates")
-        return 0
+        """Calculates memory used on last iteration.
+
+        Args:
+            iteration: int for iteration number.
+
+        Returns:
+            Memory (RAM) used on GPU.
+        """
+        memused = 0
+        # memused += self.grid.ID.nbytes
+        # memused += self.grid.Ex.nbytes
+        # memused += self.grid.Ey.nbytes
+        # memused += self.grid.Ez.nbytes
+        # memused += self.grid.Hx.nbytes
+        # memused += self.grid.Hy.nbytes
+        # memused += self.grid.Hz.nbytes
+        # if config.get_model_config().materials["maxpoles"] > 0:
+        #     memused += self.grid.updatecoeffsdispersive_dev.nbytes
+        #     memused += self.grid.Tx.nbytes
+        #     memused += self.grid.Ty.nbytes
+        #     memused += self.grid.Tz.nbytes
+        return memused

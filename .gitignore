@@ -28,7 +28,7 @@ docs/.buildinfo
 .vscode
 testing/*.out
 testing/*.png
-
+rocprofsys-run-output/
 # Output files from running the examples
 examples/*.h5
 examples/*.pdf
