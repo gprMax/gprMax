@@ -52,6 +52,7 @@ class CreatePyenvTest(RunOnlyRegressionTest):
         f"source {PATH_TO_PYENV}",
         "CC=cc CXX=CC FC=ftn python -m pip install --upgrade pip",
         f"CC=cc CXX=CC FC=ftn python -m pip install -r {os.path.join(GPRMAX_ROOT_DIR, 'requirements.txt')}",
+        "CC=cc CXX=CC FC=ftn python -m pip install mpi4py_fft",
     ]
     executable = f"CC=cc CXX=CC FC=ftn python -m pip install -e {GPRMAX_ROOT_DIR}"
 

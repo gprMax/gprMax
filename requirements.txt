@@ -9,7 +9,6 @@ jinja2
 jupyter
 matplotlib
 mpi4py
-mpi4py-fft
 numpy<2
 numpy-stl
 pandas
@@ -21,6 +20,12 @@ scipy
 terminaltables
 tqdm
 wheel
+
+# If running with mpi domain decomposition, the following dependencies
+# are also required:
+
+# mpi4py-fft
+
 
 # The following are required to run the ReFrame test suite (uncomment if
 # needed):
