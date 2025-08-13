@@ -159,13 +159,13 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
             pad_inches=0.1,
         )
         # Save a PNG of the figure
-        fig.savefig(
-            savefile.with_suffix(".png"),
-            dpi=150,
-            format="png",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
+        # fig.savefig(
+        #     savefile.with_suffix(".png"),
+        #     dpi=150,
+        #     format="png",
+        #     bbox_inches="tight",
+        #     pad_inches=0.1,
+        # )
 
     return plt
 

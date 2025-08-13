@@ -422,6 +422,10 @@ def process_geometrycmds(geometry):
                         )
                         raise ValueError
 
+                    # Only build objects attached to the current fractal box
+                    if tmp[12] != ID:
+                        continue
+
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
                     p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
                     frac_dim = float(tmp[7])
@@ -463,6 +467,10 @@ def process_geometrycmds(geometry):
                         )
                         raise ValueError
 
+                    # Only build objects attached to the current fractal box
+                    if tmp[8] != ID:
+                        continue
+
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
                     p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
                     depth = float(tmp[7])
@@ -477,6 +485,10 @@ def process_geometrycmds(geometry):
                             "'" + " ".join(tmp) + "'" + " requires at least eleven parameters"
                         )
                         raise ValueError
+
+                    # Only build objects attached to the current fractal box
+                    if tmp[11] != ID:
+                        continue
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
                     p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))

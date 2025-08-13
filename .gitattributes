@@ -1,6 +1,1 @@
 tools/Jupyter_notebooks/* linguist-vendored
-reframe_tests/regression_checks/TestGeometryView_5176823e/partial_volume.vtkhdf filter=lfs diff=lfs merge=lfs -text
-reframe_tests/regression_checks/TestGeometryView_5176823e/full_volume.vtkhdf filter=lfs diff=lfs merge=lfs -text
-reframe_tests/regression_checks/TestGeometryView_77980202/full_volume.vtkhdf filter=lfs diff=lfs merge=lfs -text
-reframe_tests/regression_checks/TestGeometryObject_a6a096cb/full_volume.h5 filter=lfs diff=lfs merge=lfs -text
-reframe_tests/regression_checks/TestGeometryObject_a6a096cb/partial_volume.h5 filter=lfs diff=lfs merge=lfs -text

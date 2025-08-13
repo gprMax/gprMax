@@ -1,5 +1,9 @@
 cython>=0.20
 numpy>=1.9
+colorama
+reframe-hpc
+scipy
+typing_extensions
 
 # Note: beware of https://github.com/readthedocs/sphinx_rtd_theme/issues/1115
 docutils==0.17.1

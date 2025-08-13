@@ -18,13 +18,13 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from os import PathLike
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
+from mpi4py.MPI import Intracomm
 
-from gprMax.vtkhdf_filehandlers.vtkhdf import VtkHdfFile
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkFileType, VtkHdfFile
 
 
 class VtkImageData(VtkHdfFile):
@@ -34,16 +34,14 @@ class VtkImageData(VtkHdfFile):
     https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#image-data
     """
 
+    TYPE = VtkFileType.IMAGE_DATA
+
     DIRECTION_ATTR = "Direction"
     ORIGIN_ATTR = "Origin"
     SPACING_ATTR = "Spacing"
     WHOLE_EXTENT_ATTR = "WholeExtent"
 
     DIMENSIONS = 3
-
-    @property
-    def TYPE(self) -> Literal["ImageData"]:
-        return "ImageData"
 
     def __init__(
         self,
@@ -52,7 +50,7 @@ class VtkImageData(VtkHdfFile):
         origin: Optional[npt.NDArray[np.float32]] = None,
         spacing: Optional[npt.NDArray[np.float32]] = None,
         direction: Optional[npt.NDArray[np.float32]] = None,
-        comm: Optional[MPI.Comm] = None,
+        comm: Optional[Intracomm] = None,
     ):
         """Create a new VtkImageData file.
 
@@ -80,7 +78,7 @@ class VtkImageData(VtkHdfFile):
             comm (optional): MPI communicator containing all ranks that
                 want to write to the file.
         """
-        super().__init__(filename, comm)
+        super().__init__(filename, self.TYPE, "w", comm)
 
         if len(shape) == 0:
             raise ValueError(f"Shape must not be empty.")
@@ -179,7 +177,7 @@ class VtkImageData(VtkHdfFile):
                 "If no offset is specified, data.shape must be one larger in each dimension than"
                 f" this vtkImageData object. {data.shape} != {points_shape}"
             )
-        return super().add_point_data(name, data, points_shape, offset)
+        return super()._add_point_data(name, data, points_shape, offset)
 
     def add_cell_data(
         self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.int32]] = None
@@ -200,4 +198,4 @@ class VtkImageData(VtkHdfFile):
                 "If no offset is specified, data.shape must match the dimensions of this"
                 f" VtkImageData object. {data.shape} != {self.shape}"
             )
-        return super().add_cell_data(name, data, self.shape, offset)
+        return super()._add_cell_data(name, data, self.shape, offset)

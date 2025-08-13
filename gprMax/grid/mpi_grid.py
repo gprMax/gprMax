@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -19,7 +19,6 @@
 
 import itertools
 import logging
-from enum import IntEnum, unique
 from typing import List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -29,27 +28,17 @@ from numpy import ndarray
 
 from gprMax import config
 from gprMax.cython.pml_build import pml_sum_er_mr
+from gprMax.fractals.fractal_surface import MPIFractalSurface
+from gprMax.fractals.fractal_volume import MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
 from gprMax.sources import Source
+from gprMax.utilities.mpi import Dim, Dir
 
 logger = logging.getLogger(__name__)
 
 CoordType = TypeVar("CoordType", bound=Union[Rx, Source])
-
-
-@unique
-class Dim(IntEnum):
-    X = 0
-    Y = 1
-    Z = 2
-
-
-@unique
-class Dir(IntEnum):
-    NEG = 0
-    POS = 1
 
 
 class MPIGrid(FDTDGrid):
@@ -70,13 +59,15 @@ class MPIGrid(FDTDGrid):
         self.negative_halo_offset = np.zeros(3, dtype=np.bool_)
         self.global_size = np.zeros(3, dtype=np.int32)
 
-        self.neighbours = np.full((3, 2), -1, dtype=int)
+        self.neighbours = np.full((3, 2), -1, dtype=np.int32)
         self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)
         self.neighbours[Dim.Y] = self.comm.Shift(direction=Dim.Y, disp=1)
         self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
 
         self.send_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
         self.recv_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
+        self.send_requests: List[MPI.Request] = []
+        self.recv_requests: List[MPI.Request] = []
 
         super().__init__()
 
@@ -128,6 +119,34 @@ class MPIGrid(FDTDGrid):
             self.pmls["thickness"]["z0"] = 0
         if self.has_neighbour(Dim.Z, Dir.POS):
             self.pmls["thickness"]["zmax"] = 0
+
+    def add_fractal_volume(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> MPIFractalVolume:
+        volume = MPIFractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed, self.comm, self.size)
+        self.fractalvolumes.append(volume)
+        return volume
+
+    def create_fractal_surface(
+        self,
+        xs: int,
+        xf: int,
+        ys: int,
+        yf: int,
+        zs: int,
+        zf: int,
+        frac_dim: float,
+        seed: Optional[int],
+    ) -> MPIFractalSurface:
+        return MPIFractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed, self.comm, self.size)
 
     def is_coordinator(self) -> bool:
         """Test if the current rank is the coordinator.
@@ -351,16 +370,11 @@ class MPIGrid(FDTDGrid):
             dir: Direction of halo to swap.
         """
         neighbour = self.neighbours[dim][dir]
-        if neighbour != -1:
-            self.comm.Sendrecv(
-                [array, self.send_halo_map[dim][dir]],
-                neighbour,
-                0,
-                [array, self.recv_halo_map[dim][dir]],
-                neighbour,
-                0,
-                None,
-            )
+        if neighbour >= 0:
+            send_request = self.comm.Isend([array, self.send_halo_map[dim][dir]], neighbour)
+            recv_request = self.comm.Irecv([array, self.recv_halo_map[dim][dir]], neighbour)
+            self.send_requests.append(send_request)
+            self.recv_requests.append(recv_request)
 
     def _halo_swap_by_dimension(self, array: ndarray, dim: Dim):
         """Perform halo swaps in the specifed dimension.
@@ -393,16 +407,44 @@ class MPIGrid(FDTDGrid):
     def halo_swap_electric(self):
         """Perform halo swaps for electric field arrays."""
 
+        # Ensure send requests for the magnetic field have completed
+        # The magnetic field arrays may change after this halo swap in
+        # the magnetic update step
+        if len(self.send_requests) > 0:
+            self.send_requests[0].Waitall(self.send_requests)
+            self.send_requests = []
+
         self._halo_swap_array(self.Ex)
         self._halo_swap_array(self.Ey)
         self._halo_swap_array(self.Ez)
 
+        # Wait for all receive requests to complete
+        # Don't need to wait for send requests yet as the electric
+        # field arrays won't be changed during the magnetic update steps
+        if len(self.recv_requests) > 0:
+            self.recv_requests[0].Waitall(self.recv_requests)
+            self.recv_requests = []
+
     def halo_swap_magnetic(self):
         """Perform halo swaps for magnetic field arrays."""
+
+        # Ensure send requests for the electric field have completed
+        # The electric field arrays will change after this halo swap in
+        # the electric update step
+        if len(self.send_requests) > 0:
+            self.send_requests[0].Waitall(self.send_requests)
+            self.send_requests = []
 
         self._halo_swap_array(self.Hx)
         self._halo_swap_array(self.Hy)
         self._halo_swap_array(self.Hz)
+
+        # Wait for all receive requests to complete
+        # Don't need to wait for send requests yet as the magnetic
+        # field arrays won't be changed during the electric update steps
+        if len(self.recv_requests) > 0:
+            self.recv_requests[0].Waitall(self.recv_requests)
+            self.recv_requests = []
 
     def _construct_pml(self, pml_ID: str, thickness: int) -> MPIPML:
         """Build instance of MPIPML and set the MPI communicator.
@@ -595,7 +637,7 @@ class MPIGrid(FDTDGrid):
             has_neighbour: True if the current rank has a neighbour in
                 the specified dimension and direction.
         """
-        return self.neighbours[dim][dir] != -1
+        return self.neighbours[dim][dir] >= 0
 
     def set_halo_map(self):
         """Create MPI DataTypes for field array halo exchanges."""

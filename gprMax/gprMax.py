@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -53,9 +53,9 @@ help_msg = {
         "(list, req): Scenes to run the model. Multiple scene objects can given in order to run"
         " multiple simulation runs. Each scene must contain the essential simulation objects"
     ),
-    "inputfile": "(str, opt): Input file path. Can also run simulation by providing an input file.",
-    "outputfile": "(str, req): File path to the output data file.",
-    "n": "(int, req): Number of required simulation runs.",
+    "inputfile": "(str, req): Input file path. Can also run simulation by providing an input file.",
+    "outputfile": "(str, opt): File path to the output data file.",
+    "n": "(int, opt): Number of required simulation runs.",
     "i": (
         "(int, opt): Model number to start/restart simulation from. It would typically be used to"
         " restart a series of models from a specific model number, with the n argument, e.g. to"

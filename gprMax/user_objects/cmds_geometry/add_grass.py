@@ -21,7 +21,8 @@ import logging
 
 import numpy as np
 
-from gprMax.fractals import FractalSurface, Grass
+from gprMax.fractals.fractal_surface import FractalSurface
+from gprMax.fractals.grass import Grass
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_grass
 from gprMax.user_objects.rotatable import RotatableMixin
@@ -93,134 +94,106 @@ class AddGrass(RotatableMixin, GeometryUserObject):
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
-        try:
+        if volumes:
             volume = volumes[0]
-        except NameError:
-            logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
-            raise
+        else:
+            raise ValueError(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
 
         uip = self._create_uip(grid)
-        _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-        xs, ys, zs = p1
-        xf, yf, zf = p2
+        discretised_p1, discretised_p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
+        xs, ys, zs = discretised_p1
+        xf, yf, zf = discretised_p2
 
         if frac_dim < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal dimension"
             )
-            raise ValueError
         if limits[0] < 0 or limits[1] < 0:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires a positive value for the minimum and maximum heights for grass blades"
             )
-            raise ValueError
 
         # Check for valid orientations
+        if np.count_nonzero(discretised_p1 == discretised_p2) != 1:
+            raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
+
         if xs == xf:
-            if ys == yf or zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-                raise ValueError
-            if xs not in [volume.xs, volume.xf]:
-                logger.exception(
-                    f"{self.__str__()} must specify external surfaces on a fractal box"
-                )
-                raise ValueError
-            fractalrange = (
-                round_value(limits[0] / grid.dx),
-                round_value(limits[1] / grid.dx),
-            )
             # xminus surface
             if xs == volume.xs:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} grass can only be specified on surfaces in the positive axis direction"
                 )
-                raise ValueError
             # xplus surface
             elif xf == volume.xf:
-                if fractalrange[1] > grid.nx:
-                    logger.exception(
-                        f"{self.__str__()} cannot apply grass to "
-                        "fractal box as it would exceed the domain "
-                        "size in the x direction"
-                    )
-                    raise ValueError
+                lower_bound = uip.discretise_point((limits[0], 0, 0))
+                upper_bound = uip.discretise_point((limits[1], p2[1], p2[2]))
+                uip.point_within_bounds(upper_bound, self.__str__())
+                fractalrange = (lower_bound[0], upper_bound[0])
                 requestedsurface = "xplus"
+            else:
+                raise ValueError(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
 
         elif ys == yf:
-            if zs == zf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-                raise ValueError
-            if ys not in [volume.ys, volume.yf]:
-                logger.exception(
-                    f"{self.__str__()} must specify external surfaces on a fractal box"
-                )
-                raise ValueError
-            fractalrange = (
-                round_value(limits[0] / grid.dy),
-                round_value(limits[1] / grid.dy),
-            )
             # yminus surface
             if ys == volume.ys:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} grass can only be specified on surfaces in the positive axis direction"
                 )
-                raise ValueError
             # yplus surface
             elif yf == volume.yf:
-                if fractalrange[1] > grid.ny:
-                    logger.exception(
-                        f"{self.__str__()} cannot apply grass to "
-                        "fractal box as it would exceed the domain "
-                        "size in the y direction"
-                    )
-                    raise ValueError
+                lower_bound = uip.discretise_point((0, limits[0], 0))
+                upper_bound = uip.discretise_point((p2[0], limits[1], p2[2]))
+                uip.point_within_bounds(upper_bound, self.__str__())
+                fractalrange = (lower_bound[1], upper_bound[1])
                 requestedsurface = "yplus"
-
-        elif zs == zf:
-            if zs not in [volume.zs, volume.zf]:
-                logger.exception(
+            else:
+                raise ValueError(
                     f"{self.__str__()} must specify external surfaces on a fractal box"
                 )
-                raise ValueError
-            fractalrange = (
-                round_value(limits[0] / grid.dz),
-                round_value(limits[1] / grid.dz),
-            )
+
+        elif zs == zf:
             # zminus surface
             if zs == volume.zs:
-                logger.exception(
+                raise ValueError(
                     f"{self.__str__()} grass can only be specified on surfaces in the positive axis direction"
                 )
-                raise ValueError
             # zplus surface
             elif zf == volume.zf:
-                if fractalrange[1] > grid.nz:
-                    logger.exception(
-                        f"{self.__str__()} cannot apply grass to "
-                        "fractal box as it would exceed the domain "
-                        "size in the z direction"
-                    )
-                    raise ValueError
+                lower_bound = uip.discretise_point((0, 0, limits[0]))
+                upper_bound = uip.discretise_point((p2[0], p2[1], limits[1]))
+                uip.point_within_bounds(upper_bound, self.__str__())
+                fractalrange = (lower_bound[2], upper_bound[2])
                 requestedsurface = "zplus"
-
+            else:
+                raise ValueError(
+                    f"{self.__str__()} must specify external surfaces on a fractal box"
+                )
         else:
-            logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-            raise ValueError
+            raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
 
-        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
+        surface = grid.create_fractal_surface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.ID = "grass"
         surface.surfaceID = requestedsurface
+
+        # Create grass geometry parameters
+        # Add grass to the surface here as an MPIFractalSurface needs to
+        # know if grass is present when generate_fractal_surface() is
+        # called
+        g = Grass(n_blades, surface.seed)
+        surface.grass.append(g)
 
         # Set the fractal range to scale the fractal distribution between zero and one
         surface.fractalrange = (0, 1)
         surface.operatingonID = volume.ID
-        surface.generate_fractal_surface()
+        if not surface.generate_fractal_surface():
+            return
         if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} the specified surface is not large "
                 "enough for the number of grass blades/roots specified"
             )
-            raise ValueError
 
         # Scale the distribution so that the summation is equal to one,
         # i.e. a probability distribution
@@ -255,10 +228,6 @@ class AddGrass(RotatableMixin, GeometryUserObject):
                 surface.fractalrange[0], surface.fractalrange[1], size=1
             )
 
-        # Create grass geometry parameters
-        g = Grass(n_blades, surface.seed)
-        surface.grass.append(g)
-
         # Check to see if grass has been already defined as a material
         if not any(x.ID == "grass" for x in grid.materials):
             create_grass(grid)
@@ -267,18 +236,20 @@ class AddGrass(RotatableMixin, GeometryUserObject):
         grass = next((x for x in grid.materials if x.ID == "grass"))
         testgrass = next((x for x in grass.tau if x < grid.dt), None)
         if testgrass:
-            logger.exception(
+            raise ValueError(
                 f"{self.__str__()} requires the time step for the "
                 "model to be less than the relaxation time required to model grass."
             )
-            raise ValueError
 
         volume.fractalsurfaces.append(surface)
 
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
         logger.info(
             f"{self.grid_name(grid)}{n_blades} blades of grass on surface from "
-            f"{xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, "
-            f"to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m "
+            f"{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, "
+            f"to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m "
             f"with fractal dimension {surface.dimension:g}, fractal seeding "
             f"{surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, "
             f"added to {surface.operatingonID}."

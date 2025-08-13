@@ -27,13 +27,13 @@ import numpy.typing as npt
 import psutil
 from colorama import Fore, Style, init
 
+from gprMax.geometry_outputs.geometry_objects import GeometryObject
+from gprMax.geometry_outputs.geometry_view_lines import GeometryViewLines
+from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels
+from gprMax.geometry_outputs.geometry_views import GeometryView, save_geometry_views
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.grid.metal_grid import MetalGrid
-from gprMax.output_controllers.geometry_objects import GeometryObject
-from gprMax.output_controllers.geometry_view_lines import GeometryViewLines
-from gprMax.output_controllers.geometry_view_voxels import GeometryViewVoxels
-from gprMax.output_controllers.geometry_views import GeometryView, save_geometry_views
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -98,6 +98,10 @@ class Model:
     @nz.setter
     def nz(self, value: int):
         self.G.nz = value
+
+    @property
+    def cells(self) -> np.uint64:
+        return np.prod(self.G.size, dtype=np.uint64)
 
     @property
     def dx(self) -> float:
@@ -475,10 +479,16 @@ class Model:
 
         # Print information about and check OpenMP threads
         if config.sim_config.general["solver"] == "cpu":
+            if config.sim_config.mpi:
+                backend = "MPI+OpenMP"
+                layout = f"{np.prod(config.sim_config.mpi)} MPI rank(s) and {config.get_model_config().ompthreads} thread(s) per rank"
+            else:
+                backend = "OpenMP"
+                layout = f"{config.get_model_config().ompthreads} thread(s)"
             logger.basic(
                 f"Model {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
                 f"on {config.sim_config.hostinfo['hostname']} "
-                f"with OpenMP backend using {config.get_model_config().ompthreads} thread(s)"
+                f"with {backend} backend using {layout}"
             )
             if config.get_model_config().ompthreads > config.sim_config.hostinfo["physicalcores"]:
                 logger.warning(

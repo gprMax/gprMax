@@ -890,7 +890,7 @@ class DiscretePlaneWave(GridUserObject):
                         rational angle.
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
-        p1: tuple required for the upper right position (x, y, z) of the total
+        p2: tuple required for the upper right position (x, y, z) of the total
             field, scattered field (TFSF) box.
         waveform_id: string required for identifier of waveform used with source.
         material_id: string optional of material identifier to use as the

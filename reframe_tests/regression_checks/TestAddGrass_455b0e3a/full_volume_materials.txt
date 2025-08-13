@@ -1,0 +1,4 @@
+#material: 1 0 1 0 free_space
+#material: 8 0 1 0 half_space
+#material: 12.7174 0 1 0 grass
+#add_dispersion_debye: 1 5.7913 1.0793e-11 grass

@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -21,10 +21,8 @@ import logging
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import numpy.typing as npt
 
 from gprMax import config
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.pml import PML
 from gprMax.user_objects.user_objects import ModelUserObject
@@ -66,7 +64,7 @@ class Discretisation(ModelUserObject):
     """Spatial discretisation of the model in the x, y, and z dimensions.
 
     Attributes:
-        discretisation (np.array): Spatial discretisation of the model
+        discretisation (tuple): Spatial discretisation of the model
             (x, y, z)
     """
 
@@ -135,7 +133,7 @@ class Domain(ModelUserObject):
         logger.info(
             f"Domain size: {self.domain_size[0]:g} x {self.domain_size[1]:g} x "
             + f"{self.domain_size[2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
-            + f"{(model.nx * model.ny * model.nz):g} cells)"
+            + f"{(model.cells):g} cells)"
         )
 
         # Set mode and switch off appropriate PMLs for 2D models
@@ -172,7 +170,7 @@ class TimeStepStabilityFactor(ModelUserObject):
     """Factor by which to reduce the time step from the CFL limit.
 
     Attributes:
-        stability_factor (flaot): Factor to multiply time step by.
+        stability_factor (float): Factor to multiply time step by.
     """
 
     @property
@@ -212,8 +210,8 @@ class TimeWindow(ModelUserObject):
     time takes precedence.
 
     Attributes:
-        time: float of required simulated time in seconds.
-        iterations: int of required number of iterations.
+        time (float | None): Simulated time in seconds.
+        iterations (int | None): Number of iterations.
     """
 
     @property

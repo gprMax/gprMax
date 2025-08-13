@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -73,8 +73,13 @@ def logo(version):
         "Finite-Difference Time-Domain (FDTD) method"
     )
     current_year = datetime.datetime.now().year
-    copyright = f"Copyright (C) 2015-{current_year}: The University of " "Edinburgh, United Kingdom"
-    authors = "Authors: Craig Warren, Antonis Giannopoulos, and John Hartley"
+    copyright = (
+        f"Copyright (C) 2015-{current_year}: The University of "
+        f"Edinburgh, United Kingdom"
+    )
+    authors = (
+        "Authors: Craig Warren, Antonis Giannopoulos, John Hartley and Nathan Mannall"
+    )
     licenseinfo1 = (
         "gprMax is free software: you can redistribute it and/or "
         "modify it under the terms of the GNU General Public "
@@ -114,22 +119,34 @@ def logo(version):
         + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=" ")
         + "\n"
     )
-    str += textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ") + "\n\n"
+    str += (
+        textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ")
+        + "\n\n"
+    )
     str += (
         textwrap.fill(
-            licenseinfo1, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  "
+            licenseinfo1,
+            width=get_terminal_width() - 1,
+            initial_indent=" ",
+            subsequent_indent="  ",
         )
         + "\n"
     )
     str += (
         textwrap.fill(
-            licenseinfo2, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  "
+            licenseinfo2,
+            width=get_terminal_width() - 1,
+            initial_indent=" ",
+            subsequent_indent="  ",
         )
         + "\n"
     )
     str += (
         textwrap.fill(
-            licenseinfo3, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  "
+            licenseinfo3,
+            width=get_terminal_width() - 1,
+            initial_indent=" ",
+            subsequent_indent="  ",
         )
         + "\n"
     )
@@ -161,7 +178,9 @@ def round_float(value: float, decimalplaces: int) -> float:
         rounded: Rounded value.
     """
     precision = f"1.{'0' * decimalplaces}"
-    return float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+    return float(
+        d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR)
+    )
 
 
 def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:

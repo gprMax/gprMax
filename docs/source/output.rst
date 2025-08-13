@@ -137,9 +137,9 @@ The following are steps to get started with viewing snapshot files in Paraview:
 Geometry output
 ===============
 
-Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
+Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format (specifically VTKHDF) which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
 
-The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or UnstructuredGrid (.vtu) for a per-cell-edge geometry view. The following are steps to get started with viewing geometry files in Paraview:
+The ``#geometry_view:`` command produces either ImageData for a per-cell geometry view, or UnstructuredGrid for a per-cell-edge geometry view. The following are steps to get started with viewing geometry files in Paraview:
 
 .. _pv_toolbar:
 

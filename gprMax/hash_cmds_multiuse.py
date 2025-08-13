@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -328,7 +328,10 @@ def process_multicmds(multicmds):
             p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
             dl = (float(tmp[6]), float(tmp[7]), float(tmp[8]))
             filename = tmp[10]
-            fileext = "." + filename.split(".")[-1]
+            if "." in filename:
+                fileext = "." + filename.split(".")[-1]
+            else:
+                fileext = None
 
             try:
                 iterations = int(tmp[9])
@@ -430,19 +433,19 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) < 5:
+            if len(tmp) < 4:
                 logger.exception(
                     "'"
                     + cmdname
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " requires at least five parameters"
+                    + " requires at least four parameters"
                 )
                 raise ValueError
 
             poles = int(tmp[0])
-            material_ids = tmp[(3 * poles) + 1 : len(tmp)]
+            material_ids = tmp[(2 * poles) + 1 : len(tmp)]
             omega = []
             gamma = []
 

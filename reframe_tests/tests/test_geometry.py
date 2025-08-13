@@ -9,6 +9,34 @@ from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 
 @rfm.simple_test
+class TestAddGrass(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "grass"}
+    sourcesdir = "src/geometry_tests/add_grass_geometry"
+    model = parameter(["add_grass_full", "add_grass_small"])
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughness(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "roughness"}
+    sourcesdir = "src/geometry_tests/add_surface_roughness_geometry"
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            "add_surface_roughness_small",
+            "add_surface_roughness_weighted",
+            "add_surface_roughness_boundaries",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceWater(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "fractal", "surface", "roughness", "water"}
+    sourcesdir = "src/geometry_tests/add_surface_water_geometry"
+    model = parameter(["add_surface_water_full", "add_surface_water_small"])
+
+
+@rfm.simple_test
 class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/geometry_tests/box_geometry"
@@ -101,7 +129,14 @@ class TestEllipsoidGeometry(GprMaxRegressionTest):
 class TestFractalBoxGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "fractal", "box", "fractal_box"}
     sourcesdir = "src/geometry_tests/fractal_box_geometry"
-    model = parameter(["fractal_box_full"])
+    model = parameter(
+        [
+            "fractal_box_full",
+            "fractal_box_small",
+            "fractal_box_weighted",
+            "fractal_box_boundaries",
+        ]
+    )
 
 
 # TODO: Add Mixin class to enable testing that invalid geometry throws an error
@@ -131,6 +166,65 @@ class TestTriangleGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class TestAddGrassMpi(MpiMixin, TestAddGrass):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "grass"}
+    mpi_layout = parameter([[2, 2, 2]])
+    model = parameter(["add_grass_small"])
+    test_dependency = TestAddGrass
+
+
+# Depending on the orientation/alignment of the fractal surface, not all
+# MPI decompositions are valid. Therefore create tests that divide the
+# domain in each pair of dimensions.
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiYZ(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[1, 2, 2], [1, 3, 3], [1, 4, 4]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            "add_surface_roughness_small",
+            "add_surface_roughness_weighted",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiXZ(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 1, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_full",
+            "add_surface_roughness_weighted",
+            "add_surface_roughness_boundaries",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceRoughnessMpiXY(MpiMixin, TestAddSurfaceRoughness):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness"}
+    mpi_layout = parameter([[2, 2, 1], [3, 3, 1], [4, 4, 1]])
+    test_dependency = TestAddSurfaceRoughness
+    model = parameter(
+        [
+            "add_surface_roughness_small",
+            "add_surface_roughness_boundaries",
+        ]
+    )
+
+
+@rfm.simple_test
+class TestAddSurfaceWaterMpi(MpiMixin, TestAddSurfaceWater):
+    tags = {"test", "mpi", "geometery", "fractal", "surface", "roughness", "water"}
+    mpi_layout = parameter([[1, 2, 2], [3, 1, 3], [4, 1, 4]])
+    test_dependency = TestAddSurfaceWater
+
+
+@rfm.simple_test
 class TestBoxGeometryDefaultPmlMpi(MpiMixin, TestBoxGeometryDefaultPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
@@ -144,6 +238,9 @@ class TestBoxGeometryNoPmlMpi(MpiMixin, TestBoxGeometryNoPml):
     test_dependency = TestBoxGeometryNoPml
 
 
+# Fails for the 'non_axis_aligned_cone' model due to slight differences
+# in the model built by the MPI and non-MPI implementations. This is
+# caused by floating point errors when building the geometry.
 @rfm.simple_test
 class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
     tags = {"test", "mpi", "geometery", "cone"}
@@ -151,6 +248,9 @@ class TestConeGeometryMpi(MpiMixin, TestConeGeometry):
     test_dependency = TestConeGeometry
 
 
+# Fails for the 'non_axis_aligned_cylinder' model due to slight
+# differences in the model built by the MPI and non-MPI implementations.
+# This is caused by floating point errors when building the geometry.
 @rfm.simple_test
 class TestCylinderGeometryMpi(MpiMixin, TestCylinderGeometry):
     tags = {"test", "mpi", "geometery", "cylindrical", "sector", "cylindrical_sector"}
@@ -189,8 +289,26 @@ class TestEllipsoidGeometryMpi(MpiMixin, TestEllipsoidGeometry):
 @rfm.simple_test
 class TestFractalBoxGeometryMpi(MpiMixin, TestFractalBoxGeometry):
     tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
-    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
+    mpi_layout = parameter([[2, 2, 1], [1, 3, 3], [4, 1, 4]])
     test_dependency = TestFractalBoxGeometry
+
+
+@rfm.simple_test
+class TestFractalBoxGeometryMpiDecomposition(MpiMixin, TestFractalBoxGeometry):
+    """Extra Fractal Box test.
+
+    This tests that so long as the area covered by the fractal box has
+    an MPI decomposition of 1 in a dimension, the model will run
+    successfully.
+
+    N.B: These tests would fail if run using the 'fractal_box_full'
+    model.
+    """
+
+    tags = {"test", "mpi", "geometery", "fractal", "box", "fractal_box"}
+    mpi_layout = parameter([[2, 4, 4], [4, 2, 4], [4, 4, 2]])
+    test_dependency = TestFractalBoxGeometry
+    model = parameter(["fractal_box_small"])
 
 
 @rfm.simple_test
@@ -207,6 +325,9 @@ class TestSphereGeometryMpi(MpiMixin, TestSphereGeometry):
     test_dependency = TestSphereGeometry
 
 
+# Fails for the 'triangle_z_rigid' model due to slight differences in
+# the model built by the MPI and non-MPI implementations. This is
+# caused by floating point errors when building the geometry.
 @rfm.simple_test
 class TestTriangleGeometryMpi(MpiMixin, TestTriangleGeometry):
     tags = {"test", "mpi", "geometery", "triangle"}

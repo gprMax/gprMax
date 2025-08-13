@@ -59,6 +59,13 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
+    :caption: Developers
+
+    contributing
+    reframe_test_suite
+
+.. toctree::
+    :maxdepth: 2
     :caption: Appendices
 
     references

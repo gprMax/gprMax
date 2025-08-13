@@ -1,10 +1,12 @@
 from pathlib import Path
+from shutil import copyfile
 from typing import Optional
 
+import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
 from numpy import prod
 from reframe import RegressionMixin
-from reframe.core.builtins import parameter, required, run_after, variable
+from reframe.core.builtins import parameter, run_after, variable
 from typing_extensions import TYPE_CHECKING
 
 from reframe_tests.tests.base_tests import GprMaxBaseTest
@@ -27,11 +29,25 @@ else:
 
 
 class ReceiverMixin(GprMaxMixin):
+    """Add regression tests for receivers.
+
+    Attributes:
+        number_of_receivers (int): Number of receivers to run regression
+            checks on. For values of 0 or less, the whole output file
+            will be checked. Default -1.
+    """
+
     number_of_receivers = variable(int, value=-1)
 
-    @run_after("setup")
+    @run_after("setup", always_last=True)
     def add_receiver_regression_checks(self):
-        reference_file = self.build_reference_filepath(self.output_file)
+        """Add a regression check for each receiver."""
+        test_dependency = self.get_test_dependency()
+        if test_dependency is None:
+            reference_file = self.build_reference_filepath(self.output_file)
+        else:
+            output_file = self.build_output_file_path(test_dependency.model)
+            reference_file = self.build_reference_filepath(output_file)
 
         if self.number_of_receivers > 0:
             for i in range(self.number_of_receivers):
@@ -47,6 +63,8 @@ class ReceiverMixin(GprMaxMixin):
 class SnapshotMixin(GprMaxMixin):
     """Add regression tests for snapshots.
 
+    The test will be skipped if no snapshots are specified.
+
     Attributes:
         snapshots (list[str]): List of snapshots to run regression
             checks on.
@@ -60,7 +78,7 @@ class SnapshotMixin(GprMaxMixin):
         Args:
             snapshot: Name of the snapshot.
         """
-        return Path(f"{self.model}_snaps", snapshot).with_suffix(".h5")
+        return Path(f"{self.model}_snaps", snapshot)
 
     @run_after("setup")
     def add_snapshot_regression_checks(self):
@@ -75,7 +93,7 @@ class SnapshotMixin(GprMaxMixin):
 
         for snapshot in self.snapshots:
             snapshot_file = self.build_snapshot_filepath(snapshot)
-            reference_file = self.build_reference_filepath(snapshot)
+            reference_file = self.build_reference_filepath(snapshot, suffix=snapshot_file.suffix)
             regression_check = SnapshotRegressionCheck(snapshot_file, reference_file)
             self.regression_checks.append(regression_check)
 
@@ -88,16 +106,7 @@ class GeometryOnlyMixin(GprMaxMixin):
         self.executable_opts += ["--geometry-only"]
 
 
-class GeometryObjectMixin(GprMaxMixin):
-    """Add regression tests for geometry objects.
-
-    Attributes:
-        geometry_objects (list[str]): List of geometry objects to run
-            regression checks on.
-    """
-
-    geometry_objects = variable(typ.List[str], value=[])
-
+class GeometryObjectMixinBase(GprMaxMixin):
     def build_geometry_object_filepath(self, geometry_object: str) -> Path:
         """Build filepath to the specified geometry object.
 
@@ -114,18 +123,100 @@ class GeometryObjectMixin(GprMaxMixin):
         """
         return Path(f"{geometry_object}_materials").with_suffix(".txt")
 
+
+class GeometryObjectsReadMixin(GeometryObjectMixinBase):
+    """Read geometry object(s) created by a test dependency.
+
+    This mixin must be used with a test dependency.
+
+    The test will also be skipped if no geometry objects have been
+    specified, or if the test dependency did not create a specified
+    geometry object.
+
+    Attributes:
+        geometry_objects_read (dict[str, str]): Mapping of geometry
+            objects. The keys are the name of the geometry object(s)
+            created by the test dependency. The values are the name
+            expected by the current test.
+
+    """
+
+    geometry_objects_read = variable(typ.Dict[str, str], value={})
+
+    @run_after("setup")
+    def copy_geometry_objects_from_test_dependency(self):
+        """Copy geometry objects to be read to the stage directory.
+
+        The test will be skipped if no test dependency if provided, no
+        geometry objects have been specified, or if the test dependency
+        did not create a specified geometry object.
+        """
+        self.skip_if(
+            len(self.geometry_objects_read) < 0,
+            f"Must provide a list of geometry objects being read by the test.",
+        )
+
+        test_dependency = self.get_test_dependency()
+
+        self.skip_if(
+            test_dependency is None,
+            f"GeometryObjectsReadMixin must be used with a test dependency.",
+        )
+
+        for geometry_object_input, geometry_object_output in self.geometry_objects_read.items():
+            geometry_object_input_file = self.build_geometry_object_filepath(geometry_object_input)
+            geometry_object_input_file = Path(test_dependency.stagedir, geometry_object_input_file)
+
+            materials_input_file = self.build_materials_filepath(geometry_object_input)
+            materials_input_file = Path(test_dependency.stagedir, materials_input_file)
+
+            self.skip_if(
+                not sn.path_isfile(geometry_object_input_file),
+                f"Test dependency did not create geometry object file.",
+            )
+
+            self.skip_if(
+                not sn.path_isfile(materials_input_file),
+                f"Test dependency did not create geometry object materials file.",
+            )
+
+            geometry_object_output_file = self.build_geometry_object_filepath(
+                geometry_object_output
+            )
+            geometry_object_output_file = Path(self.stagedir, geometry_object_output_file)
+
+            materials_output_file = self.build_materials_filepath(geometry_object_output)
+            materials_output_file = Path(self.stagedir, materials_output_file)
+
+            copyfile(geometry_object_input_file, geometry_object_output_file)
+            copyfile(materials_input_file, materials_output_file)
+
+
+class GeometryObjectsWriteMixin(GeometryObjectMixinBase):
+    """Add regression tests for geometry objects.
+
+    The test will be skipped if no geometry objects have been specified.
+
+    Attributes:
+        geometry_objects_write (list[str]): List of geometry objects to
+            run regression checks on.
+    """
+
+    geometry_objects_write = variable(typ.List[str], value=[])
+
     @run_after("setup")
     def add_geometry_object_regression_checks(self):
         """Add a regression check for each geometry object.
 
-        The test will be skipped if no geometry objects have been specified.
+        The test will be skipped if no geometry objects have been
+        specified.
         """
         self.skip_if(
-            len(self.geometry_objects) < 0,
-            f"Must provide a list of geometry objects.",
+            len(self.geometry_objects_write) < 0,
+            f"Must provide a list of geometry objects being written by the test.",
         )
 
-        for geometry_object in self.geometry_objects:
+        for geometry_object in self.geometry_objects_write:
             # Add materials regression check first as if this fails,
             # checking the .h5 file will almost definitely fail.
             materials_file = self.build_materials_filepath(geometry_object)
@@ -138,13 +229,17 @@ class GeometryObjectMixin(GprMaxMixin):
             self.regression_checks.append(materials_regression_check)
 
             geometry_object_file = self.build_geometry_object_filepath(geometry_object)
-            reference_file = self.build_reference_filepath(geometry_object)
+            reference_file = self.build_reference_filepath(
+                geometry_object, suffix=geometry_object_file.suffix
+            )
             regression_check = GeometryObjectRegressionCheck(geometry_object_file, reference_file)
             self.regression_checks.append(regression_check)
 
 
 class GeometryViewMixin(GprMaxMixin):
     """Add regression tests for geometry views.
+
+    The test will be skipped if no geometry views have been specified.
 
     Attributes:
         geometry_views (list[str]): List of geometry views to run
@@ -165,7 +260,8 @@ class GeometryViewMixin(GprMaxMixin):
     def add_geometry_view_regression_checks(self):
         """Add a regression check for each geometry view.
 
-        The test will be skipped if no geometry views have been specified.
+        The test will be skipped if no geometry views have been
+        specified.
         """
         self.skip_if(
             len(self.geometry_views) < 0,
@@ -194,7 +290,17 @@ class MpiMixin(GprMaxMixin):
 
     Attributes:
         mpi_layout (parameter[list[int]]): ReFrame parameter to specify
-            how MPI tasks should be arranged.
+            how MPI tasks should be arranged. This allows the same test
+            to be run in multiple MPI configurations. E.g::
+
+                mpi_layout = parameter([
+                    [2, 2, 2],
+                    [3, 3, 3],
+                    [4, 4, 4],
+                ])
+
+            will generate three tests with 8, 27, and 64 MPI tasks
+            respectively.
     """
 
     mpi_layout = parameter()
@@ -210,7 +316,14 @@ class BScanMixin(GprMaxMixin):
     """Test a B-scan model - a model with a moving source and receiver.
 
     Attributes:
-        num_models (parameter[int]): Number of models to run.
+        num_models (parameter[int]): ReFrame parameter to specify the
+            number of models to run. This allows the same test
+            to be run in multiple configurations. E.g::
+
+                mpi_layout = parameter([10, 60])
+
+            will generate two tests that run 10 and 60 models
+            respectively.
     """
 
     num_models = parameter()
@@ -250,7 +363,11 @@ class BScanMixin(GprMaxMixin):
 
 
 class TaskfarmMixin(GprMaxMixin):
-    """Run test using GprMax taskfarm functionality."""
+    """Run test using GprMax taskfarm functionality.
+
+    Attributes:
+        num_tasks (int): Number of tasks required by this test.
+    """
 
     # TODO: Make this a required variabe, or create a new variable to
     # proxy it.

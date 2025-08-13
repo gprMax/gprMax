@@ -13,5 +13,7 @@
 #sphere: 0.05 0.05 0.05 0.03 myWater y
 #box: 0.01 0.01 0.01 0.09 0.025 0.025 boxMaterial y
 
-#geometry_view: 0.02 0.02 0.02 0.06 0.06 0.06 0.001 0.001 0.001 partial_volume f
-#geometry_view: 0 0 0 0.1 0.1 0.1 0.001 0.001 0.001 full_volume f
+#geometry_view: 0.04 0.04 0.04 0.06 0.06 0.06 0.001 0.001 0.001 partial_volume f
+#geometry_view: 0 0 0.048 0.1 0.1 0.049 0.001 0.001 0.001 z_plane_48 f
+#geometry_view: 0 0 0.049 0.1 0.1 0.05 0.001 0.001 0.001 z_plane_49 f
+#geometry_view: 0 0 0.05 0.1 0.1 0.051 0.001 0.001 0.001 z_plane_50 f

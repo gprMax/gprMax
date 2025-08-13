@@ -10,7 +10,16 @@ class Test2DSnapshot(GprMaxSnapshotTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole", "snapshot"}
     sourcesdir = "src/snapshot_tests"
     model = parameter(["whole_domain_2d"])
-    snapshots = ["snapshot_0.h5", "snapshot_1.h5", "snapshot_2.h5", "snapshot_3.h5"]
+    snapshots = [
+        "snapshot_0.h5",
+        "snapshot_1.h5",
+        "snapshot_2.h5",
+        "snapshot_3.h5",
+        "snapshot_0.vtkhdf",
+        "snapshot_1.vtkhdf",
+        "snapshot_2.vtkhdf",
+        "snapshot_3.vtkhdf",
+    ]
 
 
 @rfm.simple_test
@@ -18,7 +27,16 @@ class TestSnapshot(GprMaxSnapshotTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole", "snapshot"}
     sourcesdir = "src/snapshot_tests"
     model = parameter(["whole_domain"])
-    snapshots = ["snapshot_0.h5", "snapshot_1.h5", "snapshot_2.h5", "snapshot_3.h5"]
+    snapshots = [
+        "snapshot_0.h5",
+        "snapshot_1.h5",
+        "snapshot_2.h5",
+        "snapshot_3.h5",
+        "snapshot_0.vtkhdf",
+        "snapshot_1.vtkhdf",
+        "snapshot_2.vtkhdf",
+        "snapshot_3.vtkhdf",
+    ]
 
 
 @rfm.simple_test
@@ -39,6 +57,18 @@ class Test2DSliceSnapshot(GprMaxSnapshotTest):
         "snapshot_z_25.h5",
         "snapshot_z_55.h5",
         "snapshot_z_85.h5",
+        "snapshot_x_05.vtkhdf",
+        "snapshot_x_35.vtkhdf",
+        "snapshot_x_65.vtkhdf",
+        "snapshot_x_95.vtkhdf",
+        "snapshot_y_15.vtkhdf",
+        "snapshot_y_40.vtkhdf",
+        "snapshot_y_45.vtkhdf",
+        "snapshot_y_50.vtkhdf",
+        "snapshot_y_75.vtkhdf",
+        "snapshot_z_25.vtkhdf",
+        "snapshot_z_55.vtkhdf",
+        "snapshot_z_85.vtkhdf",
     ]
 
 

@@ -9,6 +9,7 @@ jinja2
 jupyter
 matplotlib
 mpi4py
+mpi4py-fft
 numpy<2
 numpy-stl
 pandas
@@ -21,10 +22,8 @@ scipy
 terminaltables
 tqdm
 wheel
-reframe-hpc
-pytest
-pytest-cov
-# pytest-benchmark
-# pytest-benchmark[histogram]
-# pytest-regressions
-git+https://github.com/craig-warren/PyEVTK.git
+
+# The following are required to run the ReFrame test suite (uncomment if
+# needed):
+
+# reframe-hpc

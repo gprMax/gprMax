@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -24,7 +24,6 @@ import numpy as np
 import numpy.typing as npt
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.snapshots import Snapshot as SnapshotUser
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -50,7 +49,7 @@ class Snapshot(OutputUserObject):
                             must be specified for point in time at which the
                             snapshot will be taken.
         fileext: optional string to indicate type for snapshot file, either
-                            '.vti' (default) or '.h5'
+                            '.vtkhdf' (default) or '.h5'
         outputs: optional list of outputs for receiver. It can be any
                     selection from Ex, Ey, Ez, Hx, Hy, or Hz.
     """
@@ -121,9 +120,7 @@ class Snapshot(OutputUserObject):
         # correction has been applied.
         while any(discretised_upper_bound < upper_bound):
             try:
-                uip.point_within_bounds(
-                    upper_bound, f"[{upper_bound[0]}, {upper_bound[1]}, {upper_bound[2]}]"
-                )
+                grid.within_bounds(upper_bound)
                 upper_bound_within_grid = True
             except ValueError:
                 upper_bound_within_grid = False
@@ -214,12 +211,6 @@ class Snapshot(OutputUserObject):
                 f" Valid options are: {' '.join(SnapshotUser.fileexts)}."
             )
 
-        # TODO: Allow VTKHDF files when they are implemented
-        if isinstance(grid, MPIGrid) and self.file_extension != ".h5":
-            raise ValueError(
-                f"{self.params_str()} currently only '.h5' snapshots are compatible with MPI."
-            )
-
         if self.outputs is None:
             outputs = dict.fromkeys(SnapshotUser.allowableoutputs, True)
         else:
@@ -258,8 +249,7 @@ class Snapshot(OutputUserObject):
                 f" {dl[0]:g}m, {dl[1]:g}m, {dl[2]:g}m, at"
                 f" {snapshot.time * grid.dt:g} secs with field outputs"
                 f" {', '.join([k for k, v in outputs.items() if v])} "
-                f" and filename {snapshot.filename}{snapshot.fileext}"
-                " will be created."
+                f" and filename {snapshot.filename} will be created."
             )
 
 
@@ -274,7 +264,7 @@ class GeometryView(OutputUserObject):
         p2: tuple required for upper right (x,y,z) coordinates of volume of
                 geometry view in metres.
         dl: tuple required for spatial discretisation of geometry view in metres.
-        output_tuple: string required for per-cell 'n' (normal) or per-cell-edge
+        output_type: string required for per-cell 'n' (normal) or per-cell-edge
                         'f' (fine) geometry views.
         filename: string required for filename where geometry view will be
                     stored in the same directory as input file.
@@ -302,18 +292,6 @@ class GeometryView(OutputUserObject):
         self.dl = dl
         self.filename = filename
         self.output_type = output_type
-
-    def geometry_view_constructor(self, output_type):
-        """Selects appropriate class for geometry view dependent on geometry
-        view type, i.e. normal or fine.
-        """
-
-        if output_type == "n":
-            from gprMax.geometry_outputs import GeometryViewVoxels as GeometryViewUser
-        else:
-            from gprMax.geometry_outputs import GeometryViewLines as GeometryViewUser
-
-        return GeometryViewUser
 
     def build(self, model: Model, grid: FDTDGrid):
         uip = self._create_uip(grid)
