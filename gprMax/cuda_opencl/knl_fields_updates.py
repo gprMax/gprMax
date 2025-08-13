@@ -48,6 +48,21 @@ update_electric = {
                         __global const $REAL* restrict Hz
                     """
     ),
+    "args_metal": Template(
+        """
+                kernel void update_electric(device const int& NX,
+                                            device const int& NY,
+                                            device const int& NZ,
+                                            device const uint* ID,
+                                            device $REAL* Ex,
+                                            device $REAL* Ey,
+                                            device $REAL* Ez,
+                                            device const $REAL* Hx,
+                                            device const $REAL* Hy,
+                                            device const $REAL* Hz,
+                                            uint i [[thread_position_in_grid]])
+                    """
+    ),
     "func": Template(
         """
     // Electric field updates - normal materials.
@@ -122,6 +137,21 @@ update_magnetic = {
                         __global const $REAL* restrict Ex,
                         __global const $REAL* restrict Ey,
                         __global const $REAL* restrict Ez
+                    """
+    ),
+    "args_metal": Template(
+        """
+                kernel void update_magnetic(device const int& NX,
+                                            device const int& NY,
+                                            device const int& NZ,
+                                            device const uint* ID,
+                                            device $REAL* Hx,
+                                            device $REAL* Hy,
+                                            device $REAL* Hz,
+                                            device const $REAL* Ex,
+                                            device const $REAL* Ey,
+                                            device const $REAL* Ez,
+                                            uint i [[thread_position_in_grid]])
                     """
     ),
     "func": Template(
@@ -208,6 +238,26 @@ update_electric_dispersive_A = {
                         __global $COMPLEX *Tx,
                         __global $COMPLEX *Ty,
                         __global $COMPLEX *Tz
+                    """
+    ),
+    "args_metal": Template(
+        """
+                kernel void update_electric_dispersive_A(device const int& NX,
+                                            device const int& NY,
+                                            device const int& NZ,
+                                            device const int& MAXPOLES,
+                                            device const $COMPLEX* updatecoeffsdispersive,
+                                            device $COMPLEX* Tx,
+                                            device $COMPLEX* Ty,
+                                            device $COMPLEX* Tz,
+                                            device const uint* ID,
+                                            device $REAL* Ex,
+                                            device $REAL* Ey,
+                                            device $REAL* Ez,
+                                            device const $REAL* Hx,
+                                            device const $REAL* Hy,
+                                            device const $REAL* Hz,
+                                            uint i [[thread_position_in_grid]])
                     """
     ),
     "func": Template(
@@ -319,6 +369,23 @@ update_electric_dispersive_B = {
                         __global $COMPLEX *Tx,
                         __global $COMPLEX *Ty,
                         __global $COMPLEX *Tz
+                    """
+    ),
+    "args_metal": Template(
+        """
+                kernel void update_electric_dispersive_B(device const int& NX,
+                                            device const int& NY,
+                                            device const int& NZ,
+                                            device const int& MAXPOLES,
+                                            device const $COMPLEX* updatecoeffsdispersive,
+                                            device $COMPLEX* Tx,
+                                            device $COMPLEX* Ty,
+                                            device $COMPLEX* Tz,
+                                            device const uint* ID,
+                                            device const $REAL* Ex,
+                                            device const $REAL* Ey,
+                                            device const $REAL* Ez,
+                                            uint i [[thread_position_in_grid]])
                     """
     ),
     "func": Template(

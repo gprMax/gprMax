@@ -39,7 +39,7 @@ from gprMax.config import ModelConfig
 from ._version import __version__, codename
 from .model import Model
 from .solvers import create_solver
-from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info
+from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info, print_metal_info
 from .utilities.utilities import get_terminal_width, logo, timer
 
 logger = logging.getLogger(__name__)
@@ -70,6 +70,8 @@ class Context:
             print_cuda_info(config.sim_config.devices["devs"])
         elif config.sim_config.general["solver"] == "opencl":
             print_opencl_info(config.sim_config.devices["devs"])
+        elif config.sim_config.general["solver"] == "metal":
+            print_metal_info(config.sim_config.devices["devs"])
 
     def _end_simulation(self) -> None:
         """Run post-simulation steps

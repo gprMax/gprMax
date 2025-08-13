@@ -1,19 +1,20 @@
 {% extends "knl_common_base.tmpl" %}
 
 {% block header %}
-#include <pyopencl-complex.h>
+#include <metal_stdlib>
+using namespace metal;
 {% endblock header %}
 
 
 {% block constmem %}
-__constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] =
+constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] =
 {
     {% for i in updatecoeffsE %}
     {{i}},
     {% endfor %}
 };
 
-__constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] =
+constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] =
 {
     {% for i in updatecoeffsH %}
     {{i}},

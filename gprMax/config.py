@@ -34,7 +34,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities.host_info import detect_cuda_gpus, detect_opencl, get_host_info
+from .utilities.host_info import detect_cuda_gpus, detect_opencl, detect_metal, get_host_info
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -57,11 +57,13 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to
         #           fit on the memory of the GPU. If True this will slow
         #           performance significantly.
-        if sim_config.general["solver"] in ["cuda", "opencl"]:
+        if sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             if sim_config.general["solver"] == "cuda":
                 devs = sim_config.args.gpu
-            else:  # opencl
+            elif sim_config.general["solver"] == "opencl":
                 devs = sim_config.args.opencl
+            else:  # metal
+                devs = sim_config.args.metal
 
             # If a list of lists of deviceIDs is found, flatten it
             if any(isinstance(element, list) for element in devs):
@@ -226,8 +228,9 @@ class SimulationConfig:
             logger.error("The geometry fixed option cannot be used with MPI taskfarm.")
             raise ValueError
 
-        if self.gpu and self.opencl:
-            logger.error("You cannot use both CUDA and OpenCl simultaneously.")
+        non_cpu_solvers = [self.args.gpu, self.args.opencl, self.args.metal]
+        if non_cpu_solvers.count(True) > 1:
+            logger.error("You cannot use combinations of CUDA, OpenCl and Apple Metal solvers simultaneously.")
             raise ValueError
 
         if self.mpi and hasattr(self.args, "subgrid") and self.args.subgrid:
@@ -243,7 +246,7 @@ class SimulationConfig:
         self.model_configs: List[Optional[ModelConfig]] = [None] * self.number_of_models
 
         # General settings for the simulation
-        #   solver: cpu, cuda, opencl.
+        #   solver: cpu, cuda, opencl, metal.
         #   precision: data type for electromagnetic field output (single/double).
         #   progressbars: progress bars on stdoout or not - switch off
         #     progressbars when logging level is greater than info (20)
@@ -303,6 +306,15 @@ class SimulationConfig:
 
             # Add pyopencl available device(s)
             self.devices["devs"] = detect_opencl()
+        
+        # Apple Metal
+        if self.args.metal is not None:
+            self.general["solver"] = "metal"
+            self.general["precision"] = "single"
+            self.devices = {"devs": [], "compiler_opts": None}  # Apple Metal device object(s); compiler options
+
+            # Add metal available device(s)
+            self.devices["devs"] = detect_metal()
 
         # Subgrids
         if hasattr(self.args, "subgrid") and self.args.subgrid:
@@ -310,10 +322,11 @@ class SimulationConfig:
             # Double precision should be used with subgrid for best accuracy
             self.general["precision"] = "double"
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
-                self.general["subgrid"] and self.general["solver"] == "opencl"
+                self.general["subgrid"] and self.general["solver"] == "opencl") or (
+                self.general["subgrid"] and self.general["solver"] == "metal"
             ):
                 logger.error(
-                    "You cannot currently use CUDA or OpenCL-based solvers with models that contain sub-grids."
+                    "You cannot currently use CUDA, OpenCL, or Metal based solvers with models that contain sub-grids."
                 )
                 raise ValueError
         else:
@@ -336,13 +349,13 @@ class SimulationConfig:
         self._set_model_start_end()
 
     def set_model_device(self, deviceID):
-        """Specify pycuda/pyopencl object for model.
+        """Specify pycuda/pyopencl/pyobjc object for model.
 
         Args:
             deviceID: int of requested deviceID of compute device.
 
         Returns:
-            dev: requested pycuda/pyopencl device object.
+            dev: requested pycuda/pyopencl/pyobjc device object.
         """
 
         found = False
@@ -378,6 +391,8 @@ class SimulationConfig:
                 self.dtypes["C_complex"] = "pycuda::complex<float>"
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cfloat"
+            elif self.general["solver"] == "metal":
+                self.dtypes["C_complex"] = "metal::complex<float>"
 
         elif self.general["precision"] == "double":
             self.dtypes = {
@@ -392,6 +407,8 @@ class SimulationConfig:
                 self.dtypes["C_complex"] = "pycuda::complex<double>"
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cdouble"
+            elif self.general["solver"] == "metal":
+                self.dtypes["C_complex"] = "metal::complex<double>"
 
     def _set_input_file_path(self):
         """Sets input file path for CLI or API."""

@@ -82,6 +82,38 @@ x_args = {
                         $REAL d
                     """
     ),
+    "metal": Template(
+        """
+                        kernel void $FUNC(device const int& xs,
+                                        device const int& xf,
+                                        device const int& ys,
+                                        device const int& yf,
+                                        device const int& zs,
+                                        device const int& zf,
+                                        device const int& NX_PHI1,
+                                        device const int& NY_PHI1,
+                                        device const int& NZ_PHI1,
+                                        device const int& NX_PHI2,
+                                        device const int& NY_PHI2,
+                                        device const int& NZ_PHI2,
+                                        device const int& NY_R,
+                                        device const uint* ID,
+                                        device const $REAL* Ex,
+                                        device $REAL *Ey,
+                                        device $REAL *Ez,
+                                        device const $REAL* Hx,
+                                        device const $REAL* Hy,
+                                        device const $REAL* Hz,
+                                        device $REAL *PHI1,
+                                        device $REAL *PHI2,
+                                        device const $REAL* RA,
+                                        device const $REAL* RB,
+                                        device const $REAL* RE,
+                                        device const $REAL* RF,
+                                        device const $REAL& d,
+                                        uint i [[thread_position_in_grid]])
+                    """
+    ),
 }
 
 y_args = {
@@ -145,6 +177,38 @@ y_args = {
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
                         $REAL d
+                    """
+    ),
+    "metal": Template(
+        """
+                        kernel void $FUNC(device const int& xs,
+                                        device const int& xf,
+                                        device const int& ys,
+                                        device const int& yf,
+                                        device const int& zs,
+                                        device const int& zf,
+                                        device const int& NX_PHI1,
+                                        device const int& NY_PHI1,
+                                        device const int& NZ_PHI1,
+                                        device const int& NX_PHI2,
+                                        device const int& NY_PHI2,
+                                        device const int& NZ_PHI2,
+                                        device const int& NY_R,
+                                        device const uint* ID,
+                                        device $REAL *Ex,
+                                        device const $REAL* Ey,
+                                        device $REAL *Ez,
+                                        device const $REAL* Hx,
+                                        device const $REAL* Hy,
+                                        device const $REAL* Hz,
+                                        device $REAL *PHI1,
+                                        device $REAL *PHI2,
+                                        device const $REAL* RA,
+                                        device const $REAL* RB,
+                                        device const $REAL* RE,
+                                        device const $REAL* RF,
+                                        device const $REAL& d,
+                                        uint i [[thread_position_in_grid]])
                     """
     ),
 }
@@ -212,11 +276,45 @@ z_args = {
                         $REAL d
                     """
     ),
+    "metal": Template(
+        """
+                        kernel void $FUNC(device const int& xs,
+                                        device const int& xf,
+                                        device const int& ys,
+                                        device const int& yf,
+                                        device const int& zs,
+                                        device const int& zf,
+                                        device const int& NX_PHI1,
+                                        device const int& NY_PHI1,
+                                        device const int& NZ_PHI1,
+                                        device const int& NX_PHI2,
+                                        device const int& NY_PHI2,
+                                        device const int& NZ_PHI2,
+                                        device const int& NY_R,
+                                        device const uint* ID,
+                                        device $REAL *Ex,
+                                        device $REAL *Ey,
+                                        device const $REAL* Ez,
+                                        device const $REAL* Hx,
+                                        device const $REAL* Hy,
+                                        device const $REAL* Hz,
+                                        device $REAL *PHI1,
+                                        device $REAL *PHI2,
+                                        device const $REAL* RA,
+                                        device const $REAL* RB,
+                                        device const $REAL* RE,
+                                        device const $REAL* RF,
+                                        device const $REAL& d,
+                                        uint i [[thread_position_in_grid]])
+                    """
+    ),
 }
 
 order1_xminus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_metal": x_args["metal"],
+    "args_metal": x_args["metal"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xminus slab.
@@ -301,6 +399,7 @@ order1_xminus = {
 order2_xminus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_metal": x_args["metal"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xminus slab.
@@ -395,6 +494,7 @@ order2_xminus = {
 order1_xplus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_metal": x_args["metal"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xplus slab.
@@ -479,6 +579,7 @@ order1_xplus = {
 order2_xplus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
+    "args_metal": x_args["metal"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xplus slab.
@@ -573,6 +674,7 @@ order2_xplus = {
 order1_yminus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_metal": y_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yminus slab.
@@ -657,6 +759,7 @@ order1_yminus = {
 order2_yminus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_metal": y_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yminus slab.
@@ -751,6 +854,7 @@ order2_yminus = {
 order1_yplus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_metal": y_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yplus slab.
@@ -835,6 +939,7 @@ order1_yplus = {
 order2_yplus = {
     "args_cuda": y_args["cuda"],
     "args_opencl": y_args["opencl"],
+    "args_metal": y_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ez field components for the yplus slab.
@@ -929,6 +1034,7 @@ order2_yplus = {
 order1_zminus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_metal": z_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zminus slab.
@@ -1013,6 +1119,7 @@ order1_zminus = {
 order2_zminus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_metal": z_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zminus slab.
@@ -1107,6 +1214,7 @@ order2_zminus = {
 order1_zplus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_metal": z_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zplus slab.
@@ -1191,6 +1299,7 @@ order1_zplus = {
 order2_zplus = {
     "args_cuda": z_args["cuda"],
     "args_opencl": z_args["opencl"],
+    "args_metal": z_args["metal"],
     "func": Template(
         """
     //  This function updates the Ex and Ey field components for the zplus slab.

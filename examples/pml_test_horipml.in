@@ -1,0 +1,13 @@
+#title: HORIPML PML test
+#domain: 0.050 0.050 0.050
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: ricker 1 1.5e9 my_pulse
+#hertzian_dipole: z 0.025 0.025 0.025 my_pulse
+#rx: 0.035 0.025 0.025
+
+#material: 5 0 1 0 half_space
+#box: 0 0 0 0.050 0.025 0.050 half_space
+
+#pml_cells: 10

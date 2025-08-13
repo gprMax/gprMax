@@ -15,6 +15,7 @@ pandas
 pre-commit
 psutil
 # pycuda
+pyobjc-framework-metal
 # pyopencl
 scipy
 terminaltables

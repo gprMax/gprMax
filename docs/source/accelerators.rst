@@ -1,19 +1,19 @@
 .. _accelerators:
 
-**********************
-OpenMP/MPI/CUDA/OpenCL
-**********************
+****************************
+OpenMP/CUDA/OpenCL/Apple Metal
+****************************
 
 The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelized using different CPU and GPU accelerators to offer performance and flexibility.
 
 1. `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing.
-2. `OpenMP <http://openmp.org>`_ + `MPI <https://mpi4py.readthedocs.io/en/stable/>`_ enables parallelism beyond shared mememory multiprocessing (e.g. multiple nodes on a HPC system).
-3. `NVIDIA CUDA <https://developer.nvidia.com/cuda-toolkit>`_ for NVIDIA GPUs.
-4. `OpenCL <https://www.khronos.org/api/opencl>`_ for a wider range of CPU and GPU hardware.
+2. `NVIDIA CUDA <https://developer.nvidia.com/cuda-toolkit>`_ for NVIDIA GPUs.
+3. `OpenCL <https://www.khronos.org/api/opencl>`_ for a wider range of CPU and GPU hardware.
+4. `Apple Metal <https://developer.apple.com/metal/>`_ for Apple Silicon (M-series) based Mac GPUs.
 
 Each of these approaches to acceleration have different characteristics and hardware/software support. While all these approaches can offer increased performance, OpenMP + MPI can also increase the modelling capabilities of gprMax when running on a multi-node system (e.g. HPC environments). It does this by distributing models accoss multiple nodes, increasing the total amount of memory available and allowing larger models to be simulated.
 
-Additionally, the Message Passing Interface (MPI) can be utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as an independent model, and within each model, OpenMP or CUDA can still be used for parallelism. This creates mixed mode OpenMP/MPI or CUDA/MPI environments.
+Additionally, the Message Passing Interface (MPI) can be utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as an independent model, and within each model, OpenMP, CUDA, OpenCL, or Metal can still be used for parallelism. This creates mixed mode OpenMP/MPI, CUDA/MPI, OpenCL/MPI, or Metal/MPI environments.
 
 Some of these accelerators and frameworks require additional software to be installed. The guidance below explains how to do that and gives examples of usage.
 
@@ -164,6 +164,59 @@ Run one of the test models:
 
     * If you want to select a specific computer device on your system, you can specify an integer after the ``-opencl`` flag. The integer should be the device ID for a specific compute device. If it is not specified it defaults to device ID 0.
     * You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
+
+
+Apple Metal
+===========
+
+Apple Metal provides high-performance GPU acceleration for Apple Silicon (M-series) based Mac systems. The Metal backend in gprMax leverages the unified memory architecture and optimized compute shaders to deliver significant performance improvements over CPU-only execution.
+
+System requirements
+-------------------
+
+The Apple Metal backend requires:
+
+1. **macOS 10.13 or later** - Metal is available on all modern Mac systems
+2. **Apple Silicon (M-series) based GPU** - For optimal performance
+3. **pyobjc-framework-metal** - Python bindings for Apple Metal framework
+
+Software required
+-----------------
+
+The following Python package is required to use Apple Metal acceleration:
+
+1. Install the ``pyobjc-framework-metal`` Python module. Open a Terminal on macOS, navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``. Run ``pip install pyobjc-framework-metal``
+
+.. note::
+
+    The ``pyobjc-framework-metal`` package is included in the gprMax conda environment and requirements.txt file, so it should be automatically installed when setting up gprMax. The Metal backend will be automatically available on compatible macOS systems once this package is installed.
+
+Performance characteristics
+---------------------------
+
+The Metal backend has been extensively validated and benchmarked:
+
+* **Validation**: All Perfectly Matched Layer (PML) implementations (MRIPML, HORIPML) pass validation with 20dB attenuation tolerance
+* **Performance**: Up to 1.27× speedup over CPU execution for large computational domains
+* **Peak performance**: 849.5 Mcells/s achieved with 200×200×200 cell domains
+* **Memory efficiency**: Leverages unified memory architecture for reduced data transfer overhead
+
+Example
+-------
+
+Open a Terminal on macOS, navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``
+
+Run one of the test models with Metal acceleration:
+
+.. code-block:: none
+
+    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -metal
+
+.. note::
+
+    * The Metal backend automatically selects the best available GPU device on your Mac system
+    * Metal is currently available only on macOS systems; other platforms will fall back to CPU or alternative GPU backends
+    * For debugging or development purposes, you can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to understand your hardware capabilities
 
 
 CUDA/MPI

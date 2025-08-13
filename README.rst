@@ -21,7 +21,7 @@ What is gprMax?
 
 gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
-gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes accelerators for CPU using `OpenMP <http://www.openmp.org>`_, CPU/GPU using `OpenCL <https://www.khronos.org/api/opencl>`_, and GPU using `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_. Additionally, MPI support (using `mpi4py <https://mpi4py.readthedocs.io/en/stable/>`_) enables larger scale (multi-node) simulations. There is more information about the different acceleration approaches in the performance section of the documentation.
+gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes accelerators for CPU using `OpenMP <http://www.openmp.org>`_, CPU/GPU using `OpenCL <https://www.khronos.org/api/opencl>`_, GPU using `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_, and GPU using `Apple Metal <https://developer.apple.com/metal/>`_ on macOS with M-series chips. Additionally, MPI support (using `mpi4py <https://mpi4py.readthedocs.io/en/stable/>`_) enables larger scale (multi-node) simulations. There is more information about the different acceleration approaches in the performance section of the documentation.
 
 Using gprMax? Cite us
 ---------------------
@@ -269,6 +269,12 @@ For example to run one of the test models:
 
     (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in
 
+To use Apple Metal GPU acceleration on macOS:
+
+.. code-block:: bash
+
+    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -metal
+
 When the simulation is complete you can plot the A-scan using:
 
 .. code-block:: console
@@ -315,6 +321,9 @@ Optional command line arguments
     * - ``-opencl``
       - list/bool
       - Flag to use OpenCL or list of OpenCL device ID(s) for specific compute device(s).
+    * - ``-metal``
+      - list/bool
+      - Flag to use Apple Metal GPU or list of Metal device ID(s) for specific compute device(s) (macOS with M-series chips).
     * - ``--geometry-only``
       - flag
       - Build a model and produce any geometry views but do not run the simulation, e.g. to check

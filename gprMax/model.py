@@ -33,6 +33,7 @@ from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels
 from gprMax.geometry_outputs.geometry_views import GeometryView, save_geometry_views
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.grid.metal_grid import MetalGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -186,6 +187,8 @@ class Model:
             grid = CUDAGrid()
         elif config.sim_config.general["solver"] == "opencl":
             grid = OpenCLGrid()
+        elif config.sim_config.general["solver"] == "metal":
+            grid = MetalGrid()
 
         return grid
 
@@ -493,7 +496,7 @@ class Model:
                     f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
                     f"This may lead to degraded performance."
                 )
-        elif config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        elif config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
                 platformname = (
@@ -504,14 +507,20 @@ class Model:
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name.split())}'
                 )
-            else:
+            elif config.sim_config.general["solver"] == "cuda":
                 solvername = "CUDA"
                 platformname = ""
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name().split())}'
                 )
-
+            else:  # Metal
+                solvername = "Apple Metal"
+                platformname = ""
+                devicename = (
+                    f'Device {config.get_model_config().device["deviceID"]}: '
+                    f'{" ".join(config.get_model_config().device["dev"].name().split())}'
+                )
             logger.basic(
                 f"\nModel {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
                 f"solving on {config.sim_config.hostinfo['hostname']} "
