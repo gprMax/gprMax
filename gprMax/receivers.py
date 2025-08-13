@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -17,9 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import numpy as np
 
 import gprMax.config as config
+
+logger = logging.getLogger(__name__)
 
 
 class Rx:
@@ -124,28 +127,26 @@ def htod_rx_arrays(G, queue=None, dev=None):
 
         rxcoords_dev = clarray.to_device(queue, rxcoords)
         rxs_dev = clarray.to_device(queue, rxs)
-    
+
     elif config.sim_config.general["solver"] == "metal":
         # Create Metal buffers for receiver coordinates and field components
-        rxcoords_dev = dev.newBufferWithBytes_length_options_(rxcoords, 
-                                                              rxcoords.nbytes, 
-                                                              0)  # 0 for default options
-        rxs_dev = dev.newBufferWithBytes_length_options_(rxs, 
-                                                         rxs.nbytes, 
-                                                         0)  # 0 for default options
+        rxcoords_dev = dev.newBufferWithBytes_length_options_(
+            rxcoords, rxcoords.nbytes, 0
+        )  # 0 for default options
+        rxs_dev = dev.newBufferWithBytes_length_options_(
+            rxs, rxs.nbytes, 0
+        )  # 0 for default options
 
     return rxcoords_dev, rxs_dev
 
 
-def dtoh_rx_array(rxs_dev, rxcoords_dev, G, dev):
+def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
     """Copy output from receivers array used on compute device back to receiver objects.
 
     Args:
         rxs_dev: MTLBuffer for receiver data on compute device.
         rxcoords_dev: MTLBuffer for receiver coordinates on compute device.
         G: FDTDGrid class describing a grid in a model.
-        dev: Apple Metal device object.
-
     """
 
     if config.sim_config.general["solver"] == "metal":
@@ -153,36 +154,45 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, dev):
         # Create NumPy arrays to hold the data
         rxcoords_shape = (len(G.rxs), 3)
         rxs_shape = (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs))
-        
+
         # Initialize arrays
         rxcoords_np = np.zeros(rxcoords_shape, dtype=np.int32)
         rxs_np = np.zeros(rxs_shape, dtype=config.sim_config.dtypes["float_or_double"])
-        
+
         # Copy receiver coordinates from the model (these should be correct)
         for i, rx in enumerate(G.rxs):
             rxcoords_np[i] = [rx.xcoord, rx.ycoord, rx.zcoord]
-        
+
         # Copy data from Metal GPU buffers to numpy arrays
         try:
             # Copy receiver field data from Metal buffer
             # The Metal buffer contains data in the same format as the numpy array
             # rxs_shape: (6 field components, iterations, num_receivers)
             expected_rxs_bytes = rxs_np.nbytes
-            
+
             if rxs_dev.length() == expected_rxs_bytes:
                 # For Metal buffers, use the correct API to read data
                 buffer_size = rxs_dev.length()
                 rxs_buffer = rxs_dev.contents().as_buffer(buffer_size)
-                rxs_np = np.frombuffer(rxs_buffer, dtype=config.sim_config.dtypes["float_or_double"]).reshape(rxs_shape).copy()
-                
-                print(f"Successfully copied {rxs_np.size} elements from Metal GPU buffer to CPU")
+                rxs_np = (
+                    np.frombuffer(
+                        rxs_buffer, dtype=config.sim_config.dtypes["float_or_double"]
+                    )
+                    .reshape(rxs_shape)
+                    .copy()
+                )
+
+                logger.debug(
+                    f"Successfully copied {rxs_np.size} elements from Metal GPU buffer to CPU"
+                )
             else:
-                print(f"Metal rxs buffer size mismatch: expected {expected_rxs_bytes}, got {rxs_dev.length()}")
-                
+                logger.debug(
+                    f"Metal rxs buffer size mismatch: expected {expected_rxs_bytes}, got {rxs_dev.length()}"
+                )
+
         except Exception as e:
-            print(f"Error copying Metal buffer data: {e}")
-            print("Using zero-filled arrays as fallback")
-        
+            logger.exception(f"Error copying Metal buffer data: {e}, using zero-filled arrays as fallback")
+
         # Use the numpy arrays
         rxcoords_dev = rxcoords_np
         rxs_dev = rxs_np
@@ -198,4 +208,6 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, dev):
                 and rx.zcoord == rxcoords_dev[rxd, 2]
             ):
                 for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_dev[Rx.allowableoutputs_dev.index(output), :, rxd]
+                    rx.outputs[output] = rxs_dev[
+                        Rx.allowableoutputs_dev.index(output), :, rxd
+                    ]
