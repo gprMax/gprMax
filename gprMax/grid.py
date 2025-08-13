@@ -101,6 +101,7 @@ class FDTDGrid(Grid):
         # GPU
         # Threads per block - electric and magnetic field updates
         self.tpb = (256, 1, 1)
+        # self.tpb = (1, 1, 1)
 
         # GPU object
         self.gpu = None
