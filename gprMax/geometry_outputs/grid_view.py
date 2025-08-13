@@ -116,6 +116,18 @@ class GridView(Generic[GridType]):
     @property
     def nz(self) -> int:
         return self.size[2]
+    
+    @property
+    def dx(self) -> int:
+        return self.step[0]
+
+    @property
+    def dy(self) -> int:
+        return self.step[1]
+
+    @property
+    def dz(self) -> int:
+        return self.step[2]
 
     def getter_slice(self, dimension: int, upper_bound_exclusive: bool = True) -> slice:
         """Create a slice object for the specified dimension.

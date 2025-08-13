@@ -178,6 +178,18 @@ class Snapshot(Generic[GridType]):
     @property
     def nz(self) -> int:
         return self.grid_view.nz
+    
+    @property
+    def dx(self) -> int:
+        return self.grid_view.dx
+
+    @property
+    def dy(self) -> int:
+        return self.grid_view.dy
+
+    @property
+    def dz(self) -> int:
+        return self.grid_view.dz
 
     def initialise_snapfields(self):
         for k, v in self.outputs.items():
