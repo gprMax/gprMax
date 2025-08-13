@@ -6,12 +6,9 @@ Measures performance across different domain sizes and compares with CPU.
 
 import os
 import subprocess
-import sys
-import time
 import re
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
 
 
 def create_benchmark_input(size, name):
@@ -31,9 +28,9 @@ def create_benchmark_input(size, name):
 #box: 0 0 0 {size*0.001:.3f} {size*0.001/2:.3f} {size*0.001:.3f} half_space
 """
     
-    with open(f"examples/{name}.in", "w") as f:
+    with open(f"testing/benchmarking/{name}.in", "w") as f:
         f.write(content)
-    return f"examples/{name}.in"
+    return f"testing/benchmarking/{name}.in"
 
 
 def run_benchmark(input_file, backend_flag="", output_suffix=""):
@@ -118,10 +115,10 @@ def main():
     print("=" * 60)
     
     # Change to gprMax directory
-    os.chdir("/Users/winr/Downloads/gsoc/gpr-max")
+    os.chdir("/Users/cwarren/Desktop/gprMax")
     
     # Define domain sizes to test (cells per side for cubic domains)
-    domain_sizes = [50, 75, 100, 125, 150, 175, 200]  # Start smaller for Apple Silicon
+    domain_sizes = [50, 75, 100, 125, 150, 175, 200, 250, 300, 400]  # Start smaller for Apple Silicon
     
     # Storage for results
     metal_results = []
@@ -144,7 +141,7 @@ def main():
             print(f"   Metal: {metal_result['performance']:.1f} Mcells/s")
         
         # Test CPU backend
-        print(f"🖥️  Testing CPU backend...")
+        print(f"🖥️ Testing CPU backend...")
         cpu_result = run_benchmark(input_file, "", f"cpu_{size}")
         if cpu_result:
             cpu_result['size'] = size
@@ -174,7 +171,7 @@ def create_performance_plot(metal_results, cpu_results):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
     
     # Performance comparison
-    ax1.plot(metal_sizes, metal_perf, 'ro-', label='Apple Metal (M4)', linewidth=2, markersize=8)
+    ax1.plot(metal_sizes, metal_perf, 'ro-', label='Apple Metal', linewidth=2, markersize=8)
     ax1.plot(cpu_sizes, cpu_perf, 'bo-', label='CPU (OpenMP)', linewidth=2, markersize=8)
     ax1.set_xlabel('Domain Size [cells per side]')
     ax1.set_ylabel('Performance [Mcells/s]')
