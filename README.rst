@@ -18,7 +18,7 @@ What is gprMax?
 
 gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
-gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes accelerators for CPU using `OpenMP <http://www.openmp.org>`_, CPU/GPU using `OpenCL <https://www.khronos.org/api/opencl>`_, and GPU using `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_.
+gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes accelerators for CPU using `OpenMP <http://www.openmp.org>`_, CPU/GPU using `OpenCL <https://www.khronos.org/api/opencl>`_, GPU using `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_, and GPU using `Apple Metal <https://developer.apple.com/metal/>`_ on macOS with M-series chips. Additionally, MPI support (using `mpi4py <https://mpi4py.readthedocs.io/en/stable/>`_) enables larger scale (multi-node) simulations. There is more information about the different acceleration approaches in the performance section of the documentation.
 
 Using gprMax? Cite us
 ---------------------
@@ -153,6 +153,12 @@ For example to run one of the test models:
 
     (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in
 
+To use Apple Metal GPU acceleration on macOS:
+
+.. code-block:: bash
+
+    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -metal
+
 When the simulation is complete you can plot the A-scan using:
 
 .. code-block:: bash
@@ -174,6 +180,7 @@ Argument name          Type      Description
 ``-taskfarm``          integer   number of Message Passing Interface (MPI) tasks, i.e. master + workers, for MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -taskfarm 61``. For further details see the `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
 ``-gpu``               list/bool Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s), e.g. ``-gpu 0 1``
 ``-opencl``            list/bool Flag to use OpenCL or list of OpenCL device ID(s) for specific compute device(s).
+``-metal``             list/bool Flag to use Apple Metal GPU or list of Metal device ID(s) for specific compute device(s) (macOS with M-series chips).
 ``--geometry-only``    flag      Build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax examples/heterogeneous_soil.in --geometry-only``
 ``--geometry-fixed``   flag      Run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
 ``--write-processed``  flag      Write another input file after any Python blocks and include commands in the original input file have been processed. Useful for checking that any Python blocks are being correctly processed into gprMax commands.
