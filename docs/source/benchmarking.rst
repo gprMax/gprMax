@@ -61,16 +61,6 @@ The script will automatically:
 3. Calculate performance metrics using the standard formula above
 4. Generate comparison plots and save results
 
-Results
--------
-
-The Apple Metal backend has been benchmarked extensively and shows:
-
-* **Peak performance**: 849.5 Mcells/s achieved with 200×200×200 cell domains
-* **Optimal speedup**: Up to 1.27× improvement over CPU execution for large domains
-* **Memory efficiency**: Leverages unified memory architecture for reduced overhead
-* **Scaling characteristics**: Performance improvements increase with domain size
-
 Visualization Tools
 ===================
 

@@ -191,16 +191,6 @@ The following Python package is required to use Apple Metal acceleration:
 
     The ``pyobjc-framework-metal`` package is included in the gprMax conda environment and requirements.txt file, so it should be automatically installed when setting up gprMax. The Metal backend will be automatically available on compatible macOS systems once this package is installed.
 
-Performance characteristics
----------------------------
-
-The Metal backend has been extensively validated and benchmarked:
-
-* **Validation**: All Perfectly Matched Layer (PML) implementations (MRIPML, HORIPML) pass validation with 20dB attenuation tolerance
-* **Performance**: Up to 1.27× speedup over CPU execution for large computational domains
-* **Peak performance**: 849.5 Mcells/s achieved with 200×200×200 cell domains
-* **Memory efficiency**: Leverages unified memory architecture for reduced data transfer overhead
-
 Example
 -------
 
