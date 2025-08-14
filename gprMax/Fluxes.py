@@ -68,12 +68,12 @@ class Flux(object):
         self.E_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
         self.H_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
 
-    # def initialise_arrays_fft_gpu(self, G:FDTDGrid):
-    #     import pycuda.gpuarray as gpuarray
-    #     self.E_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-    #     self.E_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-    #     self.H_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-    #     self.H_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+    def initialise_arrays_fft_gpu(self, G:FDTDGrid):
+        import pycuda.gpuarray as gpuarray
+        self.E_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.E_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
         
     def set_number_cells(self, G: FDTDGrid):
         """Defines the cells that are part of the surface flux."""
@@ -159,15 +159,15 @@ class Flux(object):
                     )
 
     def calculate_Poynting_frequency_flux(self, G, incident= False):
-        # if not G.scattering and G.gpu is not None:
-        #     #Need to revert the lists back to CPU lists
-        #     self.E_fft_transform = self.E_fft_transform_gpu.get()
-        #     self.H_fft_transform = self.H_fft_transform_gpu.get()
-        # if not incident:
-        #     #Then calculate the Poynting vector
-        #     self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform), self.H_fft_transform, axis=-1)
-        # else:
-        self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform_empty), self.H_fft_transform_empty, axis=-1)
+        if not G.scattering and G.gpu is not None:
+            #Need to revert the lists back to CPU lists
+            self.E_fft_transform = self.E_fft_transform_gpu.get()
+            self.H_fft_transform = self.H_fft_transform_gpu.get()
+        if not incident:
+            #Then calculate the Poynting vector
+            self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform), self.H_fft_transform, axis=-1)
+        else:
+            self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform_empty), self.H_fft_transform_empty, axis=-1)
 
         #Finally calculate the flux
         self.Poynting_frequency_flux = []
@@ -365,312 +365,312 @@ def solve_cpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
     tsolve = timer() - tsolvestart
     return tsolve
 
-# def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
-#     """Solving using FDTD method on GPU. Implemented using Nvidia CUDA.
+def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
+    """Solving using FDTD method on GPU. Implemented using Nvidia CUDA.
 
-#     Args:
-#         currentmodelrun (int): Current model run number.
-#         modelend (int): Number of last model to run.
-#         G (class): Grid class instance - holds essential parameters describing the model.
+    Args:
+        currentmodelrun (int): Current model run number.
+        modelend (int): Number of last model to run.
+        G (class): Grid class instance - holds essential parameters describing the model.
 
-#     Returns:
-#         tsolve (float): Time taken to execute solving
-#         memsolve (int): memory usage on final iteration in bytes
-#     """
+    Returns:
+        tsolve (float): Time taken to execute solving
+        memsolve (int): memory usage on final iteration in bytes
+    """
 
-#     message = "Running scattering simulation without scattering geometries on GPU" if G.empty_sim else "Running scattering simulation with scattering geometries on GPU"
-#     print(message)
-#     import pycuda.driver as drv
-#     from pycuda.compiler import SourceModule
-#     drv.init()
+    message = "Running scattering simulation without scattering geometries on GPU" if G.empty_sim else "Running scattering simulation with scattering geometries on GPU"
+    print(message)
+    import pycuda.driver as drv
+    from pycuda.compiler import SourceModule
+    drv.init()
 
-#     # Suppress nvcc warnings on Windows
-#     if sys.platform == 'win32':
-#         compiler_opts = ['-w']
-#     else:
-#         compiler_opts = None
+    # Suppress nvcc warnings on Windows
+    if sys.platform == 'win32':
+        compiler_opts = ['-w']
+    else:
+        compiler_opts = None
 
-#     # Create device handle and context on specifc GPU device (and make it current context)
-#     dev = drv.Device(G.gpu.deviceID)
-#     ctx = dev.make_context()
+    # Create device handle and context on specifc GPU device (and make it current context)
+    dev = drv.Device(G.gpu.deviceID)
+    ctx = dev.make_context()
 
-#     print(Fore.BLUE + "G.scattering is " + str(G.scattering) + Fore.RESET)
-#     if G.scattering:
-#         for flux in G.fluxes:
-#             flux.initialise_arrays_fft_gpu(G)
-#     # Electric and magnetic field updates - prepare kernels, and get kernel functions
-#     if Material.maxpoles > 0:
-#         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
-#     else:   # Set to one any substitutions for dispersive materials
-#         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
-#     update_e_gpu = kernels_fields.get_function("update_e")
-#     update_h_gpu = kernels_fields.get_function("update_h")
+    print(Fore.BLUE + "G.scattering is " + str(G.scattering) + Fore.RESET)
+    if G.scattering:
+        for flux in G.fluxes:
+            flux.initialise_arrays_fft_gpu(G)
+    # Electric and magnetic field updates - prepare kernels, and get kernel functions
+    if Material.maxpoles > 0:
+        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
+    else:   # Set to one any substitutions for dispersive materials
+        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
+    update_e_gpu = kernels_fields.get_function("update_e")
+    update_h_gpu = kernels_fields.get_function("update_h")
 
-#     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
-#     updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
-#     updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
-#     if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > G.gpu.constmem:
-#         raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(G.gpu.constmem), G.gpu.deviceID, G.gpu.name))
-#     else:
-#         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
-#         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
+    # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
+    updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
+    updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
+    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > G.gpu.constmem:
+        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(G.gpu.constmem), G.gpu.deviceID, G.gpu.name))
+    else:
+        drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
+        drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
 
-#     # Electric and magnetic field updates - dispersive materials - get kernel functions and initialise array on GPU
-#     if Material.maxpoles > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
-#         update_e_dispersive_A_gpu = kernels_fields.get_function("update_e_dispersive_A")
-#         update_e_dispersive_B_gpu = kernels_fields.get_function("update_e_dispersive_B")
-#         G.gpu_initialise_dispersive_arrays()
+    # Electric and magnetic field updates - dispersive materials - get kernel functions and initialise array on GPU
+    if Material.maxpoles > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
+        update_e_dispersive_A_gpu = kernels_fields.get_function("update_e_dispersive_A")
+        update_e_dispersive_B_gpu = kernels_fields.get_function("update_e_dispersive_B")
+        G.gpu_initialise_dispersive_arrays()
 
-#     # Electric and magnetic field updates - set blocks per grid and initialise field arrays on GPU
-#     G.gpu_set_blocks_per_grid()
-#     G.gpu_initialise_arrays()
+    # Electric and magnetic field updates - set blocks per grid and initialise field arrays on GPU
+    G.gpu_set_blocks_per_grid()
+    G.gpu_initialise_arrays()
 
-#     # PML updates
-#     if G.pmls:
-#         # Prepare kernels
-#         pmlmodulelectric = 'gprMax.pml_updates.pml_updates_electric_' + G.pmlformulation + '_gpu'
-#         kernelelectricfunc = getattr(import_module(pmlmodulelectric), 'kernels_template_pml_electric_' + G.pmlformulation)
-#         pmlmodulemagnetic = 'gprMax.pml_updates.pml_updates_magnetic_' + G.pmlformulation + '_gpu'
-#         kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic), 'kernels_template_pml_magnetic_' + G.pmlformulation)
-#         kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-#         kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=cudafloattype, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsH.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-#         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for PML kernels
-#         updatecoeffsE = kernels_pml_electric.get_global('updatecoeffsE')[0]
-#         updatecoeffsH = kernels_pml_magnetic.get_global('updatecoeffsH')[0]
-#         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
-#         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
-#         # Set block per grid, initialise arrays on GPU, and get kernel functions
-#         for pml in G.pmls:
-#             pml.gpu_initialise_arrays()
-#             pml.gpu_get_update_funcs(kernels_pml_electric, kernels_pml_magnetic)
-#             pml.gpu_set_blocks_per_grid(G)
+    # PML updates
+    if G.pmls:
+        # Prepare kernels
+        pmlmodulelectric = 'gprMax.pml_updates.pml_updates_electric_' + G.pmlformulation + '_gpu'
+        kernelelectricfunc = getattr(import_module(pmlmodulelectric), 'kernels_template_pml_electric_' + G.pmlformulation)
+        pmlmodulemagnetic = 'gprMax.pml_updates.pml_updates_magnetic_' + G.pmlformulation + '_gpu'
+        kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic), 'kernels_template_pml_magnetic_' + G.pmlformulation)
+        kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=cudafloattype, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsH.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for PML kernels
+        updatecoeffsE = kernels_pml_electric.get_global('updatecoeffsE')[0]
+        updatecoeffsH = kernels_pml_magnetic.get_global('updatecoeffsH')[0]
+        drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
+        drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
+        # Set block per grid, initialise arrays on GPU, and get kernel functions
+        for pml in G.pmls:
+            pml.gpu_initialise_arrays()
+            pml.gpu_get_update_funcs(kernels_pml_electric, kernels_pml_magnetic)
+            pml.gpu_set_blocks_per_grid(G)
 
-#     # Receivers
-#     if G.rxs:
-#         # Initialise arrays on GPU
-#         rxcoords_gpu, rxs_gpu = gpu_initialise_rx_arrays(G)
-#         # Prepare kernel and get kernel function
-#         kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, NY_RXCOORDS=3, NX_RXS=6, NY_RXS=G.iterations, NZ_RXS=len(G.rxs), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1), options=compiler_opts)
-#         store_outputs_gpu = kernel_store_outputs.get_function("store_outputs")
+    # Receivers
+    if G.rxs:
+        # Initialise arrays on GPU
+        rxcoords_gpu, rxs_gpu = gpu_initialise_rx_arrays(G)
+        # Prepare kernel and get kernel function
+        kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, NY_RXCOORDS=3, NX_RXS=6, NY_RXS=G.iterations, NZ_RXS=len(G.rxs), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1), options=compiler_opts)
+        store_outputs_gpu = kernel_store_outputs.get_function("store_outputs")
 
-#     # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
-#     if G.voltagesources + G.hertziandipoles + G.magneticdipoles:
-#         kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-#         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for source kernels
-#         updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
-#         updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
-#         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
-#         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
-#         if G.hertziandipoles:
-#             srcinfo1_hertzian_gpu, srcinfo2_hertzian_gpu, srcwaves_hertzian_gpu = gpu_initialise_src_arrays(G.hertziandipoles, G)
-#             update_hertzian_dipole_gpu = kernels_sources.get_function("update_hertzian_dipole")
-#         if G.magneticdipoles:
-#             srcinfo1_magnetic_gpu, srcinfo2_magnetic_gpu, srcwaves_magnetic_gpu = gpu_initialise_src_arrays(G.magneticdipoles, G)
-#             update_magnetic_dipole_gpu = kernels_sources.get_function("update_magnetic_dipole")
-#         if G.voltagesources:
-#             srcinfo1_voltage_gpu, srcinfo2_voltage_gpu, srcwaves_voltage_gpu = gpu_initialise_src_arrays(G.voltagesources, G)
-#             update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
+    # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
+    if G.voltagesources + G.hertziandipoles + G.magneticdipoles:
+        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for source kernels
+        updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
+        updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
+        drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
+        drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
+        if G.hertziandipoles:
+            srcinfo1_hertzian_gpu, srcinfo2_hertzian_gpu, srcwaves_hertzian_gpu = gpu_initialise_src_arrays(G.hertziandipoles, G)
+            update_hertzian_dipole_gpu = kernels_sources.get_function("update_hertzian_dipole")
+        if G.magneticdipoles:
+            srcinfo1_magnetic_gpu, srcinfo2_magnetic_gpu, srcwaves_magnetic_gpu = gpu_initialise_src_arrays(G.magneticdipoles, G)
+            update_magnetic_dipole_gpu = kernels_sources.get_function("update_magnetic_dipole")
+        if G.voltagesources:
+            srcinfo1_voltage_gpu, srcinfo2_voltage_gpu, srcwaves_voltage_gpu = gpu_initialise_src_arrays(G.voltagesources, G)
+            update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
 
-#     # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
-#     if G.snapshots:
-#         # Initialise arrays on GPU
-#         snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu = gpu_initialise_snapshot_array(G)
-#         # Prepare kernel and get kernel function
-#         kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=cudafloattype, NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1), options=compiler_opts)
-#         store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
+    # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
+    if G.snapshots:
+        # Initialise arrays on GPU
+        snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu = gpu_initialise_snapshot_array(G)
+        # Prepare kernel and get kernel function
+        kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=cudafloattype, NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1), options=compiler_opts)
+        store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
 
-#     # #FFT functions
-#     check_constant_memory_usage(G)
-#     save_fields_fluxes_gpu = []
-#     for i in range(len(G.fluxes)):
-#         kernelfieldsfluxesgpu = SourceModule(
-#             kernel_fields_fluxes_gpu.substitute(REAL=cudafloattype, COMPLEX= cudacomplextype,
-#                                                 x_begin= int(G.fluxes[i].bottom_left_corner[0]), y_begin= int(G.fluxes[i].bottom_left_corner[1]), z_begin= int(G.fluxes[i].bottom_left_corner[2]),
-#                                                 NX_FLUX= G.fluxes[i].cells_number[0], NY_FLUX= G.fluxes[i].cells_number[1], NZ_FLUX= G.fluxes[i].cells_number[2],
-#                                                 NF = len(G.fluxes[i].wavelengths), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NC=3,
-#                                                 OMEGA= 'omega_{}'.format(i), EXP_FACTOR= 'exp_factor_{}'.format(i), PHASE= 'phase_{}'.format(i),
-#                                                 SIN_OMEGA= 'sin_omega_{}'.format(i), COS_OMEGA= 'cos_omega_{}'.format(i), NORM= 'norm_{}'.format(i),
-#                                                 IDX_5DX= 'idx_5d_{}'.format(i), IDX_5DY= 'idy_5d_{}'.format(i), IDX_5DZ= 'idz_5d_{}'.format(i), IDX_3D= 'idx_3d_{}'.format(i)
-#                                                 ),
-#                                                 options=compiler_opts)
-#         save_fields_fluxes_gpu.append(kernelfieldsfluxesgpu.get_function("save_fields_flux"))
-#         omega = kernelfieldsfluxesgpu.get_global('omega_{}'.format(i))[0]
-#         drv.memcpy_htod(omega, G.fluxes[i].omega)
+    # #FFT functions
+    check_constant_memory_usage(G)
+    save_fields_fluxes_gpu = []
+    for i in range(len(G.fluxes)):
+        kernelfieldsfluxesgpu = SourceModule(
+            kernel_fields_fluxes_gpu.substitute(REAL=cudafloattype, COMPLEX= cudacomplextype,
+                                                x_begin= int(G.fluxes[i].bottom_left_corner[0]), y_begin= int(G.fluxes[i].bottom_left_corner[1]), z_begin= int(G.fluxes[i].bottom_left_corner[2]),
+                                                NX_FLUX= G.fluxes[i].cells_number[0], NY_FLUX= G.fluxes[i].cells_number[1], NZ_FLUX= G.fluxes[i].cells_number[2],
+                                                NF = len(G.fluxes[i].wavelengths), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NC=3,
+                                                OMEGA= 'omega_{}'.format(i), EXP_FACTOR= 'exp_factor_{}'.format(i), PHASE= 'phase_{}'.format(i),
+                                                SIN_OMEGA= 'sin_omega_{}'.format(i), COS_OMEGA= 'cos_omega_{}'.format(i), NORM= 'norm_{}'.format(i),
+                                                IDX_5DX= 'idx_5d_{}'.format(i), IDX_5DY= 'idy_5d_{}'.format(i), IDX_5DZ= 'idz_5d_{}'.format(i), IDX_3D= 'idx_3d_{}'.format(i)
+                                                ),
+                                                options=compiler_opts)
+        save_fields_fluxes_gpu.append(kernelfieldsfluxesgpu.get_function("save_fields_flux"))
+        omega = kernelfieldsfluxesgpu.get_global('omega_{}'.format(i))[0]
+        drv.memcpy_htod(omega, G.fluxes[i].omega)
 
-#     # Iteration loop timer
-#     iterstart = drv.Event()
-#     iterend = drv.Event()
-#     iterstart.record()
+    # Iteration loop timer
+    iterstart = drv.Event()
+    iterend = drv.Event()
+    iterstart.record()
 
-#     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
 
-#         # Get GPU memory usage on final iteration
-#         if iteration == G.iterations - 1:
-#             memsolve = drv.mem_get_info()[1] - drv.mem_get_info()[0]
+        # Get GPU memory usage on final iteration
+        if iteration == G.iterations - 1:
+            memsolve = drv.mem_get_info()[1] - drv.mem_get_info()[0]
 
-#         # Store field component values for every receiver
-#         if G.rxs:
-#             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
-#                               rxcoords_gpu.gpudata, rxs_gpu.gpudata,
-#                               G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                               G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-#                               block=(1, 1, 1), grid=(round32(len(G.rxs)), 1, 1))
+        # Store field component values for every receiver
+        if G.rxs:
+            store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
+                              rxcoords_gpu.gpudata, rxs_gpu.gpudata,
+                              G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                              G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                              block=(1, 1, 1), grid=(round32(len(G.rxs)), 1, 1))
 
-#         # Store any snapshots
-#         for i, snap in enumerate(G.snapshots):
-#             if snap.time == iteration + 1:
-#                 if not G.snapsgpu2cpu:
-#                     store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
-#                                        np.int32(snap.xf), np.int32(snap.ys),
-#                                        np.int32(snap.yf), np.int32(snap.zs),
-#                                        np.int32(snap.zf), np.int32(snap.dx),
-#                                        np.int32(snap.dy), np.int32(snap.dz),
-#                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-#                                        snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
-#                                        snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
-#                                        block=Snapshot.tpb, grid=Snapshot.bpg)
-#                 else:
-#                     store_snapshot_gpu(np.int32(0), np.int32(snap.xs),
-#                                        np.int32(snap.xf), np.int32(snap.ys),
-#                                        np.int32(snap.yf), np.int32(snap.zs),
-#                                        np.int32(snap.zf), np.int32(snap.dx),
-#                                        np.int32(snap.dy), np.int32(snap.dz),
-#                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-#                                        snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
-#                                        snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
-#                                        block=Snapshot.tpb, grid=Snapshot.bpg)
-#                     gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
-#                                            snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), 0, snap)
+        # Store any snapshots
+        for i, snap in enumerate(G.snapshots):
+            if snap.time == iteration + 1:
+                if not G.snapsgpu2cpu:
+                    store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
+                                       np.int32(snap.xf), np.int32(snap.ys),
+                                       np.int32(snap.yf), np.int32(snap.zs),
+                                       np.int32(snap.zf), np.int32(snap.dx),
+                                       np.int32(snap.dy), np.int32(snap.dz),
+                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                       snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
+                                       snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
+                                       block=Snapshot.tpb, grid=Snapshot.bpg)
+                else:
+                    store_snapshot_gpu(np.int32(0), np.int32(snap.xs),
+                                       np.int32(snap.xf), np.int32(snap.ys),
+                                       np.int32(snap.yf), np.int32(snap.zs),
+                                       np.int32(snap.zf), np.int32(snap.dx),
+                                       np.int32(snap.dy), np.int32(snap.dz),
+                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                       snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
+                                       snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
+                                       block=Snapshot.tpb, grid=Snapshot.bpg)
+                    gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
+                                           snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), 0, snap)
 
-#         # Update magnetic field components
-#         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-#                      G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
-#                      G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
-#                      G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
+        # Update magnetic field components
+        update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
+                     G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
+                     G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
+                     G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
 
-#         # Update magnetic field components with the PML correction
-#         for pml in G.pmls:
-#             pml.gpu_update_magnetic(G)
+        # Update magnetic field components with the PML correction
+        for pml in G.pmls:
+            pml.gpu_update_magnetic(G)
 
-#         # Update magnetic field components for magetic dipole sources
-#         if G.magneticdipoles:
-#             update_magnetic_dipole_gpu(np.int32(len(G.magneticdipoles)), np.int32(iteration),
-#                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
-#                                        srcinfo1_magnetic_gpu.gpudata, srcinfo2_magnetic_gpu.gpudata,
-#                                        srcwaves_magnetic_gpu.gpudata, G.ID_gpu.gpudata,
-#                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-#                                        block=(1, 1, 1), grid=(round32(len(G.magneticdipoles)), 1, 1))
+        # Update magnetic field components for magetic dipole sources
+        if G.magneticdipoles:
+            update_magnetic_dipole_gpu(np.int32(len(G.magneticdipoles)), np.int32(iteration),
+                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                       srcinfo1_magnetic_gpu.gpudata, srcinfo2_magnetic_gpu.gpudata,
+                                       srcwaves_magnetic_gpu.gpudata, G.ID_gpu.gpudata,
+                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                       block=(1, 1, 1), grid=(round32(len(G.magneticdipoles)), 1, 1))
 
-#         # Update electric field components
-#         # If all materials are non-dispersive do standard update
-#         if Material.maxpoles == 0:
-#             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
-#                          G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                          G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-#                          block=G.tpb, grid=G.bpg)
-#         # If there are any dispersive materials do 1st part of dispersive update
-#         # (it is split into two parts as it requires present and updated electric field values).
-#         else:
-#             update_e_dispersive_A_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-#                                       np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
-#                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
-#                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-#                                       block=G.tpb, grid=G.bpg)
+        # Update electric field components
+        # If all materials are non-dispersive do standard update
+        if Material.maxpoles == 0:
+            update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
+                         G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                         G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                         block=G.tpb, grid=G.bpg)
+        # If there are any dispersive materials do 1st part of dispersive update
+        # (it is split into two parts as it requires present and updated electric field values).
+        else:
+            update_e_dispersive_A_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
+                                      np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
+                                      G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
+                                      G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                      G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                      block=G.tpb, grid=G.bpg)
 
-#         # Update electric field components with the PML correction
-#         for pml in G.pmls:
-#             pml.gpu_update_electric(G)
+        # Update electric field components with the PML correction
+        for pml in G.pmls:
+            pml.gpu_update_electric(G)
 
-#         # Update electric field components for voltage sources
-#         if G.voltagesources:
-#             update_voltage_source_gpu(np.int32(len(G.voltagesources)), np.int32(iteration),
-#                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
-#                                       srcinfo1_voltage_gpu.gpudata, srcinfo2_voltage_gpu.gpudata,
-#                                       srcwaves_voltage_gpu.gpudata, G.ID_gpu.gpudata,
-#                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                                       block=(1, 1, 1), grid=(round32(len(G.voltagesources)), 1, 1))
+        # Update electric field components for voltage sources
+        if G.voltagesources:
+            update_voltage_source_gpu(np.int32(len(G.voltagesources)), np.int32(iteration),
+                                      floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                      srcinfo1_voltage_gpu.gpudata, srcinfo2_voltage_gpu.gpudata,
+                                      srcwaves_voltage_gpu.gpudata, G.ID_gpu.gpudata,
+                                      G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                      block=(1, 1, 1), grid=(round32(len(G.voltagesources)), 1, 1))
 
-#         # Update electric field components for Hertzian dipole sources (update any Hertzian dipole sources last)
-#         if G.hertziandipoles:
-#             update_hertzian_dipole_gpu(np.int32(len(G.hertziandipoles)), np.int32(iteration),
-#                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
-#                                        srcinfo1_hertzian_gpu.gpudata, srcinfo2_hertzian_gpu.gpudata,
-#                                        srcwaves_hertzian_gpu.gpudata, G.ID_gpu.gpudata,
-#                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                                        block=(1, 1, 1), grid=(round32(len(G.hertziandipoles)), 1, 1))
+        # Update electric field components for Hertzian dipole sources (update any Hertzian dipole sources last)
+        if G.hertziandipoles:
+            update_hertzian_dipole_gpu(np.int32(len(G.hertziandipoles)), np.int32(iteration),
+                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                       srcinfo1_hertzian_gpu.gpudata, srcinfo2_hertzian_gpu.gpudata,
+                                       srcwaves_hertzian_gpu.gpudata, G.ID_gpu.gpudata,
+                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                       block=(1, 1, 1), grid=(round32(len(G.hertziandipoles)), 1, 1))
 
-#         # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
-#         if Material.maxpoles > 0:
-#             update_e_dispersive_B_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-#                                       np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
-#                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
-#                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-#                                       block=G.tpb, grid=G.bpg)
-#         for i in range(len(G.fluxes)):
-#             G.fluxes[i].save_fields_fluxes(G, iteration, save_fields_fluxes_gpu[i])
+        # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
+        if Material.maxpoles > 0:
+            update_e_dispersive_B_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
+                                      np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
+                                      G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
+                                      G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                      block=G.tpb, grid=G.bpg)
+        for i in range(len(G.fluxes)):
+            G.fluxes[i].save_fields_fluxes(G, iteration, save_fields_fluxes_gpu[i])
             
-#         if iteration == 250 or iteration == 500:
-#             print("======================= \n")
-#             print("Ex = ", G.Ex_gpu.get()[63,63,103])
-#             print("Ey = ", G.Ey_gpu.get()[63,63,103])
-#             print("Ez = ", G.Ez_gpu.get()[63,63,103])
-#             print("Hx = ", G.Hx_gpu.get()[63,63,103])
-#             print("Hy = ", G.Hy_gpu.get()[63,63,103])
-#             print("Hz = ", G.Hz_gpu.get()[63,63,103])
-#             print("\n ============================\n")
+        if iteration == 250 or iteration == 500:
+            print("======================= \n")
+            print("Ex = ", G.Ex_gpu.get()[63,63,103])
+            print("Ey = ", G.Ey_gpu.get()[63,63,103])
+            print("Ez = ", G.Ez_gpu.get()[63,63,103])
+            print("Hx = ", G.Hx_gpu.get()[63,63,103])
+            print("Hy = ", G.Hy_gpu.get()[63,63,103])
+            print("Hz = ", G.Hz_gpu.get()[63,63,103])
+            print("\n ============================\n")
 
-#     for i in range(len(G.fluxes)):
-#         if G.empty_sim:
-#             G.fluxes[i].E_fft_transform_empty = G.fluxes[i].E_fft_transform_empty_gpu.get()
-#             G.fluxes[i].H_fft_transform_empty = G.fluxes[i].H_fft_transform_empty_gpu.get()
+    for i in range(len(G.fluxes)):
+        if G.empty_sim:
+            G.fluxes[i].E_fft_transform_empty = G.fluxes[i].E_fft_transform_empty_gpu.get()
+            G.fluxes[i].H_fft_transform_empty = G.fluxes[i].H_fft_transform_empty_gpu.get()
 
-#         else:
-#             G.fluxes[i].E_fft_transform_scatt = G.fluxes[i].E_fft_transform_scatt_gpu.get()
-#             G.fluxes[i].H_fft_transform_scatt = G.fluxes[i].H_fft_transform_scatt_gpu.get()
+        else:
+            G.fluxes[i].E_fft_transform_scatt = G.fluxes[i].E_fft_transform_scatt_gpu.get()
+            G.fluxes[i].H_fft_transform_scatt = G.fluxes[i].H_fft_transform_scatt_gpu.get()
 
-#     # Copy output from receivers array back to correct receiver objects
-#     if G.rxs:
-#         gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
+    # Copy output from receivers array back to correct receiver objects
+    if G.rxs:
+        gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
 
-#     # Copy data from any snapshots back to correct snapshot objects
-#     if G.snapshots and not G.snapsgpu2cpu:
-#         for i, snap in enumerate(G.snapshots):
-#             gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
-#                                    snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
+    # Copy data from any snapshots back to correct snapshot objects
+    if G.snapshots and not G.snapsgpu2cpu:
+        for i, snap in enumerate(G.snapshots):
+            gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
+                                   snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
 
-#     iterend.record()
-#     iterend.synchronize()
-#     tsolve = iterstart.time_till(iterend) * 1e-3
+    iterend.record()
+    iterend.synchronize()
+    tsolve = iterstart.time_till(iterend) * 1e-3
 
-#     # Remove context from top of stack and delete
-#     ctx.pop()
-#     del ctx
+    # Remove context from top of stack and delete
+    ctx.pop()
+    del ctx
 
-#     return tsolve, memsolve
+    return tsolve, memsolve
 
-# def check_constant_memory_usage(G):
-#     """Vérifier l'utilisation de la mémoire constante"""
+def check_constant_memory_usage(G):
+    """Vérifier l'utilisation de la mémoire constante"""
     
-#     total_constant_memory = 0
+    total_constant_memory = 0
     
-#     # Mémoire des coefficients matériaux
-#     coeff_memory = G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes
-#     total_constant_memory += coeff_memory
-#     print(f"Coefficients matériaux: {coeff_memory} bytes")
+    # Mémoire des coefficients matériaux
+    coeff_memory = G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes
+    total_constant_memory += coeff_memory
+    print(f"Coefficients matériaux: {coeff_memory} bytes")
     
-#     # Mémoire des tableaux omega pour chaque flux
-#     for i, flux in enumerate(G.fluxes):
-#         omega_memory = flux.omega.nbytes
-#         total_constant_memory += omega_memory
-#         print(f"Flux {i} omega: {omega_memory} bytes ({len(flux.omega)} éléments)")
+    # Mémoire des tableaux omega pour chaque flux
+    for i, flux in enumerate(G.fluxes):
+        omega_memory = flux.omega.nbytes
+        total_constant_memory += omega_memory
+        print(f"Flux {i} omega: {omega_memory} bytes ({len(flux.omega)} éléments)")
     
-#     print(f"Total mémoire constante utilisée: {total_constant_memory} bytes")
-#     print(f"Limite GPU (typique): 65536 bytes")
+    print(f"Total mémoire constante utilisée: {total_constant_memory} bytes")
+    print(f"Limite GPU (typique): 65536 bytes")
     
-#     if total_constant_memory > 65536:
-#         print("⚠️  DÉPASSEMENT DE MÉMOIRE CONSTANTE DÉTECTÉ!")
-#         return False
-#     return True
+    if total_constant_memory > 65536:
+        print("⚠️  DÉPASSEMENT DE MÉMOIRE CONSTANTE DÉTECTÉ!")
+        return False
+    return True
