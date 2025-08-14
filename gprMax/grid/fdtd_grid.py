@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -32,10 +32,19 @@ from typing_extensions import TypeVar
 
 from gprMax import config
 from gprMax.cython.pml_build import pml_average_er_mr
-from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
+from gprMax.cython.yee_cell_build import (
+    build_electric_components,
+    build_magnetic_components,
+)
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.fractal_volume import FractalVolume
-from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
+from gprMax.materials import (
+    ListMaterial,
+    Material,
+    PeplinskiSoil,
+    RangeMaterial,
+    process_materials,
+)
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
@@ -63,7 +72,7 @@ class FDTDGrid:
         self.name = "main_grid"
         self.mem_use = 0
 
-        self.size = np.zeros(3, dtype=np.int32)
+        self.size = np.zeros(3, dtype=np.int64)
         self.dl = np.ones(3, dtype=np.float64)
         self.dt = 0.0
 
@@ -175,7 +184,9 @@ class FDTDGrid:
     def dz(self, value: float):
         self.dl[2] = value
 
-    def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
+    def set_pml_thickness(
+        self, thickness: Union[int, Tuple[int, int, int, int, int, int]]
+    ):
         if isinstance(thickness, int) or len(thickness) == 1:
             for key in PML.boundaryIDs:
                 self.pmls["thickness"][key] = int(thickness)
@@ -265,7 +276,9 @@ class FDTDGrid:
         for pml_id, thickness in self.pmls["thickness"].items():
             if thickness > 0:
                 pml = self._construct_pml(pml_id, thickness)
-                averageer, averagemr = self._calculate_average_pml_material_properties(pml)
+                averageer, averagemr = self._calculate_average_pml_material_properties(
+                    pml
+                )
                 logger.debug(
                     f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability ="
                     f" {averagemr}"
@@ -277,7 +290,9 @@ class FDTDGrid:
 
     PmlType = TypeVar("PmlType", bound=PML)
 
-    def _construct_pml(self, pml_ID: str, thickness: int, pml_type: type[PmlType] = PML) -> PmlType:
+    def _construct_pml(
+        self, pml_ID: str, thickness: int, pml_type: type[PmlType] = PML
+    ) -> PmlType:
         """Build PML instance of the specified ID, thickness and type.
 
         Constructs a PML of the specified type and thickness. Properties
@@ -365,7 +380,9 @@ class FDTDGrid:
 
         return pml
 
-    def _calculate_average_pml_material_properties(self, pml: PML) -> Tuple[float, float]:
+    def _calculate_average_pml_material_properties(
+        self, pml: PML
+    ) -> Tuple[float, float]:
         """Calculate average material properties for the provided PML.
 
         Args:
@@ -399,7 +416,9 @@ class FDTDGrid:
         else:
             raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
-        return pml_average_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
+        return pml_average_er_mr(
+            n1, n2, config.get_model_config().ompthreads, solid, ers, mrs
+        )
 
     def _build_components(self) -> None:
         """Build electric and magnetic components of the grid.
@@ -465,7 +484,10 @@ class FDTDGrid:
             self.update_receiver_positions(model_num)
 
     def _update_positions(
-        self, items: Iterable[Union[Source, Rx]], step_size: npt.NDArray[np.int32], step_number: int
+        self,
+        items: Iterable[Union[Source, Rx]],
+        step_size: npt.NDArray[np.int32],
+        step_number: int,
     ) -> None:
         """Update the grid positions of the provided items.
 
@@ -502,10 +524,14 @@ class FDTDGrid:
         """
         try:
             self._update_positions(
-                itertools.chain(self.hertziandipoles, self.magneticdipoles), self.srcsteps, step
+                itertools.chain(self.hertziandipoles, self.magneticdipoles),
+                self.srcsteps,
+                step,
             )
         except ValueError as e:
-            logger.exception("Source(s) will be stepped to a position outside the domain.")
+            logger.exception(
+                "Source(s) will be stepped to a position outside the domain."
+            )
             raise ValueError from e
 
     def update_receiver_positions(self, step: int = 0) -> None:
@@ -521,7 +547,9 @@ class FDTDGrid:
         try:
             self._update_positions(self.rxs, self.rxsteps, step)
         except ValueError as e:
-            logger.exception("Receiver(s) will be stepped to a position outside the domain.")
+            logger.exception(
+                "Receiver(s) will be stepped to a position outside the domain."
+            )
             raise ValueError from e
 
     def within_bounds(self, p: npt.NDArray[np.int32]) -> bool:
@@ -559,7 +587,9 @@ class FDTDGrid:
         z = round_value(float(p[2]) / self.dz)
         return (x, y, z)
 
-    def round_to_grid(self, p: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    def round_to_grid(
+        self, p: Tuple[float, float, float]
+    ) -> Tuple[float, float, float]:
         """Round the provided point to the nearest grid cell.
 
         Args:
@@ -599,7 +629,9 @@ class FDTDGrid:
         Returns:
             waveform: Requested waveform
         """
-        return next(waveform for waveform in self.waveforms if waveform.ID == waveform_id)
+        return next(
+            waveform for waveform in self.waveforms if waveform.ID == waveform_id
+        )
 
     def initialise_geometry_arrays(self):
         """Initialise arrays to store geometry properties.
@@ -712,7 +744,9 @@ class FDTDGrid:
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
         # 12 x rigidE array components + 6 x rigidH array components
-        rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        rigidarrays = (
+            (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        )
 
         # 6 x field arrays + 6 x ID arrays
         fieldarrays = (
@@ -743,7 +777,7 @@ class FDTDGrid:
                     pmlarrays += (self.nx + 1) * self.ny * v
                     pmlarrays += self.nx * (self.ny + 1) * v
 
-        mem_use = int(fieldarrays + solidarray + rigidarrays + pmlarrays)
+        mem_use = fieldarrays + solidarray + rigidarrays + pmlarrays
 
         return mem_use
 
@@ -754,7 +788,7 @@ class FDTDGrid:
             mem_use: int of memory (bytes).
         """
 
-        mem_use = int(
+        mem_use = (
             3
             * config.get_model_config().materials["maxpoles"]
             * (self.nx + 1)
@@ -818,15 +852,18 @@ class FDTDGrid:
         """Calculate time step at the CFL limit."""
         if config.get_model_config().mode == "2D TMx":
             self.dt = 1 / (
-                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
             )
         elif config.get_model_config().mode == "2D TMy":
             self.dt = 1 / (
-                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
             )
         elif config.get_model_config().mode == "2D TMz":
             self.dt = 1 / (
-                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
             )
         else:
             self.dt = 1 / (
@@ -956,7 +993,13 @@ class FDTDGrid:
         # material: material with maximum permittivity
         # maxfreq: maximum significant frequency
         # error: error message
-        results = {"deltavp": None, "N": None, "material": None, "maxfreq": [], "error": ""}
+        results = {
+            "deltavp": None,
+            "N": None,
+            "material": None,
+            "maxfreq": [],
+            "error": "",
+        }
 
         # Find maximum significant frequency
         if self.waveforms:
@@ -984,7 +1027,10 @@ class FDTDGrid:
                         )
 
                     # Ensure source waveform is not being overly truncated before attempting any FFT
-                    if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
+                    if (
+                        np.abs(waveformvalues[-1])
+                        < np.abs(np.amax(waveformvalues)) / 100
+                    ):
                         # FFT
                         freqs, power = fft_power(waveformvalues, self.dt)
                         # Get frequency for max power
@@ -995,7 +1041,9 @@ class FDTDGrid:
                             freqthres = (
                                 np.where(
                                     power[freqmaxpower:]
-                                    < -config.get_model_config().numdispersion["highestfreqthres"]
+                                    < -config.get_model_config().numdispersion[
+                                        "highestfreqthres"
+                                    ]
                                 )[0][0]
                                 + freqmaxpower
                             )
@@ -1069,7 +1117,8 @@ class FDTDGrid:
             ):
                 # Numerical phase velocity
                 vp = np.pi / (
-                    results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
+                    results["N"]
+                    * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
                 )
 
                 # Physical phase velocity error (percentage)
