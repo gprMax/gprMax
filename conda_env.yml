@@ -10,17 +10,17 @@ dependencies:
 - jinja2
 - jupyter
 - matplotlib
-- numpy
+- numpy<2
 - pip
 - psutil
 - scipy
 
 - pip:
   - humanize
-  - mpi4py
-  - mpi4py-fft
+#  - mpi4py
+#  - mpi4py-fft
   - numpy-stl
-  - pyobjc-framework-metal
+#  - pyobjc-framework-metal
 #  - pycuda
 #  - pyopencl
   - terminaltables
