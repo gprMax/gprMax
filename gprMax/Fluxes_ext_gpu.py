@@ -97,6 +97,13 @@ __global__ void save_fields_flux(int NF, int NX, int NY, int NZ,
         FFT_H[$IDX_5DX] += Hx[$IDX_3D] * $EXP_FACTOR;
         FFT_H[$IDX_5DY] += Hy[$IDX_3D] * $EXP_FACTOR;
         FFT_H[$IDX_5DZ] += Hz[$IDX_3D] * $EXP_FACTOR;
+        if (f == 0 && i_fft ==  0 && j_fft == 0 && k_fft == 0 && iteration == 500){                               
+            printf("Ex= %e \\n", Ex[$IDX_3D]);
+            printf("Ey= %e \\n", Ey[$IDX_3D]);
+            printf("Ez= %e \\n", Ez[$IDX_3D]);                              
+            printf("Hx= %e \\n", Hx[$IDX_3D]);
+            printf("Hy= %e \\n", Hy[$IDX_3D]);
+            printf("Hz= %e \\n", Hz[$IDX_3D]);}
         }
     }
 """)

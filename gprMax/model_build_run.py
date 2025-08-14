@@ -81,6 +81,8 @@ from gprMax.utilities import timer
 from gprMax.yee_cell_build_ext import build_electric_components
 from gprMax.yee_cell_build_ext import build_magnetic_components
 from gprMax.Fluxes import Flux, save_file_h5py, solve_scattering
+from gprMax.Fluxes_ext_gpu import kernel_fields_fluxes_gpu
+
 
 
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
@@ -380,13 +382,17 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
 
         # Main FDTD solving functions for either CPU or GPU when no scattering
+        print(Fore.RED + "SCATTERING: " + str(G.scattering) + Fore.RESET)
         if not G.scattering:
             if G.gpu is None:
                 tsolve = solve_cpu(currentmodelrun, modelend, G)
             else:
                 tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
+                print(Fore.RED + str(memsolve) + Fore.RESET)
         else:
             tsolve, memsolve = solve_scattering(currentmodelrun, modelend, G)
+            if G.gpu is not None:
+                print(Fore.RED + str(memsolve) + Fore.RESET)
         
         # Calculate the fluxes through the different surfaces, then sum
         if G.fluxes:
@@ -606,6 +612,22 @@ def solve_gpu(currentmodelrun, modelend, G):
             srcinfo1_voltage_gpu, srcinfo2_voltage_gpu, srcwaves_voltage_gpu = gpu_initialise_src_arrays(G.voltagesources, G)
             update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
 
+    save_fields_fluxes_gpu = []
+    for i in range(len(G.fluxes)):
+        kernelfieldsfluxesgpu = SourceModule(
+            kernel_fields_fluxes_gpu.substitute(REAL=cudafloattype, COMPLEX= cudacomplextype,
+                                                x_begin= int(G.fluxes[i].bottom_left_corner[0]), y_begin= int(G.fluxes[i].bottom_left_corner[1]), z_begin= int(G.fluxes[i].bottom_left_corner[2]),
+                                                NX_FLUX= G.fluxes[i].cells_number[0], NY_FLUX= G.fluxes[i].cells_number[1], NZ_FLUX= G.fluxes[i].cells_number[2],
+                                                NF = len(G.fluxes[i].wavelengths), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NC=3,
+                                                OMEGA= 'omega_{}'.format(i), EXP_FACTOR= 'exp_factor_{}'.format(i), PHASE= 'phase_{}'.format(i),
+                                                SIN_OMEGA= 'sin_omega_{}'.format(i), COS_OMEGA= 'cos_omega_{}'.format(i), NORM= 'norm_{}'.format(i),
+                                                IDX_5DX= 'idx_5d_{}'.format(i), IDX_5DY= 'idy_5d_{}'.format(i), IDX_5DZ= 'idz_5d_{}'.format(i), IDX_3D= 'idx_3d_{}'.format(i)
+                                                ),
+                                                options=compiler_opts)
+        save_fields_fluxes_gpu.append(kernelfieldsfluxesgpu.get_function("save_fields_flux"))
+        omega = kernelfieldsfluxesgpu.get_global('omega_{}'.format(i))[0]
+        drv.memcpy_htod(omega, G.fluxes[i].omega)
+
     # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.snapshots:
         # Initialise arrays on GPU
@@ -726,6 +748,20 @@ def solve_gpu(currentmodelrun, modelend, G):
                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                                       block=G.tpb, grid=G.bpg)
+            
+        for i in range(len(G.fluxes)):
+            G.fluxes[i].save_fields_fluxes(G, iteration, save_fields_fluxes_gpu[i])
+
+        if iteration == 250 or iteration == 500:
+            print("======================= \n")
+            print("Ex = ", G.Ex_gpu.get()[63,63,103])
+            print("Ey = ", G.Ey_gpu.get()[63,63,103])
+            print("Ez = ", G.Ez_gpu.get()[63,63,103])
+            print("Hx = ", G.Hx_gpu.get()[63,63,103])
+            print("Hy = ", G.Hy_gpu.get()[63,63,103])
+            print("Hz = ", G.Hz_gpu.get()[63,63,103])
+            print("\n ============================\n")
+
 
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
