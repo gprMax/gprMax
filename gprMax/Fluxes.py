@@ -27,7 +27,7 @@ from gprMax.materials import Material
 from gprMax.materials import process_materials
 from gprMax.utilities import get_terminal_width
 import sys
-
+import os
 
 from gprMax.receivers import gpu_initialise_rx_arrays
 from gprMax.receivers import gpu_get_rx_array
@@ -52,7 +52,8 @@ from gprMax.Fluxes_ext_gpu import kernel_fields_fluxes_gpu
 class Flux(object):
     possible_normals = ['x', 'y', 'z']
     possible_direction = ['plus', 'minus']
-    def __init__(self, G, normal, direction, bottom_left_corner, top_right_corner, wavelengths):
+    def __init__(self, G: FDTDGrid, normal, direction, bottom_left_corner, top_right_corner, wavelengths):
+
         self.bottom_left_corner = bottom_left_corner
         self.top_right_corner = top_right_corner
         self.normal = normal
@@ -61,20 +62,29 @@ class Flux(object):
         self.wavelengths = wavelengths
         self.omega = 2*np.pi * 299792458 / wavelengths
         if G.scattering:
-            self.E_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-            self.E_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-            self.H_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
-            self.H_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)                 
+            if G.gpu is None:
+                self.E_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.E_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.H_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.H_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+            else:
+                pass # Initialized directly inside the solve_gpu_fluxes function     
         self.E_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
         self.H_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+        self.tpb = G.tpb
+        self.bpg = (int(np.ceil((self.cells_number[0] * self.cells_number[1] * self.cells_number[2]) / self.tpb[0])), 1, 1)
 
-    def initialise_arrays_fft_gpu(self, G:FDTDGrid):
+
+    def initialize_fft_arrays_gpu(self, G: FDTDGrid):
         import pycuda.gpuarray as gpuarray
-        self.E_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        self.E_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        self.H_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        self.H_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
-        
+        self.E_fft_transform_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        if G.scattering:
+                self.E_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+                self.E_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+                self.H_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+                self.H_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+
     def set_number_cells(self, G: FDTDGrid):
         """Defines the cells that are part of the surface flux."""
 
@@ -110,17 +120,19 @@ class Flux(object):
                     G.dt, G.nthreads, iteration
                 )
             else:
-                save_fields_fluxes_gpu(np.int32(len(self.wavelengths)),
-                                        np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
-                                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                        self.E_fft_transform_gpu.gpudata, self.H_fft_transform_gpu.gpudata,
-                                        np.int32(iteration), floattype(G.dt), 
-                                        block=G.tpb, grid=G.bpg
+                save_fields_fluxes_gpu(
+                        np.int32(len(self.wavelengths)), np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
+                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
+                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                        self.E_fft_transform_gpu.gpudata, self.H_fft_transform_gpu.gpudata,
+                        np.int32(iteration), np.float32(G.dt),
+                        block=self.tpb, grid=self.bpg
                 )
+                #After this, we have to convert those lists back to CPU lists
         else:
             if G.gpu is None:
                 if G.empty_sim:
+                    # print(G.Ez[50,50,50])
                     save_fields_fluxes_pyx(
                         G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.omega,
                         self.E_fft_transform_empty, self.H_fft_transform_empty,
@@ -130,6 +142,7 @@ class Flux(object):
                         G.dt, G.nthreads, iteration
                     )
                 else:
+                    # print(G.Ez[50,50,50])
                     save_fields_fluxes_pyx(
                         G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.omega,
                         self.E_fft_transform_scatt, self.H_fft_transform_scatt,
@@ -138,31 +151,61 @@ class Flux(object):
                         int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
                         G.dt, G.nthreads, iteration
                     )
+                #Because the empty simulation goes first, we substract the fields here
+                self.E_fft_transform = self.E_fft_transform_scatt - self.E_fft_transform_empty
+                self.H_fft_transform = self.H_fft_transform_scatt - self.H_fft_transform_empty
+
+                file = open('Simulation_E_fft.txt', 'w')
+                file.write(np.array2string(self.E_fft_transform))
+                file.close()
+                file = open('Simulation_H_fft.txt', 'w')
+                file.write(np.array2string(self.H_fft_transform))
+                file.close()
             else:
                 if G.empty_sim:
-                    save_fields_fluxes_gpu(np.int32(len(self.wavelengths)),
-                                        np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
-                                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                        self.E_fft_transform_empty_gpu.gpudata, self.H_fft_transform_empty_gpu.gpudata,
-                                        np.int32(iteration), floattype(G.dt), 
-                                        block=G.tpb, grid=G.bpg
+                    # print(G.Ez_gpu.get()[50,50,50])
+                    save_fields_fluxes_gpu(
+                        np.int32(len(self.wavelengths)), np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
+                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
+                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                        self.E_fft_transform_empty_gpu.gpudata, self.H_fft_transform_empty_gpu.gpudata,
+                        np.int32(iteration), np.float32(G.dt),
+                        block=self.tpb, grid=self.bpg
                     )
                 else:
-                    save_fields_fluxes_gpu(np.int32(len(self.wavelengths)),
-                                        np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
-                                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                        self.E_fft_transform_scatt_gpu.gpudata, self.H_fft_transform_scatt_gpu.gpudata,
-                                        np.int32(iteration), floattype(G.dt),
-                                        block=G.tpb, grid=G.bpg
+                    # print(G.Ez_gpu.get()[50,50,50])
+                    save_fields_fluxes_gpu(
+                        np.int32(len(self.wavelengths)), np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
+                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
+                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                        self.E_fft_transform_scatt_gpu.gpudata, self.H_fft_transform_scatt_gpu.gpudata,
+                        np.int32(iteration), np.float32(G.dt),
+                        block=self.tpb, grid=self.bpg
                     )
+                # Here, the conversion is done outside of the function because there would be a huge difference between doing this once or N_iteration * N_fluxes
+                # as this is a CPU operation.
 
-    def calculate_Poynting_frequency_flux(self, G, incident= False):
-        if not G.scattering and G.gpu is not None:
-            #Need to revert the lists back to CPU lists
+    def converting_back_to_cpu(self, G: FDTDGrid):
+        if G.scattering:
+            if not G.empty_sim:
+                self.E_fft_transform = self.E_fft_transform_scatt_gpu.get() - self.E_fft_transform_empty
+                self.H_fft_transform = self.H_fft_transform_scatt_gpu.get() - self.H_fft_transform_empty
+                file = open('Simulation_E_fft.txt', 'w')
+                file.write(np.array2string(self.E_fft_transform))
+                file.close()
+
+                file = open('Simulation_H_fft.txt', 'w')
+                file.write(np.array2string(self.H_fft_transform))
+                file.close()
+            else:
+                self.E_fft_transform_empty = self.E_fft_transform_empty_gpu.get() #For incident fluxes
+                self.H_fft_transform_empty = self.H_fft_transform_empty_gpu.get() #For incident fluxes
+        else:
             self.E_fft_transform = self.E_fft_transform_gpu.get()
             self.H_fft_transform = self.H_fft_transform_gpu.get()
+
+
+    def calculate_Poynting_frequency_flux(self, G, incident= False):
         if not incident:
             #Then calculate the Poynting vector
             self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform), self.H_fft_transform, axis=-1)
@@ -178,17 +221,12 @@ class Flux(object):
                 self.Poynting_frequency_flux.append(np.sum(self.Poynting_frequency[f, :, :, :, 1] * G.dx * G.dz, axis=None))
             elif self.normal == 'z':
                 self.Poynting_frequency_flux.append(np.sum(self.Poynting_frequency[f, :, :, :, 2] * G.dx * G.dy, axis=None))
-        self.Poynting_frequency_flux = np.real(np.array(self.Poynting_frequency_flux, dtype=floattype))
+        self.Poynting_frequency_flux = np.real(np.array(self.Poynting_frequency_flux, dtype=complextype))
         if self.direction == 'minus':
             self.Poynting_frequency_flux *= -1
         if incident:
             self.Poynting_frequency_flux_incident = np.copy(self.Poynting_frequency_flux)
             self.Poynting_frequency_flux = None
-    
-
-    def convert_to_scattering(self):
-        self.E_fft_transform = self.E_fft_transform_scatt - self.E_fft_transform_empty
-        self.H_fft_transform = self.H_fft_transform_scatt - self.H_fft_transform_empty
 
 
 def save_file_h5py(outputfile, G: FDTDGrid):
@@ -238,7 +276,6 @@ def save_file_h5py(outputfile, G: FDTDGrid):
 
         
 def solve_scattering(currentmodelrun, modelend, G:FDTDGrid):
-    print(Fore.RED + "############################ Beginning ############################")
     memsolve = None
     tstart = timer()    
     if len(G.scatteringgeometry) == 0:
@@ -252,37 +289,54 @@ def solve_scattering(currentmodelrun, modelend, G:FDTDGrid):
     print(Fore.GREEN + "Scattering: \n  Scattering geometry: \n" + geometry_settings + "  Box settings: " + box_settings + Fore.RESET)
 
     #Run one simulation without the scattering geometry
-    print(Fore.RED + "---------------- GPU is " + str(G.gpu) + " ----------------" + Fore.RESET)
     if G.gpu is None:
         solve_cpu_fluxes(currentmodelrun, modelend, G)
-    else:
-        solve_gpu_fluxes(currentmodelrun, modelend, G)
-    
-    #Initializing everything once again and adding the new geometries
-    G.initialise_geometry_arrays()        
-    if G.gpu is None:
+        #Initializing everything once again and adding the new geometries
+        G.initialise_geometry_arrays()        
+        
+        #We need to re-build the pmls, so we have to empty G.pmls   
+        for _ in range(len(G.pmls)):
+            G.pmls.pop()
+
+        pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+        build_pmls(G, pbar)
+        pbar.close()
+
         G.initialise_field_arrays()
-        for pml in G.pmls:
-            pml.initialise_field_arrays()
+        print(Fore.BLUE +'\n==================Scattering geometries : ' +  ' '.join(G.scatteringgeometry) + '=================\n' + Fore.RESET)
+        process_geometrycmds(G.scatteringgeometry, G)
+        build_electric_components(G.solid, G.rigidE, G.ID, G)
+        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
+        G.initialise_std_update_coeff_arrays()
+        G.initialise_dispersive_arrays()
+        process_materials(G)
+        G.empty_sim = False
 
-    process_geometrycmds(G.scatteringgeometry, G)
-    pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
-    build_pmls(G, pbar)
-    pbar.close()
-    build_electric_components(G.solid, G.rigidE, G.ID, G)
-    build_magnetic_components(G.solid, G.rigidH, G.ID, G)
-    G.initialise_std_update_coeff_arrays()
-    G.initialise_dispersive_arrays()
-    process_materials(G)
-    G.empty_sim = False
-
-    #Run the simulation with scattering geometries
-    if G.gpu is None:
-        tsolve = solve_cpu_fluxes(currentmodelrun, modelend, G)
+        #Run the simulation with scattering geometries
+        solve_cpu_fluxes(currentmodelrun, modelend, G)
     else:
+
+        solve_gpu_fluxes(currentmodelrun, modelend, G)   
+
+        #We need to re-build the pmls, so we have to empty G.pmls   
+        for _ in range(len(G.pmls)):
+            G.pmls.pop()
+
+        process_geometrycmds(G.scatteringgeometry, G)
+
+        pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+        build_pmls(G, pbar)
+        pbar.close()
+        build_electric_components(G.solid, G.rigidE, G.ID, G)
+        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
+        G.initialise_std_update_coeff_arrays()
+        G.initialise_dispersive_arrays()
+        process_materials(G)
+        G.empty_sim = False
+
+        #Run the simulation with scattering geometries
         tsolve, memsolve = solve_gpu_fluxes(currentmodelrun, modelend, G)
 
-    print(Fore.RED + "############################ Ending ############################")
     tsolve = timer() - tstart
     return tsolve, memsolve
 
@@ -359,9 +413,6 @@ def solve_cpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
         for flux in G.fluxes:
             flux.save_fields_fluxes(G, iteration)
 
-    for flux in G.fluxes:
-        flux.convert_to_scattering()
-
     tsolve = timer() - tsolvestart
     return tsolve
 
@@ -378,8 +429,6 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
         memsolve (int): memory usage on final iteration in bytes
     """
 
-    message = "Running scattering simulation without scattering geometries on GPU" if G.empty_sim else "Running scattering simulation with scattering geometries on GPU"
-    print(message)
     import pycuda.driver as drv
     from pycuda.compiler import SourceModule
     drv.init()
@@ -394,10 +443,6 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
     dev = drv.Device(G.gpu.deviceID)
     ctx = dev.make_context()
 
-    print(Fore.BLUE + "G.scattering is " + str(G.scattering) + Fore.RESET)
-    if G.scattering:
-        for flux in G.fluxes:
-            flux.initialise_arrays_fft_gpu(G)
     # Electric and magnetic field updates - prepare kernels, and get kernel functions
     if Material.maxpoles > 0:
         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
@@ -471,18 +516,9 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
             srcinfo1_voltage_gpu, srcinfo2_voltage_gpu, srcwaves_voltage_gpu = gpu_initialise_src_arrays(G.voltagesources, G)
             update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
 
-    # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
-    if G.snapshots:
-        # Initialise arrays on GPU
-        snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu = gpu_initialise_snapshot_array(G)
-        # Prepare kernel and get kernel function
-        kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=cudafloattype, NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1), options=compiler_opts)
-        store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
-
-    # #FFT functions
-    check_constant_memory_usage(G)
     save_fields_fluxes_gpu = []
     for i in range(len(G.fluxes)):
+        G.fluxes[i].initialize_fft_arrays_gpu(G)
         kernelfieldsfluxesgpu = SourceModule(
             kernel_fields_fluxes_gpu.substitute(REAL=cudafloattype, COMPLEX= cudacomplextype,
                                                 x_begin= int(G.fluxes[i].bottom_left_corner[0]), y_begin= int(G.fluxes[i].bottom_left_corner[1]), z_begin= int(G.fluxes[i].bottom_left_corner[2]),
@@ -496,6 +532,14 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
         save_fields_fluxes_gpu.append(kernelfieldsfluxesgpu.get_function("save_fields_flux"))
         omega = kernelfieldsfluxesgpu.get_global('omega_{}'.format(i))[0]
         drv.memcpy_htod(omega, G.fluxes[i].omega)
+
+    # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
+    if G.snapshots:
+        # Initialise arrays on GPU
+        snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu = gpu_initialise_snapshot_array(G)
+        # Prepare kernel and get kernel function
+        kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=cudafloattype, NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1), options=compiler_opts)
+        store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
 
     # Iteration loop timer
     iterstart = drv.Event()
@@ -609,28 +653,12 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                                       block=G.tpb, grid=G.bpg)
+            
         for i in range(len(G.fluxes)):
             G.fluxes[i].save_fields_fluxes(G, iteration, save_fields_fluxes_gpu[i])
-            
-        if iteration == 250 or iteration == 500:
-            print("======================= \n")
-            print("Ex = ", G.Ex_gpu.get()[63,63,103])
-            print("Ey = ", G.Ey_gpu.get()[63,63,103])
-            print("Ez = ", G.Ez_gpu.get()[63,63,103])
-            print("Hx = ", G.Hx_gpu.get()[63,63,103])
-            print("Hy = ", G.Hy_gpu.get()[63,63,103])
-            print("Hz = ", G.Hz_gpu.get()[63,63,103])
-            print("\n ============================\n")
 
-    for i in range(len(G.fluxes)):
-        if G.empty_sim:
-            G.fluxes[i].E_fft_transform_empty = G.fluxes[i].E_fft_transform_empty_gpu.get()
-            G.fluxes[i].H_fft_transform_empty = G.fluxes[i].H_fft_transform_empty_gpu.get()
-
-        else:
-            G.fluxes[i].E_fft_transform_scatt = G.fluxes[i].E_fft_transform_scatt_gpu.get()
-            G.fluxes[i].H_fft_transform_scatt = G.fluxes[i].H_fft_transform_scatt_gpu.get()
-
+    for flux in G.fluxes:
+        flux.converting_back_to_cpu(G)
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
         gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
@@ -650,27 +678,3 @@ def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
     del ctx
 
     return tsolve, memsolve
-
-def check_constant_memory_usage(G):
-    """Vérifier l'utilisation de la mémoire constante"""
-    
-    total_constant_memory = 0
-    
-    # Mémoire des coefficients matériaux
-    coeff_memory = G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes
-    total_constant_memory += coeff_memory
-    print(f"Coefficients matériaux: {coeff_memory} bytes")
-    
-    # Mémoire des tableaux omega pour chaque flux
-    for i, flux in enumerate(G.fluxes):
-        omega_memory = flux.omega.nbytes
-        total_constant_memory += omega_memory
-        print(f"Flux {i} omega: {omega_memory} bytes ({len(flux.omega)} éléments)")
-    
-    print(f"Total mémoire constante utilisée: {total_constant_memory} bytes")
-    print(f"Limite GPU (typique): 65536 bytes")
-    
-    if total_constant_memory > 65536:
-        print("⚠️  DÉPASSEMENT DE MÉMOIRE CONSTANTE DÉTECTÉ!")
-        return False
-    return True

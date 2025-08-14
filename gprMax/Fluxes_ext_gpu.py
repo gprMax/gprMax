@@ -18,7 +18,7 @@ __device__ __constant__ $REAL $OMEGA[$NF];
 
 __global__ void save_fields_flux(int NF, int NX, int NY, int NZ,
                                  int x_begin, int y_begin, int z_begin,
-                                 $REAL *Ex, $REAL *Ey, $REAL *Ez, $REAL *Hx, $REAL *Hy, $REAL *Hz,
+                                 const $REAL *Ex, const $REAL *Ey, const $REAL *Ez, const $REAL *Hx, const $REAL *Hy, const $REAL *Hz,
                                  $COMPLEX *FFT_E, $COMPLEX *FFT_H, int iteration, $REAL dt) {
 
     //  This function computes fft of the fields for the wavelengths in wavelengths.
@@ -55,7 +55,10 @@ __global__ void save_fields_flux(int NF, int NX, int NY, int NZ,
     //printf("k= %d\\n", k);
                                     
     //printf("i= %d, j= %d, k= %d \\n", i, j, k);
-       
+    
+    //if (idx == 0) printf("Test Ez[ID(50,50,50)]= %e \\n", Ez[INDEX3D_FIELDS(50,50,50)]);
+    //if (idx == 0) printf("x_begin= %d, y_begin= %d, z_begin= %d \\n", x_begin, y_begin, z_begin);
+                                    
                                     
     float $SIN_OMEGA, $COS_OMEGA;
     int $IDX_5DX, $IDX_5DY, $IDX_5DZ;
@@ -97,7 +100,7 @@ __global__ void save_fields_flux(int NF, int NX, int NY, int NZ,
         FFT_H[$IDX_5DX] += Hx[$IDX_3D] * $EXP_FACTOR;
         FFT_H[$IDX_5DY] += Hy[$IDX_3D] * $EXP_FACTOR;
         FFT_H[$IDX_5DZ] += Hz[$IDX_3D] * $EXP_FACTOR;
-        if (f == 0 && i_fft ==  0 && j_fft == 0 && k_fft == 0 && iteration == 500){                               
+        if (0 == 1 && iteration >= 300){                               
             printf("Ex= %e \\n", Ex[$IDX_3D]);
             printf("Ey= %e \\n", Ey[$IDX_3D]);
             printf("Ez= %e \\n", Ez[$IDX_3D]);                              
