@@ -10,7 +10,7 @@ dependencies:
 - jinja2
 - jupyter
 - matplotlib
-- numpy<2.3
+- numpy
 - pip
 - psutil
 - scipy

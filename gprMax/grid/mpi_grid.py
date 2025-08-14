@@ -486,6 +486,10 @@ class MPIGrid(FDTDGrid):
         # Need to account for the negative halo (remove it) to avoid
         # double counting. The solid array does not have a positive halo
         # so we don't need to consider that.
+
+        # Cast from bool to int to avoid issue with numpy>2.3
+        self.negative_halo_offset = self.negative_halo_offset.astype(int)
+        
         if pml.ID[0] == "x":
             o1 = self.negative_halo_offset[1]
             o2 = self.negative_halo_offset[2]

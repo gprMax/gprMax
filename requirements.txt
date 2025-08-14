@@ -9,7 +9,7 @@ jinja2
 jupyter
 matplotlib
 mpi4py
-numpy<2.3
+numpy
 numpy-stl
 pandas
 pre-commit
