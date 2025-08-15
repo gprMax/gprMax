@@ -51,6 +51,9 @@ class Source(object):
         self.rcoordorigin_cyl = 1
         self.zcoordorigin_cyl = None
 
+        self.waveformvalues_wholestep = None
+        self.waveformvalues_halfstep = None
+
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
 
@@ -59,10 +62,10 @@ class Source(object):
         """
 
         # Waveform values on timesteps
-        self.waveformvalues_wholestep = np.zeros((G.iterations), dtype=np.complex128)
+        self.waveformvalues_wholestep = np.zeros((G.iterations), dtype=floattype)
 
         # Waveform values on half timesteps
-        self.waveformvalues_halfstep = np.zeros((G.iterations), dtype=np.complex128)
+        self.waveformvalues_halfstep = np.zeros((G.iterations), dtype=floattype)
 
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 

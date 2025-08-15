@@ -1047,6 +1047,21 @@ def process_multicmds(multicmds, G):
             Y = np.arange(y1, y2) if y1 != y2 else [y1]
             Z = np.arange(z1, z2) if z1 != z2 else [z1]
 
+            
+            # Waveform values on timesteps
+            waveformvalues_wholestep = np.zeros((G.iterations), dtype=floattype)
+
+            # Waveform values on half timesteps
+            waveformvalues_halfstep = np.zeros((G.iterations), dtype=floattype)
+
+            for iteration in range(G.iterations):
+                time = G.dt * iteration
+                if time >= start and time <= stop:
+                    # Set the time of the waveform evaluation to account for any delay in the start
+                    time -= start
+                    waveformvalues_wholestep[iteration] = waveform.calculate_value(time, G.dt, G.cylindrical)
+                    waveformvalues_halfstep[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt, G.cylindrical)
+
             for i in X:
                 for j in Y:
                     for k in Z:
@@ -1061,4 +1076,5 @@ def process_multicmds(multicmds, G):
                         G.voltagesources.append(v)
                         v.start = start
                         v.stop = stop
-                        v.calculate_waveform_values(G)
+                        v.waveformvalues_wholestep = waveformvalues_wholestep
+                        v.waveformvalues_halfstep = waveformvalues_halfstep
