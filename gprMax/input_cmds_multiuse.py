@@ -1053,14 +1053,18 @@ def process_multicmds(multicmds, G):
 
             # Waveform values on half timesteps
             waveformvalues_halfstep = np.zeros((G.iterations), dtype=floattype)
+            waveform_used = None
+            for w in G.waveforms:
+                if w.ID == waveform:
+                    waveform_used = w
 
             for iteration in range(G.iterations):
                 time = G.dt * iteration
                 if time >= start and time <= stop:
                     # Set the time of the waveform evaluation to account for any delay in the start
                     time -= start
-                    waveformvalues_wholestep[iteration] = waveform.calculate_value(time, G.dt, G.cylindrical)
-                    waveformvalues_halfstep[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt, G.cylindrical)
+                    waveformvalues_wholestep[iteration] = w.calculate_value(time, G.dt, G.cylindrical)
+                    waveformvalues_halfstep[iteration] = w.calculate_value(time + 0.5 * G.dt, G.dt, G.cylindrical)
 
             for i in X:
                 for j in Y:
