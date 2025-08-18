@@ -329,7 +329,11 @@ order1_xminus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -395,6 +399,7 @@ order1_xminus = {
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * dEy -
                                        RC0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)];
     }
+}
 """
     ),
 }
@@ -414,7 +419,11 @@ order2_xminus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -490,6 +499,7 @@ order2_xminus = {
         PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEy - Psi2);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEy - Psi2);
     }
+}
 """
     ),
 }
@@ -509,7 +519,11 @@ order1_xplus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -575,6 +589,7 @@ order1_xplus = {
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * dEy -
                                        RC0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)];
     }
+}
 """
     ),
 }
@@ -594,7 +609,11 @@ order2_xplus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -670,6 +689,7 @@ order2_xplus = {
         PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEy - Psi2);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEy - Psi2);
     }
+}
 """
     ),
 }
@@ -689,7 +709,11 @@ order1_yminus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -755,6 +779,7 @@ order1_yminus = {
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx -
                                        RC0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)];
     }
+}
 """
     ),
 }
@@ -774,7 +799,11 @@ order2_yminus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -850,6 +879,7 @@ order2_yminus = {
         PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
     }
+}
 """
     ),
 }
@@ -869,7 +899,11 @@ order1_yplus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -935,6 +969,7 @@ order1_yplus = {
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx -
                                        RC0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)];
     }
+}
 """
     ),
 }
@@ -954,7 +989,11 @@ order2_yplus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1030,6 +1069,7 @@ order2_yplus = {
         PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
     }
+}
 """
     ),
 }
@@ -1049,7 +1089,11 @@ order1_zminus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1115,6 +1159,7 @@ order1_zminus = {
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx -
                                        RC0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)];
     }
+}
 """
     ),
 }
@@ -1134,7 +1179,11 @@ order2_zminus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1210,6 +1259,7 @@ order2_zminus = {
         PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
     }
+}
 """
     ),
 }
@@ -1229,7 +1279,11 @@ order1_zplus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1295,6 +1349,7 @@ order1_zplus = {
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx -
                                        RC0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)];
     }
+}
 """
     ),
 }
@@ -1314,7 +1369,11 @@ order2_zplus = {
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    $CUDA_IDX
+        $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1390,6 +1449,7 @@ order2_zplus = {
         PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
     }
+}
 """
     ),
 }

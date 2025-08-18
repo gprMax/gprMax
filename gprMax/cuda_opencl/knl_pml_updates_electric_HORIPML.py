@@ -330,6 +330,10 @@ order1_xminus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -389,6 +393,7 @@ order1_xminus = {
                                      (RA01 * dHy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHy;
     }
+}
 """
     ),
 }
@@ -409,6 +414,10 @@ order2_xminus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -484,6 +493,7 @@ order2_xminus = {
                                        (RA0 * dHy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHy;
     }
+}
 """
     ),
 }
@@ -504,6 +514,10 @@ order1_xplus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -563,6 +577,7 @@ order1_xplus = {
                                      (RA01 * dHy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHy;
     }
+}
 """
     ),
 }
@@ -583,6 +598,10 @@ order2_xplus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -657,6 +676,7 @@ order2_xplus = {
                                        (RA0 * dHy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHy;
     }
+}
 """
     ),
 }
@@ -677,6 +697,10 @@ order1_yminus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -736,6 +760,7 @@ order1_yminus = {
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -756,6 +781,10 @@ order2_yminus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -831,6 +860,7 @@ order2_yminus = {
                                        (RA0 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -851,6 +881,10 @@ order1_yplus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -910,6 +944,7 @@ order1_yplus = {
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -930,6 +965,10 @@ order2_yplus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1005,6 +1044,7 @@ order2_yplus = {
                                        (RA0 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -1025,6 +1065,10 @@ order1_zminus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1084,6 +1128,7 @@ order1_zminus = {
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -1104,6 +1149,10 @@ order2_zminus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1179,6 +1228,7 @@ order2_zminus = {
                                        (RA0 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -1199,6 +1249,10 @@ order1_zplus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1258,6 +1312,7 @@ order1_zplus = {
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }
@@ -1278,6 +1333,10 @@ order2_zplus = {
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
+#ifdef HIP
+for(; i<NX_PHI1 * NY_PHI1 * NZ_PHI1; i+=gridDim.x*blockDim.x)
+#endif
+{
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1353,6 +1412,7 @@ order2_zplus = {
                                        (RA0 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
+}
 """
     ),
 }

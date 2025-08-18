@@ -43,8 +43,9 @@ class HIPUpdates(Updates[HIPGrid]):
             "REAL": self.floattype,
             "COMPLEX": self.complextype,
         }
-        self.block = hip.dim3(x=1024)
-        self.grid_hip = hip.dim3(x=65536)
+        tpb = 1024
+        self.block = hip.dim3(x=tpb)
+        self.grid_hip = hip.dim3(x=int(np.ceil(((G.nx + 1) * (G.ny + 1) * (G.nz + 1)) / tpb)))
         self.subs_func = {
             "REAL": self.floattype,
             "COMPLEX": self.complextype,
@@ -160,7 +161,7 @@ class HIPUpdates(Updates[HIPGrid]):
         props = hip.hipDeviceProp_t()
         hip_check(hip.hipGetDeviceProperties(props,0))
         arch = props.gcnArchName
-        cflags = [b"--offload-arch="+arch]
+        cflags = [b"--offload-arch="+arch, b"-O3", b"-DHIP"]
         err, = hiprtc.hiprtcCompileProgram(prog, len(cflags), cflags)
         if err != hiprtc.hiprtcResult.HIPRTC_SUCCESS:
             log_size = hip_check(hiprtc.hiprtcGetProgramLogSize(prog))
@@ -533,7 +534,7 @@ class HIPUpdates(Updates[HIPGrid]):
         """Cleanup the updates, releasing any resources."""
         self.free_resources()
 
-    def calculate_memory_used(self, iteration: int) -> int:
+    def calculate_memory_used(self) -> int:
         """Calculates memory used on last iteration.
 
         Args:

@@ -743,37 +743,6 @@ class HIPPML(PML):
 
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU."""
-        # self.update_electric_dev(
-        #     np.int32(self.xs),
-        #     np.int32(self.xf),
-        #     np.int32(self.ys),
-        #     np.int32(self.yf),
-        #     np.int32(self.zs),
-        #     np.int32(self.zf),
-        #     np.int32(self.EPhi1_dev.shape[1]),
-        #     np.int32(self.EPhi1_dev.shape[2]),
-        #     np.int32(self.EPhi1_dev.shape[3]),
-        #     np.int32(self.EPhi2_dev.shape[1]),
-        #     np.int32(self.EPhi2_dev.shape[2]),
-        #     np.int32(self.EPhi2_dev.shape[3]),
-        #     np.int32(self.thickness),
-        #     self.G.ID_dev.gpudata,
-        #     self.G.Ex_dev.gpudata,
-        #     self.G.Ey_dev.gpudata,
-        #     self.G.Ez_dev.gpudata,
-        #     self.G.Hx_dev.gpudata,
-        #     self.G.Hy_dev.gpudata,
-        #     self.G.Hz_dev.gpudata,
-        #     self.EPhi1_dev.gpudata,
-        #     self.EPhi2_dev.gpudata,
-        #     self.ERA_dev.gpudata,
-        #     self.ERB_dev.gpudata,
-        #     self.ERE_dev.gpudata,
-        #     self.ERF_dev.gpudata,
-        #     config.sim_config.dtypes["float_or_double"](self.d),
-        #     block=self.G.tpb,
-        #     grid=self.bpg,
-        # )
         self.block = hip.dim3(x=self.tpb)
         self.grid_hip = hip.dim3(x=self.bpg)
         hip_check(
@@ -822,37 +791,6 @@ class HIPPML(PML):
 
     def update_magnetic(self):
         """Updates magnetic field components with the PML correction on the GPU."""
-        # self.update_magnetic_dev(
-        #     np.int32(self.xs),
-        #     np.int32(self.xf),
-        #     np.int32(self.ys),
-        #     np.int32(self.yf),
-        #     np.int32(self.zs),
-        #     np.int32(self.zf),
-        #     np.int32(self.HPhi1_dev.shape[1]),
-        #     np.int32(self.HPhi1_dev.shape[2]),
-        #     np.int32(self.HPhi1_dev.shape[3]),
-        #     np.int32(self.HPhi2_dev.shape[1]),
-        #     np.int32(self.HPhi2_dev.shape[2]),
-        #     np.int32(self.HPhi2_dev.shape[3]),
-        #     np.int32(self.thickness),
-        #     self.G.ID_dev.gpudata,
-        #     self.G.Ex_dev.gpudata,
-        #     self.G.Ey_dev.gpudata,
-        #     self.G.Ez_dev.gpudata,
-        #     self.G.Hx_dev.gpudata,
-        #     self.G.Hy_dev.gpudata,
-        #     self.G.Hz_dev.gpudata,
-        #     self.HPhi1_dev.gpudata,
-        #     self.HPhi2_dev.gpudata,
-        #     self.HRA_dev.gpudata,
-        #     self.HRB_dev.gpudata,
-        #     self.HRE_dev.gpudata,
-        #     self.HRF_dev.gpudata,
-        #     config.sim_config.dtypes["float_or_double"](self.d),
-        #     block=self.G.tpb,
-        #     grid=self.bpg,
-        # )
         self.block = hip.dim3(x=self.tpb)
         self.grid_hip = hip.dim3(x=self.bpg)
         hip_check(
