@@ -85,7 +85,10 @@ class Solver:
             if isinstance(self.updates, CUDAUpdates):
                 self.memused = self.updates.calculate_memory_used(iteration)
             if isinstance(self.updates, HIPUpdates):
-                self.memused = self.updates.calculate_memory_used(iteration)
+                from hip import hip, hiprtc
+                hip.hipDeviceSynchronize()
+        if isinstance(self.updates, HIPUpdates):
+            self.memused = self.updates.calculate_memory_used()
 
         self.updates.finalise()
         self.solvetime = self.updates.calculate_solve_time()
