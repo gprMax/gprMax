@@ -242,7 +242,10 @@ def save_file_h5py(outputfile, G: FDTDGrid):
         title = '/scattering'
         for i in range(len(G.fluxes)):
             grp = f.create_group(title + '/incidents/incident' + str(i + 1))
-            grp['values'] = G.fluxes[i].Poynting_frequency_flux_incident
+            cst = 1
+            if G.fluxes[i].direction == 'minus':
+                cst = -1
+            grp['values'] = cst * G.fluxes[i].Poynting_frequency_flux_incident
             grp['wavelengths'] = G.fluxes[i].wavelengths
             grp['normal'] = G.fluxes[i].normal
             grp['direction'] = G.fluxes[i].direction
@@ -374,8 +377,6 @@ def solve_cpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
         
         # Update magnetic field components from sources
         for source in G.transmissionlines + G.magneticdipoles:
-            if G.cylindrical:
-                raise CmdInputError("Magnetic dipole and transmission lines sources are not supported in cylindrical mode.")
             source.update_magnetic(iteration, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
 
         # Update electric field components
@@ -386,10 +387,8 @@ def solve_cpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         elif Material.maxpoles == 1:
-            assert not G.cylindrical, "Dispersive materials are not supported in cylindrical mode."
             update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
         elif Material.maxpoles > 1:
-            assert not G.cylindrical, "Dispersive materials are not supported in cylindrical mode."
             update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
         # Update electric field components with the PML correction

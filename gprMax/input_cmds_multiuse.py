@@ -864,6 +864,7 @@ def process_multicmds(multicmds, G):
     #Fluxes
     cmdname = '#flux'
     if multicmds[cmdname] is not None:
+        from gprMax.Fluxes import Flux
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
@@ -993,7 +994,6 @@ def process_multicmds(multicmds, G):
 
     cmdname = '#plane_voltage_source'
     if multicmds[cmdname] is not None:
-        from gprMax.Fluxes import Flux
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if not (len(tmp) == 9 or len(tmp) == 11):
