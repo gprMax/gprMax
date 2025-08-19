@@ -726,3 +726,5 @@ def geometry_objects_read(x, y, z, file1, file2):
     c = Coordinate(x, y, z)
     command('geometry_objects_read', str(c), file1, file2)
     return c
+
+#TO DO: add the fluxes fonctions

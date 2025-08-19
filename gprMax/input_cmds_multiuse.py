@@ -72,24 +72,31 @@ def process_multicmds(multicmds, G):
     cmdname = '#waveform'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
+            w = Waveform()
             tmp = cmdinstance.split()
-            if len(tmp) != 4:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters')
+            if len(tmp) != 4 and len(tmp) != 5:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' at least four parameters and at most five.')
             if tmp[0].lower() not in Waveform.types:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have one of the following types {}'.format(','.join(Waveform.types)))
+            w.ID = tmp[3]
+            if ((w.ID == 'gaussian' or w.ID == 'gaussiandot' or w.ID == 'gaussiandotnorm' or w.ID == 'gaussianprime' or w.ID == 'gaussiandoubleprime') and (len(tmp) != 4 or len(tmp) != 5)):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' four or five parameters depending wether you defined the standard deviation or not.')
             if float(tmp[2]) <= 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
             if any(x.ID == tmp[3] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[3]))
 
-            w = Waveform()
-            w.ID = tmp[3]
             w.type = tmp[0].lower()
             w.amp = float(tmp[1])
             w.freq = float(tmp[2])
+            if len(tmp) == 5:
+                w.std = float(tmp[4])
 
             if G.messages:
-                print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
+                if w.std is not None:
+                    print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz, standard deviation {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq, w.std))
+                else:
+                    print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
 
             G.waveforms.append(w)
 
