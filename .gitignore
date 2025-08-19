@@ -27,7 +27,7 @@ docs/.buildinfo
 # Craig's files
 .vscode
 testing/*.out
-testing/*.png
+testing/benchmarking/*.h5
 rocprofsys-run-output/
 # Output files from running the examples
 examples/*.h5

@@ -93,7 +93,7 @@ cells['A100'] = np.arange(1, 10)
 # AMD Radeon7900XTX
 with np.errstate(divide='ignore'):
     cells_amd = np.array([100**3, 150**3, 200**3, 300**3, 400**3, 450**3, 500**3, 600**3, 700**3])* 1559
-    Radeon7900XTX_f32 = np.true_divide(cells_amd, np.array([4.0795, 4.0902, 4.5095, 8.6379, 15.7087, 16.2615, 16.4619, 16.4939, 16.4931]) * 1e6)
+    Radeon7900XTX_f32 = np.true_divide(cells_amd, np.array([4.2170, 4.1862, 4.1710, 7.9477, 17.1864, 23.8735, 32.1639, 53.4792, 83.2350]) * 1e6)
 Radeon7900XTX_f32[Radeon7900XTX_f32 == np.inf] = 0
 perf['AMD Radeon7900XTX'] = Radeon7900XTX_f32
 cells['AMD Radeon7900XTX'] = np.arange(1, len(cells_amd) + 1)
