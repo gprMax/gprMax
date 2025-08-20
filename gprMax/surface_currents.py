@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-def get_surface_currents(filename, padding = 60):
+from tqdm import tqdm
+def get_surface_currents(filename, padding = 20):
     # Load file
     data = np.load(filename, allow_pickle=True)
 
@@ -133,7 +133,7 @@ def get_surface_currents(filename, padding = 60):
     return Js_faces, Ms_faces
 
 
-def generate_surface_coordinates(N=60, cube_size=1.0):
+def generate_surface_coordinates(N=20, cube_size=0.20):
     """
     Returns a NumPy array of shape (6, 3, N, N) where:
     - 6 is the number of faces
@@ -150,107 +150,175 @@ def generate_surface_coordinates(N=60, cube_size=1.0):
     coords[0, 1] = Y
     coords[0, 2] = Z
 
-    # Face 1: +x (Y-Z plane at x = +L/2)
-    coords[1, 0] = +L/2
+    # Face 1: -z (X-Y plane at z = -L/2)
+    Y, X = np.meshgrid(lin, lin, indexing='ij')
+    coords[1, 0] = X
     coords[1, 1] = Y
-    coords[1, 2] = Z
+    coords[1, 2] = -L/2
 
     # Face 2: -y (X-Z plane at y = -L/2)
-    X, Z = np.meshgrid(lin, lin, indexing='ij')
+    Z, X = np.meshgrid(lin, lin, indexing='ij')
     coords[2, 0] = X
     coords[2, 1] = -L/2
     coords[2, 2] = Z
 
-    # Face 3: +y (X-Z plane at y = +L/2)
+    # Face 3: +z (X-Y plane at z = +L/2)
+    Y, X = np.meshgrid(lin, lin, indexing='ij')
     coords[3, 0] = X
-    coords[3, 1] = +L/2
-    coords[3, 2] = Z
+    coords[3, 1] = Y
+    coords[3, 2] = +L/2
 
-    # Face 4: -z (X-Y plane at z = -L/2)
-    X, Y = np.meshgrid(lin, lin, indexing='ij')
+    # Face 4: +y (X-Z plane at y = +L/2)
+    Z, X = np.meshgrid(lin, lin, indexing='ij')
     coords[4, 0] = X
-    coords[4, 1] = Y
-    coords[4, 2] = -L/2
+    coords[4, 1] = +L/2
+    coords[4, 2] = Z
 
-    # Face 5: +z (X-Y plane at z = +L/2)
-    coords[5, 0] = X
+    # Face 5: +x (Y-Z plane at x = +L/2)
+    Z, Y = np.meshgrid(lin, lin, indexing='ij')
+    coords[5, 0] = +L/2
     coords[5, 1] = Y
-    coords[5, 2] = +L/2
+    coords[5, 2] = Z
 
     return coords
 
 
-def compute_far_field_at_point(Js_faces, Ms_faces, surface_coords, r_obs, theta, phi, wavelength, dx, dy):
-    """
-    Computes the far-field electric field vector at a single observation point (r, θ, φ).
+# Constants
+c = 299792458  # m/s
+mu0 = 4 * np.pi * 1e-7
+eps0 = 1 / (mu0 * c ** 2)
 
-    Parameters:
-        Js_faces: list or array of shape (6, T, 2, N, N) for electric surface currents
-        Ms_faces: same as above for magnetic surface currents
-        surface_coords: np.array of shape (6, 3, N, N) giving X, Y, Z coordinates for each face
-        r_obs: radial distance to observation point
-        theta, phi: spherical coordinates of observation point
-        wavelength: operating wavelength
-        dx, dy: spatial resolution on the face
+def cartesian_to_spherical(xyz):
+    x, y, z = xyz
+    r = np.sqrt(x**2 + y**2 + z**2)
+    theta = np.arccos(z / r)
+    phi = np.arctan2(y, x)
+    return r, theta, phi
 
-    Returns:
-        E_far: complex 3D vector (numpy array of shape (3,)) representing the electric field
-    """
-    k = 2 * np.pi / wavelength
-    r_hat = np.array([
-        np.sin(theta) * np.cos(phi),
-        np.sin(theta) * np.sin(phi),
-        np.cos(theta)
+def unit_vector_spherical(theta, phi):
+    # returns [x, y, z] unit vectors for r, theta, phi directions
+    return (
+        np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)]),
+        np.array([np.cos(theta)*np.cos(phi), np.cos(theta)*np.sin(phi), -np.sin(theta)]),
+        np.array([-np.sin(phi), np.cos(phi), 0])
+    )
+
+def surface_normals():
+    return [
+        np.array([-1,0,0]),   # -x
+        np.array([0,0,-1]),   # -z
+        np.array([0,-1,0]),   # -y
+        np.array([0,0,1]),    # +z
+        np.array([0,1,0]),    # +y
+        np.array([1,0,0])     # +x
+    ]
+
+def face_tangential_to_cartesian(face_id, curr):
+    # curr: length 2 array, as returned by Js_patch or Ms_patch
+    
+    if face_id == 0 or face_id == 5:   # -x, +x
+        v = np.array([0, curr[0], curr[1]])
+    elif face_id == 1 or face_id == 3: # -z, +z
+        v = np.array([curr[0], curr[1], 0])
+    elif face_id == 2 or face_id == 4: # -y, +y
+        v = np.array([curr[0], 0, curr[1]])
+    else:
+        raise ValueError("face_id out of range (should be 0-5 inclusive)")
+    return v
+
+
+def calculate_far_field_time_trace(Js_faces, Ms_faces, coords,
+                                   obs_r, obs_theta, obs_phi,
+                                   t_array, dt, cube_size):
+    
+    # normals = surface_normals()
+    N = coords.shape[-1]
+    
+    far_E_trace = np.zeros((len(t_array), 3), dtype=np.float64)
+
+    hat_r = np.array([
+        np.sin(obs_theta) * np.cos(obs_phi),
+        np.sin(obs_theta) * np.sin(obs_phi),
+        np.cos(obs_theta)
     ])
+    delta_S = (cube_size) ** 2
 
-    E_far = np.zeros(3, dtype=complex)
+    for obs_idx, t_obs in tqdm(enumerate(t_array)):
+        far_E = np.zeros(3, dtype=np.float64)
+        for face_id in range(6):
+            Js = Js_faces[face_id]  # (t_near, 2, N, N)
+            Ms = Ms_faces[face_id]
+            xyz = coords[face_id]
 
-    for face in range(6):
-        Js_face = Js_faces[face]  # shape: (T, 2, N, N)
-        Ms_face = Ms_faces[face]
-        X = surface_coords[face, 0]  # shape: (N, N)
-        Y = surface_coords[face, 1]
-        Z = surface_coords[face, 2]
+            for i in range(N):
+                for j in range(N):
+                    r0 = np.array([xyz[0, i, j], xyz[1, i, j], xyz[2, i, j]])
+                    R_vec = obs_r * hat_r - r0
+                    R = np.linalg.norm(R_vec)
 
-        N = X.shape[0]
+                    ret = t_obs - R / c
+                    if ret < t_array[0] or ret > t_array[-1]:
+                        continue  # Outside available data
 
-        for i in range(N):
-            for j in range(N):
-                r_prime = np.array([X[i, j], Y[i, j], Z[i, j]])
-                R = r_obs - np.dot(r_hat, r_prime)
-                phase = np.exp(1j * k * R)
+                    t_idx = np.searchsorted(t_array, ret)
+                    if t_idx == 0 or t_idx >= len(t_array):
+                        continue
 
-                Js_vec = np.array([Js_face[-1, 0, i, j], Js_face[-1, 1, i, j], 0.0])
-                Ms_vec = np.array([Ms_face[-1, 0, i, j], Ms_face[-1, 1, i, j], 0.0])
+                    dJs_dt = (Js[t_idx, :, i, j] - Js[t_idx - 1, :, i, j]) / dt
+                    dMs_dt = (Ms[t_idx, :, i, j] - Ms[t_idx - 1, :, i, j]) / dt
+                    print(f"this is shape: {dJs_dt[0]} and {dJs_dt[1]}")
 
-                term = np.cross(r_hat, Js_vec + np.cross(r_hat, Ms_vec)) * phase
-                E_far += term * dx * dy
+                    dJs_cart = face_tangential_to_cartesian(face_id, dJs_dt)
+                    dMs_cart = face_tangential_to_cartesian(face_id, dMs_dt)
 
-    prefactor = 1j * k / (4 * np.pi * r_obs) * np.exp(-1j * k * r_obs)
-    E_far *= prefactor
-    return E_far
+                    proj_J = dJs_cart - hat_r * np.dot(hat_r, dJs_cart)
+                    proj_M = np.cross(hat_r, dMs_cart)
+
+                    far_E += (-mu0/(4*np.pi*obs_r) * proj_J +
+                               1/(4*np.pi*c*obs_r) * proj_M) * delta_S
+
+        far_E_trace[obs_idx] = far_E
+
+    return far_E_trace
 
 
 if __name__ == "__main__":
-    # Js_0, Js_1, Js_2, Js_3, Js_4, Js_5  = get_surface_currents('nfft_snapshots_model1.npz')
-    # print(Js_0.shape, Js_5.shape)
-    
-    coords = generate_surface_coordinates(60)
-    print(coords[1][2][1][4])
+    Js_faces, Ms_faces= get_surface_currents('nfft_snapshots_model1.npz')
+    coords = generate_surface_coordinates(N=20, cube_size=0.2)  # (6, 3, N, N)
+    # print(coords[0][:][0][0])
+    # print(Js_faces[0][1][1].shape)
+    #     # ---- Parameters ----
+    # N = 20               # Number of grid points per face (surface resolution)
+    # T = 100              # Number of time samples
+    # cube_size = 0.20     # Side length of cube, meters
+    # dt = 1e-9           # Time step, seconds
+    # t_array = np.arange(0, T*dt, dt)   # t = 0, dt, 2dt, ..., (T-1)*dt
 
+    # # ---- Surface coordinates ----
+    # coords = generate_surface_coordinates(N=N, cube_size=cube_size)  # (6, 3, N, N)
 
-    ############# Generate coordinates
-    surface_coords = generate_surface_coordinates(N=60, cube_size=1.0)
-    dx = dy = 1.0 / 60
+    # obs_r = 1.0
+    # obs_theta = np.pi/3
+    # obs_phi = np.pi/4
+    # far_E_trace = calculate_far_field_time_trace(
+    #     Js_faces=Js_faces,
+    #     Ms_faces=Ms_faces,
+    #     coords=coords,
+    #     obs_r=obs_r,
+    #     obs_theta=obs_theta,
+    #     obs_phi=obs_phi,
+    #     t_array=t_array,
+    #     dt=dt,
+    #     cube_size=cube_size
+    # )
+    # # To plot or analyze:
+    # import matplotlib.pyplot as plt
+    # plt.plot(t_array, far_E_trace[:, 0], label='Ex')
+    # plt.plot(t_array, far_E_trace[:, 1], label='Ey')
+    # plt.plot(t_array, far_E_trace[:, 2], label='Ez')
+    # plt.xlabel('Time (s)')
+    # plt.ylabel('Far-field E')
+    # plt.legend()
+    # plt.show()
 
-    # Compute far field at (r=10, θ=60°, φ=30°)
-    E_far = compute_far_field_at_point(
-        Js_faces, Ms_faces, surface_coords,
-        r_obs=10.0,
-        theta=np.deg2rad(60),
-        phi=np.deg2rad(30),
-        wavelength=1.0,
-        dx=dx, dy=dy
-    )
-
-    print("Far-field E vector:", E_far)
+    # # print("Far-field E (x, y, z) at (r, θ, φ):", far_E)

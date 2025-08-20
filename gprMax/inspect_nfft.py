@@ -8,24 +8,24 @@ magnetic = data['magnetic']
 
 print(f"Loaded data with {len(electric)} electric faces and {len(magnetic)} magnetic faces.\n")
 
-# for i, (face_elec, face_mag) in enumerate(zip(electric, magnetic), 1):
-#     print(f"Face {i}:")
-#     print(f"  Number of timesteps: {len(face_elec)}")
+for i, (face_elec, face_mag) in enumerate(zip(electric, magnetic), 1):
+    print(f"Face {i}:")
+    print(f"  Number of timesteps: {len(face_elec)}")
 
-#     for t, (e_snap, m_snap) in enumerate(zip(face_elec, face_mag), 1):
-#         Ex, Ey, Ez = e_snap
-#         Hx, Hy, Hz = m_snap
+    for t, (e_snap, m_snap) in enumerate(zip(face_elec, face_mag), 1):
+        Ex, Ey, Ez = e_snap
+        Hx, Hy, Hz = m_snap
 
-#         print(f"    Timestep {t}:")
-#         print(f"      Ex shape: {Ex.shape}, Ey shape: {Ey.shape}, Ez shape: {Ez.shape}")
-#         print(f"      Hx shape: {Hx.shape}, Hy shape: {Hy.shape}, Hz shape: {Hz.shape}")
+        print(f"    Timestep {t}:")
+        print(f"      Ex shape: {Ex.shape}, Ey shape: {Ey.shape}, Ez shape: {Ez.shape}")
+        print(f"      Hx shape: {Hx.shape}, Hy shape: {Hy.shape}, Hz shape: {Hz.shape}")
 
-#     print()
+    print()
 
-face_elec = electric[5]
-e_snap = face_elec[200]
-Ex, Ey, Ez = e_snap
-print(f"      Ex shape: {Ex.shape}, Ey shape: {Ey.shape}, Ez shape: {Ez.shape}")
+# face_elec = electric[5]
+# e_snap = face_elec[200]
+# Ex, Ey, Ez = e_snap
+# print(f"      Ex shape: {Ex.shape}, Ey shape: {Ey.shape}, Ez shape: {Ez.shape}")
 
 
     #   Ex shape: (1, 60, 60), Ey shape: (1, 60, 60), Ez shape: (1, 60, 60)

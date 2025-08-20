@@ -118,7 +118,7 @@ def solve_cpu_nfft(currentmodelrun, modelend, G, center = None, padding=10):
     cy = round_value(G.ny / 2) if center is None else round_value(center[1] / G.dy)
     cz = round_value(G.nz / 2) if center is None else round_value(center[2] / G.dz)
 
-    vertices = get_cube_vertices(cx, cy, cz, G, padding = 30)
+    vertices = get_cube_vertices(cx, cy, cz, G, padding = 10)
     print(G.nx, G.ny, G.nz)
     print(G.dx, G.dy, G.dz)
     print(vertices)
@@ -186,9 +186,9 @@ def solve_cpu_nfft(currentmodelrun, modelend, G, center = None, padding=10):
         for f, e, m in zip(f_list, elec_list, mag_list):
             f.store_surface(G)
             e.append(f.electric)
-            # print(f.electric.shape)
+            # print(len(f.electric[0]))
             m.append(f.magnetic)
-            # print(f.magnetic.shape)
+            # print(len(f.magnetic[0]))
 
     np.savez_compressed(
         f'nfft_snapshots_model{currentmodelrun}.npz',

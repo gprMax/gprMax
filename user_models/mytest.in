@@ -1,9 +1,6 @@
-#title: GSSI 400MHz 'like' antenna in free-space
-#domain: 0.080 0.080 0.060
-#dx_dy_dz: 0.001 0.001 0.001
-#time_window: 12e-9
-
-#python:
-from user_libs.antennas.GSSI import antenna_like_GSSI_400
-antenna_like_GSSI_400(0.020, 0.040, 0.020, resolution=0.001)
-#end_python:
+#title: Test module for dipole
+#domain: 0.50 0.50 0.50
+#dx_dy_dz: 0.01 0.01 0.01
+#time_window: 500
+#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse
+#hertzian_dipole: z 0.25 0.25 0.25 my_gauss_pulse
