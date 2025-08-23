@@ -134,6 +134,23 @@ Once you have installed the aforementioned tools follow these steps to build and
 
 **You are now ready to proceed to running gprMax.**
 
+If you want to run gprMax with AMD HIP GPU, then you should install HIP Python as follow:
+.. code-block:: bash
+
+    # check the version of ROCm and HIP
+    rocminfo | grep version
+    hipcc --version
+    # If you have the ROCm™ HIP SDK 5.6.0 installed, any HIP Python package with version 5.6.0.X.Y can be used.
+    pip install --upgrade pip
+    pip install -i https://test.pypi.org/simple hip-python>=<rocm_version>.<hip_python_version>
+
+    # For my machine 
+    # ROCk module version 6.10.5 is loaded
+    # HIP version: 6.3.42134-a9a80e791
+    # So, I can install hip-python package as follow:
+    # pip install -i https://test.pypi.org/simple hip-python>=6.10.6.3
+
+
 Running gprMax
 ==============
 
@@ -180,6 +197,7 @@ Argument name          Type      Description
 ``--log-level``        integer   Level of logging to use, see the ` Python logging module <https://docs.python.org/3/library/logging.html>`_.
 ``--log-file``         bool      Write logging information to file.
 ``-h`` or ``--help``   flag      used to get help on command line options.
+``-hip``               flag      Flag to use AMD HIP for GPU acceleration.
 ====================== ========= ===========
 
 Updating gprMax

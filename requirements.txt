@@ -16,6 +16,7 @@ pre-commit
 psutil
 # pycuda
 # pyopencl
+#hip-python
 scipy
 terminaltables
 tqdm
