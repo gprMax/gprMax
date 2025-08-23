@@ -606,6 +606,16 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
             1,
             1,
         )
+    elif config.sim_config.general["solver"] == "hip":
+        from hip import hip, hiprtc
+        Snapshot.bpg = hip.dim3(
+            x = int(
+                np.ceil(
+                    ((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0]
+                )
+            )
+        )
+
 
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z);
     # if snapshots are not being stored on the GPU during the simulation then
@@ -657,6 +667,23 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
         snapHy_dev = clarray.to_device(queue, snapHy)
         snapHz_dev = clarray.to_device(queue, snapHz)
 
+    elif config.sim_config.general["solver"] == "hip":
+        from hip import hip, hiprtc
+        from utilities.utilities import hip_check
+
+        snapEx_dev = hip_check(hip.hipMalloc(snapEx.nbytes))
+        snapEy_dev = hip_check(hip.hipMalloc(snapEy.nbytes))
+        snapEz_dev = hip_check(hip.hipMalloc(snapEz.nbytes))
+        snapHx_dev = hip_check(hip.hipMalloc(snapHx.nbytes))
+        snapHy_dev = hip_check(hip.hipMalloc(snapHy.nbytes))
+        snapHz_dev = hip_check(hip.hipMalloc(snapHz.nbytes))
+        hip_check(hip.hipMemcpy(snapEx_dev, snapEx, snapEx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(snapEy_dev, snapEy, snapEy.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(snapEz_dev, snapEz, snapEz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(snapHx_dev, snapHx, snapHx.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(snapHy_dev, snapHy, snapHy.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+        hip_check(hip.hipMemcpy(snapHz_dev, snapHz, snapHz.nbytes, hip.hipMemcpyKind.hipMemcpyHostToDevice))
+
     return snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev
 
 
@@ -671,10 +698,52 @@ def dtoh_snapshot_array(
         i: int for index of snapshot data on compute device array.
         snap: Snapshot class instance
     """
+    if config.sim_config.general["solver"] == "cuda" or config.sim_config.general["solver"] == "opencl":
+        snap.snapfields["Ex"] = snapEx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Ey"] = snapEy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Ez"] = snapEz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Hx"] = snapHx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Hy"] = snapHy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Hz"] = snapHz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    elif config.sim_config.general["solver"] == "hip":
+        from hip import hip, hiprtc
+        from utilities.utilities import hip_check
+        snapEx = np.zeros(
+            (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        snapEy = np.zeros(
+            (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        snapEz = np.zeros(
+            (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        snapHx = np.zeros(
+            (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        snapHy = np.zeros(
+            (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        snapHz = np.zeros(
+            (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
 
-    snap.snapfields["Ex"] = snapEx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Ey"] = snapEy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Ez"] = snapEz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Hx"] = snapHx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Hy"] = snapHy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Hz"] = snapHz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        hip_check(hip.hipMemcpy(snapEx, snapEx_dev, snapEx.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(snapEy, snapEy_dev, snapEy.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(snapEz, snapEz_dev, snapEz.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(snapHx, snapHx_dev, snapHx.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(snapHy, snapHy_dev, snapHy.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        hip_check(hip.hipMemcpy(snapHz, snapHz_dev, snapHz.nbytes, hip.hipMemcpyKind.hipMemcpyDeviceToHost))
+        snap.snapfields["Ex"] = snapEx[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Ey"] = snapEy[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Ez"] = snapEz[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Hx"] = snapHx[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Hy"] = snapHy[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+        snap.snapfields["Hz"] = snapHz[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+
+

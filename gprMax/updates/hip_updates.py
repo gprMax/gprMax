@@ -1,7 +1,6 @@
 import logging
 from importlib import import_module
 
-import humanize
 import numpy as np
 from jinja2 import Environment, PackageLoader
 from ..utilities.utilities import hip_check
@@ -14,7 +13,6 @@ from gprMax.cuda_opencl import (
     knl_store_outputs,
 )
 from gprMax.grid.hip_grid import HIPGrid
-from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from gprMax.sources import htod_src_arrays
 from gprMax.updates.updates import Updates
@@ -82,7 +80,7 @@ class HIPUpdates(Updates[HIPGrid]):
             "update_hertzian_dipole" : knl_source_updates.update_hertzian_dipole,
             "update_voltage_source": knl_source_updates.update_voltage_source,
             "update_magnetic_dipole" : knl_source_updates.update_magnetic_dipole,
-            "store_outputs": knl_store_outputs.store_outputs
+            "store_outputs": knl_store_outputs.store_outputs,
             }
         self.knls = {
             "update_e" : None,
@@ -93,7 +91,25 @@ class HIPUpdates(Updates[HIPGrid]):
             "update_voltage_source": None,
             "update_magnetic_dipole": None,
             "store_outputs": None,
+            "store_snapshot": None,
         }
+        if self.grid.snapshots:
+            self.subs_func.update(
+            {
+                "NX_SNAPS": Snapshot.nx_max,
+                "NY_SNAPS": Snapshot.ny_max,
+                "NZ_SNAPS": Snapshot.nz_max,
+            })
+            self.knl_tmpls.update({"store_snapshot": knl_snapshots.store_snapshot,})
+            (
+            self.snapEx_dev,
+            self.snapEy_dev,
+            self.snapEz_dev,
+            self.snapHx_dev,
+            self.snapHy_dev,
+            self.snapHz_dev,
+            ) = htod_snapshot_array(self.grid)
+
         for knl_name in self.knl_tmpls:
             knl_tmpl = self.knl_tmpls[knl_name]
             self.knls[knl_name] = self._build_knl(knl_tmpl, knl_name)
@@ -271,10 +287,55 @@ class HIPUpdates(Updates[HIPGrid]):
         Args:
             iteration: int for iteration number.
         """
-        #print("store_snapshots not implemented in HIPUpdates")
+        for i, snap in enumerate(self.grid.snapshots):
+            if snap.time == iteration + 1:
+                snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
+                hip_check(
+                    hip.hipModuleLaunchKernel(
+                        self.knls["store_snapshot"],
+                        Snapshot.tpb, # grid
+                        Snapshot.bpg,  # self.block
+                        sharedMemBytes=128,
+                        stream=None,
+                        kernelParams=None,
+                        extra=(
+                            ctypes.c_int(snapno),
+                            ctypes.c_int(snap.xs),
+                            ctypes.c_int(snap.xf),
+                            ctypes.c_int(snap.ys),
+                            ctypes.c_int(snap.yf),
+                            ctypes.c_int(snap.zs),
+                            ctypes.c_int(snap.zf),
+                            ctypes.c_int(snap.dx),
+                            ctypes.c_int(snap.dy),
+                            ctypes.c_int(snap.dz),
+                            self.grid.Ex_dev,
+                            self.grid.Ey_dev,
+                            self.grid.Ez_dev,
+                            self.grid.Hx_dev,
+                            self.grid.Hy_dev,
+                            self.grid.Hz_dev,
+                            self.snapEx_dev.gpudata,
+                            self.snapEy_dev.gpudata,
+                            self.snapEz_dev.gpudata,
+                            self.snapHx_dev.gpudata,
+                            self.snapHy_dev.gpudata,
+                            self.snapHz_dev.gpudata,
+                        )
+                    )
+                )
+                if config.get_model_config().device["snapsgpu2cpu"]:
+                    dtoh_snapshot_array(
+                        self.snapEx_dev(),
+                        self.snapEy_dev(),
+                        self.snapEz_dev(),
+                        self.snapHx_dev(),
+                        self.snapHy_dev(),
+                        self.snapHz_dev(),
+                        0,
+                        snap,
+                    )
 
-
-    
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""
         hip_check(

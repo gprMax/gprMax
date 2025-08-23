@@ -71,7 +71,34 @@ store_snapshot = {
                                     __global $REAL *snapHy,
                                     __global $REAL *snapHz
                                 """
+    ),    
+    "args_hip": Template(
+        """
+                               extern "C" __global__ void store_snapshot(int p,
+                                                    int xs,
+                                                    int xf,
+                                                    int ys,
+                                                    int yf,
+                                                    int zs,
+                                                    int zf,
+                                                    int dx,
+                                                    int dy,
+                                                    int dz,
+                                                    const $REAL* __restrict__ Ex,
+                                                    const $REAL* __restrict__ Ey,
+                                                    const $REAL* __restrict__ Ez,
+                                                    const $REAL* __restrict__ Hx,
+                                                    const $REAL* __restrict__ Hy,
+                                                    const $REAL* __restrict__ Hz,
+                                                    $REAL *snapEx,
+                                                    $REAL *snapEy,
+                                                    $REAL *snapEz,
+                                                    $REAL *snapHx,
+                                                    $REAL *snapHy,
+                                                    $REAL *snapHz)
+                                """
     ),
+
     "func": Template(
         """
     // Stores field values for a snapshot.
