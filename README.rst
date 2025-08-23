@@ -135,6 +135,7 @@ Once you have installed the aforementioned tools follow these steps to build and
 **You are now ready to proceed to running gprMax.**
 
 If you want to run gprMax with AMD HIP GPU, then you should install HIP Python as follow:
+
 .. code-block:: bash
 
     # check the version of ROCm and HIP
