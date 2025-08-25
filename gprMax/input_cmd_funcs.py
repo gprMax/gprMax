@@ -484,7 +484,7 @@ def excitation_file(file1):
     return file1
 
 
-def waveform(shape, amplitude, frequency, identifier):
+def waveform(shape, amplitude, frequency, identifier, std=None):
     """Prints the #waveform: shape amplitude frequency identifier
 
     Args:
@@ -497,6 +497,9 @@ def waveform(shape, amplitude, frequency, identifier):
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
 
+    if std is not None:
+        command('waveform', shape, amplitude, frequency, identifier, std)
+        return identifier
     command('waveform', shape, amplitude, frequency, identifier)
 
     return identifier
