@@ -197,6 +197,27 @@ def dx_dy_dz(x, y, z):
 
     return dx_dy_dz
 
+def pml_cells(n1, n2=None, n3=None):
+    """Prints the gprMax #pml_cells command.
+
+    Args:
+        n1 (int): Number of PML cells in the x direction.
+        n2 (int): Number of PML cells in the y direction.
+        n3 (int): Number of PML cells in the z direction.
+
+    Returns:
+        pml_cells (tuple): Tuple of the number of PML cells in each direction.
+    """
+
+    if n2 is None and n3 is None:
+        command('pml_cells', n1)
+        return (n1)
+
+    pml_cells = (n1, n2, n3)
+    command('pml_cells', n1, n2, n3)
+
+    return pml_cells
+
 
 def time_window(time_window):
     """Prints the gprMax #time_window command.
