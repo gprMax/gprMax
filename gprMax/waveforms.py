@@ -51,11 +51,11 @@ class Waveform(object):
         self.chi = 1 / self.freq
         if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotnorm' or self.type == 'gaussianprime' or self.type == 'gaussiandoubleprime':
             self.zeta = 2 * np.pi**2 * self.freq**2
-        if self.std is None:
-            self.zeta = 1/(2*self.std**2)
         elif self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
+        if self.std is not None:
+            self.zeta = 1/(2*self.std**2)
 
     def calculate_value(self, time, dt, cylindrical):
         """Calculates value of the waveform at a specific time.

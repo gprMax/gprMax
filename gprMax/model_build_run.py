@@ -616,6 +616,7 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     save_fields_fluxes_gpu = []
     for i in range(len(G.fluxes)):
+        G.fluxes[i].initialize_fft_arrays_gpu(G)
         kernelfieldsfluxesgpu = SourceModule(
             kernel_fields_fluxes_gpu.substitute(REAL=cudafloattype, COMPLEX= cudacomplextype,
                                                 x_begin= int(G.fluxes[i].bottom_left_corner[0]), y_begin= int(G.fluxes[i].bottom_left_corner[1]), z_begin= int(G.fluxes[i].bottom_left_corner[2]),
@@ -754,17 +755,8 @@ def solve_gpu(currentmodelrun, modelend, G):
         for i in range(len(G.fluxes)):
             G.fluxes[i].save_fields_fluxes(G, iteration, save_fields_fluxes_gpu[i])
 
-        if iteration == 250 or iteration == 500:
-            print("======================= \n")
-            print("Ex = ", G.Ex_gpu.get()[63,63,103])
-            print("Ey = ", G.Ey_gpu.get()[63,63,103])
-            print("Ez = ", G.Ez_gpu.get()[63,63,103])
-            print("Hx = ", G.Hx_gpu.get()[63,63,103])
-            print("Hy = ", G.Hy_gpu.get()[63,63,103])
-            print("Hz = ", G.Hz_gpu.get()[63,63,103])
-            print("\n ============================\n")
-
-
+    for i in range(len(G.fluxes)):
+        G.fluxes[i].converting_back_to_cpu(G)
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
         gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
