@@ -396,17 +396,17 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         
         # Calculate the fluxes through the different surfaces, then sum
         if G.fluxes:
-            print(Fore.CYAN + '\nCalculating fluxes  + Bien atteint deuxième fois...\n' + Fore.RESET)
-            print(Fore.BLUE + str(len(G.fluxes)) + Fore.RESET)
+            print(Fore.CYAN + '\nCalculating fluxes...\n' + Fore.RESET)
             for flux in G.fluxes:
                 if G.scattering:
                     flux.calculate_Poynting_frequency_flux(G, incident= True)
                 flux.calculate_Poynting_frequency_flux(G)
-            G.total_flux = G.fluxes[0].Poynting_frequency_flux
-            print(G.total_flux)
-            for i in range(1, len(G.fluxes)):
-                G.total_flux += G.fluxes[i].Poynting_frequency_flux
-            print('Total flux: {}'.format(G.total_flux))
+            G.total_flux = [0 for _ in range(len(G.fluxes_box))]
+            for i in range(len(G.fluxes_box)):
+                G.total_flux[i] = G.fluxes_box[i][0].Poynting_frequency_flux
+                for j in range(1, len(G.fluxes_box[i])):
+                    G.total_flux[i] += G.fluxes_box[i][j].Poynting_frequency_flux
+                print('Total flux for box {}: {}'.format(i+1, G.total_flux))
             save_file_h5py(outputfile_fluxes, G)
 
 

@@ -160,6 +160,8 @@ class FDTDGrid(Grid):
         self.scattering_geometrycmds = None
         self.scatteringgeometry = None
         self.box_fluxes_enumerate = [] 
+        self.fluxes_box = []
+        self.fluxes_single = []
 
         self.cylindrical = False
 

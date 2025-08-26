@@ -912,6 +912,7 @@ def process_multicmds(multicmds, G):
             assert w_min > 0 and w_max > 0 and w_num > 0, "wavelengths and the number of wavelengths should be strictly positive"
             flux = Flux(G, tmp[0], tmp[1], np.array([x1, y1, z1]), np.array([x2, y2, z2]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            G.fluxes_single.append(flux)
     
     cmdname = '#box_flux'
     if multicmds[cmdname] is not None:
@@ -947,6 +948,8 @@ def process_multicmds(multicmds, G):
             
             # We now set the 6 faces of the cube
 
+            lis = []
+
             x_1 = xcenter + xplus
             y_1 = ycenter + yplus
             z_1 = zcenter + zplus
@@ -957,6 +960,7 @@ def process_multicmds(multicmds, G):
 
             flux = Flux(G, 'x', 'plus', np.array([x_2, y_2, z_2]), np.array([x_1, y_1, z_1]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            lis.append(flux)
 
             x_3 = xcenter - xminus
             y_3 = ycenter - yminus
@@ -964,6 +968,7 @@ def process_multicmds(multicmds, G):
 
             flux = Flux(G, 'z', 'plus', np.array([x_3, y_3, z_3]), np.array([x_1, y_1, z_1]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            lis.append(flux)
 
             x_4 = xcenter - xminus
             y_4 = ycenter - yminus
@@ -975,6 +980,7 @@ def process_multicmds(multicmds, G):
 
             flux = Flux(G, 'x', 'minus', np.array([x_4, y_4, z_4]), np.array([x_5, y_5, z_5]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            lis.append(flux)
 
             x_6 = xcenter + xplus
             y_6 = ycenter + yplus
@@ -982,6 +988,7 @@ def process_multicmds(multicmds, G):
 
             flux = Flux(G, 'z', 'minus', np.array([x_4, y_4, z_4]), np.array([x_6, y_6, z_6]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            lis.append(flux)
 
             x_7 = xcenter + xplus
             y_7 = ycenter - yminus
@@ -989,6 +996,7 @@ def process_multicmds(multicmds, G):
 
             flux = Flux(G, 'y', 'minus', np.array([x_4, y_4, z_4]), np.array([x_7, y_7, z_7]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            lis.append(flux)
 
             x_8 = xcenter - xminus
             y_8 = ycenter + yplus
@@ -996,6 +1004,9 @@ def process_multicmds(multicmds, G):
 
             flux = Flux(G, 'y', 'plus', np.array([x_8, y_8, z_8]), np.array([x_1, y_1, z_1]), np.linspace(w_min, w_max, w_num, dtype= floattype))
             G.fluxes.append(flux)
+            lis.append(flux)
+
+            G.fluxes_box.append(lis)
 
             G.box_fluxes_enumerate.append("" + cmdname + ': ' + ' '.join(tmp) + '. \n')
 

@@ -250,23 +250,26 @@ def save_file_h5py(outputfile, G: FDTDGrid):
             grp['normal'] = G.fluxes[i].normal
             grp['direction'] = G.fluxes[i].direction
             grp['x_cells'], grp['y_cells'], grp['z_cells'], dimension = G.fluxes[i].cells_number
-    else:
+    if len(G.fluxes_single) != 0:
         title = '/fluxes'
-    for i in range(len(G.fluxes)):
-        grp = f.create_group(title + '/fluxes/flux' + str(i + 1))
-        grp['values'] = G.fluxes[i].Poynting_frequency_flux
-        grp['wavelengths'] = G.fluxes[i].wavelengths
-        grp['normal'] = G.fluxes[i].normal
-        grp['direction'] = G.fluxes[i].direction
-        grp['x_cells'], grp['y_cells'], grp['z_cells'], dimension = G.fluxes[i].cells_number
-    grp = f.create_group(title + '/total_fluxes')
-    grp['values'] = G.total_flux
-    grp['wavelengths'] = wavelengths
-    grp = f.create_group('/constants')
-    grp['dt'] = G.dt
-    grp['dx'] = G.dx
-    grp['dy'] = G.dy
-    grp['dz'] = G.dz
+        for i in range(len(G.fluxes_single)):
+            grp = f.create_group(title + '/flux' + str(i + 1))
+            grp['values'] = G.fluxes[i].Poynting_frequency_flux
+            grp['wavelengths'] = G.fluxes[i].wavelengths
+            grp['normal'] = G.fluxes[i].normal
+            grp['direction'] = G.fluxes[i].direction
+            grp['x_cells'], grp['y_cells'], grp['z_cells'], dimension = G.fluxes[i].cells_number
+    if len(G.fluxes_box) != 0:
+        title = '/boxes'
+        for i in range(len(G.fluxes_box)):
+            grp = f.create_group(title + '/box' + str(i + 1))
+            grp['values'] = G.total_flux[i]
+            grp['wavelengths'] = wavelengths
+            grp = f.create_group('/constants')
+            grp['dt'] = G.dt
+            grp['dx'] = G.dx
+            grp['dy'] = G.dy
+            grp['dz'] = G.dz
 
     if G.scattering:
         grp = f.create_group('/scattering/incident')
