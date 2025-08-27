@@ -21,7 +21,7 @@ from scipy.constants import mu_0 as m0
 logger = logging.getLogger(__name__)
 
 # Impedance of free space (Ohms)
-z0 = np.sqrt(m0 / e0) 
+z0 = np.sqrt(m0 / e0)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
@@ -66,7 +66,7 @@ if epsr:
     mr = 1
     z1 = np.sqrt(mr / epsr) * z0
     v1 = c / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1 / c * (180 / np.pi)))
+    thetac = np.round(np.rad2deg(np.arcsin(v1 / c)))
     wavelength = v1 / f
 
 # Print some useful information
@@ -162,9 +162,15 @@ for radius in range(0, len(radii)):
     # Observation points
     for pt in range(rxstart, rxstart + len(theta)):
         # Cartesian to spherical coordinate transform coefficients from (Kraus,1991,Electromagnetics,p.34)
-        r1 = coords[pt, 0] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
-        r2 = coords[pt, 1] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
-        r3 = coords[pt, 2] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        r1 = coords[pt, 0] / np.sqrt(
+            coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2
+        )
+        r2 = coords[pt, 1] / np.sqrt(
+            coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2
+        )
+        r3 = coords[pt, 2] / np.sqrt(
+            coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2
+        )
         theta1 = (coords[pt, 0] * coords[pt, 2]) / (
             np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2)
             * np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
