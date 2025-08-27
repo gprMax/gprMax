@@ -15,7 +15,7 @@ scene = gprMax.Scene()
 
 title = gprMax.Title(name=fn.with_suffix("").name)
 dxdydz = gprMax.Discretisation(p1=(dl, dl, dl))
-pml = gprMax.PMLProps(thickness=14)
+pml = gprMax.PMLThickness(thickness=14)
 scene.add(title)
 scene.add(dxdydz)
 scene.add(pml)
