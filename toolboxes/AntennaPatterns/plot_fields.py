@@ -89,7 +89,7 @@ if epsr:
 # Setup figure
 fig = plt.figure(num=args.numpyfile, figsize=(8, 8), facecolor="w", edgecolor="w")
 ax = plt.subplot(111, polar=True)
-cmap = plt.cm.get_cmap("rainbow")
+cmap = plt.get_cmap("rainbow")
 ax.set_prop_cycle("color", [cmap(i) for i in np.linspace(0, 1, len(radii))])
 
 # Critical angle window and air/subsurface interface lines
@@ -104,12 +104,11 @@ ax.annotate(
 
 # Plot patterns
 for patt in range(0, len(radii)):
-    pattplot = np.append(
-        patterns[patt, :], patterns[patt, 0]
-    )  # Append start value to close circle
-    pattplot = pattplot / np.max(
-        np.max(patterns)
-    )  # Normalise, based on set of patterns
+    # Append start value to close circle
+    pattplot = np.append(patterns[patt, :], patterns[patt, 0]) 
+
+    # Normalise, based on set of patterns 
+    pattplot = pattplot / np.max(np.max(patterns))  
 
     # Calculate power (ignore warning from taking a log of any zero values)
     with np.errstate(divide="ignore"):
@@ -143,15 +142,22 @@ ax.set_yticklabels(yticks)
 # Grid and legend
 ax.grid(True)
 handles, existlabels = ax.get_legend_handles_labels()
+# Plot just first and last legend entries
 leg = ax.legend(
     [handles[0], handles[-1]],
     [existlabels[0], existlabels[-1]],
     ncol=2,
     loc=(0.27, -0.12),
     frameon=False,
-)  # Plot just first and last legend entries
-# leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
-[legobj.set_linewidth(2) for legobj in leg.legendHandles]
+)
+# leg = ax.legend(
+#     [handles[0], handles[-3], handles[-2], handles[-1]],
+#     [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]],
+#     ncol=4,
+#     loc=(-0.13, -0.12),
+#     frameon=False,
+# )
+[legobj.set_linewidth(2) for legobj in leg.legend_handles]
 
 # Save a pdf of the plot
 savename = f"{os.path.splitext(args.numpyfile)[0]}.pdf"
