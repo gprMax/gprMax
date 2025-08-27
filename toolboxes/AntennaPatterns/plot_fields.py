@@ -98,12 +98,18 @@ if epsr:
     ax.plot([0, np.deg2rad(180 + thetac)], [min, 0], color="0.7", lw=2)
 ax.plot([np.deg2rad(270), np.deg2rad(90)], [0, 0], color="0.7", lw=2)
 ax.annotate("Air", xy=(np.deg2rad(270), 0), xytext=(8, 8), textcoords="offset points")
-ax.annotate("Ground", xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords="offset points")
+ax.annotate(
+    "Ground", xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords="offset points"
+)
 
 # Plot patterns
 for patt in range(0, len(radii)):
-    pattplot = np.append(patterns[patt, :], patterns[patt, 0])  # Append start value to close circle
-    pattplot = pattplot / np.max(np.max(patterns))  # Normalise, based on set of patterns
+    pattplot = np.append(
+        patterns[patt, :], patterns[patt, 0]
+    )  # Append start value to close circle
+    pattplot = pattplot / np.max(
+        np.max(patterns)
+    )  # Normalise, based on set of patterns
 
     # Calculate power (ignore warning from taking a log of any zero values)
     with np.errstate(divide="ignore"):
