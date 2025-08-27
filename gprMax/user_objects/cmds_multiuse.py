@@ -47,7 +47,6 @@ from gprMax.user_objects.cmds_geometry.cmds_geometry import (
 )
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GridUserObject
-from gprMax.utilities.utilities import round_value
 from gprMax.waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)
