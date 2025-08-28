@@ -402,7 +402,7 @@ def process_geometrycmds(geometry, G):
                         m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                         m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                         m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                        m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                        m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                         # Append the new material object to the materials list
                         G.materials.append(m)
@@ -510,7 +510,7 @@ def process_geometrycmds(geometry, G):
                     m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                     m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                     # Append the new material object to the materials list
                     G.materials.append(m)
@@ -591,7 +591,7 @@ def process_geometrycmds(geometry, G):
                     m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                     m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                     # Append the new material object to the materials list
                     G.materials.append(m)
@@ -681,7 +681,7 @@ def process_geometrycmds(geometry, G):
                         m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                         m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                         m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                        m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                        m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                         # Append the new material object to the materials list
                         G.materials.append(m)
@@ -791,7 +791,7 @@ def process_geometrycmds(geometry, G):
                     m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                     m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                     # Append the new material object to the materials list
                     G.materials.append(m)
