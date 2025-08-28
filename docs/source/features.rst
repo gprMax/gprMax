@@ -40,6 +40,10 @@ New commands
 * ``#waveform`` is used to specify a waveform shape, and works in conjunction with the changed source commands
 * ``#magnetic_dipole`` is used to introduce a magnetic dipole source, i.e. current on a small loop
 * ``#pml_cfs`` is an advanced command for adjusting the CFS parameters used in the new PML
+* ``#flux`` is used to specify a flux monitor within the domain
+* ``#box_flux`` is used to specify a box flux monitor within the domain
+* ``#scattering`` and ``#scattering_end`` is used to specify a scattering geometry
+* ``#plane_voltage_source`` is used define a plane voltage source. This will simply compute a source point on each cell of the plane.
 
 
 Changed commands
@@ -53,6 +57,7 @@ Changed commands
 * ``#snapshot`` no longer requires a type, as only VTK snapshot files are now produced
 * ``#num_of_procs`` is now called ``#num_threads``
 * ``#tx_steps`` is now called ``#src_steps``
+* ``#waveform`` can now take another argument: the standard deviation for the Gaussian-shaped function
 
 
 Retired commands
