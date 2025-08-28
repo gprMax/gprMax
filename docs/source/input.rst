@@ -41,6 +41,7 @@ The commands have been grouped into six categories:
 * **Material** - used to introduce different materials into the model
 * **Object construction** - used to build geometric shapes with different constitutive parameters
 * **Source and output** - used to place source and output points in the model
+* **Fluxes commands and scattering environment** - used to create flux monitors and to design scattering geometry
 * **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
 Essential commands
@@ -685,7 +686,7 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
 * ``f1`` is the scaling of the maximum amplitude of the waveform (for a ``#hertzian_dipole`` the units will be Amps, for a ``#voltage_source`` or ``#transmission_line`` the units will be Volts).
 * ``f2`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``str2`` is an identifier for the waveform used to assign it to a source.
-* ``f3`` is an optional parameter that can be used to specify the standard deviation (seconds) of the waveform for the following types: ``gaussian``, ``gaussiandot``, ``gaussiandotnorm``, ``gaussianprime`` or ``gaussiandoubleprime``. If not specified a default value of :math:`\frac{1}{2\pi f2}` is used.
+* ``f3`` is an optional parameter that can be used to specify the standard deviation (seconds) of the waveform for the following types: ``gaussian``, ``gaussiandot``, ``gaussiandotnorm``, ``gaussianprime`` or ``gaussiandoubleprime``. If not specified a default value of :math:`\frac{1}{2\pi \, f3}` is used.
 
 For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
 
@@ -941,22 +942,23 @@ For a discrete signal sampled at intervals of :math:`\Delta t` over a finite tim
 
 .. math::
 
-    F_(\omega) \approx \sum_{n=0}^{N-1} f_n(n\Delta t) \, e^{-i \omega n \Delta t} \frac{\Delta t}{\sqrt{2\pi}}
+    F(\omega) \approx \sum_{n=0}^{N-1} f_n(n\Delta t) \, e^{-i \omega n \Delta t} \frac{\Delta t}{\sqrt{2\pi}}
 
 where:
 
-- $f_n$ is the discrete signal at time step $n$
-- $N$ is the total number of time steps
-- $k$ is the frequency index, with $k = 0, 1, \ldots, N-1$
+- :math:`f(n \Delta t)`` is the discrete signal at time step :math:`n`
+- :math:`N` is the total number of time steps
+- :math:`k` is the frequency index, with :math:`k = 0, 1, \ldots, N-1`
 
 At each time step, we update the value of the Fourier tranforms. At the end of the simulation, we then compute the flux by computing:
 
 .. math::
 
-    \\Phi_\omega = \iint_S \mathbf{\Pi_\omega} \cdot \mathbf{dS} \\
+    \Phi_\omega = \iint_S \mathbf{\Pi_\omega} \cdot \mathbf{dS} \\
     \iint_S \Re(\mathbf{E_\omega^*} \times \mathbf{H_\omega}) \cdot \mathbf{dS}
 
 Fluxes commands are compatible with GPU(s) calculations.
+
 #flux:
 ------
 
@@ -975,7 +977,7 @@ Allows you to define a planar flux monitor in the model. The flux is computed ba
 
 
 #box_flux:
----------
+----------
 
 Allows you to define a box flux monitor in the model. The flux is computed based on the Fourier transformed fields on specified wavelengths. The syntax of the command is:
 
@@ -992,14 +994,15 @@ Allows you to define a box flux monitor in the model. The flux is computed based
 
 The figure below should help to understand how ``#box_flux`` is designed:
 
-.. figure:: ../images/box_flux.png
-    :width: 400 px
+.. figure:: images/box_flux.png
+    :width: 500 px
     :align: center
 
     Illustration du paramétrage de la commande ``#box_flux: x y z dx1 dx2 dy1 dy2 dz1 dz2 w1 w2 n1``.
 
 
 #scattering: and #scattering_end:
+---------------------------------
 
 Allows you to define a scattering environment in the model. This is useful for computing the scattered field from an object in the presence of a background environment. If this environment is defined, then two simulations will be run: The first won't include the scattering geometry, and the second will include the scattering geometry. The scattered field is then computed by subtracting the fields from the first simulation from the fields of the second simulation (and not by simply substracting both fluxes !). The syntax of the commands are:
 
