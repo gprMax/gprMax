@@ -60,14 +60,6 @@ def process_multicmds(multicmds, G):
             s = "'{}: {} ' {} {}-coordinate is not within the model domain".format(cmdname, ' '.join(tmp), name, err.args[0])
             raise CmdInputError(s)
 
-    def check_coordinates_cylindrical(r, z, name= ''):
-        try:
-            G.within_bounds(r_cyl=r, z_cyl=z)
-        except ValueError as err:
-            s = "'{}: {} ' {} {}-coordinate is not within the model domain".format(cmdname, ' '.join(tmp), name,
-                                                                                   err.args[0])
-            raise CmdInputError(s)
-
     # Waveform definitions
     cmdname = '#waveform'
     if multicmds[cmdname] is not None:
@@ -249,8 +241,6 @@ def process_multicmds(multicmds, G):
             if G.messages:
                 if G.mode == '2D':
                     print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
-                elif G.mode == 'cylindrical':
-                    print('Hertzian dipole with polarity {} at r = 0m, {:g}m,'.format(h.polarisation, h.zcoord_cyl * G.dz_cyl) + startstop + 'using waveform {} created.'.format(h.waveformID))
                 else:
                     print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
 
@@ -1081,8 +1071,8 @@ def process_multicmds(multicmds, G):
                 if time >= start and time <= stop:
                     # Set the time of the waveform evaluation to account for any delay in the start
                     time -= start
-                    waveformvalues_wholestep[iteration] = w.calculate_value(time, G.dt, G.cylindrical)
-                    waveformvalues_halfstep[iteration] = w.calculate_value(time + 0.5 * G.dt, G.dt, G.cylindrical)
+                    waveformvalues_wholestep[iteration] = w.calculate_value(time, G.dt)
+                    waveformvalues_halfstep[iteration] = w.calculate_value(time + 0.5 * G.dt, G.dt)
 
             for i in X:
                 for j in Y:

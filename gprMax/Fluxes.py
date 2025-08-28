@@ -240,7 +240,7 @@ def save_file_h5py(outputfile, G: FDTDGrid):
 
     if G.scattering:
         title = '/scattering'
-        for i in range(len(G.fluxes_single)):
+        for i in range(len(G.fluxes)):
             grp = f.create_group(title + '/incidents/incident' + str(i + 1))
             cst = 1
             if G.fluxes[i].direction == 'minus':

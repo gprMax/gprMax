@@ -57,7 +57,7 @@ class Waveform(object):
         if self.std is not None:
             self.zeta = 1/(2*self.std**2)
 
-    def calculate_value(self, time, dt, cylindrical):
+    def calculate_value(self, time, dt):
         """Calculates value of the waveform at a specific time.
 
         Args:

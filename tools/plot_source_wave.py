@@ -78,7 +78,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
     timeiter = np.nditer(time, flags=['c_index'])
 
     while not timeiter.finished:
-        waveform[timeiter.index] = w.calculate_value(timeiter[0], dt, False)
+        waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
         timeiter.iternext()
 
     print('Waveform characteristics...')

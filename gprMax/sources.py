@@ -74,8 +74,8 @@ class Source(object):
             if time >= self.start and time <= self.stop:
                 # Set the time of the waveform evaluation to account for any delay in the start
                 time -= self.start
-                self.waveformvalues_wholestep[iteration] = waveform.calculate_value(time, G.dt, G.cylindrical)
-                self.waveformvalues_halfstep[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt, G.cylindrical)
+                self.waveformvalues_wholestep[iteration] = waveform.calculate_value(time, G.dt)
+                self.waveformvalues_halfstep[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
                 
 
 class VoltageSource(Source):
@@ -95,7 +95,7 @@ class VoltageSource(Source):
             iteration (int): Current iteration (timestep).
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
-            Ex, Ey, Ez (memory view): numpy array of electric field values. If in cylindrical: Ex = Er, Ey = E_phi and Ez stays the same
+            Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -137,14 +137,9 @@ class VoltageSource(Source):
         """
 
         if self.resistance != 0:
-            if not G.cylindrical:
-                i = self.xcoord
-                j = self.ycoord
-                k = self.zcoord
-            else:
-                i = self.rcoord_cyl
-                j = 1
-                k = self.zcoord_cyl
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
 
             componentID = 'E' + self.polarisation
             requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
@@ -161,10 +156,7 @@ class VoltageSource(Source):
             elif self.polarisation == 'y':
                 newmaterial.se += G.dy / (self.resistance * G.dx * G.dz)
             elif self.polarisation == 'z':
-                if not G.cylindrical:
-                    newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
-                else:
-                    newmaterial.se += G.dz_cyl / (self.resistance * np.pi * G.dr_cyl * G.dr_cyl)
+                newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
 
             G.ID[G.IDlookup[componentID], i, j, k] = newmaterial.numID
             G.materials.append(newmaterial)
@@ -189,14 +181,9 @@ class HertzianDipole(Source):
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
-            if not G.cylindrical:
-                i = self.xcoord
-                j = self.ycoord
-                k = self.zcoord
-            else:
-                i = self.rcoord_cyl
-                j = 1
-                k = self.zcoord_cyl
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
             componentID = 'E' + self.polarisation
 
             if self.polarisation == 'x':
@@ -210,14 +197,9 @@ class HertzianDipole(Source):
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                if not G.cylindrical:
-                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
-                                    * self.waveformvalues_wholestep[iteration]
-                                    * self.dl * (1 / (G.dx * G.dy * G.dz)))
-                else:
-                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
-                                    * self.waveformvalues_wholestep[iteration]
-                                    * self.dl * (1 / (np.pi * G.dr_cyl * G.dr_cyl * G.dz_cyl)))
+                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_wholestep[iteration]
+                                * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
 class MagneticDipole(Source):
     """A magnetic dipole is an additive source (magnetic current density)."""
@@ -235,8 +217,6 @@ class MagneticDipole(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for magnetic dipole")
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -364,8 +344,6 @@ class TransmissionLine(Source):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for transmission line")
         self.Vinc = np.zeros(G.iterations, dtype=floattype)
         self.Iinc = np.zeros(G.iterations, dtype=floattype)
 
@@ -384,8 +362,6 @@ class TransmissionLine(Source):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for transmission line")
         h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
         self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
@@ -398,8 +374,6 @@ class TransmissionLine(Source):
             iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for transmission line")
         # Update all the voltage values along the line
         self.voltage[1:self.nl] -= (self.resistance * (c * G.dt / self.dl) 
                                     * (self.current[1:self.nl] - self.current[0:self.nl - 1]))
@@ -418,8 +392,6 @@ class TransmissionLine(Source):
             iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for transmission line")
         # Update all the current values along the line
         self.current[0:self.nl - 1] -= ((1 / self.resistance) * (c * G.dt / self.dl) 
                                         * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1]))
@@ -438,8 +410,6 @@ class TransmissionLine(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for transmission line")
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -466,8 +436,6 @@ class TransmissionLine(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        if G.cylindrical:
-            raise CmdInputError("Cylindrical coordinates not supported for transmission line")
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord

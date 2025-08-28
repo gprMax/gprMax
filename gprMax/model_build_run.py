@@ -181,8 +181,6 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             if G.gpu is None:
                 print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
             else:
-                if G.cylindrical:
-                    raise GeneralError("gpu has yet to be supported with cylindrical")
                 print('\nMemory (RAM) required: ~{} host + ~{} GPU\n'.format(human_size(G.memoryusage), human_size(G.memoryusage)))
 
         # Initialise an array for volumetric material IDs (solid), boolean

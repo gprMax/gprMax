@@ -1309,8 +1309,6 @@ def process_geometrycmds(geometry, G):
 
                 # Apply any rough surfaces and add any surface water to the 3D mask array
                 for surface in volume.fractalsurfaces:
-                    if G.cylindrical:
-                        raise GeneralError(tmp[0], " not yet implemented in cylindrical")
                     if surface.surfaceID == 'xminus':
                         for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                             for j in range(surface.ys, surface.yf):
