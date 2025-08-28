@@ -36,8 +36,6 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 """
 
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
-Coordinate_cyl_tuple = namedtuple('Coordinate_cyl', ['r', 'z'])
-Coordinate_z_tuple = namedtuple('Coordinate_z', ['z'])
 
 class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
@@ -45,17 +43,6 @@ class Coordinate(Coordinate_tuple):
     def __str__(self):
         return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
 
-class Coordinate_cyl(Coordinate_cyl_tuple):
-    """Subclass of a namedtuple where __str__ outputs 'r z'"""
-
-    def __str__(self):
-        return '{:g} {:g}'.format(self.r, self.z)
-
-class Coordinate_z(Coordinate_z_tuple):
-    """Subclass of a namedtuple where __str__ outputs 'z'"""
-
-    def __str__(self):
-        return '{:g}'.format(self.z)
 def command(cmd, *parameters):
     """
     Helper function. Prints the gprMax #<cmd>: <parameters>. None is ignored

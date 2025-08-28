@@ -22,7 +22,6 @@ import h5py
 
 from gprMax._version import __version__
 from gprMax.grid import Ix, Iy, Iz
-import numpy as np
 
 
 def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
@@ -33,7 +32,7 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
         Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
-    
+
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components
