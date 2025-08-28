@@ -77,4 +77,4 @@ We ran it twice, once using the CPU and once using the GPU. The only difference 
 The results from gprMax are close to the theory, but not exactly the same. Moreover, the GPU implementation seems a little more precise than the CPU one (the GPU is closer to the theory if we compute the distance between its results and the theory (2-norm)). 
 The CPU implementation ran the simulation in about 35 minutes, while the GPU took about 2 minutes.
 
-The difference between the theory and the results of the simulation may come from the implementation of the plane wave source, as this extends through PML, and is not perfectly plane in this case.
+The difference between the theory and the results of the simulation may come from the implementation of the plane wave source, as this extends through PML, and is not perfectly plane in this case, as explained in [MEEP_PML]_.
