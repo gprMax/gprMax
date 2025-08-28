@@ -100,6 +100,40 @@ Within each individual ``tl`` group are the following datasets:
 * ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
 
 
+
+
+Snapshots
+---------
+
+Snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. The ``#snapshot:`` command produces an ImageData (.vti) snapshot file containing electric and magnetic field data and current data for each time instance requested.
+
+.. tip::
+    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``xs, ys, zs, xf, yf, zf, dx, dy, dz`` accordingly.
+
+    .. code-block:: none
+
+        #python:
+        from gprMax.input_cmd_funcs import *
+        for i in range(1, 31):
+            snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, (i/10)*1e-9, 'snapshot' + str(i))
+        #end_python:
+
+The following are steps to get started with viewing snapshot files in Paraview:
+
+#. **Open the file** either from the File menu or toolbar. Paraview should recognise the time series based on the file name and load in all the files.
+#. Click the **Apply** button in the Properties panel. You should see an outline of the snapshot volume.
+#. Use the **Coloring** drop down menu to select either **E-field** or **H-field**, and the further drop down menu to select either **Magnitude**, **x**, **y** or **z** component.
+#. From the **Representation** drop down menu select **Surface**.
+#. You can step through or play as an animation the time steps using the **time controls** in the toolbar.
+
+.. tip::
+    * Turn on the Animation View (View->Animation View menu) to control the speed and start/stop points of the animation.
+
+    * Use the Color Map Editor to adjust the Color Scaling.
+
+    * Adjust the default lighting: In the Properties panel click on the gear icon to turn on the advanced properties. Go to the Lights section and click edit. Uncheck the Light Kit check box and click Close.
+
+
 Fluxes output
 ==============
 
@@ -175,39 +209,6 @@ The organization of the output file is similar if a scattering geometry is defin
             dz
 
 Here, the values of the incident fluxes are the **absolute** power going through the surface.
-
-
-Snapshots
----------
-
-Snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. The ``#snapshot:`` command produces an ImageData (.vti) snapshot file containing electric and magnetic field data and current data for each time instance requested.
-
-.. tip::
-    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``xs, ys, zs, xf, yf, zf, dx, dy, dz`` accordingly.
-
-    .. code-block:: none
-
-        #python:
-        from gprMax.input_cmd_funcs import *
-        for i in range(1, 31):
-            snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, (i/10)*1e-9, 'snapshot' + str(i))
-        #end_python:
-
-The following are steps to get started with viewing snapshot files in Paraview:
-
-#. **Open the file** either from the File menu or toolbar. Paraview should recognise the time series based on the file name and load in all the files.
-#. Click the **Apply** button in the Properties panel. You should see an outline of the snapshot volume.
-#. Use the **Coloring** drop down menu to select either **E-field** or **H-field**, and the further drop down menu to select either **Magnitude**, **x**, **y** or **z** component.
-#. From the **Representation** drop down menu select **Surface**.
-#. You can step through or play as an animation the time steps using the **time controls** in the toolbar.
-
-.. tip::
-    * Turn on the Animation View (View->Animation View menu) to control the speed and start/stop points of the animation.
-
-    * Use the Color Map Editor to adjust the Color Scaling.
-
-    * Adjust the default lighting: In the Properties panel click on the gear icon to turn on the advanced properties. Go to the Lights section and click edit. Uncheck the Light Kit check box and click Close.
-
 
 Geometry output
 ===============
