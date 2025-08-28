@@ -69,7 +69,7 @@ class UserObject(ABC):
             if isinstance(value, (tuple, list)):
                 for element in value:
                     args.append(str(element))
-            else:
+            elif value is not None:
                 args.append(str(value))
 
         return f"{self.hash}: {' '.join(args)}"
