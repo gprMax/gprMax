@@ -47,11 +47,11 @@ See the :ref:`section on antenna example models <example-wire-dipole>` for the s
 Fluxes
 =====
 
-:download:`lossless_sphere_scattering.in <../../tests/models_basic/fluxes/lossless_sphere_scattering.in>`
+:download:`lossless_sphere_scattering.in <../../tests/fluxes/lossless_sphere_scattering.in>`
 
 This example is of a plane wave incident on a lossless dielectric sphere. The fluxes through a box surrounding the sphere are calculated and compared to the analytical solution.
 
-.. literalinclude:: ../../tests/models_basic/fluxes/lossless_sphere_scattering.in
+.. literalinclude:: ../../tests/fluxes/lossless_sphere_scattering.in
     :language: none
     :linenos:
 
@@ -68,7 +68,7 @@ We ran it twice, once using the CPU and once using the GPU. The only difference 
 
 +---------------------------------------------------+---------------------------------------------------+
 | .. _fluxes_results_cpu:                           | .. _fluxes_results_gpu:                            |
-|.. figure:: ../../tests/models_basic/fluxes/Mie_scattering_cpu.png | .. figure:: ../../tests/models_basic/fluxes/Mie_scattering_gpu.png |
+|.. figure:: ../../tests/fluxes/Mie_scattering_cpu.png | .. figure:: ../../tests/fluxes/Mie_scattering_gpu.png |
 |    :width: 300 px                                 |    :width: 300 px                                 |
 |                                                   |                                                   |
 |    Mie Scattering of a Lossless Dielectric Sphere - CPU run |    Mie Scattering of a Lossless Dielectric Sphere - GPU run |
