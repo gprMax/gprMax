@@ -100,6 +100,83 @@ Within each individual ``tl`` group are the following datasets:
 * ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
 
 
+Fluxes output
+==============
+
+The flux commands produces a different HDF5 file from the one saving fields outputs. It will not have the same name as the input file, but the title to which we add ``_fluxes.out``.
+
+File structure
+--------------
+
+The fluxes output file has the following HDF5 attributes at the root (``/``):
+
+* ``gprMax`` is the version number of gprMax used to create the output
+* ``Title`` is the title of the model
+* ``Iterations`` is the number of iterations for the time window of the model
+* ``n_surfaces`` is the total number of flux surfaces in the model (six per ``#box_flux`` commands).
+
+The output file contains HDF5 groups depending of wether a scattering geometry was defined or not. If there is no scattering géometry, we have the following structure:
+
+.. code-block:: none
+
+    /
+        fluxes/
+            flux1/
+                values
+                wavelengths
+                normal
+                direction
+                x_cells
+                y_cells
+                z_cells
+            flux2/
+                ...
+        boxes/
+            box1/
+                values
+                wavelengths
+            box2/
+                ...
+        constants/
+            dt
+            dx
+            dy
+            dz
+
+The boxes are organized in the same order as the ``#box_flux`` commands in the input file. The ``values`` of ``box_flux`` are the total power **exiting** the box. ``x_cells``, ``y_cells``, and ``z_cells`` are the number of cells in each direction of the box. ``wavelengths`` is an array containing the wavelengths at which the fluxes were calculated. ``normal`` is the normal vector to the surface, and ``direction`` is either ``plus`` or ``minus`` depending on whether the flux is calculated in the direction of the normal or in the opposite direction.
+
+The organization of the output file is similar if a scattering geometry is defined: 
+
+.. code-block:: none
+
+    /
+        scattering/
+            incidents/
+                incident1/
+                    values
+                    wavelengths
+                    normal
+                    direction
+                    x_cells
+                    y_cells
+                    z_cells
+                incident2/
+                    ...
+        boxes/
+            box1/
+                values
+                wavelengths
+            box2/
+                ...
+        constants/
+            dt
+            dx
+            dy
+            dz
+
+Here, the values of the incident fluxes are the **absolute** power going through the surface.
+
+
 Snapshots
 ---------
 
