@@ -956,6 +956,7 @@ At each time step, we update the value of the Fourier tranforms. At the end of t
     \\Phi_\omega = \iint_S \mathbf{\Pi_\omega} \cdot \mathbf{dS} \\
     \iint_S \Re(\mathbf{E_\omega^*} \times \mathbf{H_\omega}) \cdot \mathbf{dS}
 
+Fluxes commands are compatible with GPU(s) calculations.
 #flux:
 ------
 
