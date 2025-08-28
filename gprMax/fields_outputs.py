@@ -33,6 +33,7 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
         Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
+    
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components

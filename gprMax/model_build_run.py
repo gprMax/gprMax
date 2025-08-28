@@ -259,7 +259,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Initialise arrays of update coefficients and temporary values if
         # there are any dispersive materials
-        if Material.maxpoles != 0 and not G.cylindrical:
+        if Material.maxpoles != 0:
             # Update estimated memory (RAM) usage
             G.memoryusage += int(3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize)
             G.memory_check()
@@ -269,7 +269,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             G.initialise_dispersive_arrays()
 
         # Check there is sufficient memory to store any snapshots
-        if G.snapshots and not G.cylindrical:
+        if G.snapshots:
             snapsmemsize = 0
             for snap in G.snapshots:
                 # 2 x required to account for electric and magnetic fields
@@ -413,7 +413,6 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Write any snapshots to file
         if G.snapshots:
-            assert not G.cylindrical, "Snapshots are not supported in cylindrical mode."
             # Create directory and construct filename from user-supplied name and model run number
             snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + appendmodelnumber)
             if not os.path.exists(snapshotdir):

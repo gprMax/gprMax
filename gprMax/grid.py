@@ -76,7 +76,6 @@ class Grid(object):
         co = round_value(float(val) / getattr(self, 'd' + coord))
         return co
 
-cylindrical = False
 class FDTDGrid(Grid):
     """
     Holds attributes associated with the entire grid. A convenient
@@ -163,14 +162,6 @@ class FDTDGrid(Grid):
         self.fluxes_box = []
         self.fluxes_single = []
 
-        self.cylindrical = False
-
-    #def initialise_surface(self, corners: list[np.ndarray], center = None, radius= None):
-    #    if (center is None) and (radius is None):
-    #        self.surface_flux.append(Fluxes.SurfaceFlux(corners))
-    #    else:
-    #        self.surface_flux.append(Fluxes.SurfaceFlux(cylindrical=True, center= center, radius= radius))
-
     def initialise_geometry_arrays(self):
         """
         Initialise an array for volumetric material IDs (solid);
@@ -208,51 +199,36 @@ class FDTDGrid(Grid):
 
     def memory_estimate_basic(self):
         """Estimate the amount of memory (RAM) required to run a model."""
-        ### Ajouter les coordonnées cylindriques
-        if not self.cylindrical:
-            stdoverhead = 50e6
+        stdoverhead = 50e6
 
-            solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
+        solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
-            # 12 x rigidE array components + 6 x rigidH array components
-            rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        # 12 x rigidE array components + 6 x rigidH array components
+        rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
 
-            # 6 x field arrays + 6 x ID arrays
-            fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(floattype).itemsize
+        # 6 x field arrays + 6 x ID arrays
+        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(floattype).itemsize
 
-            # PML arrays
-            pmlarrays = 0
-            for (k, v) in self.pmlthickness.items():
-                if v > 0:
-                    if 'x' in k:
-                        pmlarrays += ((v + 1) * self.ny * (self.nz + 1))
-                        pmlarrays += ((v + 1) * (self.ny + 1) * self.nz)
-                        pmlarrays += (v * self.ny * (self.nz + 1))
-                        pmlarrays += (v * (self.ny + 1) * self.nz)
-                    elif 'y' in k:
-                        pmlarrays += (self.nx * (v + 1) * (self.nz + 1))
-                        pmlarrays += ((self.nx + 1) * (v + 1) * self.nz)
-                        pmlarrays += ((self.nx + 1) * v * self.nz)
-                        pmlarrays += (self.nx * v * (self.nz + 1))
-                    elif 'z' in k:
-                        pmlarrays += (self.nx * (self.ny + 1) * (v + 1))
-                        pmlarrays += ((self.nx + 1) * self.ny * (v + 1))
-                        pmlarrays += ((self.nx + 1) * self.ny * v)
-                        pmlarrays += (self.nx * (self.ny + 1) * v)
+        # PML arrays
+        pmlarrays = 0
+        for (k, v) in self.pmlthickness.items():
+            if v > 0:
+                if 'x' in k:
+                    pmlarrays += ((v + 1) * self.ny * (self.nz + 1))
+                    pmlarrays += ((v + 1) * (self.ny + 1) * self.nz)
+                    pmlarrays += (v * self.ny * (self.nz + 1))
+                    pmlarrays += (v * (self.ny + 1) * self.nz)
+                elif 'y' in k:
+                    pmlarrays += (self.nx * (v + 1) * (self.nz + 1))
+                    pmlarrays += ((self.nx + 1) * (v + 1) * self.nz)
+                    pmlarrays += ((self.nx + 1) * v * self.nz)
+                    pmlarrays += (self.nx * v * (self.nz + 1))
+                elif 'z' in k:
+                    pmlarrays += (self.nx * (self.ny + 1) * (v + 1))
+                    pmlarrays += ((self.nx + 1) * self.ny * (v + 1))
+                    pmlarrays += ((self.nx + 1) * self.ny * v)
+                    pmlarrays += (self.nx * (self.ny + 1) * v)
 
-        else:
-            stdoverhead = 50e6
-            solidarray = self.nr_cyl * 1 * self.nz_cyl * np.dtype(np.uint32).itemsize
-            rigidarrays = (12 + 6) * self.nr_cyl * 1 * self.nz_cyl * np.dtype(np.int8).itemsize
-            fieldarrays = (6 + 6) * (self.nr_cyl + 1) * (1 + 1) * (self.nz_cyl + 1) * np.dtype(floattype).itemsize
-            # PML arrays
-            pmlarrays = 0
-            for (k, v) in self.pmlthickness_cyl.items():
-                if v > 0:
-                    if 'r' in k:
-                        pmlarrays += (v+1) * self.nz_cyl #Only a plan is being simulated
-                    elif 'z' in k:
-                        pmlarrays += (v+1) * self.nr_cyl
 
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
 
@@ -277,7 +253,6 @@ class FDTDGrid(Grid):
             if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
                 self.snapsgpu2cpu = True
 ######################################################
-#GPU: add cylindrical
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
@@ -317,7 +292,6 @@ def dispersion_analysis(G):
     Returns:
         results (dict): Results from dispersion analysis
     """
-    ###Add cylindrical
     # Physical phase velocity error (percentage); grid sampling density;
     # material with maximum permittivity; maximum significant frequency; error message
     results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': [], 'error': ''}
@@ -347,7 +321,7 @@ def dispersion_analysis(G):
 
                 waveformvalues = np.zeros(G.iterations)
                 for iteration in range(G.iterations):
-                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt, G.cylindrical)
+                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
 
                 # Ensure source waveform is not being overly truncated before attempting any FFT
                 if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
@@ -438,14 +412,9 @@ def get_other_directions(direction):
     Returns:
         (tuple): Two directions from x, y, z if cartesian, r, phi, z otherwise
     """
-    # if not self.cylindrical:
     directions = {'x': ('y', 'z'),
                   'y': ('x', 'z'),
                   'z': ('x', 'y'),}
-    # else:
-    #     directions = {'r': ('phi', 'z'),
-    #                   'phi': ('r', 'z'),
-    #                   'z': ('r', 'phi')}
 
     return directions[direction]
 

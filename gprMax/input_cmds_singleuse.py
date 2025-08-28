@@ -128,8 +128,6 @@ def process_singlecmds(singlecmds, G):
         G.dz = tmp[2]
         if G.messages:
             print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(G.dx, G.dy, G.dz))
-    elif singlecmds[cmd] is None and not G.cylindrical:
-        raise CmdInputError(cmd + ' is required for 3D models in cartesian coordinates')
 
     # Domain
     cmd = '#domain'
@@ -144,8 +142,6 @@ def process_singlecmds(singlecmds, G):
             raise CmdInputError(cmd + ' requires at least one cell in every dimension')
         if G.messages:
             print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
-    elif singlecmds[cmd] is None and not G.cylindrical:
-        raise CmdInputError(cmd + ' is required for 3D models in cartesian coordinates')
 
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))

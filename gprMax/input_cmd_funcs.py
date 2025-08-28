@@ -492,6 +492,7 @@ def waveform(shape, amplitude, frequency, identifier, std=None):
         amplitude (float): is the amplitude of the waveform.
         frequency (float): is the frequency of the waveform in Hertz.
         identifier (str): is an identifier for the waveform used to assign it to a source.
+        std (float): standard deviation for Gaussian waveform. It is a time value as this is what is usually called sigma.
 
     Returns:
         identifier (str): is an identifier for the waveform used to assign it to a source.
@@ -506,7 +507,7 @@ def waveform(shape, amplitude, frequency, identifier, std=None):
 
 
 def hertzian_dipole(polarisation, f1, f2, f3, identifier,
-                    t0=None, t_remove=None, dxdy=None, rotate90origin=(), cylindrical= False):
+                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #hertzian_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -535,10 +536,7 @@ def hertzian_dipole(polarisation, f1, f2, f3, identifier,
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
-    if not cylindrical:
-        c = Coordinate(f1, f2, f3)
-    else:
-        c = Coordinate_cyl(f1,f2)
+    c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
     command('hertzian_dipole', polarisation, str(c), identifier, t0, t_remove)
 
