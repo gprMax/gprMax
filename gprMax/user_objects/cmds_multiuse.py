@@ -317,8 +317,8 @@ class VoltageSource(RotatableMixin, GridUserObject):
         stop: Optional[float] = None,
     ):
         super().__init__(
-            p1=p1,
             polarisation=polarisation,
+            p1=p1,
             resistance=resistance,
             waveform_id=waveform_id,
             start=start,
@@ -463,7 +463,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         stop: Optional[float] = None,
     ):
         super().__init__(
-            p1=p1, polarisation=polarisation, waveform_id=waveform_id, start=start, stop=stop
+            polarisation=polarisation, p1=p1, waveform_id=waveform_id, start=start, stop=stop
         )
 
         self.point = p1
@@ -615,7 +615,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         stop: Optional[float] = None,
     ):
         super().__init__(
-            p1=p1, polarisation=polarisation, waveform_id=waveform_id, start=start, stop=stop
+            polarisation=polarisation, p1=p1, waveform_id=waveform_id, start=start, stop=stop
         )
 
         self.point = p1
@@ -749,8 +749,8 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         stop: Optional[float] = None,
     ):
         super().__init__(
-            p1=p1,
             polarisation=polarisation,
+            p1=p1,
             resistance=resistance,
             waveform_id=waveform_id,
             start=start,
