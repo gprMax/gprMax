@@ -279,7 +279,7 @@ def gpu_initialise_src_arrays(sources, G):
                 srcwaves[i, :] = src.waveformvalues_wholestep
             else:
                 srcinfo2[i] = 0
-                srcwaves[i, :] = src.waveformvalues_halfstep
+                srcwaves[i, :] = src.waveformvalues_wholestep
         elif src.__class__.__name__ == 'MagneticDipole':
             srcwaves[i, :] = src.waveformvalues_halfstep
 
