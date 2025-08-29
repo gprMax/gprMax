@@ -43,7 +43,7 @@ class Waveform(object):
         self.chi = 0
         self.zeta = 0
         self.delay = 0
-        self.std = None
+        self.dfrq = None
 
     def calculate_coefficients(self):
         """Calculates coefficients (used to calculate values) for specific waveforms."""
@@ -54,8 +54,8 @@ class Waveform(object):
         elif self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
-        if self.std is not None:
-            self.zeta = 1/(2*self.std**2)
+        if self.dfrq is not None:
+            self.zeta = 2*np.pi*self.dfrq**2*np.pi**2
 
     def calculate_value(self, time, dt):
         """Calculates value of the waveform at a specific time.

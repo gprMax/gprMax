@@ -82,11 +82,11 @@ def process_multicmds(multicmds, G):
             w.amp = float(tmp[1])
             w.freq = float(tmp[2])
             if len(tmp) == 5:
-                w.std = float(tmp[4])
+                w.dfrq = float(tmp[4])
 
             if G.messages:
-                if w.std is not None:
-                    print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz, standard deviation {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq, w.std))
+                if w.dfrq is not None:
+                    print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz, standard deviation {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq, w.dfrq))
                 else:
                     print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
 
