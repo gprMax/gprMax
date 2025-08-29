@@ -869,6 +869,7 @@ cpdef void build_cylinder(
                     if build:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
+
 cpdef void build_sphere(
                     int xc,
                     int yc,
