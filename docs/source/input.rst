@@ -686,9 +686,18 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
 * ``f1`` is the scaling of the maximum amplitude of the waveform (for a ``#hertzian_dipole`` the units will be Amps, for a ``#voltage_source`` or ``#transmission_line`` the units will be Volts).
 * ``f2`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``str2`` is an identifier for the waveform used to assign it to a source.
-* ``f3`` is an optional parameter that can be used to specify the standard deviation (seconds) of the waveform for the following types: ``gaussian``, ``gaussiandot``, ``gaussiandotnorm``, ``gaussianprime`` or ``gaussiandoubleprime``. If not specified a default value of :math:`\frac{1}{2\pi \, f3}` is used.
+* ``f3`` is an optional parameter that can be used to specify the freqency standard deviation (Hz) of the waveform for the following types: ``gaussian``, ``gaussiandot``, ``gaussiandotnorm``, ``gaussianprime`` or ``gaussiandoubleprime``. If not specified a default value of :math:`2\pi \, f3` is used.
 
-For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
+For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``. 
+
+If we define a frequency standard deviation with the following command : ``#waveform: gaussian 1 1.2e9 my_gaussian dfrq`` where dfrq is a float, we obtain the following results:
+
++----------------------------------------------------+----------------------------------------------------+----------------------------------------------------+
+| .. figure:: images/wavelength_std_1e9.png          | .. figure:: images/wavelength_std_3e9.png          | .. figure:: images/wavelength_std_5e9.png          |
+|    :width: 200 px                                  |    :width: 200 px                                  |    :width: 200 px                                  |
+|                                                    |                                                    |                                                    |
+|    Frequency standard deviation: 1e9 Hz            |    Frequency standard deviation: 3e9 Hz            |    Frequency standard deviation: 5e9 Hz            |
++----------------------------------------------------+----------------------------------------------------+----------------------------------------------------+
 
 .. note::
 

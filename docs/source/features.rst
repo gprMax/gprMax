@@ -57,7 +57,7 @@ Changed commands
 * ``#snapshot`` no longer requires a type, as only VTK snapshot files are now produced
 * ``#num_of_procs`` is now called ``#num_threads``
 * ``#tx_steps`` is now called ``#src_steps``
-* ``#waveform`` can now take another argument: the standard deviation for the Gaussian-shaped function
+* ``#waveform`` can now take another argument: the frequency standard deviation for the Gaussian-shaped functions
 
 
 Retired commands
