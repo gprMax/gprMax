@@ -68,7 +68,7 @@ class CFS(object):
         self.kappa = CFSParameter(ID='kappa', scalingprofile='constant', min=1, max=1)
         self.sigma = CFSParameter(ID='sigma', scalingprofile='quartic', min=0, max=None)
 
-    def calculate_sigmamax(self, d, er, mr):
+    def calculate_sigmamax(self, d, er, mr, G):
         """Calculates an optimum value for sigma max based on underlying material properties.
 
         Args:
