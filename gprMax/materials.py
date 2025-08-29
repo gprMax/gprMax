@@ -72,6 +72,7 @@ class Material(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         HA = (m0 * self.mr / G.dt) + 0.5 * self.sm
         HB = (m0 * self.mr / G.dt) - 0.5 * self.sm
         self.DA = HB / HA
@@ -79,7 +80,6 @@ class Material(object):
         self.DBy = (1 / G.dy) * 1 / HA
         self.DBz = (1 / G.dz) * 1 / HA
         self.srcm = 1 / HA
-
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -199,7 +199,7 @@ def process_materials(G):
         # Store all update coefficients together
         G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
         G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
-    
+
         # Store coefficients for any dispersive materials
         if Material.maxpoles > 0:
             z = 0
@@ -284,7 +284,7 @@ class PeplinskiSoil(object):
         erealw = Material.watereri + ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
 
         a = 0.65  # Experimentally derived constant
-        es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
+        es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
 
