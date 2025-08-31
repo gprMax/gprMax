@@ -298,7 +298,10 @@ def get_host_info():
             allcpuinfo = subprocess.check_output("lscpu", shell=True, env=my_env, stderr=subprocess.STDOUT).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
-                    sockets = int(re.sub("\\D", "", line.strip()))
+                    try:
+                        sockets = int(re.sub("\\D", "", line.strip()))
+                    except:
+                        sockets = 1
                 if 'Thread(s) per core' in line:
                     threadspercore = int(re.sub("\\D", "", line.strip()))
                 if 'Core(s) per socket' in line:
