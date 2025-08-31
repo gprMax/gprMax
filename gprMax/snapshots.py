@@ -169,10 +169,6 @@ class Snapshot(object):
             Hxsnap,
             Hysnap,
             Hzsnap)
-        # print(Exsnap.shape)
-        # print(Eysnap.shape)
-        # print(Ezsnap.shape)
-        # Convert to format for Paraview
         self.electric = (Exsnap, Eysnap, Ezsnap)
         self.magnetic = (Hxsnap, Hysnap, Hzsnap)
 

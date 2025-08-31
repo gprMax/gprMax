@@ -183,11 +183,6 @@ def generate_surface_coordinates(N=20, cube_size=0.20):
     return coords
 
 
-# Constants
-c = 299792458  # m/s
-mu0 = 4 * np.pi * 1e-7
-eps0 = 1 / (mu0 * c ** 2)
-
 def cartesian_to_spherical(xyz):
     x, y, z = xyz
     r = np.sqrt(x**2 + y**2 + z**2)
@@ -231,7 +226,10 @@ def calculate_far_field_time_trace(Js_faces, Ms_faces, coords,
                                    obs_r, obs_theta, obs_phi,
                                    t_array, dt, cube_size):
     
-    # normals = surface_normals()
+    # Constants
+    c = 299792458  # m/s
+    mu0 = 4 * np.pi * 1e-7
+    eps0 = 1 / (mu0 * c ** 2)
     N = coords.shape[-1]
     
     far_E_trace = np.zeros((len(t_array), 3), dtype=np.float64)
@@ -280,45 +278,3 @@ def calculate_far_field_time_trace(Js_faces, Ms_faces, coords,
         far_E_trace[obs_idx] = far_E
 
     return far_E_trace
-
-
-if __name__ == "__main__":
-    Js_faces, Ms_faces= get_surface_currents('nfft_snapshots_model1.npz')
-    coords = generate_surface_coordinates(N=20, cube_size=0.2)  # (6, 3, N, N)
-    # print(coords[0][:][0][0])
-    # print(Js_faces[0][1][1].shape)
-    #     # ---- Parameters ----
-    # N = 20               # Number of grid points per face (surface resolution)
-    # T = 100              # Number of time samples
-    # cube_size = 0.20     # Side length of cube, meters
-    # dt = 1e-9           # Time step, seconds
-    # t_array = np.arange(0, T*dt, dt)   # t = 0, dt, 2dt, ..., (T-1)*dt
-
-    # # ---- Surface coordinates ----
-    # coords = generate_surface_coordinates(N=N, cube_size=cube_size)  # (6, 3, N, N)
-
-    # obs_r = 1.0
-    # obs_theta = np.pi/3
-    # obs_phi = np.pi/4
-    # far_E_trace = calculate_far_field_time_trace(
-    #     Js_faces=Js_faces,
-    #     Ms_faces=Ms_faces,
-    #     coords=coords,
-    #     obs_r=obs_r,
-    #     obs_theta=obs_theta,
-    #     obs_phi=obs_phi,
-    #     t_array=t_array,
-    #     dt=dt,
-    #     cube_size=cube_size
-    # )
-    # # To plot or analyze:
-    # import matplotlib.pyplot as plt
-    # plt.plot(t_array, far_E_trace[:, 0], label='Ex')
-    # plt.plot(t_array, far_E_trace[:, 1], label='Ey')
-    # plt.plot(t_array, far_E_trace[:, 2], label='Ez')
-    # plt.xlabel('Time (s)')
-    # plt.ylabel('Far-field E')
-    # plt.legend()
-    # plt.show()
-
-    # # print("Far-field E (x, y, z) at (r, θ, φ):", far_E)

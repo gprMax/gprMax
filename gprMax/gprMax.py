@@ -188,9 +188,6 @@ def run_main(args):
             else:
                 if args.task and args.restart:
                     raise GeneralError('Job array and restart modes cannot be used together')
-                print(usernamespace)
-                print(args)
-                print(inputfile)
                 run_std_sim(args, inputfile, usernamespace)
 
 
@@ -232,8 +229,6 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
             modelusernamespace.update({'optparams': tmp})
         else:
             modelusernamespace = usernamespace
-        print("Model run starts here, these are arguments going into run_model:\n")
-        print(args,"\n", currentmodelrun,"\n", modelend - 1,"\n",numbermodelruns,"\n", inputfile,"\n", modelusernamespace)
         run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
         gc.collect()
     tsimend = timer()

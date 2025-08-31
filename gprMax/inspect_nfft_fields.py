@@ -37,21 +37,3 @@ for i, (face_elec, face_mag) in enumerate(zip(electric, magnetic), 1):
         inspect_field("Hz", Hz)
 
     print()
-
-# # Choose face and spatial point
-# face_id = 0
-# iy, iz = 30, 30
-
-# # Extract Ex over time
-# ex_waveform = []
-# for snapshot in electric[face_id]:
-#     Ex, _, _ = snapshot  # unpack Ex, Ey, Ez
-#     ex_waveform.append(Ex[0,iy, iz])
-
-# # Plot
-# plt.plot(ex_waveform)
-# plt.title(f"Ex waveform at (iy={iy}, iz={iz}) for face {face_id}")
-# plt.xlabel("Timestep")
-# plt.ylabel("Ex")
-# plt.grid(True)
-# plt.show()

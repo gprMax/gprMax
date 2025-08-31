@@ -368,9 +368,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Main FDTD solving functions for either CPU or GPU
         if G.gpu is None:
-            print("MAIN FDTD STARTS HERE")
-            # tsolve = solve_cpu(currentmodelrun, modelend, G)
-            tsolve = solve_cpu_nfft(currentmodelrun, modelend, G)
+            tsolve = solve_cpu_nfft(currentmodelrun, modelend, G) # separate simulation for NFFT, can replace with user argument to enable nfft in the same simulation
+            tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
             tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
