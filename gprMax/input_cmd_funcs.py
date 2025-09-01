@@ -736,8 +736,6 @@ def geometry_objects_read(x, y, z, file1, file2):
     command('geometry_objects_read', str(c), file1, file2)
     return c
 
-#TO DO: add the fluxes fonctions
-
 def flux(x1, y1, z1, x2, y2, z2, normal, direction, filename, w1, w2, n):
     """Prints the gprMax #flux command.
 
