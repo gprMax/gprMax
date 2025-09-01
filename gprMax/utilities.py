@@ -301,7 +301,9 @@ def get_host_info():
                     try:
                         sockets = int(re.sub("\\D", "", line.strip()))
                     except:
+                        # For NVIDIA Jetson, it returns "Socket(s): -" and never returns "Core(s) per socket", so we assume 1 socket and 1 core per socket
                         sockets = 1
+                        corespersocket = 1
                 if 'Thread(s) per core' in line:
                     threadspercore = int(re.sub("\\D", "", line.strip()))
                 if 'Core(s) per socket' in line:
