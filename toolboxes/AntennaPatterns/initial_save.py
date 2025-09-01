@@ -18,15 +18,13 @@ from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
 
-logger = logging.getLogger(__name__)
-
 # Impedance of free space (Ohms)
 z0 = np.sqrt(m0 / e0)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
     description="Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.",
-    usage="cd gprMax; python -m user_libs.AntennaPatterns.initial_save outputfile",
+    usage="cd gprMax; python -m toolboxes.AntennaPatterns.initial_save outputfile",
 )
 parser.add_argument("outputfile", help="name of gprMax output file including path")
 args = parser.parse_args()
@@ -36,7 +34,7 @@ outputfile = args.outputfile
 # User configurable parameters
 
 # Pattern type (E or H)
-type = "H"
+type = "E"
 
 # Antenna (true if using full antenna model; false for a theoretical Hertzian dipole
 antenna = True
@@ -46,7 +44,8 @@ epsr = 5
 
 # Observation radii and angles
 radii = np.linspace(0.1, 0.3, 20)
-theta = np.linspace(3, 357, 60) * (180 / np.pi)
+theta = np.linspace(3, 357, 60)
+theta = np.deg2rad(theta)
 
 # Scaling of time-domain field pattern values by material impedance
 impscaling = False
@@ -70,21 +69,21 @@ if epsr:
     wavelength = v1 / f
 
 # Print some useful information
-logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
+print(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
-    logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
-    logger.info(f"Wavelength: {wavelength:.3f} m")
-    logger.info(
+    print(f"Critical angle for Er {epsr} is {thetac} degrees")
+    print(f"Wavelength: {wavelength:.3f} m")
+    print(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
             radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
         )
     )
-    logger.info(
+    print(
         "Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m".format(
             0.62 * np.sqrt((D**3) / wavelength)
         )
     )
-    logger.info(
+    print(
         "Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m".format(
             (2 * D**2) / wavelength
         )
@@ -215,4 +214,4 @@ for radius in range(0, len(radii)):
 
 # Save pattern to numpy file
 np.save(os.path.splitext(outputfile)[0], patternsave)
-logger.info(f"Written Numpy file: {os.path.splitext(outputfile)[0]}.npy")
+print(f"Written Numpy file: {os.path.splitext(outputfile)[0]}.npy")
