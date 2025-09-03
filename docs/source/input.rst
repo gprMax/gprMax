@@ -1007,7 +1007,7 @@ The figure below should help to understand how ``#box_flux`` is designed:
     :width: 500 px
     :align: center
 
-    Illustration du paramétrage de la commande ``#box_flux: x y z dx1 dx2 dy1 dy2 dz1 dz2 w1 w2 n1``.
+    Illustration of the parameters for the ``#box_flux: x y z dx1 dx2 dy1 dy2 dz1 dz2 w1 w2 n1`` command.
 
 
 #scattering: and #scattering_end:

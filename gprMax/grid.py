@@ -239,7 +239,7 @@ class FDTDGrid(Grid):
         Args:
             snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
         """
-        ### Ajouter les coordonnées cylindriques
+        ### Add cylindrical coordinates
         # Check if model can be built and/or run on host
         if self.memoryusage > self.hostinfo['ram']:
             raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
