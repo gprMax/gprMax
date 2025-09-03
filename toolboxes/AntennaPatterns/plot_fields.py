@@ -15,8 +15,6 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-logger = logging.getLogger(__name__)
-
 
 # Impedance of free space (Ohms)
 z0 = np.sqrt(m0 / e0)
@@ -24,7 +22,7 @@ z0 = np.sqrt(m0 / e0)
 # Parse command line arguments
 parser = argparse.ArgumentParser(
     description="Plot field patterns from a simulation with receivers positioned in circles around an antenna. This module should be used after the field pattern data has been processed and stored using the initial_save.py module.",
-    usage="cd gprMax; python -m user_libs.AntennaPatterns.plot_fields numpyfile",
+    usage="cd gprMax; python -m toolboxes.AntennaPatterns.plot_fields numpyfile",
 )
 parser.add_argument("numpyfile", help="name of numpy file including path")
 # parser.add_argument('hertzian', help='name of numpy file including path')
@@ -36,7 +34,7 @@ patterns = np.load(args.numpyfile)
 # User configurable parameters
 
 # Pattern type (E or H)
-type = "H"
+type = "E"
 
 # Relative permittivity of half-space for homogeneous materials (set to None for inhomogeneous)
 epsr = 5
@@ -66,21 +64,21 @@ if epsr:
     wavelength = v1 / f
 
 # Print some useful information
-logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
+print(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
-    logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
-    logger.info(f"Wavelength: {wavelength:.3f} m")
-    logger.info(
+    print(f"Critical angle for Er {epsr} is {thetac} degrees")
+    print(f"Wavelength: {wavelength:.3f} m")
+    print(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
             radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
         )
     )
-    logger.info(
+    print(
         "Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m".format(
             0.62 * np.sqrt((D**3) / wavelength)
         )
     )
-    logger.info(
+    print(
         "Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m".format(
             (2 * D**2) / wavelength
         )
