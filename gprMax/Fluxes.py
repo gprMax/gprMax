@@ -155,12 +155,6 @@ class Flux(object):
                 self.E_fft_transform = self.E_fft_transform_scatt - self.E_fft_transform_empty
                 self.H_fft_transform = self.H_fft_transform_scatt - self.H_fft_transform_empty
 
-                file = open('Simulation_E_fft.txt', 'w')
-                file.write(np.array2string(self.E_fft_transform))
-                file.close()
-                file = open('Simulation_H_fft.txt', 'w')
-                file.write(np.array2string(self.H_fft_transform))
-                file.close()
             else:
                 if G.empty_sim:
                     # print(G.Ez_gpu.get()[50,50,50])

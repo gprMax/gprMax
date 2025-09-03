@@ -71,7 +71,7 @@ def process_multicmds(multicmds, G):
             if tmp[0].lower() not in Waveform.types:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have one of the following types {}'.format(','.join(Waveform.types)))
             w.ID = tmp[3]
-            if ((w.ID == 'gaussian' or w.ID == 'gaussiandot' or w.ID == 'gaussiandotnorm' or w.ID == 'gaussianprime' or w.ID == 'gaussiandoubleprime') and (len(tmp) != 4 or len(tmp) != 5)):
+            if ((w.ID == 'gaussian' or w.ID == 'gaussiandot' or w.ID == 'gaussiandotnorm' or w.ID == 'gaussianprime' or w.ID == 'gaussiandoubleprime') and (len(tmp) != 4 and len(tmp) != 5)):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' four or five parameters depending wether you defined the standard deviation or not.')
             if float(tmp[2]) <= 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
@@ -879,7 +879,6 @@ def process_multicmds(multicmds, G):
             w_min = float(tmp[8])
             w_max = float(tmp[9])
             w_num = int(tmp[10])
-            print(y2, ' ', G.ny)
             if x1 < 0 or y1 < 0 or z1 < 0 or x2 < 0 or y2 < 0 or z2 < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the coordinates')
             if x1 > G.nx or y1 > G.ny or z1 > G.nz or x2 > G.nx or y2 > G.ny or z2 > G.nz:
@@ -923,7 +922,6 @@ def process_multicmds(multicmds, G):
             w_min = float(tmp[9])
             w_max = float(tmp[10])
             w_num = int(tmp[11])
-            print(np.linspace(w_min, w_max, w_num, dtype= floattype))
             assert xcenter > 0 and ycenter > 0 and zcenter > 0 and xminus > 0 and xplus > 0 and yminus > 0 and yplus > 0 and zminus > 0 and zplus > 0, CmdInputError("Every parameter should be positive")
             assert xcenter - xminus >= 0 and xcenter + xplus <= G.nx, "The x-faces of the box should be inside the domain"
             if xcenter - xminus <= G.pmlthickness['x0'] or xcenter + xplus >= G.nx - G.pmlthickness['xmax']: 
@@ -1071,8 +1069,8 @@ def process_multicmds(multicmds, G):
                 if time >= start and time <= stop:
                     # Set the time of the waveform evaluation to account for any delay in the start
                     time -= start
-                    waveformvalues_wholestep[iteration] = w.calculate_value(time, G.dt)
-                    waveformvalues_halfstep[iteration] = w.calculate_value(time + 0.5 * G.dt, G.dt)
+                    waveformvalues_wholestep[iteration] = waveform_used.calculate_value(time, G.dt)
+                    waveformvalues_halfstep[iteration] = waveform_used.calculate_value(time + 0.5 * G.dt, G.dt)
 
             for i in X:
                 for j in Y:
