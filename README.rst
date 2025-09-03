@@ -37,15 +37,15 @@ Package Overview
 
     gprMax/
         conda_env.yml
-    CREDITS
+        CREDITS
         docs/
         gprMax/
         LICENSE
-    MANIFEST.in
-    pyproject.toml
+        MANIFEST.in
+        pyproject.toml
         README.rst
         setup.py
-    requirements.txt
+        requirements.txt
         tests/
         tools/
         user_libs/
@@ -85,28 +85,27 @@ Linux
 
 macOS
 ^^^^^
-* Apple Clang (from Xcode) lacks OpenMP support by default. Install Homebrew ``gcc``:
+* Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. That said, it is still useful to have Xcode (with command line tools) installed. It can be downloaded from the App Store. Once Xcode is installed, download and install the `Homebrew package manager <http://brew.sh>`_ and then to install gcc, run:
 
-    .. code-block:: bash
+.. code-block:: bash
 
-            brew install gcc
-
-    Keep Xcode command line tools installed (SDK headers, linker, etc.).
+    $ brew install gcc
 
 Windows
 ^^^^^^^
-* Install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ with the "Desktop development with C++" workload (MSVC v143 + latest Windows SDK). Ensure the appropriate "x64 Native Tools Command Prompt" (or environment variables) is used when building.
-* Alternative: Use WSL (Ubuntu or similar) and follow the Linux instructions.
 
-Two installation modes are available:
+* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
+* Set the Path and Environment Variables - this can be done by following the `instructions from Microsoft <https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160#developer_command_file_locations>`_, or manually by adding a form of :code:`C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.23.28105\bin\Hostx64\x64` (this may vary according to your exact machine and installation) to your system Path environment variable.
 
-* Direct installation using pip + a virtual environment (recommended for most users)
-* Installation using conda (historical/legacy method, still supported)
+Alternatively, if you are using Windows 10/11 you can install the `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
 
 Environment setup
 -----------------
 
-Choose ONE of the following ways to prepare an isolated environment.
+Two installation modes are available:
+
+* Direct installation using pip + a virtual environment
+* Installation using conda (historical/legacy method)
 
 Pip / virtualenv
 ~~~~~~~~~~~~~~~~
@@ -120,8 +119,8 @@ Pip / virtualenv
     python -m venv .venv
     source .venv/bin/activate  # (Windows: .venv\\Scripts\\activate)
 
-Conda (legacy / alternative)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Conda
+~~~~~
 
 .. code-block:: bash
 
@@ -150,19 +149,19 @@ Examples:
 
 .. code-block:: bash
 
-    pip install -e .[docs]
-    pip install -e .[notebooks]
+    pip install -e ".[docs]"
+    pip install -e ".[notebooks]"
 
 Build documentation locally:
 
 .. code-block:: bash
 
-    pip install -e .[docs]
+    pip install -e ".[docs]"
     make -C docs html
-    open docs/_build/index.html  # macOS
+    open docs/html/index.html  # macOS
 
 1. Install Python, the required Python packages, and get gprMax source (conda variant detail)
--------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
