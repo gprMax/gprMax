@@ -6,7 +6,7 @@ SPHINXOPTS    = -aE
 SPHINXBUILD   = sphinx-build
 PAPER         =
 # Build output in dedicated directory to avoid 'make clean' deleting files from the repository.
-BUILDDIR      = _build
+BUILDDIR      = html
 
 # User-friendly check for sphinx-build
 ifeq ($(shell which $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)

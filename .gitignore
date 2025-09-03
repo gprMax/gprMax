@@ -14,8 +14,7 @@
 build/
 dist/
 *.egg-info/
-_build/
-docs/_build/
+docs/html/
 
 # Backup files
 *~
