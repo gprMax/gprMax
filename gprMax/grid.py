@@ -35,7 +35,6 @@ from gprMax.utilities import fft_power
 from gprMax.utilities import human_size
 from gprMax.utilities import round_value
 
-
 class Grid(object):
     """Generic grid/mesh."""
 
@@ -50,6 +49,7 @@ class Grid(object):
         self.j_max = self.ny - 1
         self.k_max = self.nz - 1
         self.grid = grid
+
 
     def n_edges(self):
         i = self.nx
@@ -75,7 +75,6 @@ class Grid(object):
     def calculate_coord(self, coord, val):
         co = round_value(float(val) / getattr(self, 'd' + coord))
         return co
-
 
 class FDTDGrid(Grid):
     """
@@ -153,6 +152,15 @@ class FDTDGrid(Grid):
         self.srcsteps = [0, 0, 0]
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
+        self.fluxes = []
+        self.total_flux = None
+        self.scattering = False
+        self.empty_sim = True
+        self.scattering_geometrycmds = None
+        self.scatteringgeometry = None
+        self.box_fluxes_enumerate = [] 
+        self.fluxes_box = []
+        self.fluxes_single = []
 
     def initialise_geometry_arrays(self):
         """
@@ -167,6 +175,7 @@ class FDTDGrid(Grid):
         self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
         self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
+
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
@@ -187,11 +196,9 @@ class FDTDGrid(Grid):
         self.Tx = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
         self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
         self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
 
     def memory_estimate_basic(self):
         """Estimate the amount of memory (RAM) required to run a model."""
-
         stdoverhead = 50e6
 
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
@@ -222,7 +229,9 @@ class FDTDGrid(Grid):
                     pmlarrays += ((self.nx + 1) * self.ny * v)
                     pmlarrays += (self.nx * (self.ny + 1) * v)
 
+
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
+
 
     def memory_check(self, snapsmemsize=0):
         """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
@@ -230,7 +239,7 @@ class FDTDGrid(Grid):
         Args:
             snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
         """
-
+        ### Add cylindrical coordinates
         # Check if model can be built and/or run on host
         if self.memoryusage > self.hostinfo['ram']:
             raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
@@ -243,7 +252,7 @@ class FDTDGrid(Grid):
             # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
             if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
                 self.snapsgpu2cpu = True
-
+######################################################
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
@@ -271,7 +280,7 @@ class FDTDGrid(Grid):
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
         self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
 
-
+#########################################################
 def dispersion_analysis(G):
     """
     Analysis of numerical dispersion (Taflove et al, 2005, p112) -
@@ -283,7 +292,6 @@ def dispersion_analysis(G):
     Returns:
         results (dict): Results from dispersion analysis
     """
-
     # Physical phase velocity error (percentage); grid sampling density;
     # material with maximum permittivity; maximum significant frequency; error message
     results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': [], 'error': ''}
@@ -399,17 +407,19 @@ def get_other_directions(direction):
     """Return the two other directions from x, y, z given a single direction
 
     Args:
-        direction (str): Component x, y or z
+        direction (str): Component x, y or z if cartesian, r, phi, z otherwise
 
     Returns:
-        (tuple): Two directions from x, y, z
+        (tuple): Two directions from x, y, z if cartesian, r, phi, z otherwise
     """
-
-    directions = {'x': ('y', 'z'), 'y': ('x', 'z'), 'z': ('x', 'y')}
+    directions = {'x': ('y', 'z'),
+                  'y': ('x', 'z'),
+                  'z': ('x', 'y'),}
 
     return directions[direction]
 
 
+###Ajouter les cylindriques en-dessous
 def Ix(x, y, z, Hx, Hy, Hz, G):
     """Calculates the x-component of current at a grid position.
 

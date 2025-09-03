@@ -25,7 +25,7 @@ from tqdm import tqdm
 
 from gprMax.constants import z0
 from gprMax.constants import floattype
-from gprMax.exceptions import CmdInputError
+from gprMax.exceptions import CmdInputError, GeneralError
 from gprMax.geometry_outputs import GeometryView
 from gprMax.geometry_outputs import GeometryObjects
 from gprMax.materials import Material
@@ -64,24 +64,31 @@ def process_multicmds(multicmds, G):
     cmdname = '#waveform'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
+            w = Waveform()
             tmp = cmdinstance.split()
-            if len(tmp) != 4:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters')
+            if len(tmp) != 4 and len(tmp) != 5:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' at least four parameters and at most five.')
             if tmp[0].lower() not in Waveform.types:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have one of the following types {}'.format(','.join(Waveform.types)))
+            w.ID = tmp[3]
+            if ((w.ID == 'gaussian' or w.ID == 'gaussiandot' or w.ID == 'gaussiandotnorm' or w.ID == 'gaussianprime' or w.ID == 'gaussiandoubleprime') and (len(tmp) != 4 and len(tmp) != 5)):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' four or five parameters depending wether you defined the standard deviation or not.')
             if float(tmp[2]) <= 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
             if any(x.ID == tmp[3] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[3]))
 
-            w = Waveform()
-            w.ID = tmp[3]
             w.type = tmp[0].lower()
             w.amp = float(tmp[1])
             w.freq = float(tmp[2])
+            if len(tmp) == 5:
+                w.dfrq = float(tmp[4])
 
             if G.messages:
-                print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
+                if w.dfrq is not None:
+                    print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz, standard deviation {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq, w.dfrq))
+                else:
+                    print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
 
             G.waveforms.append(w)
 
@@ -90,10 +97,8 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 6:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
-
             # Check polarity & position parameters
+                
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
@@ -104,20 +109,25 @@ def process_multicmds(multicmds, G):
             elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
+            if len(tmp) < 6:
+                raise CmdInputError(
+                    "'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+            resistance = float(tmp[4])
+            if resistance < 0:
+                raise CmdInputError(
+                    "'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
+                # Check if there is a waveformID in the waveforms list
+            if not any(x.ID == tmp[5] for x in G.waveforms):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(
+                    tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
+
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
-            resistance = float(tmp[4])
 
             check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-            if resistance < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
-
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[5] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
 
             v = VoltageSource()
             v.polarisation = polarisation
@@ -125,8 +135,8 @@ def process_multicmds(multicmds, G):
             v.ycoord = ycoord
             v.zcoord = zcoord
             v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
-            v.resistance = resistance
             v.waveformID = tmp[5]
+            v.resistance = resistance
 
             if len(tmp) > 6:
                 # Check source start & source remove time parameters
@@ -153,7 +163,6 @@ def process_multicmds(multicmds, G):
 
             if G.messages:
                 print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
-
             G.voltagesources.append(v)
 
     # Hertzian dipole
@@ -174,7 +183,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
             elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
-
+            
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
@@ -205,7 +214,7 @@ def process_multicmds(multicmds, G):
             h.zcoordorigin = zcoord
             h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
-
+            
             if len(tmp) > 5:
                 # Check source start & source remove time parameters
                 start = float(tmp[5])
@@ -426,7 +435,7 @@ def process_multicmds(multicmds, G):
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
 
             if G.messages:
-                print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
+                print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx,r.ycoord * G.dy,r.zcoord * G.dz,', '.join(r.outputs)))
 
             G.rxs.append(r)
 
@@ -660,7 +669,6 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
             if int(tmp[0]) < 0:
@@ -849,3 +857,234 @@ def process_multicmds(multicmds, G):
                 print('PML CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), kappa (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), sigma (scaling: {}, scaling direction: {}, min: {:g}, max: {}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
 
             G.cfs.append(cfs)
+
+    #Fluxes
+    cmdname = '#flux'
+    if multicmds[cmdname] is not None:
+        from gprMax.Fluxes import Flux
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) != 11:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+            if tmp[0] not in Flux.possible_normals:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a valid normal direction: {}'.format(', '.join(Flux.possible_normals)))
+            if tmp[1] not in Flux.possible_direction:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a valid direction: {}'.format(', '.join(Flux.possible_direction)))
+            x1 = round_value(float(tmp[2]) / G.dx)
+            y1 = round_value(float(tmp[3]) / G.dy)
+            z1 = round_value(float(tmp[4]) / G.dz)
+            x2 = round_value(float(tmp[5]) / G.dx)
+            y2 = round_value(float(tmp[6]) / G.dy)
+            z2 = round_value(float(tmp[7]) / G.dz)
+            w_min = float(tmp[8])
+            w_max = float(tmp[9])
+            w_num = int(tmp[10])
+            if x1 < 0 or y1 < 0 or z1 < 0 or x2 < 0 or y2 < 0 or z2 < 0:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the coordinates')
+            if x1 > G.nx or y1 > G.ny or z1 > G.nz or x2 > G.nx or y2 > G.ny or z2 > G.nz:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires values fitting in the domain')
+            if tmp[0] == 'x':
+                if x1 != x2:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the x-coordinates to be equal for a flux normal to the x-axis')
+                else:
+                    assert y1 < y2 and z1 < z2, "y1 should be less than y2 and z1 should be less than z2 to define a valid flux area"
+            elif tmp[0] == 'y':
+                if y1 != y2:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the y-coordinates to be equal for a flux normal to the y-axis')
+                else:
+                    assert x1 < x2 and z1 < z2, "x1 should be less than x2 and z1 should be less than z2 to define a valid flux area"
+            elif tmp[0] == 'z':
+                if z1 != z2:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the z-coordinates to be equal for a flux normal to the z-axis')
+                else:
+                    assert x1 < x2 and y1 < y2, "x1 should be less than x2 and y1 should be less than y2 to define a valid flux area"
+            assert w_min > 0 and w_max > 0 and w_num > 0, "wavelengths and the number of wavelengths should be strictly positive"
+            flux = Flux(G, tmp[0], tmp[1], np.array([x1, y1, z1]), np.array([x2, y2, z2]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            G.fluxes_single.append(flux)
+    
+    cmdname = '#box_flux'
+    if multicmds[cmdname] is not None:
+        from gprMax.Fluxes import Flux
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) != 12:
+                raise CmdInputError(cmdname + " requires exactly 12 parameters: xcenter ycenter zcenter xminus xplus yminus yplus zminus zplus wavelength_min wavelength_max number_of_wavelengths")
+            xcenter = round_value(float(tmp[0]) / G.dx)
+            ycenter = round_value(float(tmp[1]) / G.dy)
+            zcenter = round_value(float(tmp[2]) / G.dz)
+            xminus = round_value(float(tmp[3]) / G.dx)
+            xplus = round_value(float(tmp[4]) / G.dx)
+            yminus = round_value(float(tmp[5]) / G.dy)
+            yplus = round_value(float(tmp[6]) / G.dy)
+            zminus = round_value(float(tmp[7]) / G.dz)
+            zplus = round_value(float(tmp[8]) / G.dz)
+            w_min = float(tmp[9])
+            w_max = float(tmp[10])
+            w_num = int(tmp[11])
+            assert xcenter > 0 and ycenter > 0 and zcenter > 0 and xminus > 0 and xplus > 0 and yminus > 0 and yplus > 0 and zminus > 0 and zplus > 0, CmdInputError("Every parameter should be positive")
+            assert xcenter - xminus >= 0 and xcenter + xplus <= G.nx, "The x-faces of the box should be inside the domain"
+            if xcenter - xminus <= G.pmlthickness['x0'] or xcenter + xplus >= G.nx - G.pmlthickness['xmax']: 
+                print(Fore.RED + "WARNING: '" + cmdname + "': x-faces should not be inside PMLs" + Style.RESET_ALL)
+            assert ycenter - yminus >= 0 and ycenter + yplus <= G.ny, "The y-faces of the box should be inside the domain"
+            if ycenter - yminus <= G.pmlthickness['y0'] or ycenter + yplus >= G.ny - G.pmlthickness['ymax']: 
+                print(Fore.RED + "WARNING: '" + cmdname + "': y-faces should not be inside PMLs" + Style.RESET_ALL)
+            assert zcenter - zminus >= 0 and zcenter + zplus <= G.nz, "The z-faces of the box should be inside the domain"
+            if zcenter - zminus <= G.pmlthickness['z0'] or zcenter + zplus >= G.nz - G.pmlthickness['zmax']: 
+                print(Fore.RED + "WARNING: '" + cmdname + "': z-faces should not be inside PMLs" + Style.RESET_ALL)
+            assert w_min > 0 and w_max > 0 and w_num > 0, "wavelengths and the number of wavelengths should be strictly positive"
+            
+            # We now set the 6 faces of the cube
+
+            lis = []
+
+            x_1 = xcenter + xplus
+            y_1 = ycenter + yplus
+            z_1 = zcenter + zplus
+
+            x_2 = xcenter + xplus
+            y_2 = ycenter - yminus
+            z_2 = zcenter - zminus
+
+            flux = Flux(G, 'x', 'plus', np.array([x_2, y_2, z_2]), np.array([x_1, y_1, z_1]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            lis.append(flux)
+
+            x_3 = xcenter - xminus
+            y_3 = ycenter - yminus
+            z_3 = zcenter + zplus
+
+            flux = Flux(G, 'z', 'plus', np.array([x_3, y_3, z_3]), np.array([x_1, y_1, z_1]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            lis.append(flux)
+
+            x_4 = xcenter - xminus
+            y_4 = ycenter - yminus
+            z_4 = zcenter - zminus
+
+            x_5 = xcenter - xminus
+            y_5 = ycenter + yplus
+            z_5 = zcenter + zplus
+
+            flux = Flux(G, 'x', 'minus', np.array([x_4, y_4, z_4]), np.array([x_5, y_5, z_5]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            lis.append(flux)
+
+            x_6 = xcenter + xplus
+            y_6 = ycenter + yplus
+            z_6 = zcenter - zminus
+
+            flux = Flux(G, 'z', 'minus', np.array([x_4, y_4, z_4]), np.array([x_6, y_6, z_6]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            lis.append(flux)
+
+            x_7 = xcenter + xplus
+            y_7 = ycenter - yminus
+            z_7 = zcenter + zplus
+
+            flux = Flux(G, 'y', 'minus', np.array([x_4, y_4, z_4]), np.array([x_7, y_7, z_7]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            lis.append(flux)
+
+            x_8 = xcenter - xminus
+            y_8 = ycenter + yplus
+            z_8 = zcenter - zminus
+
+            flux = Flux(G, 'y', 'plus', np.array([x_8, y_8, z_8]), np.array([x_1, y_1, z_1]), np.linspace(w_min, w_max, w_num, dtype= floattype))
+            G.fluxes.append(flux)
+            lis.append(flux)
+
+            G.fluxes_box.append(lis)
+
+            G.box_fluxes_enumerate.append("" + cmdname + ': ' + ' '.join(tmp) + '. \n')
+
+    cmdname = '#plane_voltage_source'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if not (len(tmp) == 9 or len(tmp) == 11):
+                raise CmdInputError(cmdname + " requires exactly 9 parameters or 11 parameters")
+            component = tmp[0]
+            x1 = round_value(float(tmp[1]) / G.dx)
+            y1 = round_value(float(tmp[2]) / G.dy)
+            z1 = round_value(float(tmp[3]) / G.dz)
+            
+            x2 = round_value(float(tmp[4]) / G.dx)
+            y2 = round_value(float(tmp[5]) / G.dy)
+            z2 = round_value(float(tmp[6]) / G.dz)
+
+            r = float(tmp[7])
+
+            waveform = tmp[8]
+
+            start = 0
+            stop = G.timewindow
+
+            if len(tmp) == 11:
+                start = float(tmp[9])
+                stop = float(tmp[10])
+
+            assert x1 <= x2 and y1 <= y2 and z1 <= z2, CmdInputError(cmdname + ": coordinates must verify x1 <= x2, y1 <= y2 and z1 <= z2")
+
+            assert x1 >= 0 and y1 >= 0 and z1 >= 0 and x2 <= G.nx and y2 <= G.ny and z2 <= G.nz, CmdInputError(cmdname + " must be within the domain bounds")
+
+            assert x1 == x2 or y1 == y2 or z1 == z2, CmdInputError(cmdname + " must be at most a surface, not a volume.")
+
+            if x1 == x2:
+                if G.pmlthickness['x0'] >= x1 or G.nx - G.pmlthickness['xmax'] <= x1:
+                    raise CmdInputError("The whole source plane cannot be included in PMLs !")
+            elif y1 == y2:
+                if G.pmlthickness['y0'] >= y1 or G.ny - G.pmlthickness['ymax'] <= y1:
+                    raise CmdInputError("The whole source plane cannot be included in PMLs !")
+            elif z1 == z2:
+                if G.pmlthickness['z0'] >= z1 or G.nz - G.pmlthickness['zmax'] <= z1:
+                    raise CmdInputError("The whole source plane cannot be included in PMLs !")
+
+            if x1 >= G.pmlthickness['x0'] and x2 <= G.nx - G.pmlthickness['xmax'] and y1 >= G.pmlthickness['y0'] and y2 <= G.ny - G.pmlthickness['ymax'] and z1 >= G.pmlthickness['z0'] and z2 <= G.nz - G.pmlthickness['zmax']:
+                print(Fore.RED + "WARNING: '" + cmdname + "' shouldn't be inside pmls;" + Style.RESET_ALL)
+
+            assert r >= 0, CmdInputError(cmdname + " requires a positive source resistance")
+
+             # Check if there is a waveformID in the waveforms list
+            if not any(x.ID == waveform for x in G.waveforms):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(waveform))
+                
+            X = np.arange(x1, x2) if x1 != x2 else [x1]
+            Y = np.arange(y1, y2) if y1 != y2 else [y1]
+            Z = np.arange(z1, z2) if z1 != z2 else [z1]
+
+            
+            # Waveform values on timesteps
+            waveformvalues_wholestep = np.zeros((G.iterations), dtype=floattype)
+
+            # Waveform values on half timesteps
+            waveformvalues_halfstep = np.zeros((G.iterations), dtype=floattype)
+            waveform_used = None
+            for w in G.waveforms:
+                if w.ID == waveform:
+                    waveform_used = w
+
+            for iteration in range(G.iterations):
+                time = G.dt * iteration
+                if time >= start and time <= stop:
+                    # Set the time of the waveform evaluation to account for any delay in the start
+                    time -= start
+                    waveformvalues_wholestep[iteration] = waveform_used.calculate_value(time, G.dt)
+                    waveformvalues_halfstep[iteration] = waveform_used.calculate_value(time + 0.5 * G.dt, G.dt)
+
+            for i in X:
+                for j in Y:
+                    for k in Z:
+                        v = VoltageSource()
+                        v.polarisation = component
+                        v.xcoord = i
+                        v.ycoord = j
+                        v.zcoord = k
+                        v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
+                        v.waveformID = waveform
+                        v.resistance = r
+                        G.voltagesources.append(v)
+                        v.start = start
+                        v.stop = stop
+                        v.waveformvalues_wholestep = waveformvalues_wholestep
+                        v.waveformvalues_halfstep = waveformvalues_halfstep

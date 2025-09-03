@@ -47,8 +47,7 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
         tl.Itotal[iteration] = tl.current[tl.antpos]
-
-
+        
 kernel_template_store_outputs = Template("""
 
 // Macros for converting subscripts to linear index:
@@ -97,19 +96,19 @@ def write_hdf5_outputfile(outputfile, G):
         outputfile (str): Name of the output file.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
-
+    
     f = h5py.File(outputfile, 'w')
     f.attrs['gprMax'] = __version__
     f.attrs['Title'] = G.title
     f.attrs['Iterations'] = G.iterations
+    f.attrs['dt'] = G.dt
+    f.attrs['nrx'] = len(G.rxs)
     f.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
     f.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
-    f.attrs['dt'] = G.dt
-    nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
-    f.attrs['nsrc'] = nsrc
-    f.attrs['nrx'] = len(G.rxs)
     f.attrs['srcsteps'] = G.srcsteps
     f.attrs['rxsteps'] = G.rxsteps
+    nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
+    f.attrs['nsrc'] = nsrc
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles

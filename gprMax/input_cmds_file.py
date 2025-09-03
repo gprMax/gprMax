@@ -192,17 +192,25 @@ def check_cmd_names(processedlines, checkessential=True):
     essentialcmds = ['#domain', '#dx_dy_dz', '#time_window']
 
     # Commands that there should only be one instance of in a model
-    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_formulation', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi', '#output_dir'], None)
+    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_formulation', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi', '#output_dir',
+                                ], None)
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
-    multiplecmds = {key: [] for key in ['#geometry_view', '#geometry_objects_write', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_array', '#snapshot', '#pml_cfs', '#include_file']}
+    multiplecmds = {key: [] for key in ['#geometry_view', '#geometry_objects_write', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_array', '#snapshot', '#pml_cfs', '#include_file'
+                                        , '#flux', '#box_flux', '#plane_voltage_source']}
+
 
     # Geometry object building commands that there can be multiple instances
     # of in a model - these will be lists within the dictionary
-    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
+    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass', 
+                    '#cylindrical', '#cylinder_cyl']
+
+    scatteringcmds = ["#scattering", "#scattering_end"]
+
+    scattering_geometrycmds = {key: [] for key in geometrycmds}
     # List to store all geometry object commands in order from input file
     geometry = []
-
+    scatteringgeometry = []
     # Check if command names are valid, if essential commands are present, and
     # add command parameters to appropriate dictionary values or lists
     countessentialcmds = 0
@@ -219,14 +227,28 @@ def check_cmd_names(processedlines, checkessential=True):
             raise CmdInputError('There must be a space between the command name and parameters in ' + processedlines[lindex])
 
         # Check if command name is valid
-        if cmdname not in essentialcmds and cmdname not in singlecmds and cmdname not in multiplecmds and cmdname not in geometrycmds:
+        if cmdname not in essentialcmds and cmdname not in singlecmds and cmdname not in multiplecmds and cmdname not in geometrycmds and cmdname not in scatteringcmds:
             raise CmdInputError('Your input file contains an invalid command: ' + cmdname)
 
         # Count essential commands
         if cmdname in essentialcmds:
             countessentialcmds += 1
 
+
         # Assign command parameters as values to dictionary keys
+        if cmdname == scatteringcmds[0]:
+            while cmdname != scatteringcmds[1]:
+                lindex += 1
+                if lindex >= len(processedlines): raise CmdInputError("#scattering_end: is missing in the input file")
+                cmd = processedlines[lindex].split(':')
+                cmdname = cmd[0]
+                cmdparams = cmd[1]
+                if cmdname not in scatteringcmds and cmdname not in geometrycmds:
+                    raise CmdInputError("When between #scattering: and #scattering_end:, only geometry commands are accepted. Fluxes must be defined outside.")
+                if cmdname in geometrycmds:
+                    scattering_geometrycmds[cmdname].append(cmdparams.strip(' \t\n'))
+                    scatteringgeometry.append(processedlines[lindex].strip(' \t\n'))
+
         if cmdname in singlecmds:
             if singlecmds[cmdname] is None:
                 singlecmds[cmdname] = cmd[1].strip(' \t\n')
@@ -244,5 +266,7 @@ def check_cmd_names(processedlines, checkessential=True):
     if checkessential:
         if (countessentialcmds < len(essentialcmds)):
             raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+        elif (countessentialcmds == 0):
+            raise CmdInputError('Your input file is missing essential commands required to run a model with cylindrical symmetry. Essential commands are: ' + ', '.join(essentialcmds_cyl))
 
-    return singlecmds, multiplecmds, geometry
+    return singlecmds, multiplecmds, scattering_geometrycmds, geometry, scatteringgeometry

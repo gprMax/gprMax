@@ -22,6 +22,7 @@ import numpy as np
 
 from gprMax.constants import c
 from gprMax.constants import floattype
+from gprMax.exceptions import CmdInputError
 from gprMax.grid import Ix
 from gprMax.grid import Iy
 from gprMax.grid import Iz
@@ -43,6 +44,15 @@ class Source(object):
         self.start = None
         self.stop = None
         self.waveformID = None
+        self.is_integrated = False
+
+        self.rcoord_cyl = 1 #To ensure the symmetry, the source must be at r = 0
+        self.zcoord_cyl = None
+        self.rcoordorigin_cyl = 1
+        self.zcoordorigin_cyl = None
+
+        self.waveformvalues_wholestep = None
+        self.waveformvalues_halfstep = None
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -88,7 +98,6 @@ class VoltageSource(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -97,27 +106,27 @@ class VoltageSource(Source):
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                    * self.waveformvalues_wholestep[iteration] 
+                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                    * self.waveformvalues_wholestep[iteration]
                                     * (1 / (self.resistance * G.dy * G.dz)))
                 else:
-                    Ex[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dx
+                    Ex[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dx
 
             elif self.polarisation == 'y':
                 if self.resistance != 0:
-                    Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                    * self.waveformvalues_wholestep[iteration] 
+                    Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                    * self.waveformvalues_wholestep[iteration]
                                     * (1 / (self.resistance * G.dx * G.dz)))
                 else:
-                    Ey[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dy
+                    Ey[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dy
 
             elif self.polarisation == 'z':
                 if self.resistance != 0:
-                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                    * self.waveformvalues_wholestep[iteration] 
+                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                    * self.waveformvalues_wholestep[iteration]
                                     * (1 / (self.resistance * G.dx * G.dy)))
                 else:
-                    Ez[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dz
+                    Ez[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dz
 
     def create_material(self, G):
         """Create a new material at the voltage source location that adds the
@@ -188,10 +197,9 @@ class HertzianDipole(Source):
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_wholestep[iteration] 
+                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_wholestep[iteration]
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
-
 
 class MagneticDipole(Source):
     """A magnetic dipole is an additive source (magnetic current density)."""
@@ -209,7 +217,6 @@ class MagneticDipole(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -272,7 +279,7 @@ def gpu_initialise_src_arrays(sources, G):
                 srcwaves[i, :] = src.waveformvalues_wholestep
             else:
                 srcinfo2[i] = 0
-                srcwaves[i, :] = src.waveformvalues_halfstep
+                srcwaves[i, :] = src.waveformvalues_wholestep
         elif src.__class__.__name__ == 'MagneticDipole':
             srcwaves[i, :] = src.waveformvalues_halfstep
 
@@ -337,7 +344,6 @@ class TransmissionLine(Source):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         self.Vinc = np.zeros(G.iterations, dtype=floattype)
         self.Iinc = np.zeros(G.iterations, dtype=floattype)
 
@@ -356,7 +362,6 @@ class TransmissionLine(Source):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
         self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
@@ -369,7 +374,6 @@ class TransmissionLine(Source):
             iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         # Update all the voltage values along the line
         self.voltage[1:self.nl] -= (self.resistance * (c * G.dt / self.dl) 
                                     * (self.current[1:self.nl] - self.current[0:self.nl - 1]))
@@ -388,7 +392,6 @@ class TransmissionLine(Source):
             iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         # Update all the current values along the line
         self.current[0:self.nl - 1] -= ((1 / self.resistance) * (c * G.dt / self.dl) 
                                         * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1]))
@@ -407,7 +410,6 @@ class TransmissionLine(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -434,7 +436,6 @@ class TransmissionLine(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord

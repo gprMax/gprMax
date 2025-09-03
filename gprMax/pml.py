@@ -151,7 +151,7 @@ class PML(object):
 
     # Available PML formulations:
     # Higher Order RIPML (HORIPML) see: https://doi.org/10.1109/TAP.2011.2180344
-    # Multipole RIPML (MRIPML) see: https://doi.org/10.1109/TAP.2018.2823864
+    # Multipole RIPML (MRIPML) see: https://doi.org/10.1109/TAP.2018.2823864
     formulations = ['HORIPML', 'MRIPML']
 
     # PML slabs IDs at boundaries of domain.

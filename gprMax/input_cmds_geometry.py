@@ -26,7 +26,7 @@ from tqdm import tqdm
 from gprMax.constants import floattype
 from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
-from gprMax.exceptions import CmdInputError
+from gprMax.exceptions import CmdInputError, GeneralError
 from gprMax.fractals import FractalSurface
 from gprMax.fractals import FractalVolume
 from gprMax.fractals import Grass
@@ -797,7 +797,6 @@ def process_geometrycmds(geometry, G):
                     G.materials.append(m)
 
             build_sphere(xc, yc, zc, r, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
-
             if G.messages:
                 if averaging:
                     dielectricsmoothing = 'on'
@@ -808,7 +807,6 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#fractal_box:':
             # Default is no dielectric smoothing for a fractal box
             averagefractalbox = False
-
             if len(tmp) < 14:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least thirteen parameters')
             elif len(tmp) == 14:

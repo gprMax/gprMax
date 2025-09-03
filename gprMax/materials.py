@@ -284,7 +284,7 @@ class PeplinskiSoil(object):
         erealw = Material.watereri + ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
 
         a = 0.65  # Experimentally derived constant
-        es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
+        es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
 
