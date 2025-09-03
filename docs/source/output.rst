@@ -100,8 +100,6 @@ Within each individual ``tl`` group are the following datasets:
 * ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
 
 
-
-
 Snapshots
 ---------
 
