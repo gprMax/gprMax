@@ -98,6 +98,7 @@ class VoltageSource(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -201,6 +202,7 @@ class HertzianDipole(Source):
                                 * self.waveformvalues_wholestep[iteration]
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
+
 class MagneticDipole(Source):
     """A magnetic dipole is an additive source (magnetic current density)."""
 
@@ -217,6 +219,7 @@ class MagneticDipole(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -344,6 +347,7 @@ class TransmissionLine(Source):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         self.Vinc = np.zeros(G.iterations, dtype=floattype)
         self.Iinc = np.zeros(G.iterations, dtype=floattype)
 
@@ -362,6 +366,7 @@ class TransmissionLine(Source):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
         self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
@@ -374,6 +379,7 @@ class TransmissionLine(Source):
             iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         # Update all the voltage values along the line
         self.voltage[1:self.nl] -= (self.resistance * (c * G.dt / self.dl) 
                                     * (self.current[1:self.nl] - self.current[0:self.nl - 1]))
@@ -392,6 +398,7 @@ class TransmissionLine(Source):
             iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         # Update all the current values along the line
         self.current[0:self.nl - 1] -= ((1 / self.resistance) * (c * G.dt / self.dl) 
                                         * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1]))
@@ -410,6 +417,7 @@ class TransmissionLine(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
@@ -436,6 +444,7 @@ class TransmissionLine(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
