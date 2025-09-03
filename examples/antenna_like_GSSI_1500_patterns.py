@@ -34,7 +34,7 @@ if pattern =='E':
     antennaposition = np.array([domain_size[0] / 2, fs[1] + radii[-1], fs[2] + radii[-1]])
 elif pattern == 'H':
     domain_size = np.array([2 * fs[0] + 2 * radii[-1], 2 * fs[1] + 0.107, 2 * fs[2] + 2 * radii[-1]])
-    antennaposition = np.array([fs[0] + radii[-1], domain[1] / 2, fs[2] + radii[-1]])
+    antennaposition = np.array([fs[0] + radii[-1], domain_size[1] / 2, fs[2] + radii[-1]])
 
 domain = gprMax.Domain(p1=(domain_size[0], domain_size[1], domain_size[2]))
 time_window = gprMax.TimeWindow(time=timewindow)
