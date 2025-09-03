@@ -5,7 +5,8 @@
 SPHINXOPTS    = -aE
 SPHINXBUILD   = sphinx-build
 PAPER         =
-BUILDDIR      = ./
+# Build output in dedicated directory to avoid 'make clean' deleting files from the repository.
+BUILDDIR      = _build
 
 # User-friendly check for sphinx-build
 ifeq ($(shell which $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)
@@ -49,7 +50,8 @@ help:
 	@echo "  coverage   to run coverage check of the documentation (if enabled)"
 
 clean:
-	rm -rf $(BUILDDIR)/*
+	rm -rf $(BUILDDIR)
+	mkdir -p $(BUILDDIR)
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)
