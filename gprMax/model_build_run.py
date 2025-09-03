@@ -84,7 +84,6 @@ from gprMax.Fluxes import Flux, save_file_h5py, solve_scattering
 from gprMax.Fluxes_ext_gpu import kernel_fields_fluxes_gpu
 
 
-
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
 
@@ -205,7 +204,6 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             # Set default CFS parameters for PML if not given
             if not G.cfs:
                 G.cfs = [CFS()]
-
             if G.messages:
                 if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
                     pmlinfo = str(G.pmlthickness['x0'])
@@ -254,6 +252,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # material at the source location
         for voltagesource in G.voltagesources:
             voltagesource.create_material(G)
+
         # Initialise arrays of update coefficients to pass to update functions
         G.initialise_std_update_coeff_arrays()
 
@@ -456,9 +455,11 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
     """
 
     tsolvestart = timer()
+
     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
         # Store field component values for every receiver and transmission line
         store_outputs(iteration, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+
         # Store any snapshots
         for snap in G.snapshots:
             if snap.time == iteration + 1:
@@ -493,7 +494,7 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
         # Update electric field components from sources (update any Hertzian dipole sources last)
         for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
             source.update_electric(iteration, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
-            
+
         # If there are any dispersive materials do 2nd part of dispersive update
         # (it is split into two parts as it requires present and updated electric
         # field values). Therefore it can only be completely updated after the
@@ -505,9 +506,9 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
         
         for flux in G.fluxes:
             flux.save_fields_fluxes(G, iteration)
-        
 
     tsolve = timer() - tsolvestart
+
     return tsolve
 
 
