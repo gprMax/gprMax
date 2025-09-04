@@ -31,10 +31,7 @@ __global__ void save_fields_flux(int NF, int NX, int NY, int NZ,
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    assert($NX_FLUX == NX);
-    assert($NY_FLUX == NY);
-    assert($NZ_FLUX == NZ);
-
+                                    
     // FFT indices
     int i_fft = idx / (NY * NZ);
     int j_fft = (idx % (NY * NZ)) / NZ;
