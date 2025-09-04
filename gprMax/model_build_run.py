@@ -35,7 +35,7 @@ from gprMax.constants import floattype
 from gprMax.constants import complextype
 from gprMax.constants import cudafloattype
 from gprMax.constants import cudacomplextype
-from gprMax.exceptions import GeneralError, CmdInputError
+from gprMax.exceptions import GeneralError
 from scipy.constants import mu_0 as mu0
 
 from gprMax.fields_outputs import store_outputs

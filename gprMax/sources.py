@@ -22,7 +22,6 @@ import numpy as np
 
 from gprMax.constants import c
 from gprMax.constants import floattype
-from gprMax.exceptions import CmdInputError
 from gprMax.grid import Ix
 from gprMax.grid import Iy
 from gprMax.grid import Iz
