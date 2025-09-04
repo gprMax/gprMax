@@ -100,8 +100,8 @@ class VoltageSource(Source):
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
-                                    * self.waveformvalues_wholestep[iteration]
+                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                    * self.waveformvalues_wholestep[iteration] 
                                     * (1 / (self.resistance * G.dy * G.dz)))
                 else:
                     Ex[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dx
