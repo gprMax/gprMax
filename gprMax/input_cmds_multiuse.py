@@ -25,7 +25,7 @@ from tqdm import tqdm
 
 from gprMax.constants import z0
 from gprMax.constants import floattype
-from gprMax.exceptions import CmdInputError, GeneralError
+from gprMax.exceptions import CmdInputError
 from gprMax.geometry_outputs import GeometryView
 from gprMax.geometry_outputs import GeometryObjects
 from gprMax.materials import Material
@@ -98,7 +98,6 @@ def process_multicmds(multicmds, G):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             # Check polarity & position parameters
-                
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
@@ -124,10 +123,17 @@ def process_multicmds(multicmds, G):
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
+            resistance = float(tmp[4])
 
             check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
+            if resistance < 0:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
+
+            # Check if there is a waveformID in the waveforms list
+            if not any(x.ID == tmp[5] for x in G.waveforms):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
 
             v = VoltageSource()
             v.polarisation = polarisation
@@ -135,8 +141,8 @@ def process_multicmds(multicmds, G):
             v.ycoord = ycoord
             v.zcoord = zcoord
             v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
-            v.waveformID = tmp[5]
             v.resistance = resistance
+            v.waveformID = tmp[5]
 
             if len(tmp) > 6:
                 # Check source start & source remove time parameters
@@ -163,6 +169,7 @@ def process_multicmds(multicmds, G):
 
             if G.messages:
                 print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
+
             G.voltagesources.append(v)
 
     # Hertzian dipole
@@ -183,7 +190,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
             elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
-            
+
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
@@ -214,7 +221,7 @@ def process_multicmds(multicmds, G):
             h.zcoordorigin = zcoord
             h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
-            
+
             if len(tmp) > 5:
                 # Check source start & source remove time parameters
                 start = float(tmp[5])
