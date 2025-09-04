@@ -21,6 +21,9 @@ from scipy.constants import c
 from gprMax.gprMax import api as run_sim
 import os
 
+# Directory where this script resides – all generated inputs/outputs constrained here
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 def detect_gpu():
 	try:
 		import GPUtil
@@ -45,7 +48,7 @@ def build_and_run(radius=1e-6, nfrq=100, backend='cpu'):
 	s = 2*(dpml + dair + r)
 	timewindow = 150e-15
 	title = f"Mie_scattering_{backend}"
-	inputfname = f"mie_{backend}.in"
+	inputfname = os.path.join(SCRIPT_DIR, f"mie_{backend}.in")
 	with open(inputfname, 'w') as f:
 		f.write(f"#title: {title}\n")
 		f.write(f"#domain: {s} {s} {s}\n")
@@ -67,7 +70,7 @@ def build_and_run(radius=1e-6, nfrq=100, backend='cpu'):
 		if not gpu_ids:
 			raise RuntimeError('No GPU available for backend=gpu')
 		gpu_arg = gpu_ids
-	run_sim(inputfile=inputfname, gpu=gpu_arg)
+	run_sim(inputfile=inputfname, gpu=gpu_arg, outputdir=SCRIPT_DIR)
 	return inputfname
 
 def main():
