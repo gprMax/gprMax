@@ -471,7 +471,7 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
             pml.update_magnetic(G) #No need to check for cylindrical mode here as there exists PML_cyl class with the same method
-        
+
         # Update magnetic field components from sources
         for source in G.transmissionlines + G.magneticdipoles:
             source.update_magnetic(iteration, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
