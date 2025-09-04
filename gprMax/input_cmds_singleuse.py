@@ -143,6 +143,7 @@ def process_singlecmds(singlecmds, G):
         if G.messages:
             print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
 
+    # Time step CFL limit (either 2D or 3D); switch off appropriate PMLs for 2D
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
         G.mode = '2D TMx'
@@ -223,8 +224,8 @@ def process_singlecmds(singlecmds, G):
             G.pmlthickness['xmax'] = int(tmp[3])
             G.pmlthickness['ymax'] = int(tmp[4])
             G.pmlthickness['zmax'] = int(tmp[5])
-        if 2 * G.pmlthickness['x0'] >= G.nx or 2 * G.pmlthickness['y0'] >= G.ny or 2 * G.pmlthickness['z0'] >= G.nz or 2 * G.pmlthickness['xmax'] >= G.nx or 2 * G.pmlthickness['ymax'] >= G.ny or 2 * G.pmlthickness['zmax'] >= G.nz:
-            raise CmdInputError(cmd + ' has too many cells for the domain size')
+    if 2 * G.pmlthickness['x0'] >= G.nx or 2 * G.pmlthickness['y0'] >= G.ny or 2 * G.pmlthickness['z0'] >= G.nz or 2 * G.pmlthickness['xmax'] >= G.nx or 2 * G.pmlthickness['ymax'] >= G.ny or 2 * G.pmlthickness['zmax'] >= G.nz:
+        raise CmdInputError(cmd + ' has too many cells for the domain size')
 
 
     # PML formulation
