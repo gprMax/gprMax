@@ -27,10 +27,8 @@ class Rx(object):
     """Receiver output points."""
 
     allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
-    allowableoutputs_cyl = ['Er', 'Ephi', 'Ez', 'Hr', 'Hphi', 'Hz']
     gpu_allowableoutputs = allowableoutputs[:-3]
     defaultoutputs = allowableoutputs[:-3]
-    defaultoutputs_cyl = allowableoutputs_cyl[:]
 
     def __init__(self):
 
@@ -42,13 +40,6 @@ class Rx(object):
         self.xcoordorigin = None
         self.ycoordorigin = None
         self.zcoordorigin = None
-
-        self.rcoord_cyl = None
-        self.phicoord_cyl = None
-        self.zcoord_cyl = None
-        self.rcoordorigin_cyl = None
-        self.phicoordorgin_cyl = None
-        self.zcoordorigin_cyl = None
 
 
 def gpu_initialise_rx_arrays(G):
