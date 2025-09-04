@@ -20,9 +20,3 @@ dist/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
-
-# built documentation
-docs/_build/
-
-#Repo
-.idea/
