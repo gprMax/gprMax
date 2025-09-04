@@ -1,82 +1,83 @@
+"""Mie scattering simulation driver (flux/scattering example).
+
+Copyright (C) 2025: Quandela
+Author: Quentin David
+License: GNU GPL v3 or later (see root LICENSE file).
+
+Generates a gprMax input file for a dielectric sphere inside a box_flux, runs
+the scattering (empty + with sphere) simulation, producing
+Mie_scattering_<backend>_fluxes.out.
+
+CLI:
+  python run_lossless_sphere.py --backend cpu
+  python run_lossless_sphere.py --backend gpu
+
+Dependencies: scipy, numpy, gprMax, (GPUtil for GPU discovery).
+"""
+
+import argparse
 import numpy as np
 from scipy.constants import c
-import matplotlib.pyplot as plt
 from gprMax.gprMax import api as run_sim
-import GPUtil
-import h5py
+import os
 
-deviceIDs = GPUtil.getAvailable()
+def detect_gpu():
+	try:
+		import GPUtil
+		devs = GPUtil.getAvailable()
+		return devs if devs else None
+	except Exception:
+		return None
 
-r = 1.0e-6
+def build_and_run(radius=1e-6, nfrq=100, backend='cpu'):
+	r = radius
+	wvl_min = 2*np.pi*r/10
+	wvl_max = 2*np.pi*r/2
+	frq_min = c/wvl_max
+	frq_max = c/wvl_min
+	frq_cen = 0.5*(frq_min+frq_max)
+	std = wvl_max/c - wvl_min/c
+	resolution = 25
+	dl = 1.0e-6/resolution
+	dpml = 0.5*wvl_max
+	dair = 0.5*wvl_max
+	pmlcells = int(np.ceil(dpml/dl))
+	s = 2*(dpml + dair + r)
+	timewindow = 150e-15
+	title = f"Mie_scattering_{backend}"
+	inputfname = f"mie_{backend}.in"
+	with open(inputfname, 'w') as f:
+		f.write(f"#title: {title}\n")
+		f.write(f"#domain: {s} {s} {s}\n")
+		f.write(f"#dx_dy_dz: {dl} {dl} {dl}\n")
+		f.write(f"#time_window: {timewindow}\n")
+		f.write(f"#pml_cells: {pmlcells}\n")
+		f.write(f"#time_step_stability_factor: 0.5\n")
+		f.write(f"#waveform: gaussian 1 {frq_cen} my_gaussian {std}\n")
+		f.write(f"#plane_voltage_source: z {dpml + 2*dl} 0 0 {dpml + 2*dl} {s} {s} 0 my_gaussian\n")
+		f.write("#material: 4 0 1 0 my_material\n")
+		f.write(f"#box_flux: {s/2} {s/2} {s/2} {r} {r} {r} {r} {r} {r} {wvl_min} {wvl_max} {nfrq}\n")
+		f.write("#scattering:\n")
+		f.write(f"#sphere: {s/2} {s/2} {s/2} {r} my_material\n")
+		f.write("#scattering_end:\n")
+	# run
+	gpu_arg = None
+	if backend == 'gpu':
+		gpu_ids = detect_gpu()
+		if not gpu_ids:
+			raise RuntimeError('No GPU available for backend=gpu')
+		gpu_arg = gpu_ids
+	run_sim(inputfile=inputfname, gpu=gpu_arg)
+	return inputfname
 
-wvl_min = 2*np.pi*r/10
-wvl_max = 2*np.pi*r/2
+def main():
+	parser = argparse.ArgumentParser(description='Run Mie scattering flux example (CPU/GPU).')
+	parser.add_argument('--backend', choices=['cpu','gpu'], default='cpu')
+	parser.add_argument('--radius', type=float, default=1e-6, help='Sphere radius (m)')
+	parser.add_argument('--nfrq', type=int, default=100, help='Number of wavelength samples')
+	args = parser.parse_args()
+	build_and_run(radius=args.radius, nfrq=args.nfrq, backend=args.backend)
 
-frq_min = c/wvl_max
-frq_max = c/wvl_min
-frq_cen = 0.5*(frq_min+frq_max)
-dfrq = frq_max-frq_min
-std = wvl_max/c-wvl_min/c
-nfrq = 100
+if __name__ == '__main__':
+	main()
 
-## at least 8 pixels per smallest wavelength, i.e. np.floor(8/wvl_min)
-resolution = 25
-dl = 1.0e-6/resolution
-
-dpml = 0.5*wvl_max
-dair = 0.5*wvl_max
-
-pmlcells = int(np.ceil(dpml/dl))
-s = 2*(dpml+dair+r)
-domain_size = [s,s,s]
-gpu = "gpu"
-timewindow = 150e-15
-file = open("Theory_comparison.txt", "w")
-
-file.write("#title: Mie_scattering_" + gpu + "\n")
-file.write("#domain: {} {} {}\n".format(domain_size[0], domain_size[1], domain_size[2]))
-file.write("#dx_dy_dz: {} {} {}\n".format(dl, dl, dl))
-file.write("#time_window: {}\n".format(timewindow))
-file.write("#pml_cells: {}\n".format(pmlcells))
-file.write("#time_step_stability_factor: 0.5\n")
-
-waveform_type = "gaussian"
-waveform_freq = frq_cen
-waveform_ampl = 1.0
-waveform_ID = "my_gaussian"
-waveform_std = std
-
-file.write("#waveform: {} {} {} {}\n".format(waveform_type, waveform_ampl, waveform_freq, waveform_ID, waveform_std))
-file.write("#plane_voltage_source: z {} {} {} {} {} {} {} {}\n".format(dpml + 2*dl, 0, 0, dpml + 2*dl, s, s, 0, waveform_ID))
-
-file.write("#material: 4 0 1 0 my_material\n")
-
-file.write("#box_flux: {} {} {} {} {} {} {} {} {} {} {} {}\n".format(s/2, s/2, s/2, r, r, r, r, r, r, wvl_min, wvl_max, nfrq))
-
-file.write("#scattering:\n")
-file.write("#sphere: {} {} {} {} my_material\n".format(s/2, s/2, s/2, r))
-file.write("#scattering_end:\n")
-
-file.write("#geometry_view: 0 0 0 {} {} {} {} {} {} geometry n".format(s,s,s,4*dl,4*dl,4*dl))
-
-file.close()
-
-run_sim(inputfile= 'Meep_comparison.txt', gpu= deviceIDs)
-
-file = h5py.File('Mie_scattering_'+gpu+'_fluxes.out', 'r')
-
-incident_flux = np.array(file["scattering"]["incidents"]["incident1"]["values"][()])/(2*r)**2
-scatt_flux = np.array(file['boxes']['box1']['values'][()])
-
-scatt_eff= scatt_flux/incident_flux /(np.pi*r**2)
-
-plt.figure(dpi=150)
-plt.loglog(2*np.pi*r/np.linspace(wvl_min, wvl_max, nfrq),scatt_eff,'ro-',label='gpu')
-plt.grid()
-plt.xlabel('(sphere circumference)/wavelength, 2πr/λ')
-plt.ylabel('scattering efficiency, σ/πr$^{2}$')
-plt.legend(loc='upper right')
-plt.title('Mie Scattering of a Lossless Dielectric Sphere')
-plt.tight_layout()
-plt.savefig("Mie_scattering.png")
-plt.close()

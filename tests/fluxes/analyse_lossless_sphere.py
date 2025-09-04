@@ -30,7 +30,7 @@ def load_flux(filename):
         scattered = f['boxes']['box1']['values'][()]
     return wavelengths, incident, scattered
 
-def compute_eff(wavelengths, incident_flux, scattered_flux, r):
+def compute_eff(incident_flux, scattered_flux, r):
     incident_norm = incident_flux / (2*r)**2
     eff = scattered_flux / incident_norm / (np.pi * r**2)
     return eff
@@ -61,7 +61,7 @@ def main():
             p.error('No flux file found (searched standard names); specify one with --file')
 
     wavelengths, incident, scattered = load_flux(filename)
-    eff_sim = compute_eff(wavelengths, incident, scattered, args.radius)
+    eff_sim = compute_eff(incident, scattered, args.radius)
     eff_th = theory_eff(wavelengths, args.radius, args.nrel)
     dist = np.linalg.norm(eff_sim - eff_th)/np.linalg.norm(eff_th)
 
