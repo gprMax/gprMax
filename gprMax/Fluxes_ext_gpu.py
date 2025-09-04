@@ -73,4 +73,5 @@ __global__ void save_fields_flux(int NF, int NX, int NY, int NZ,
         FFT_H[$IDX_5DY] += Hy[$IDX_3D] * $EXP_FACTOR;
         FFT_H[$IDX_5DZ] += Hz[$IDX_3D] * $EXP_FACTOR;
     }
+}
 """)
