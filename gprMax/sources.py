@@ -43,12 +43,6 @@ class Source(object):
         self.start = None
         self.stop = None
         self.waveformID = None
-        self.is_integrated = False
-
-        self.rcoord_cyl = 1 #To ensure the symmetry, the source must be at r = 0
-        self.zcoord_cyl = None
-        self.rcoordorigin_cyl = 1
-        self.zcoordorigin_cyl = None
 
         self.waveformvalues_wholestep = None
         self.waveformvalues_halfstep = None
