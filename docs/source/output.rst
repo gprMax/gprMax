@@ -206,7 +206,7 @@ The organization of the output file is similar if a scattering geometry is defin
             dy
             dz
 
-Here, the values of the incident fluxes are the **absolute** power going through the surface.
+Here, the values of the incident fluxes do not depend on the `minus` or `plus` argument, they are computed as follows: if the flux is `minus`, then the flux is multiplied by -1 to obtain the incident flux, and if it is `plus`, it stays the same. Note that those lists will give the incident flux if the source stands **before** the flux monitor on its axis.
 
 Geometry output
 ===============
