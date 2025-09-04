@@ -57,11 +57,19 @@ This example is a plane wave incident on a lossless dielectric sphere. The frequ
 
 Analytical reference
 --------------------
-The analytical scattering efficiency is computed with the `PyMieScatt <https://pypi.org/project/PyMieScatt/>`_ module. Install (minimal):
+The analytical scattering efficiency is computed with the `PyMieScatt <https://pypi.org/project/PyMieScatt/>`_ module.
+
+.. warning::
+    PyMieScatt currently pins (directly or via its dependency chain) to an older SciPy version than the one
+    recommended/required by gprMax. To avoid dependency conflicts install PyMieScatt in a *separate* lightweight
+    virtual environment used only for the post-processing step (``analyse_lossless_sphere.py``). The simulation
+    itself does **not** need PyMieScatt.
+
+Minimal install in a dedicated environment:
 
 .. code-block:: bash
 
-    pip install PyMieScatt
+    pip install PyMieScatt h5py
 
 The analysis script auto-detects one of the produced flux output files (CPU/GPU). It also works with a user-specified file.
 
