@@ -191,8 +191,8 @@ class HertzianDipole(Source):
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
-                                * self.waveformvalues_wholestep[iteration]
+                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvalues_wholestep[iteration] 
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
 
