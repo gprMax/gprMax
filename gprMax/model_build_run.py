@@ -36,7 +36,6 @@ from gprMax.constants import complextype
 from gprMax.constants import cudafloattype
 from gprMax.constants import cudacomplextype
 from gprMax.exceptions import GeneralError
-from scipy.constants import mu_0 as mu0
 
 from gprMax.fields_outputs import store_outputs
 from gprMax.fields_outputs import kernel_template_store_outputs
@@ -470,7 +469,7 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
-            pml.update_magnetic(G) #No need to check for cylindrical mode here as there exists PML_cyl class with the same method
+            pml.update_magnetic(G)
 
         # Update magnetic field components from sources
         for source in G.transmissionlines + G.magneticdipoles:
@@ -489,7 +488,7 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
-            pml.update_electric(G) #No need to check for cylindrical mode here as there exists PML_cyl class with the same method
+            pml.update_electric(G)
 
         # Update electric field components from sources (update any Hertzian dipole sources last)
         for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
