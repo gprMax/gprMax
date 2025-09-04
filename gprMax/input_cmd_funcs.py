@@ -37,11 +37,13 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
 
+
 class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
 
     def __str__(self):
         return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
+
 
 def command(cmd, *parameters):
     """
@@ -479,7 +481,7 @@ def waveform(shape, amplitude, frequency, identifier, std=None):
         amplitude (float): is the amplitude of the waveform.
         frequency (float): is the frequency of the waveform in Hertz.
         identifier (str): is an identifier for the waveform used to assign it to a source.
-        std (float): standard deviation for Gaussian waveform. It is a time value as this is what is usually called sigma.
+        std (float): standard deviation for Gaussian-type waveform; interpreted as the temporal sigma.
 
     Returns:
         identifier (str): is an identifier for the waveform used to assign it to a source.
@@ -488,6 +490,7 @@ def waveform(shape, amplitude, frequency, identifier, std=None):
     if std is not None:
         command('waveform', shape, amplitude, frequency, identifier, std)
         return identifier
+
     command('waveform', shape, amplitude, frequency, identifier)
 
     return identifier
