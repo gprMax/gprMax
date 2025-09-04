@@ -182,15 +182,9 @@ class Flux(object):
     def converting_back_to_cpu(self, G: FDTDGrid):
         if G.scattering:
             if not G.empty_sim:
+                # Perform subtraction only once after second (scattering) run to obtain scattered field spectra.
                 self.E_fft_transform = self.E_fft_transform_scatt_gpu.get() - self.E_fft_transform_empty
                 self.H_fft_transform = self.H_fft_transform_scatt_gpu.get() - self.H_fft_transform_empty
-                file = open('Simulation_E_fft.txt', 'w')
-                file.write(np.array2string(self.E_fft_transform))
-                file.close()
-
-                file = open('Simulation_H_fft.txt', 'w')
-                file.write(np.array2string(self.H_fft_transform))
-                file.close()
             else:
                 self.E_fft_transform_empty = self.E_fft_transform_empty_gpu.get() #For incident fluxes
                 self.H_fft_transform_empty = self.H_fft_transform_empty_gpu.get() #For incident fluxes
@@ -236,6 +230,8 @@ def save_file_h5py(outputfile, G: FDTDGrid):
         title = '/scattering'
         for i in range(len(G.fluxes)):
             grp = f.create_group(title + '/incidents/incident' + str(i + 1))
+            # Store incident flux with sign relative to the specified surface normal and direction
+            # (positive for 'plus', negative for 'minus').
             cst = 1
             if G.fluxes[i].direction == 'minus':
                 cst = -1
