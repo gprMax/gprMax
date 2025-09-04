@@ -49,21 +49,53 @@ Fluxes
 
 :download:`lossless_sphere_scattering.in <../../tests/fluxes/lossless_sphere_scattering.in>`
 
-This example is of a plane wave incident on a lossless dielectric sphere. The fluxes through a box surrounding the sphere are calculated and compared to the analytical solution.
+This example is a plane wave incident on a lossless dielectric sphere. The frequency-domain fluxes through a closed box encapsulating the sphere are accumulated during the time-domain simulation and then compared to the analytical Mie solution.
 
 .. literalinclude:: ../../tests/fluxes/lossless_sphere_scattering.in
     :language: none
     :linenos:
 
-To compute the analytical solution, we use the PyMieScatt module, which can be installed using conda:
+Analytical reference
+--------------------
+The analytical scattering efficiency is computed with the `PyMieScatt <https://pypi.org/project/PyMieScatt/>`_ module. Install (minimal):
 
 .. code-block:: bash
 
-    conda install conda-forge::pymiescatt
+    pip install PyMieScatt
 
-Be careful when installing PyMieScatt as for running it, you need to have a version of scipy for which trapz has not been deprecated (scipy 1.13.1 works fine). The analytical solution is computed in the script ``lossless_sphere_scattering.py``, which can be found in the ``tests/models_basic/fluxes`` directory.
+The analysis script auto-detects one of the produced flux output files (CPU/GPU). It also works with a user-specified file.
 
-We ran it twice, once using the CPU and once using the GPU. The only difference in the input files is the addition of the ``#gpu`` command for the GPU run. You can find the scripts and the ouput files of both run iun the ``tests/models_basic/fluxes`` directory. The results are found in :numref:`fluxes_results_cpu` and :numref:`fluxes_results_gpu`.
+Scripts & workflow
+------------------
+The directory ``tests/fluxes`` contains:
+
+* ``run_lossless_sphere.py`` – builds an input file parametrically and runs the simulation (``--backend cpu`` or ``--backend gpu``). Produces ``Mie_scattering_<backend>_fluxes.out``.
+* ``analyse_lossless_sphere.py`` – loads the flux output, computes scattering efficiency :math:`\sigma/(\pi r^{2})`, compares to Mie theory, and generates a figure. No backend parameter is required (auto-detection); optionally use ``--file`` to specify a custom path.
+
+Example usage:
+
+.. code-block:: bash
+
+    # Run on CPU
+    python run_lossless_sphere.py --backend cpu
+    # Run on GPU (requires CUDA + GPUtil for auto-detect)
+    python run_lossless_sphere.py --backend gpu
+    # Analyse (auto-detects output file)
+    python analyse_lossless_sphere.py
+    # Or analyse a specific file
+    python analyse_lossless_sphere.py --file Mie_scattering_cpu_fluxes.out
+
+Notes:
+
+* ``PyMieScatt`` is only needed for the analytical curve; the simulation itself does not depend on it.
+* ``GPUtil`` is only required when using the GPU backend for automatic device selection.
+* Incident flux magnitudes and scattered box fluxes are combined to obtain the scattering efficiency.
+
+Results
+-------
+The CPU and GPU results are shown in :numref:`fluxes_results_cpu` and :numref:`fluxes_results_gpu`.
+
+.. _fluxes_results_cpu:
 
 
 .. _fluxes_results_cpu:
@@ -82,7 +114,4 @@ We ran it twice, once using the CPU and once using the GPU. The only difference 
 
     Mie Scattering of a Lossless Dielectric Sphere - GPU run
 
-The results from gprMax are close to the theory, but not exactly the same. Moreover, the GPU implementation seems a little more precise than the CPU one (the GPU is closer to the theory if we compute the distance between its results and the theory (2-norm)). 
-The CPU implementation ran the simulation in about 35 minutes, while the GPU took about 2 minutes.
-
-The difference between the theory and the results of the simulation may come from the implementation of the plane wave source, as this extends through PML, and is not perfectly plane in this case, as explained in [MEEP_PML]_.
+Both implementations closely follow the analytical Mie scattering efficiency; minor deviations arise from finite spatial/temporal resolution and the finite-difference realisation of the incident plane wave (source spans the PML and is not perfectly planar in practice, see [MEEP_PML]_). The GPU version typically achieves the solution faster (order of minutes vs tens of minutes on CPU) and small numerical differences (2-norm distance) can appear due to differing floating-point reduction order.
