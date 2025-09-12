@@ -14,13 +14,28 @@ numpy-stl
 pandas
 pre-commit
 psutil
-# pycuda
-pyobjc-framework-metal
-# pyopencl
 scipy
 terminaltables
 tqdm
 wheel
+
+# If running with CUDA backend, the following dependencies
+# are also required:
+
+# pycuda
+
+
+# If running with OpenCL backend, the following dependencies
+# are also required:
+
+# pyopencl
+
+
+# If running with Apple Metal backend, the following dependencies
+# are also required:
+
+# pyobjc-framework-metal
+
 
 # If running with mpi domain decomposition, the following dependencies
 # are also required:
