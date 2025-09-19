@@ -34,6 +34,7 @@ from .user_objects.cmds_multiuse import (
     AddLorentzDispersion,
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
+    DiscretePlaneWaveVector,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
