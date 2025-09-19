@@ -11,6 +11,9 @@ fn = Path(__file__)
 # Discretisation
 dl = 0.001
 
+# Specify E or H pattern
+pattern = 'E'
+
 scene = gprMax.Scene()
 
 title = gprMax.Title(name=fn.with_suffix("").name)
@@ -25,13 +28,19 @@ radii = np.linspace(0.1, 0.3, 20)
 theta = np.linspace(3, 357, 60)
 
 fs = np.array([0.040, 0.040, 0.040])
-domain_size = np.array([2 * fs[0] + 0.170, 2 * fs[1] + 2 * radii[-1], 2 * fs[2] + 2 * radii[-1]])
+
+if pattern =='E':
+    domain_size = np.array([2 * fs[0] + 0.170, 2 * fs[1] + 2 * radii[-1], 2 * fs[2] + 2 * radii[-1]])
+    antennaposition = np.array([domain_size[0] / 2, fs[1] + radii[-1], fs[2] + radii[-1]])
+elif pattern == 'H':
+    domain_size = np.array([2 * fs[0] + 2 * radii[-1], 2 * fs[1] + 0.107, 2 * fs[2] + 2 * radii[-1]])
+    antennaposition = np.array([fs[0] + radii[-1], domain_size[1] / 2, fs[2] + radii[-1]])
+
 domain = gprMax.Domain(p1=(domain_size[0], domain_size[1], domain_size[2]))
 time_window = gprMax.TimeWindow(time=timewindow)
 scene.add(domain)
 scene.add(time_window)
 
-antennaposition = np.array([domain_size[0] / 2, fs[1] + radii[-1], fs[2] + radii[-1]])
 gssi_objects = antenna_like_GSSI_1500(antennaposition[0], antennaposition[1], antennaposition[2])
 for obj in gssi_objects:
     scene.add(obj)
@@ -53,15 +62,22 @@ scene.add(mat)
 box = gprMax.Box(p1=(0, 0, 0), p2=(domain_size[0], domain_size[1], fs[2] + radii[-1]), material_id="er5")
 scene.add(box)
 
-## Save the position of the antenna to file for use when processing results
+# Save the position of the antenna to file for use when processing results
 np.savetxt(fn.with_suffix("").name + "_rxsorigin.txt", antennaposition, fmt="%f")
 
-## Generate receiver points for pattern
+# Generate receiver points for pattern
 for radius in range(len(radii)):
-    ## E-plane circle (yz plane, x=0, phi=pi/2,3pi/2)
-    x = radii[radius] * np.sin(theta * np.pi / 180) * np.cos(90 * np.pi / 180)
-    y = radii[radius] * np.sin(theta * np.pi / 180) * np.sin(90 * np.pi / 180)
-    z = radii[radius] * np.cos(theta * np.pi / 180)
+    if pattern == 'E':
+        # E-plane circle (yz plane, x=0, phi=pi/2,3pi/2)
+        x = radii[radius] * np.sin(theta * np.pi / 180) * np.cos(90 * np.pi / 180)
+        y = radii[radius] * np.sin(theta * np.pi / 180) * np.sin(90 * np.pi / 180)
+        z = radii[radius] * np.cos(theta * np.pi / 180)
+    elif pattern == 'H':
+        # H-plane circle (xz plane, y=0, phi=0,pi)
+        x = radii[radius] * np.sin(theta * np.pi /180) * np.cos(180 * np.pi / 180)
+        y = radii[radius] * np.sin(theta * np.pi /180) * np.sin(180 * np.pi / 180)
+        z = radii[radius] * np.cos(theta * np.pi /180)
+
     for rxpt in range(len(theta)):
         rx = gprMax.Rx(p1=(x[rxpt] + antennaposition[0], y[rxpt] + antennaposition[1], z[rxpt] + antennaposition[2]))
         scene.add(rx)
@@ -73,6 +89,6 @@ gv1 = gprMax.GeometryView(
     filename="antenna_like_GSSI_1500_patterns",
     output_type="n",
 )
-scene.add(gv1)
+# scene.add(gv1)
 
-gprMax.run(scenes=[scene], geometry_only=True, outputfile=fn, gpu=None)
+gprMax.run(scenes=[scene], geometry_only=False, outputfile=fn, gpu=None)
