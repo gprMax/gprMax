@@ -227,9 +227,17 @@ Transmission Line
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.TransmissionLine
 
-Discrete Plane Wave
+Plane Wave Angles
 -------------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWave
+.. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWaveAngles
+
+Plane Wave Vector
+-------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWaveVector
+
+Plane Wave Axial
+-------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWaveAxial
 
 Excitation File
 ---------------

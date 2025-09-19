@@ -879,13 +879,16 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 class DiscretePlaneWaveAngles(GridUserObject):
     """
     Specifies a plane wave implemented using the discrete plane wave formulation.
+    If the background material is not specified it will default to free space.
+    The wave will propagate in the direction given by the angles theta and phi
+    with a polarisation given by the angle psi.
 
     Attributes:
         theta: float required for propagation angle (degrees) of wave.
         phi: float required for propagation angle (degrees) of wave.
         psi: float required for polarisation of wave.
-        max_angle_diff: float optional for tolerance of maximum acceptable angular differecne between the 
-                        desired direction of the wavevector and the found direction in degrees
+        max_angle_diff: float optional for tolerance of maximum acceptable angular difference between the
+                        desired direction of the wavevector and the estimated direction of it (degrees)
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
@@ -1060,12 +1063,16 @@ class DiscretePlaneWaveAngles(GridUserObject):
 class DiscretePlaneWaveVector(GridUserObject):
     """
     Specifies a plane wave implemented using the discrete plane wave formulation.
+    If the background material is not specified it will default to free space.
+    The wave will propagate in the direction given by the vector m_vec
+    with a polarisation given by the angle psi. The vector m_vec should be of integer values
+    and the direction of propagation will be in the direction of that vector.
+
 
     Attributes:
-        m_x: integer required for propagation x-directed vector component of wave.
-        m_y: integer required for propagation y-directed vector component of wave.
-        m_z: integer required for propagation z-directed vector component of wave.
-        
+        m_vec: tuple required of the three integer componets specifying 
+            the direction of the the plane wave.
+        psi: float required for the polarisation of wave.    
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
@@ -1223,21 +1230,21 @@ class DiscretePlaneWaveVector(GridUserObject):
 
 class DiscretePlaneWaveAxial(GridUserObject):
     """
-    Specifies a plane wave implemented using the discrete plane wave formulation.
+    Specifies an axial plane wave implemented using the discrete plane wave formulation.
+    No background material is specified as materials are copied directly
+    by the existing grid values along the axial direction of propagation.
+    The wave will propagate in one of the directions of the Cartesian axes of the grid
+    (x, y or z) with a polarisation given by the angle psi.
+
 
     Attributes:
-        theta: float required for propagation angle (degrees) of wave.
-        phi: float required for propagation angle (degrees) of wave.
+        axis: a single character string required for defining the propagation axis of the wave x, y or z.
         psi: float required for polarisation of wave.
-        max_angle_diff: float optional for tolerance of maximum acceptable angular differecne between the 
-                        desired direction of the wavevector and the found direction in degrees
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
             field, scattered field (TFSF) box.
         waveform_id: string required for identifier of waveform used with source.
-        material_id: string optional of material identifier to use as the
-                        background material in the TFSF box.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
     """
