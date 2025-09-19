@@ -63,23 +63,33 @@ class Solver:
         self.updates.time_start()
 
         for iteration in iterator:
+            #time loop at this point is at n 
             self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
+            
+            #time loop at this point is working at fields updated to be at n+1/2
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
             self.updates.update_magnetic_sources(iteration)
-            # self.updates.update_plane_waves()
+            self.updates.update_plane_waves_magnetic(iteration)
+          
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()
+
+            #time loop at this point is still at working on fields updated to be at n+1  
             self.updates.update_electric_a()
             self.updates.update_electric_pml()
             self.updates.update_electric_sources(iteration)
-            # TODO: Increment iteration here if add Model to Solver
+            self.updates.update_plane_waves_electric(iteration)      
+
+           # TODO: Increment iteration here if add Model to Solver
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_1()
+                         
             self.updates.update_electric_b()
+
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_electric()
             if isinstance(self.updates, CUDAUpdates):

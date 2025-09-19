@@ -24,7 +24,9 @@ from .user_objects.cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
-    DiscretePlaneWave,
+    DiscretePlaneWaveAngles,
+    DiscretePlaneWaveAxial,
+    DiscretePlaneWaveVector,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -203,7 +205,7 @@ def process_multicmds(multicmds):
 
             scene_objects.append(tl)
 
-    cmdname = "#discrete_plane_wave"
+    cmdname = "#plane_wave_angles"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
@@ -214,33 +216,33 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             if len(tmp) == 10:
-                plWave = DiscretePlaneWave(
+                plWave = DiscretePlaneWaveAngles(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                    psi=float(tmp[6]),
+                    theta=float(tmp[6]),
                     phi=float(tmp[7]),
-                    theta=float(tmp[8]),
+                    psi=float(tmp[8]),
                     waveform_id=tmp[9],
                 )
             elif len(tmp) == 11:
-                plWave = DiscretePlaneWave(
+                plWave = DiscretePlaneWaveAngles(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                    psi=float(tmp[6]),
+                    theta=float(tmp[6]),
                     phi=float(tmp[7]),
-                    theta=float(tmp[8]),
+                    psi=float(tmp[8]),
                     waveform_id=tmp[9],
-                    material_ID=int(tmp[10]),
+                    material_id=tmp[10],
                 )
             elif len(tmp) == 13:
-                plWave = DiscretePlaneWave(
+                plWave = DiscretePlaneWaveAngles(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                    psi=float(tmp[6]),
+                    theta=float(tmp[6]),
                     phi=float(tmp[7]),
-                    theta=float(tmp[8]),
+                    psi=float(tmp[8]),
                     waveform_id=tmp[9],
-                    material_ID=int(tmp[10]),
+                    material_id=tmp[10],
                     start=float(tmp[11]),
                     stop=float(tmp[12]),
                 )
@@ -251,6 +253,93 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             scene_objects.append(plWave)
+
+
+    cmdname = "#plane_wave_vector"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 10:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
+                )
+                raise ValueError
+
+            if len(tmp) == 11:
+                plWave = DiscretePlaneWaveVector(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    m_vec=(int(tmp[6]), int(tmp[7]), int(tmp[8])),
+                    psi=float(tmp[9]),
+                    waveform_id=tmp[10],
+                )
+            elif len(tmp) == 12:
+                plWave = DiscretePlaneWaveVector(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    m_vec=(int(tmp[6]), int(tmp[7]), int(tmp[8])),
+                    psi=float(tmp[9]),
+                    waveform_id=tmp[10],
+                    material_id=tmp[11],
+                )
+            elif len(tmp) == 13:
+                plWave = DiscretePlaneWaveVector(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    m_vec=(int(tmp[6]), int(tmp[7]), int(tmp[8])),
+                    psi=float(tmp[9]),
+                    waveform_id=tmp[10],
+                    material_id=tmp[11],
+                    start=float(tmp[12]),
+                    stop=float(tmp[13]),
+                )
+            else:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
+                )
+                raise ValueError
+
+            scene_objects.append(plWave)
+
+
+    cmdname = "#plane_wave_axial"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 9:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least nine parameters"
+                )
+                raise ValueError
+
+            if len(tmp) == 9:
+                plWave = DiscretePlaneWaveAxial(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi=float(tmp[6]),
+                    axis=tmp[7].lower(),
+                    waveform_id=tmp[8],
+                )
+            elif len(tmp) == 11:
+                plWave = DiscretePlaneWaveAxial(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi=float(tmp[6]),
+                    axis=tmp[7].lower(),
+                    waveform_id=tmp[8],
+                    start=float(tmp[9]),
+                    stop=float(tmp[10]),
+
+                )
+            else:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
+                )
+                raise ValueError
+
+            scene_objects.append(plWave)
+
+
 
     cmdname = "#excitation_file"
     if multicmds[cmdname] is not None:
@@ -447,14 +536,14 @@ def process_multicmds(multicmds):
             poles = int(tmp[0])
             material_ids = tmp[(2 * poles) + 1 : len(tmp)]
             omega = []
-            gamma = []
+            alpha = []
 
             for pole in range(1, 2 * poles, 2):
                 omega.append(float(tmp[pole]))
-                gamma.append(float(tmp[pole + 1]))
+                alpha.append(float(tmp[pole + 1]))
 
             drude_dispersion = AddDrudeDispersion(
-                poles=poles, material_ids=material_ids, omega=omega, gamma=gamma
+                poles=poles, material_ids=material_ids, omega=omega, alpha=alpha
             )
             scene_objects.append(drude_dispersion)
 

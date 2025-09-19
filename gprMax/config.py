@@ -258,7 +258,7 @@ class SimulationConfig:
 
         self.general = {
             "solver": "cpu",
-            "precision": "single",
+            "precision": "double",
             "progressbars": (
                 args.show_progress_bars or (args.log_level <= 20 and not args.hide_progress_bars)
             ),

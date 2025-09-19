@@ -235,6 +235,8 @@ class FDTDGrid:
             self.magneticdipoles.append(source)
         elif isinstance(source, TransmissionLine):
             self.transmissionlines.append(source)
+        elif isinstance(source, DiscretePlaneWave):
+            self.discreteplanewaves.append(source)
         else:
             raise TypeError(f"Source of type '{type(source)}' is unknown to gprMax")
 
@@ -262,6 +264,7 @@ class FDTDGrid:
             self.initialise_dispersive_arrays()
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
+        self._DPW__source_grid_init()
 
     def _build_pmls(self) -> None:
         """Construct and calculate material properties of the PMLs."""
@@ -458,6 +461,17 @@ class FDTDGrid:
         # material at the source location
         for voltagesource in self.voltagesources:
             voltagesource.create_material(self)
+
+    def _DPW__source_grid_init(self):
+        """Create IDs and materials for some discrete plane wave sources.
+
+        Process any DPW sources that need grid information not available during initialization of a DPW
+        This is used when axial propagation is used and the DPW needs the grid ID components to have been build first
+        """
+        # Process any Discrete plane wave sources that are need extra information
+       
+        for dpw in self.discreteplanewaves:
+            dpw.grid_init(self)
 
     def _build_materials(self) -> None:
         """Calculate properties of materials in the grid.

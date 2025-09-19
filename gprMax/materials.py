@@ -725,6 +725,7 @@ def process_materials(G):
                 )
                 z += 3
 
+
         # Construct information on material properties for printing table
         materialtext = [
             str(material.numID),

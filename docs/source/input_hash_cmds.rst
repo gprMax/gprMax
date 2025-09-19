@@ -902,28 +902,78 @@ For example, to specify a z directed transmission line source with a resistance 
 
 An example antenna model using a transmission line can be found in the :ref:`examples <example-wire-dipole>` section.
 
-#discrete_plane_wave:
+#plane_wave_angles:
 ---------------------
 
-Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The syntax of the command is:
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The plane wave can originate from any direction and it is assumed that it propagates in a homogeneous background medium. The syntax of the command is:
 
 .. code-block:: none
 
-    #discrete_plane_wave: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11]
+    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11 f12]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
-* ``f7`` is psi which defines the polarisation of the incident plane wave.
+* ``f7`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
 * ``f8`` is phi which defines the azimuthal propagation angle (degrees) of the incident plane wave.
-* ``f9`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
-* ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``f9`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
+* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
-For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle of 90 degrees, azimuthal propagation angle of 63.4 degrees, polar propagation angle of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 mypulse``.
+
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle :math:`\psi` of 90 degrees, azimuthal propagation angle :math:`\phi` of 63.4 degrees, polar propagation angle :math:`\theta` of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_angles: 0.010 0.010 0.010 0.040 0.040 0.040 36.7 63.4 90.0 mypulse``.
 
 .. note::
 
-    * Currently a plane wave can be introduced from the direction of the origin only, if the Total field/scattered field box is considered to be present in the first octant (region in the coordinate space determined by the positive x-axis, positive y-axis, and positive z-axis). The implementation should ideally be able to handle the introduction of the plane wave from any direction but currently it supports 0 <= phi <= 90 degrees and 0 <= theta <= 90 degrees only.
-    * The plane wave implementation was initiated through a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms. 
+    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+
+#plane_wave_vector:
+---------------------
+
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The plane wave can originate from any direction and it is assumed that it propagates in a homogeneous background medium. The syntax of the command is:
+
+.. code-block:: none
+
+    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
+* ``i1 i2 i3`` are integers that specify the direction of the wave vector (Mx, My, Mz) of the incident plane wave.
+* ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+
+
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the diagonal of your grid using a polarisation angle :math:`\psi` of 90 degrees, you can use as a vector (1,1,1) resulting in an azimuthal propagation angle :math:`\phi` of 45.0  degrees, polar propagation angle :math:`\theta` of approximately 54.736 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_vector: 0.010 0.010 0.010 0.040 0.040 0.040 1 1 1 90.0 mypulse``.
+
+.. note::
+
+    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
+    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+
+
+#plane_wave_axial:
+---------------------
+
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. This command introduces a plane wave that propagates along one of the three grid axes and can be normally incident on mulit-layer setups that span the entire model domain perpenticular to the direction of propagation. It takes its media properties from the background materials of the grid at the direction of the axis that it propagates. This allows for half-space simulations but only for normally incident plane waves. The syntax of the command is:
+
+.. code-block:: none
+
+    #plane_wave_axial: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
+* ``c1`` is a character that specifies the axis along which the incident plane wave propagates and can be ``x``, ``y``, or ``z``. originating at the lower left corner of the TFSF box and propagating in the positive axis direction.
+* ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+* ``f11 f12`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+
+
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 x 90.0 mypulse``.
+
+.. note::
+
+    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
+    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+
+
 
 #rx:
 ----

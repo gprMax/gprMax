@@ -19,6 +19,7 @@
 
 import inspect
 import logging
+import math
 from os import PathLike
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -875,7 +876,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         )
 
 
-class DiscretePlaneWave(GridUserObject):
+class DiscretePlaneWaveAngles(GridUserObject):
     """
     Specifies a plane wave implemented using the discrete plane wave formulation.
 
@@ -883,10 +884,8 @@ class DiscretePlaneWave(GridUserObject):
         theta: float required for propagation angle (degrees) of wave.
         phi: float required for propagation angle (degrees) of wave.
         psi: float required for polarisation of wave.
-        delta_theta: float optional for tolerance of theta angle to nearest
-                        rational angle.
-        delta_phi: float optional for tolerance to phi angle to nearest
-                        rational angle.
+        max_angle_diff: float optional for tolerance of maximum acceptable angular differecne between the 
+                        desired direction of the wavevector and the found direction in degrees
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
@@ -904,7 +903,7 @@ class DiscretePlaneWave(GridUserObject):
 
     @property
     def hash(self):
-        return "#discrete_plane_wave"
+        return "#plane_wave_angles"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -921,17 +920,27 @@ class DiscretePlaneWave(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least ten parameters.")
             raise
         try:
-            dtheta = self.kwargs["delta_theta"]
-            dphi = self.kwargs["delta_phi"]
+            max_angle_diff = self.kwargs["max_angle_diff"]
         except KeyError:
-            dtheta = 1.0
-            dphi = 1.0
+            # Set default to 1 minute of arc
+            max_angle_diff = 0.017
+
+        try:
+            material_id = self.kwargs["material_id"]
+        except KeyError:    
+            #set defaule to free space
+            material_id = "free_space"
+
+        try:
+            precompute = self.kwargs["precompute"]
+        except KeyError:    
+            precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL-based solver. "
+                + "with the CUDA or OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -941,14 +950,348 @@ class DiscretePlaneWave(GridUserObject):
                 f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
             )
             raise ValueError
+        
+        # Check if there is a materialID in the materials list
+        if not any(x.ID == material_id for x in grid.materials):
+            logger.exception(
+                f"{self.params_str()} there is no material " + f"with the identifier {material_id}."
+            )
+            raise ValueError
+           
+        # Check angles
+        if theta < 0 or theta > 180:
+            logger.exception(
+                f"{self.params_str()} Polar angle theta must be between 0 and 180 degrees."
+            )
+            raise ValueError
+            
+        if phi < 0 or phi > 360:
+            logger.exception(
+                f"{self.params_str()} Azimuthal angle phi must be between 0 and 360 degrees."
+            )
+            raise ValueError
 
-        if theta > 180:
-            theta -= np.floor(theta / 180) * 180.0
-        if phi > 360:
-            phi -= np.floor(phi / 360) * 360.0
-        if psi > 360:
-            psi -= np.floor(psi / 360) * 360.0
+        if psi < 0 or psi > 360:
+            logger.exception(
+                f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
+            )
+            raise ValueError
 
+      
+        uip = self._create_uip(grid)
+        _, start = uip.check_src_rx_point(p1, self.params_str())
+        _, stop = uip.check_src_rx_point(p2, self.params_str())
+
+        DPW = DiscretePlaneWaveUser(grid)
+        DPW.corners = np.array([*start, *stop], dtype=np.int32)
+        DPW.phi = phi
+        DPW.theta = theta
+        DPW.psi = psi
+        DPW.max_angle_diff = max_angle_diff 
+        DPW.waveformID = waveform_id
+        DPW.materialID = material_id
+        DPW.m = np.zeros(3 + 1, dtype=np.int32) 
+        DPW.axial = 0
+             
+        try:
+            # Check source start & source remove time parameters
+            start = self.kwargs["start"]
+            stop = self.kwargs["stop"]
+            if start < 0:
+                logger.exception(
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                )
+                raise ValueError
+            if stop < 0:
+                logger.exception(
+                    self.params_str() + (" time to remove the source should not be less than zero.")
+                )
+                raise ValueError
+            if stop - start <= 0:
+                logger.exception(
+                    self.params_str() + (" duration of the source should not be zero or less.")
+                )
+                raise ValueError
+            DPW.start = start
+            DPW.stop = min(stop, grid.timewindow)
+            startstop = f" start time {start:g} secs, finish time {stop:g} secs "
+        except KeyError:
+            DPW.start = 0
+            DPW.stop = grid.timewindow
+            startstop = " "
+        
+        DPW.initializeDiscretePlaneWave(grid)
+
+
+        precompute = True
+        if precompute:
+            DPW.calculate_waveform_values(grid)
+
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave within the TFSF Box "
+            + f"spanning from {p1} m to {p2} m, incident in the direction "
+            + f"theta {theta} degrees and phi {phi} degrees "
+            + startstop
+            + f"using waveform {DPW.waveformID} created."
+        )
+             
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
+            + "and angles have been approximated to the nearest rational angles "
+            + f"with total angular error : {DPW.total_error:.5f}° The chosen rational integers are "
+            + f"[m_x, m_y, m_z] = {DPW.m[:3]}. The approximated angles are: "
+            + f"Phi: {DPW.actual_angles[1]:.3f} and Theta: {DPW.actual_angles[0]:.3f} "
+            + f"and error_Theta = {DPW.angle_errors[0]:.4f}°, error_Phi = {DPW.angle_errors[1]:.4f}°"
+        )
+
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave has been initialized "
+            + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({DPW.projections[0]:.4f}, {DPW.projections[1]:.4f}, {DPW.projections[2]:.4f}, {DPW.projections[3]:.4f}, {DPW.projections[4]:.4f}, {DPW.projections[5]:.4f})"
+            + f" , grid origin = ({DPW.origin[0]}, {DPW.origin[1]}, {DPW.origin[2]})"
+            + f" and 1D vector length = {DPW.length} cells."        
+        )
+
+
+        grid.discreteplanewaves.append(DPW)
+
+
+
+class DiscretePlaneWaveVector(GridUserObject):
+    """
+    Specifies a plane wave implemented using the discrete plane wave formulation.
+
+    Attributes:
+        m_x: integer required for propagation x-directed vector component of wave.
+        m_y: integer required for propagation y-directed vector component of wave.
+        m_z: integer required for propagation z-directed vector component of wave.
+        
+        p1: tuple required for the lower left position (x, y, z) of the total
+            field, scattered field (TFSF) box.
+        p2: tuple required for the upper right position (x, y, z) of the total
+            field, scattered field (TFSF) box.
+        waveform_id: string required for identifier of waveform used with source.
+        material_id: string optional of material identifier to use as the
+                        background material in the TFSF box.
+        start: float optional to delay start time (secs) of source.
+        stop: float optional to time (secs) to remove source.
+    """
+
+    @property
+    def order(self):
+        return 22
+
+    @property
+    def hash(self):
+        return "#plane_wave_vector"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            m_vec = self.kwargs["m_vec"]
+            psi = self.kwargs["psi"]
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            waveform_id = self.kwargs["waveform_id"]
+        except KeyError:
+            logger.exception(f"{self.params_str()} requires at least eleven parameters.")
+            raise
+
+
+        try:
+            material_id = self.kwargs["material_id"]
+        except KeyError:    
+            #set defaule to free space
+            material_id = "free_space"
+
+        try:
+            precompute = self.kwargs["precompute"]
+        except KeyError:    
+            precompute = True
+
+        # Warn about using a discrete plane wave on GPU
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+            logger.exception(
+                f"{self.params_str()} cannot currently be used "
+                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+            )
+            raise ValueError
+
+        # Check if there is a waveformID in the waveforms list
+        if not any(x.ID == waveform_id for x in grid.waveforms):
+            logger.exception(
+                f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
+            )
+            raise ValueError
+        
+        # Check if there is a materialID in the materials list
+        if not any(x.ID == material_id for x in grid.materials):
+            logger.exception(
+                f"{self.params_str()} there is no material " + f"with the identifier {material_id}."
+            )
+            raise ValueError
+           
+        # Check angle
+ 
+        if psi < 0 or psi > 360:
+            logger.exception(
+                f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
+            )
+            raise ValueError
+
+      
+        uip = self._create_uip(grid)
+        _, start = uip.check_src_rx_point(p1, self.params_str())
+        _, stop = uip.check_src_rx_point(p2, self.params_str())
+
+        DPW = DiscretePlaneWaveUser(grid)
+        DPW.corners = np.array([*start, *stop], dtype=np.int32)
+        DPW.m = np.array(m_vec, dtype=np.int32)
+        DPW.phi = math.degrees(math.atan2(DPW.m[1] * grid.dx, DPW.m[0] * grid.dy))
+        DPW.theta = math.degrees(math.acos(DPW.m[2] * grid.dz / (math.sqrt((DPW.m[0] * grid.dy) ** 2 + (DPW.m[1] * grid.dx) ** 2 + (DPW.m[2] * grid.dz) ** 2))))
+        DPW.psi = psi
+        DPW.max_angle_diff = 0
+        DPW.waveformID = waveform_id
+        DPW.materialID = material_id
+        DPW.m = np.zeros(3 + 1, dtype=np.int32) 
+        DPW.axial = 0
+             
+        try:
+            # Check source start & source remove time parameters
+            start = self.kwargs["start"]
+            stop = self.kwargs["stop"]
+            if start < 0:
+                logger.exception(
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                )
+                raise ValueError
+            if stop < 0:
+                logger.exception(
+                    self.params_str() + (" time to remove the source should not be less than zero.")
+                )
+                raise ValueError
+            if stop - start <= 0:
+                logger.exception(
+                    self.params_str() + (" duration of the source should not be zero or less.")
+                )
+                raise ValueError
+            DPW.start = start
+            DPW.stop = min(stop, grid.timewindow)
+            startstop = f" start time {start:g} secs, finish time {stop:g} secs "
+        except KeyError:
+            DPW.start = 0
+            DPW.stop = grid.timewindow
+            startstop = " "
+        
+        DPW.initializeDiscretePlaneWave(grid)
+
+
+        precompute = True
+        if precompute:
+            DPW.calculate_waveform_values(grid)
+
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave within the TFSF Box "
+            + f"spanning from {p1} m to {p2} m, incident in the direction "
+            + f"theta {DPW.theta} degrees and phi {DPW.phi} degrees "
+            + startstop
+            + f"using waveform {DPW.waveformID} created."
+        )
+             
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
+            + "using user specified integers that are "
+            + f"[m_x, m_y, m_z] = {DPW.m[:3]}. The approximated angles are: "
+            + f"Phi: {DPW.actual_angles[1]:.3f} and Theta: {DPW.actual_angles[0]:.3f} "
+            + f"and error_Theta = {DPW.angle_errors[0]:.4f}°, error_Phi = {DPW.angle_errors[1]:.4f}°"
+        )
+
+        logger.info(
+            f"{self.grid_name(grid)}Discrete Plane Wave has been initialized "
+            + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({DPW.projections[0]:.4f}, {DPW.projections[1]:.4f}, {DPW.projections[2]:.4f}, {DPW.projections[3]:.4f}, {DPW.projections[4]:.4f}, {DPW.projections[5]:.4f})"
+            + f" , grid origin = ({DPW.origin[0]}, {DPW.origin[1]}, {DPW.origin[2]})"
+            + f" and 1D vector length = {DPW.length} cells."        
+        )
+
+
+        grid.discreteplanewaves.append(DPW)
+
+
+
+class DiscretePlaneWaveAxial(GridUserObject):
+    """
+    Specifies a plane wave implemented using the discrete plane wave formulation.
+
+    Attributes:
+        theta: float required for propagation angle (degrees) of wave.
+        phi: float required for propagation angle (degrees) of wave.
+        psi: float required for polarisation of wave.
+        max_angle_diff: float optional for tolerance of maximum acceptable angular differecne between the 
+                        desired direction of the wavevector and the found direction in degrees
+        p1: tuple required for the lower left position (x, y, z) of the total
+            field, scattered field (TFSF) box.
+        p2: tuple required for the upper right position (x, y, z) of the total
+            field, scattered field (TFSF) box.
+        waveform_id: string required for identifier of waveform used with source.
+        material_id: string optional of material identifier to use as the
+                        background material in the TFSF box.
+        start: float optional to delay start time (secs) of source.
+        stop: float optional to time (secs) to remove source.
+    """
+
+    @property
+    def order(self):
+        return 20
+
+    @property
+    def hash(self):
+        return "#plane_wave_axial"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            axis = self.kwargs["axis"]
+            psi = self.kwargs["psi"]
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            waveform_id = self.kwargs["waveform_id"]
+        except KeyError:
+            logger.exception(f"{self.params_str()} requires at least 9 parameters.")
+            raise
+
+        try:
+            precompute = self.kwargs["precompute"]
+        except KeyError:    
+            precompute = True
+
+        # Warn about using a discrete plane wave on GPU
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+            logger.exception(
+                f"{self.params_str()} cannot currently be used "
+                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+            )
+            raise ValueError
+
+        # Check if there is a waveformID in the waveforms list
+        if not any(x.ID == waveform_id for x in grid.waveforms):
+            logger.exception(
+                f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
+            )
+            raise ValueError
+           
+        # Check polarisation angle
+        if psi < 0 or psi > 360:
+            logger.exception(
+                f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
+            )
+            raise ValueError
+
+      
         uip = self._create_uip(grid)
         _, start = uip.check_src_rx_point(p1, self.params_str())
         _, stop = uip.check_src_rx_point(p2, self.params_str())
@@ -956,12 +1299,35 @@ class DiscretePlaneWave(GridUserObject):
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([*start, *stop], dtype=np.int32)
         DPW.waveformID = waveform_id
-        DPW.initializeDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
-
-        try:
-            DPW.material_ID = self.kwargs["material_id"]
-        except KeyError:
-            DPW.material_ID = 1
+        DPW.m = np.zeros(3 + 1, dtype=np.int32) 
+        DPW.axis = axis.lower()
+        DPW.psi = psi   
+        if axis.lower() == 'x':        
+            DPW.axial = 1   
+            DPW.m[0] = 1
+            DPW.m[1] = 0
+            DPW.m[2] = 0
+            DPW.theta = 90.0
+            DPW.phi = 0.0
+        elif axis.lower() == 'y':
+            DPW.axial = 2
+            DPW.m[0] = 0
+            DPW.m[1] = 1
+            DPW.m[2] = 0
+            DPW.theta = 90.0
+            DPW.phi = 90.0
+        elif axis.lower() == 'z':
+            DPW.axial = 3
+            DPW.m[0] = 0
+            DPW.m[1] = 0
+            DPW.m[2] = 1
+            DPW.theta = 0.0 
+            DPW.phi = 0.0
+        else:
+            logger.exception(
+                f"{self.params_str()} DPW Axis must be x, y, or z."
+            )
+            raise ValueError
 
         try:
             # Check source start & source remove time parameters
@@ -985,11 +1351,14 @@ class DiscretePlaneWave(GridUserObject):
                 raise ValueError
             DPW.start = start
             DPW.stop = min(stop, grid.timewindow)
-            startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
+            startstop = f" start time {start:g} secs, finish time {stop:g} secs "
         except KeyError:
             DPW.start = 0
             DPW.stop = grid.timewindow
             startstop = " "
+        
+        DPW.initializeDiscretePlaneWave(grid)
+
 
         precompute = True
         if precompute:
@@ -997,32 +1366,20 @@ class DiscretePlaneWave(GridUserObject):
 
         logger.info(
             f"{self.grid_name(grid)}Discrete Plane Wave within the TFSF Box "
-            + f"spanning from {p1} m to {p2} m, incident in the direction "
-            + f"theta {theta} degrees and phi {phi} degrees "
+            + f"spanning from {p1} m to {p2} m, normally propagating in the {DPW.axis.lower()} direction "
+            + f" with theta {DPW.theta} degrees, phi {DPW.phi} degrees and polarisation angle psi {DPW.psi} degrees "
             + startstop
             + f"using waveform {DPW.waveformID} created."
         )
-        phi_approx = np.arctan2(DPW.m[1] / grid.dy, DPW.m[0] / grid.dx) * 180 / np.pi
-        theta_approx = (
-            np.arctan2(
-                np.sqrt(
-                    (DPW.m[0] / grid.dx) * (DPW.m[0] / grid.dx)
-                    + (DPW.m[1] / grid.dy) * (DPW.m[1] / grid.dy)
-                ),
-                DPW.m[2] / grid.dz,
-            )
-            * 180
-            / np.pi
-        )
-        logger.info(
-            f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
-            + "the angles have been approximated to the nearest rational angles "
-            + "with some small tolerance levels. The chosen rational integers are "
-            + f"[m_x, m_y, m_z] : {DPW.m[:3]}. The approximated angles are: "
-            + f"Phi: {phi_approx:.3f} and Theta: {theta_approx:.3f}"
-        )
+             
+
+        
+
 
         grid.discreteplanewaves.append(DPW)
+
+
+
 
 
 class Rx(RotatableMixin, GridUserObject):
@@ -1423,7 +1780,7 @@ class AddLorentzDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = False
             for i in range(poles):
-                if er_delta[i] > 0 and omega[i] > grid.dt and delta[i] > grid.dt:
+                if er_delta[i] > 0 and omega[i] < (2.0*np.pi)/grid.dt and delta[i] < 1.0/grid.dt and omega[i] != delta[i]:
                     disp_material.deltaer.append(er_delta[i])
                     disp_material.tau.append(omega[i])
                     disp_material.alpha.append(delta[i])
@@ -1432,7 +1789,7 @@ class AddLorentzDispersion(GridUserObject):
                         f"{self.params_str()} requires positive "
                         "values for the permittivity difference "
                         "and frequencies, and associated times "
-                        "that are greater than the time step for "
+                        "that are greater than the inverse of the time step for "
                         "the model."
                     )
                     raise ValueError
@@ -1447,8 +1804,8 @@ class AddLorentzDispersion(GridUserObject):
             logger.info(
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
                 f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
-                f"omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
-                f"and delta={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} created."
+                f"omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} Hertz, "
+                f"and delta={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} Hertz, created."
             )
 
 
@@ -1507,7 +1864,7 @@ class AddDrudeDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = False
             for i in range(poles):
-                if omega[i] > 0 and alpha[i] > grid.dt:
+                if omega[i] < (2.0*np.pi)/grid.dt and alpha[i] < 1.0/grid.dt:
                     disp_material.tau.append(omega[i])
                     disp_material.alpha.append(alpha[i])
                 else:
@@ -1515,7 +1872,7 @@ class AddDrudeDispersion(GridUserObject):
                         f"{self.params_str()} requires positive "
                         + "values for the frequencies, and "
                         + "associated times that are greater than "
-                        + "the time step for the model."
+                        + "the inverse of time step for the model."
                     )
                     raise ValueError
             if disp_material.poles > config.get_model_config().materials["maxpoles"]:
@@ -1528,8 +1885,8 @@ class AddDrudeDispersion(GridUserObject):
 
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
-                f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
-                f"and alpha={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} secs created."
+                f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} Hertz, "
+                f"and alpha={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} Hertz created."
             )
 
 

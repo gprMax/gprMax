@@ -87,25 +87,67 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.Hz,
                 self.grid,
             )
-
-        # Update the magnetic and electric field components for the discrete plane wave
+            
+    def update_plane_waves_electric(self, iteration):
+        """Updates discrete plane wave sources for electric fields."""
+        # Update the electric field components for the discrete plane wave
         for source in self.grid.discreteplanewaves:
-            source.update_plane_wave(
-                config.get_model_config().ompthreads,
-                self.grid.updatecoeffsE,
-                self.grid.updatecoeffsH,
-                self.grid.Ex,
-                self.grid.Ey,
-                self.grid.Ez,
-                self.grid.Hx,
-                self.grid.Hy,
-                self.grid.Hz,
-                iteration,
-                self.grid,
-                cythonize=True,
-                precompute=False,
-            )
+            if source.dispersive:
+                source.update_plane_wave_electric_dispersive(
+                    config.get_model_config().ompthreads,
+                    self.grid.updatecoeffsE,
+                    self.grid.updatecoeffsH,
+                    self.grid.updatecoeffsdispersive,
+                    self.grid.Ex,
+                    self.grid.Ey,
+                    self.grid.Ez,
+                    self.grid.Hx,
+                    self.grid.Hy,
+                    self.grid.Hz,
+                    iteration,
+                    self.grid,
+                    cythonize=True,
+                    precompute=True,
+                )
+            else:
+                source.update_plane_wave_electric(
+                    config.get_model_config().ompthreads,
+                    self.grid.updatecoeffsE,
+                    self.grid.updatecoeffsH,
+                    self.grid.Ex,
+                    self.grid.Ey,
+                    self.grid.Ez,
+                    self.grid.Hx,
+                    self.grid.Hy,
+                    self.grid.Hz,
+                    iteration,
+                    self.grid,
+                    cythonize=True,
+                    precompute=True,
+                )
 
+     
+
+    def update_plane_waves_magnetic(self, iteration):
+        """Updates discrete plane wave sources fr magnetic fields."""
+        # Update the magnetic field components for the discrete plane wave
+        for source in self.grid.discreteplanewaves:
+            source.update_plane_wave_magnetic(
+                    config.get_model_config().ompthreads,
+                    self.grid.updatecoeffsE,
+                    self.grid.updatecoeffsH,
+                    self.grid.Ex,
+                    self.grid.Ey,
+                    self.grid.Ez,
+                    self.grid.Hx,
+                    self.grid.Hy,
+                    self.grid.Hz,
+                    iteration,
+                    self.grid,
+                    cythonize=True,
+                    precompute=True,
+                )
+            
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
