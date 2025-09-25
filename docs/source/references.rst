@@ -30,3 +30,4 @@ References
 .. [WEN2007b] Weng, W. C., Yang, F., & Elsherbeni, A. Z. (2007). Linear antenna array synthesis using Taguchi's method: A novel optimization technique in electromagnetics. Antennas and Propagation, IEEE Transactions on, 55(3), 723-730.
 .. [WHI2009] Whittow, W. G., & Edwards, R. M. (2009). Effects of averaging procedures for electrical properties at the interface of dissimilar tissues in the human head with finite-difference time-domain modelling. Science, Measurement & Technology, IET, 3(1), 51-58.
 .. [YEE1966] Yee, K. S. (1966). Numerical solution of initial boundary value problems involving Maxwell’s equations in isotropic media. IEEE Trans. Antennas Propag, 14(3), 302-307. (http://dx.doi.org/10.1109/TAP.1966.1138693)
+.. [MEEP_PML] Meep Documentation. Perfectly Matched Layer: Planewave sources extending into PML. https://meep.readthedocs.io/en/master/Perfectly_Matched_Layer/#planewave-sources-extending-into-pml
