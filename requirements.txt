@@ -26,7 +26,6 @@ executing==0.8.3
 fastjsonschema==2.16.2
 fonttools==4.25.0
 gprMax==3.1.7
-gprMax==3.1.7
 h5py==3.12.1
 idna==3.4
 ipykernel==6.28.0
