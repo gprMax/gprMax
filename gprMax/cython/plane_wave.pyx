@@ -1949,7 +1949,6 @@ cpdef void updatePlaneWave_magnetic_axial(
     double freq,
     char* wavetype
 ):
-        cdef float_or_double[:] coeffsH = updatecoeffsH[1,:]
     
         initializeMagneticFields(m, H_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateMagneticFields_axial(n, p, H_fields, E_fields, Ix, Iy, Iz, rcHx, rcHy, rcHz, dx, dy, dz, updatecoeffsH, ID, m)
@@ -2048,7 +2047,6 @@ cpdef void updatePlaneWave_electric_axial(
     double freq,
     char* wavetype
 ):
-        cdef float_or_double[:] coeffsE = updatecoeffsE[1,:]
 
         initializeElectricFields(m, E_fields, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateElectricFields_axial(n, p, H_fields, E_fields, Ix, Iy, Iz, rcEx, rcEy, rcEz, dx, dy, dz, updatecoeffsE, ID, m)
