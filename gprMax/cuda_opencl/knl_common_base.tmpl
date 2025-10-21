@@ -8,14 +8,40 @@
 #define IDX2D_SRCINFO(m, n) (m)*{{NY_SRCINFO}}+(n)
 #define IDX2D_SRCWAVES(m, n) (m)*({{NY_SRCWAVES}})+(n)
 
-#define IDX3D_FIELDS(i, j, k) (i)*({{NY_FIELDS}})*({{NZ_FIELDS}})+(j)*({{NZ_FIELDS}})+(k)
-#define IDX3D_RXS(i, j, k) (i)*({{NY_RXS}})*({{NZ_RXS}})+(j)*({{NZ_RXS}})+(k)
+#define IDX3D_FIELDS(i, j, k) ((size_t)(i)*(size_t)({{NY_FIELDS}})*(size_t)({{NZ_FIELDS}}) \
+                              + (size_t)(j)*(size_t)({{NZ_FIELDS}}) \
+                              + (size_t)(k))
 
-#define IDX4D_ID(p, i, j, k) (p)*({{NX_ID}})*({{NY_ID}})*({{NZ_ID}})+(i)*({{NY_ID}})*({{NZ_ID}})+(j)*({{NZ_ID}})+(k)
-#define IDX4D_SNAPS(p, i, j, k) (p)*({{NX_SNAPS}})*({{NY_SNAPS}})*({{NZ_SNAPS}})+(i)*({{NY_SNAPS}})*({{NZ_SNAPS}})+(j)*({{NZ_SNAPS}})+(k)
-#define IDX4D_T(p, i, j, k) (p)*({{NX_T}})*({{NY_T}})*({{NZ_T}})+(i)*({{NY_T}})*({{NZ_T}})+(j)*({{NZ_T}})+(k)
-#define IDX4D_PHI1(p, i, j, k) (p)*(NX_PHI1)*(NY_PHI1)*(NZ_PHI1)+(i)*(NY_PHI1)*(NZ_PHI1)+(j)*(NZ_PHI1)+(k)
-#define IDX4D_PHI2(p, i, j, k) (p)*(NX_PHI2)*(NY_PHI2)*(NZ_PHI2)+(i)*(NY_PHI2)*(NZ_PHI2)+(j)*(NZ_PHI2)+(k)
+#define IDX3D_RXS(i, j, k) ((size_t)(i)*(size_t)({{NY_RXS}})*(size_t)({{NZ_RXS}}) \
+                            + (size_t)(j)*(size_t)({{NZ_RXS}}) \
+                            + (size_t)(k))
+
+
+
+#define IDX4D_ID(p, i, j, k) ((size_t)(p)*(size_t)({{NX_ID}})*(size_t)({{NY_ID}})*(size_t)({{NZ_ID}}) \
+                             + (size_t)(i)*(size_t)({{NY_ID}})*(size_t)({{NZ_ID}}) \
+                             + (size_t)(j)*(size_t)({{NZ_ID}}) \
+                             + (size_t)(k))
+
+#define IDX4D_SNAPS(p, i, j, k) ((size_t)(p)*(size_t)({{NX_SNAPS}})*(size_t)({{NY_SNAPS}})*(size_t)({{NZ_SNAPS}}) \
+                                + (size_t)(i)*(size_t)({{NY_SNAPS}})*(size_t)({{NZ_SNAPS}}) \
+                                + (size_t)(j)*(size_t)({{NZ_SNAPS}}) \
+                                + (size_t)(k))
+
+#define IDX4D_T(p, i, j, k) ((size_t)(p)*(size_t)({{NX_T}})*(size_t)({{NY_T}})*(size_t)({{NZ_T}}) \
+                            + (size_t)(i)*(size_t)({{NY_T}})*(size_t)({{NZ_T}}) \
+                            + (size_t)(j)*(size_t)({{NZ_T}}) \
+                            + (size_t)(k))
+
+#define IDX4D_PHI1(p, i, j, k) ((size_t)(p)*(size_t)(NX_PHI1)*(size_t)(NY_PHI1)*(size_t)(NZ_PHI1) \
+                               + (size_t)(i)*(size_t)(NY_PHI1)*(size_t)(NZ_PHI1) \
+                               + (size_t)(j)*(size_t)(NZ_PHI1) \
+                               + (size_t)(k))
+
+#define IDX4D_PHI2(p, i, j, k) ((size_t)(p)*(size_t)(NX_PHI2)*(size_t)(NY_PHI2)*(size_t)(NZ_PHI2) \
+                               + (size_t)(i)*(size_t)(NY_PHI2)*(size_t)(NZ_PHI2) \
+                               + (size_t)(j)*(size_t)(NZ_PHI2) \
+                               + (size_t)(k))
 
 
 // Material coefficients (read-only) stored in constant memory of compute device
