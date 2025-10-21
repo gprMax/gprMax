@@ -18,6 +18,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+
 import numpy as np
 
 import gprMax.config as config
@@ -175,9 +176,7 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
                 buffer_size = rxs_dev.length()
                 rxs_buffer = rxs_dev.contents().as_buffer(buffer_size)
                 rxs_np = (
-                    np.frombuffer(
-                        rxs_buffer, dtype=config.sim_config.dtypes["float_or_double"]
-                    )
+                    np.frombuffer(rxs_buffer, dtype=config.sim_config.dtypes["float_or_double"])
                     .reshape(rxs_shape)
                     .copy()
                 )
@@ -191,14 +190,18 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
                 )
 
         except Exception as e:
-            logger.exception(f"Error copying Metal buffer data: {e}, using zero-filled arrays as fallback")
+            logger.exception(
+                f"Error copying Metal buffer data: {e}, using zero-filled arrays as fallback"
+            )
 
         # Use the numpy arrays
         rxcoords_dev = rxcoords_np
         rxs_dev = rxs_np
     else:
-        rxs_dev = rxs_dev.get()
-        rxcoords_dev = rxcoords_dev.get()
+        if hasattr(rxs_dev, "get"):
+            rxs_dev = rxs_dev.get()
+        if hasattr(rxcoords_dev, "get"):
+            rxcoords_dev = rxcoords_dev.get()
 
     for rx in G.rxs:
         for rxd in range(len(G.rxs)):
@@ -208,6 +211,4 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
                 and rx.zcoord == rxcoords_dev[rxd, 2]
             ):
                 for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_dev[
-                        Rx.allowableoutputs_dev.index(output), :, rxd
-                    ]
+                    rx.outputs[output] = rxs_dev[Rx.allowableoutputs_dev.index(output), :, rxd]
