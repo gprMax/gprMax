@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -69,7 +69,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Substitutions in function bodies
         self.subs_func = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "CUDA_IDX": "size_t i = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)threadIdx.x;",
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
             "NZ_FIELDS": self.grid.nz + 1,
@@ -548,7 +548,6 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=(1, 1, 1),
                 grid=(round32(len(self.grid.hertziandipoles)), 1, 1),
             )
-
 
     def update_electric_b(self):
         """If there are any dispersive materials do 2nd part of dispersive
