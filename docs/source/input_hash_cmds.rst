@@ -969,7 +969,8 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 x 90.0 mypulse``.
 
 .. note::
-
+    
+    * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
