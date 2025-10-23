@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -79,9 +79,11 @@ update_electric = {
     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    long long nxyz_ID = ${NX_ID}LL * ${NY_ID}LL * ${NZ_ID}LL;
+    long long i_mod = i % nxyz_ID;
+    long long x_ID = i_mod / (${NY_ID}LL * ${NZ_ID}LL);
+    long long y_ID = (i_mod % (${NY_ID}LL * ${NZ_ID}LL)) / ${NZ_ID}LL;
+    long long z_ID = i_mod % ${NZ_ID}LL;
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -170,9 +172,11 @@ update_magnetic = {
     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    long long nxyz_ID = ${NX_ID}LL * ${NY_ID}LL * ${NZ_ID}LL;
+    long long i_mod = i % nxyz_ID;
+    long long x_ID = i_mod / (${NY_ID}LL * ${NZ_ID}LL);
+    long long y_ID = (i_mod % (${NY_ID}LL * ${NZ_ID}LL)) / ${NZ_ID}LL;
+    long long z_ID = i_mod % ${NZ_ID}LL;
 
     // Hx component
     if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
@@ -281,14 +285,18 @@ update_electric_dispersive_A = {
     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    long long nxyz_ID = ${NX_ID}LL * ${NY_ID}LL * ${NZ_ID}LL;
+    long long i_mod = i % nxyz_ID;
+    long long x_ID = i_mod / (${NY_ID}LL * ${NZ_ID}LL);
+    long long y_ID = (i_mod % (${NY_ID}LL * ${NZ_ID}LL)) / ${NZ_ID}LL;
+    long long z_ID = i_mod % ${NZ_ID}LL;
 
     // Convert the linear index to subscripts for 4D dispersive array
-    int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
-    int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
+    long long nxyz_T = ${NX_T}LL * ${NY_T}LL * ${NZ_T}LL;
+    long long i_mod_T = i % nxyz_T;
+    long long x_T = i_mod_T / (${NY_T}LL * ${NZ_T}LL);
+    long long y_T = (i_mod_T % (${NY_T}LL * ${NZ_T}LL)) / ${NZ_T}LL;
+    long long z_T = i_mod_T % ${NZ_T}LL;
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -409,15 +417,18 @@ update_electric_dispersive_B = {
     int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    long long nxyz_ID = ${NX_ID}LL * ${NY_ID}LL * ${NZ_ID}LL;
+    long long i_mod = i % nxyz_ID;
+    long long x_ID = i_mod / (${NY_ID}LL * ${NZ_ID}LL);
+    long long y_ID = (i_mod % (${NY_ID}LL * ${NZ_ID}LL)) / ${NZ_ID}LL;
+    long long z_ID = i_mod % ${NZ_ID}LL;
 
     // Convert the linear index to subscripts for 4D dispersive array
-    int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
-    int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
-
+    long long nxyz_T = ${NX_T}LL * ${NY_T}LL * ${NZ_T}LL;
+    long long i_mod_T = i % nxyz_T;
+    long long x_T = i_mod_T / (${NY_T}LL * ${NZ_T}LL);
+    long long y_T = (i_mod_T % (${NY_T}LL * ${NZ_T}LL)) / ${NZ_T}LL;
+    long long z_T = i_mod_T % ${NZ_T}LL;
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
