@@ -197,17 +197,17 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         rxcoords_dev = rxcoords_np
         rxs_dev = rxs_np
     else:
-        rxs_dev = rxs_dev.get()
-        rxcoords_dev = rxcoords_dev.get()
+    #    rxs_dev = rxs_dev.get()
+    #    rxcoords_dev = rxcoords_dev.get()
 
-    for rx in G.rxs:
-        for rxd in range(len(G.rxs)):
-            if (
-                rx.xcoord == rxcoords_dev[rxd, 0]
-                and rx.ycoord == rxcoords_dev[rxd, 1]
-                and rx.zcoord == rxcoords_dev[rxd, 2]
-            ):
-                for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_dev[
-                        Rx.allowableoutputs_dev.index(output), :, rxd
-                    ]
+        for rx in G.rxs:
+            for rxd in range(len(G.rxs)):
+                if (
+                    rx.xcoord == rxcoords_dev[rxd, 0]
+                    and rx.ycoord == rxcoords_dev[rxd, 1]
+                    and rx.zcoord == rxcoords_dev[rxd, 2]
+                    ):
+                    for output in rx.outputs.keys():
+                        rx.outputs[output] = rxs_dev[
+                            Rx.allowableoutputs_dev.index(output), :, rxd
+                            ]

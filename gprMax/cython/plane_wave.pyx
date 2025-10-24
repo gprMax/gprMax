@@ -604,7 +604,7 @@ cdef void initializeMagneticFields(
     int[:] m,
     float_or_double[:, ::1] H_fields,
     double[:] projections,
-    float_or_double[:, :, ::1] waveformvalues_wholedt,
+    float_or_double[:, :, ::1] waveformvalues_halfdt,
     bint precompute,
     int iteration,
     double dt,
@@ -644,15 +644,15 @@ cdef void initializeMagneticFields(
     cdef double time_x, time_y, time_z = 0.0
     if (precompute == True):
         for r in range(m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
-            H_fields[0, r] = projections[3] * waveformvalues_wholedt[iteration, 0, r]
-            H_fields[1, r] = projections[4] * waveformvalues_wholedt[iteration, 1, r]
-            H_fields[2, r] = projections[5] * waveformvalues_wholedt[iteration, 2, r]
+            H_fields[0, r] = projections[3] * waveformvalues_halfdt[iteration, 0, r]
+            H_fields[1, r] = projections[4] * waveformvalues_halfdt[iteration, 1, r]
+            H_fields[2, r] = projections[5] * waveformvalues_halfdt[iteration, 2, r]
     else:
         for r in range(m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
-            time_x = dt * iteration - (r+ (abs(m[1])+abs(m[2]))*0.5) * ds/c
-            time_y = dt * iteration - (r+ (abs(m[2])+abs(m[0]))*0.5) * ds/c
-            time_z = dt * iteration - (r+ (abs(m[0])+abs(m[1]))*0.5) * ds/c
-            if (dt * iteration >= start and dt * iteration <= stop):
+            time_x = dt * (iteration + 0.5) - (r+ (abs(m[1])+abs(m[2]))*0.5) * ds/c
+            time_y = dt * (iteration + 0.5) - (r+ (abs(m[2])+abs(m[0]))*0.5) * ds/c
+            time_z = dt * (iteration + 0.5) - (r+ (abs(m[0])+abs(m[1]))*0.5) * ds/c
+            if (dt * (iteration + 0.5) >= start and dt * (iteration + 0.5) <= stop):
             # Set the time of the waveform evaluation to account for any delay in the start
                 H_fields[0, r] = projections[3] * getSource(time_x-start, freq, wavetype, dt)
                 H_fields[1, r] = projections[4] * getSource(time_y-start, freq, wavetype, dt)
@@ -663,7 +663,7 @@ cdef void initializeElectricFields(
     int[:] m,
     float_or_double[:, ::1] E_fields,
     double[:] projections,
-    float_or_double[:, :, ::1] waveformvalues_halfdt,
+    float_or_double[:, :, ::1] waveformvalues_wholedt,
     bint precompute,
     int iteration,
     double dt,
@@ -703,15 +703,15 @@ cdef void initializeElectricFields(
     cdef double time_x, time_y, time_z = 0.0
     if (precompute == True):
         for r in range(m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
-            E_fields[0, r] = projections[0] * waveformvalues_halfdt[iteration, 0, r]
-            E_fields[1, r] = projections[1] * waveformvalues_halfdt[iteration, 1, r]
-            E_fields[2, r] = projections[2] * waveformvalues_halfdt[iteration, 2, r]
+            E_fields[0, r] = projections[0] * waveformvalues_wholedt[iteration + 1, 0, r]
+            E_fields[1, r] = projections[1] * waveformvalues_wholedt[iteration + 1, 1, r]
+            E_fields[2, r] = projections[2] * waveformvalues_wholedt[iteration + 1, 2, r]
     else:
         for r in range(m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
-            time_x = dt * (iteration + 0.5) - (r+ abs(m[0])*0.5) * ds/c
-            time_y = dt * (iteration + 0.5) - (r+ abs(m[1])*0.5) * ds/c
-            time_z = dt * (iteration + 0.5) - (r+ abs(m[2])*0.5) * ds/c
-            if (dt * (iteration + 0.5) >= start and dt * (iteration + 0.5) <= stop):
+            time_x = dt * (iteration + 1) - (r+ abs(m[0])*0.5) * ds/c
+            time_y = dt * (iteration + 1) - (r+ abs(m[1])*0.5) * ds/c
+            time_z = dt * (iteration + 1) - (r+ abs(m[2])*0.5) * ds/c
+            if (dt * (iteration + 1) >= start and dt * (iteration + 1) <= stop):
             # Set the time of the waveform evaluation to account for any delay in the start
                 E_fields[0, r] = projections[0] * getSource(time_x-start, freq, wavetype, dt)
                 E_fields[1, r] = projections[1] * getSource(time_y-start, freq, wavetype, dt)
@@ -2379,10 +2379,10 @@ cpdef void calculate1DWaveformValues(
 
     for iteration in range(iterations):
         for r in range(m[3]):
-            time1_x = dt * iteration - (r + (abs(m[1])+abs(m[2]))*0.5) * ds/c
-            time1_y = dt * iteration - (r + (abs(m[2])+abs(m[0]))*0.5) * ds/c
-            time1_z = dt * iteration - (r + (abs(m[0])+abs(m[1]))*0.5) * ds/c
-            if (dt * iteration >= start and dt * iteration <= stop):
+            time1_x = dt * (iteration + 1) - (r + (abs(m[1])+abs(m[2]))*0.5) * ds/c
+            time1_y = dt * (iteration + 1) - (r + (abs(m[2])+abs(m[0]))*0.5) * ds/c
+            time1_z = dt * (iteration + 1) - (r + (abs(m[0])+abs(m[1]))*0.5) * ds/c
+            if (dt * (iteration + 1) >= start and dt * (iteration + 1) <= stop):
             # Set the time of the waveform evaluation to account for any delay in the start
                 waveformvalues_wholedt[iteration, 0, r] = getSource(time1_x-start, freq, wavetype, dt)
                 waveformvalues_wholedt[iteration, 1, r] = getSource(time1_y-start, freq, wavetype, dt)
@@ -2441,7 +2441,7 @@ cpdef void updatePlaneWave_magnetic(
     double freq,
     char* wavetype
 ):
-    initializeMagneticFields(m, H_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
+    initializeMagneticFields(m, H_fields, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateMagneticFields(n, p, H_fields, E_fields, Ix, Iy, Iz, rcHx, rcHy, rcHz, dx, dy, dz, updatecoeffsH, m)
     applyTFSFMagnetic(nthreads, Hx, Hy, Hz, E_fields, updatecoeffsH, m, origin, corners)
     
@@ -2506,7 +2506,7 @@ cpdef void updatePlaneWave_magnetic_axial(
     char* wavetype
 ):
 
-        initializeMagneticFields(m, H_fields_s, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
+        initializeMagneticFields(m, H_fields_s, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateMagneticFields_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcHx, rcHy, rcHz, rcHx0, rcHy0, rcHz0, dx, dy, dz, updatecoeffsH, ID, m)
         applyTFSFMagnetic_axial(nthreads, origin_axial, Hx, Hy, Hz, E_fields, updatecoeffsH, GID, m, origin, corners)
     
@@ -2554,7 +2554,7 @@ cpdef void updatePlaneWave_electric(
     double freq,
     char* wavetype
 ):
-    initializeElectricFields(m, E_fields, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
+    initializeElectricFields(m, E_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields(n, p, H_fields, E_fields, Ix, Iy, Iz, rcEx, rcEy, rcEz, dx, dy, dz, updatecoeffsE, m)
     applyTFSFElectric(nthreads, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners)
 
@@ -2619,7 +2619,7 @@ cpdef void updatePlaneWave_electric_axial(
     char* wavetype
 ):
 
-        initializeElectricFields(m, E_fields_s, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
+        initializeElectricFields(m, E_fields_s, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateElectricFields_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcEx, rcEy, rcEz, rcEx0, rcEy0, rcEz0, dx, dy, dz, updatecoeffsE, ID, m)
         applyTFSFElectric_axial(nthreads, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners)
 
@@ -2673,7 +2673,7 @@ cpdef void updatePlaneWave_electric_dispersive(
     double freq,
     char* wavetype
 ):  
-    initializeElectricFields(m, E_fields, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
+    initializeElectricFields(m, E_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields_dispersive(n, p, H_fields, E_fields, Px, Py, Pz, Ix, Iy, Iz, rcEx, rcEy, rcEz, dx, dy, dz, updatecoeffsE, updatecoeffsdispersive, num_poles, m)
     applyTFSFElectric(nthreads, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners)
 
@@ -2745,7 +2745,7 @@ cpdef void updatePlaneWave_electric_dispersive_axial(
     double freq,
     char* wavetype
 ):  
-    initializeElectricFields(m, E_fields_s, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
+    initializeElectricFields(m, E_fields_s, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields_dispersive_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Px, Py, Pz, Px_s, Py_s, Pz_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcEx, rcEy, rcEz, rcEx0, rcEy0, rcEz0, dx, dy, dz, updatecoeffsE, updatecoeffsdispersive, ID, num_poles, m)
     applyTFSFElectric_axial(nthreads, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners)
 

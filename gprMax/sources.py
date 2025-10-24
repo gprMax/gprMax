@@ -140,13 +140,13 @@ class VoltageSource(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_halfdt = np.zeros(
-                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
             self.waveformvalues_wholedt = np.zeros(
-                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
 
-            for iteration in range(G.iterations):
+            for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
                 if time >= self.start and time <= self.stop:
                     # Set the time of the waveform evaluation to account for any
@@ -269,10 +269,10 @@ class HertzianDipole(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_halfdt = np.zeros(
-                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
 
-            for iteration in range(G.iterations):
+            for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
                 if time >= self.start and time <= self.stop:
                     # Set the time of the waveform evaluation to account for any
@@ -349,10 +349,10 @@ class MagneticDipole(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_wholedt = np.zeros(
-                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
 
-            for iteration in range(G.iterations):
+            for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
                 if time >= self.start and time <= self.stop:
                     # Set the time of the waveform evaluation to account for any
@@ -421,7 +421,7 @@ def htod_src_arrays(sources, G, queue=None):
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
     srcwaves = np.zeros(
-        (len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+        (len(sources), G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
     )
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
@@ -509,10 +509,10 @@ class TransmissionLine(Source):
 
         self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
         self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Iinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Itotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Itotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -536,13 +536,13 @@ class TransmissionLine(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_wholedt = np.zeros(
-                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
             self.waveformvalues_halfdt = np.zeros(
-                (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
 
-            for iteration in range(G.iterations):
+            for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
                 if time >= self.start and time <= self.stop:
                     # Set the time of the waveform evaluation to account for any
@@ -1166,13 +1166,13 @@ class DiscretePlaneWave(Source):
 
         # Waveform values for sources that need to be calculated on whole timesteps
         self.waveformvalues_wholedt = np.zeros(
-            (G.iterations, 3, self.m[3]),
+            (G.iterations + 1, 3, self.m[3]),
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
         # Waveform values for sources that need to be calculated on half timesteps
         self.waveformvalues_halfdt = np.zeros(
-            (G.iterations, 3, self.m[3]),
+            (G.iterations + 1, 3, self.m[3]),
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
@@ -1193,10 +1193,10 @@ class DiscretePlaneWave(Source):
             )
         else:
             for dimension in range(3):
-                for iteration in range(G.iterations):
+                for iteration in range(G.iterations + 1):
                     for r in range(self.m[3]):
                         time1 = (
-                            G.dt * iteration
+                            G.dt * (iteration + 0.5)
                             - (
                                 r
                                 + (np.abs(self.m[(dimension + 1) % 3]) + np.abs(self.m[(dimension + 2) % 3])) * 0.5
@@ -1205,16 +1205,17 @@ class DiscretePlaneWave(Source):
                             / self.speed
                         )
                         if time1 >= self.start and time1 <= self.stop:
+                            # Magnetic fields at half time steps
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time1 -= self.start
-                            self.waveformvalues_wholedt[
+                            self.waveformvalues_halfdt[
                                 iteration, dimension, r
                             ] = self.waveform.calculate_value(time1, G.dt)
 
                     for r in range(self.m[3]):
                         time2 = (
-                            G.dt * (iteration + 0.5)
+                            G.dt * (iteration) 
                             - (
                                 r
                                 + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5
@@ -1223,10 +1224,11 @@ class DiscretePlaneWave(Source):
                             / self.speed
                         )
                         if time2 >= self.start and time2 <= self.stop:
+                            # Electric fields at whole time steps
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time2 -= self.start
-                            self.waveformvalues_halfdt[
+                            self.waveformvalues_wholedt[
                                 iteration, dimension, r
                             ] = self.waveform.calculate_value(time2, G.dt)
 
@@ -1635,7 +1637,7 @@ class DiscretePlaneWave(Source):
                     # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = (
                         self.projections[dimension]
-                        * self.waveformvalues_wholedt[iteration, dimension, r]
+                        * self.waveformvalues_halfdt[iteration, dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
         else:
@@ -1643,7 +1645,7 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = self.projections[dimension] * getSource(
-                        iteration * G.dt
+                        (iteration + 0.5) * G.dt
                         - (r + (self.m[(dimension + 1) % 3] + self.m[(dimension + 2) % 3]) * 0.5)
                         * self.ds
                         / self.speed,
@@ -1659,7 +1661,7 @@ class DiscretePlaneWave(Source):
                     # Assign source values of magnetic field to first few gridpoints
                     self.E_fields[dimension, r] = (
                         self.projections[dimension]
-                        * self.waveformvalues_halfdt[iteration, dimension, r]
+                        * self.waveformvalues_wholedt[iteration + 1 , dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
         else:
@@ -1667,7 +1669,7 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.E_fields[dimension, r] = self.projections[dimension] * getSource(
-                        (iteration + 0.5) * G.dt
+                        (iteration + 1) * G.dt
                         - (r + np.abs(self.m[dimension]) * 0.5)
                         * self.ds
                         / self.speed,

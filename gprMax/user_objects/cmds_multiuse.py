@@ -1558,9 +1558,9 @@ class RxArray(GridUserObject):
             f" {dx:g}m, {dy:g}m, {dz:g}m"
         )
 
-        for x in range(xs, xf + grid.dx, dx):
-            for y in range(ys, yf + grid.dy, dy):
-                for z in range(zs, zf + grid.dz, dz):
+        for x in np.arange(xs, xf + grid.dx, dx):
+            for y in np.arange(ys, yf + grid.dy, dy):
+                for z in np.arange(zs, zf + grid.dz, dz):
                     receiver = Rx((x, y, z))
                     receiver.build(grid)
 
