@@ -23,6 +23,19 @@ import h5py
 from gprMax._version import __version__
 from gprMax.grid import Ix, Iy, Iz
 
+# Field component mapping for efficient lookups
+_FIELD_MAP = {
+    'Ex': 0, 'Ey': 1, 'Ez': 2,
+    'Hx': 3, 'Hy': 4, 'Hz': 5
+}
+
+# Current function mapping
+_CURRENT_FUNC_MAP = {
+    'Ix': Ix,
+    'Iy': Iy,
+    'Iz': Iz
+}
+
 
 def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """Stores field component values for every receiver and transmission line.
@@ -33,16 +46,21 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
+    # Create field tuple once for efficient access
+    fields = (Ex, Ey, Ez, Hx, Hy, Hz)
+
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components
-            if 'I' not in output:
-                field = locals()[output]
-                rx.outputs[output][iteration] = field[rx.xcoord, rx.ycoord, rx.zcoord]
+            if output in _FIELD_MAP:
+                field_idx = _FIELD_MAP[output]
+                rx.outputs[output][iteration] = fields[field_idx][rx.xcoord, rx.ycoord, rx.zcoord]
             # Store current component
-            else:
-                func = globals()[output]
+            elif output in _CURRENT_FUNC_MAP:
+                func = _CURRENT_FUNC_MAP[output]
                 rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
+            else:
+                raise ValueError(f"Unknown output type: {output}")
 
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
