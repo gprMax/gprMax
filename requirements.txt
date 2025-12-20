@@ -8,7 +8,7 @@ attrs==23.1.0
 Babel==2.11.0
 beautifulsoup4==4.12.2
 bleach==4.1.0
-Brotli==1.0.9
+Brotli==1.2.0
 certifi==2025.1.31
 cffi==1.16.0
 charset-normalizer==2.0.4
