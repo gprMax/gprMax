@@ -129,6 +129,50 @@ class Snapshot(object):
         self.electric = np.stack((Exsnap, Eysnap, Ezsnap)).reshape(-1, order='F')
         self.magnetic = np.stack((Hxsnap, Hysnap, Hzsnap)).reshape(-1, order='F')
 
+    def store_surface(self, G):
+        """Store (in memory) electric and magnetic field values for snapshot.
+
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+
+        # Memory views of field arrays to dimensions required for the snapshot
+        Exslice = np.ascontiguousarray(G.Ex[self.sx, self.sy, self.sz])
+        Eyslice = np.ascontiguousarray(G.Ey[self.sx, self.sy, self.sz])
+        Ezslice = np.ascontiguousarray(G.Ez[self.sx, self.sy, self.sz])
+        Hxslice = np.ascontiguousarray(G.Hx[self.sx, self.sy, self.sz])
+        Hyslice = np.ascontiguousarray(G.Hy[self.sx, self.sy, self.sz])
+        Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
+
+        # Create arrays to hold the field data for snapshot
+        Exsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+        Eysnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+        Ezsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+        Hxsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+        Hysnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+        Hzsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+
+        # Calculate field values at points (comes from averaging field components in cells)
+        calculate_snapshot_fields(
+            self.nx,
+            self.ny,
+            self.nz,
+            Exslice,
+            Eyslice,
+            Ezslice,
+            Hxslice,
+            Hyslice,
+            Hzslice,
+            Exsnap,
+            Eysnap,
+            Ezsnap,
+            Hxsnap,
+            Hysnap,
+            Hzsnap)
+        self.electric = (Exsnap, Eysnap, Ezsnap)
+        self.magnetic = (Hxsnap, Hysnap, Hzsnap)
+
+
     def write_vtk_imagedata(self, pbar, G):
         """Write snapshot data to a VTK ImageData (.vti) file.
 
