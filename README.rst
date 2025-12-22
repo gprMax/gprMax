@@ -116,6 +116,18 @@ macOS
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
+.. note::
+
+    The `mpi4py_fft` library is **not supported on Windows**. The required FFTW
+    libraries are not available on Windows by default, and building them manually
+    is non-trivial. As a result, attempts to install `mpi4py_fft` will fail with
+    errors such as:
+
+        DistutilsPlatformError: No FFTW libraries found
+
+    This is expected behavior. If FFT-based receiver processing is required,
+    please use Linux, macOS, or Windows Subsystem for Linux (WSL).
+
  
 * Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
 * Set the Path and Environment Variables - this can be done by following the `instructions from Microsoft <https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160#developer_command_file_locations>`_, or manually by adding a form of :code:`C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.23.28105\bin\Hostx64\x64` (this may vary according to your exact machine and installation) to your system Path environment variable.
