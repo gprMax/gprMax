@@ -1,68 +1,34 @@
-# Copyright (C) 2015-2023: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
-#
-# This file is part of gprMax.
-#
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+import numpy as np
+from gprMax.grid import FDTDGrid
+from gprMax.constants import floattype
+from gprMax.constants import complextype
+from gprMax.utilities import round_value
+import h5py
+from gprMax._version import __version__
+from gprMax.Fluxes_ext import save_fields_fluxes as save_fields_fluxes_pyx
+from gprMax.exceptions import CmdInputError, GeneralError
+from gprMax.utilities import timer
+from gprMax.input_cmds_geometry import process_geometrycmds
 
-import datetime
-from importlib import import_module
-import itertools
-import os
-import psutil
-import sys
-
+from tqdm import tqdm
 from colorama import init
 from colorama import Fore
 from colorama import Style
 init()
-import numpy as np
-from terminaltables import AsciiTable
-from tqdm import tqdm
-
-from gprMax.constants import floattype
-from gprMax.constants import complextype
-from gprMax.constants import cudafloattype
-from gprMax.constants import cudacomplextype
-from gprMax.exceptions import GeneralError
-
 from gprMax.fields_outputs import store_outputs
-from gprMax.fields_outputs import kernel_template_store_outputs
-from gprMax.fields_outputs import write_hdf5_outputfile
-
 from gprMax.fields_updates_ext import update_electric
 from gprMax.fields_updates_ext import update_magnetic
 from gprMax.fields_updates_ext import update_electric_dispersive_multipole_A
 from gprMax.fields_updates_ext import update_electric_dispersive_multipole_B
 from gprMax.fields_updates_ext import update_electric_dispersive_1pole_A
 from gprMax.fields_updates_ext import update_electric_dispersive_1pole_B
-from gprMax.fields_updates_gpu import kernels_template_fields
-
-from gprMax.grid import FDTDGrid
-from gprMax.grid import dispersion_analysis
-
-from gprMax.input_cmds_geometry import process_geometrycmds
-from gprMax.input_cmds_file import process_python_include_code
-from gprMax.input_cmds_file import write_processed_file
-from gprMax.input_cmds_file import check_cmd_names
-from gprMax.input_cmds_multiuse import process_multicmds
-from gprMax.input_cmds_singleuse import process_singlecmds
+from gprMax.yee_cell_build_ext import build_magnetic_components, build_electric_components
 from gprMax.materials import Material
 from gprMax.materials import process_materials
-from gprMax.pml import CFS
-from gprMax.pml import PML
-from gprMax.pml import build_pmls
+from gprMax.utilities import get_terminal_width
+import sys
+import os
+
 from gprMax.receivers import gpu_initialise_rx_arrays
 from gprMax.receivers import gpu_get_rx_array
 from gprMax.snapshots import Snapshot
@@ -71,375 +37,298 @@ from gprMax.snapshots import gpu_get_snapshot_array
 from gprMax.snapshots_gpu import kernel_template_store_snapshot
 from gprMax.sources import gpu_initialise_src_arrays
 from gprMax.source_updates_gpu import kernels_template_sources
-from gprMax.utilities import get_host_info
-from gprMax.utilities import get_terminal_width
-from gprMax.utilities import human_size
-from gprMax.utilities import open_path_file
+from gprMax.fields_updates_gpu import kernels_template_fields
 from gprMax.utilities import round32
-from gprMax.utilities import timer
-from gprMax.yee_cell_build_ext import build_electric_components
-from gprMax.yee_cell_build_ext import build_magnetic_components
-from gprMax.Fluxes import Flux, save_file_h5py, solve_scattering
+from importlib import import_module
+from gprMax.utilities import human_size
+from gprMax.fields_outputs import kernel_template_store_outputs
+
+
+from gprMax.pml import build_pmls
+from gprMax.constants import cudafloattype
+from gprMax.constants import cudacomplextype
 from gprMax.Fluxes_ext_gpu import kernel_fields_fluxes_gpu
 
+class Flux(object):
+    possible_normals = ['x', 'y', 'z']
+    possible_direction = ['plus', 'minus']
+    def __init__(self, G: FDTDGrid, normal, direction, bottom_left_corner, top_right_corner, wavelengths):
 
-def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
-    """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
-
-    Args:
-        args (dict): Namespace with command line arguments
-        currentmodelrun (int): Current model run number.
-        modelend (int): Number of last model to run.
-        numbermodelruns (int): Total number of model runs.
-        inputfile (object): File object for the input file.
-        usernamespace (dict): Namespace that can be accessed by user
-                in any Python code blocks in input file.
-
-    Returns:
-        tsolve (int): Length of time (seconds) of main FDTD calculations
-    """
-
-    # Monitor memory usage
-    p = psutil.Process()
-
-    # Declare variable to hold FDTDGrid class
-    global G
-
-    # Used for naming geometry and output files
-    appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else str(currentmodelrun)
-
-    # Normal model reading/building process; bypassed if geometry information to be reused
-    if 'G' not in globals():
-
-        # Initialise an instance of the FDTDGrid class
-        G = FDTDGrid()
-
-        # Get information about host machine
-        # (need to save this info to FDTDGrid instance after it has been created)
-        G.hostinfo = get_host_info()
-
-        # Single GPU object
-        if args.gpu:
-            G.gpu = args.gpu
-
-        G.inputfilename = os.path.split(inputfile.name)[1]
-        G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
-        inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
-        if G.messages:
-            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
-
-        # Add the current model run to namespace that can be accessed by
-        # user in any Python code blocks in input file
-        usernamespace['current_model_run'] = currentmodelrun
-
-        # Read input file and process any Python and include file commands
-        processedlines = process_python_include_code(inputfile, usernamespace)
-
-        # Print constants/variables in user-accessable namespace
-        uservars = ''
-        for key, value in sorted(usernamespace.items()):
-            if key != '__builtins__':
-                uservars += '{}: {}, '.format(key, value)
-        if G.messages:
-            print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
-
-        # Write a file containing the input commands after Python or include file commands have been processed
-        if args.write_processed:
-            write_processed_file(processedlines, appendmodelnumber, G)
-
-        # Check validity of command names and that essential commands are present
-        singlecmds, multicmds, scattering_geometrycmds, geometry, scatteringgeometry = check_cmd_names(processedlines)
-
-        if len(scatteringgeometry) != 0:
-            G.scattering = True
-            G.scattering_geometrycmds = scattering_geometrycmds
-            G.scatteringgeometry = scatteringgeometry
-
-        # Create built-in materials
-        m = Material(0, 'pec')
-        m.se = float('inf')
-        m.type = 'builtin'
-        m.averagable = False
-        G.materials.append(m)
-        m = Material(1, 'free_space')
-        m.type = 'builtin'
-        G.materials.append(m)
-
-        # Process parameters for commands that can only occur once in the model
-        process_singlecmds(singlecmds, G)
-
-        # Process parameters for commands that can occur multiple times in the model
-        if G.messages: print()
-        process_multicmds(multicmds, G)
-
-        # Estimate and check memory (RAM) usage
-        G.memory_estimate_basic()
-        G.memory_check()
-        if G.messages:
+        self.bottom_left_corner = bottom_left_corner
+        self.top_right_corner = top_right_corner
+        self.normal = normal
+        self.direction = direction
+        self.set_number_cells(G)
+        self.wavelengths = wavelengths
+        self.omega = 2*np.pi * 299792458 / wavelengths
+        if G.scattering:
             if G.gpu is None:
-                print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
+                self.E_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.E_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.H_fft_transform_empty = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+                self.H_fft_transform_scatt = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
             else:
-                print('\nMemory (RAM) required: ~{} host + ~{} GPU\n'.format(human_size(G.memoryusage), human_size(G.memoryusage)))
-
-        # Initialise an array for volumetric material IDs (solid), boolean
-        # arrays for specifying materials not to be averaged (rigid),
-        # an array for cell edge IDs (ID)
-        G.initialise_geometry_arrays()
-
-        # Initialise arrays for the field components
-        if G.gpu is None:
-            G.initialise_field_arrays()
-
-        # Process geometry commands in the order they were given
-        process_geometrycmds(geometry, G)
-
-        # Build the PMLs and calculate initial coefficients
-        if G.messages: print()
-        if all(value == 0 for value in G.pmlthickness.values()):
-            if G.messages:
-                print('PML: switched off')
-            pass  # If all the PMLs are switched off don't need to build anything
-        else:
-            # Set default CFS parameters for PML if not given
-            if not G.cfs:
-                G.cfs = [CFS()]
-            if G.messages:
-                if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-                    pmlinfo = str(G.pmlthickness['x0'])
-                else:
-                    pmlinfo = ''
-                    for key, value in G.pmlthickness.items():
-                        pmlinfo += '{}: {}, '.format(key, value)
-                    pmlinfo = pmlinfo[:-2] + ' cells'
-                print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
-            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
-            build_pmls(G, pbar)
-            pbar.close()
-
-        # Build the model, i.e. set the material properties (ID) for every edge
-        # of every Yee cell
-        if G.messages: print()
-        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
-        build_electric_components(G.solid, G.rigidE, G.ID, G)
-        pbar.update()
-        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
-        pbar.update()
-        pbar.close()
-
-        # Add PEC boundaries to invariant direction in 2D modes
-        # N.B. 2D modes are a single cell slice of 3D grid
-        if '2D TMx' in G.mode:
-            # Ey & Ez components
-            G.ID[1, 0, :, :] = 0
-            G.ID[1, 1, :, :] = 0
-            G.ID[2, 0, :, :] = 0
-            G.ID[2, 1, :, :] = 0
-        elif '2D TMy' in G.mode:
-            # Ex & Ez components
-            G.ID[0, :, 0, :] = 0
-            G.ID[0, :, 1, :] = 0
-            G.ID[2, :, 0, :] = 0
-            G.ID[2, :, 1, :] = 0
-        elif '2D TMz' in G.mode:
-            # Ex & Ey components
-            G.ID[0, :, :, 0] = 0
-            G.ID[0, :, :, 1] = 0
-            G.ID[1, :, :, 0] = 0
-            G.ID[1, :, :, 1] = 0
-
-        # Process any voltage sources (that have resistance) to create a new
-        # material at the source location
-        for voltagesource in G.voltagesources:
-            voltagesource.create_material(G)
-
-        # Initialise arrays of update coefficients to pass to update functions
-        G.initialise_std_update_coeff_arrays()
-
-        # Initialise arrays of update coefficients and temporary values if
-        # there are any dispersive materials
-        if Material.maxpoles != 0:
-            # Update estimated memory (RAM) usage
-            G.memoryusage += int(3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize)
-            G.memory_check()
-            if G.messages:
-                print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
-
-            G.initialise_dispersive_arrays()
-
-        # Check there is sufficient memory to store any snapshots
-        if G.snapshots:
-            snapsmemsize = 0
-            for snap in G.snapshots:
-                # 2 x required to account for electric and magnetic fields
-                snapsmemsize += (2 * snap.datasizefield)
-            G.memoryusage += int(snapsmemsize)
-            G.memory_check(snapsmemsize=int(snapsmemsize))
-            if G.messages:
-                print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
-
-        # Process complete list of materials - calculate update coefficients,
-        # store in arrays, and build text list of materials/properties
-        materialsdata = process_materials(G)
-        if G.messages:
-            print('\nMaterials:')
-            materialstable = AsciiTable(materialsdata)
-            materialstable.outer_border = False
-            materialstable.justify_columns[0] = 'right'
-            print(materialstable.table)
-
-        # Check to see if numerical dispersion might be a problem
-        results = dispersion_analysis(G)
-        if results['error'] and G.messages:
-            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
-        elif results['N'] < G.mingridsampling:
-            raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp and G.messages:
-            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
-        elif results['deltavp'] and G.messages:
-            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
-
-    # If geometry information to be reused between model runs
-    else:
-        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
-        if G.messages:
-            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
-
-        if G.gpu is None:
-            # Clear arrays for field components
-            G.initialise_field_arrays()
-
-            # Clear arrays for fields in PML
-            for pml in G.pmls:
-                pml.initialise_field_arrays()
-
-    # Adjust position of simple sources and receivers if required
-    if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
-        for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-            if currentmodelrun == 1:
-                if source.xcoord + G.srcsteps[0] * modelend < 0 or source.xcoord + G.srcsteps[0] * modelend > G.nx or source.ycoord + G.srcsteps[1] * modelend < 0 or source.ycoord + G.srcsteps[1] * modelend > G.ny or source.zcoord + G.srcsteps[2] * modelend < 0 or source.zcoord + G.srcsteps[2] * modelend > G.nz:
-                    raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-            source.xcoord = source.xcoordorigin + (currentmodelrun - 1) * G.srcsteps[0]
-            source.ycoord = source.ycoordorigin + (currentmodelrun - 1) * G.srcsteps[1]
-            source.zcoord = source.zcoordorigin + (currentmodelrun - 1) * G.srcsteps[2]
-    if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
-        for receiver in G.rxs:
-            if currentmodelrun == 1:
-                if receiver.xcoord + G.rxsteps[0] * modelend < 0 or receiver.xcoord + G.rxsteps[0] * modelend > G.nx or receiver.ycoord + G.rxsteps[1] * modelend < 0 or receiver.ycoord + G.rxsteps[1] * modelend > G.ny or receiver.zcoord + G.rxsteps[2] * modelend < 0 or receiver.zcoord + G.rxsteps[2] * modelend > G.nz:
-                    raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-            receiver.xcoord = receiver.xcoordorigin + (currentmodelrun - 1) * G.rxsteps[0]
-            receiver.ycoord = receiver.ycoordorigin + (currentmodelrun - 1) * G.rxsteps[1]
-            receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
-
-    # Write files for any geometry views and geometry object outputs
-    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and G.messages:
-        print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
-    if G.geometryviews:
-        if G.messages: print()
-        for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(appendmodelnumber, G)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
-            geometryview.write_vtk(G, pbar)
-            pbar.close()
-    if G.geometryobjectswrite:
-        for i, geometryobject in enumerate(G.geometryobjectswrite):
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
-            geometryobject.write_hdf5(G, pbar)
-            pbar.close()
-
-    # If only writing geometry information
-    if args.geometry_only:
-        tsolve = 0
-
-    # Run simulation
-    else:
-        # Output filename
-        inputdirectory, inputfilename = os.path.split(os.path.join(G.inputdirectory, G.inputfilename))
-        if G.outputdirectory is None:
-            outputdir = inputdirectory
-        else:
-            outputdir = G.outputdirectory
-        # Save current directory
-        curdir = os.getcwd()
-        os.chdir(inputdirectory)
-        outputdir = os.path.abspath(outputdir)
-        if not os.path.isdir(outputdir):
-            os.mkdir(outputdir)
-            if G.messages:
-                print('\nCreated output directory: {}'.format(outputdir))
-        # Restore current directory
-        os.chdir(curdir)
-        basename, ext = os.path.splitext(inputfilename)
-        outputfile = os.path.join(outputdir, basename + appendmodelnumber + '.out')
-        outputfile_fluxes = os.path.join(outputdir, G.title + '_fluxes.out')
-        if G.messages:
-            print('\nOutput file: {}\n'.format(outputfile))
-            if G.fluxes:
-                print('\nFluxes output file: {}\n'.format(outputfile_fluxes))
+                pass # Initialized directly inside the solve_gpu_fluxes function     
+        self.E_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+        self.H_fft_transform = np.zeros((len(wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype)
+        self.tpb = G.tpb
+        self.bpg = (int(np.ceil((self.cells_number[0] * self.cells_number[1] * self.cells_number[2]) / self.tpb[0])), 1, 1)
 
 
-        # Main FDTD solving functions for either CPU or GPU when no scattering
-        print(Fore.RED + "SCATTERING: " + str(G.scattering) + Fore.RESET)
+    def initialize_fft_arrays_gpu(self, G: FDTDGrid):
+        import pycuda.gpuarray as gpuarray
+        self.E_fft_transform_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        self.H_fft_transform_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+        if G.scattering:
+                self.E_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+                self.E_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+                self.H_fft_transform_empty_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+                self.H_fft_transform_scatt_gpu = gpuarray.to_gpu(np.zeros((len(self.wavelengths), self.cells_number[0], self.cells_number[1], self.cells_number[2], self.cells_number[3]), dtype= complextype))
+
+    def set_number_cells(self, G: FDTDGrid):
+        """Defines the cells that are part of the surface flux."""
+
+        Nx = -self.bottom_left_corner[0] + self.top_right_corner[0] +1
+        Ny = -self.bottom_left_corner[1] + self.top_right_corner[1] +1
+        Nz = -self.bottom_left_corner[2] + self.top_right_corner[2] +1
+
+        if Nx <= 0 or Ny <= 0 or Nz <= 0:
+            raise AssertionError("Nx, Ny, and Nz must be positive")
+
+        if self.normal == 'x':
+            assert self.bottom_left_corner[0] == self.top_right_corner[0], "For normal 'x', the two x coordinates must be equal"
+        elif self.normal == 'y':
+            assert self.bottom_left_corner[1] == self.top_right_corner[1], "For normal 'y', the two y coordinates must be equal"
+        elif self.normal == 'z':
+            assert self.bottom_left_corner[2] == self.top_right_corner[2], "For normal 'z', the two z coordinates must be equal"
+
+        self.cells_range = {'x': np.arange(0, -int(self.bottom_left_corner[0]) + int(self.top_right_corner[0])) if -int(self.bottom_left_corner[0]) + int(self.top_right_corner[0]) != 0 else [0],
+                            'y': np.arange(0, -int(self.bottom_left_corner[1]) + int(self.top_right_corner[1])) if -int(self.bottom_left_corner[1]) + int(self.top_right_corner[1]) != 0 else [0],
+                            'z': np.arange(0, -int(self.bottom_left_corner[2]) + int(self.top_right_corner[2])) if -int(self.bottom_left_corner[2]) + int(self.top_right_corner[2]) != 0 else [0]}
+
+        self.cells_number = (int(Nx), int(Ny), int(Nz), 3)
+
+    def save_fields_fluxes(self, G: FDTDGrid, iteration, save_fields_fluxes_gpu= None):   
         if not G.scattering:
             if G.gpu is None:
-                tsolve = solve_cpu(currentmodelrun, modelend, G)
+                save_fields_fluxes_pyx(
+                    G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.omega,
+                    self.E_fft_transform, self.H_fft_transform,
+                    self.cells_range['x'][0], self.cells_range['y'][0], self.cells_range['z'][0],
+                    len(self.cells_range['x']), len(self.cells_range['y']), len(self.cells_range['z']), len(self.wavelengths),
+                    int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
+                    G.dt, G.nthreads, iteration
+                )
             else:
-                tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
-                print(Fore.RED + str(memsolve) + Fore.RESET)
+                save_fields_fluxes_gpu(
+                        np.int32(len(self.wavelengths)), np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
+                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
+                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                        self.E_fft_transform_gpu.gpudata, self.H_fft_transform_gpu.gpudata,
+                        np.int32(iteration), np.float32(G.dt),
+                        block=self.tpb, grid=self.bpg
+                )
+                #After this, we have to convert those lists back to CPU lists
         else:
-            tsolve, memsolve = solve_scattering(currentmodelrun, modelend, G)
-            if G.gpu is not None:
-                print(Fore.RED + str(memsolve) + Fore.RESET)
-        
-        # Calculate the fluxes through the different surfaces, then sum
-        if G.fluxes:
-            print(Fore.CYAN + '\nCalculating fluxes...\n' + Fore.RESET)
-            for flux in G.fluxes:
-                if G.scattering:
-                    flux.calculate_Poynting_frequency_flux(G, incident= True)
-                flux.calculate_Poynting_frequency_flux(G)
-            G.total_flux = [0 for _ in range(len(G.fluxes_box))]
-            for i in range(len(G.fluxes_box)):
-                G.total_flux[i] = G.fluxes_box[i][0].Poynting_frequency_flux
-                for j in range(1, len(G.fluxes_box[i])):
-                    G.total_flux[i] += G.fluxes_box[i][j].Poynting_frequency_flux
-                print('Total flux for box {}: {}'.format(i+1, G.total_flux))
-            save_file_h5py(outputfile_fluxes, G)
-
-
-        # Write an output file in HDF5 format
-        write_hdf5_outputfile(outputfile, G)
-
-        # Write any snapshots to file
-        if G.snapshots:
-            # Create directory and construct filename from user-supplied name and model run number
-            snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + appendmodelnumber)
-            if not os.path.exists(snapshotdir):
-                os.mkdir(snapshotdir)
-
-            if G.messages: print()
-            for i, snap in enumerate(G.snapshots):
-                snap.filename = os.path.abspath(os.path.join(snapshotdir, snap.basefilename + '.vti'))
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
-                snap.write_vtk_imagedata(pbar, G)
-                pbar.close()
-            if G.messages: print()
-
-        if G.messages:
             if G.gpu is None:
-                print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
+                if G.empty_sim:
+                    # print(G.Ez[50,50,50])
+                    save_fields_fluxes_pyx(
+                        G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.omega,
+                        self.E_fft_transform_empty, self.H_fft_transform_empty,
+                        self.cells_range['x'][0], self.cells_range['y'][0], self.cells_range['z'][0],
+                        len(self.cells_range['x']), len(self.cells_range['y']), len(self.cells_range['z']), len(self.wavelengths),
+                        int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
+                        G.dt, G.nthreads, iteration
+                    )
+                else:
+                    # print(G.Ez[50,50,50])
+                    save_fields_fluxes_pyx(
+                        G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.omega,
+                        self.E_fft_transform_scatt, self.H_fft_transform_scatt,
+                        self.cells_range['x'][0], self.cells_range['y'][0], self.cells_range['z'][0],
+                        len(self.cells_range['x']), len(self.cells_range['y']), len(self.cells_range['z']), len(self.wavelengths),
+                        int(self.bottom_left_corner[0]), int(self.bottom_left_corner[1]), int(self.bottom_left_corner[2]),
+                        G.dt, G.nthreads, iteration
+                    )
+                #Because the empty simulation goes first, we substract the fields here
+                self.E_fft_transform = self.E_fft_transform_scatt - self.E_fft_transform_empty
+                self.H_fft_transform = self.H_fft_transform_scatt - self.H_fft_transform_empty
+
             else:
-                print('Memory (RAM) used: ~{} host + ~{} GPU'.format(human_size(p.memory_info().rss), human_size(memsolve)))
-            print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
+                if G.empty_sim:
+                    # print(G.Ez_gpu.get()[50,50,50])
+                    save_fields_fluxes_gpu(
+                        np.int32(len(self.wavelengths)), np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
+                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
+                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                        self.E_fft_transform_empty_gpu.gpudata, self.H_fft_transform_empty_gpu.gpudata,
+                        np.int32(iteration), np.float32(G.dt),
+                        block=self.tpb, grid=self.bpg
+                    )
+                else:
+                    # print(G.Ez_gpu.get()[50,50,50])
+                    save_fields_fluxes_gpu(
+                        np.int32(len(self.wavelengths)), np.int32(self.cells_number[0]), np.int32(self.cells_number[1]), np.int32(self.cells_number[2]),
+                        np.int32(self.bottom_left_corner[0]), np.int32(self.bottom_left_corner[1]), np.int32(self.bottom_left_corner[2]),
+                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                        self.E_fft_transform_scatt_gpu.gpudata, self.H_fft_transform_scatt_gpu.gpudata,
+                        np.int32(iteration), np.float32(G.dt),
+                        block=self.tpb, grid=self.bpg
+                    )
+                # Here, the conversion is done outside of the function because there would be a huge difference between doing this once or N_iteration * N_fluxes
+                # as this is a CPU operation.
 
-    # If geometry information to be reused between model runs then FDTDGrid
-    # class instance must be global so that it persists
-    if not args.geometry_fixed or currentmodelrun == modelend:
-        del G
+    def converting_back_to_cpu(self, G: FDTDGrid):
+        if G.scattering:
+            if not G.empty_sim:
+                # Perform subtraction only once after second (scattering) run to obtain scattered field spectra.
+                self.E_fft_transform = self.E_fft_transform_scatt_gpu.get() - self.E_fft_transform_empty
+                self.H_fft_transform = self.H_fft_transform_scatt_gpu.get() - self.H_fft_transform_empty
+            else:
+                self.E_fft_transform_empty = self.E_fft_transform_empty_gpu.get() #For incident fluxes
+                self.H_fft_transform_empty = self.H_fft_transform_empty_gpu.get() #For incident fluxes
+        else:
+            self.E_fft_transform = self.E_fft_transform_gpu.get()
+            self.H_fft_transform = self.H_fft_transform_gpu.get()
 
-    return tsolve
+
+    def calculate_Poynting_frequency_flux(self, G, incident= False):
+        if not incident:
+            #Then calculate the Poynting vector
+            self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform), self.H_fft_transform, axis=-1)
+        else:
+            self.Poynting_frequency = np.cross(np.conjugate(self.E_fft_transform_empty), self.H_fft_transform_empty, axis=-1)
+
+        #Finally calculate the flux
+        self.Poynting_frequency_flux = []
+        for f in range(len(self.omega)):
+            if self.normal == 'x':
+                self.Poynting_frequency_flux.append(np.sum(self.Poynting_frequency[f, :, :, :, 0] * G.dy * G.dz, axis=None))
+            elif self.normal == 'y':
+                self.Poynting_frequency_flux.append(np.sum(self.Poynting_frequency[f, :, :, :, 1] * G.dx * G.dz, axis=None))
+            elif self.normal == 'z':
+                self.Poynting_frequency_flux.append(np.sum(self.Poynting_frequency[f, :, :, :, 2] * G.dx * G.dy, axis=None))
+        self.Poynting_frequency_flux = np.real(np.array(self.Poynting_frequency_flux, dtype=complextype))
+        if self.direction == 'minus':
+            self.Poynting_frequency_flux *= -1
+        if incident:
+            self.Poynting_frequency_flux_incident = np.copy(self.Poynting_frequency_flux)
+            self.Poynting_frequency_flux = None
 
 
-def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
+def save_file_h5py(outputfile, G: FDTDGrid):
+    f = h5py.File(outputfile, 'w')
+    f.attrs['gprMax'] = __version__
+    f.attrs['Title'] = G.title
+    f.attrs['Iterations'] = G.iterations
+    f.attrs['dt'] = G.dt
+    f.attrs['n_surfaces'] = len(G.fluxes)
+    wavelengths = G.fluxes[0].wavelengths
+
+    if G.scattering:
+        title = '/scattering'
+        for i in range(len(G.fluxes)):
+            grp = f.create_group(title + '/incidents/incident' + str(i + 1))
+            # Store incident flux with sign relative to the specified surface normal and direction
+            # (positive for 'plus', negative for 'minus').
+            cst = 1
+            if G.fluxes[i].direction == 'minus':
+                cst = -1
+            grp['values'] = cst * G.fluxes[i].Poynting_frequency_flux_incident
+            grp['wavelengths'] = G.fluxes[i].wavelengths
+            grp['normal'] = G.fluxes[i].normal
+            grp['direction'] = G.fluxes[i].direction
+            grp['x_cells'], grp['y_cells'], grp['z_cells'], dimension = G.fluxes[i].cells_number
+    if len(G.fluxes_single) != 0 and not G.scattering:
+        title = '/fluxes'
+        for i in range(len(G.fluxes_single)):
+            grp = f.create_group(title + '/flux' + str(i + 1))
+            grp['values'] = G.fluxes_single[i].Poynting_frequency_flux
+            grp['wavelengths'] = G.fluxes_single[i].wavelengths
+            grp['normal'] = G.fluxes_single[i].normal
+            grp['direction'] = G.fluxes_single[i].direction
+            grp['x_cells'], grp['y_cells'], grp['z_cells'], dimension = G.fluxes_single[i].cells_number
+    if len(G.fluxes_box) != 0:
+        title = '/boxes'
+        for i in range(len(G.fluxes_box)):
+            grp = f.create_group(title + '/box' + str(i + 1))
+            grp['values'] = G.total_flux[i]
+            grp['wavelengths'] = wavelengths
+    grp = f.create_group('/constants')
+    grp['dt'] = G.dt
+    grp['dx'] = G.dx
+    grp['dy'] = G.dy
+    grp['dz'] = G.dz
+
+
+        
+def solve_scattering(currentmodelrun, modelend, G:FDTDGrid):
+    memsolve = None
+    tstart = timer()    
+    if len(G.scatteringgeometry) == 0:
+        raise GeneralError("No geometry input for the scattering geometry !")
+    box_settings = ''.join(G.box_fluxes_enumerate) if len(G.box_fluxes_enumerate) != 0 else 'None \n'
+    geometry_settings = ''
+    for key in G.scattering_geometrycmds:
+        lis = G.scattering_geometrycmds[key]
+        if len(lis) != 0:
+            geometry_settings += '  - ' + str(key) + ': ' + ' '.join(lis) + ' \n'
+    print(Fore.GREEN + "Scattering: \n  Scattering geometry: \n" + geometry_settings + "  Box settings: " + box_settings + Fore.RESET)
+
+    #Run one simulation without the scattering geometry
+    if G.gpu is None:
+        solve_cpu_fluxes(currentmodelrun, modelend, G)
+        #Initializing everything once again and adding the new geometries
+        G.initialise_geometry_arrays()        
+        
+        #We need to re-build the pmls, so we have to empty G.pmls   
+        for _ in range(len(G.pmls)):
+            G.pmls.pop()
+
+        pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+        build_pmls(G, pbar)
+        pbar.close()
+
+        G.initialise_field_arrays()
+        print(Fore.BLUE +'\n==================Scattering geometries : ' +  ' '.join(G.scatteringgeometry) + '=================\n' + Fore.RESET)
+        process_geometrycmds(G.scatteringgeometry, G)
+        build_electric_components(G.solid, G.rigidE, G.ID, G)
+        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
+        G.initialise_std_update_coeff_arrays()
+        G.initialise_dispersive_arrays()
+        process_materials(G)
+        G.empty_sim = False
+
+        #Run the simulation with scattering geometries
+        solve_cpu_fluxes(currentmodelrun, modelend, G)
+    else:
+
+        solve_gpu_fluxes(currentmodelrun, modelend, G)   
+
+        #We need to re-build the pmls, so we have to empty G.pmls   
+        for _ in range(len(G.pmls)):
+            G.pmls.pop()
+
+        process_geometrycmds(G.scatteringgeometry, G)
+
+        pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+        build_pmls(G, pbar)
+        pbar.close()
+        build_electric_components(G.solid, G.rigidE, G.ID, G)
+        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
+        G.initialise_std_update_coeff_arrays()
+        G.initialise_dispersive_arrays()
+        process_materials(G)
+        G.empty_sim = False
+
+        #Run the simulation with scattering geometries
+        tsolve, memsolve = solve_gpu_fluxes(currentmodelrun, modelend, G)
+
+    tsolve = timer() - tstart
+    return tsolve, memsolve
+
+def solve_cpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
     """
     Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for
     electric and magnetic field updates, and PML updates.
@@ -452,25 +341,25 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
     Returns:
         tsolve (float): Time taken to execute solving
     """
-
     tsolvestart = timer()
-
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
+    message = "Running scattering simulation without scattering geometries" if G.empty_sim else "Running scattering simulation with scattering geometries"
+    for iteration in tqdm(range(G.iterations), desc= message + ', model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
         # Store field component values for every receiver and transmission line
         store_outputs(iteration, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
-
         # Store any snapshots
-        for snap in G.snapshots:
-            if snap.time == iteration + 1:
-                snap.store(G)
+        if not G.empty_sim:
+            for snap in G.snapshots:
+                if snap.time == iteration + 1:
+                    snap.store(G)
 
         # Update magnetic field components
         update_magnetic(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
+
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
-            pml.update_magnetic(G)
-
+            pml.update_magnetic(G) #No need to check for cylindrical mode here as there exists PML_cyl class with the same method
+        
         # Update magnetic field components from sources
         for source in G.transmissionlines + G.magneticdipoles:
             source.update_magnetic(iteration, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
@@ -479,6 +368,7 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
         # All materials are non-dispersive so do standard update
         if Material.maxpoles == 0:
             update_electric(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         elif Material.maxpoles == 1:
@@ -488,9 +378,10 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
-            pml.update_electric(G)
+            pml.update_electric(G) #No need to check for cylindrical mode here as there exists PML_cyl class with the same method
 
         # Update electric field components from sources (update any Hertzian dipole sources last)
+
         for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
             source.update_electric(iteration, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
@@ -507,11 +398,9 @@ def solve_cpu(currentmodelrun, modelend, G: FDTDGrid):
             flux.save_fields_fluxes(G, iteration)
 
     tsolve = timer() - tsolvestart
-
     return tsolve
 
-
-def solve_gpu(currentmodelrun, modelend, G):
+def solve_gpu_fluxes(currentmodelrun, modelend, G: FDTDGrid):
     """Solving using FDTD method on GPU. Implemented using Nvidia CUDA.
 
     Args:
@@ -752,8 +641,8 @@ def solve_gpu(currentmodelrun, modelend, G):
         for i in range(len(G.fluxes)):
             G.fluxes[i].save_fields_fluxes(G, iteration, save_fields_fluxes_gpu[i])
 
-    for i in range(len(G.fluxes)):
-        G.fluxes[i].converting_back_to_cpu(G)
+    for flux in G.fluxes:
+        flux.converting_back_to_cpu(G)
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
         gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
