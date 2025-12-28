@@ -126,19 +126,23 @@ def round_value(value, decimalplaces=0):
 
     # Rounds to nearest integer (half values are rounded downwards)
     if decimalplaces == 0:
-        rounded = int(d.Decimal(value).quantize(d.Decimal('1'), rounding=d.ROUND_HALF_DOWN))
+        if value >= 0:
+            rounded = int(np.ceil(value - 0.5))
+        else:
+            rounded = int(np.floor(value + 0.5))
 
     # Rounds down to nearest float represented by number of decimal places
     else:
-        precision = '1.{places}'.format(places='0' * decimalplaces)
-        rounded = float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+        factor = 10 ** decimalplaces
+        rounded = np.floor(value * factor) / factor
 
     return rounded
 
 
 def round32(value):
     """Rounds up to nearest multiple of 32."""
-    return int(32 * np.ceil(float(value) / 32))
+    return (int(value) + 31) & -32
+
 
 
 def fft_power(waveform, dt):
