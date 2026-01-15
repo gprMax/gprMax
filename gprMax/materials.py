@@ -268,7 +268,7 @@ class PeplinskiSoil(object):
 
     def calculate_debye_properties(self, nbins, G, fractalboxname):
         """
-        Calculates the real and imaginery part of a Debye model for the soil as
+        Calculates the real and imaginary part of a Debye model for the soil as
         well as a conductivity. It uses an approximation to a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
 
         Args:

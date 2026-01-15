@@ -74,7 +74,7 @@ To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from th
 
     #geometry_objects_read: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_materials_dispersive.txt
 
-For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
+For further information on the ``#geometry_objects_read`` see the section on object construction commands in the :ref:`Input commands section <commands>`.
 
 .. figure:: images/user_libs/AustinMan.png
     :width: 300 px

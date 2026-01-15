@@ -163,7 +163,7 @@ You can now view an image of the B-scan using the command:
 
     python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.out Ez
 
-:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the refelected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
+:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
 
 .. _cylinder_Bscan_results:
 
