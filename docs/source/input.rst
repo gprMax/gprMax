@@ -700,13 +700,13 @@ For example, to specify the normalised first derivate of a Gaussian waveform wit
 
 Allows you to specify an ASCII file that contains amplitude values that specify custom waveform(s) that can be used with sources in the model.
 
-The first row of each column must begin with a identifier string that will be used as the name of each waveform. Subsequent rows should contain amplitude values for the custom waveform you want to use. You can import multiple different waveforms (as columns of amplitude data) in a single file. 
+The first row of each column must begin with a identifier string that will be used as the name of each waveform. Subsequent rows should contain amplitude values for the custom waveform you want to use. You can import multiple different waveforms (as columns of amplitude data) in a single file.
 
 Ideally, there should be the same number of amplitude values as number of iterations in your model. If there are less amplitude values than the number of iterations in the model, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored.
 
-Optionally, in the first column of the file you may specify your own time vector of values (which must use the identifier ``time``) to use with the amplitude values of the waveform. 
+Optionally, in the first column of the file you may specify your own time vector of values (which must use the identifier ``time``) to use with the amplitude values of the waveform.
 
-The amplitude values will be interpolated using either the aforementioned user specified time vector, or if none was supplied, a vector of time values corresponding to the simulation time step and number of iterations will be used. Key parameters used for the interpolation can be specified in the command. 
+The amplitude values will be interpolated using either the aforementioned user specified time vector, or if none was supplied, a vector of time values corresponding to the simulation time step and number of iterations will be used. Key parameters used for the interpolation can be specified in the command.
 
 The syntax of the command is:
 
@@ -841,7 +841,7 @@ Allows you to introduce output points into the model. These are locations where 
 .. note::
 
     * When the optional parameters ``str1`` and ``str2`` are not given the default electric and magnetic field components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``) will be output with the receiver point.
-    * ``str2`` has no effect if solving using GPU(s), i.e. the default electric and magnetic components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``) will allways be output irrespective of the value of ``str2``.
+    * ``str2`` has no effect if solving using GPU(s), i.e. the default electric and magnetic components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``) will always be output irrespective of the value of ``str2``.
 
 #rx_array:
 ----------

@@ -20,7 +20,7 @@ The package features contains modules to help calculate, process, and visualise 
     Although the principals of calculating and visualising field patterns are straightforward, this package should be used with care. The package:
 
     * Does not calculate/plot conventional field patterns, i.e. at a single frequency. It uses a measure of the total energy of the electric field at a certain angle and radius, see http://dx.doi.org/10.1016/j.jappgeo.2013.08.001
-    * Requires knowledge of Python to contruct input files with antenna models and positioning of receivers, as well as to edit/modify the saving and processing modules
+    * Requires knowledge of Python to construct input files with antenna models and positioning of receivers, as well as to edit/modify the saving and processing modules
     * Can require simulations that demand significant computational resource depending on the distance from the antenna at which the field patterns are observed, e.g. the example models, set with a maximum observation distance of 0.6m, require ~30GB of RAM
 
 Module overview

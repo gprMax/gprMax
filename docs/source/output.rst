@@ -23,7 +23,7 @@ The output file has the following HDF5 attributes at the root (``/``):
 * ``srcsteps`` is the spatial increment used to move all sources between model runs.
 * ``rxsteps`` is the spatial increment used to move all receivers between model runs.
 * ``nsrc`` is the total number of sources in the model.
-* ``nrx`` is the total number of receievers in the model.
+* ``nrx`` is the total number of receivers in the model.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines (``tls``), and receivers (``rxs``). Within each group are further groups that correspond to individual sources/transmission lines/receivers, e.g. ``src1``, ``src2`` etc...
 

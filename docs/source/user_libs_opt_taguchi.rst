@@ -19,7 +19,7 @@ The package features an optimisation technique based on Taguchi's method. It all
 
     This package combines a number of advanced features and should not be used without knowledge and familiarity of the underlying techniques. It requires:
 
-    * Knowledge of Python to contruct an input file to use with the optimisation
+    * Knowledge of Python to construct an input file to use with the optimisation
     * Familiarity of optimisation techniques, and in particular Taguchi's method
     * Careful sanity checks to be made throughout the process
 
@@ -94,7 +94,7 @@ The package requires ``#python`` and ``#end_python`` to be used in the input fil
 Example
 -------
 
-The following example demonstrates using the Taguchi optimisation process to optimise values of loading resistors used in a bowtie antenna. The example is slighty contrived as the goal is simply to find values for the resistors that produces a maximum absolute amplitude in the response from the antenna. We already know this should occur when the values of the resistors are at a minimum. Nevertheless, it is useful to illustrate the optimisation process and how to use it.
+The following example demonstrates using the Taguchi optimisation process to optimise values of loading resistors used in a bowtie antenna. The example is slightly contrived as the goal is simply to find values for the resistors that produces a maximum absolute amplitude in the response from the antenna. We already know this should occur when the values of the resistors are at a minimum. Nevertheless, it is useful to illustrate the optimisation process and how to use it.
 
 .. figure:: images/user_libs/antenna_bowtie_opt.png
     :width: 600 px
@@ -109,7 +109,7 @@ The bowtie design features three vertical slots (y-direction) in each arm of the
 
 The first part of the input file (lines 1-6) contains the parameters to optimise, their initial ranges, and fitness function information for the optimisation process. Three parameters representing the resistor values are defined with ranges between 0.1 :math:`\Omega` and 1 :math:`k\Omega`. A pre-built fitness function called ``min_max_value`` is specified with a stopping criterion of 10V/m. Arguments for the ``min_max_value`` function are ``type`` given as ``absmax``, i.e. the maximum absolute values, and the output point in the model that will be used in the optimisation is specified as having the name ``Ex60mm``.
 
-The next part of the input file (lines 8-92) contains the model. For the most part there is nothing special about the way the model is defined - a mixture of Python, NumPy and functional forms of the input commands (available by importing the module ``input_cmd_funcs``) are used. However, it is worth pointing out how the values of the parameters to optimise are accessed. On line 29 a NumPy array of the values of the resistors is created. The values are accessed using their names as keys to the ``optparams`` dictionary. On line 30 the values of the resistors are converted to conductivities, which are used to create new materials (line 34-35). The resistors are then built by applying the materials to cell edges (e.g. lines 55-62). The output point in the model in specifed with the name ``Ex60mm`` and as having only an ``Ex`` field output (line 42).
+The next part of the input file (lines 8-92) contains the model. For the most part there is nothing special about the way the model is defined - a mixture of Python, NumPy and functional forms of the input commands (available by importing the module ``input_cmd_funcs``) are used. However, it is worth pointing out how the values of the parameters to optimise are accessed. On line 29 a NumPy array of the values of the resistors is created. The values are accessed using their names as keys to the ``optparams`` dictionary. On line 30 the values of the resistors are converted to conductivities, which are used to create new materials (line 34-35). The resistors are then built by applying the materials to cell edges (e.g. lines 55-62). The output point in the model in specified with the name ``Ex60mm`` and as having only an ``Ex`` field output (line 42).
 
 The optimisation process is run on the model using the ``--opt-taguchi`` command line flag.
 
@@ -146,4 +146,4 @@ When the optimisation has completed a summary will be printed showing histories 
 
     History of values of parameters - ``resinner``, ``resmiddle``, and ``resouter`` (in this case they are all identical).
 
-The optimisation process terminated after 4 iterations because succcessive fitness values were within 0.1% of one another. A maximum absolute amplitude value of 5.7 V/m was achieved when the three resistors had values of 0.1 :math:`\Omega`.
+The optimisation process terminated after 4 iterations because successive fitness values were within 0.1% of one another. A maximum absolute amplitude value of 5.7 V/m was achieved when the three resistors had values of 0.1 :math:`\Omega`.
