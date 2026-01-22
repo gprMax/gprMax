@@ -115,5 +115,5 @@ urllib3==2.6.3
 wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==0.58.0
-wheel==0.41.2
+wheel==0.46.2
 widgetsnbextension==4.0.10
