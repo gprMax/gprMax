@@ -153,6 +153,37 @@ class FDTDGrid(Grid):
         self.srcsteps = [0, 0, 0]
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
+        # --- Flux / scattering (energy & cross-section analysis) ---
+        # self.fluxes: flat list of all flux surface objects (instances created from input commands).
+        #              Each flux object accumulates time-domain fields and computes frequency-domain
+        #              Poynting vector integrals for user-specified wavelength/frequency samples.
+        self.fluxes = []
+        # self.total_flux: list (indexed by box enumeration) of aggregated spectral flux values for
+        #                  closed boxes (sum of the 6 faces or the defined set of surfaces). Filled
+        #                  after simulation in model_build_run when all faces have been updated.
+        self.total_flux = None
+        # self.box_fluxes_enumerate: helper list storing enumeration (IDs / ordering) of flux boxes so that
+        #                            total_flux indexing is stable across runs (predictable aggregation order).
+        self.box_fluxes_enumerate = []
+        # self.fluxes_box: list of lists; outer index = box id, inner list = face flux objects composing that box.
+        #                  Enables summation of per-face spectral fluxes into total_flux for closed surfaces.
+        self.fluxes_box = []
+        # self.fluxes_single: list of flux objects defined as standalone surfaces (not part of a closed box);
+        #                     each stored with its normal, orientation, cell coverage and spectral results.
+        self.fluxes_single = []
+        # self.scattering: True when a scattering workflow is requested (#scattering: ... #scattering_end:),
+        #                 triggering two simulations (empty + with geometry) to separate scattered field.
+        self.scattering = False
+        # self.empty_sim:  True while running the first ("empty/background") simulation in scattering mode.
+        #                 The flag is flipped before running the second pass with scattering geometry.
+        self.empty_sim = True
+        # self.scattering_geometrycmds: dict mapping geometry command name -> list of parameter strings
+        #                               collected inside the scattering block (used to rebuild geometry
+        #                               only for the second simulation or for differential processing).
+        self.scattering_geometrycmds = None
+        # self.scatteringgeometry: ordered list of raw geometry command lines present in the scattering block.
+        #                          Used for echoing/logging and reconstruction in Fluxes workflow.
+        self.scatteringgeometry = None
 
     def initialise_geometry_arrays(self):
         """
