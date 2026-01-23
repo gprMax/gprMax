@@ -1,0 +1,68 @@
+[build-system]
+# Build dependencies required before executing setup.py (which imports numpy)
+requires = [
+  "setuptools>=61",
+  "wheel",
+  "numpy>=1.26",
+  "Cython>=3.0"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gprMax"
+# Version lue dynamiquement (voir section tool.setuptools.dynamic)
+dynamic = ["version"]
+description = "Electromagnetic Modelling Software based on the Finite-Difference Time-Domain (FDTD) method"
+readme = "README.rst"
+license = "GPL-3.0-or-later"
+authors = [
+  { name = "Craig Warren" },
+  { name = "Antonis Giannopoulos" }
+]
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Cython",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering"
+]
+requires-python = ">=3.7"
+dependencies = [
+  "colorama",
+  "cython",
+  "h5py",
+  "matplotlib",
+  "numpy",
+  "psutil",
+  "scipy",
+  "terminaltables",
+  "tqdm"
+]
+license-files = ["LICENSE"]
+
+[project.optional-dependencies]
+docs = [
+  "sphinx",
+  "sphinx_rtd_theme"
+]
+notebooks = [
+  "jupyter",
+  "ipykernel",
+  "ipywidgets",
+  "jupyterlab"
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+# Utilise l'attribut Python pour extraire uniquement la chaîne de version PEP 440
+version = { attr = "gprMax._version.__version__" }
+
+# Contributor notes:
+# - Metadata now lives in pyproject.toml; setup.py handles extension build logic only.
+# - Editable install should work without pre‑installing numpy/cython thanks to build-system.requires.
+# - Jupyter stack moved to optional extra: pip install .[notebooks]
+# - Documentation extra: pip install .[docs]

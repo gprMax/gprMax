@@ -37,29 +37,31 @@ Package Overview
 
     gprMax/
         conda_env.yml
-        CONTRIBUTORS
+        CREDITS
         docs/
         gprMax/
-        gsoc/
         LICENSE
+        MANIFEST.in
+        pyproject.toml
         README.rst
-        setup.cfg
         setup.py
+        requirements.txt
         tests/
         tools/
         user_libs/
         user_models/
 
 
-* ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
-* ``CONTRIBUTORS`` contains a list of names of people who have contributed to the gprMax codebase.
+* ``conda_env.yml`` is a conda environment specification (legacy/alternative environment setup).
+* ``CREDITS`` lists people and organisations who have contributed.
 * ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
 * ``gprMax`` is the main package. Within this package, the main module is ``gprMax.py``
-* ``gsoc`` contains information for `Google Summer of Code <https://summerofcode.withgoogle.com>`_ program - project ideas and proposal guidance.
 * ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
+* ``MANIFEST.in`` includes additional non-Python files in source distributions.
+* ``pyproject.toml`` holds the core build configuration and project metadata (PEP 517/621).
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
-* ``setup.cfg`` is used to set preferences for code formatting/styling using flake8.
-* ``setup.py`` is used to compile the Cython extension modules.
+* ``setup.py`` builds/compiles the Cython extension modules (kept for build logic; metadata lives in ``pyproject.toml``).
+* ``requirements.txt`` (optional/legacy) may pin dependencies for some workflows; primary dependency specification is now in ``pyproject.toml``.
 * ``tests`` is a sub-package that contains test modules and input files.
 * ``tools`` is a sub-package that contains scripts to assist with viewing and post-processing output from models.
 * ``user_libs`` is a sub-package where useful modules contributed by users are stored.
@@ -68,14 +70,98 @@ Package Overview
 Installation
 ============
 
-The following steps provide guidance on how to install gprMax:
+Prerequisites
+-------------
 
-1. Install Python, and the required Python packages, and get the gprMax source code from GitHub
-2. Install a C compiler that supports OpenMP
-3. Build and install gprMax
+* Python 3.7+
+* A C/C++ compiler with OpenMP support installed BEFORE running the installation.
 
-1. Install Python, the required Python packages, and get gprMax source
-------------------------------------------------------------------
+OpenMP compiler details
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Linux
+^^^^^
+* `gcc <https://gcc.gnu.org>`_ is usually already installed – verify with ``gcc --version``.
+
+macOS
+^^^^^
+* Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. That said, it is still useful to have Xcode (with command line tools) installed. It can be downloaded from the App Store. Once Xcode is installed, download and install the `Homebrew package manager <http://brew.sh>`_ and then to install gcc, run:
+
+.. code-block:: bash
+
+    $ brew install gcc
+
+Windows
+^^^^^^^
+
+* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
+* Set the Path and Environment Variables - this can be done by following the `instructions from Microsoft <https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160#developer_command_file_locations>`_, or manually by adding a form of :code:`C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.23.28105\bin\Hostx64\x64` (this may vary according to your exact machine and installation) to your system Path environment variable.
+
+Alternatively, if you are using Windows 10/11 you can install the `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
+
+Environment setup
+-----------------
+
+Two installation modes are available:
+
+* Direct installation using pip + a virtual environment
+* Installation using conda (historical/legacy method)
+
+Pip / virtualenv
+~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+    # Clone the repository
+    git clone https://github.com/gprMax/gprMax.git
+    cd gprMax
+    # Create an isolated environment (example with venv)
+    python -m venv .venv
+    source .venv/bin/activate  # (Windows: .venv\\Scripts\\activate)
+
+Conda
+~~~~~
+
+.. code-block:: bash
+
+    conda update conda
+    conda install git
+    git clone https://github.com/gprMax/gprMax.git
+    cd gprMax
+    conda env create -f conda_env.yml
+    conda activate gprMax
+
+Install gprMax (common step)
+----------------------------
+
+Run after activating either the venv or the conda environment:
+
+.. code-block:: bash
+
+    pip install -e .
+
+Extras:
+
+* ``.[docs]`` documentation (Sphinx)
+* ``.[notebooks]`` Jupyter stack
+
+Examples:
+
+.. code-block:: bash
+
+    pip install -e ".[docs]"
+    pip install -e ".[notebooks]"
+
+Build documentation locally:
+
+.. code-block:: bash
+
+    pip install -e ".[docs]"
+    make -C docs html
+    open docs/html/index.html  # macOS
+
+1. Install Python, the required Python packages, and get gprMax source (conda variant detail)
+---------------------------------------------------------------------------------------------
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
@@ -96,45 +182,7 @@ If you prefer to install Python and the required Python packages manually, i.e. 
 
 If you are using Arch Linux (https://www.archlinux.org/) you may need to also install ``wxPython`` by adding it to the conda environment file (``conda_env.yml``).
 
-2. Install a C compiler that supports OpenMP
----------------------------------------------
-
-Linux
-^^^^^
-
-* `gcc <https://gcc.gnu.org>`_ should be already installed, so no action is required.
-
-
-macOS
-^^^^^
-
-* Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. That said, it is still useful to have Xcode (with command line tools) installed. It can be downloaded from the App Store. Once Xcode is installed, download and install the `Homebrew package manager <http://brew.sh>`_ and then to install gcc, run:
-
-.. code-block:: bash
-
-    $ brew install gcc
-
-Microsoft Windows
-^^^^^^^^^^^^^^^^^
- 
-* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
-* Set the Path and Environment Variables - this can be done by following the `instructions from Microsoft <https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160#developer_command_file_locations>`_, or manually by adding a form of :code:`C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.23.28105\bin\Hostx64\x64` (this may vary according to your exact machine and installation) to your system Path environment variable.
-
-Alternatively, if you are using Windows 10/11 you can install the `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
-
-3. Build and install gprMax
----------------------------
-
-Once you have installed the aforementioned tools follow these steps to build and install gprMax:
-
-* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment:code:`conda activate gprMax`. Run the following commands:
-
-.. code-block:: bash
-
-    (gprMax)$ python setup.py build
-    (gprMax)$ python setup.py install
-
-**You are now ready to proceed to running gprMax.**
+**gprMax is now ready to use once the common installation step above has completed.**
 
 Running gprMax
 ==============
@@ -185,19 +233,20 @@ Argument name          Type      Description
 ``-h`` or ``--help``   flag      is used to get help on command line options.
 ====================== ========= ===========
 
-Updating gprMax
-===============
-
-* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
+Updating gprMax (editable source)
+=================================
 
 .. code-block:: bash
 
-    (gprMax)$ git pull
-    (gprMax)$ python setup.py cleanall
-    (gprMax)$ python setup.py build
-    (gprMax)$ python setup.py install
+    git pull
+    pip install -e .  # rebuilds if needed
 
-This will pull the most recent gprMax source code from GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
+To force a clean rebuild of the Cython extensions:
+
+.. code-block:: bash
+
+    find gprMax -name "*.cpython-*.so" -delete
+    pip install -e .
 
 
 Updating conda and Python packages
@@ -211,6 +260,6 @@ Periodically you should update conda and the required Python packages. With the 
     $ conda env update -f conda_env.yml
 
 Thanks To Our Contributors ✨🔗
-==========================
+================================
 .. image:: https://contrib.rocks/image?repo=gprMax/gprMax
    :target: https://github.com/gprMax/gprMax/graphs/contributors
