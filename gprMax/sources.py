@@ -101,7 +101,7 @@ class VoltageSource(Source):
                                     * self.waveformvalues_wholestep[iteration] 
                                     * (1 / (self.resistance * G.dy * G.dz)))
                 else:
-                    Ex[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dx
+                    Ex[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dx
 
             elif self.polarisation == 'y':
                 if self.resistance != 0:
@@ -109,7 +109,7 @@ class VoltageSource(Source):
                                     * self.waveformvalues_wholestep[iteration] 
                                     * (1 / (self.resistance * G.dx * G.dz)))
                 else:
-                    Ey[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dy
+                    Ey[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dy
 
             elif self.polarisation == 'z':
                 if self.resistance != 0:
@@ -117,7 +117,7 @@ class VoltageSource(Source):
                                     * self.waveformvalues_wholestep[iteration] 
                                     * (1 / (self.resistance * G.dx * G.dy)))
                 else:
-                    Ez[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dz
+                    Ez[i, j, k] = - self.waveformvalues_wholestep[iteration] / G.dz
 
     def create_material(self, G):
         """Create a new material at the voltage source location that adds the
@@ -272,7 +272,7 @@ def gpu_initialise_src_arrays(sources, G):
                 srcwaves[i, :] = src.waveformvalues_wholestep
             else:
                 srcinfo2[i] = 0
-                srcwaves[i, :] = src.waveformvalues_halfstep
+                srcwaves[i, :] = src.waveformvalues_wholestep
         elif src.__class__.__name__ == 'MagneticDipole':
             srcwaves[i, :] = src.waveformvalues_halfstep
 
