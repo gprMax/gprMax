@@ -35,6 +35,33 @@ The main script is ``stltovoxel.py`` which should be run at the command line and
 
 The physical dimensions of the voxelised object will depend on the size of the object in the original STL file and the spatial discretisation chosen.
 
+Method of rotating STL file
+===========================
+
+The STLtoVoxel command enables real-world objects saved in stl format to be converted and imported directly into gprMax. However, this command currently does not support directional manipulation of geometries once inside gprMax.  `Bambu Studio
+<https://bambulab.com/en/download/studio>`_, is a free, open-source application commonly used for slicing 3D printing models that provides a simple solution to this limitation. Importantly, Bambu Studio uses the same axis orientation as gprMax, making it well-suited for preparing stl, 3mf, oltp, stp, step,svg, amf or obj files before importing. The software is lightweight, intuitive, and requires no account creation. Skipping all setup steps will open a basic workspace with a printing base plate visible. Using the previous example of the Stanford Bunny, opening its STL file in Bambu Studio will display the model positioned on the base plate, as shown below.
+
+.. figure:: ../../images_shared/Rotated_Bunny_Import.png
+    :width: 600 px
+Image of the Stanford bunny STL file imported into Bambu Studios
+
+The information panel in the bottom-right corner displays the STL object’s dimensions in the same format used in gprMax. To rotate the object about any axis, use the rotate icon located in the top toolbar. As the STL object is rotated, the dimensions shown in the bottom-right panel will update accordingly.
+
+.. figure:: ../../images_shared/Rotated_Bunny_Upside_down.png
+    :width: 600 px
+Image of the Stanford bunny STL file rotated upside down
+
+Finally, once the object is correctly oriented in the x, y, and z planes for the gprMax model, use the menu path File → Export → Export all objects as one STL. This will generate a new STL file containing the updated orientation. As before, convert this new STL file into an HDF5 file for use within gprMax, following the procedure outlined in the previous section.
+
+.. figure:: ../../images_shared/Rotated_Bunny_Export.png
+    :width: 600 px
+Image of the Stanford bunny STL file exported with new orientation
+
+.. figure:: ../../images_shared/Rotated_Bunny_ParaView.png
+    :width: 600 px
+Image of the Stanford bunny rotated inside Paraview
+
+
 Example
 -------
 
