@@ -38,6 +38,8 @@ The physical dimensions of the voxelised object will depend on the size of the o
 Method of rotating STL file
 ===========================
 
+**Author/Contact**: Owen Wilkinson (owenwilkinson39@gmail.com)
+
 The STLtoVoxel command enables real-world objects saved in stl format to be converted and imported directly into gprMax. However, this command currently does not support directional manipulation of geometries once inside gprMax.  `Bambu Studio
 <https://bambulab.com/en/download/studio>`_, is a free, open-source application commonly used for slicing 3D printing models that provides a simple solution to this limitation. Importantly, Bambu Studio uses the same axis orientation as gprMax, making it well-suited for preparing stl, 3mf, oltp, stp, step,svg, amf or obj files before importing. The software is lightweight, intuitive, and requires no account creation. Skipping all setup steps will open a basic workspace with a printing base plate visible. Using the previous example of the Stanford Bunny, opening its STL file in Bambu Studio will display the model positioned on the base plate, as shown below.
 
