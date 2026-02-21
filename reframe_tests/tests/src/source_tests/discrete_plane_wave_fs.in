@@ -4,5 +4,5 @@
 #time_window: 3e-9
 
 #waveform: gaussiandot 1 1e9 myWave
-#discrete_plane_wave: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 63.4 36.7 myWave
+#plane_wave_angles: 0.010 0.010 0.010 0.040 0.040 0.040 36.7 63.4 90.0 myWave
 #rx: 0.070 0.070 0.070
