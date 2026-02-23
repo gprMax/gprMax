@@ -38,6 +38,9 @@ def test_open_path_file_path(tmp_path):
     
     with open_path_file(str(file)) as f:
         assert f.read() == "hello gprmax"
+        assert not f.closed
+    # After context manager exits, file should be properly closed
+    assert f.closed
 
 def test_open_path_file_object():
     """Test open_path_file context manager with an existing file object."""
