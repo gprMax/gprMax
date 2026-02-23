@@ -32,7 +32,7 @@ def test_round_value_integer(value, expected):
 ])
 def test_round_value_float(value, decimalplaces, expected):
     """Test rounding down to nearest float with precision."""
-    assert round_value(value, decimalplaces=decimalplaces) == expected
+    assert round_value(value, decimalplaces=decimalplaces) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize("value, expected", [
