@@ -54,6 +54,15 @@ class Snapshot(object):
         floatname = 'Float64'
         floatstring = 'd'
 
+    @classmethod
+    def reset_class_state(cls):
+        """Reset class-level variables between model runs to prevent
+        state leaking across scenes."""
+        cls.nx_max = 0
+        cls.ny_max = 0
+        cls.nz_max = 0
+        cls.bpg = None
+
     def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, time=None, filename=None):
         """
         Args:

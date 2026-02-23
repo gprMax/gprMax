@@ -66,6 +66,12 @@ class Material(object):
         self.tau = []
         self.alpha = []
 
+    @classmethod
+    def reset_class_state(cls):
+        """Reset class-level variables between model runs to prevent
+        state leaking across scenes."""
+        cls.maxpoles = 0
+
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
 
