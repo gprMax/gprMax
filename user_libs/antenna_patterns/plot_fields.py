@@ -33,7 +33,7 @@ type = 'H'
 epsr = 5
 
 # Observation radii and angles
-radii = np.linspace(0.1, 0.2, patterns.shape[0])
+radii = np.linspace(0.1, 0.3, patterns.shape[0])
 theta = np.linspace(3, 357, 60)
 theta = np.deg2rad(np.append(theta, theta[0]))  # Append start value to close circle
 
