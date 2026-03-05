@@ -33,7 +33,7 @@ type = 'H'
 epsr = 5
 
 # Observation radii and angles
-radii = np.linspace(0.1, 0.3, 20)
+radii = np.linspace(0.1, 0.2, patterns.shape[0])
 theta = np.linspace(3, 357, 60)
 theta = np.deg2rad(np.append(theta, theta[0]))  # Append start value to close circle
 
@@ -80,7 +80,7 @@ ax.annotate('Air', xy=(np.deg2rad(270), 0), xytext=(8, 8), textcoords='offset po
 ax.annotate('Ground', xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords='offset points')
 
 # Plot patterns
-for patt in range(0, len(radii)):
+for patt in range(patterns.shape[0]):
     pattplot = np.append(patterns[patt, :], patterns[patt, 0])  # Append start value to close circle
     pattplot = pattplot / np.max(np.max(patterns))  # Normalise, based on set of patterns
 
@@ -118,7 +118,8 @@ ax.grid(True)
 handles, existlabels = ax.get_legend_handles_labels()
 leg = ax.legend([handles[0], handles[-1]], [existlabels[0], existlabels[-1]], ncol=2, loc=(0.27, -0.12), frameon=False)  # Plot just first and last legend entries
 # leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
-[legobj.set_linewidth(2) for legobj in leg.legendHandles]
+for legobj in leg.legend_handles:
+    legobj.set_linewidth(2)
 
 # Save a pdf of the plot
 savename = os.path.splitext(args.numpyfile)[0] + '.pdf'
