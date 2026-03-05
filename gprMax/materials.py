@@ -169,7 +169,7 @@ class Material(object):
                 ersum = 0
                 for pole in range(self.poles):
                     ersum += self.tau[pole]**2 / (w**2 - 1j * w * self.alpha[pole])
-                    er -= ersum
+                er -= ersum
 
         return er
 
