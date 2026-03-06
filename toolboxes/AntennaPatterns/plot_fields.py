@@ -40,7 +40,7 @@ type = "E"
 epsr = 5
 
 # Observation radii and angles
-radii = np.linspace(0.1, 0.3, 20)
+radii = np.linspace(0.1, 0.3, patterns.shape[0])
 theta = np.linspace(3, 357, 60)
 theta = np.deg2rad(np.append(theta, theta[0]))  # Append start value to close circle
 
@@ -101,7 +101,7 @@ ax.annotate(
 )
 
 # Plot patterns
-for patt in range(0, len(radii)):
+for patt in range(patterns.shape[0]):
     # Append start value to close circle
     pattplot = np.append(patterns[patt, :], patterns[patt, 0]) 
 
@@ -155,8 +155,8 @@ leg = ax.legend(
 #     loc=(-0.13, -0.12),
 #     frameon=False,
 # )
-[legobj.set_linewidth(2) for legobj in leg.legend_handles]
-
+for legobj in leg.legend_handles:
+     legobj.set_linewidth(2)
 # Save a pdf of the plot
 savename = f"{os.path.splitext(args.numpyfile)[0]}.pdf"
 fig.savefig(savename, dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
