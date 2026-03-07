@@ -277,7 +277,8 @@ def process_geometrycmds(geometry, G):
 
                 for j in range(ys, yf):
                     for k in range(zs, zf):
-                        build_face_yz(xs, j, k, numIDy, numIDz, G.rigidE, G.rigidH, G.ID)
+                        # Plates only set electric material properties (see issue #158)
+                        build_face_yz(xs, j, k, numIDy, numIDz, G.rigidE, G.ID)
 
             # xz-plane plate
             elif ys == yf:
@@ -292,7 +293,8 @@ def process_geometrycmds(geometry, G):
 
                 for i in range(xs, xf):
                     for k in range(zs, zf):
-                        build_face_xz(i, ys, k, numIDx, numIDz, G.rigidE, G.rigidH, G.ID)
+                        # Plates only set electric material properties (see issue #158)
+                        build_face_xz(i, ys, k, numIDx, numIDz, G.rigidE, G.ID)
 
             # xy-plane plate
             elif zs == zf:
@@ -307,7 +309,8 @@ def process_geometrycmds(geometry, G):
 
                 for i in range(xs, xf):
                     for j in range(ys, yf):
-                        build_face_xy(i, j, zs, numIDx, numIDy, G.rigidE, G.rigidH, G.ID)
+                        # Plates only set electric material properties (see issue #158)
+                        build_face_xy(i, j, zs, numIDx, numIDy, G.rigidE, G.ID)
 
             if G.messages:
                 tqdm.write('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
