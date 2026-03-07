@@ -234,15 +234,16 @@ cpdef void build_face_yz(
                     int numIDy,
                     int numIDz,
                     np.int8_t[:, :, :, ::1] rigidE,
-                    np.int8_t[:, :, :, ::1] rigidH,
                     np.uint32_t[:, :, :, ::1] ID
             ):
-    """Set the edges of the yz-plane face of a Yell cell in the rigid and ID arrays.
+    """Set the edges of the yz-plane face of a Yee cell in the rigid and ID arrays.
+    Only electric material properties (rigidE, ID) are set; magnetic properties
+    are intentionally omitted to match #edge behaviour (see issue #158).
 
     Args:
         i, j, k (int): Cell coordinates of the face.
-        numIDx, numIDy (int): Numeric ID of material.
-        rigidE, rigidH, ID (memoryviews): Access to rigid and ID arrays.
+        numIDy, numIDz (int): Numeric ID of material.
+        rigidE, ID (memoryviews): Access to rigid and ID arrays.
     """
 
     set_rigid_Ey(i, j, k, rigidE)
@@ -262,15 +263,16 @@ cpdef void build_face_xz(
                     int numIDx,
                     int numIDz,
                     np.int8_t[:, :, :, ::1] rigidE,
-                    np.int8_t[:, :, :, ::1] rigidH,
                     np.uint32_t[:, :, :, ::1] ID
             ):
-    """Set the edges of the xz-plane face of a Yell cell in the rigid and ID arrays.
+    """Set the edges of the xz-plane face of a Yee cell in the rigid and ID arrays.
+    Only electric material properties (rigidE, ID) are set; magnetic properties
+    are intentionally omitted to match #edge behaviour (see issue #158).
 
     Args:
         i, j, k (int): Cell coordinates of the face.
-        numIDx, numIDy (int): Numeric ID of material.
-        rigidE, rigidH, ID (memoryviews): Access to rigid and ID arrays.
+        numIDx, numIDz (int): Numeric ID of material.
+        rigidE, ID (memoryviews): Access to rigid and ID arrays.
     """
 
     set_rigid_Ex(i, j, k, rigidE)
@@ -290,15 +292,16 @@ cpdef void build_face_xy(
                     int numIDx,
                     int numIDy,
                     np.int8_t[:, :, :, ::1] rigidE,
-                    np.int8_t[:, :, :, ::1] rigidH,
                     np.uint32_t[:, :, :, ::1] ID
             ):
-    """Set the edges of the xy-plane face of a Yell cell in the rigid and ID arrays.
+    """Set the edges of the xy-plane face of a Yee cell in the rigid and ID arrays.
+    Only electric material properties (rigidE, ID) are set; magnetic properties
+    are intentionally omitted to match #edge behaviour (see issue #158).
 
     Args:
         i, j, k (int): Cell coordinates of the face.
         numIDx, numIDy (int): Numeric ID of material.
-        rigidE, rigidH, ID (memoryviews): Access to rigid and ID arrays.
+        rigidE, ID (memoryviews): Access to rigid and ID arrays.
     """
 
     set_rigid_Ex(i, j, k, rigidE)
@@ -471,11 +474,11 @@ cpdef void build_triangle(
             if s > 0 and t > 0 and (s + t) < 2 * area * sign:
                 if thicknesscells == 0:
                     if normal == 'x':
-                        build_face_yz(level, i, j, numIDy, numIDz, rigidE, rigidH, ID)
+                        build_face_yz(level, i, j, numIDy, numIDz, rigidE, ID)
                     elif normal == 'y':
-                        build_face_xz(i, level, j, numIDx, numIDz, rigidE, rigidH, ID)
+                        build_face_xz(i, level, j, numIDx, numIDz, rigidE, ID)
                     elif normal == 'z':
-                        build_face_xy(i, j, level, numIDx, numIDy, rigidE, rigidH, ID)
+                        build_face_xy(i, j, level, numIDx, numIDy, rigidE, ID)
                 else:
                     for k in range(level, level + thicknesscells):
                         if normal == 'x':
@@ -555,7 +558,7 @@ cpdef void build_cylindrical_sector(
             for z in range(z1, z2):
                 if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_yz(level, y, z, numIDy, numIDz, rigidE, rigidH, ID)
+                        build_face_yz(level, y, z, numIDy, numIDz, rigidE, ID)
                     else:
                         for x in range(level, level + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
@@ -582,7 +585,7 @@ cpdef void build_cylindrical_sector(
             for z in range(z1, z2):
                 if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_xz(x, level, z, numIDx, numIDz, rigidE, rigidH, ID)
+                        build_face_xz(x, level, z, numIDx, numIDz, rigidE, ID)
                     else:
                         for y in range(level, level + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
@@ -609,7 +612,7 @@ cpdef void build_cylindrical_sector(
             for y in range(y1, y2):
                 if is_inside_sector(x * dx + 0.5 * dx, y * dy + 0.5 * dy, ctr1, ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_xy(x, y, level, numIDx, numIDy, rigidE, rigidH, ID)
+                        build_face_xy(x, y, level, numIDx, numIDy, rigidE, ID)
                     else:
                         for z in range(level, level + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
