@@ -331,8 +331,8 @@ while(lindex < len(inputlines)):
 # Convert separate #line_source and associated #tx to #waveform and #hertzian_dipole
 for source in linesources:
     params = source.split()
-    if params[3] is badwaveforms:
-        raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
+    if params[3] in badwaveforms:
+        raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(', '.join(badwaveforms)))
     elif params[3] == 'ricker':
         params[3] = 'gaussiandotnorm'
     waveform = '#waveform: {} {} {} {}'.format(params[3], params[1], params[2], params[4])
