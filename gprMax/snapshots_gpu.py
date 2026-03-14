@@ -52,15 +52,13 @@ __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, in
     int j = ((idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) / $NZ_SNAPS;
     int k = ((idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) % $NZ_SNAPS;
 
-    // Subscripts for field arrays
-    int ii, jj, kk;
+    // i, j, k are snapshot indices (0-based). Compute the corresponding field
+    // grid coordinates and skip threads that fall outside this snapshot's extent.
+    int ii = xs + i * dx;
+    int jj = ys + j * dy;
+    int kk = zs + k * dz;
 
-    if (i >= xs && i < xf && j >= ys && j < yf && k >= zs && k < zf) {
-
-        // Increment subscripts for field array to account for spatial sampling of snapshot
-        ii = (xs + i) * dx;
-        jj = (ys + j) * dy;
-        kk = (zs + k) * dz;
+    if (ii < xf && jj < yf && kk < zf) {
 
         // The electric field component value at a point comes from an average of
         // the 4 electric field component values in that cell
