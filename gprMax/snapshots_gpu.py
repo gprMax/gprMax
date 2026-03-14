@@ -28,7 +28,7 @@ kernel_template_store_snapshot = Template("""
 // Store snapshot //
 ////////////////////
 
-__global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, int zf, int dx, int dy, int dz,
+__global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, int zf, int dx, int dy, int dz, int nx, int ny, int nz,
                                 const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey,
                                 const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx,
                                 const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz,
@@ -55,12 +55,12 @@ __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, in
     // Subscripts for field arrays
     int ii, jj, kk;
 
-    if (i >= xs && i < xf && j >= ys && j < yf && k >= zs && k < zf) {
+    if (i < nx && j < ny && k < nz) {
 
         // Increment subscripts for field array to account for spatial sampling of snapshot
-        ii = (xs + i) * dx;
-        jj = (ys + j) * dy;
-        kk = (zs + k) * dz;
+        ii = xs + i * dx;
+        jj = ys + j * dy;
+        kk = zs + k * dz;
 
         // The electric field component value at a point comes from an average of
         // the 4 electric field component values in that cell

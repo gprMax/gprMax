@@ -610,6 +610,7 @@ def solve_gpu(currentmodelrun, modelend, G):
                                        np.int32(snap.yf), np.int32(snap.zs),
                                        np.int32(snap.zf), np.int32(snap.dx),
                                        np.int32(snap.dy), np.int32(snap.dz),
+                                       np.int32(snap.nx), np.int32(snap.ny), np.int32(snap.nz),
                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
                                        snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
