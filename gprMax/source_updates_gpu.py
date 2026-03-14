@@ -22,8 +22,8 @@ kernels_template_sources = Template("""
 
 // Macros for converting subscripts to linear index:
 #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-#define INDEX2D_SRCINFO(m, n) (m)*$NY_SRCINFO+(n)
-#define INDEX2D_SRCWAVES(m, n) (m)*($NY_SRCWAVES)+(n)
+#define INDEX2D_SRCINFO(field, src) (field)*$NSOURCES+(src)
+#define INDEX2D_SRCWAVES(iteration, src) (iteration)*$NSOURCES+(src)
 #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
 #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
 
@@ -56,28 +56,28 @@ __global__ void update_hertzian_dipole(int NHERTZDIPOLE, int iteration, $REAL dx
         $REAL dl;
         int i, j, k, polarisation;
 
-        i = srcinfo1[INDEX2D_SRCINFO(src,0)];
-        j = srcinfo1[INDEX2D_SRCINFO(src,1)];
-        k = srcinfo1[INDEX2D_SRCINFO(src,2)];
-        polarisation = srcinfo1[INDEX2D_SRCINFO(src,3)];
+        i = srcinfo1[INDEX2D_SRCINFO(0,src)];
+        j = srcinfo1[INDEX2D_SRCINFO(1,src)];
+        k = srcinfo1[INDEX2D_SRCINFO(2,src)];
+        polarisation = srcinfo1[INDEX2D_SRCINFO(3,src)];
         dl = srcinfo2[src];
 
         // 'x' polarised source
         if (polarisation == 0) {
             int materialEx = ID[INDEX4D_ID(0,i,j,k)];
-            Ex[INDEX3D_FIELDS(i,j,k)] = Ex[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEx,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * dl * (1 / (dx * dy * dz));
+            Ex[INDEX3D_FIELDS(i,j,k)] = Ex[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEx,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * dl * (1 / (dx * dy * dz));
         }
 
         // 'y' polarised source
         else if (polarisation == 1) {
             int materialEy = ID[INDEX4D_ID(1,i,j,k)];
-            Ey[INDEX3D_FIELDS(i,j,k)] = Ey[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * dl * (1 / (dx * dy * dz));
+            Ey[INDEX3D_FIELDS(i,j,k)] = Ey[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * dl * (1 / (dx * dy * dz));
         }
 
         // 'z' polarised source
         else if (polarisation == 2) {
             int materialEz = ID[INDEX4D_ID(2,i,j,k)];
-            Ez[INDEX3D_FIELDS(i,j,k)] = Ez[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEz,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * dl * (1 / (dx * dy * dz));
+            Ez[INDEX3D_FIELDS(i,j,k)] = Ez[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEz,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * dl * (1 / (dx * dy * dz));
         }
     }
 }
@@ -107,27 +107,27 @@ __global__ void update_magnetic_dipole(int NMAGDIPOLE, int iteration, $REAL dx, 
 
         int i, j, k, polarisation;
 
-        i = srcinfo1[INDEX2D_SRCINFO(src,0)];
-        j = srcinfo1[INDEX2D_SRCINFO(src,1)];
-        k = srcinfo1[INDEX2D_SRCINFO(src,2)];
-        polarisation = srcinfo1[INDEX2D_SRCINFO(src,3)];
+        i = srcinfo1[INDEX2D_SRCINFO(0,src)];
+        j = srcinfo1[INDEX2D_SRCINFO(1,src)];
+        k = srcinfo1[INDEX2D_SRCINFO(2,src)];
+        polarisation = srcinfo1[INDEX2D_SRCINFO(3,src)];
 
         // 'x' polarised source
         if (polarisation == 0) {
             int materialHx = ID[INDEX4D_ID(3,i,j,k)];
-            Hx[INDEX3D_FIELDS(i,j,k)] = Hx[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHx,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * (1 / (dx * dy * dz));
+            Hx[INDEX3D_FIELDS(i,j,k)] = Hx[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHx,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * (1 / (dx * dy * dz));
         }
 
         // 'y' polarised source
         else if (polarisation == 1) {
             int materialHy = ID[INDEX4D_ID(4,i,j,k)];
-            Hy[INDEX3D_FIELDS(i,j,k)] = Hy[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHy,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * (1 / (dx * dy * dz));
+            Hy[INDEX3D_FIELDS(i,j,k)] = Hy[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHy,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * (1 / (dx * dy * dz));
         }
 
         // 'z' polarised source
         else if (polarisation == 2) {
             int materialHz = ID[INDEX4D_ID(5,i,j,k)];
-            Hz[INDEX3D_FIELDS(i,j,k)] = Hz[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * (1 / (dx * dy * dz));
+            Hz[INDEX3D_FIELDS(i,j,k)] = Hz[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * (1 / (dx * dy * dz));
         }
     }
 }
@@ -158,42 +158,42 @@ __global__ void update_voltage_source(int NVOLTSRC, int iteration, $REAL dx, $RE
         $REAL resistance;
         int i, j, k, polarisation;
 
-        i = srcinfo1[INDEX2D_SRCINFO(src,0)];
-        j = srcinfo1[INDEX2D_SRCINFO(src,1)];
-        k = srcinfo1[INDEX2D_SRCINFO(src,2)];
-        polarisation = srcinfo1[INDEX2D_SRCINFO(src,3)];
-        resistance = srcinfo2[src];
+       i = srcinfo1[INDEX2D_SRCINFO(0,src)];
+       j = srcinfo1[INDEX2D_SRCINFO(1,src)];
+       k = srcinfo1[INDEX2D_SRCINFO(2,src)];
+       polarisation = srcinfo1[INDEX2D_SRCINFO(3,src)];
+       resistance = srcinfo2[src];
 
-        // 'x' polarised source
-        if (polarisation == 0) {
-            if (resistance != 0) {
+       // 'x' polarised source
+       if (polarisation == 0) {
+           if (resistance != 0) {
                 int materialEx = ID[INDEX4D_ID(0,i,j,k)];
-                Ex[INDEX3D_FIELDS(i,j,k)] = Ex[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEx,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * (1 / (resistance * dy * dz));
-            }
-            else {
-                Ex[INDEX3D_FIELDS(i,j,k)] = -1 * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] / dx;
-            }
+                Ex[INDEX3D_FIELDS(i,j,k)] = Ex[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEx,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * (1 / (resistance * dy * dz));
         }
+           else {
+                Ex[INDEX3D_FIELDS(i,j,k)] = -1 * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] / dx;
+           }
+       }
 
-        // 'y' polarised source
+       // 'y' polarised source
         else if (polarisation == 1) {
             if (resistance != 0) {
                 int materialEy = ID[INDEX4D_ID(1,i,j,k)];
-                Ey[INDEX3D_FIELDS(i,j,k)] = Ey[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * (1 / (resistance * dx * dz));
+                Ey[INDEX3D_FIELDS(i,j,k)] = Ey[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * (1 / (resistance * dx * dz));
             }
             else {
-                Ey[INDEX3D_FIELDS(i,j,k)] = -1 * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] / dy;
+                 Ey[INDEX3D_FIELDS(i,j,k)] = -1 * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] / dy;
             }
         }
 
         // 'z' polarised source
-        else if (polarisation == 2) {
+            else if (polarisation == 2) {
             if (resistance != 0) {
                 int materialEz = ID[INDEX4D_ID(2,i,j,k)];
-                Ez[INDEX3D_FIELDS(i,j,k)] = Ez[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEz,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * (1 / (resistance * dx * dy));
+                Ez[INDEX3D_FIELDS(i,j,k)] = Ez[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEz,4)] * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] * (1 / (resistance * dx * dy));
             }
             else {
-                Ez[INDEX3D_FIELDS(i,j,k)] = -1 * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] / dz;
+                Ez[INDEX3D_FIELDS(i,j,k)] = -1 * srcwaveforms[INDEX2D_SRCWAVES(iteration,src)] / dz;
             }
         }
     }

@@ -66,12 +66,12 @@ class Source(object):
                 time -= self.start
                 self.waveformvalues_wholestep[iteration] = waveform.calculate_value(time, G.dt)
                 self.waveformvalues_halfstep[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
-                
+
 
 class VoltageSource(Source):
-    """A voltage source can be a hard source if it's resistance is zero, 
-        i.e. the time variation of the specified electric field component is 
-        prescribed. If it's resistance is non-zero it behaves as a resistive 
+    """A voltage source can be a hard source if it's resistance is zero,
+        i.e. the time variation of the specified electric field component is
+        prescribed. If it's resistance is non-zero it behaves as a resistive
         voltage source."""
 
     def __init__(self):
@@ -97,24 +97,24 @@ class VoltageSource(Source):
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                    * self.waveformvalues_wholestep[iteration] 
+                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                    * self.waveformvalues_wholestep[iteration]
                                     * (1 / (self.resistance * G.dy * G.dz)))
                 else:
                     Ex[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dx
 
             elif self.polarisation == 'y':
                 if self.resistance != 0:
-                    Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                    * self.waveformvalues_wholestep[iteration] 
+                    Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                    * self.waveformvalues_wholestep[iteration]
                                     * (1 / (self.resistance * G.dx * G.dz)))
                 else:
                     Ey[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dy
 
             elif self.polarisation == 'z':
                 if self.resistance != 0:
-                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                    * self.waveformvalues_wholestep[iteration] 
+                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                    * self.waveformvalues_wholestep[iteration]
                                     * (1 / (self.resistance * G.dx * G.dy)))
                 else:
                     Ez[i, j, k] = - self.waveformvalues_halfstep[iteration] / G.dz
@@ -178,18 +178,18 @@ class HertzianDipole(Source):
             componentID = 'E' + self.polarisation
 
             if self.polarisation == 'x':
-                Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_wholestep[iteration] 
+                Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_wholestep[iteration]
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'y':
-                Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_wholestep[iteration] 
+                Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_wholestep[iteration]
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_wholestep[iteration] 
+                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_wholestep[iteration]
                                 * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
 
@@ -217,23 +217,23 @@ class MagneticDipole(Source):
             componentID = 'H' + self.polarisation
 
             if self.polarisation == 'x':
-                Hx[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_halfstep[iteration] 
+                Hx[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_halfstep[iteration]
                                 * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'y':
-                Hy[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_halfstep[iteration] 
+                Hy[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_halfstep[iteration]
                                 * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Hz[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] 
-                                * self.waveformvalues_halfstep[iteration] 
+                Hz[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4]
+                                * self.waveformvalues_halfstep[iteration]
                                 * (1 / (G.dx * G.dy * G.dz)))
 
 
 def gpu_initialise_src_arrays(sources, G):
-    """Initialise arrays on GPU for source coordinates/polarisation, 
+    """Initialise arrays on GPU for source coordinates/polarisation,
         other source information, and source waveform values.
 
     Args:
@@ -248,33 +248,34 @@ def gpu_initialise_src_arrays(sources, G):
 
     import pycuda.gpuarray as gpuarray
 
-    srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
+    srcinfo1 = np.zeros((4, len(sources)), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=floattype)
-    srcwaves = np.zeros((len(sources), G.iterations), dtype=floattype)
+
+    srcwaves = np.zeros((G.iterations, len(sources)), dtype=floattype)
     for i, src in enumerate(sources):
-        srcinfo1[i, 0] = src.xcoord
-        srcinfo1[i, 1] = src.ycoord
-        srcinfo1[i, 2] = src.zcoord
+        srcinfo1[0, i] = src.xcoord
+        srcinfo1[1, i] = src.ycoord
+        srcinfo1[2, i] = src.zcoord
 
         if src.polarisation == 'x':
-            srcinfo1[i, 3] = 0
+            srcinfo1[3, i] = 0
         elif src.polarisation == 'y':
-            srcinfo1[i, 3] = 1
+            srcinfo1[3, i] = 1
         elif src.polarisation == 'z':
-            srcinfo1[i, 3] = 2
+            srcinfo1[3, i] = 2
 
         if src.__class__.__name__ == 'HertzianDipole':
             srcinfo2[i] = src.dl
-            srcwaves[i, :] = src.waveformvalues_wholestep
+            srcwaves[:, i] = src.waveformvalues_wholestep
         elif src.__class__.__name__ == 'VoltageSource':
             if src.resistance:
                 srcinfo2[i] = src.resistance
-                srcwaves[i, :] = src.waveformvalues_wholestep
+                srcwaves[:, i] = src.waveformvalues_wholestep
             else:
                 srcinfo2[i] = 0
-                srcwaves[i, :] = src.waveformvalues_halfstep
+                srcwaves[:, i] = src.waveformvalues_halfstep
         elif src.__class__.__name__ == 'MagneticDipole':
-            srcwaves[i, :] = src.waveformvalues_halfstep
+            srcwaves[:, i] = src.waveformvalues_halfstep
 
     srcinfo1_gpu = gpuarray.to_gpu(srcinfo1)
     srcinfo2_gpu = gpuarray.to_gpu(srcinfo2)
@@ -329,7 +330,7 @@ class TransmissionLine(Source):
     def calculate_incident_V_I(self, G):
         """
         Calculates the incident voltage and current with a long length
-            transmission line, initially not connected to the main grid from: 
+            transmission line, initially not connected to the main grid from:
             http://dx.doi.org/10.1002/mop.10415. Incident voltage and current,
             are only used to calculate s-parameters after the simulation has
             run.
@@ -371,11 +372,11 @@ class TransmissionLine(Source):
         """
 
         # Update all the voltage values along the line
-        self.voltage[1:self.nl] -= (self.resistance * (c * G.dt / self.dl) 
+        self.voltage[1:self.nl] -= (self.resistance * (c * G.dt / self.dl)
                                     * (self.current[1:self.nl] - self.current[0:self.nl - 1]))
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += ((c * G.dt / self.dl) 
+        self.voltage[self.srcpos] += ((c * G.dt / self.dl)
                                        * self.waveformvalues_wholestep[iteration])
 
         # Update ABC before updating current
@@ -390,11 +391,11 @@ class TransmissionLine(Source):
         """
 
         # Update all the current values along the line
-        self.current[0:self.nl - 1] -= ((1 / self.resistance) * (c * G.dt / self.dl) 
+        self.current[0:self.nl - 1] -= ((1 / self.resistance) * (c * G.dt / self.dl)
                                         * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1]))
 
         # Update the current one cell before the position of the one-way injector excitation
-        self.current[self.srcpos - 1] += ((1 / self.resistance) * (c * G.dt / self.dl) 
+        self.current[self.srcpos - 1] += ((1 / self.resistance) * (c * G.dt / self.dl)
                                           * self.waveformvalues_halfstep[iteration])
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -449,4 +450,4 @@ class TransmissionLine(Source):
                 self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hy, G.Hz, G)
 
             elif self.polarisation == 'z':
-                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)        
+                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
