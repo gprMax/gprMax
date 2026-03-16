@@ -558,21 +558,27 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.voltagesources + G.hertziandipoles + G.magneticdipoles:
-        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-        # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for source kernels
-        updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
-        updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
-        drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
-        drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
         if G.hertziandipoles:
             srcinfo1_hertzian_gpu, srcinfo2_hertzian_gpu, srcwaves_hertzian_gpu = gpu_initialise_src_arrays(G.hertziandipoles, G)
-            update_hertzian_dipole_gpu = kernels_sources.get_function("update_hertzian_dipole")
+            kernels_hertzian = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NSOURCES=len(G.hertziandipoles), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+            update_hertzian_dipole_gpu = kernels_hertzian.get_function("update_hertzian_dipole")
+            kernels_sources_last = kernels_hertzian
         if G.magneticdipoles:
             srcinfo1_magnetic_gpu, srcinfo2_magnetic_gpu, srcwaves_magnetic_gpu = gpu_initialise_src_arrays(G.magneticdipoles, G)
-            update_magnetic_dipole_gpu = kernels_sources.get_function("update_magnetic_dipole")
+            kernels_magnetic = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NSOURCES=len(G.magneticdipoles), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+            update_magnetic_dipole_gpu = kernels_magnetic.get_function("update_magnetic_dipole")
+            kernels_sources_last = kernels_magnetic
         if G.voltagesources:
             srcinfo1_voltage_gpu, srcinfo2_voltage_gpu, srcwaves_voltage_gpu = gpu_initialise_src_arrays(G.voltagesources, G)
-            update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
+            kernels_voltage = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NSOURCES=len(G.voltagesources), NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+            update_voltage_source_gpu = kernels_voltage.get_function("update_voltage_source")
+            kernels_sources_last = kernels_voltage
+        # Copy material coefficient arrays to constant memory of GPU once
+        # (same arrays shared across all source kernels, no need to copy per source type)
+        updatecoeffsE = kernels_sources_last.get_global('updatecoeffsE')[0]
+        updatecoeffsH = kernels_sources_last.get_global('updatecoeffsH')[0]
+        drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
+        drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
 
     # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.snapshots:
