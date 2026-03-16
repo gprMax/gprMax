@@ -34,7 +34,7 @@ from setuptools import Extension, find_packages, setup
 MIN_PYTHON_VERSION = (3, 7)
 if sys.version_info[:2] < MIN_PYTHON_VERSION:
     sys.exit(
-        "\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n"
+        f"\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n"
     )
 
 # Importing gprMax _version__.py before building can cause issues.
@@ -204,7 +204,7 @@ else:
             if "Apple" in cpuID:
                 rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
         else:
-            raise (
+            raise SystemExit(
                 f"Cannot find gcc in {gccbasepath}. gprMax requires gcc "
                 + "to be installed - easily done through the Homebrew package "
                 + "manager (http://brew.sh). Note: gcc with OpenMP support "
@@ -214,9 +214,8 @@ else:
         # Set minimum supported macOS deployment target to installed macOS version
         MIN_MACOS_VERSION = platform.mac_ver()[0]
         try:
-            os.environ["MACOSX_DEPLOYMENT_TARGET"]
             del os.environ["MACOSX_DEPLOYMENT_TARGET"]
-        except:
+        except KeyError:
             pass
         os.environ["MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET"] = MIN_MACOS_VERSION
         # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
