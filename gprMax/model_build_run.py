@@ -651,7 +651,7 @@ def solve_gpu(currentmodelrun, modelend, G):
                                        block=(1, 1, 1), grid=(round32(len(G.magneticdipoles)), 1, 1))
 
         # Update electric field components
-        # If all materials are non-dispersive do standard update
+        # If all materials are non-dispersive do standard updates
         if Material.maxpoles == 0:
             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
                          G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
