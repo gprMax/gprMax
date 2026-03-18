@@ -654,9 +654,9 @@ def solve_gpu(currentmodelrun, modelend, G):
         # If all materials are non-dispersive do standard update
         if Material.maxpoles == 0:
             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
-                         G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                         G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                         block=G.tpb, grid=G.bpg)
+                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                        block=G.tpb, grid=G.bpg)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         else:
