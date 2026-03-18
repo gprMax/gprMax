@@ -37,13 +37,13 @@ __device__ __constant__ $REAL updatecoeffsH[$N_updatecoeffsH];
 // Electric field updates - standard materials //
 /////////////////////////////////////////////////
 
-__global__ void update_e(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Ex, $REAL *Ey, $REAL *Ez, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz) {
+__global__ void update_ex(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Ex, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz) {
 
-    //  This function updates electric field values.
+    //  This function updates Ex field values.
     //
     //  Args:
     //      NX, NY, NZ: Number of cells of the model domain
-    //      ID, E, H: Access to ID and field component arrays
+    //      ID, Ex, Hy, Hz: Access to ID and field component arrays
 
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -58,19 +58,60 @@ __global__ void update_e(int NX, int NY, int NZ, const unsigned int* __restrict_
     int j_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int k_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-    // Ex component
     if ((NY != 1 || NZ != 1) && i >= 0 && i < NX && j > 0 && j < NY && k > 0 && k < NZ) {
         int materialEx = ID[INDEX4D_ID(0,i_ID,j_ID,k_ID)];
         Ex[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEx,0)] * Ex[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEx,2)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i,j-1,k)]) - updatecoeffsE[INDEX2D_MAT(materialEx,3)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i,j,k-1)]);
     }
+}
 
-    // Ey component
+__global__ void update_ey(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Ey, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hz) {
+
+    //  This function updates Ey field values.
+    //
+    //  Args:
+    //      NX, NY, NZ: Number of cells of the model domain
+    //      ID, Ey, Hx, Hz: Access to ID and field component arrays
+
+    // Obtain the linear index corresponding to the current thread
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Convert the linear index to subscripts for 3D field arrays
+    int i = idx / ($NY_FIELDS * $NZ_FIELDS);
+    int j = (idx % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+    int k = (idx % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+
+    // Convert the linear index to subscripts for 4D material ID array
+    int i_ID = (idx % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+    int j_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+    int k_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+
     if ((NX != 1 || NZ != 1) && i > 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialEy = ID[INDEX4D_ID(1,i_ID,j_ID,k_ID)];
         Ey[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEy,0)] * Ey[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEy,3)] * (Hx[INDEX3D_FIELDS(i,j,k)] - Hx[INDEX3D_FIELDS(i,j,k-1)]) - updatecoeffsE[INDEX2D_MAT(materialEy,1)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i-1,j,k)]);
     }
+}
 
-    // Ez component
+__global__ void update_ez(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Ez, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy) {
+
+    //  This function updates Ez field values.
+    //
+    //  Args:
+    //      NX, NY, NZ: Number of cells of the model domain
+    //      ID, Ez, Hx, Hy: Access to ID and field component arrays
+
+    // Obtain the linear index corresponding to the current thread
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Convert the linear index to subscripts for 3D field arrays
+    int i = idx / ($NY_FIELDS * $NZ_FIELDS);
+    int j = (idx % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+    int k = (idx % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+
+    // Convert the linear index to subscripts for 4D material ID array
+    int i_ID = (idx % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+    int j_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+    int k_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+
     if ((NX != 1 || NY != 1) && i > 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialEz = ID[INDEX4D_ID(2,i_ID,j_ID,k_ID)];
         Ez[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEz,0)] * Ez[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEz,1)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i-1,j,k)]) - updatecoeffsE[INDEX2D_MAT(materialEz,2)] * (Hx[INDEX3D_FIELDS(i,j,k)] - Hx[INDEX3D_FIELDS(i,j-1,k)]);
@@ -199,13 +240,13 @@ __global__ void update_e_dispersive_B(int NX, int NY, int NZ, int MAXPOLES, cons
 // Magnetic field updates //
 ////////////////////////////
 
-__global__ void update_h(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Hx, $REAL *Hy, $REAL *Hz, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez) {
+__global__ void update_hx(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Hx, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez) {
 
-    //  This function updates magnetic field values.
+    //  This function updates Hx field values.
     //
     //  Args:
     //      NX, NY, NZ: Number of cells of the model domain
-    //      ID, E, H: Access to ID and field component arrays
+    //      ID, Hx, Ey, Ez: Access to ID and field component arrays
 
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -220,23 +261,65 @@ __global__ void update_h(int NX, int NY, int NZ, const unsigned int* __restrict_
     int j_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int k_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-    // Hx component
     if (NX != 1 && i > 0 && i < NX && j >= 0 && j < NY && k >= 0 && k < NZ) {
         int materialHx = ID[INDEX4D_ID(3,i_ID,j_ID,k_ID)];
         Hx[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHx,0)] * Hx[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHx,2)] * (Ez[INDEX3D_FIELDS(i,j+1,k)] - Ez[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHx,3)] * (Ey[INDEX3D_FIELDS(i,j,k+1)] - Ey[INDEX3D_FIELDS(i,j,k)]);
     }
+}
 
-    // Hy component
+__global__ void update_hy(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Hy, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ez) {
+
+    //  This function updates Hy field values.
+    //
+    //  Args:
+    //      NX, NY, NZ: Number of cells of the model domain
+    //      ID, Hy, Ex, Ez: Access to ID and field component arrays
+
+    // Obtain the linear index corresponding to the current thread
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Convert the linear index to subscripts for 3D field arrays
+    int i = idx / ($NY_FIELDS * $NZ_FIELDS);
+    int j = (idx % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+    int k = (idx % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+
+    // Convert the linear index to subscripts for 4D material ID array
+    int i_ID = (idx % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+    int j_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+    int k_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+
     if (NY != 1 && i >= 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialHy = ID[INDEX4D_ID(4,i_ID,j_ID,k_ID)];
         Hy[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHy,0)] * Hy[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHy,3)] * (Ex[INDEX3D_FIELDS(i,j,k+1)] - Ex[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHy,1)] * (Ez[INDEX3D_FIELDS(i+1,j,k)] - Ez[INDEX3D_FIELDS(i,j,k)]);
     }
+}
 
-    // Hz component
+__global__ void update_hz(int NX, int NY, int NZ, const unsigned int* __restrict__ ID, $REAL *Hz, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey) {
+
+    //  This function updates Hz field values.
+    //
+    //  Args:
+    //      NX, NY, NZ: Number of cells of the model domain
+    //      ID, Hz, Ex, Ey: Access to ID and field component arrays
+
+    // Obtain the linear index corresponding to the current thread
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    // Convert the linear index to subscripts for 3D field arrays
+    int i = idx / ($NY_FIELDS * $NZ_FIELDS);
+    int j = (idx % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
+    int k = (idx % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+
+    // Convert the linear index to subscripts for 4D material ID array
+    int i_ID = (idx % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
+    int j_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
+    int k_ID = ((idx % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+
     if (NZ != 1 && i >= 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialHz = ID[INDEX4D_ID(5,i_ID,j_ID,k_ID)];
         Hz[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHz,0)] * Hz[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHz,1)] * (Ey[INDEX3D_FIELDS(i+1,j,k)] - Ey[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHz,2)] * (Ex[INDEX3D_FIELDS(i,j+1,k)] - Ex[INDEX3D_FIELDS(i,j,k)]);
     }
+
 }
 
 """)

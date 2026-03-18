@@ -506,8 +506,12 @@ def solve_gpu(currentmodelrun, modelend, G):
         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
     else:   # Set to one any substitutions for dispersive materials
         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
-    update_e_gpu = kernels_fields.get_function("update_e")
-    update_h_gpu = kernels_fields.get_function("update_h")
+    update_ex_gpu = kernels_fields.get_function("update_ex")
+    update_hx_gpu = kernels_fields.get_function("update_hx")
+    update_hy_gpu = kernels_fields.get_function("update_hy")
+    update_ez_gpu = kernels_fields.get_function("update_ez")
+    update_hz_gpu = kernels_fields.get_function("update_hz")
+    update_ey_gpu = kernels_fields.get_function("update_ey")
 
     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
     updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
@@ -630,10 +634,18 @@ def solve_gpu(currentmodelrun, modelend, G):
                                            snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), 0, snap)
 
         # Update magnetic field components
-        update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-                     G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
-                     G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
-                     G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
+        update_hx_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
+                     G.ID_gpu.gpudata, G.Hx_gpu.gpudata,
+                     G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                     block=G.tpb, grid=G.bpg)
+        update_hy_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
+                     G.ID_gpu.gpudata, G.Hy_gpu.gpudata,
+                     G.Ex_gpu.gpudata, G.Ez_gpu.gpudata,
+                     block=G.tpb, grid=G.bpg)
+        update_hz_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
+                     G.ID_gpu.gpudata, G.Hz_gpu.gpudata,
+                     G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
+                     block=G.tpb, grid=G.bpg)
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
@@ -651,9 +663,17 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update electric field components
         # If all materials are non-dispersive do standard update
         if Material.maxpoles == 0:
-            update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
-                         G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                         G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+            update_ex_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
+                         G.Ex_gpu.gpudata,
+                         G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                         block=G.tpb, grid=G.bpg)
+            update_ey_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
+                         G.Ey_gpu.gpudata,
+                         G.Hx_gpu.gpudata, G.Hz_gpu.gpudata,
+                         block=G.tpb, grid=G.bpg)
+            update_ez_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
+                         G.Ez_gpu.gpudata,
+                         G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
                          block=G.tpb, grid=G.bpg)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
