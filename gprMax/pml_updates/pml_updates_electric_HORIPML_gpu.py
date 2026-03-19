@@ -47,17 +47,20 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
-
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
     $REAL RA01, RB0, RE0, RF0, dHy, dHz;
     $REAL dx = d;
     int ii, jj, kk, materialEy, materialEz;
@@ -120,16 +123,20 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
     $REAL dx = d;
@@ -205,16 +212,20 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHy, dHz;
     $REAL dx = d;
@@ -278,16 +289,20 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
     $REAL dx = d;
@@ -363,16 +378,20 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHz;
     $REAL dy = d;
@@ -436,16 +455,20 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
     $REAL dy = d;
@@ -521,16 +544,20 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2; 
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHz;
     $REAL dy = d;
@@ -594,16 +621,20 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
     $REAL dy = d;
@@ -679,16 +710,20 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHy;
     $REAL dz = d;
@@ -752,16 +787,20 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
     $REAL dz = d;
@@ -837,16 +876,20 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHy;
     $REAL dz = d;
@@ -910,16 +953,20 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((idx % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int vol1   = NX_PHI1 * NY_PHI1 * NZ_PHI1;
+    int plane1 = NY_PHI1 * NZ_PHI1;
+    int p1 = idx / vol1;
+    int i1 = (idx % vol1) / plane1;
+    int j1 = (idx % vol1 % plane1) / NZ_PHI1;
+    int k1 = (idx % vol1 % plane1) % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = idx / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int vol2   = NX_PHI2 * NY_PHI2 * NZ_PHI2;
+    int plane2 = NY_PHI2 * NZ_PHI2;
+    int p2 = idx / vol2;
+    int i2 = (idx % vol2) / plane2;
+    int j2 = (idx % vol2 % plane2) / NZ_PHI2;
+    int k2 = (idx % vol2 % plane2) % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
     $REAL dz = d;
