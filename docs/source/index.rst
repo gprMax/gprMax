@@ -10,13 +10,15 @@ gprMax User Guide
     features
     gprmodelling
 
-
 .. toctree::
     :maxdepth: 2
     :caption: Using gprMax
 
+
     input
     output
+    python_api
+    
 
 .. toctree::
     :maxdepth: 2
