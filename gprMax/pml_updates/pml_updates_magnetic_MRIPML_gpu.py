@@ -270,7 +270,7 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
         dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEy - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
-        PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = (RE0 - RC0) * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx;
+        PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = (RE0 - RC0) * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEy;
     }
 }
 
