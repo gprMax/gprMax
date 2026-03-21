@@ -19,11 +19,11 @@
 from collections import OrderedDict
 
 from colorama import init
-from colorama import Fore
-from colorama import Style
+
 init()
 import numpy as np
-np.seterr(invalid='raise')
+
+np.seterr(invalid="raise")
 
 from gprMax.constants import c
 from gprMax.constants import floattype
@@ -69,11 +69,11 @@ class Grid(object):
 
     def within_bounds(self, **kwargs):
         for co, val in kwargs.items():
-            if val < 0 or val > getattr(self, 'n' + co):
+            if val < 0 or val > getattr(self, "n" + co):
                 raise ValueError(co)
 
     def calculate_coord(self, coord, val):
-        co = round_value(float(val) / getattr(self, 'd' + coord))
+        co = round_value(float(val) / getattr(self, "d" + coord))
         return co
 
 
@@ -84,10 +84,10 @@ class FDTDGrid(Grid):
     """
 
     def __init__(self):
-        self.inputfilename = ''
-        self.inputdirectory = ''
-        self.outputdirectory = ''
-        self.title = ''
+        self.inputfilename = ""
+        self.inputdirectory = ""
+        self.outputdirectory = ""
+        self.title = ""
         self.messages = True
         self.progressbars = self.messages
         self.memoryusage = 0
@@ -136,7 +136,7 @@ class FDTDGrid(Grid):
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
         self.cfs = []
         self.pmls = []
-        self.pmlformulation = 'HORIPML'
+        self.pmlformulation = "HORIPML"
 
         self.materials = []
         self.mixingmodels = []
@@ -166,7 +166,7 @@ class FDTDGrid(Grid):
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
-        self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
+        self.IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
@@ -184,10 +184,21 @@ class FDTDGrid(Grid):
 
     def initialise_dispersive_arrays(self):
         """Initialise arrays for storing coefficients when there are dispersive materials present."""
-        self.Tx = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-        self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-        self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
+        self.Tx = np.zeros(
+            (Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=complextype,
+        )
+        self.Ty = np.zeros(
+            (Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=complextype,
+        )
+        self.Tz = np.zeros(
+            (Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=complextype,
+        )
+        self.updatecoeffsdispersive = np.zeros(
+            (len(self.materials), 3 * Material.maxpoles), dtype=complextype
+        )
 
     def memory_estimate_basic(self):
         """Estimate the amount of memory (RAM) required to run a model."""
@@ -197,32 +208,42 @@ class FDTDGrid(Grid):
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
         # 12 x rigidE array components + 6 x rigidH array components
-        rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        rigidarrays = (
+            (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+        )
 
         # 6 x field arrays + 6 x ID arrays
-        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(floattype).itemsize
+        fieldarrays = (
+            (6 + 6)
+            * (self.nx + 1)
+            * (self.ny + 1)
+            * (self.nz + 1)
+            * np.dtype(floattype).itemsize
+        )
 
         # PML arrays
         pmlarrays = 0
-        for (k, v) in self.pmlthickness.items():
+        for k, v in self.pmlthickness.items():
             if v > 0:
-                if 'x' in k:
-                    pmlarrays += ((v + 1) * self.ny * (self.nz + 1))
-                    pmlarrays += ((v + 1) * (self.ny + 1) * self.nz)
-                    pmlarrays += (v * self.ny * (self.nz + 1))
-                    pmlarrays += (v * (self.ny + 1) * self.nz)
-                elif 'y' in k:
-                    pmlarrays += (self.nx * (v + 1) * (self.nz + 1))
-                    pmlarrays += ((self.nx + 1) * (v + 1) * self.nz)
-                    pmlarrays += ((self.nx + 1) * v * self.nz)
-                    pmlarrays += (self.nx * v * (self.nz + 1))
-                elif 'z' in k:
-                    pmlarrays += (self.nx * (self.ny + 1) * (v + 1))
-                    pmlarrays += ((self.nx + 1) * self.ny * (v + 1))
-                    pmlarrays += ((self.nx + 1) * self.ny * v)
-                    pmlarrays += (self.nx * (self.ny + 1) * v)
+                if "x" in k:
+                    pmlarrays += (v + 1) * self.ny * (self.nz + 1)
+                    pmlarrays += (v + 1) * (self.ny + 1) * self.nz
+                    pmlarrays += v * self.ny * (self.nz + 1)
+                    pmlarrays += v * (self.ny + 1) * self.nz
+                elif "y" in k:
+                    pmlarrays += self.nx * (v + 1) * (self.nz + 1)
+                    pmlarrays += (self.nx + 1) * (v + 1) * self.nz
+                    pmlarrays += (self.nx + 1) * v * self.nz
+                    pmlarrays += self.nx * v * (self.nz + 1)
+                elif "z" in k:
+                    pmlarrays += self.nx * (self.ny + 1) * (v + 1)
+                    pmlarrays += (self.nx + 1) * self.ny * (v + 1)
+                    pmlarrays += (self.nx + 1) * self.ny * v
+                    pmlarrays += self.nx * (self.ny + 1) * v
 
-        self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
+        self.memoryusage = int(
+            stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays
+        )
 
     def memory_check(self, snapsmemsize=0):
         """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
@@ -232,21 +253,40 @@ class FDTDGrid(Grid):
         """
 
         # Check if model can be built and/or run on host
-        if self.memoryusage > self.hostinfo['ram']:
-            raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+        if self.memoryusage > self.hostinfo["ram"]:
+            raise GeneralError(
+                "Memory (RAM) required ~{} exceeds {} detected!\n".format(
+                    human_size(self.memoryusage),
+                    human_size(self.hostinfo["ram"], a_kilobyte_is_1024_bytes=True),
+                )
+            )
 
         # Check if model can be run on specified GPU if required
         if self.gpu is not None:
             if self.memoryusage - snapsmemsize > self.gpu.totalmem:
-                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
+                raise GeneralError(
+                    "Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n".format(
+                        human_size(self.memoryusage),
+                        human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True),
+                        self.gpu.deviceID,
+                        self.gpu.name,
+                    )
+                )
 
             # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
-            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
+            if (
+                snapsmemsize != 0
+                and self.memoryusage - snapsmemsize < self.gpu.totalmem
+            ):
                 self.snapsgpu2cpu = True
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
-        self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
+        self.bpg = (
+            int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])),
+            1,
+            1,
+        )
 
     def gpu_initialise_arrays(self):
         """Initialise standard field arrays on GPU."""
@@ -254,12 +294,24 @@ class FDTDGrid(Grid):
         import pycuda.gpuarray as gpuarray
 
         self.ID_gpu = gpuarray.to_gpu(self.ID)
-        self.Ex_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
-        self.Ey_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
-        self.Ez_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
-        self.Hx_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
-        self.Hy_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
-        self.Hz_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Ex_gpu = gpuarray.to_gpu(
+            np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        )
+        self.Ey_gpu = gpuarray.to_gpu(
+            np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        )
+        self.Ez_gpu = gpuarray.to_gpu(
+            np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        )
+        self.Hx_gpu = gpuarray.to_gpu(
+            np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        )
+        self.Hy_gpu = gpuarray.to_gpu(
+            np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        )
+        self.Hz_gpu = gpuarray.to_gpu(
+            np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        )
 
     def gpu_initialise_dispersive_arrays(self):
         """Initialise dispersive material coefficient arrays on GPU."""
@@ -286,20 +338,26 @@ def dispersion_analysis(G):
 
     # Physical phase velocity error (percentage); grid sampling density;
     # material with maximum permittivity; maximum significant frequency; error message
-    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': [], 'error': ''}
+    results = {
+        "deltavp": False,
+        "N": False,
+        "material": False,
+        "maxfreq": [],
+        "error": "",
+    }
 
     # Find maximum significant frequency
     if G.waveforms:
         for waveform in G.waveforms:
-            if waveform.type == 'sine' or waveform.type == 'contsine':
-                results['maxfreq'].append(4 * waveform.freq)
+            if waveform.type == "sine" or waveform.type == "contsine":
+                results["maxfreq"].append(4 * waveform.freq)
 
-            elif waveform.type == 'impulse':
-                results['error'] = 'impulse waveform used.'
+            elif waveform.type == "impulse":
+                results["error"] = "impulse waveform used."
 
             else:
                 # User-defined waveform
-                if waveform.type == 'user':
+                if waveform.type == "user":
                     iterations = G.iterations
 
                 # Built-in waveform
@@ -313,7 +371,9 @@ def dispersion_analysis(G):
 
                 waveformvalues = np.zeros(G.iterations)
                 for iteration in range(G.iterations):
-                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
+                    waveformvalues[iteration] = waveform.calculate_value(
+                        iteration * G.dt, G.dt
+                    )
 
                 # Ensure source waveform is not being overly truncated before attempting any FFT
                 if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
@@ -324,10 +384,15 @@ def dispersion_analysis(G):
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                     try:
-                        freqthres = np.where(power[freqmaxpower:] < -G.highestfreqthres)[0][0] + freqmaxpower
-                        results['maxfreq'].append(freqs[freqthres])
+                        freqthres = (
+                            np.where(power[freqmaxpower:] < -G.highestfreqthres)[0][0]
+                            + freqmaxpower
+                        )
+                        results["maxfreq"].append(freqs[freqthres])
                     except ValueError:
-                        results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
+                        results["error"] = (
+                            "unable to calculate maximum power from waveform, most likely due to undersampling."
+                        )
 
                 # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
                 elif waveform.amp == 0:
@@ -335,39 +400,41 @@ def dispersion_analysis(G):
 
                 # If waveform is truncated don't do any further analysis
                 else:
-                    results['error'] = 'waveform does not fit within specified time window and is therefore being truncated.'
+                    results["error"] = (
+                        "waveform does not fit within specified time window and is therefore being truncated."
+                    )
     else:
-        results['error'] = 'no waveform detected.'
+        results["error"] = "no waveform detected."
 
-    if results['maxfreq']:
-        results['maxfreq'] = max(results['maxfreq'])
+    if results["maxfreq"]:
+        results["maxfreq"] = max(results["maxfreq"])
 
         # Find minimum wavelength (material with maximum permittivity)
         maxer = 0
-        matmaxer = ''
+        matmaxer = ""
         for x in G.materials:
-            if x.se != float('inf'):
+            if x.se != float("inf"):
                 er = x.er
                 # If there are dispersive materials calculate the complex relative permittivity
                 # at maximum frequency and take the real part
                 if x.poles > 0:
-                    er = x.calculate_er(results['maxfreq'])
+                    er = x.calculate_er(results["maxfreq"])
                     er = er.real
                 if er > maxer:
                     maxer = er
                     matmaxer = x.ID
-        results['material'] = next(x for x in G.materials if x.ID == matmaxer)
+        results["material"] = next(x for x in G.materials if x.ID == matmaxer)
 
         # Minimum velocity
         minvelocity = c / np.sqrt(maxer)
 
         # Minimum wavelength
-        minwavelength = minvelocity / results['maxfreq']
+        minwavelength = minvelocity / results["maxfreq"]
 
         # Maximum spatial step
-        if '3D' in G.mode:
+        if "3D" in G.mode:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in G.mode:
+        elif "2D" in G.mode:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:
@@ -379,18 +446,20 @@ def dispersion_analysis(G):
         S = (c * G.dt) / delta
 
         # Grid sampling density
-        results['N'] = minwavelength / delta
+        results["N"] = minwavelength / delta
 
         # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results['N'])) >= G.mingridsampling:
+        if int(np.floor(results["N"])) >= G.mingridsampling:
             # Numerical phase velocity
-            vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
+            vp = np.pi / (
+                results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
+            )
 
             # Physical phase velocity error (percentage)
-            results['deltavp'] = (((vp * c) - c) / c) * 100
+            results["deltavp"] = (((vp * c) - c) / c) * 100
 
         # Store rounded down value of grid sampling density
-        results['N'] = int(np.floor(results['N']))
+        results["N"] = int(np.floor(results["N"]))
 
     return results
 
@@ -405,7 +474,7 @@ def get_other_directions(direction):
         (tuple): Two directions from x, y, z
     """
 
-    directions = {'x': ('y', 'z'), 'y': ('x', 'z'), 'z': ('x', 'y')}
+    directions = {"x": ("y", "z"), "y": ("x", "z"), "z": ("x", "y")}
 
     return directions[direction]
 
@@ -422,7 +491,9 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
     if y == 0 or z == 0:
         Ix = 0
     else:
-        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
+        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (
+            Hz[x, y, z] - Hz[x, y - 1, z]
+        )
 
     return Ix
 
@@ -439,7 +510,9 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
     if x == 0 or z == 0:
         Iy = 0
     else:
-        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
+        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (
+            Hz[x - 1, y, z] - Hz[x, y, z]
+        )
 
     return Iy
 
@@ -456,6 +529,8 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     if x == 0 or y == 0:
         Iz = 0
     else:
-        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
+        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (
+            Hy[x, y, z] - Hy[x - 1, y, z]
+        )
 
     return Iz

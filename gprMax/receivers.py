@@ -26,12 +26,11 @@ from gprMax.constants import floattype
 class Rx(object):
     """Receiver output points."""
 
-    allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
+    allowableoutputs = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"]
     gpu_allowableoutputs = allowableoutputs[:-3]
     defaultoutputs = allowableoutputs[:-3]
 
     def __init__(self):
-
         self.ID = None
         self.outputs = OrderedDict()
         self.xcoord = None
@@ -59,7 +58,9 @@ def gpu_initialise_rx_arrays(G):
         rxcoords[i, 2] = rx.zcoord
 
     # Array to store field components for receivers on GPU - rows are field components; columns are iterations; pages are receivers
-    rxs = np.zeros((len(Rx.gpu_allowableoutputs), G.iterations, len(G.rxs)), dtype=floattype)
+    rxs = np.zeros(
+        (len(Rx.gpu_allowableoutputs), G.iterations, len(G.rxs)), dtype=floattype
+    )
 
     # Copy arrays to GPU
     rxcoords_gpu = gpuarray.to_gpu(rxcoords)
@@ -79,10 +80,14 @@ def gpu_get_rx_array(rxs_gpu, rxcoords_gpu, G):
 
     for rx in G.rxs:
         for rxgpu in range(len(G.rxs)):
-            if rx.xcoord == rxcoords_gpu[rxgpu, 0] and rx.ycoord == rxcoords_gpu[rxgpu, 1] and rx.zcoord == rxcoords_gpu[rxgpu, 2]:
-                rx.outputs['Ex'] = rxs_gpu[0, :, rxgpu]
-                rx.outputs['Ey'] = rxs_gpu[1, :, rxgpu]
-                rx.outputs['Ez'] = rxs_gpu[2, :, rxgpu]
-                rx.outputs['Hx'] = rxs_gpu[3, :, rxgpu]
-                rx.outputs['Hy'] = rxs_gpu[4, :, rxgpu]
-                rx.outputs['Hz'] = rxs_gpu[5, :, rxgpu]
+            if (
+                rx.xcoord == rxcoords_gpu[rxgpu, 0]
+                and rx.ycoord == rxcoords_gpu[rxgpu, 1]
+                and rx.zcoord == rxcoords_gpu[rxgpu, 2]
+            ):
+                rx.outputs["Ex"] = rxs_gpu[0, :, rxgpu]
+                rx.outputs["Ey"] = rxs_gpu[1, :, rxgpu]
+                rx.outputs["Ez"] = rxs_gpu[2, :, rxgpu]
+                rx.outputs["Hx"] = rxs_gpu[3, :, rxgpu]
+                rx.outputs["Hy"] = rxs_gpu[4, :, rxgpu]
+                rx.outputs["Hz"] = rxs_gpu[5, :, rxgpu]

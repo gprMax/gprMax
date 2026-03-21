@@ -6,10 +6,8 @@
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 import os
-import sys
 
 import h5py
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
 
@@ -34,28 +32,28 @@ def min_max_value(filename, args):
         value (float): Minimum, maximum, or absolute maximum value from specific outputs
     """
 
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
+    f = h5py.File(filename, "r")
+    nrx = f.attrs["nrx"]
 
     value = 0
     outputsused = False
     for rx in range(1, nrx + 1):
-        output = f['/rxs/rx' + str(rx) + '/']
-        if output.attrs['Name'] in args['outputs']:
+        output = f["/rxs/rx" + str(rx) + "/"]
+        if output.attrs["Name"] in args["outputs"]:
             outputname = list(output.keys())[0]
-            if args['type'] == 'min':
+            if args["type"] == "min":
                 value += np.abs(np.amin(output[outputname]))
-            elif args['type'] == 'max':
+            elif args["type"] == "max":
                 value += np.amax(output[outputname])
-            elif args['type'] == 'absmax':
+            elif args["type"] == "absmax":
                 value += np.amax(np.abs(output[outputname]))
             else:
-                raise GeneralError('type must be either min, max, or absmax')
+                raise GeneralError("type must be either min, max, or absmax")
             outputsused = True
 
     # Check in case no outputs where found
     if not outputsused:
-        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
+        raise GeneralError("No outputs matching {} were found".format(args["outputs"]))
 
     return value
 
@@ -72,37 +70,37 @@ def xcorr(filename, args):
     """
 
     # Load (from text file) the reference response. See if file exists at specified path and if not try input file directory
-    refrespfile = os.path.abspath(args['refresp'])
+    refrespfile = os.path.abspath(args["refresp"])
     if not os.path.isfile(refrespfile):
-        raise GeneralError('Cannot load reference response from {}'.format(refrespfile))
-    with open(refrespfile, 'r') as f:
+        raise GeneralError("Cannot load reference response from {}".format(refrespfile))
+    with open(refrespfile, "r") as f:
         refdata = np.loadtxt(f)
     reftime = refdata[:, 0] * 1e-9
     refresp = refdata[:, 1]
 
     # Load response from output file
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-    modeltime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
+    f = h5py.File(filename, "r")
+    nrx = f.attrs["nrx"]
+    modeltime = np.arange(0, f.attrs["dt"] * f.attrs["Iterations"], f.attrs["dt"])
 
     outputsused = False
     for rx in range(1, nrx + 1):
-        output = f['/rxs/rx' + str(rx) + '/']
-        if output.attrs['Name'] in args['outputs']:
+        output = f["/rxs/rx" + str(rx) + "/"]
+        if output.attrs["Name"] in args["outputs"]:
             outputname = list(output.keys())[0]
             modelresp = output[outputname]
             # Convert electric field value (V/m) to voltage (V)
-            if outputname == 'Ex':
-                modelresp *= -f.attrs['dx, dy, dz'][0]
-            elif outputname == 'Ey':
-                modelresp *= -f.attrs['dx, dy, dz'][1]
-            elif outputname == 'Ez':
-                modelresp *= -f.attrs['dx, dy, dz'][2]
+            if outputname == "Ex":
+                modelresp *= -f.attrs["dx, dy, dz"][0]
+            elif outputname == "Ey":
+                modelresp *= -f.attrs["dx, dy, dz"][1]
+            elif outputname == "Ez":
+                modelresp *= -f.attrs["dx, dy, dz"][2]
             outputsused = True
 
     # Check in case no outputs where found
     if not outputsused:
-        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
+        raise GeneralError("No outputs matching {} were found".format(args["outputs"]))
 
     # Normalise reference respose and response from output file
     # refresp /= np.amax(np.abs(refresp))
@@ -162,29 +160,33 @@ def min_sum_diffs(filename, args):
     """
 
     # Load (from gprMax output file) the reference response. See if file exists at specified path and if not try input file directory
-    refrespfile = os.path.abspath(args['refresp'])
+    refrespfile = os.path.abspath(args["refresp"])
     if not os.path.isfile(refrespfile):
-        raise GeneralError('Cannot load reference response at {}'.format(refrespfile))
-    f = h5py.File(refrespfile, 'r')
-    tmp = f['/rxs/rx1/']
+        raise GeneralError("Cannot load reference response at {}".format(refrespfile))
+    f = h5py.File(refrespfile, "r")
+    tmp = f["/rxs/rx1/"]
     fieldname = list(tmp.keys())[0]
     refresp = np.array(tmp[fieldname])
 
     # Load (from gprMax output file) the response
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
+    f = h5py.File(filename, "r")
+    nrx = f.attrs["nrx"]
 
     diffdB = 0
     outputs = 0
     for rx in range(1, nrx + 1):
-        output = f['/rxs/rx' + str(rx) + '/']
-        if output.attrs['Name'] in args['outputs']:
+        output = f["/rxs/rx" + str(rx) + "/"]
+        if output.attrs["Name"] in args["outputs"]:
             outputname = list(output.keys())[0]
             modelresp = np.array(output[outputname])
 
             # Calculate sum of differences
-            with np.errstate(divide='ignore'): # Ignore warning from taking a log of any zero values
-                tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
+            with np.errstate(
+                divide="ignore"
+            ):  # Ignore warning from taking a log of any zero values
+                tmp = 20 * np.log10(
+                    np.abs(modelresp - refresp) / np.amax(np.abs(refresp))
+                )
             # Replace any NaNs or Infs from zero division
             tmp[np.invert(np.isfinite(tmp))] = 0
 
@@ -194,7 +196,7 @@ def min_sum_diffs(filename, args):
 
     # Check in case no outputs where found
     if outputs == 0:
-        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
+        raise GeneralError("No outputs matching {} were found".format(args["outputs"]))
 
     return diffdB / outputs
 
@@ -210,17 +212,17 @@ def compactness(filename, args):
         compactness (float): Compactness value of signal
     """
 
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-    dt = f.attrs['dt']
-    iterations = f.attrs['Iterations']
+    f = h5py.File(filename, "r")
+    nrx = f.attrs["nrx"]
+    dt = f.attrs["dt"]
+    iterations = f.attrs["Iterations"]
     time = np.linspace(0, 1, iterations)
-    time *= (iterations * dt)
+    time *= iterations * dt
 
     outputsused = False
     for rx in range(1, nrx + 1):
-        output = f['/rxs/rx' + str(rx) + '/']
-        if output.attrs['Name'] in args['outputs']:
+        output = f["/rxs/rx" + str(rx) + "/"]
+        if output.attrs["Name"] in args["outputs"]:
             outputname = list(output.keys())[0]
             outputdata = output[outputname]
 
@@ -228,7 +230,9 @@ def compactness(filename, args):
             peak = np.amax([np.amax(outputdata), np.abs(np.amin(outputdata))])
 
             # Get peaks and troughs in signal
-            delta = peak / 50  # Considered a peak/trough if it has the max/min value, and was preceded (to the left) by a value lower by delta
+            delta = (
+                peak / 50
+            )  # Considered a peak/trough if it has the max/min value, and was preceded (to the left) by a value lower by delta
             maxtab, mintab = peakdet(outputdata, delta)
             peaks = maxtab + mintab
             peaks.sort()
@@ -252,7 +256,7 @@ def compactness(filename, args):
 
     # Check in case no outputs where found
     if not outputsused:
-        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
+        raise GeneralError("No outputs matching {} were found".format(args["outputs"]))
 
     return compactness
 
@@ -260,6 +264,7 @@ def compactness(filename, args):
 ######################################
 # Helper methods for signal analyses #
 ######################################
+
 
 def spectral_centroid(x, samplerate):
     """Calculate the spectral centroid of a signal.
@@ -275,7 +280,7 @@ def spectral_centroid(x, samplerate):
     magnitudes = np.abs(np.fft.rfft(x))
     length = len(x)
     # Positive frequencies
-    freqs = np.abs(np.fft.fftfreq(length, 1.0 / samplerate)[:length // 2 + 1])
+    freqs = np.abs(np.fft.fftfreq(length, 1.0 / samplerate)[: length // 2 + 1])
     centroid = np.sum(magnitudes * freqs) / np.sum(magnitudes)
 
     return centroid
@@ -322,13 +327,13 @@ def peakdet(v, delta, x=None):
     v = np.asarray(v)
 
     if len(v) != len(x):
-        raise GeneralError('Input vectors v and x must have same length')
+        raise GeneralError("Input vectors v and x must have same length")
 
     if not np.isscalar(delta):
-        raise GeneralError('Input argument delta must be a scalar')
+        raise GeneralError("Input argument delta must be a scalar")
 
     if delta <= 0:
-        raise GeneralError('Input argument delta must be positive')
+        raise GeneralError("Input argument delta must be positive")
 
     mn, mx = np.Inf, -np.Inf
     mnpos, mxpos = np.NaN, np.NaN

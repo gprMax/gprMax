@@ -40,5 +40,3 @@ cdef void set_rigid_Hy(int i, int j, int k, np.int8_t[:, :, :, ::1] rigidH)
 cdef void set_rigid_Hz(int i, int j, int k, np.int8_t[:, :, :, ::1] rigidH)
 cdef void set_rigid_H(int i, int j, int k, np.int8_t[:, :, :, ::1] rigidH)
 cdef void unset_rigid_H(int i, int j, int k, np.int8_t[:, :, :, ::1] rigidH)
-
-

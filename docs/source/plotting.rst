@@ -239,5 +239,3 @@ where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
 .. figure:: images/contsine.png
 
     Example of the ``contsine`` waveform - time domain and power spectrum.
-
-

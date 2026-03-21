@@ -36,11 +36,3 @@ A rough surface can be added to any side of ``#fractal_box`` using,
 which defines one of the surfaces of the ``#fractal_box``, a fractal dimension, and minimum and maximum values for the height of the roughness (relative to the original ``#fractal_box`` volume). In this example the roughness will be stochastically distributed with troughs up to 5mm deep, and peaks up to 10mm high.
 
 More information, including adding surface water and vegetation, can be found in the :ref:`section on using the fractal box command <fractals>`.
-
-
-
-
-
-
-
-

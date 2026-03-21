@@ -154,4 +154,3 @@ cdef void set_rigid_H(int i, int j, int k, np.int8_t[:, :, :, ::1] rigidH):
 
 cdef void unset_rigid_H(int i, int j, int k, np.int8_t[:, :, :, ::1] rigidH):
     rigidH[:, i, j, k] = False
-

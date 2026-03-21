@@ -1,3 +1,11 @@
+.. image:: https://github.com/dipayansardar73-decode/gprMax/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/dipayansardar73-decode/gprMax/actions/workflows/ci.yml
+    :alt: CI Status
+
+.. image:: https://codecov.io/gh/dipayansardar73-decode/gprMax/branch/main/graph/badge.svg
+    :target: https://codecov.io/gh/dipayansardar73-decode/gprMax
+    :alt: Codecov
+
 .. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
     :target: http://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
@@ -116,7 +124,7 @@ macOS
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
- 
+
 * Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
 * Set the Path and Environment Variables - this can be done by following the `instructions from Microsoft <https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160#developer_command_file_locations>`_, or manually by adding a form of :code:`C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.23.28105\bin\Hostx64\x64` (this may vary according to your exact machine and installation) to your system Path environment variable.
 
@@ -184,6 +192,18 @@ Argument name          Type      Description
 ``--write-processed``  flag      writes another input file after any Python code and include commands in the original input file have been processed. Useful for checking that any Python code is being correctly processed into gprMax commands.
 ``-h`` or ``--help``   flag      is used to get help on command line options.
 ====================== ========= ===========
+
+Scientific Analytics & CI/CD
+============================
+
+gprMax now includes a robust CI/CD pipeline and an automated scientific analytics platform:
+
+* **Automated Testing:** Runs on PR/main across CPU, MPI, and CUDA via GitHub Actions.
+* **Pre-commit Hooks:** Enforces Ruff, Codespell, and Mypy checks.
+* **Analytics Tools:** Includes environmental simulation benchmarks (`tools/run_benchmarks.py`) and parameter sweepers (`tools/water_content_analysis.py`).
+* **Visualizations:** Automated 2D/3D Plotly plots generation via `tools/plot_benchmarks.py` and `tools/visualize_3d.py`.
+* **Machine Learning:** Tiny ML predictors (`tools/ml_runtime_predictor.py`) evaluate runtime efficiency based on grid parameters.
+* **Dashboard:** A Streamlit dashboard tracks cross-run metrics historically (`tools/dashboard/app.py`).
 
 Updating gprMax
 ===============

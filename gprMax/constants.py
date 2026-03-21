@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from scipy.constants import c
 from scipy.constants import mu_0 as m0
 from scipy.constants import epsilon_0 as e0
 
@@ -37,8 +36,8 @@ floattype = np.float32
 complextype = np.complex64
 
 # For C (CUDA) arrays
-cudafloattype = 'float'
-cudacomplextype = 'pycuda::complex<float>'
+cudafloattype = "float"
+cudacomplextype = "pycuda::complex<float>"
 
 # Double precision
 # For numpy arrays

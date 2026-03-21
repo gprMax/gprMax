@@ -14,24 +14,27 @@ from gprMax.optimisation_taguchi import plot_optimisation_history
 """Plots the results (pickled to file) from a Taguchi optimisation process."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots the results (pickled to file) from a Taguchi optimisation process.', usage='cd gprMax; python -m user_libs.optimisation_taguchi.plot_results picklefile')
-parser.add_argument('picklefile', help='name of file including path')
+parser = argparse.ArgumentParser(
+    description="Plots the results (pickled to file) from a Taguchi optimisation process.",
+    usage="cd gprMax; python -m user_libs.optimisation_taguchi.plot_results picklefile",
+)
+parser.add_argument("picklefile", help="name of file including path")
 args = parser.parse_args()
 
-f = open(args.picklefile, 'rb')
+f = open(args.picklefile, "rb")
 optparamshist = pickle.load(f)
 fitnessvalueshist = pickle.load(f)
 optparamsinit = pickle.load(f)
 
-print('Optimisations summary for: {}'.format(os.path.split(args.picklefile)[1]))
-print('Number of iterations: {:g}'.format(len(fitnessvalueshist)))
-print('History of fitness values: {}'.format(fitnessvalueshist))
-print('Initial parameter values:')
+print("Optimisations summary for: {}".format(os.path.split(args.picklefile)[1]))
+print("Number of iterations: {:g}".format(len(fitnessvalueshist)))
+print("History of fitness values: {}".format(fitnessvalueshist))
+print("Initial parameter values:")
 for item in optparamsinit:
-    print('\t{}: {}'.format(item[0], item[1]))
-print('History of parameter values:')
+    print("\t{}: {}".format(item[0], item[1]))
+print("History of parameter values:")
 for key, value in optparamshist.items():
-    print('\t{}: {}'.format(key, value))
+    print("\t{}: {}".format(key, value))
 
 
 # Plot the history of fitness values and each optimised parameter values for the optimisation

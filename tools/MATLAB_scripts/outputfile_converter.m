@@ -1,4 +1,4 @@
-% outputfile_converter.m - converts gprMax merged output HDF5 file to 
+% outputfile_converter.m - converts gprMax merged output HDF5 file to
 %   * RD3  16bit (Mala GeoScience),
 %   * DZT  16bit (Geophysical Survey Systems Inc.),
 %   * DT1  16bit (Sensors & Software Inc.)
@@ -202,12 +202,12 @@ wb = waitbar(0, 'Exporting...', 'Name', 'Exporting File');
 % =========================================================================
 % RAD / RD3, Mala GeoScience ==============================================
 
-% RAD is the header file. 
-% In this file is all the important information such as number of samples, 
+% RAD is the header file.
+% In this file is all the important information such as number of samples,
 % traces, etc.
 
 % RD3 is the data file.
-% This file contains only the data (amplitude values) in a 16 bit binary 
+% This file contains only the data (amplitude values) in a 16 bit binary
 % form.
 
 if gpr_format == 1
@@ -298,7 +298,7 @@ if gpr_format == 1
     fid = fopen([HDR.fname '.rd3'], 'w');
     fwrite(fid, data, 'short');
     fclose(fid);
-    
+
 
 % =========================================================================
 % DZT, Geophysical Survey Systems Inc. (GSSI) =============================
@@ -313,7 +313,7 @@ if gpr_format == 1
 % data visualization/processing software do not detect the Tx-Rx separation
 % distance.
 
-% DZT file can be either 8/16/32 bit. Since I have rescaled gprMax output 
+% DZT file can be either 8/16/32 bit. Since I have rescaled gprMax output
 % data into a 16bit scale, this file will also be 16bit.
 
 elseif gpr_format == 2
@@ -457,7 +457,7 @@ elseif gpr_format == 2
 % DT1 is the data file.
 % This file is written in a 16 bit binary form and contains as many records
 % as there are traces. Each record consists of a header and a data section.
-% This means that in this file there are also stored information such as 
+% This means that in this file there are also stored information such as
 % the number of samples, traces, etc.
 
 elseif gpr_format == 3
@@ -561,7 +561,7 @@ elseif gpr_format == 3
         fwrite(fid, HDR.rsv_rx_y(i), 'real*4');
         fwrite(fid, HDR.rsv_rx_z(i), 'real*4');
         fwrite(fid, HDR.rsv_tx_x(i), 'real*4');
-        fwrite(fid, HDR.rsv_tx_y(i), 'real*4');  
+        fwrite(fid, HDR.rsv_tx_y(i), 'real*4');
         fwrite(fid, HDR.rsv_tx_z(i), 'real*4');
         fwrite(fid, HDR.time_zero(i), 'real*4');
         fwrite(fid, HDR.zero_flag(i), 'real*4');
@@ -582,8 +582,8 @@ elseif gpr_format == 3
 % =========================================================================
 % IPRH / IPRB, Impulse Radar ==============================================
 
-% IPRH is the header file. 
-% In this file is all the important information such as the number of 
+% IPRH is the header file.
+% In this file is all the important information such as the number of
 % samples, traces, measurement intervals can be found.
 
 % IPRB is the data file.
@@ -694,6 +694,3 @@ end
 waitbar(1, wb, 'Done!!!');
 pause(1);
 close(wb);
-
-
-

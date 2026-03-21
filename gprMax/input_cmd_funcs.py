@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 from collections import namedtuple
 
 """This module contains functional forms of some of the most commonly used gprMax
@@ -35,14 +34,14 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 0.1 0.2 0.3
 """
 
-Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
+Coordinate_tuple = namedtuple("Coordinate", ["x", "y", "z"])
 
 
 class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
 
     def __str__(self):
-        return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
+        return "{:g} {:g} {:g}".format(self.x, self.y, self.z)
 
 
 def command(cmd, *parameters):
@@ -66,12 +65,14 @@ def command(cmd, *parameters):
     # convert to list
     filtered_list = list(filtered_str)
     try:
-        s = '#{}: {}'.format(cmd, " ".join(filtered_list))
+        s = "#{}: {}".format(cmd, " ".join(filtered_list))
     except TypeError as e:
         # append info about cmd and parameters to the exception:
         if not e.args:
-            e.args = ('', )
-        additional_info = "Creating cmd = #{} with parameters {} -> {} failed".format(cmd, parameters, filtered_list)
+            e.args = ("",)
+        additional_info = "Creating cmd = #{} with parameters {} -> {} failed".format(
+            cmd, parameters, filtered_list
+        )
         e.args = e.args + (additional_info,)
         raise e
     # and now we can print it:
@@ -118,7 +119,7 @@ def rotate90_edge(xs, ys, xf, yf, polarisation, rotate90origin):
 
     # Swap coordinates for original y-directed edge, original x-directed
     # edge does not require this.
-    if polarisation == 'y':
+    if polarisation == "y":
         xs = xfnew
         xf = xsnew
         ys = ysnew
@@ -166,7 +167,7 @@ def domain(x, y, z):
     """
 
     domain = Coordinate(x, y, z)
-    command('domain', domain)
+    command("domain", domain)
 
     return domain
 
@@ -182,7 +183,7 @@ def dx_dy_dz(x, y, z):
     """
 
     dx_dy_dz = Coordinate(x, y, z)
-    command('dx_dy_dz', dx_dy_dz)
+    command("dx_dy_dz", dx_dy_dz)
 
     return dx_dy_dz
 
@@ -197,7 +198,7 @@ def time_window(time_window):
         time_window (float): Duration of simulation.
     """
 
-    command('time_window', time_window)
+    command("time_window", time_window)
 
     return time_window
 
@@ -213,10 +214,10 @@ def material(permittivity, conductivity, permeability, magconductivity, name):
         name (str): Material identifier.
     """
 
-    command('material', permittivity, conductivity, permeability, magconductivity, name)
+    command("material", permittivity, conductivity, permeability, magconductivity, name)
 
 
-def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
+def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type="n"):
     """Prints the gprMax #geometry_view command.
 
     Args:
@@ -235,7 +236,7 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
-    command('geometry_view', s, f, d, filename, type)
+    command("geometry_view", s, f, d, filename, type)
 
     return s, f, d
 
@@ -260,12 +261,12 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
 
-    if '.' in str(time) or 'e' in str(time):
-        time = '{:g}'.format(float(time))
+    if "." in str(time) or "e" in str(time):
+        time = "{:g}".format(float(time))
     else:
-        time = '{:d}'.format(int(time))
+        time = "{:d}".format(int(time))
 
-    command('snapshot', s, f, d, time, filename)
+    command("snapshot", s, f, d, time, filename)
 
     return s, f, d
 
@@ -284,14 +285,14 @@ def edge(xs, ys, zs, xf, yf, zf, material, rotate90origin=()):
 
     if rotate90origin:
         if xs == xf:
-            polarisation = 'y'
+            polarisation = "y"
         else:
-            polarisation = 'x   '
+            polarisation = "x   "
         xs, ys, xf, yf = rotate90_edge(xs, ys, xf, yf, polarisation, rotate90origin)
 
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    command('edge', s, f, material)
+    command("edge", s, f, material)
 
     return s, f
 
@@ -313,12 +314,26 @@ def plate(xs, ys, zs, xf, yf, zf, material, rotate90origin=()):
 
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    command('plate', s, f, material)
+    command("plate", s, f, material)
 
     return s, f
 
 
-def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material, averaging='', rotate90origin=()):
+def triangle(
+    x1,
+    y1,
+    z1,
+    x2,
+    y2,
+    z2,
+    x3,
+    y3,
+    z3,
+    thickness,
+    material,
+    averaging="",
+    rotate90origin=(),
+):
     """Prints the gprMax #triangle command.
 
     Args:
@@ -340,12 +355,12 @@ def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material, averaging=
     v1 = Coordinate(x1, y1, z1)
     v2 = Coordinate(x2, y2, z2)
     v3 = Coordinate(x3, y3, z3)
-    command('triangle', v1, v2, v3, thickness, material, averaging)
+    command("triangle", v1, v2, v3, thickness, material, averaging)
 
     return v1, v2, v3
 
 
-def box(xs, ys, zs, xf, yf, zf, material, averaging='', rotate90origin=()):
+def box(xs, ys, zs, xf, yf, zf, material, averaging="", rotate90origin=()):
     """Prints the gprMax #box command.
 
     Args:
@@ -363,12 +378,12 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging='', rotate90origin=()):
 
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    command('box', s, f, material, averaging)
+    command("box", s, f, material, averaging)
 
     return s, f
 
 
-def sphere(x, y, z, radius, material, averaging=''):
+def sphere(x, y, z, radius, material, averaging=""):
     """Prints the gprMax #sphere command.
 
     Args:
@@ -382,12 +397,12 @@ def sphere(x, y, z, radius, material, averaging=''):
     """
 
     c = Coordinate(x, y, z)
-    command('sphere', c, radius, material, averaging)
+    command("sphere", c, radius, material, averaging)
 
     return c
 
 
-def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging='', rotate90origin=()):
+def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging="", rotate90origin=()):
     """Prints the gprMax #cylinder command.
 
     Args:
@@ -407,13 +422,14 @@ def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging='', rotate90ori
 
     c1 = Coordinate(x1, y1, z1)
     c2 = Coordinate(x2, y2, z2)
-    command('cylinder', c1, c2, radius, material, averaging)
+    command("cylinder", c1, c2, radius, material, averaging)
 
     return c1, c2
 
 
-def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius,
-                       startingangle, sweptangle, material, averaging=''):
+def cylindrical_sector(
+    axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging=""
+):
     """Prints the gprMax #cylindrical_sector command.
 
     Args:
@@ -434,7 +450,19 @@ def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius,
         averaging (str): Turn averaging on or off.
     """
 
-    command('cylindrical_sector', axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging)
+    command(
+        "cylindrical_sector",
+        axis,
+        ctr1,
+        ctr2,
+        t1,
+        t2,
+        radius,
+        startingangle,
+        sweptangle,
+        material,
+        averaging,
+    )
 
 
 def excitation_file(file1):
@@ -447,7 +475,7 @@ def excitation_file(file1):
         file1 (str): filename
     """
 
-    command('excitation_file', file1)
+    command("excitation_file", file1)
 
     return file1
 
@@ -465,13 +493,22 @@ def waveform(shape, amplitude, frequency, identifier):
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
 
-    command('waveform', shape, amplitude, frequency, identifier)
+    command("waveform", shape, amplitude, frequency, identifier)
 
     return identifier
 
 
-def hertzian_dipole(polarisation, f1, f2, f3, identifier,
-                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def hertzian_dipole(
+    polarisation,
+    f1,
+    f2,
+    f3,
+    identifier,
+    t0=None,
+    t_remove=None,
+    dxdy=None,
+    rotate90origin=(),
+):
     """Prints the #hertzian_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -488,27 +525,36 @@ def hertzian_dipole(polarisation, f1, f2, f3, identifier,
     """
 
     if rotate90origin:
-        if polarisation == 'x':
+        if polarisation == "x":
             xf = f1 + dxdy[0]
             yf = f2
-            newpolarisation = 'y'
-        elif polarisation == 'y':
+            newpolarisation = "y"
+        elif polarisation == "y":
             xf = f1
             yf = f2 + dxdy[1]
-            newpolarisation = 'x'
+            newpolarisation = "x"
 
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
     c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
-    command('hertzian_dipole', polarisation, str(c), identifier, t0, t_remove)
+    command("hertzian_dipole", polarisation, str(c), identifier, t0, t_remove)
 
     return c
 
 
-def magnetic_dipole(polarisation, f1, f2, f3, identifier,
-                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def magnetic_dipole(
+    polarisation,
+    f1,
+    f2,
+    f3,
+    identifier,
+    t0=None,
+    t_remove=None,
+    dxdy=None,
+    rotate90origin=(),
+):
     """Prints the #magnetic_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -525,27 +571,37 @@ def magnetic_dipole(polarisation, f1, f2, f3, identifier,
     """
 
     if rotate90origin:
-        if polarisation == 'x':
+        if polarisation == "x":
             xf = f1 + dxdy[0]
             yf = f2
-            newpolarisation = 'y'
-        elif polarisation == 'y':
+            newpolarisation = "y"
+        elif polarisation == "y":
             xf = f1
             yf = f2 + dxdy[1]
-            newpolarisation = 'x'
+            newpolarisation = "x"
 
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
     c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
-    command('magnetic_dipole', polarisation, str(c), identifier, t0, t_remove)
+    command("magnetic_dipole", polarisation, str(c), identifier, t0, t_remove)
 
     return c
 
 
-def voltage_source(polarisation, f1, f2, f3, resistance, identifier,
-                   t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def voltage_source(
+    polarisation,
+    f1,
+    f2,
+    f3,
+    resistance,
+    identifier,
+    t0=None,
+    t_remove=None,
+    dxdy=None,
+    rotate90origin=(),
+):
     """Prints the #voltage_source: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
 
     Args:
@@ -563,27 +619,39 @@ def voltage_source(polarisation, f1, f2, f3, resistance, identifier,
     """
 
     if rotate90origin:
-        if polarisation == 'x':
+        if polarisation == "x":
             xf = f1 + dxdy[0]
             yf = f2
-            newpolarisation = 'y'
-        elif polarisation == 'y':
+            newpolarisation = "y"
+        elif polarisation == "y":
             xf = f1
             yf = f2 + dxdy[1]
-            newpolarisation = 'x'
+            newpolarisation = "x"
 
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
     c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
-    command('voltage_source', polarisation, str(c), resistance, identifier, t0, t_remove)
+    command(
+        "voltage_source", polarisation, str(c), resistance, identifier, t0, t_remove
+    )
 
     return c
 
 
-def transmission_line(polarisation, f1, f2, f3, resistance, identifier,
-                      t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def transmission_line(
+    polarisation,
+    f1,
+    f2,
+    f3,
+    resistance,
+    identifier,
+    t0=None,
+    t_remove=None,
+    dxdy=None,
+    rotate90origin=(),
+):
     """Prints the #transmission_line: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
 
     Args:
@@ -601,26 +669,37 @@ def transmission_line(polarisation, f1, f2, f3, resistance, identifier,
     """
 
     if rotate90origin:
-        if polarisation == 'x':
+        if polarisation == "x":
             xf = f1 + dxdy[0]
             yf = f2
-            newpolarisation = 'y'
-        elif polarisation == 'y':
+            newpolarisation = "y"
+        elif polarisation == "y":
             xf = f1
             yf = f2 + dxdy[1]
-            newpolarisation = 'x'
+            newpolarisation = "x"
 
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
     c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
-    command('transmission_line', polarisation, str(c), resistance, identifier, t0, t_remove)
+    command(
+        "transmission_line", polarisation, str(c), resistance, identifier, t0, t_remove
+    )
 
     return c
 
 
-def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rotate90origin=()):
+def rx(
+    x,
+    y,
+    z,
+    identifier=None,
+    to_save=None,
+    polarisation=None,
+    dxdy=None,
+    rotate90origin=(),
+):
     """Prints the #rx: x, y, z, [identifier, to_save] command.
 
     Args:
@@ -638,29 +717,35 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
     """
 
     if rotate90origin:
-        if polarisation == 'x':
+        if polarisation == "x":
             try:
                 xf = x + dxdy[0]
             except Exception as e:
-                raise ValueError('With polarization = x, a dxdy[0] float \
-                    values is required, got dxdy=%s' % dxdy) from e
+                raise ValueError(
+                    "With polarization = x, a dxdy[0] float \
+                    values is required, got dxdy=%s"
+                    % dxdy
+                ) from e
             yf = y
-        elif polarisation == 'y':
+        elif polarisation == "y":
             xf = x
             try:
                 yf = y + dxdy[1]
             except Exception as e:
-                raise ValueError('With polarization = y, a dxdy[1] float \
-                    values is required, got dxdy=%s' % dxdy) from e
+                raise ValueError(
+                    "With polarization = y, a dxdy[1] float \
+                    values is required, got dxdy=%s"
+                    % dxdy
+                ) from e
 
         x, y, xf, yf = rotate90_edge(x, y, xf, yf, polarisation, rotate90origin)
 
     c = Coordinate(x, y, z)
-    to_save_str = ''
+    to_save_str = ""
     if to_save is not None:
-        to_save_str = ''.join(to_save)
+        to_save_str = "".join(to_save)
 
-    command('rx', str(c), identifier, to_save_str)
+    command("rx", str(c), identifier, to_save_str)
 
     return c
 
@@ -677,7 +762,7 @@ def src_steps(dx=0, dy=0, dz=0):
     """
 
     c = Coordinate(dx, dy, dz)
-    command('src_steps', str(c))
+    command("src_steps", str(c))
 
     return c
 
@@ -693,22 +778,23 @@ def rx_steps(dx=0, dy=0, dz=0):
     """
 
     c = Coordinate(dx, dy, dz)
-    command('rx_steps', str(c))
+    command("rx_steps", str(c))
     return c
+
 
 def geometry_objects_read(x, y, z, file1, file2):
     """Prints the #geometry_objects_read command.
 
     Args:
-    	x y z are the lower left (x,y,z) coordinates in the domain where the lower left corner of the geometry array should be placed.
-	file1 is the path to and filename of the HDF5 file that contains an integer array which defines the geometry.
-	file2 is the path to and filename of the text file that contains #material commands.
-	not used: c1 is an optional parameter which can be y or n, used to switch on and off dielectric smoothing. Dielectric smoothing can only be turned on if the geometry objects that are being read were originally generated by gprMax, i.e. via the #geometry_objects_write command.
+        x y z are the lower left (x,y,z) coordinates in the domain where the lower left corner of the geometry array should be placed.
+        file1 is the path to and filename of the HDF5 file that contains an integer array which defines the geometry.
+        file2 is the path to and filename of the text file that contains #material commands.
+        not used: c1 is an optional parameter which can be y or n, used to switch on and off dielectric smoothing. Dielectric smoothing can only be turned on if the geometry objects that are being read were originally generated by gprMax, i.e. via the #geometry_objects_write command.
 
     Returns:
         coordinates (tuple): namedtuple Coordinate in the domain where the lower left corner of the geometry array is placed.
     """
 
     c = Coordinate(x, y, z)
-    command('geometry_objects_read', str(c), file1, file2)
+    command("geometry_objects_read", str(c), file1, file2)
     return c

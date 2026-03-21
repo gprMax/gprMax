@@ -50,7 +50,7 @@ class Material(object):
 
         self.numID = numID
         self.ID = ID
-        self.type = ''
+        self.type = ""
         # Default material averaging
         self.averagable = True
 
@@ -100,36 +100,48 @@ class Material(object):
             self.eqt2 = np.zeros(self.maxpoles, dtype=complextype)
 
             for x in range(self.poles):
-                if 'debye' in self.type:
+                if "debye" in self.type:
                     self.w[x] = self.deltaer[x] / self.tau[x]
                     self.q[x] = -1 / self.tau[x]
-                elif 'lorentz' in self.type:
+                elif "lorentz" in self.type:
                     # tau for Lorentz materials are pole frequencies
                     # alpha for Lorentz materials are the damping coefficients
-                    wp2 = (2 * np.pi * self.tau[x])**2
-                    self.w[x] = -1j * ((wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x]**2))
-                    self.q[x] = -self.alpha[x] + (1j * np.sqrt(wp2 - self.alpha[x]**2))
-                elif 'drude' in self.type:
+                    wp2 = (2 * np.pi * self.tau[x]) ** 2
+                    self.w[x] = -1j * (
+                        (wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x] ** 2)
+                    )
+                    self.q[x] = -self.alpha[x] + (
+                        1j * np.sqrt(wp2 - self.alpha[x] ** 2)
+                    )
+                elif "drude" in self.type:
                     # tau for Drude materials are pole frequencies
                     # alpha for Drude materials are the inverse of relaxation times
-                    wp2 = (2 * np.pi * self.tau[x])**2
+                    wp2 = (2 * np.pi * self.tau[x]) ** 2
                     self.se += wp2 / self.alpha[x]
-                    self.w[x] = - (wp2 / self.alpha[x])
-                    self.q[x] = - self.alpha[x]
+                    self.w[x] = -(wp2 / self.alpha[x])
+                    self.q[x] = -self.alpha[x]
 
                 self.eqt[x] = np.exp(self.q[x] * G.dt)
                 self.eqt2[x] = np.exp(self.q[x] * (G.dt / 2))
                 self.zt[x] = (self.w[x] / self.q[x]) * (1 - self.eqt[x]) / G.dt
                 self.zt2[x] = (self.w[x] / self.q[x]) * (1 - self.eqt2[x])
 
-            EA = (e0 * self.er / G.dt) + 0.5 * self.se - (e0 / G.dt) * np.sum(self.zt2.real)
-            EB = (e0 * self.er / G.dt) - 0.5 * self.se - (e0 / G.dt) * np.sum(self.zt2.real)
+            EA = (
+                (e0 * self.er / G.dt)
+                + 0.5 * self.se
+                - (e0 / G.dt) * np.sum(self.zt2.real)
+            )
+            EB = (
+                (e0 * self.er / G.dt)
+                - 0.5 * self.se
+                - (e0 / G.dt) * np.sum(self.zt2.real)
+            )
 
         else:
             EA = (e0 * self.er / G.dt) + 0.5 * self.se
             EB = (e0 * self.er / G.dt) - 0.5 * self.se
 
-        if self.ID == 'pec' or self.se == float('inf'):
+        if self.ID == "pec" or self.se == float("inf"):
             self.CA = 0
             self.CBx = 0
             self.CBy = 0
@@ -159,16 +171,18 @@ class Material(object):
         if self.poles > 0:
             w = 2 * np.pi * freq
             er += self.se / (1j * w * e0)
-            if 'debye' in self.type:
+            if "debye" in self.type:
                 for pole in range(self.poles):
                     er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
-            elif 'lorentz' in self.type:
+            elif "lorentz" in self.type:
                 for pole in range(self.poles):
-                    er += (self.deltaer[pole] * self.tau[pole]**2) / (self.tau[pole]**2 + 2j * w * self.alpha[pole] - w**2)
-            elif 'drude' in self.type:
+                    er += (self.deltaer[pole] * self.tau[pole] ** 2) / (
+                        self.tau[pole] ** 2 + 2j * w * self.alpha[pole] - w**2
+                    )
+            elif "drude" in self.type:
                 ersum = 0
                 for pole in range(self.poles):
-                    ersum += self.tau[pole]**2 / (w**2 - 1j * w * self.alpha[pole])
+                    ersum += self.tau[pole] ** 2 / (w**2 - 1j * w * self.alpha[pole])
                     er -= ersum
 
         return er
@@ -187,9 +201,36 @@ def process_materials(G):
     """
 
     if Material.maxpoles == 0:
-        materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
+        materialsdata = [
+            [
+                "\nID",
+                "\nName",
+                "\nType",
+                "\neps_r",
+                "sigma\n[S/m]",
+                "\nmu_r",
+                "sigma*\n[Ohm/m]",
+                "Dielectric\nsmoothable",
+            ]
+        ]
     else:
-        materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', 'Delta\neps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]', 'gamma\n[Hz]', '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
+        materialsdata = [
+            [
+                "\nID",
+                "\nName",
+                "\nType",
+                "\neps_r",
+                "sigma\n[S/m]",
+                "Delta\neps_r",
+                "tau\n[s]",
+                "omega\n[Hz]",
+                "delta\n[Hz]",
+                "gamma\n[Hz]",
+                "\nmu_r",
+                "sigma*\n[Ohm/m]",
+                "Dielectric\nsmoothable",
+            ]
+        ]
 
     for material in G.materials:
         # Calculate update coefficients for material
@@ -197,14 +238,30 @@ def process_materials(G):
         material.calculate_update_coeffsH(G)
 
         # Store all update coefficients together
-        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+        G.updatecoeffsE[material.numID, :] = (
+            material.CA,
+            material.CBx,
+            material.CBy,
+            material.CBz,
+            material.srce,
+        )
+        G.updatecoeffsH[material.numID, :] = (
+            material.DA,
+            material.DBx,
+            material.DBy,
+            material.DBz,
+            material.srcm,
+        )
 
         # Store coefficients for any dispersive materials
         if Material.maxpoles > 0:
             z = 0
             for pole in range(Material.maxpoles):
-                G.updatecoeffsdispersive[material.numID, z:z + 3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
+                G.updatecoeffsdispersive[material.numID, z : z + 3] = (
+                    e0 * material.eqt2[pole],
+                    material.eqt[pole],
+                    material.zt[pole],
+                )
                 z += 3
 
         # Construct information on material properties for printing table
@@ -212,29 +269,43 @@ def process_materials(G):
         materialtext.append(str(material.numID))
         materialtext.append(material.ID[:50] if len(material.ID) > 50 else material.ID)
         materialtext.append(material.type)
-        materialtext.append('{:g}'.format(material.er))
-        materialtext.append('{:g}'.format(material.se))
+        materialtext.append("{:g}".format(material.er))
+        materialtext.append("{:g}".format(material.se))
         if Material.maxpoles > 0:
-            if 'debye' in material.type:
-                materialtext.append('\n'.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
-                materialtext.append('\n'.join('{:g}'.format(tau) for tau in material.tau))
-                materialtext.extend(['', '', ''])
-            elif 'lorentz' in material.type:
-                materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
-                materialtext.append('')
-                materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
-                materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
-                materialtext.append('')
-            elif 'drude' in material.type:
-                materialtext.extend(['', ''])
-                materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
-                materialtext.append('')
-                materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
+            if "debye" in material.type:
+                materialtext.append(
+                    "\n".join("{:g}".format(deltaer) for deltaer in material.deltaer)
+                )
+                materialtext.append(
+                    "\n".join("{:g}".format(tau) for tau in material.tau)
+                )
+                materialtext.extend(["", "", ""])
+            elif "lorentz" in material.type:
+                materialtext.append(
+                    ", ".join("{:g}".format(deltaer) for deltaer in material.deltaer)
+                )
+                materialtext.append("")
+                materialtext.append(
+                    ", ".join("{:g}".format(tau) for tau in material.tau)
+                )
+                materialtext.append(
+                    ", ".join("{:g}".format(alpha) for alpha in material.alpha)
+                )
+                materialtext.append("")
+            elif "drude" in material.type:
+                materialtext.extend(["", ""])
+                materialtext.append(
+                    ", ".join("{:g}".format(tau) for tau in material.tau)
+                )
+                materialtext.append("")
+                materialtext.append(
+                    ", ".join("{:g}".format(alpha) for alpha in material.alpha)
+                )
             else:
-                materialtext.extend(['', '', '', '', ''])
+                materialtext.extend(["", "", "", "", ""])
 
-        materialtext.append('{:g}'.format(material.mr))
-        materialtext.append('{:g}'.format(material.sm))
+        materialtext.append("{:g}".format(material.mr))
+        materialtext.append("{:g}".format(material.sm))
         materialtext.append(material.averagable)
         materialsdata.append(materialtext)
 
@@ -247,7 +318,15 @@ class PeplinskiSoil(object):
     model by Peplinski (http://dx.doi.org/10.1109/36.387598).
     """
 
-    def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
+    def __init__(
+        self,
+        ID,
+        sandfraction,
+        clayfraction,
+        bulkdensity,
+        sandpartdensity,
+        watervolfraction,
+    ):
         """
         Args:
             ID (str): Name of the soil.
@@ -281,10 +360,14 @@ class PeplinskiSoil(object):
         # Debye model properties of water
         f = 1.3e9
         w = 2 * np.pi * f
-        erealw = Material.watereri + ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
+        erealw = Material.watereri + (
+            (Material.waterdeltaer) / (1 + (w * Material.watertau) ** 2)
+        )
 
         a = 0.65  # Experimentally derived constant
-        es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
+        es = (
+            1.01 + 0.44 * self.rs
+        ) ** 2 - 0.062  #  Relative permittivity of sand particles
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
 
@@ -299,24 +382,33 @@ class PeplinskiSoil(object):
         mumaterials = mubins + (mubins[1] - mubins[0]) / 2
 
         # Create an iterator
-        muiter = np.nditer(mumaterials, flags=['c_index'])
+        muiter = np.nditer(mumaterials, flags=["c_index"])
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
-            er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a) - muiter[0]) ** (1 / a)
+            er = (
+                1
+                + (self.rb / self.rs) * ((es**a) - 1)
+                + (muiter[0] ** b1 * erealw**a)
+                - muiter[0]
+            ) ** (1 / a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear correction to 1.4-18GHz value)
             er = 1.15 * er - 0.68
 
             # Permittivity at infinite frequency
-            eri = er - (muiter[0]**(b2 / a) * Material.waterdeltaer)
+            eri = er - (muiter[0] ** (b2 / a) * Material.waterdeltaer)
 
             # Effective conductivity
-            sig = muiter[0]**(b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
+            sig = muiter[0] ** (b2 / a) * (
+                (sigf * (self.rs - self.rb)) / (self.rs * muiter[0])
+            )
 
             # Add enough zeroes to the material name so that they have the same length
-            digitscount =  len(str(int(nbins)))
-            materialID = '|{}_{}|'.format(fractalboxname, str(muiter.index + 1).zfill(digitscount))
+            digitscount = len(str(int(nbins)))
+            materialID = "|{}_{}|".format(
+                fractalboxname, str(muiter.index + 1).zfill(digitscount)
+            )
             m = Material(len(G.materials), materialID)
-            m.type = 'debye'
+            m.type = "debye"
             m.averagable = False
             m.poles = 1
             if m.poles > Material.maxpoles:
