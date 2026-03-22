@@ -21,6 +21,7 @@ import logging
 from pathlib import Path
 
 import h5py
+import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,6 +29,7 @@ import numpy as np
 from gprMax.receivers import Rx
 from gprMax.utilities.utilities import fft_power
 
+is_headless = matplotlib.get_backend().lower() == "agg"
 logger = logging.getLogger(__name__)
 
 
@@ -168,7 +170,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(stemlines, "color", "b")
                         plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
 
-                    plt.show()
+                    if not (is_headless or save):
+                        plt.show()
 
                 # Plotting if no FFT required
                 else:
@@ -198,13 +201,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
             # populate only the specified ones
             else:
                 plt_cols = 3 if len(outputs) == 9 else 2
-                
+
                 fig, axs = plt.subplots(
                     subplot_kw=dict(xlabel="Time [s]"),
                     num=rxpath + " - " + f[rxpath].attrs["Name"],
                     figsize=(20, 10),
-                    nrows = 3,
-                    ncols = plt_cols,
+                    nrows=3,
+                    ncols=plt_cols,
                     facecolor="w",
                     edgecolor="w",
                 )
@@ -265,8 +268,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
     f.close()
 
-    if save:
-        # Save a PDF of the figure
+    if save or is_headless:
+        print("Saving plot (headless or --save enabled)...")
         fig.savefig(
             filename[:-3] + ".pdf",
             dpi=None,
@@ -332,4 +335,5 @@ if __name__ == "__main__":
 
     plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save=args.save)
 
-    plthandle.show()
+    if not is_headless:
+        plthandle.show()
