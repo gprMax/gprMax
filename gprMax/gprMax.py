@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
+import os
 
 import gprMax.config as config
 
@@ -301,6 +302,11 @@ def cli():
         help=help_msg["log_all_ranks"],
     )
     args = parser.parse_args()
+
+    input_file = args.inputfile
+
+    if not os.path.isfile(input_file):
+        parser.error(f"Input file '{input_file}' not found.")
 
     results = run_main(args)
 
