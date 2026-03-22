@@ -300,9 +300,17 @@ def cli():
         default=args_defaults["log_all_ranks"],
         help=help_msg["log_all_ranks"],
     )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Validate input file without running simulation"
+    )
+
     args = parser.parse_args()
 
     results = run_main(args)
+
+    if args.dry_run:
+        print("Dry run successful: input validated.")
+        return
 
     return results
 
