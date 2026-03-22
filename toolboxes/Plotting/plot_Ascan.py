@@ -27,7 +27,9 @@ import numpy as np
 
 from gprMax.receivers import Rx
 from gprMax.utilities.utilities import fft_power
+import matplotlib
 
+is_headless = matplotlib.get_backend().lower() == "agg"
 logger = logging.getLogger(__name__)
 
 
@@ -168,7 +170,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(stemlines, "color", "b")
                         plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
 
-                    plt.show()
+                    if not (is_headless or save):
+                        plt.show()
 
                 # Plotting if no FFT required
                 else:
@@ -265,8 +268,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
     f.close()
 
-    if save:
-        # Save a PDF of the figure
+    if save or is_headless:
+        print("Saving plot (headless or --save enabled)...")
         fig.savefig(
             filename[:-3] + ".pdf",
             dpi=None,
@@ -331,5 +334,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save=args.save)
-
-    plthandle.show()
