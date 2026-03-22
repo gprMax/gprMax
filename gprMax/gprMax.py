@@ -302,6 +302,9 @@ def cli():
     )
     args = parser.parse_args()
 
+    if args.n <= 0:
+        parser.error(f"Number of runs (-n) must be a positive integer. Got: {args.n}")
+
     results = run_main(args)
 
     return results
