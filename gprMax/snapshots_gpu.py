@@ -47,15 +47,18 @@ __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, in
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
+    // Guard: exit if thread index exceeds total snapshot elements
+    if (idx >= $NX_SNAPS * $NY_SNAPS * $NZ_SNAPS) return;
+
     // Convert the linear index to subscripts for 4D SNAPS array
-    int i = (idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) / ($NY_SNAPS * $NZ_SNAPS);
-    int j = ((idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) / $NZ_SNAPS;
-    int k = ((idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) % $NZ_SNAPS;
+    int i = idx / ($NY_SNAPS * $NZ_SNAPS);
+    int j = (idx % ($NY_SNAPS * $NZ_SNAPS)) / $NZ_SNAPS;
+    int k = (idx % ($NY_SNAPS * $NZ_SNAPS)) % $NZ_SNAPS;
 
     // Subscripts for field arrays
     int ii, jj, kk;
 
-    if (i >= xs && i < xf && j >= ys && j < yf && k >= zs && k < zf) {
+    if (i < $NX_SNAPS && j < $NY_SNAPS && k < $NZ_SNAPS) {
 
         // Increment subscripts for field array to account for spatial sampling of snapshot
         ii = (xs + i) * dx;
@@ -64,15 +67,15 @@ __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, in
 
         // The electric field component value at a point comes from an average of
         // the 4 electric field component values in that cell
-        snapEx[INDEX4D_SNAPS(p,i,j,k)] = (Ex[INDEX3D_FIELDS(ii,jj,kk)] + Ex[INDEX3D_FIELDS(ii,jj+1,kk)] + Ex[INDEX3D_FIELDS(ii,jj,kk+1)] + Ex[INDEX3D_FIELDS(ii,jj+1,kk+1)]) / 4;
-        snapEy[INDEX4D_SNAPS(p,i,j,k)] = (Ey[INDEX3D_FIELDS(ii,jj,kk)] + Ey[INDEX3D_FIELDS(ii+1,jj,kk)] + Ey[INDEX3D_FIELDS(ii,jj,kk+1)] + Ey[INDEX3D_FIELDS(ii+1,jj,kk+1)]) / 4;
-        snapEz[INDEX4D_SNAPS(p,i,j,k)] = (Ez[INDEX3D_FIELDS(ii,jj,kk)] + Ez[INDEX3D_FIELDS(ii+1,jj,kk)] + Ez[INDEX3D_FIELDS(ii,jj+1,kk)] + Ez[INDEX3D_FIELDS(ii+1,jj+1,kk)]) / 4;
+        snapEx[INDEX4D_SNAPS(p,i,j,k)] = (Ex[INDEX3D_FIELDS(ii,jj,kk)] + Ex[INDEX3D_FIELDS(ii,jj+1,kk)] + Ex[INDEX3D_FIELDS(ii,jj,kk+1)] + Ex[INDEX3D_FIELDS(ii,jj+1,kk+1)]) / 4.0f;
+        snapEy[INDEX4D_SNAPS(p,i,j,k)] = (Ey[INDEX3D_FIELDS(ii,jj,kk)] + Ey[INDEX3D_FIELDS(ii+1,jj,kk)] + Ey[INDEX3D_FIELDS(ii,jj,kk+1)] + Ey[INDEX3D_FIELDS(ii+1,jj,kk+1)]) / 4.0f;
+        snapEz[INDEX4D_SNAPS(p,i,j,k)] = (Ez[INDEX3D_FIELDS(ii,jj,kk)] + Ez[INDEX3D_FIELDS(ii+1,jj,kk)] + Ez[INDEX3D_FIELDS(ii,jj+1,kk)] + Ez[INDEX3D_FIELDS(ii+1,jj+1,kk)]) / 4.0f;
 
         // The magnetic field component value at a point comes from average of
         // 2 magnetic field component values in that cell and the following cell
-        snapHx[INDEX4D_SNAPS(p,i,j,k)] = (Hx[INDEX3D_FIELDS(ii,jj,kk)] + Hx[INDEX3D_FIELDS(ii+1,jj,kk)]) / 2;
-        snapHy[INDEX4D_SNAPS(p,i,j,k)] = (Hy[INDEX3D_FIELDS(ii,jj,kk)] + Hy[INDEX3D_FIELDS(ii,jj+1,kk)]) / 2;
-        snapHz[INDEX4D_SNAPS(p,i,j,k)] = (Hz[INDEX3D_FIELDS(ii,jj,kk)] + Hz[INDEX3D_FIELDS(ii,jj,kk+1)]) / 2;
+        snapHx[INDEX4D_SNAPS(p,i,j,k)] = (Hx[INDEX3D_FIELDS(ii,jj,kk)] + Hx[INDEX3D_FIELDS(ii+1,jj,kk)]) / 2.0f;
+        snapHy[INDEX4D_SNAPS(p,i,j,k)] = (Hy[INDEX3D_FIELDS(ii,jj,kk)] + Hy[INDEX3D_FIELDS(ii,jj+1,kk)]) / 2.0f;
+        snapHz[INDEX4D_SNAPS(p,i,j,k)] = (Hz[INDEX3D_FIELDS(ii,jj,kk)] + Hz[INDEX3D_FIELDS(ii,jj,kk+1)]) / 2.0f;
     }
 }
 
