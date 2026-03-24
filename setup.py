@@ -182,7 +182,7 @@ else:
         libraries = []
 
     elif sys.platform == "darwin":
-        # Check for Intel or Apple M series CPU
+        # Detect Apple Silicon vs Intel for Homebrew prefix
         cpuID = (
             subprocess.check_output(
                 "sysctl -n machdep.cpu.brand_string",
@@ -193,42 +193,46 @@ else:
             .strip()
         )
         cpuID = " ".join(cpuID.split())
-        if "Apple" in cpuID:
-            gccbasepath = "/opt/homebrew/bin/"
-        else:
-            gccbasepath = "/usr/local/bin/"
-        gccpath = glob.glob(gccbasepath + "gcc-[0-9][0-9]")
-        if gccpath:
-            # Use newest gcc found
-            os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
-            if "Apple" in cpuID:
-                rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
-        else:
-            raise (
-                f"Cannot find gcc in {gccbasepath}. gprMax requires gcc "
-                + "to be installed - easily done through the Homebrew package "
-                + "manager (http://brew.sh). Note: gcc with OpenMP support "
-                + "is required."
-            )
+        is_apple_silicon = "Apple" in cpuID
+        brew_prefix = "/opt/homebrew" if is_apple_silicon else "/usr/local"
 
-        # Set minimum supported macOS deployment target to installed macOS version
+        # --- Strategy 1: Clang + libomp (Apple's native compiler, preferred) ---
+        libomp_prefix = os.path.join(brew_prefix, "opt", "libomp")
+
+        if os.path.isdir(libomp_prefix):
+            # Apple Clang does not support -fopenmp directly; use libomp from Homebrew
+            compile_args = [
+                "-O3",
+                "-w",
+                "-Xpreprocessor",
+                "-fopenmp",
+                f"-I{libomp_prefix}/include",
+            ]
+            linker_args = [f"-L{libomp_prefix}/lib", "-lomp"]
+            libraries = []
+            print(f"macOS: using Apple Clang + libomp ({libomp_prefix})")
+
+        else:
+            # --- Strategy 2: Homebrew GCC fallback ---
+            gccpath = glob.glob(os.path.join(brew_prefix, "bin", "gcc-[0-9][0-9]"))
+
+            if gccpath:
+                os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
+                compile_args = ["-O3", "-w", "-fopenmp", "-march=native"]
+                linker_args = ["-fopenmp"]
+                libraries = ["gomp"]
+                print(f"macOS: using Homebrew GCC ({gccpath[-1]})")
+            else:
+                raise RuntimeError(
+                    "No supported compiler found for OpenMP on macOS.\n"
+                    "Option 1 (recommended): brew install libomp\n"
+                    "Option 2: brew install gcc"
+                )
+
+        # Set minimum macOS deployment target
         MIN_MACOS_VERSION = platform.mac_ver()[0]
-        try:
-            os.environ["MACOSX_DEPLOYMENT_TARGET"]
-            del os.environ["MACOSX_DEPLOYMENT_TARGET"]
-        except:
-            pass
+        os.environ.pop("MACOSX_DEPLOYMENT_TARGET", None)
         os.environ["MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET"] = MIN_MACOS_VERSION
-        # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
-        compile_args = [
-            "-O3",
-            "-w",
-            "-fopenmp",
-            "-march=native",
-            f"-mmacosx-version-min={MIN_MACOS_VERSION}",
-        ]
-        linker_args = ["-fopenmp", f"-mmacosx-version-min={MIN_MACOS_VERSION}"]
-        libraries = ["gomp"]
 
     elif sys.platform == "linux":
         compile_args = ["-O3", "-w", "-fopenmp", "-march=native"]
