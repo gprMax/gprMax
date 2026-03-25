@@ -25,7 +25,7 @@ kernel_template_store_snapshot = Template("""
 #define INDEX4D_SNAPS(p, i, j, k) (p)*($NX_SNAPS)*($NY_SNAPS)*($NZ_SNAPS)+(i)*($NY_SNAPS)*($NZ_SNAPS)+(j)*($NZ_SNAPS)+(k)
 
 ////////////////////
-// Store snapshot //
+// Store snapshot ///
 ////////////////////
 
 __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, int zf, int dx, int dy, int dz,
