@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
@@ -16,10 +16,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 import argparse
-
 import gprMax.config as config
-
 from .contexts import Context, MPIContext, TaskfarmContext
 from .utilities.logging import logging_config
 
@@ -42,78 +41,35 @@ args_defaults = {
     "write_processed": False,
     "show_progress_bars": False,
     "hide_progress_bars": False,
-    "log_level": 20,  # Level DEBUG = 10; INFO = 20; BASIC = 25
+    "log_level": 20,
     "log_file": False,
     "log_all_ranks": False,
+    "interactive": False,  # Your GSoC addition
 }
 
-# Argument help messages (used for CLI argparse)
+# Argument help messages
 help_msg = {
-    "scenes": (
-        "(list, req): Scenes to run the model. Multiple scene objects can given in order to run"
-        " multiple simulation runs. Each scene must contain the essential simulation objects"
-    ),
-    "inputfile": "(str, req): Input file path. Can also run simulation by providing an input file.",
+    "inputfile": "(str, req): Input file path.",
     "outputfile": "(str, opt): File path to the output data file.",
     "n": "(int, opt): Number of required simulation runs.",
-    "i": (
-        "(int, opt): Model number to start/restart simulation from. It would typically be used to"
-        " restart a series of models from a specific model number, with the n argument, e.g. to"
-        " restart from A-scan 45 when creating a B-scan with 60 traces."
-    ),
-    "taskfarm": (
-        "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. This option is most"
-        " usefully combined with n to allow individual models to be farmed out using a MPI task"
-        " farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace. For"
-        " further details see the performance section of the User Guide."
-    ),
-    "mpi": (
-        "(list, opt): Flag to use Message Passing Interface (MPI) to divide the model between MPI"
-        " ranks. Three integers should be provided to define the number of MPI processes (min 1) in"
-        " the x, y, and z dimensions."
-    ),
-    "gpu": (
-        "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific"
-        " GPU card(s)."
-    ),
-    "opencl": (
-        "(list/bool, opt): Flag to use OpenCL or list of OpenCL device ID(s) for specific compute"
-        " device(s)."
-    ),
-    "metal": "(list/bool, opt): Flag to use Apple Metal or list of Apple Metal GPU device ID(s) for specific GPU card(s).",
+    "i": "(int, opt): Model number to start/restart simulation from.",
+    "taskfarm": "(bool, opt): Flag to use MPI task farm.",
+    "mpi": "(list, opt): Flag to use MPI to divide the model.",
+    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU.",
+    "opencl": "(list/bool, opt): Flag to use OpenCL.",
+    "metal": "(list/bool, opt): Flag to use Apple Metal.",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
-    "autotranslate": (
-        "(bool, opt): For sub-gridding - auto translate objects with main grid coordinates to their"
-        " equivalent local grid coordinate within the subgrid. If this option is off users must"
-        " specify sub-grid object point within the global subgrid space."
-    ),
-    "geometry_only": (
-        "(bool, opt): Build a model and produce any geometry views but do not run the simulation."
-    ),
-    "geometry_fixed": (
-        "(bool, opt): Run a series of models where the geometry does not change between models."
-    ),
-    "write_processed": (
-        "(bool, opt): Writes another input file after any Python code (#python blocks) and in the"
-        " original input file has been processed."
-    ),
-    "show_progress_bars": (
-        "(bool, opt): Forces progress bars to be displayed - by default, progress bars are"
-        " displayed when the log level is info (20) or less."
-    ),
-    "hide_progress_bars": (
-        "(bool, opt): Forces progress bars to be hidden - by default, progress bars are hidden when"
-        " the log level is greater than info (20)."
-    ),
+    "autotranslate": "(bool, opt): For sub-gridding - auto translate objects.",
+    "geometry_only": "(bool, opt): Build model but do not run simulation.",
+    "geometry_fixed": "(bool, opt): Geometry does not change between models.",
+    "write_processed": "(bool, opt): Writes processed input file.",
+    "show_progress_bars": "(bool, opt): Forces progress bars to be displayed.",
+    "hide_progress_bars": "(bool, opt): Forces progress bars to be hidden.",
     "log_level": "(int, opt): Level of logging to use.",
     "log_file": "(bool, opt): Write logging information to file.",
-    "log_all_ranks": (
-        "(bool, opt): Write logging information from all MPI ranks. Default behaviour only provides"
-        " log output from rank 0. When used with --log-file, each rank will write to an individual"
-        " file."
-    ),
+    "log_all_ranks": "(bool, opt): Write logging information from all MPI ranks.",
+    "interactive": "(bool, opt): Flag to launch the Interactive B-Scan Viewer.",
 }
-
 
 def run(
     scenes=args_defaults["scenes"],
@@ -136,68 +92,8 @@ def run(
     log_level=args_defaults["log_level"],
     log_file=args_defaults["log_file"],
     log_all_ranks=args_defaults["log_all_ranks"],
+    interactive=args_defaults["interactive"], # Your GSoC addition
 ):
-    """Entry point for application programming interface (API).
-
-    Runs the simulation for the given list of scenes.
-
-    Args:
-        scenes: list of the scenes to run the model. Multiple scene
-            objects can be given in order to run multiple simulation
-            runs. Each scene must contain the essential simulation
-            objects.
-        inputfile: optional string for input file path. Can also run
-            simulation by providing an input file.
-        outputfile: string for file path to the output data file
-        n: optional int for number of required simulation runs.
-        i: optional int for model number to start/restart simulation
-            from. It would typically be used to restart a series of
-            models from a specific model number, with the n argument,
-            e.g. to restart from A-scan 45 when creating a B-scan with
-            60 traces.
-        taskfarm: optional boolean flag to use Message Passing Interface
-            (MPI) task farm. This option is most usefully combined with
-            n to allow individual models to be farmed out using a MPI
-            task farm, e.g. to create a B-scan with 60 traces and use
-            MPI to farm out each trace. For further details see the
-            performance section of the User Guide.
-        mpi: optional flag to use Message Passing Interface (MPI) to
-            divide the model between MPI ranks. Three integers should be
-            provided to define the number of MPI processes (min 1) in
-            the x, y, and z dimensions.
-        gpu: optional list/boolean to use NVIDIA GPU or list of NVIDIA
-            GPU device ID(s) for specific GPU card(s).
-        opencl: optional list/boolean to use OpenCL or list of OpenCL
-            device ID(s) for specific compute device(s).
-        metal: optional list/boolean to use Apple Metal or list of Apple
-            Metal GPU device ID(s) for specific GPU card(s).
-        subgrid: optional boolean to use sub-gridding.
-        autotranslate: optional boolean for sub-gridding to auto
-            translate objects with main grid coordinates to their
-            equivalent local grid coordinate within the subgrid. If this
-            option is off users must specify sub-grid object point
-            within the global subgrid space.
-        geometry_only: optional boolean to build a model and produce any
-            geometry views but do not run the simulation.
-        geometry_fixed: optional boolean to run a series of models where
-            the geometry does not change between models.
-        write_processed: optional boolean to write another input file
-            after any #python blocks (which are deprecated) in the
-            original input file has been processed.
-        show_progress_bars: optional boolean to force progress bars to
-            be displayed - by default, progress bars are displayed when
-            the log level is info (20) or less.
-        hide_progress_bars: optional boolean to force progress bars to
-            be hidden - by default, progress bars are hidden when the
-            log level is greater than info (20).
-        log_level: optional int for level of logging to use.
-        log_file: optional boolean to write logging information to file.
-        log_all_ranks: optional boolean to write logging information
-            from all MPI ranks. Default behaviour only provides log
-            output from rank 0. When used with --log-file, each ran
-            will write to an individual file.
-    """
-
     args = argparse.Namespace(
         **{
             "scenes": scenes,
@@ -220,16 +116,12 @@ def run(
             "log_level": log_level,
             "log_file": log_file,
             "log_all_ranks": log_all_ranks,
+            "interactive": interactive, # Your GSoC addition
         }
     )
-
-    run_main(args)
-
+    return run_main(args)
 
 def cli():
-    """Entry point for command line interface (CLI)."""
-
-    # Parse command line arguments
     parser = argparse.ArgumentParser(
         prog="gprMax", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -237,89 +129,27 @@ def cli():
     parser.add_argument("-outputfile", "-o", help=help_msg["outputfile"])
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
-    parser.add_argument(
-        "--taskfarm",
-        "-t",
-        action="store_true",
-        default=args_defaults["taskfarm"],
-        help=help_msg["taskfarm"],
-    )
-    parser.add_argument(
-        "--mpi",
-        type=int,
-        action="store",
-        nargs=3,
-        default=args_defaults["mpi"],
-        help=help_msg["mpi"],
-    )
+    parser.add_argument("--taskfarm", "-t", action="store_true", default=args_defaults["taskfarm"], help=help_msg["taskfarm"])
+    parser.add_argument("--mpi", type=int, action="store", nargs=3, default=args_defaults["mpi"], help=help_msg["mpi"])
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument("-metal", type=int, action="append", nargs="*", help=help_msg["metal"])
-    parser.add_argument(
-        "--geometry-only",
-        action="store_true",
-        default=args_defaults["geometry_only"],
-        help=help_msg["geometry_only"],
-    )
-    parser.add_argument(
-        "--geometry-fixed",
-        action="store_true",
-        default=args_defaults["geometry_fixed"],
-        help=help_msg["geometry_fixed"],
-    )
-    parser.add_argument(
-        "--write-processed",
-        action="store_true",
-        default=args_defaults["write_processed"],
-        help=help_msg["write_processed"],
-    )
-    parser.add_argument(
-        "--show-progress-bars",
-        action="store_true",
-        default=args_defaults["show_progress_bars"],
-        help=help_msg["show_progress_bars"],
-    )
-    parser.add_argument(
-        "--hide-progress-bars",
-        action="store_true",
-        default=args_defaults["hide_progress_bars"],
-        help=help_msg["hide_progress_bars"],
-    )
-    parser.add_argument(
-        "--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"]
-    )
-    parser.add_argument(
-        "--log-file",
-        action="store_true",
-        default=args_defaults["log_file"],
-        help=help_msg["log_file"],
-    )
-    parser.add_argument(
-        "--log-all-ranks",
-        action="store_true",
-        default=args_defaults["log_all_ranks"],
-        help=help_msg["log_all_ranks"],
-    )
+    parser.add_argument("--geometry-only", action="store_true", default=args_defaults["geometry_only"], help=help_msg["geometry_only"])
+    parser.add_argument("--geometry-fixed", action="store_true", default=args_defaults["geometry_fixed"], help=help_msg["geometry_fixed"])
+    parser.add_argument("--write-processed", action="store_true", default=args_defaults["write_processed"], help=help_msg["write_processed"])
+    parser.add_argument("--show-progress-bars", action="store_true", default=args_defaults["show_progress_bars"], help=help_msg["show_progress_bars"])
+    parser.add_argument("--hide-progress-bars", action="store_true", default=args_defaults["hide_progress_bars"], help=help_msg["hide_progress_bars"])
+    parser.add_argument("--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"])
+    parser.add_argument("--log-file", action="store_true", default=args_defaults["log_file"], help=help_msg["log_file"])
+    parser.add_argument("--log-all-ranks", action="store_true", default=args_defaults["log_all_ranks"], help=help_msg["log_all_ranks"])
+    
+    # Your GSoC Addition
+    parser.add_argument("--interactive", action="store_true", default=args_defaults["interactive"], help=help_msg["interactive"])
+
     args = parser.parse_args()
-
-    results = run_main(args)
-
-    return results
-
+    return run_main(args)
 
 def run_main(args):
-    """Runs simulation contexts. Called by either API or CLI.
-
-    Args:
-        args: namespace with arguments from either API or CLI.
-
-    Returns:
-        results: dict that can contain useful results/data from
-            simulation. Enables these to be propagated to calling
-            script.
-    """
-
-    results = {}
     logging_config(
         level=args.log_level,
         log_file=args.log_file,
@@ -328,16 +158,21 @@ def run_main(args):
     )
     config.sim_config = config.SimulationConfig(args)
 
-    # MPI taskfarm running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.taskfarm:
         context = TaskfarmContext()
-    # MPI running to divide model between ranks
     elif config.sim_config.args.mpi is not None:
         context = MPIContext()
-    # Standard running (OpenMP/CUDA/OpenCL/Metal)
     else:
         context = Context()
 
     results = context.run()
+
+    # --- Viewer Logic ---
+    if args.interactive:
+        # We import here to avoid dependency issues if the viewer isn't needed
+        from gprMax.utilities.bscan_viewer import InteractiveBScanViewer 
+        viewer = InteractiveBScanViewer(args.inputfile)
+        viewer.show()
+    # --- End of Viewer Logic ---
 
     return results
