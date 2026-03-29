@@ -127,7 +127,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False,
                 # Plot time history of output component
                 fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
 
-                fig.suptitle('A-scan Output — {} (rx{})'.format(basename, rx))
+                fig.suptitle('A-scan Output - {} (rx{})'.format(basename, rx))
 
                 ylabel = 'Normalized amplitude' if normalize else outputtext + ' field strength [V/m]'
                 line1 = ax1.plot(time_ns, outputdata, 'r', lw=2, label=outputtext)
@@ -172,7 +172,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False,
                 ylabel = 'Normalized amplitude' if normalize else outputtext + ' field strength [V/m]'
                 fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time (ns)', ylabel=ylabel), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
 
-                fig.suptitle('A-scan Output — {} (rx{})'.format(basename, rx))
+                fig.suptitle('A-scan Output - {} (rx{})'.format(basename, rx))
 
                 line = ax.plot(time_ns, outputdata, 'r', lw=2, label=outputtext)
                 ax.set_xlim([0, np.amax(time_ns)])
@@ -202,7 +202,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False,
                 edgecolor="w",
             )
 
-            fig.suptitle('A-scan Output — {} (rx{})'.format(basename, rx))
+            fig.suptitle('A-scan Output - {} (rx{})'.format(basename, rx))
 
             for output in outputs:
                 # Check for polarity of output and if requested output is in file

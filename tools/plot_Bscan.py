@@ -57,7 +57,7 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
 
     plt.xlabel('Trace number')
     plt.ylabel('Time (ns)')
-    plt.title('B-scan — {} (rx{}, {})'.format(basename, rxnumber, rxcomponent))
+    plt.title('B-scan  - {} (rx{}, {})'.format(basename, rxnumber, rxcomponent))
 
     # Grid properties
     ax = fig.gca()
