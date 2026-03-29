@@ -24,9 +24,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
+import humanize
+
 from gprMax._version import __version__
 from gprMax.utilities import get_host_info
-from gprMax.utilities import human_size
 
 
 """Plots execution times and speedup factors from benchmarking models run with different numbers of CPU (OpenMP) threads. Can also benchmark GPU(s) if required. Results are read from a NumPy archive."""
@@ -68,7 +69,7 @@ except KeyError:
         hostinfo["cpuID"],
         hostinfo["physicalcores"],
         hyperthreading,
-        human_size(hostinfo["ram"], a_kilobyte_is_1024_bytes=True),
+        humanize.naturalsize(hostinfo["ram"], binary=True),
         hostinfo["osversion"],
     )
 print("Host: {}".format(machineIDlong))
