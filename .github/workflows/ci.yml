@@ -1,0 +1,33 @@
+name: CI — Build Verification
+
+on:
+  push:
+    branches: [master, devel]
+  pull_request:
+    branches: [master, devel]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: conda_env.yml
+          python-version: '3.11'
+          activate-environment: gprMax
+          auto-activate-base: false
+
+      - name: Build gprMax Cython extensions
+        shell: bash -el {0}
+        run: |
+          python setup.py build
+          python setup.py install
+
+      - name: Verify Installation
+        shell: bash -el {0}
+        run: |
+          python -c "import gprMax; print('gprMax successfully installed and imported!')"
