@@ -22,19 +22,21 @@ def test_get_ascan_data(tmp_path):
     assert "Ez" in data["rxs"]["rx1"]
     assert isinstance(data["rxs"]["rx1"]["Ez"], np.ndarray)
     assert data["rxs"]["rx1"]["Ez"].shape == (100,)
-    
+
+
 def test_get_ascan_data_values_match_hdf5():
     """Values returned must exactly match what's stored in the HDF5 file."""
     import h5py
-    filepath = 'user_models/cylinder_Ascan_2D.out'
-    
+
+    filepath = "user_models/cylinder_Ascan_2D.out"
+
     # read directly from HDF5
-    with h5py.File(filepath, 'r') as f:
-        expected_dt = f.attrs['dt']
-        expected_Ez = f['/rxs/rx1/Ez'][:]
+    with h5py.File(filepath, "r") as f:
+        expected_dt = f.attrs["dt"]
+        expected_Ez = f["/rxs/rx1/Ez"][:]
 
     # read via our function
     data = get_ascan_data(filepath)
 
-    assert data['dt'] == expected_dt
-    assert np.array_equal(data['rxs']['rx1']['Ez'], expected_Ez)
+    assert data["dt"] == expected_dt
+    assert np.array_equal(data["rxs"]["rx1"]["Ez"], expected_Ez)
