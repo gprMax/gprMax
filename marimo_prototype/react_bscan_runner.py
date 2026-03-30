@@ -39,14 +39,14 @@ def run_simulation(input_file,output_name):
 def run_bscan(model):
 
     positions = get_positions(model)
-
+    outfiles = []
     for i, pos in enumerate(positions):
 
         print(f"Running step {i}, position = {pos}")
 
         m = copy.deepcopy(model)  # copying model so that the actual model doesnt get updated. 
 
-        update_position(m, pos)
+        update_position(m, pos) 
 
         content = m.build_input()
 
@@ -54,15 +54,13 @@ def run_bscan(model):
 
         with open(filename, "w") as f:
             f.write(content)
+        
+        outfiles.append(f"temp_bscan{i+1}.h5")
 
         run_simulation(filename,f"temp_bscan{i+1}")
     from toolboxes.Utilities.outputfiles_merge import merge_files
-    import glob
 
-    files = glob.glob("temp_bscan*.h5")
-    files.sort()
-
-    merge_files(files, removefiles=True)
+    merge_files(outputfiles=outfiles, removefiles=True)
 
     #merge_files("temp_bscan.h5", removefiles=True)
 
