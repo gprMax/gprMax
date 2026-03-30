@@ -7,7 +7,7 @@ class GPRMaxModel:
         self.dz = 0.02
         self.pml_cells = 0
 
-        self.domain = (0.4,0.4,0.2)
+        self.domain = (0.4,0.4,0.2) 
 
         self.time_window = 5e-9   
 
