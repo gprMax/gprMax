@@ -5,7 +5,9 @@ from sklearn.metrics import mean_squared_error
 import plotly.express as px
 import numpy as np
 import os
+import joblib
 
+MODEL_PATH = "runtime_model.joblib"
 
 def train_model():
     if not os.path.exists("benchmark_results.csv"):
@@ -33,9 +35,12 @@ def train_model():
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
+    # Save model for future use
+    joblib.dump(model, MODEL_PATH)
+
     predictions = model.predict(X_test)
     mse = mean_squared_error(y_test, predictions)
-    print(f"Model trained. MSE: {mse:.2f}")
+    print(f"Model trained and saved to {MODEL_PATH}. MSE: {mse:.2f}")
 
     # Prediction error plot
     plot_df = pd.DataFrame(
@@ -59,6 +64,20 @@ def train_model():
     fig.write_html("ml_prediction_error.html")
     print("Saved prediction error plot to ml_prediction_error.html")
 
+def predict_runtime(grid_size, water_content):
+    if not os.path.exists(MODEL_PATH):
+        print("Model not found. Training...")
+        train_model()
+    
+    model = joblib.load(MODEL_PATH)
+    prediction = model.predict([[grid_size, water_content]])
+    return prediction[0]
 
 if __name__ == "__main__":
-    train_model()
+    if not os.path.exists(MODEL_PATH):
+        train_model()
+    else:
+        print("Using saved model for prediction...")
+        # Example prediction
+        res = predict_runtime(500, 0.2)
+        print(f"Predicted runtime for 500 nodes, 0.2 water content: {res:.2f}s")
