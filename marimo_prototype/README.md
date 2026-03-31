@@ -6,6 +6,12 @@
 
 ## Changelog
 
+## 31 March 2026
+- **Live Log Implementation** — `reactbscan.py` can now show logs while processing takes place with the help of ` mo.output.replace()`
+
+## 29 March 2026 
+- **Cleaned and Re-structured code** - Cleaned code, removed a bug in `react_bscan_runner.py`
+
 ## 27 March 2026 
 - **Live Log Implementation** — `react_run_simulation.py` cleaned code along with a better and easier to understand structure. 
 
