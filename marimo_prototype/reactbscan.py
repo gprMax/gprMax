@@ -196,7 +196,7 @@ def _(start,end,step,
     model.rx_y = rx_y.value
     model.rx_z = rx_z.value
 
-    merged_file = run_bscan(model)
+    merged_file,_ = run_bscan(model)
 
     return merged_file, model.field
 

@@ -17,7 +17,6 @@ def run_model(model):
     stream = LiveLogStream()
 
     with contextlib.redirect_stdout(stream):
-        #gprMax.gprMax.run([temp_file])
         gprMax.gprMax.run(
             inputfile=temp_file,
             outputfile="temp_model"
