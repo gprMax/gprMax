@@ -38,6 +38,9 @@ Two workflows are supported:
 | **A-scan** | `reactascan.py` | Python API (`gprMax.gprMax.main()`) |
 | **B-scan** | `reactbscan.py` | Python API (`gprMax.gprMax.api`) |
 
+## Demo Video 
+[![Watch the video](https://i.ibb.co/h1BQmRzs/Screenshot-2026-04-01-at-00-20-18.png)](https://www.youtube.com/watch?v=jPCk5SNypy8&feature=youtu.be)
+
 ---
 
 ## Running the Apps
