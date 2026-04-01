@@ -1,0 +1,114 @@
+# Core CI Pipeline for gprMax
+#
+# Builds and tests gprMax on every push to master/devel and on every pull
+# request targeting those branches.
+#
+# Matrix: 3 operating systems × 2 Python versions = 6 parallel jobs.
+#
+# Why conda-incubator/setup-miniconda?
+#   gprMax's own install guide tells users to run:
+#     conda env create -f conda_env.yml
+#   The CI environment should mirror what users actually do, not use a
+#   plain pip install that might hide dependency issues.
+#
+# Why fail-fast: false?
+#   If the Ubuntu job fails we still want to see results from macOS and
+#   Windows.  Cross-platform bugs are often OS-specific, so hiding them
+#   makes debugging much harder.
+#
+# Why shell: bash -l {0}?
+#   Conda activation only works inside a login shell on GitHub Actions
+#   runners.  Without this flag the `conda activate gprMax` call is
+#   silently ignored and the wrong Python interpreter is used.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - devel
+  pull_request:
+    branches:
+      - master
+      - devel
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      # ── 1. Check out source ────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up conda environment ────────────────────────────────────
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          environment-file: conda_env.yml
+          activate-environment: gprMax-devel
+          auto-update-conda: false
+          auto-activate-base: false
+
+      # ── 3. Cache conda packages (speeds up subsequent runs) ───────────
+      - name: Cache conda packages
+        uses: actions/cache@v4
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-py${{ matrix.python-version }}-${{ hashFiles('conda_env.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-conda-py${{ matrix.python-version }}-
+            ${{ runner.os }}-conda-
+
+      # ── 4. Platform-specific compiler setup ───────────────────────────
+
+      # macOS: Homebrew gcc is required for OpenMP support.
+      # Apple's default clang does not support -fopenmp out of the box.
+      - name: Install gcc via Homebrew (macOS only)
+        if: runner.os == 'macOS'
+        shell: bash -l {0}
+        run: |
+          brew install gcc
+          # Verify gcc is discoverable (setup.py uses glob to find it)
+          ls /opt/homebrew/bin/gcc-* 2>/dev/null || ls /usr/local/bin/gcc-* 2>/dev/null || echo "gcc not found in expected locations"
+
+      # Windows: Activate the MSVC developer environment so that cl.exe
+      # and the correct linker are on PATH before we call setup.py.
+      - name: Set up MSVC developer environment (Windows only)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # ── 5. Build gprMax (compiles Cython extensions) ─────────────────
+      - name: Build gprMax
+        shell: bash -l {0}
+        run: |
+          python setup.py build
+          python setup.py install
+
+      # ── 6. Verify the installation imported correctly ─────────────────
+      - name: Smoke test — verify gprMax imports
+        shell: bash -l {0}
+        run: |
+          python -c "import gprMax; print('gprMax import OK:', gprMax.__version__)"
+
+      # ── 7. Run the test suite ─────────────────────────────────────────
+      # -m "not slow" skips full simulation tests (can take many minutes).
+      # Those run only on pushes to master/devel via the separate
+      # ci-slow.yml workflow (added in a later PR).
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+          pip install pytest --quiet
+          python -m pytest tests/ \
+            -v \
+            --tb=short \
+            -m "not slow and not gpu and not mpi"
