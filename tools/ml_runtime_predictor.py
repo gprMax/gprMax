@@ -1,5 +1,5 @@
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import plotly.express as px
@@ -11,17 +11,23 @@ MODEL_PATH = "runtime_model.joblib"
 
 def train_model():
     if not os.path.exists("benchmark_results.csv"):
-        print("No benchmark data found to train ML model. Generating mock dataset...")
+        print("No benchmark data found to train ML model. Generating robust synthetic dataset...")
 
-        # generate mock dataset for CI
+        # generate synthetic dataset with noise to avoid data leakage
+        n_samples = 200
+        grid_size = np.random.randint(100, 2000, n_samples)
+        water_content = np.random.uniform(0.01, 0.4, n_samples)
+        
+        # Base formula + random noise
+        runtime_s = 10 + (grid_size * 0.1) + (water_content * 50) + np.random.normal(0, 10, n_samples)
+        
         df = pd.DataFrame(
             {
-                "grid_size": np.random.randint(100, 2000, 100),
-                "water_content": np.random.uniform(0.01, 0.4, 100),
-                "runtime_s": np.random.uniform(10, 300, 100),
+                "grid_size": grid_size,
+                "water_content": water_content,
+                "runtime_s": runtime_s,
             }
         )
-        df["runtime_s"] += df["grid_size"] * 0.1 + df["water_content"] * 50
     else:
         df = pd.read_csv("benchmark_results.csv")
 
@@ -32,7 +38,8 @@ def train_model():
         X, y, test_size=0.2, random_state=42
     )
 
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    # Switching to LinearRegression as suggested by @DtDOW
+    model = LinearRegression()
     model.fit(X_train, y_train)
 
     # Save model for future use
@@ -40,9 +47,9 @@ def train_model():
 
     predictions = model.predict(X_test)
     mse = mean_squared_error(y_test, predictions)
-    print(f"Model trained and saved to {MODEL_PATH}. MSE: {mse:.2f}")
+    print(f"Linear model trained and saved to {MODEL_PATH}. MSE: {mse:.2f}")
 
-    # Prediction error plot
+    # Prediction plot
     plot_df = pd.DataFrame(
         {"Actual Runtime (s)": y_test, "Predicted Runtime (s)": predictions}
     )
@@ -50,7 +57,7 @@ def train_model():
         plot_df,
         x="Actual Runtime (s)",
         y="Predicted Runtime (s)",
-        title="ML Runtime Prediction Error",
+        title="Linear Runtime Prediction (with noise handling)",
     )
     fig.add_shape(
         type="line",
@@ -62,7 +69,7 @@ def train_model():
     )
 
     fig.write_html("ml_prediction_error.html")
-    print("Saved prediction error plot to ml_prediction_error.html")
+    print("Saved prediction plot to ml_prediction_error.html")
 
 def predict_runtime(grid_size, water_content):
     if not os.path.exists(MODEL_PATH):
