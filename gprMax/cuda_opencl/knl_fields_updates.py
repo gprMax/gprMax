@@ -1,4 +1,5 @@
-# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
+  
+ # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
 #                          and Nathan Mannall
 #
@@ -26,9 +27,9 @@ update_electric = {
                                                 int NY,
                                                 int NZ,
                                                 const unsigned int* __restrict__ ID,
-                                                $REAL *Ex,
-                                                $REAL *Ey,
-                                                $REAL *Ez,
+                                                $REAL* __restrict__ Ex,
+                                                $REAL* __restrict__ Ey,
+                                                $REAL* __restrict__ Ez,
                                                 const $REAL* __restrict__ Hx,
                                                 const $REAL* __restrict__ Hy,
                                                 const $REAL* __restrict__ Hz)
@@ -40,9 +41,9 @@ update_electric = {
                         int NY,
                         int NZ,
                         __global const unsigned int* restrict ID,
-                        __global $REAL *Ex,
-                        __global $REAL *Ey,
-                        __global $REAL *Ez,
+                        __global $REAL* restrict Ex,
+                        __global $REAL* restrict Ey,
+                        __global $REAL* restrict Ez,
                         __global const $REAL* restrict Hx,
                         __global const $REAL* restrict Hy,
                         __global const $REAL* restrict Hz
@@ -74,14 +75,16 @@ update_electric = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
+    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+    int y = yz_fields / $NZ_FIELDS;
+    int z = yz_fields % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
+    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    int y_ID = yz_ID / $NZ_ID;
+    int z_ID = yz_ID % $NZ_ID;
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -117,9 +120,9 @@ update_magnetic = {
                                                 int NY,
                                                 int NZ,
                                                 const unsigned int* __restrict__ ID,
-                                                $REAL *Hx,
-                                                $REAL *Hy,
-                                                $REAL *Hz,
+                                                $REAL* __restrict__ Hx,
+                                                $REAL* __restrict__ Hy,
+                                                $REAL* __restrict__ Hz,
                                                 const $REAL* __restrict__ Ex,
                                                 const $REAL* __restrict__ Ey,
                                                 const $REAL* __restrict__ Ez)
@@ -131,9 +134,9 @@ update_magnetic = {
                         int NY,
                         int NZ,
                         __global const unsigned int* restrict ID,
-                        __global $REAL *Hx,
-                        __global $REAL *Hy,
-                        __global $REAL *Hz,
+                        __global $REAL* restrict Hx,
+                        __global $REAL* restrict Hy,
+                        __global $REAL* restrict Hz,
                         __global const $REAL* restrict Ex,
                         __global const $REAL* restrict Ey,
                         __global const $REAL* restrict Ez
@@ -165,14 +168,16 @@ update_magnetic = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
+    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+    int y = yz_fields / $NZ_FIELDS;
+    int z = yz_fields % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
+    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    int y_ID = yz_ID / $NZ_ID;
+    int z_ID = yz_ID % $NZ_ID;
 
     // Hx component
     if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
@@ -209,13 +214,13 @@ update_electric_dispersive_A = {
                                     int NZ,
                                     int MAXPOLES,
                                     const $COMPLEX* __restrict__ updatecoeffsdispersive,
-                                    $COMPLEX *Tx,
-                                    $COMPLEX *Ty,
-                                    $COMPLEX *Tz,
+                                    $COMPLEX* __restrict__ Tx,
+                                    $COMPLEX* __restrict__ Ty,
+                                    $COMPLEX* __restrict__ Tz,
                                     const unsigned int* __restrict__ ID,
-                                    $REAL *Ex,
-                                    $REAL *Ey,
-                                    $REAL *Ez,
+                                    $REAL* __restrict__ Ex,
+                                    $REAL* __restrict__ Ey,
+                                    $REAL* __restrict__ Ez,
                                     const $REAL* __restrict__ Hx,
                                     const $REAL* __restrict__ Hy,
                                     const $REAL* __restrict__ Hz)
@@ -228,16 +233,16 @@ update_electric_dispersive_A = {
                         int NZ,
                         int MAXPOLES,
                         __global const unsigned int* restrict ID,
-                        __global $REAL *Ex,
-                        __global $REAL *Ey,
-                        __global $REAL *Ez,
+                        __global $REAL* restrict Ex,
+                        __global $REAL* restrict Ey,
+                        __global $REAL* restrict Ez,
                         __global const $REAL* restrict Hx,
                         __global const $REAL* restrict Hy,
                         __global const $REAL* restrict Hz,
                         __global const $COMPLEX* restrict updatecoeffsdispersive,
-                        __global $COMPLEX *Tx,
-                        __global $COMPLEX *Ty,
-                        __global $COMPLEX *Tz
+                        __global $COMPLEX* restrict Tx,
+                        __global $COMPLEX* restrict Ty,
+                        __global $COMPLEX* restrict Tz
                     """
     ),
     "args_metal": Template(
@@ -276,19 +281,22 @@ update_electric_dispersive_A = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
+    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+    int y = yz_fields / $NZ_FIELDS;
+    int z = yz_fields % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
+    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    int y_ID = yz_ID / $NZ_ID;
+    int z_ID = yz_ID % $NZ_ID;
 
     // Convert the linear index to subscripts for 4D dispersive array
+    int yz_T = (i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T);
     int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
-    int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
+    int y_T = yz_T / $NZ_T;
+    int z_T = yz_T % $NZ_T;
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -346,9 +354,9 @@ update_electric_dispersive_B = {
                                     int NZ,
                                     int MAXPOLES,
                                     const $COMPLEX* __restrict__ updatecoeffsdispersive,
-                                    $COMPLEX *Tx,
-                                    $COMPLEX *Ty,
-                                    $COMPLEX *Tz,
+                                    $COMPLEX* __restrict__ Tx,
+                                    $COMPLEX* __restrict__ Ty,
+                                    $COMPLEX* __restrict__ Tz,
                                     const unsigned int* __restrict__ ID,
                                     const $REAL* __restrict__ Ex,
                                     const $REAL* __restrict__ Ey,
@@ -366,9 +374,9 @@ update_electric_dispersive_B = {
                         __global const $REAL* restrict Ey,
                         __global const $REAL* restrict Ez,
                         __global const $COMPLEX* restrict updatecoeffsdispersive,
-                        __global $COMPLEX *Tx,
-                        __global $COMPLEX *Ty,
-                        __global $COMPLEX *Tz
+                        __global $COMPLEX* restrict Tx,
+                        __global $COMPLEX* restrict Ty,
+                        __global $COMPLEX* restrict Tz
                     """
     ),
     "args_metal": Template(
@@ -404,20 +412,22 @@ update_electric_dispersive_B = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
+    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+    int y = yz_fields / $NZ_FIELDS;
+    int z = yz_fields % $NZ_FIELDS;
 
     // Convert the linear index to subscripts for 4D material ID array
+    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+    int y_ID = yz_ID / $NZ_ID;
+    int z_ID = yz_ID % $NZ_ID;
 
     // Convert the linear index to subscripts for 4D dispersive array
+    int yz_T = (i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T);
     int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
-    int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
-
+    int y_T = yz_T / $NZ_T;
+    int z_T = yz_T % $NZ_T;
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -448,3 +458,19 @@ update_electric_dispersive_B = {
     """
     ),
 }
+       
+  
+    
+    
+                                    
+                       
+   
+       
+        
+        
+       
+  
+   
+    
+
+  
