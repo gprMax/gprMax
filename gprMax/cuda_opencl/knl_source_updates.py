@@ -31,9 +31,9 @@ update_hertzian_dipole = {
                                             const $REAL* __restrict__ srcinfo2,
                                             const $REAL* __restrict__ srcwaveforms,
                                             const unsigned int* __restrict__ ID,
-                                            $REAL *Ex,
-                                            $REAL *Ey,
-                                            $REAL *Ez)
+                                            $REAL* __restrict__ Ex,
+                                            $REAL* __restrict__ Ey,
+                                            $REAL* __restrict__ Ez)
                                         """
     ),
     "args_opencl": Template(
@@ -47,9 +47,9 @@ update_hertzian_dipole = {
                                             __global const $REAL* restrict srcinfo2,
                                             __global const $REAL* restrict srcwaveforms,
                                             __global const unsigned int* restrict ID,
-                                            __global $REAL *Ex,
-                                            __global $REAL *Ey,
-                                            __global $REAL *Ez
+                                            __global $REAL* restrict Ex,
+                                            __global $REAL* restrict Ey,
+                                            __global $REAL* restrict Ez
                                         """
     ),
     "args_metal": Template(
@@ -95,25 +95,28 @@ update_hertzian_dipole = {
         polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
         dl = srcinfo2[i];
 
+        // Precompute reciprocal of cell volume to avoid per-branch division
+        $REAL vol_inv = 1 / (dx * dy * dz);
+
         // 'x' polarised source
         if (polarisation == 0) {
             int materialEx = ID[IDX4D_ID(0,x,y,z)];
             Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
-                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * vol_inv;
         }
 
         // 'y' polarised source
         else if (polarisation == 1) {
             int materialEy = ID[IDX4D_ID(1,x,y,z)];
             Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
-                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * vol_inv;
         }
 
         // 'z' polarised source
         else if (polarisation == 2) {
             int materialEz = ID[IDX4D_ID(2,x,y,z)];
             Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
-                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * vol_inv;
         }
     }
 """
@@ -132,9 +135,9 @@ update_magnetic_dipole = {
                                             const $REAL* __restrict__ srcinfo2,
                                             const $REAL* __restrict__ srcwaveforms,
                                             const unsigned int* __restrict__ ID,
-                                            $REAL *Hx,
-                                            $REAL *Hy,
-                                            $REAL *Hz)
+                                            $REAL* __restrict__ Hx,
+                                            $REAL* __restrict__ Hy,
+                                            $REAL* __restrict__ Hz)
                                         """
     ),
     "args_opencl": Template(
@@ -148,9 +151,9 @@ update_magnetic_dipole = {
                                             __global const $REAL* restrict srcinfo2,
                                             __global const $REAL* restrict srcwaveforms,
                                             __global const unsigned int* restrict ID,
-                                            __global $REAL *Hx,
-                                            __global $REAL *Hy,
-                                            __global $REAL *Hz
+                                            __global $REAL* restrict Hx,
+                                            __global $REAL* restrict Hy,
+                                            __global $REAL* restrict Hz
                                         """
     ),
     "args_metal": Template(
@@ -172,7 +175,7 @@ update_magnetic_dipole = {
     ),
     "func": Template(
         """
-    // Updates electric field values for Hertzian dipole sources.
+    // Updates magnetic field values for magnetic dipole sources.
     //
     //  Args:
     //      NMAGDIPOLE: Total number of magnetic dipoles in the model.
@@ -194,25 +197,28 @@ update_magnetic_dipole = {
         z = srcinfo1[IDX2D_SRCINFO(i,2)];
         polarisation = srcinfo1[IDX2D_SRCINFO(i,3)];
 
+        // Precompute reciprocal of cell volume to avoid per-branch division
+        $REAL vol_inv = 1 / (dx * dy * dz);
+
         // 'x' polarised source
         if (polarisation == 0) {
             int materialHx = ID[IDX4D_ID(3,x,y,z)];
             Hx[IDX3D_FIELDS(x,y,z)] = Hx[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
-                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * vol_inv;
         }
 
         // 'y' polarised source
         else if (polarisation == 1) {
             int materialHy = ID[IDX4D_ID(4,x,y,z)];
             Hy[IDX3D_FIELDS(x,y,z)] = Hy[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
-                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * vol_inv;
         }
 
         // 'z' polarised source
         else if (polarisation == 2) {
             int materialHz = ID[IDX4D_ID(5,x,y,z)];
             Hz[IDX3D_FIELDS(x,y,z)] = Hz[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
-                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
+                                        srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * vol_inv;
         }
     }
 """
@@ -231,9 +237,9 @@ update_voltage_source = {
                                             const $REAL* __restrict__ srcinfo2,
                                             const $REAL* __restrict__ srcwaveforms,
                                             const unsigned int* __restrict__ ID,
-                                            $REAL *Ex,
-                                            $REAL *Ey,
-                                            $REAL *Ez)
+                                            $REAL* __restrict__ Ex,
+                                            $REAL* __restrict__ Ey,
+                                            $REAL* __restrict__ Ez)
                                         """
     ),
     "args_opencl": Template(
@@ -247,9 +253,9 @@ update_voltage_source = {
                                             __global const $REAL* restrict srcinfo2,
                                             __global const $REAL* restrict srcwaveforms,
                                             __global const unsigned int* restrict ID,
-                                            __global $REAL *Ex,
-                                            __global $REAL *Ey,
-                                            __global $REAL *Ez
+                                            __global $REAL* restrict Ex,
+                                            __global $REAL* restrict Ey,
+                                            __global $REAL* restrict Ez
                                         """
     ),
     "args_metal": Template(
@@ -299,8 +305,9 @@ update_voltage_source = {
         if (polarisation == 0) {
             if (resistance != 0) {
                 int materialEx = ID[IDX4D_ID(0,x,y,z)];
+                $REAL area_inv = 1 / (resistance * dy * dz);
                 Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dy * dz));
+                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * area_inv;
             }
             else {
                 Ex[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dx;
@@ -311,8 +318,9 @@ update_voltage_source = {
         else if (polarisation == 1) {
             if (resistance != 0) {
                 int materialEy = ID[IDX4D_ID(1,x,y,z)];
+                $REAL area_inv = 1 / (resistance * dx * dz);
                 Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dz));
+                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * area_inv;
             }
             else {
                 Ey[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dy;
@@ -323,8 +331,9 @@ update_voltage_source = {
         else if (polarisation == 2) {
             if (resistance != 0) {
                 int materialEz = ID[IDX4D_ID(2,x,y,z)];
+                $REAL area_inv = 1 / (resistance * dx * dy);
                 Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
-                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dy));
+                                            srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * area_inv;
             }
             else {
                 Ez[IDX3D_FIELDS(x,y,z)] = -1 * srcwaveforms[IDX2D_SRCWAVES(i,iteration)] / dz;
@@ -333,4 +342,23 @@ update_voltage_source = {
     }
 """
     ),
-}
+}                
+                                        
+
+       
+       
+                                            
+                                           
+                                            
+    
+
+                                           
+   
+                                           
+                                            
+   
+    
+
+   
+
+      
