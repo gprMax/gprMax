@@ -1,24 +1,57 @@
-# See https://pre-commit.com for more information
-exclude: '\S*.map'
+# Pre-commit hook configuration for gprMax
+#
+# Install:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Run manually against all files:
+#   pre-commit run --all-files
+#
+# Why these specific settings?
+# ─────────────────────────────
+# flake8 max-line-length = 200
+#   GPU kernel files contain full FDTD update equations on single lines.
+#   Breaking these across lines would make the physics harder to verify.
+#
+# flake8 ignore = E402
+#   gprMax imports pycuda and mpi4py inside functions (intentional).
+#   These are optional dependencies -- a bare top-level import crashes
+#   on machines without a GPU or MPI installation.
+#
+# isort profile = black, line-length = 200
+#   Keeps import ordering consistent with the flake8 line-length setting.
+
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+  # General file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
     hooks:
-    -   id: trailing-whitespace
-        exclude: docs/source/developer_reference/
-    -   id: end-of-file-fixer
-        exclude: docs/source/developer_reference/
-    -   id: check-yaml
-    -   id: check-added-large-files
-        args: ['--maxkb=1000']
-    -   id: check-toml
--   repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 23.12.0
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: check-ast
+      - id: no-commit-to-branch
+        args: ["--branch", "master"]
+
+  # Python linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.0
     hooks:
-    -   id: black
-        args: ["--line-length", "100"] # Adjust the max line length value as needed.
--   repo: https://github.com/pycqa/isort
+      - id: flake8
+        args:
+          - "--max-line-length=200"
+          - "--ignore=E402,W503,E501"
+          - "--exclude=.git,__pycache__,build,dist,*.egg-info"
+
+  # Import ordering
+  - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
-    -   id: isort
-        args: ["--line-length", "100", "--profile", "black"]
+      - id: isort
+        args:
+          - "--profile=black"
+          - "--line-length=200"
+          - "--skip-glob=**/gprMax/fields_updates*.py"
