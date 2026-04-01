@@ -1,0 +1,60 @@
+# Lint workflow for gprMax
+#
+# Runs pre-commit hooks against all files on every pull request.
+# This catches style issues before they reach review -- faster feedback
+# than waiting for a full build-and-test run.
+#
+# Why a separate workflow from ci.yml?
+#   Linting does not need conda, Cython compilation, or platform-specific
+#   compilers.  Keeping it separate means it completes in ~2 minutes on a
+#   plain ubuntu runner while the full matrix build runs in parallel.
+
+name: Lint
+
+on:
+  push:
+    branches:
+      - master
+      - devel
+  pull_request:
+    branches:
+      - master
+      - devel
+
+jobs:
+  pre-commit:
+    name: Run pre-commit hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Check out source ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ─────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── 3. Cache pre-commit environments ────────────────────────────
+      # pre-commit creates a virtualenv for each hook repo the first time.
+      # Caching them keyed on the config file hash avoids re-creating them
+      # on every run (saves ~60 seconds per run).
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pre-commit-
+
+      # ── 4. Install pre-commit ────────────────────────────────────────
+      - name: Install pre-commit
+        run: pip install pre-commit --quiet
+
+      # ── 5. Run all hooks against all files ───────────────────────────
+      # --all-files ensures we catch issues in files that were not part
+      # of the current commit (e.g. pre-existing violations).
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
