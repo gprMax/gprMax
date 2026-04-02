@@ -21,9 +21,10 @@ import logging
 from pathlib import Path
 
 import h5py
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
+
+# We defer importing matplotlib.pyplot until we've selected the backend.
 
 from gprMax.receivers import Rx
 from gprMax.utilities.utilities import fft_power
@@ -45,6 +46,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
     Returns:
         plt: matplotlib plot object.
     """
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
 
     file = Path(filename)
 
@@ -168,7 +171,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(stemlines, "color", "b")
                         plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
 
-                    plt.show()
+                    if not save:
+                        plt.show()
 
                 # Plotting if no FFT required
                 else:
@@ -278,10 +282,12 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
         # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
         #             bbox_inches='tight', pad_inches=0.1)
 
-    return plt
+    return fig
 
 
 if __name__ == "__main__":
+    import os
+    import sys
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Plots electric and magnetic fields and "
@@ -330,6 +336,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # Detect if we should run in headless mode
+    is_headless = not os.environ.get("DISPLAY", "") or args.save
+    if is_headless:
+        matplotlib.use("Agg")
+    
+    # Import plt after potentially setting backend
+    import matplotlib.pyplot as plt
+
     plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save=args.save)
 
-    plthandle.show()
+    if not is_headless:
+        plt.show()
+    elif not args.save:
+        logger.info("Headless environment detected. Plots were generated but cannot be displayed.")
+        logger.info("Use the -save option to output the plots to PDF/PNG files.")
