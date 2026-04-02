@@ -354,6 +354,18 @@ Optional command line arguments
       - flag
       - Used to get help on command line options.
 
+Scientific Analytics & CI/CD
+============================
+
+gprMax now includes a robust CI/CD pipeline and an automated scientific analytics platform:
+
+* **Automated Testing:** Runs on PR/main across CPU, MPI, and CUDA via GitHub Actions.
+* **Pre-commit Hooks:** Enforces Ruff, Codespell, and Mypy checks.
+* **Analytics Tools:** Includes environmental simulation benchmarks (`tools/run_benchmarks.py`) and parameter sweepers (`tools/water_content_analysis.py`).
+* **Visualizations:** Automated 2D/3D Plotly plots generation via `tools/plot_benchmarks.py` and `tools/visualize_3d.py`.
+* **Machine Learning:** Tiny ML predictors (`tools/ml_runtime_predictor.py`) evaluate runtime efficiency based on grid parameters.
+* **Dashboard:** A Streamlit dashboard tracks cross-run metrics historically (`tools/dashboard/app.py`).
+
 Updating gprMax
 ===============
 
@@ -377,6 +389,11 @@ Periodically you should update conda and the required Python packages. With the 
 
     $ conda update conda
     $ conda env update -f conda_env.yml
+
+Thanks To Our Contributors ✨🔗
+==========================
+.. image:: https://contrib.rocks/image?repo=gprMax/gprMax
+   :target: https://github.com/gprMax/gprMax/graphs/contributors
 
 
 Thanks To Our Contributors ✨🔗
