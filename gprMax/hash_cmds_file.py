@@ -17,7 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import ast
 import logging
+import os
 import sys
 from io import StringIO
 from pathlib import Path
@@ -81,18 +83,57 @@ def process_python_include_code(inputfile, usernamespace):
                         + "block, i.e. missing #end_python: command."
                     )
                     raise SyntaxError
+            # Security validation using AST
+            try:
+                tree = ast.parse(pythoncode)
+                for node in ast.walk(tree):
+                    # Forbid imports
+                    if isinstance(node, (ast.Import, ast.ImportFrom)):
+                        logger.error("Security Error: Import statements are not allowed in input files.")
+                        raise SyntaxError
+                    # Forbid dangerous built-ins like exec, eval, open
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                        if node.func.id in ["exec", "eval", "open", "input", "breakpoint", "getattr", "setattr", "hasattr"]:
+                            logger.error(f"Security Error: Function call '{node.func.id}' is not allowed in input files.")
+                            raise SyntaxError
+                    # Forbid access to private attributes (__class__, etc)
+                    if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
+                        logger.error(f"Security Error: Access to private attributes ('{node.attr}') is not allowed.")
+                        raise SyntaxError
+            except Exception as e:
+                # If it's already a SyntaxError, re-raise it, otherwise wrap it
+                if isinstance(e, SyntaxError):
+                    raise e
+                logger.error(f"Python code block error: {e}")
+                raise SyntaxError
+
             # Compile code for faster execution
             pythoncompiledcode = compile(pythoncode, "<string>", "exec")
+            
+            # Create a restricted environment for execution
+            import math
+            import numpy as np
+            safe_builtins = {
+                "abs": abs, "all": all, "any": any, "bin": bin, "bool": bool, "chr": chr, "complex": complex,
+                "dict": dict, "divmod": divmod, "enumerate": enumerate, "filter": filter, "float": float,
+                "format": format, "frozenset": frozenset, "hash": hash, "hex": hex, "int": int, "isinstance": isinstance,
+                "issubclass": issubclass, "iter": iter, "len": len, "list": list, "map": map, "max": max,
+                "min": min, "next": next, "oct": oct, "ord": ord, "pow": pow, "print": print, "range": range,
+                "repr": repr, "reversed": reversed, "round": round, "set": set, "slice": slice, "sorted": sorted,
+                "str": str, "sum": sum, "tuple": tuple, "type": type, "zip": zip,
+                "__name__": "__main__", "__builtins__": {}  # Disable all other built-ins including __import__
+            }
+            # Merge with usernamespace (constants/context) and include essential libraries
+            safe_env = {**safe_builtins, **usernamespace, "math": math, "np": np, "numpy": np}
+
             # Redirect stdout to a text stream
             sys.stdout = result = StringIO()
-            # Execute code block & make available only usernamespace
-            exec(pythoncompiledcode, usernamespace)
-            # String containing buffer of executed code
-            codeout = result.getvalue().split("\n")
-            result.close()
-
-            # Reset stdio
-            sys.stdout = sys.__stdout__
+            try:
+                # Execute code block in the restricted environment
+                exec(pythoncompiledcode, safe_env)
+            finally:
+                # Reset stdio
+                sys.stdout = sys.__stdout__
 
             # Separate commands from any other generated output
             hashcmds = []
