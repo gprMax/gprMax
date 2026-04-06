@@ -68,7 +68,9 @@ class FDTDGrid:
 
     IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
 
-    def __init__(self):
+    def __init__(self, model_config: config.ModelConfig):
+        self.model_config = model_config
+        self.sim_config = model_config.sim_config
         self.name = "main_grid"
         self.mem_use = 0
 
@@ -260,7 +262,7 @@ class FDTDGrid:
         self._create_voltage_source_materials()
         self.initialise_field_arrays()
         self.initialise_std_update_coeff_arrays()
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.model_config.materials["maxpoles"] > 0:
             self.initialise_dispersive_arrays()
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
@@ -274,7 +276,7 @@ class FDTDGrid:
             desc=f"Building PML boundaries [{self.name}]",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
-            disable=not config.sim_config.general["progressbars"],
+            disable=not self.sim_config.general["progressbars"],
         )
         for pml_id, thickness in self.pmls["thickness"].items():
             if thickness > 0:
@@ -420,7 +422,7 @@ class FDTDGrid:
             raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
         return pml_average_er_mr(
-            n1, n2, config.get_model_config().ompthreads, solid, ers, mrs
+            n1, n2, self.model_config.ompthreads, solid, ers, mrs
         )
 
     def _build_components(self) -> None:
@@ -434,7 +436,7 @@ class FDTDGrid:
             desc=f"Building Yee cells [{self.name}]",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
-            disable=not config.sim_config.general["progressbars"],
+            disable=not self.sim_config.general["progressbars"],
         )
         build_electric_components(self.solid, self.rigidE, self.ID, self)
         pbar.update()
@@ -444,11 +446,11 @@ class FDTDGrid:
 
     def _tm_grid_update(self) -> None:
         """Add PEC boundaries to invariant if in 2D mode."""
-        if config.get_model_config().mode == "2D TMx":
+        if self.model_config.mode == "2D TMx":
             self.tmx()
-        elif config.get_model_config().mode == "2D TMy":
+        elif self.model_config.mode == "2D TMy":
             self.tmy()
-        elif config.get_model_config().mode == "2D TMz":
+        elif self.model_config.mode == "2D TMz":
             self.tmz()
 
     def _create_voltage_source_materials(self):
@@ -491,7 +493,7 @@ class FDTDGrid:
         """Update position of sources and receivers."""
 
         # Adjust position of simple sources and receivers if required
-        model_num = config.sim_config.current_model
+        model_num = self.sim_config.current_model
         if any(self.srcsteps != 0):
             self.update_simple_source_positions(model_num)
         if any(self.rxsteps != 0):
@@ -518,7 +520,7 @@ class FDTDGrid:
             for item in items:
                 if step_number == 0:
                     # Check item won't be stepped outside of the grid
-                    end_coord = item.coord + step_size * config.sim_config.model_end
+                    end_coord = item.coord + step_size * self.sim_config.model_end
                     self.within_bounds(end_coord)
                 else:
                     item.coord = item.coordorigin + step_number * step_size
@@ -666,66 +668,66 @@ class FDTDGrid:
         """Initialise arrays for the electric and magnetic field components."""
         self.Ex = np.zeros(
             (self.nx + 1, self.ny + 1, self.nz + 1),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=self.sim_config.dtypes["float_or_double"],
         )
         self.Ey = np.zeros(
             (self.nx + 1, self.ny + 1, self.nz + 1),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=self.sim_config.dtypes["float_or_double"],
         )
         self.Ez = np.zeros(
             (self.nx + 1, self.ny + 1, self.nz + 1),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=self.sim_config.dtypes["float_or_double"],
         )
         self.Hx = np.zeros(
             (self.nx + 1, self.ny + 1, self.nz + 1),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=self.sim_config.dtypes["float_or_double"],
         )
         self.Hy = np.zeros(
             (self.nx + 1, self.ny + 1, self.nz + 1),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=self.sim_config.dtypes["float_or_double"],
         )
         self.Hz = np.zeros(
             (self.nx + 1, self.ny + 1, self.nz + 1),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=self.sim_config.dtypes["float_or_double"],
         )
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
         self.updatecoeffsE = np.zeros(
-            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+            (len(self.materials), 5), dtype=self.sim_config.dtypes["float_or_double"]
         )
         self.updatecoeffsH = np.zeros(
-            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+            (len(self.materials), 5), dtype=self.sim_config.dtypes["float_or_double"]
         )
 
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
         self.Tx = np.zeros(
             (
-                config.get_model_config().materials["maxpoles"],
+                self.model_config.materials["maxpoles"],
                 self.nx + 1,
                 self.ny + 1,
                 self.nz + 1,
             ),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            dtype=self.model_config.materials["dispersivedtype"],
         )
         self.Ty = np.zeros(
             (
-                config.get_model_config().materials["maxpoles"],
+                self.model_config.materials["maxpoles"],
                 self.nx + 1,
                 self.ny + 1,
                 self.nz + 1,
             ),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            dtype=self.model_config.materials["dispersivedtype"],
         )
         self.Tz = np.zeros(
             (
-                config.get_model_config().materials["maxpoles"],
+                self.model_config.materials["maxpoles"],
                 self.nx + 1,
                 self.ny + 1,
                 self.nz + 1,
             ),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            dtype=self.model_config.materials["dispersivedtype"],
         )
 
     def initialise_dispersive_update_coeff_array(self):
@@ -733,15 +735,15 @@ class FDTDGrid:
         materials present.
         """
         self.updatecoeffsdispersive = np.zeros(
-            (len(self.materials), 3 * config.get_model_config().materials["maxpoles"]),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            (len(self.materials), 3 * self.model_config.materials["maxpoles"]),
+            dtype=self.model_config.materials["dispersivedtype"],
         )
 
     def reset_fields(self):
         """Clear arrays for field components and PMLs."""
         # Clear arrays for field components
         self.initialise_field_arrays()
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.model_config.materials["maxpoles"] > 0:
             self.initialise_dispersive_arrays()
 
         # Clear arrays for fields in PML
@@ -768,7 +770,7 @@ class FDTDGrid:
             * (self.nx + 1)
             * (self.ny + 1)
             * (self.nz + 1)
-            * np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
+            * np.dtype(self.sim_config.dtypes["float_or_double"]).itemsize
         )
 
         # PML arrays
@@ -804,11 +806,11 @@ class FDTDGrid:
 
         mem_use = (
             3
-            * config.get_model_config().materials["maxpoles"]
+            * self.model_config.materials["maxpoles"]
             * (self.nx + 1)
             * (self.ny + 1)
             * (self.nz + 1)
-            * np.dtype(config.get_model_config().materials["dispersivedtype"]).itemsize
+            * np.dtype(self.model_config.materials["dispersivedtype"]).itemsize
         )
         return mem_use
 
@@ -864,24 +866,24 @@ class FDTDGrid:
 
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
-        if config.get_model_config().mode == "2D TMx":
+        if self.model_config.mode == "2D TMx":
             self.dt = 1 / (
-                config.sim_config.em_consts["c"]
+                self.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
             )
-        elif config.get_model_config().mode == "2D TMy":
+        elif self.model_config.mode == "2D TMy":
             self.dt = 1 / (
-                config.sim_config.em_consts["c"]
+                self.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
             )
-        elif config.get_model_config().mode == "2D TMz":
+        elif self.model_config.mode == "2D TMz":
             self.dt = 1 / (
-                config.sim_config.em_consts["c"]
+                self.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
             )
         else:
             self.dt = 1 / (
-                config.sim_config.em_consts["c"]
+                self.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
             )
 
@@ -955,7 +957,7 @@ class FDTDGrid:
             logger.warning(
                 f"Numerical dispersion analysis [{self.name}] not carried out as {results['error']}"
             )
-        elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
+        elif results["N"] < self.model_config.numdispersion["mingridsampling"]:
             logger.exception(
                 f"\nNon-physical wave propagation in [{self.name}] "
                 f"detected. Material '{results['material'].ID}' "
@@ -968,7 +970,7 @@ class FDTDGrid:
         elif (
             results["deltavp"]
             and np.abs(results["deltavp"])
-            > config.get_model_config().numdispersion["maxnumericaldisp"]
+            > self.model_config.numdispersion["maxnumericaldisp"]
         ):
             logger.warning(
                 f"[{self.name}] has potentially significant "
@@ -1055,7 +1057,7 @@ class FDTDGrid:
                             freqthres = (
                                 np.where(
                                     power[freqmaxpower:]
-                                    < -config.get_model_config().numdispersion[
+                                    < -self.model_config.numdispersion[
                                         "highestfreqthres"
                                     ]
                                 )[0][0]
@@ -1102,15 +1104,15 @@ class FDTDGrid:
             results["material"] = next(x for x in self.materials if x.ID == matmaxer)
 
             # Minimum velocity
-            minvelocity = config.c / np.sqrt(maxer)
+            minvelocity = self.sim_config.em_consts["c"] / np.sqrt(maxer)
 
             # Minimum wavelength
             minwavelength = minvelocity / results["maxfreq"]
 
             # Maximum spatial step
-            if "3D" in config.get_model_config().mode:
+            if "3D" in self.model_config.mode:
                 delta = max(self.dx, self.dy, self.dz)
-            elif "2D" in config.get_model_config().mode:
+            elif "2D" in self.model_config.mode:
                 if self.nx == 1:
                     delta = max(self.dy, self.dz)
                 elif self.ny == 1:
@@ -1119,7 +1121,7 @@ class FDTDGrid:
                     delta = max(self.dx, self.dy)
 
             # Courant stability factor
-            S = (config.c * self.dt) / delta
+            S = (self.sim_config.em_consts["c"] * self.dt) / delta
 
             # Grid sampling density
             results["N"] = minwavelength / delta
@@ -1127,7 +1129,7 @@ class FDTDGrid:
             # Check grid sampling will result in physical wave propagation
             if (
                 int(np.floor(results["N"]))
-                >= config.get_model_config().numdispersion["mingridsampling"]
+                >= self.model_config.numdispersion["mingridsampling"]
             ):
                 # Numerical phase velocity
                 vp = np.pi / (
@@ -1136,7 +1138,10 @@ class FDTDGrid:
                 )
 
                 # Physical phase velocity error (percentage)
-                results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100
+                results["deltavp"] = (
+                    ((vp * self.sim_config.em_consts["c"]) - self.sim_config.em_consts["c"])
+                    / self.sim_config.em_consts["c"]
+                ) * 100
 
             # Store rounded down value of grid sampling density
             results["N"] = int(np.floor(results["N"]))

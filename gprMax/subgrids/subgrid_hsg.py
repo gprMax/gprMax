@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 
 class SubGridHSG(SubGridBaseGrid):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, model_config, **kwargs):
+        super().__init__(model_config, **kwargs)
 
     def update_magnetic_is(self, precursors):
         """Updates the subgrid nodes at the IS with the currents derived
@@ -64,7 +64,7 @@ class SubGridHSG(SubGridBaseGrid):
             1,
             -1,
             3,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_is(
@@ -86,7 +86,7 @@ class SubGridHSG(SubGridBaseGrid):
             -1,
             1,
             3,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Left and right
@@ -109,7 +109,7 @@ class SubGridHSG(SubGridBaseGrid):
             1,
             -1,
             1,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_is(
@@ -131,7 +131,7 @@ class SubGridHSG(SubGridBaseGrid):
             -1,
             1,
             1,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Front and back
@@ -154,7 +154,7 @@ class SubGridHSG(SubGridBaseGrid):
             -1,
             1,
             2,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_is(
@@ -176,7 +176,7 @@ class SubGridHSG(SubGridBaseGrid):
             1,
             -1,
             2,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
     def update_electric_is(self, precursors):
@@ -212,7 +212,7 @@ class SubGridHSG(SubGridBaseGrid):
             1,
             -1,
             3,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_is(
@@ -234,7 +234,7 @@ class SubGridHSG(SubGridBaseGrid):
             -1,
             1,
             3,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Left and right
@@ -257,7 +257,7 @@ class SubGridHSG(SubGridBaseGrid):
             1,
             -1,
             1,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_is(
@@ -279,7 +279,7 @@ class SubGridHSG(SubGridBaseGrid):
             -1,
             1,
             1,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Front and back
@@ -302,7 +302,7 @@ class SubGridHSG(SubGridBaseGrid):
             -1,
             1,
             2,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_is(
@@ -324,7 +324,7 @@ class SubGridHSG(SubGridBaseGrid):
             1,
             -1,
             2,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
     def update_electric_os(self, main_grid):
@@ -367,7 +367,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_electric_os(
@@ -391,7 +391,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Left and right
@@ -416,7 +416,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_electric_os(
@@ -440,7 +440,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Bottom and top
@@ -465,7 +465,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_electric_os(
@@ -489,7 +489,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
     def update_magnetic_os(self, main_grid):
@@ -532,7 +532,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_magnetic_os(
@@ -556,7 +556,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Left and right
@@ -581,7 +581,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_magnetic_os(
@@ -605,7 +605,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         # Bottom and top
@@ -630,7 +630,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
         update_magnetic_os(
@@ -654,7 +654,7 @@ class SubGridHSG(SubGridBaseGrid):
             self.ratio,
             self.is_os_sep,
             self.n_boundary_cells,
-            config.get_model_config().ompthreads,
+            self.model_config.ompthreads,
         )
 
     def print_info(self):

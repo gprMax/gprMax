@@ -139,25 +139,25 @@ class Domain(ModelUserObject):
         # Set mode and switch off appropriate PMLs for 2D models
         grid = model.G
         if model.nx == 1:
-            config.get_model_config().mode = "2D TMx"
+            model.model_config.mode = "2D TMx"
             grid.pmls["thickness"]["x0"] = 0
             grid.pmls["thickness"]["xmax"] = 0
         elif model.ny == 1:
-            config.get_model_config().mode = "2D TMy"
+            model.model_config.mode = "2D TMy"
             grid.pmls["thickness"]["y0"] = 0
             grid.pmls["thickness"]["ymax"] = 0
         elif model.nz == 1:
-            config.get_model_config().mode = "2D TMz"
+            model.model_config.mode = "2D TMz"
             grid.pmls["thickness"]["z0"] = 0
             grid.pmls["thickness"]["zmax"] = 0
         else:
-            config.get_model_config().mode = "3D"
+            model.model_config.mode = "3D"
 
-        logger.info(f"Mode: {config.get_model_config().mode}")
+        logger.info(f"Mode: {model.model_config.mode}")
 
         # Sub-grids cannot be used with 2D models. There would typically be
         # minimal performance benefit with sub-gridding and 2D models.
-        if "2D" in config.get_model_config().mode and config.sim_config.general["subgrid"]:
+        if "2D" in model.model_config.mode and model.sim_config.general["subgrid"]:
             raise ValueError("Sub-gridding cannot be used with 2D models")
 
         # Calculate time step at CFL limit
@@ -288,9 +288,9 @@ class OMPThreads(ModelUserObject):
         if self.omp_threads < 1:
             raise ValueError(f"{self} requires the value to be an integer not less than one")
 
-        config.get_model_config().ompthreads = set_omp_threads(self.omp_threads)
+        model.model_config.ompthreads = set_omp_threads(model.sim_config, self.omp_threads)
 
-        logger.info(f"Simulation will use {config.get_model_config().ompthreads} OpenMP threads")
+        logger.info(f"Simulation will use {model.model_config.ompthreads} OpenMP threads")
 
 
 class PMLFormulation(ModelUserObject):
@@ -585,4 +585,4 @@ class OutputDir(ModelUserObject):
         self.output_dir = dir
 
     def build(self, model: Model):
-        config.get_model_config().set_output_file_path(self.output_dir)
+        model.model_config.set_output_file_path(self.output_dir)

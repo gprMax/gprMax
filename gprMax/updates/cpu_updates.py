@@ -59,7 +59,7 @@ class CPUUpdates(Updates[GridType]):
             self.grid.nx,
             self.grid.ny,
             self.grid.nz,
-            config.get_model_config().ompthreads,
+            self.grid.model_config.ompthreads,
             self.grid.updatecoeffsH,
             self.grid.ID,
             self.grid.Ex,
@@ -94,7 +94,7 @@ class CPUUpdates(Updates[GridType]):
         for source in self.grid.discreteplanewaves:
             if source.dispersive:
                 source.update_plane_wave_electric_dispersive(
-                    config.get_model_config().ompthreads,
+                    self.grid.model_config.ompthreads,
                     self.grid.updatecoeffsE,
                     self.grid.updatecoeffsH,
                     self.grid.updatecoeffsdispersive,
@@ -111,7 +111,7 @@ class CPUUpdates(Updates[GridType]):
                 )
             else:
                 source.update_plane_wave_electric(
-                    config.get_model_config().ompthreads,
+                    self.grid.model_config.ompthreads,
                     self.grid.updatecoeffsE,
                     self.grid.updatecoeffsH,
                     self.grid.Ex,
@@ -126,14 +126,12 @@ class CPUUpdates(Updates[GridType]):
                     precompute=True,
                 )
 
-     
-
     def update_plane_waves_magnetic(self, iteration):
         """Updates discrete plane wave sources fr magnetic fields."""
         # Update the magnetic field components for the discrete plane wave
         for source in self.grid.discreteplanewaves:
             source.update_plane_wave_magnetic(
-                    config.get_model_config().ompthreads,
+                    self.grid.model_config.ompthreads,
                     self.grid.updatecoeffsE,
                     self.grid.updatecoeffsH,
                     self.grid.Ex,
@@ -151,12 +149,12 @@ class CPUUpdates(Updates[GridType]):
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.model_config.materials["maxpoles"] == 0:
             update_electric_cpu(
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
-                config.get_model_config().ompthreads,
+                self.grid.model_config.ompthreads,
                 self.grid.updatecoeffsE,
                 self.grid.ID,
                 self.grid.Ex,
@@ -174,8 +172,8 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
-                config.get_model_config().ompthreads,
-                config.get_model_config().materials["maxpoles"],
+                self.grid.model_config.ompthreads,
+                self.grid.model_config.materials["maxpoles"],
                 self.grid.updatecoeffsE,
                 self.grid.updatecoeffsdispersive,
                 self.grid.ID,
@@ -219,13 +217,13 @@ class CPUUpdates(Updates[GridType]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             self.dispersive_update_b(
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
-                config.get_model_config().ompthreads,
-                config.get_model_config().materials["maxpoles"],
+                self.grid.model_config.ompthreads,
+                self.grid.model_config.materials["maxpoles"],
                 self.grid.updatecoeffsdispersive,
                 self.grid.ID,
                 self.grid.Tx,
@@ -239,12 +237,12 @@ class CPUUpdates(Updates[GridType]):
     def set_dispersive_updates(self):
         """Sets dispersive update functions."""
 
-        poles = "multi" if config.get_model_config().materials["maxpoles"] > 1 else "1"
-        precision = "float" if config.sim_config.general["precision"] == "single" else "double"
+        poles = "multi" if self.grid.model_config.materials["maxpoles"] > 1 else "1"
+        precision = "float" if self.grid.sim_config.general["precision"] == "single" else "double"
         dispersion = (
             "complex"
-            if config.get_model_config().materials["dispersivedtype"]
-            == config.sim_config.dtypes["complex"]
+            if self.grid.model_config.materials["dispersivedtype"]
+            == self.grid.sim_config.dtypes["complex"]
             else "real"
         )
 

@@ -152,8 +152,8 @@ class Material:
             G: FDTDGrid class describing a grid in a model.
         """
 
-        EA = (config.sim_config.em_consts["e0"] * self.er / G.dt) + 0.5 * self.se
-        EB = (config.sim_config.em_consts["e0"] * self.er / G.dt) - 0.5 * self.se
+        EA = (G.sim_config.em_consts["e0"] * self.er / G.dt) + 0.5 * self.se
+        EB = (G.sim_config.em_consts["e0"] * self.er / G.dt) - 0.5 * self.se
 
         if self.ID == "pec" or self.se == float("inf"):
             self.CA = 0
@@ -217,28 +217,28 @@ class DispersiveMaterial(Material):
         # The implementation of the dispersive material modelling comes from the
         # derivation in: http://dx.doi.org/10.1109/TAP.2014.2308549
         self.w = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.model_config.materials["maxpoles"],
+            dtype=G.model_config.materials["dispersivedtype"],
         )
         self.q = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.model_config.materials["maxpoles"],
+            dtype=G.model_config.materials["dispersivedtype"],
         )
         self.zt = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.model_config.materials["maxpoles"],
+            dtype=G.model_config.materials["dispersivedtype"],
         )
         self.zt2 = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.model_config.materials["maxpoles"],
+            dtype=G.model_config.materials["dispersivedtype"],
         )
         self.eqt = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.model_config.materials["maxpoles"],
+            dtype=G.model_config.materials["dispersivedtype"],
         )
         self.eqt2 = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.model_config.materials["maxpoles"],
+            dtype=G.model_config.materials["dispersivedtype"],
         )
 
         for x in range(self.poles):
@@ -265,14 +265,14 @@ class DispersiveMaterial(Material):
             self.zt2[x] = (self.w[x] / self.q[x]) * (1 - self.eqt2[x])
 
         EA = (
-            (config.sim_config.em_consts["e0"] * self.er / G.dt)
+            (G.sim_config.em_consts["e0"] * self.er / G.dt)
             + 0.5 * self.se
-            - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
+            - (G.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
         EB = (
-            (config.sim_config.em_consts["e0"] * self.er / G.dt)
+            (G.sim_config.em_consts["e0"] * self.er / G.dt)
             - 0.5 * self.se
-            - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
+            - (G.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
 
         self.CA = EB / EA
@@ -297,7 +297,7 @@ class DispersiveMaterial(Material):
         er = self.er
 
         w = 2 * np.pi * freq
-        er += self.se / (1j * w * config.sim_config.em_consts["e0"])
+        er += self.se / (1j * w * G.sim_config.em_consts["e0"])
         if "debye" in self.type:
             for pole in range(self.poles):
                 er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
@@ -408,8 +408,8 @@ class PeplinskiSoil:
             m.type = "debye"
             m.averagable = False
             m.poles = 1
-            if m.poles > config.get_model_config().materials["maxpoles"]:
-                config.get_model_config().materials["maxpoles"] = m.poles
+            if m.poles > G.model_config.materials["maxpoles"]:
+                G.model_config.materials["maxpoles"] = m.poles
             m.er = eri
             m.se = sig
             m.deltaer.append(er - eri)
@@ -619,8 +619,8 @@ def create_water(G, T=25, S=0):
     m.deltaer.append(er - eri)
     m.tau.append(tau)
     G.materials.append(m)
-    if config.get_model_config().materials["maxpoles"] == 0:
-        config.get_model_config().materials["maxpoles"] = 1
+    if G.model_config.materials["maxpoles"] == 0:
+        G.model_config.materials["maxpoles"] = 1
 
 
 def create_grass(G):
@@ -645,8 +645,8 @@ def create_grass(G):
     m.deltaer.append(er - eri)
     m.tau.append(tau)
     G.materials.append(m)
-    if config.get_model_config().materials["maxpoles"] == 0:
-        config.get_model_config().materials["maxpoles"] = 1
+    if G.model_config.materials["maxpoles"] == 0:
+        G.model_config.materials["maxpoles"] = 1
 
 
 def process_materials(G):
@@ -661,7 +661,7 @@ def process_materials(G):
                         print a table.
     """
 
-    if config.get_model_config().materials["maxpoles"] == 0:
+    if G.model_config.materials["maxpoles"] == 0:
         materialsdata = [
             [
                 "\nID",
@@ -717,9 +717,9 @@ def process_materials(G):
         # Add update coefficients to overall storage for dispersive materials
         if hasattr(material, "poles"):
             z = 0
-            for pole in range(config.get_model_config().materials["maxpoles"]):
+            for pole in range(G.model_config.materials["maxpoles"]):
                 G.updatecoeffsdispersive[material.numID, z : z + 3] = (
-                    config.sim_config.em_consts["e0"] * material.eqt2[pole],
+                    G.sim_config.em_consts["e0"] * material.eqt2[pole],
                     material.eqt[pole],
                     material.zt[pole],
                 )
@@ -734,7 +734,7 @@ def process_materials(G):
             f"{material.er:g}",
             f"{material.se:g}",
         ]
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if G.model_config.materials["maxpoles"] > 0:
             if "debye" in material.type:
                 materialtext.append("\n".join(f"{deltaer:g}" for deltaer in material.deltaer))
                 materialtext.append("\n".join(f"{tau:g}" for tau in material.tau))

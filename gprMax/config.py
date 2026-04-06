@@ -45,7 +45,8 @@ class ModelConfig:
     N.B. Multiple models can exist within a simulation
     """
 
-    def __init__(self, model_num):
+    def __init__(self, sim_config: "SimulationConfig", model_num: int):
+        self.sim_config = sim_config
         self.mode = "3D"
         self.grids = []
         self.ompthreads = None
@@ -57,13 +58,13 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to
         #           fit on the memory of the GPU. If True this will slow
         #           performance significantly.
-        if sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
-            if sim_config.general["solver"] == "cuda":
-                devs = sim_config.args.gpu
-            elif sim_config.general["solver"] == "opencl":
-                devs = sim_config.args.opencl
+        if self.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+            if self.sim_config.general["solver"] == "cuda":
+                devs = self.sim_config.args.gpu
+            elif self.sim_config.general["solver"] == "opencl":
+                devs = self.sim_config.args.opencl
             else:  # metal
-                devs = sim_config.args.metal
+                devs = self.sim_config.args.metal
 
             # If a list of lists of deviceIDs is found, flatten it
             if any(isinstance(element, list) for element in devs):
@@ -77,7 +78,7 @@ class ModelConfig:
                 deviceID = 0
 
             self.device = {
-                "dev": sim_config.set_model_device(deviceID),
+                "dev": self.sim_config.set_model_device(deviceID),
                 "deviceID": deviceID,
                 "snapsgpu2cpu": False,
             }
@@ -88,8 +89,8 @@ class ModelConfig:
 
         # String to print at start of each model run
         s = (
-            f"\n--- Model {model_num + 1}/{sim_config.model_end}, "
-            f"input file: {sim_config.input_file_path}"
+            f"\n--- Model {model_num + 1}/{self.sim_config.model_end}, "
+            f"input file: {self.sim_config.input_file_path}"
         )
         self.inputfilestr = (
             Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n\n" + Style.RESET_ALL
@@ -97,7 +98,7 @@ class ModelConfig:
 
         # Output file path and name for specific model
         self.appendmodelnumber = (
-            "" if sim_config.args.n == 1 else str(model_num + 1)
+            "" if self.sim_config.args.n == 1 else str(model_num + 1)
         )  # Indexed from 1
         self.set_output_file_path()
 
@@ -131,19 +132,19 @@ class ModelConfig:
         }
 
     def reuse_geometry(self):
-        return self.model_num != 0 and sim_config.args.geometry_fixed
+        return self.model_num != 0 and self.sim_config.args.geometry_fixed
 
     def get_scene(self):
-        return sim_config.get_scene(self.model_num)
+        return self.sim_config.get_scene(self.model_num)
 
     def get_usernamespace(self):
         """Namespace only used with #python blocks which are deprecated."""
         tmp = {
-            "number_model_runs": sim_config.model_end,
+            "number_model_runs": self.sim_config.model_end,
             "current_model_run": self.model_num + 1,
-            "inputfile": sim_config.input_file_path.resolve(),
+            "inputfile": self.sim_config.input_file_path.resolve(),
         }
-        return dict(**sim_config.em_consts, **tmp)
+        return dict(**self.sim_config.em_consts, **tmp)
 
     def set_dispersive_material_types(self):
         """Sets data type for disperive materials. Complex if Drude or Lorentz
@@ -151,12 +152,12 @@ class ModelConfig:
         """
         if self.materials["drudelorentz"]:
             self.materials["crealfunc"] = ".real()"
-            self.materials["dispersivedtype"] = sim_config.dtypes["complex"]
-            self.materials["dispersiveCdtype"] = sim_config.dtypes["C_complex"]
+            self.materials["dispersivedtype"] = self.sim_config.dtypes["complex"]
+            self.materials["dispersiveCdtype"] = self.sim_config.dtypes["C_complex"]
         else:
             self.materials["crealfunc"] = ""
-            self.materials["dispersivedtype"] = sim_config.dtypes["float_or_double"]
-            self.materials["dispersiveCdtype"] = sim_config.dtypes["C_float_or_double"]
+            self.materials["dispersivedtype"] = self.sim_config.dtypes["float_or_double"]
+            self.materials["dispersiveCdtype"] = self.sim_config.dtypes["C_float_or_double"]
 
     def set_output_file_path(self, outputdir=None):
         """Sets output file path. Can be provided by the user via the API or an
@@ -169,11 +170,11 @@ class ModelConfig:
 
         if outputdir is not None:
             Path(outputdir).mkdir(exist_ok=True)
-            self.output_file_path = Path(outputdir, sim_config.input_file_path.stem)
-        elif sim_config.args.outputfile is not None:
-            self.output_file_path = Path(sim_config.args.outputfile).with_suffix("")
+            self.output_file_path = Path(outputdir, self.sim_config.input_file_path.stem)
+        elif self.sim_config.args.outputfile is not None:
+            self.output_file_path = Path(self.sim_config.args.outputfile).with_suffix("")
         else:
-            self.output_file_path = sim_config.input_file_path.with_suffix("")
+            self.output_file_path = self.sim_config.input_file_path.with_suffix("")
 
         parts = self.output_file_path.parts
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
@@ -495,10 +496,5 @@ class SimulationConfig:
         self.scenes[model_num] = scene
 
 
-# Single instance of SimConfig to hold simulation configuration parameters.
-sim_config: SimulationConfig = None
-
-
-def get_model_config() -> ModelConfig:
-    """Return ModelConfig instance for specific model."""
-    return sim_config.get_model_config()
+# Global instance removed to fix architectural debt (Reliance on Global State)
+# Use SimulationConfig instances directly and pass them to constructors.

@@ -53,7 +53,9 @@ logger = logging.getLogger(__name__)
 class Model:
     """Builds and runs (solves) a model."""
 
-    def __init__(self):
+    def __init__(self, sim_config: config.SimulationConfig, model_num: int):
+        self.sim_config = sim_config
+        self.model_config = sim_config.get_model_config(model_num)
         self.title = ""
 
         self.dt_mod = 1.0  # Time step stability factor
@@ -73,7 +75,7 @@ class Model:
         # used with threaded model building methods, e.g. fractals. Can be
         # changed by the user via #num_threads command in input file or via API
         # later for use with CPU solver.
-        config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
+        self.model_config.ompthreads = set_omp_threads(self.sim_config, self.model_config.ompthreads)
 
     @property
     def nx(self) -> int:
@@ -181,14 +183,14 @@ class Model:
         Returns:
             grid: FDTDGrid class describing a grid in a model.
         """
-        if config.sim_config.general["solver"] == "cpu":
-            grid = FDTDGrid()
-        elif config.sim_config.general["solver"] == "cuda":
-            grid = CUDAGrid()
-        elif config.sim_config.general["solver"] == "opencl":
-            grid = OpenCLGrid()
-        elif config.sim_config.general["solver"] == "metal":
-            grid = MetalGrid()
+        if self.sim_config.general["solver"] == "cpu":
+            grid = FDTDGrid(self.model_config)
+        elif self.sim_config.general["solver"] == "cuda":
+            grid = CUDAGrid(self.model_config)
+        elif self.sim_config.general["solver"] == "opencl":
+            grid = OpenCLGrid(self.model_config)
+        elif self.sim_config.general["solver"] == "metal":
+            grid = MetalGrid(self.model_config)
 
         return grid
 
@@ -344,13 +346,13 @@ class Model:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        if config.get_model_config().reuse_geometry():
+        if self.model_config.reuse_geometry():
             self.reuse_geometry()
         else:
             self.build_geometry()
 
         logger.info(
-            f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
+            f"Output directory: {self.model_config.output_file_path.parent.resolve()}\n"
         )
 
         self.G.update_sources_and_recievers()
@@ -362,7 +364,7 @@ class Model:
         if (
             not self.geometryviews
             and not self.geometryobjects
-            and config.sim_config.args.geometry_only
+            and self.sim_config.args.geometry_only
         ):
             logger.warning(
                 "Geometry only run specified, but no geometry views or geometry objects found."
@@ -382,14 +384,14 @@ class Model:
                     + f"{go.filename_hdf5.name}",
                     ncols=get_terminal_width() - 1,
                     file=sys.stdout,
-                    disable=not config.sim_config.general["progressbars"],
+                    disable=not self.sim_config.general["progressbars"],
                 )
                 go.write_hdf5(self.title, pbar)
                 pbar.close()
             logger.info("")
 
     def build_geometry(self):
-        logger.info(config.get_model_config().inputfilestr)
+        logger.info(self.model_config.inputfilestr)
 
         # Print info on any subgrids
         for subgrid in self.subgrids:
@@ -407,49 +409,49 @@ class Model:
 
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
         # Check for dispersive materials (and specific type)
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if self.model_config.materials["maxpoles"] != 0:
             # TODO: This sets materials["drudelorentz"] based only the
             # last grid/subgrid. Is that correct?
             for grid in grids:
-                config.get_model_config().materials["drudelorentz"] = any(
+                self.model_config.materials["drudelorentz"] = any(
                     [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
                 )
 
             # Set data type if any dispersive materials (must be done before memory checks)
-            config.get_model_config().set_dispersive_material_types()
+            self.model_config.set_dispersive_material_types()
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory
         # requirements to run model when FractalVolumes/FractalSurfaces are
         # used as these can require significant additional memory)
-        total_mem_build, mem_strs_build = mem_check_build_all(grids)
+        total_mem_build, mem_strs_build = mem_check_build_all(self.sim_config, self.model_config, grids)
 
         # Check memory requirements to run model
-        total_mem_run, mem_strs_run = mem_check_run_all(grids)
+        total_mem_run, mem_strs_run = mem_check_run_all(self.sim_config, self.model_config, grids)
 
         if total_mem_build > total_mem_run:
             logger.info(
                 f'Memory required (estimated): {" + ".join(mem_strs_build)} + '
-                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"~{humanize.naturalsize(self.model_config.mem_overhead)} "
                 f"overhead = {humanize.naturalsize(total_mem_build)}\n"
             )
         else:
             logger.info(
                 f'Memory required (estimated): {" + ".join(mem_strs_run)} + '
-                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"~{humanize.naturalsize(self.model_config.mem_overhead)} "
                 f"overhead = {humanize.naturalsize(total_mem_run)}\n"
             )
 
     def reuse_geometry(self):
         s = (
-            f"\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, "
+            f"\n--- Model {self.model_config.appendmodelnumber}/{self.sim_config.model_end}, "
             f"input file (not re-processed, i.e. geometry fixed): "
-            f"{config.sim_config.input_file_path}"
+            f"{self.sim_config.input_file_path}"
         )
-        config.get_model_config().inputfilestr = (
+        self.model_config.inputfilestr = (
             Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n\n" + Style.RESET_ALL
         )
-        logger.basic(config.get_model_config().inputfilestr)
+        logger.basic(self.model_config.inputfilestr)
         self.iteration = 0  # Reset current iteration number
         for grid in [self.G] + self.subgrids:
             grid.reset_fields()
@@ -463,7 +465,7 @@ class Model:
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
         if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
-            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
+            write_hdf5_outputfile(self.model_config.output_file_path_ext, self.title, self)
 
         # Write any snapshots to file for each grid
         for grid in [self.G] + self.subgrids:
@@ -478,63 +480,63 @@ class Model:
         """
 
         # Print information about and check OpenMP threads
-        if config.sim_config.general["solver"] == "cpu":
-            if config.sim_config.mpi:
+        if self.sim_config.general["solver"] == "cpu":
+            if self.sim_config.mpi:
                 backend = "MPI+OpenMP"
-                layout = f"{np.prod(config.sim_config.mpi)} MPI rank(s) and {config.get_model_config().ompthreads} thread(s) per rank"
+                layout = f"{np.prod(self.sim_config.mpi)} MPI rank(s) and {self.model_config.ompthreads} thread(s) per rank"
             else:
                 backend = "OpenMP"
-                layout = f"{config.get_model_config().ompthreads} thread(s)"
+                layout = f"{self.model_config.ompthreads} thread(s)"
             logger.basic(
-                f"Model {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
-                f"on {config.sim_config.hostinfo['hostname']} "
+                f"Model {self.sim_config.current_model + 1}/{self.sim_config.model_end} "
+                f"on {self.sim_config.hostinfo['hostname']} "
                 f"with {backend} backend using {layout}"
             )
-            if config.get_model_config().ompthreads > config.sim_config.hostinfo["physicalcores"]:
+            if self.model_config.ompthreads > self.sim_config.hostinfo["physicalcores"]:
                 logger.warning(
-                    f"You have specified more threads ({config.get_model_config().ompthreads}) "
-                    f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
+                    f"You have specified more threads ({self.model_config.ompthreads}) "
+                    f"than available physical CPU cores ({self.sim_config.hostinfo['physicalcores']}). "
                     f"This may lead to degraded performance."
                 )
-        elif config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
-            if config.sim_config.general["solver"] == "opencl":
+        elif self.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+            if self.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
                 platformname = (
-                    " ".join(config.get_model_config().device["dev"].platform.name.split())
+                    " ".join(self.model_config.device["dev"].platform.name.split())
                     + " with "
                 )
                 devicename = (
-                    f'Device {config.get_model_config().device["deviceID"]}: '
-                    f'{" ".join(config.get_model_config().device["dev"].name.split())}'
+                    f'Device {self.model_config.device["deviceID"]}: '
+                    f'{" ".join(self.model_config.device["dev"].name.split())}'
                 )
-            elif config.sim_config.general["solver"] == "cuda":
+            elif self.sim_config.general["solver"] == "cuda":
                 solvername = "CUDA"
                 platformname = ""
                 devicename = (
-                    f'Device {config.get_model_config().device["deviceID"]}: '
-                    f'{" ".join(config.get_model_config().device["dev"].name().split())}'
+                    f'Device {self.model_config.device["deviceID"]}: '
+                    f'{" ".join(self.model_config.device["dev"].name().split())}'
                 )
             else:  # Metal
                 solvername = "Apple Metal"
                 platformname = ""
                 devicename = (
-                    f'Device {config.get_model_config().device["deviceID"]}: '
-                    f'{" ".join(config.get_model_config().device["dev"].name().split())}'
+                    f'Device {self.model_config.device["deviceID"]}: '
+                    f'{" ".join(self.model_config.device["dev"].name().split())}'
                 )
             logger.basic(
-                f"\nModel {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
-                f"solving on {config.sim_config.hostinfo['hostname']} "
+                f"\nModel {self.sim_config.current_model + 1}/{self.sim_config.model_end} "
+                f"solving on {self.sim_config.hostinfo['hostname']} "
                 f"with {solvername} backend using {platformname}{devicename}"
             )
 
         # Prepare iterator
-        if config.sim_config.general["progressbars"]:
+        if self.sim_config.general["progressbars"]:
             iterator = tqdm(
                 range(self.iterations),
                 desc="|--->",
                 ncols=get_terminal_width() - 1,
                 file=sys.stdout,
-                disable=not config.sim_config.general["progressbars"],
+                disable=not self.sim_config.general["progressbars"],
             )
         else:
             iterator = range(self.iterations)
@@ -548,9 +550,9 @@ class Model:
         # Print information about memory usage and solving time for a model
         # Add a string on device (GPU) memory usage if applicable
         mem_str = ""
-        if config.sim_config.general["solver"] == "cuda":
+        if self.sim_config.general["solver"] == "cuda":
             mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
-        elif config.sim_config.general["solver"] == "opencl":
+        elif self.sim_config.general["solver"] == "opencl":
             mem_str = f" host + unknown for device"
 
         logger.info(

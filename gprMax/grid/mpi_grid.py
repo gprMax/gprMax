@@ -45,7 +45,7 @@ class MPIGrid(FDTDGrid):
     HALO_SIZE = 1
     COORDINATOR_RANK = 0
 
-    def __init__(self, comm: MPI.Cartcomm):
+    def __init__(self, comm: MPI.Cartcomm, model_config):
         self.comm = comm
         self.x_comm = comm.Sub([False, True, True])
         self.y_comm = comm.Sub([True, False, True])
@@ -69,7 +69,7 @@ class MPIGrid(FDTDGrid):
         self.send_requests: List[MPI.Request] = []
         self.recv_requests: List[MPI.Request] = []
 
-        super().__init__()
+        super().__init__(model_config)
 
     @property
     def rank(self) -> int:
@@ -511,7 +511,7 @@ class MPIGrid(FDTDGrid):
         else:
             raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
-        sumer, summr = pml_sum_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
+        sumer, summr = pml_sum_er_mr(n1, n2, self.model_config.ompthreads, solid, ers, mrs)
         n = pml.comm.allreduce(n1 * n2, MPI.SUM)
         sumer = pml.comm.allreduce(sumer, MPI.SUM)
         summr = pml.comm.allreduce(summr, MPI.SUM)
@@ -558,7 +558,7 @@ class MPIGrid(FDTDGrid):
         super().update_sources_and_recievers()
 
         # Check it is possible for sources and receivers to have moved
-        model_num = config.sim_config.current_model
+        model_num = self.sim_config.current_model
         if (all(self.srcsteps == 0) and all(self.rxsteps == 0)) or model_num == 0:
             return
 

@@ -53,8 +53,9 @@ class Context:
     (CPU/GPU).
     """
 
-    def __init__(self):
-        self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
+    def __init__(self, sim_config: config.SimulationConfig):
+        self.sim_config = sim_config
+        self.model_range = range(self.sim_config.model_start, self.sim_config.model_end)
         self.sim_start_time = 0
         self.sim_end_time = 0
 
@@ -65,13 +66,13 @@ class Context:
         """
         self.sim_start_time = timer()
         self.print_logo_copyright()
-        print_host_info(config.sim_config.hostinfo)
-        if config.sim_config.general["solver"] == "cuda":
-            print_cuda_info(config.sim_config.devices["devs"])
-        elif config.sim_config.general["solver"] == "opencl":
-            print_opencl_info(config.sim_config.devices["devs"])
-        elif config.sim_config.general["solver"] == "metal":
-            print_metal_info(config.sim_config.devices["devs"])
+        print_host_info(self.sim_config.hostinfo)
+        if self.sim_config.general["solver"] == "cuda":
+            print_cuda_info(self.sim_config.devices["devs"])
+        elif self.sim_config.general["solver"] == "opencl":
+            print_opencl_info(self.sim_config.devices["devs"])
+        elif self.sim_config.general["solver"] == "metal":
+            print_metal_info(self.sim_config.devices["devs"])
 
     def _end_simulation(self) -> None:
         """Run post-simulation steps
@@ -104,23 +105,23 @@ class Context:
             model_num: index of model to be run
         """
 
-        config.sim_config.set_current_model(model_num)
+        self.sim_config.set_current_model(model_num)
         model_config = self._create_model_config(model_num)
-        config.sim_config.set_model_config(model_config)
+        self.sim_config.set_model_config(model_config)
 
         if not model_config.reuse_geometry():
             scene = self._get_scene(model_num)
-            model = self._create_model()
+            model = self._create_model(model_num)
             scene.create_internal_objects(model)
 
         model.build()
 
-        if not config.sim_config.geometry_only:
+        if not self.sim_config.geometry_only:
             solver = create_solver(model)
             model.solve(solver)
             del solver
 
-        if not config.sim_config.geometry_fixed:
+        if not self.sim_config.geometry_fixed:
             # Manual garbage collection required to stop memory leak on GPUs
             # when using pycuda
             del model.G, model
@@ -129,23 +130,24 @@ class Context:
 
     def _create_model_config(self, model_num: int) -> ModelConfig:
         """Create model config and save to global config."""
-        return ModelConfig(model_num)
+        return ModelConfig(self.sim_config, model_num)
 
     def _get_scene(self, model_num: int) -> Scene:
         # API for multiple scenes / model runs
-        scene = config.sim_config.get_scene(model_num)
+        scene = self.sim_config.get_scene(model_num)
 
         # If there is no scene, process the hash commands
         if scene is None:
-            scene = Scene()
-            config.sim_config.set_scene(scene, model_num)
+            model_config = self.sim_config.get_model_config(model_num)
+            scene = Scene(self.sim_config, model_config)
+            self.sim_config.set_scene(scene, model_num)
             # Parse the input file into user objects and add them to the scene
             scene = parse_hash_commands(scene)
 
         return scene
 
-    def _create_model(self) -> Model:
-        return Model()
+    def _create_model(self, model_num: int) -> Model:
+        return Model(self.sim_config, model_num)
 
     def print_logo_copyright(self) -> None:
         """Prints gprMax logo, version, and copyright/licencing information."""
@@ -162,18 +164,18 @@ class Context:
 
 
 class MPIContext(Context):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, sim_config: config.SimulationConfig):
+        super().__init__(sim_config)
         from mpi4py import MPI
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
 
-        requested_mpi_size = np.prod(config.sim_config.mpi)
+        requested_mpi_size = np.prod(self.sim_config.mpi)
         if self.comm.size < requested_mpi_size:
             logger.error(
                 f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
-                f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
+                f" {self.sim_config.mpi}. {requested_mpi_size} ranks are required."
             )
             exit()
 
@@ -185,8 +187,8 @@ class MPIContext(Context):
             )
             exit()
 
-    def _create_model(self) -> MPIModel:
-        return MPIModel()
+    def _create_model(self, model_num: int) -> MPIModel:
+        return MPIModel(self.sim_config, model_num)
 
     def run(self) -> Dict:
         try:
@@ -206,23 +208,23 @@ class MPIContext(Context):
             model_num: index of model to be run
         """
 
-        config.sim_config.set_current_model(model_num)
+        self.sim_config.set_current_model(model_num)
         model_config = self._create_model_config(model_num)
-        config.sim_config.set_model_config(model_config)
+        self.sim_config.set_model_config(model_config)
 
         if not model_config.reuse_geometry():
-            model = self._create_model()
+            model = self._create_model(model_num)
             scene = self._get_scene(model_num)
             scene.create_internal_objects(model)
 
         model.build()
 
-        if not config.sim_config.geometry_only:
+        if not self.sim_config.geometry_only:
             solver = create_solver(model)
             model.solve(solver)
             del solver
 
-        if not config.sim_config.geometry_fixed:
+        if not self.sim_config.geometry_fixed:
             # Manual garbage collection required to stop memory leak on GPUs
             # when using pycuda
             del model.G, model
@@ -236,8 +238,8 @@ class TaskfarmContext(Context):
     CUDA (GPU), or OpenCL (CPU/GPU).
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, sim_config: config.SimulationConfig):
+        super().__init__(sim_config)
         from mpi4py import MPI
 
         from gprMax.taskfarm import TaskfarmExecutor
@@ -253,9 +255,9 @@ class TaskfarmContext(Context):
         """
         model_config = super()._create_model_config(model_num)
         # Set GPU deviceID according to worker rank
-        if config.sim_config.general["solver"] == "cuda":
+        if self.sim_config.general["solver"] == "cuda":
             model_config.device = {
-                "dev": config.sim_config.devices["devs"][self.rank - 1],
+                "dev": self.sim_config.devices["devs"][self.rank - 1],
                 "deviceID": self.rank - 1,
                 "snapsgpu2cpu": False,
             }
@@ -280,7 +282,7 @@ class TaskfarmContext(Context):
         if self.rank == 0:
             self._start_simulation()
 
-            s = f"\n--- Input file: {config.sim_config.input_file_path}"
+            s = f"\n--- Input file: {self.sim_config.input_file_path}"
             logger.basic(
                 Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
             )
@@ -293,8 +295,8 @@ class TaskfarmContext(Context):
         # Check GPU resources versus number of MPI tasks
         if (
             executor.is_master()
-            and config.sim_config.general["solver"] == "cuda"
-            and executor.size - 1 > len(config.sim_config.devices["devs"])
+            and self.sim_config.general["solver"] == "cuda"
+            and executor.size - 1 > len(self.sim_config.devices["devs"])
         ):
             logger.error(
                 "Not enough GPU resources for number of "

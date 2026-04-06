@@ -28,8 +28,8 @@ from gprMax.pml import CUDAPML
 class CUDAGrid(FDTDGrid):
     """Additional grid methods for solving on GPU using CUDA."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, model_config):
+        super().__init__(model_config)
 
         self.gpuarray = import_module("pycuda.gpuarray")
 

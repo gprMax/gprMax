@@ -93,7 +93,7 @@ class UserObject(ABC):
         # specific objects.
         if (
             isinstance(grid, SubGridBaseGrid)
-            and config.sim_config.args.autotranslate
+            and grid.model_config.sim_config.args.autotranslate
             and self.autotranslate
         ):
             return SubgridUserInput(grid)

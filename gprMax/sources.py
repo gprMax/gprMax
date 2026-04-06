@@ -140,10 +140,10 @@ class VoltageSource(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_halfdt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
             )
             self.waveformvalues_wholedt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
             )
 
             for iteration in range(G.iterations + 1):
@@ -269,7 +269,7 @@ class HertzianDipole(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_halfdt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
             )
 
             for iteration in range(G.iterations + 1):
@@ -349,7 +349,7 @@ class MagneticDipole(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_wholedt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
             )
 
             for iteration in range(G.iterations + 1):
@@ -419,9 +419,9 @@ def htod_src_arrays(sources, G, queue=None):
     """
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
-    srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
+    srcinfo2 = np.zeros((len(sources)), dtype=G.sim_config.dtypes["float_or_double"])
     srcwaves = np.zeros(
-        (len(sources), G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+        (len(sources), G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
     )
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
@@ -451,21 +451,21 @@ def htod_src_arrays(sources, G, queue=None):
             srcwaves[i, :] = src.waveformvalues_wholedt
 
     # Copy arrays to compute device
-    if config.sim_config.general["solver"] == "cuda":
+    if G.sim_config.general["solver"] == "cuda":
         import pycuda.gpuarray as gpuarray
 
         srcinfo1_dev = gpuarray.to_gpu(srcinfo1)
         srcinfo2_dev = gpuarray.to_gpu(srcinfo2)
         srcwaves_dev = gpuarray.to_gpu(srcwaves)
-    elif config.sim_config.general["solver"] == "opencl":
+    elif G.sim_config.general["solver"] == "opencl":
         import pyopencl.array as clarray
 
         srcinfo1_dev = clarray.to_device(queue, srcinfo1)
         srcinfo2_dev = clarray.to_device(queue, srcinfo2)
         srcwaves_dev = clarray.to_device(queue, srcwaves)
-    elif config.sim_config.general["solver"] == "metal":
+    elif G.sim_config.general["solver"] == "metal":
         # Metal doesn't use a queue parameter, need to get device from config
-        dev = config.get_model_config().device["dev"]
+        dev = G.model_config.device["dev"]
         srcinfo1_dev = dev.newBufferWithBytes_length_options_(srcinfo1.tobytes(), srcinfo1.nbytes, 0)
         srcinfo2_dev = dev.newBufferWithBytes_length_options_(srcinfo2.tobytes(), srcinfo2.nbytes, 0)
         srcwaves_dev = dev.newBufferWithBytes_length_options_(srcwaves.tobytes(), srcwaves.nbytes, 0)
@@ -478,16 +478,15 @@ class TransmissionLine(Source):
     which is attached virtually to a grid cell.
     """
 
-    def __init__(self, iterations: int, dt: float):
+    def __init__(self, G):
         """
         Args:
-            iterations: number of iterations
-            dt: time step of the grid
+            G: FDTDGrid class describing a grid in a model.
         """
 
         super().__init__()
         self.resistance = None
-        self.iterations = iterations
+        self.iterations = G.iterations
 
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
@@ -495,7 +494,7 @@ class TransmissionLine(Source):
 
         # Spatial step of transmission line (N.B if the magic time step is
         # used it results in instabilities for certain impedances)
-        self.dl = np.sqrt(3) * config.c * dt
+        self.dl = np.sqrt(3) * config.c * G.dt
 
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
@@ -507,12 +506,12 @@ class TransmissionLine(Source):
         # Cell position of where line connects to antenna/main grid
         self.antpos = 10
 
-        self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Iinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Itotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.voltage = np.zeros(self.nl, dtype=G.sim_config.dtypes["float_or_double"])
+        self.current = np.zeros(self.nl, dtype=G.sim_config.dtypes["float_or_double"])
+        self.Vinc = np.zeros(self.iterations + 1, dtype=G.sim_config.dtypes["float_or_double"])
+        self.Iinc = np.zeros(self.iterations + 1, dtype=G.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(self.iterations + 1, dtype=G.sim_config.dtypes["float_or_double"])
+        self.Itotal = np.zeros(self.iterations + 1, dtype=G.sim_config.dtypes["float_or_double"])
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -536,10 +535,10 @@ class TransmissionLine(Source):
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             self.waveformvalues_wholedt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
             )
             self.waveformvalues_halfdt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+                (G.iterations + 1), dtype=G.sim_config.dtypes["float_or_double"]
             )
 
             for iteration in range(G.iterations + 1):
@@ -861,24 +860,24 @@ class DiscretePlaneWave(Source):
         self.E_fields = np.zeros(
             (3, self.length),
             order="C",
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=G.sim_config.dtypes["float_or_double"],
         )
         self.H_fields = np.zeros(
             (3, self.length),
             order="C",
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=G.sim_config.dtypes["float_or_double"],
         )
         # Allocate memory for the 1D source fields for axial propagation case 
         if self.axial != 0:
             self.E_fields_s = np.zeros(
             (3, self.length),
             order="C",
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=G.sim_config.dtypes["float_or_double"],
             )
             self.H_fields_s = np.zeros(
             (3, self.length),
             order="C",
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=G.sim_config.dtypes["float_or_double"],
             )
 
         # Allocate memory for the 1D DPW PML integrals
@@ -886,34 +885,34 @@ class DiscretePlaneWave(Source):
         # Izjyx means correcting an E_z field due to a H_y field variation in x derivative direction array position 1
         # Izmxy means correcting an H_z field due to an E_x field variation in y derivative direction array position 2
         # Izmyx means correcting an H_z field due to an E_y field variation in x derivative direction array position 3 
-        self.Iz = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])      
+        self.Iz = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])      
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Iz_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Iz0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iz_s = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.Iz0  = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
         
         # Iyjxz means correcting an E_y field due to a H_x field variation in z derivative direction array position 0
         # Iyjzx means correcting an E_y field due to a H_z field variation in x derivative direction array position 1
         # Iymxz means correcting an H_y field due to an E_x field variation in z derivative direction array position 2
         # Iymzx means correcting an H_y field due to an E_z field variation in x derivative direction array position 3
-        self.Iy = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iy = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Iy_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Iy0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iy_s = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.Iy0  = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
         # Ixjyz means correcting an E_x field due to a H_y field variation in z derivative direction array position 0
         # Ixjzy means correcting an E_x field due to a H_z field variation in y derivative direction array position 1
         # Ixmyz means correcting an H_x field due to an E_y field variation in z derivative direction array position 2
         # Ixmzy means correcting an H_x field due to an E_z field variation in y derivative direction array position 3
-        self.Ix = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Ix = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Ix_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Ix0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])    
+            self.Ix_s = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.Ix0  = np.zeros((4,self.pml_length), order="C", dtype=G.sim_config.dtypes["float_or_double"])    
 
        # When no grid IDs are used Get the background material object with the matching ID and add it to the PlaneWave object
         if self.axial == 0:
@@ -927,9 +926,9 @@ class DiscretePlaneWave(Source):
                 self.speed = config.c / math.sqrt(np.real(self.material.calculate_er(self.waveform.freq)) * self.material.mr)  # Speed in the material
                 self.max_poles = self.material.poles
                 # Allocate memory for the polarization terms for dispersive materials
-                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
               
             else:
                 self.dispersive = False
@@ -1110,12 +1109,12 @@ class DiscretePlaneWave(Source):
 
             # Allocate memory for the polarization arrays for the DPW updates if dispersive materials are present in the grid
             if self.dispersive:
-                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Px_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Px_s = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Py_s = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
+                self.Pz_s = np.zeros((self.max_poles,self.length), order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
         
             # Calculate the projections for sourcing the electric and magnetic fields
@@ -1167,13 +1166,13 @@ class DiscretePlaneWave(Source):
         # Waveform values for sources that need to be calculated on whole timesteps
         self.waveformvalues_wholedt = np.zeros(
             (G.iterations + 1, 3, self.m[3]),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=G.sim_config.dtypes["float_or_double"],
         )
 
         # Waveform values for sources that need to be calculated on half timesteps
         self.waveformvalues_halfdt = np.zeros(
             (G.iterations + 1, 3, self.m[3]),
-            dtype=config.sim_config.dtypes["float_or_double"],
+            dtype=G.sim_config.dtypes["float_or_double"],
         )
 
         #waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
@@ -2240,13 +2239,13 @@ class DiscretePlaneWave(Source):
             # --- Combine Coefficients into Single Matrices ---
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez, 
             # Hz, Hy, Hz components
-            self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rez = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rez = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
-            self.pml_rhx = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhy = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhz = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rhx = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rhy = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rhz = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
         else:
             Z = self.materialPMLZ
@@ -2347,13 +2346,13 @@ class DiscretePlaneWave(Source):
             # --- Combine Coefficients into Single Matrices ---
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez, 
             # Hz, Hy, Hz components
-            self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rez = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rez = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
-            self.pml_rhx = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhy = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhz = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rhx = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rhy = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rhz = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
             # --- Repeat for PML0 ---
 
@@ -2455,10 +2454,10 @@ class DiscretePlaneWave(Source):
             # --- Combine Coefficients into Single Matrices ---
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez, 
             # Hz, Hy, Hz components
-            self.pml_rex0 = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rey0 = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rez0 = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rex0 = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rey0 = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rez0 = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=G.sim_config.dtypes["float_or_double"])
 
-            self.pml_rhx0 = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhy0 = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhz0 = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rhx0 = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rhy0 = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=G.sim_config.dtypes["float_or_double"])
+            self.pml_rhz0 = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=G.sim_config.dtypes["float_or_double"])

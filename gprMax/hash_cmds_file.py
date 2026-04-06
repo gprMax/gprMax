@@ -192,7 +192,7 @@ def process_include_files(hashcmds):
             # See if file exists at specified path and if not try input file directory
             includefile = Path(includefile)
             if not includefile.exists():
-                includefile = Path(config.sim_config.input_file_path.parent, includefile)
+                includefile = Path(scene.sim_config.input_file_path.parent, includefile)
 
             with open(includefile, "r") as f:
                 # Strip out any newline characters and comments that must begin with double hashes
@@ -213,16 +213,17 @@ def process_include_files(hashcmds):
     return processedincludecmds
 
 
-def write_processed_file(processedlines):
+def write_processed_file(scene, processedlines):
     """Writes an input file after any Python code and include commands
         in the original input file have been processed.
 
     Args:
+        scene: Scene object.
         processedlines: list of input commands after after processing any
                         Python code and include commands.
     """
 
-    parts = config.get_model_config().output_file_path.parts
+    parts = scene.model_config.output_file_path.parts
     processedfile = Path(*parts[:-1], parts[-1] + "_processed.in")
 
     with open(processedfile, "w") as f:
@@ -434,8 +435,8 @@ def parse_hash_commands(scene):
         scene: Scene object.
     """
 
-    with open(config.sim_config.input_file_path) as inputfile:
-        usernamespace = config.get_model_config().get_usernamespace()
+    with open(scene.sim_config.input_file_path) as inputfile:
+        usernamespace = scene.model_config.get_usernamespace()
 
         # Read input file and process any Python and include file commands
         processedlines = process_python_include_code(inputfile, usernamespace)
@@ -451,8 +452,8 @@ def parse_hash_commands(scene):
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
-        if config.sim_config.args.write_processed:
-            write_processed_file(processedlines)
+        if scene.sim_config.args.write_processed:
+            write_processed_file(scene, processedlines)
 
         user_objs = get_user_objects(processedlines, checkessential=True)
         for user_obj in user_objs:

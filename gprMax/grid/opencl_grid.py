@@ -26,8 +26,8 @@ from gprMax.pml import PML, OpenCLPML
 class OpenCLGrid(FDTDGrid):
     """Additional grid methods for solving on compute device using OpenCL."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, model_config):
+        super().__init__(model_config)
 
         self.clarray = import_module("pyopencl.array")
 

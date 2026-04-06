@@ -59,7 +59,7 @@ def save_geometry_views(gvs: "List[GeometryView]"):
             desc=f"Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name}",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
-            disable=not config.sim_config.general["progressbars"],
+            disable=not gv.grid.sim_config.general["progressbars"],
         )
         gv.write_vtk()
         pbar.update(gv.nbytes)
@@ -112,9 +112,9 @@ class GeometryView(Generic[GridType]):
 
     def set_filename(self):
         """Construct filename from user-supplied name and model number."""
-        parts = config.get_model_config().output_file_path.parts
+        parts = self.grid.model_config.output_file_path.parts
         self.filename = Path(
-            *parts[:-1], self.filenamebase + config.get_model_config().appendmodelnumber
+            *parts[:-1], self.filenamebase + self.grid.model_config.appendmodelnumber
         ).with_suffix(self.FILE_EXTENSION)
 
     @abstractmethod

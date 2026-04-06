@@ -326,17 +326,17 @@ def run_main(args):
         mpi_logger=args.mpi is not None,
         log_all_ranks=args.log_all_ranks,
     )
-    config.sim_config = config.SimulationConfig(args)
+    sim_config = config.SimulationConfig(args)
 
     # MPI taskfarm running with (OpenMP/CUDA/OpenCL)
-    if config.sim_config.args.taskfarm:
-        context = TaskfarmContext()
+    if sim_config.args.taskfarm:
+        context = TaskfarmContext(sim_config)
     # MPI running to divide model between ranks
-    elif config.sim_config.args.mpi is not None:
-        context = MPIContext()
+    elif sim_config.args.mpi is not None:
+        context = MPIContext(sim_config)
     # Standard running (OpenMP/CUDA/OpenCL/Metal)
     else:
-        context = Context()
+        context = Context(sim_config)
 
     results = context.run()
 

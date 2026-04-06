@@ -57,18 +57,18 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.drv.init()
 
         # Create device handle and context on specific GPU device (and make it current context)
-        self.dev = config.get_model_config().device["dev"]
+        self.dev = self.grid.model_config.device["dev"]
         self.ctx = self.dev.make_context()
 
         # Set common substitutions for use in kernels
         # Substitutions in function arguments
         self.subs_name_args = {
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
+            "COMPLEX": self.grid.model_config.materials["dispersiveCdtype"],
         }
         # Substitutions in function bodies
         self.subs_func = {
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
             "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
@@ -119,7 +119,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Common macros to be used in kernels."""
 
         # Set specific values for any dispersive materials
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
             NY_T = self.grid.Tx.shape[2]
@@ -131,7 +131,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             NZ_T = 1
 
         self.knl_common = self.env.get_template("knl_common_cuda.tmpl").render(
-            REAL=config.sim_config.dtypes["C_float_or_double"],
+            REAL=self.grid.sim_config.dtypes["C_float_or_double"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -164,24 +164,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
         bld = self._build_knl(
             knl_fields_updates.update_electric, self.subs_name_args, self.subs_func
         )
-        knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+        knlE = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
         self.update_electric_dev = knlE.get_function("update_electric")
 
         bld = self._build_knl(
             knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func
         )
-        knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+        knlH = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
         self.update_magnetic_dev = knlH.get_function("update_magnetic")
 
         self._copy_mat_coeffs(knlE, knlH)
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             self.subs_func.update(
                 {
-                    "REAL": config.sim_config.dtypes["C_float_or_double"],
-                    "REALFUNC": config.get_model_config().materials["crealfunc"],
+                    "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
+                    "REALFUNC": self.grid.model_config.materials["crealfunc"],
                     "NX_T": self.grid.Tx.shape[1],
                     "NY_T": self.grid.Tx.shape[2],
                     "NZ_T": self.grid.Tx.shape[3],
@@ -191,14 +191,14 @@ class CUDAUpdates(Updates[CUDAGrid]):
             bld = self._build_knl(
                 knl_fields_updates.update_electric_dispersive_A, self.subs_name_args, self.subs_func
             )
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
             self._copy_mat_coeffs(knl, knl)
 
             bld = self._build_knl(
                 knl_fields_updates.update_electric_dispersive_B, self.subs_name_args, self.subs_func
             )
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
             self._copy_mat_coeffs(knl, knl)
 
@@ -206,7 +206,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.grid.set_blocks_per_grid()
         self.grid.htod_geometry_arrays()
         self.grid.htod_field_arrays()
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays()
 
     def _set_pml_knls(self):
@@ -227,12 +227,12 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
             knl_electric = getattr(knl_pml_updates_electric, knl_name)
             bld = self._build_knl(knl_electric, self.subs_name_args, self.subs_func)
-            knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knlE = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             pml.update_electric_dev = knlE.get_function(knl_name)
 
             knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
             bld = self._build_knl(knl_magnetic, self.subs_name_args, self.subs_func)
-            knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knlH = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             pml.update_magnetic_dev = knlH.get_function(knl_name)
 
             # Copy material coefficient arrays to constant memory of GPU - must
@@ -247,7 +247,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self.subs_func.update(
             {
-                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
                 "NY_RXCOORDS": 3,
                 "NX_RXS": 6,
                 "NY_RXS": self.grid.iterations,
@@ -256,7 +256,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         )
 
         bld = self._build_knl(knl_store_outputs.store_outputs, self.subs_name_args, self.subs_func)
-        knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+        knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
         self.store_outputs_dev = knl.get_function("store_outputs")
 
     def _set_src_knls(self):
@@ -274,7 +274,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             bld = self._build_knl(
                 knl_source_updates.update_hertzian_dipole, self.subs_name_args, self.subs_func
             )
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             self.update_hertzian_dipole_dev = knl.get_function("update_hertzian_dipole")
         if self.grid.magneticdipoles:
             (
@@ -285,7 +285,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             bld = self._build_knl(
                 knl_source_updates.update_magnetic_dipole, self.subs_name_args, self.subs_func
             )
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             self.update_magnetic_dipole_dev = knl.get_function("update_magnetic_dipole")
         if self.grid.voltagesources:
             (
@@ -296,7 +296,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             bld = self._build_knl(
                 knl_source_updates.update_voltage_source, self.subs_name_args, self.subs_func
             )
-            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
             self.update_voltage_source_dev = knl.get_function("update_voltage_source")
 
         self._copy_mat_coeffs(knl, knl)
@@ -316,7 +316,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self.subs_func.update(
             {
-                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
                 "NX_SNAPS": Snapshot.nx_max,
                 "NY_SNAPS": Snapshot.ny_max,
                 "NZ_SNAPS": Snapshot.nz_max,
@@ -324,7 +324,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         )
 
         bld = self._build_knl(knl_snapshots.store_snapshot, self.subs_name_args, self.subs_func)
-        knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+        knl = self.source_module(bld, options=self.grid.sim_config.devices["nvcc_opts"])
         self.store_snapshot_dev = knl.get_function("store_snapshot")
 
     def _copy_mat_coeffs(self, knlE, knlH):
@@ -339,9 +339,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Check if coefficient arrays will fit on constant memory of GPU
         if (
             self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes
-            > config.get_model_config().device["dev"].total_constant_memory
+            > self.grid.model_config.device["dev"].total_constant_memory
         ):
-            device = config.get_model_config().device["dev"]
+            device = self.grid.model_config.device["dev"]
             logger.exception(
                 f"Too many materials in the model to fit onto "
                 + f"constant memory of size {humanize.naturalsize(device.total_constant_memory)} "
@@ -381,7 +381,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
-                snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
+                snapno = 0 if self.grid.model_config.device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
@@ -408,7 +408,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     block=Snapshot.tpb,
                     grid=Snapshot.bpg,
                 )
-                if config.get_model_config().device["snapsgpu2cpu"]:
+                if self.grid.model_config.device["snapsgpu2cpu"]:
                     dtoh_snapshot_array(
                         self.snapEx_dev.get(),
                         self.snapEy_dev.get(),
@@ -448,9 +448,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
                 np.int32(iteration),
-                config.sim_config.dtypes["float_or_double"](self.grid.dx),
-                config.sim_config.dtypes["float_or_double"](self.grid.dy),
-                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dx),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dy),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dz),
                 self.srcinfo1_magnetic_dev.gpudata,
                 self.srcinfo2_magnetic_dev.gpudata,
                 self.srcwaves_magnetic_dev.gpudata,
@@ -465,7 +465,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.model_config.materials["maxpoles"] == 0:
             self.update_electric_dev(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
@@ -488,7 +488,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.model_config.materials["maxpoles"]),
                 self.grid.updatecoeffsdispersive_dev.gpudata,
                 self.grid.Tx_dev.gpudata,
                 self.grid.Ty_dev.gpudata,
@@ -517,9 +517,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self.update_voltage_source_dev(
                 np.int32(len(self.grid.voltagesources)),
                 np.int32(iteration),
-                config.sim_config.dtypes["float_or_double"](self.grid.dx),
-                config.sim_config.dtypes["float_or_double"](self.grid.dy),
-                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dx),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dy),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dz),
                 self.srcinfo1_voltage_dev.gpudata,
                 self.srcinfo2_voltage_dev.gpudata,
                 self.srcwaves_voltage_dev.gpudata,
@@ -535,9 +535,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
                 np.int32(iteration),
-                config.sim_config.dtypes["float_or_double"](self.grid.dx),
-                config.sim_config.dtypes["float_or_double"](self.grid.dy),
-                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dx),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dy),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dz),
                 self.srcinfo1_hertzian_dev.gpudata,
                 self.srcinfo2_hertzian_dev.gpudata,
                 self.srcwaves_hertzian_dev.gpudata,
@@ -557,12 +557,12 @@ class CUDAUpdates(Updates[CUDAGrid]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             self.dispersive_update_b(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.model_config.materials["maxpoles"]),
                 self.grid.updatecoeffsdispersive_dev.gpudata,
                 self.grid.Tx_dev.gpudata,
                 self.grid.Ty_dev.gpudata,
@@ -608,7 +608,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
-        if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:
+        if self.grid.snapshots and not self.grid.model_config.device["snapsgpu2cpu"]:
             for i, snap in enumerate(self.grid.snapshots):
                 dtoh_snapshot_array(
                     self.snapEx_dev.get(),

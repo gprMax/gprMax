@@ -346,11 +346,11 @@ class VoltageSource(RotatableMixin, GridUserObject):
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
+        if "2D TMx" in grid.model_config.mode and self.polarisation in ["y", "z"]:
             raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
+        elif "2D TMy" in grid.model_config.mode and self.polarisation in ["x", "z"]:
             raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
+        elif "2D TMz" in grid.model_config.mode and self.polarisation in ["x", "y"]:
             raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
         # Check resistance
@@ -555,7 +555,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         else:
             startstop = f" start time {hertzian_dipole.start:g} secs, finish time {hertzian_dipole.stop:g} secs "
 
-        if config.get_model_config().mode == "2D":
+        if grid.model_config.mode == "2D":
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole is a line source"
                 f" in 2D with polarity {hertzian_dipole.polarisation}"
@@ -653,11 +653,11 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
+        if "2D TMx" in grid.model_config.mode and self.polarisation in ["y", "z"]:
             raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
+        elif "2D TMy" in grid.model_config.mode and self.polarisation in ["x", "z"]:
             raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
+        elif "2D TMz" in grid.model_config.mode and self.polarisation in ["x", "y"]:
             raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
         # Check if there is a waveformID in the waveforms list
@@ -790,7 +790,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
     def _validate_parameters(self, grid: FDTDGrid):
         # Warn about using a transmission line on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        if grid.sim_config.general["solver"] in ["cuda", "opencl"]:
             raise ValueError(
                 f"{self.params_str()} cannot currently be used "
                 "with the CUDA or OpenCL-based solver. Consider "
@@ -801,15 +801,15 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
+        if "2D TMx" in grid.model_config.mode and self.polarisation in ["y", "z"]:
             raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
+        elif "2D TMy" in grid.model_config.mode and self.polarisation in ["x", "z"]:
             raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
+        elif "2D TMz" in grid.model_config.mode and self.polarisation in ["x", "y"]:
             raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
         # Check resistance
-        if self.resistance <= 0 or self.resistance >= config.sim_config.em_consts["z0"]:
+        if self.resistance <= 0 or self.resistance >= grid.sim_config.em_consts["z0"]:
             raise ValueError(
                 f"{self.params_str()} requires a resistance "
                 "greater than zero and less than the impedance "
@@ -841,7 +841,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
     def _create_transmission_line(
         self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
     ) -> TransmissionLineUser:
-        t = TransmissionLineUser(grid.iterations, grid.dt)
+        t = TransmissionLineUser(grid)
         t.polarisation = self.polarisation
         t.coord = coord
         uip = self._create_uip(grid)
@@ -940,7 +940,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if grid.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
                 + "with the CUDA or OpenCL or Apple Metal-based solver. "
@@ -1119,7 +1119,7 @@ class DiscretePlaneWaveVector(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if grid.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
                 + "with the CUDA or OpenCL or Apple Metal-based solver. "

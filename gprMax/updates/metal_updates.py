@@ -38,33 +38,35 @@ from gprMax.utilities.utilities import round32
 logger = logging.getLogger(__name__)
 
 
-class MetalUpdates:
+from gprMax.grid.metal_grid import MetalGrid
+from gprMax.updates.updates import Updates
+
+class MetalUpdates(Updates[MetalGrid]):
     """Defines update functions for Apple Metal-based solver."""
 
-    def __init__(self, G):
+    def __init__(self, G: MetalGrid):
         """
         Args:
-            G: OpenCLGrid class describing a grid in a model.
+            G: MetalGrid class describing a grid in a model.
         """
-
-        self.grid = G
+        super().__init__(G)
 
         self.metal = import_module("Metal")
         self.opts = self.metal.MTLCompileOptions.new()
 
         # Select device and create command queue
-        self.dev = config.get_model_config().device["dev"]
+        self.dev = self.grid.model_config.device["dev"]
         self.cmdqueue = self.dev.newCommandQueue()
 
         # Set common substitutions for use in kernels
         # Substitutions in function arguments
         self.subs_name_args = {
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
+            "COMPLEX": self.grid.model_config.materials["dispersiveCdtype"],
         }
         # Substitutions in function bodies
         self.subs_func = {
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
             "CUDA_IDX": "",
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
@@ -119,7 +121,7 @@ class MetalUpdates:
         """Common macros to be used in kernels."""
 
         # Set specific values for any dispersive materials
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
             NY_T = self.grid.Tx.shape[2]
@@ -131,7 +133,7 @@ class MetalUpdates:
             NZ_T = 1
 
         self.knl_common = self.env.get_template("knl_common_metal.tmpl").render(
-            REAL=config.sim_config.dtypes["C_float_or_double"],
+            REAL=self.grid.sim_config.dtypes["C_float_or_double"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -187,12 +189,12 @@ class MetalUpdates:
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             # TODO: Implement Metal compute pipeline for dispersive materials
             # This needs to be implemented when Metal kernels are available
             pass
 
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             # TODO: Initialize dispersive arrays for Metal
             pass
 
@@ -258,7 +260,7 @@ class MetalUpdates:
 
         self.subs_func.update(
             {
-                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
                 "NY_RXCOORDS": 3,
                 "NX_RXS": 6,
                 "NY_RXS": self.grid.iterations,
@@ -364,7 +366,7 @@ class MetalUpdates:
         self.store_snapshot_dev = self.elwiseknl(
             self.ctx,
             knl_snapshots.store_snapshot["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_snapshots.store_snapshot["func"].substitute(
                 {
@@ -376,7 +378,7 @@ class MetalUpdates:
             ),
             "store_snapshot",
             preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
+            options=self.grid.sim_config.devices["compiler_opts"],
         )
 
     def store_outputs(self, iteration):
@@ -466,7 +468,7 @@ class MetalUpdates:
 
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
-                snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
+                snapno = 0 if self.grid.model_config.device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
@@ -492,7 +494,7 @@ class MetalUpdates:
                     self.snapHz_dev,
                 )
 
-                if config.get_model_config().device["snapsgpu2cpu"]:
+                if self.grid.model_config.device["snapsgpu2cpu"]:
                     dtoh_snapshot_array(
                         self.snapEx_dev.get(),
                         self.snapEy_dev.get(),
@@ -557,7 +559,7 @@ class MetalUpdates:
         """Updates electric field components."""
 
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.model_config.materials["maxpoles"] == 0:
             # Only initialize buffers once (on first iteration) - don't re-initialize as it resets field values!
             if not hasattr(self.grid, "ID_dev") or not hasattr(self.grid, "Ex_dev"):
                 self.grid.htod_geometry_arrays(self.dev)
@@ -791,7 +793,7 @@ class MetalUpdates:
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             # TODO: Implement 2nd part of dispersive update for Metal
             pass
 

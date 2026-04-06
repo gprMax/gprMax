@@ -241,23 +241,21 @@ def get_host_info():
     return hostinfo
 
 
-def print_host_info(hostinfo):
+def print_host_info(sim_config):
     """Prints information about the machine, CPU, RAM, and OS.
 
     Args:
-        hostinfo: dict containing manufacturer and model of machine;
-                    description of CPU type, speed, cores; RAM; name and
-                    version of operating system.
+        sim_config: SimConfig class describing the simulation.
     """
-
+    hostinfo = sim_config.hostinfo
     hyperthreadingstr = (
-        f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading"
-        if config.sim_config.hostinfo["hyperthreading"]
+        f", {hostinfo['logicalcores']} cores with Hyper-Threading"
+        if hostinfo["hyperthreading"]
         else ""
     )
     logger.basic(
-        f"{config.sim_config.hostinfo['hostname']} | "
-        f"{config.sim_config.hostinfo['machineID']} | "
+        f"{hostinfo['hostname']} | "
+        f"{hostinfo['machineID']} | "
         f"{hostinfo['sockets']} x {hostinfo['cpuID']} "
         f"({hostinfo['physicalcores']} cores{hyperthreadingstr}) | "
         f"{humanize.naturalsize(hostinfo['ram'], True)} | "
@@ -266,7 +264,7 @@ def print_host_info(hostinfo):
     logger.basic(f"|--->OpenMP: {hostinfo['physicalcores']} threads")
 
 
-def set_omp_threads(nthreads=None):
+def set_omp_threads(sim_config, nthreads=None):
     """Sets the number of OpenMP CPU threads for parallelised parts of code.
 
     Returns:
@@ -276,7 +274,7 @@ def set_omp_threads(nthreads=None):
     if sys.platform == "darwin":
         # Should waiting threads consume CPU power (can drastically effect
         # performance)
-        if "Apple" in config.sim_config.hostinfo["cpuID"]:
+        if "Apple" in sim_config.hostinfo["cpuID"]:
             # https://developer.apple.com/documentation/apple-silicon/tuning-your-code-s-performance-for-apple-silicon
             os.environ["OMP_WAIT_POLICY"] = "PASSIVE"
         else:
@@ -296,7 +294,7 @@ def set_omp_threads(nthreads=None):
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE'
 
     # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-    if "Microsoft" in config.sim_config.hostinfo["osversion"]:
+    if "Microsoft" in sim_config.hostinfo["osversion"]:
         os.environ["KMP_AFFINITY"] = "disabled"
         del os.environ["OMP_PLACES"]
         del os.environ["OMP_PROC_BIND"]
@@ -307,59 +305,64 @@ def set_omp_threads(nthreads=None):
         nthreads = int(os.environ.get("OMP_NUM_THREADS"))
     else:
         # Set number of threads to number of physical CPU cores
-        nthreads = config.sim_config.hostinfo["physicalcores"]
+        nthreads = sim_config.hostinfo["physicalcores"]
         os.environ["OMP_NUM_THREADS"] = str(nthreads)
 
     return nthreads
 
 
-def mem_check_host(mem):
+def mem_check_host(sim_config, mem):
     """Checks if the required amount of memory (RAM) is available on host.
 
     Args:
+        sim_config: SimConfig class describing the simulation.
         mem: int for memory required (bytes).
     """
-    if mem > config.sim_config.hostinfo["ram"]:
+    if mem > sim_config.hostinfo["ram"]:
         logger.warning(
             f"Memory (RAM) required (~{humanize.naturalsize(mem)}) exceeds "
-            f"({humanize.naturalsize(config.sim_config.hostinfo['ram'], True)}) "
+            f"({humanize.naturalsize(sim_config.hostinfo['ram'], True)}) "
             " physical memory detected!\n"
         )
 
 
-def mem_check_device_snaps(total_mem, snaps_mem):
+def mem_check_device_snaps(sim_config, model_config, total_mem, snaps_mem):
     """Checks if the required amount of memory (RAM) for all snapshots can fit
         on specified device.
 
     Args:
+        sim_config: SimConfig class describing the simulation.
+        model_config: ModelConfig class describing the model.
         total_mem: int for total memory required for model (bytes).
         snaps_mem: int for memory required for all snapshots (bytes).
     """
 
-    if config.sim_config.general["solver"] == "cuda":
-        device_mem = config.get_model_config().device["dev"].total_memory()
-    elif config.sim_config.general["solver"] == "opencl":
-        device_mem = config.get_model_config().device["dev"].global_mem_size
+    if sim_config.general["solver"] == "cuda":
+        device_mem = model_config.device["dev"].total_memory()
+    elif sim_config.general["solver"] == "opencl":
+        device_mem = model_config.device["dev"].global_mem_size
 
     if total_mem - snaps_mem > device_mem:
         logger.warning(
             f"Memory (RAM) required (~{humanize.naturalsize(total_mem)}) exceeds "
             f"({humanize.naturalsize(device_mem, True)}) physical memory detected "
-            f"on specified {' '.join(config.get_model_config().device['dev'].name.split())} device!\n"
+            f"on specified {' '.join(model_config.device['dev'].name.split())} device!\n"
         )
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host
     if snaps_mem != 0 and total_mem - snaps_mem < device_mem:
-        config.get_model_config().device["snapsgpu2cpu"] = True
+        model_config.device["snapsgpu2cpu"] = True
 
 
-def mem_check_run_all(grids):
+def mem_check_run_all(sim_config, model_config, grids):
     """Checks memory required to run model for all grids, including for any
         dispersive materials, snapshots, and if solver with GPU, whether
         snapshots will fit on GPU memory.
 
     Args:
+        sim_config: SimConfig class describing the simulation.
+        model_config: ModelConfig class describing the model.
         grids: list of FDTDGrid objects.
 
     Returns:
@@ -373,49 +376,51 @@ def mem_check_run_all(grids):
 
     for grid in grids:
         # Keep track of total memory for each model in
-        # config.get_model_config().mem_use, which can contain multiple grids,
+        # model_config.mem_use, which can contain multiple grids,
         # and also total memory per grid in grid.mem_use
 
         # Memory required for main grid arrays
-        config.get_model_config().mem_use += grid.mem_est_basic()
+        model_config.mem_use += grid.mem_est_basic()
         grid.mem_use += grid.mem_est_basic()
 
         # Additional memory required if there are any dispersive materials.
-        if config.get_model_config().materials["maxpoles"] != 0:
-            config.get_model_config().mem_use += grid.mem_est_dispersive()
+        if model_config.materials["maxpoles"] != 0:
+            model_config.mem_use += grid.mem_est_dispersive()
             grid.mem_use += grid.mem_est_dispersive()
 
         # Additional memory required if there are any snapshots
         if grid.snapshots:
             for snap in grid.snapshots:
-                config.get_model_config().mem_use += snap.nbytes
+                model_config.mem_use += snap.nbytes
                 grid.mem_use += snap.nbytes
                 total_mem_snaps += snap.nbytes
 
         mem_strs.append(f"~{humanize.naturalsize(grid.mem_use)} [{grid.name}]")
 
-    total_mem_model = config.get_model_config().mem_use
+    total_mem_model = model_config.mem_use
 
     # Check if there is sufficient memory on host
-    mem_check_host(total_mem_model)
+    mem_check_host(sim_config, total_mem_model)
 
     # Check if there is sufficient memory for any snapshots on GPU
     if (
         total_mem_snaps > 0
-        and config.sim_config.general["solver"] == "cuda"
-        or config.sim_config.general["solver"] == "opencl"
+        and sim_config.general["solver"] == "cuda"
+        or sim_config.general["solver"] == "opencl"
     ):
-        mem_check_device_snaps(total_mem_model, total_mem_snaps)
+        mem_check_device_snaps(sim_config, model_config, total_mem_model, total_mem_snaps)
 
     return total_mem_model, mem_strs
 
 
-def mem_check_build_all(grids):
+def mem_check_build_all(sim_config, model_config, grids):
     """Checks memory required to build all grids - primarily memory required to
         initialise grid arrays and to build any FractalVolume or FractalSurface
         objects which can require significant amounts of memory.
 
     Args:
+        sim_config: SimConfig class describing the simulation.
+        model_config: ModelConfig class describing the model.
         grids: list of FDTDGrid objects.
 
     Returns:
@@ -424,7 +429,7 @@ def mem_check_build_all(grids):
                     each grid.
     """
 
-    total_mem_model = config.get_model_config().mem_use
+    total_mem_model = model_config.mem_use
     mem_strs = []
 
     for grid in grids:
@@ -441,7 +446,7 @@ def mem_check_build_all(grids):
         total_mem_model += grid_mem
 
     # Check if there is sufficient memory on host
-    mem_check_host(total_mem_model)
+    mem_check_host(sim_config, total_mem_model)
 
     return total_mem_model, mem_strs
 

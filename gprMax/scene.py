@@ -45,7 +45,9 @@ class Scene:
 
     ESSENTIAL_CMDS = [Domain, TimeWindow, Discretisation]
 
-    def __init__(self):
+    def __init__(self, sim_config=None, model_config=None):
+        self.sim_config = sim_config
+        self.model_config = model_config
         self.single_use_objects: List[ModelUserObject] = []
         self.grid_objects: List[GridUserObject] = []
         self.geometry_objects: List[GeometryUserObject] = []

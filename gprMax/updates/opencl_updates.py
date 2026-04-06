@@ -54,7 +54,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
 
         # Select device, create context and command queue
-        self.dev = config.get_model_config().device["dev"]
+        self.dev = self.grid.model_config.device["dev"]
         self.ctx = self.cl.Context(devices=[self.dev])
         self.queue = self.cl.CommandQueue(
             self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE
@@ -79,7 +79,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Common macros to be used in kernels."""
 
         # Set specific values for any dispersive materials
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
             NY_T = self.grid.Tx.shape[2]
@@ -93,7 +93,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.knl_common = self.env.get_template("knl_common_opencl.tmpl").render(
             updatecoeffsE=self.grid.updatecoeffsE.ravel(),
             updatecoeffsH=self.grid.updatecoeffsH.ravel(),
-            REAL=config.sim_config.dtypes["C_float_or_double"],
+            REAL=self.grid.sim_config.dtypes["C_float_or_double"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -136,32 +136,32 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.update_electric_dev = self.elwiseknl(
             self.ctx,
             knl_fields_updates.update_electric["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_fields_updates.update_electric["func"].substitute(subs),
             "update_electric",
             preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
+            options=self.grid.sim_config.devices["compiler_opts"],
         )
 
         self.update_magnetic_dev = self.elwiseknl(
             self.ctx,
             knl_fields_updates.update_magnetic["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_fields_updates.update_magnetic["func"].substitute(subs),
             "update_magnetic",
             preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
+            options=self.grid.sim_config.devices["compiler_opts"],
         )
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             subs = {
                 "CUDA_IDX": "",
-                "REAL": config.sim_config.dtypes["C_float_or_double"],
-                "REALFUNC": config.get_model_config().materials["crealfunc"],
+                "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
+                "REALFUNC": self.grid.model_config.materials["crealfunc"],
                 "NX_FIELDS": self.grid.nx + 1,
                 "NY_FIELDS": self.grid.ny + 1,
                 "NZ_FIELDS": self.grid.nz + 1,
@@ -177,34 +177,34 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.ctx,
                 knl_fields_updates.update_electric_dispersive_A["args_opencl"].substitute(
                     {
-                        "REAL": config.sim_config.dtypes["C_float_or_double"],
-                        "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                        "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
+                        "COMPLEX": self.grid.model_config.materials["dispersiveCdtype"],
                     }
                 ),
                 knl_fields_updates.update_electric_dispersive_A["func"].substitute(subs),
                 "update_electric_dispersive_A",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
 
             self.dispersive_update_b = self.elwiseknl(
                 self.ctx,
                 knl_fields_updates.update_electric_dispersive_B["args_opencl"].substitute(
                     {
-                        "REAL": config.sim_config.dtypes["C_float_or_double"],
-                        "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                        "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
+                        "COMPLEX": self.grid.model_config.materials["dispersiveCdtype"],
                     }
                 ),
                 knl_fields_updates.update_electric_dispersive_B["func"].substitute(subs),
                 "update_electric_dispersive_B",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
 
         # Initialise field arrays on compute device
         self.grid.htod_geometry_arrays(self.queue)
         self.grid.htod_field_arrays(self.queue)
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays(self.queue)
 
     def _set_pml_knls(self):
@@ -218,7 +218,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
         subs = {
             "CUDA_IDX": "",
-            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "REAL": self.grid.sim_config.dtypes["C_float_or_double"],
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
             "NZ_FIELDS": self.grid.nz + 1,
@@ -239,23 +239,23 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             pml.update_electric_dev = self.elwiseknl(
                 self.ctx,
                 knl_electric_name["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_electric_name["func"].substitute(subs),
                 f"pml_updates_electric_{knl_name}",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
 
             pml.update_magnetic_dev = self.elwiseknl(
                 self.ctx,
                 knl_magnetic_name["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_magnetic_name["func"].substitute(subs),
                 f"pml_updates_magnetic_{knl_name}",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
 
     def _set_rx_knl(self):
@@ -266,12 +266,12 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.store_outputs_dev = self.elwiseknl(
             self.ctx,
             knl_store_outputs.store_outputs["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_store_outputs.store_outputs["func"].substitute({"CUDA_IDX": ""}),
             "store_outputs",
             preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
+            options=self.grid.sim_config.devices["compiler_opts"],
         )
 
     def _set_src_knls(self):
@@ -287,14 +287,14 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.update_hertzian_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_hertzian_dipole["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_source_updates.update_hertzian_dipole["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"CUDA_IDX": "", "REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 "update_hertzian_dipole",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
         if self.grid.magneticdipoles:
             (
@@ -305,14 +305,14 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.update_magnetic_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_magnetic_dipole["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_source_updates.update_magnetic_dipole["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"CUDA_IDX": "", "REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 "update_magnetic_dipole",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
         if self.grid.voltagesources:
             (
@@ -323,14 +323,14 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.update_voltage_source_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_voltage_source["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 knl_source_updates.update_voltage_source["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                    {"CUDA_IDX": "", "REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
                 ),
                 "update_voltage_source",
                 preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
+                options=self.grid.sim_config.devices["compiler_opts"],
             )
 
     def _set_snapshot_knl(self):
@@ -348,7 +348,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.store_snapshot_dev = self.elwiseknl(
             self.ctx,
             knl_snapshots.store_snapshot["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                {"REAL": self.grid.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_snapshots.store_snapshot["func"].substitute(
                 {
@@ -360,7 +360,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             ),
             "store_snapshot",
             preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
+            options=self.grid.sim_config.devices["compiler_opts"],
         )
 
     def store_outputs(self, iteration):
@@ -388,7 +388,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
-                snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
+                snapno = 0 if self.grid.model_config.device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
@@ -414,7 +414,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                     self.snapHz_dev,
                 )
 
-                if config.get_model_config().device["snapsgpu2cpu"]:
+                if self.grid.model_config.device["snapsgpu2cpu"]:
                     dtoh_snapshot_array(
                         self.snapEx_dev.get(),
                         self.snapEy_dev.get(),
@@ -452,9 +452,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
                 np.int32(iteration),
-                config.sim_config.dtypes["float_or_double"](self.grid.dx),
-                config.sim_config.dtypes["float_or_double"](self.grid.dy),
-                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dx),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dy),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dz),
                 self.srcinfo1_magnetic_dev,
                 self.srcinfo2_magnetic_dev,
                 self.srcwaves_magnetic_dev,
@@ -467,7 +467,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.model_config.materials["maxpoles"] == 0:
             self.update_electric_dev(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
@@ -488,7 +488,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.model_config.materials["maxpoles"]),
                 self.grid.ID_dev,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
@@ -515,9 +515,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.update_voltage_source_dev(
                 np.int32(len(self.grid.voltagesources)),
                 np.int32(iteration),
-                config.sim_config.dtypes["float_or_double"](self.grid.dx),
-                config.sim_config.dtypes["float_or_double"](self.grid.dy),
-                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dx),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dy),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dz),
                 self.srcinfo1_voltage_dev,
                 self.srcinfo2_voltage_dev,
                 self.srcwaves_voltage_dev,
@@ -531,9 +531,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
                 np.int32(iteration),
-                config.sim_config.dtypes["float_or_double"](self.grid.dx),
-                config.sim_config.dtypes["float_or_double"](self.grid.dy),
-                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dx),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dy),
+                self.grid.sim_config.dtypes["float_or_double"](self.grid.dz),
                 self.srcinfo1_hertzian_dev,
                 self.srcinfo2_hertzian_dev,
                 self.srcwaves_hertzian_dev,
@@ -551,12 +551,12 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.model_config.materials["maxpoles"] > 0:
             self.dispersive_update_b(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.model_config.materials["maxpoles"]),
                 self.grid.ID_dev,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
@@ -597,7 +597,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
-        if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:
+        if self.grid.snapshots and not self.grid.model_config.device["snapsgpu2cpu"]:
             for i, snap in enumerate(self.grid.snapshots):
                 dtoh_snapshot_array(
                     self.snapEx_dev.get(),

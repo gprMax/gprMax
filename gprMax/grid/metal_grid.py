@@ -28,8 +28,8 @@ from gprMax.pml import PML, MetalPML
 class MetalGrid(FDTDGrid):
     """Additional grid methods for solving on compute device using Apple Metal."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, model_config):
+        super().__init__(model_config)
 
         self.metal = import_module("Metal")
         self.storage = self.metal.MTLResourceStorageModeShared

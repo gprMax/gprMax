@@ -120,9 +120,9 @@ def create_solver(model: Model) -> Solver:
         solver: Solver object.
     """
     grid = model.G
-    if config.sim_config.general["subgrid"]:
+    if model.sim_config.general["subgrid"]:
         updates = create_subgrid_updates(model)
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if model.model_config.materials["maxpoles"] != 0:
             # Set dispersive update functions for both SubgridUpdates and
             # SubgridUpdaters subclasses
             updates.set_dispersive_updates()
@@ -130,11 +130,11 @@ def create_solver(model: Model) -> Solver:
                 u.set_dispersive_updates()
     elif type(grid) is FDTDGrid:
         updates = CPUUpdates(grid)
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if model.model_config.materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
     elif type(grid) is MPIGrid:
         updates = MPIUpdates(grid)
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if model.model_config.materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
     elif type(grid) is CUDAGrid:
         updates = CUDAUpdates(grid)

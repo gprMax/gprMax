@@ -52,7 +52,7 @@ class GeometryObject(Generic[GridType]):
         self.grid_view = self.GRID_VIEW_TYPE(grid, xs, ys, zs, xf, yf, zf)
 
         # Set filenames
-        parts = config.sim_config.input_file_path.with_suffix("").parts
+        parts = grid.sim_config.input_file_path.with_suffix("").parts
         self.filename = Path(*parts[:-1], filename)
         self.filename_hdf5 = self.filename.with_suffix(".h5")
         self.filename_materials = Path(f"{self.filename}_materials")

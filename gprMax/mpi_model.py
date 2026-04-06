@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class MPIModel(Model):
-    def __init__(self, comm: Optional[MPI.Intracomm] = None):
+    def __init__(
+        self, sim_config, model_num=0, comm: Optional[MPI.Intracomm] = None
+    ):
         if comm is None:
             self.comm = MPI.COMM_WORLD
         else:
@@ -26,9 +28,7 @@ class MPIModel(Model):
 
         self.rank = self.comm.Get_rank()
 
-        self.G = self._create_grid()
-
-        return super().__init__()
+        super().__init__(sim_config, model_num)
 
     @property
     def nx(self) -> float:
@@ -251,5 +251,5 @@ class MPIModel(Model):
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
     def _create_grid(self) -> MPIGrid:
-        cart_comm = MPI.COMM_WORLD.Create_cart(config.sim_config.mpi)
-        return MPIGrid(cart_comm)
+        cart_comm = self.comm.Create_cart(self.sim_config.mpi)
+        return MPIGrid(cart_comm, self.model_config)
