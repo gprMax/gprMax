@@ -64,12 +64,12 @@ store_snapshot = {
                                     __global const $REAL* restrict Hx,
                                     __global const $REAL* restrict Hy,
                                     __global const $REAL* restrict Hz,
-                                    __global $REAL *snapEx,
-                                    __global $REAL *snapEy,
-                                    __global $REAL *snapEz,
-                                    __global $REAL *snapHx,
-                                    __global $REAL *snapHy,
-                                    __global $REAL *snapHz
+                                    __global $REAL* restrict snapEx,
+                                    __global $REAL* restrict snapEy,
+                                    __global $REAL* restrict snapEz,
+                                    __global $REAL* restrict snapHx,
+                                    __global $REAL* restrict snapHy,
+                                    __global $REAL* restrict snapHz
                                 """
     ),
     "args_metal": Template(
@@ -113,9 +113,11 @@ store_snapshot = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 4D SNAPS array
-    int x = (i % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) / ($NY_SNAPS * $NZ_SNAPS);
-    int y = ((i % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) / $NZ_SNAPS;
-    int z = ((i % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) % $NZ_SNAPS;
+    int rem_snaps = i % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS);
+    int x = rem_snaps / ($NY_SNAPS * $NZ_SNAPS);
+    int yz_snaps = rem_snaps % ($NY_SNAPS * $NZ_SNAPS);
+    int y = yz_snaps / $NZ_SNAPS;
+    int z = yz_snaps % $NZ_SNAPS;
 
     // Subscripts for field arrays
     int xx, yy, zz;
@@ -132,24 +134,24 @@ store_snapshot = {
         snapEx[IDX4D_SNAPS(p,x,y,z)] = (Ex[IDX3D_FIELDS(xx,yy,zz)] +
                                         Ex[IDX3D_FIELDS(xx,yy+1,zz)] +
                                         Ex[IDX3D_FIELDS(xx,yy,zz+1)] +
-                                        Ex[IDX3D_FIELDS(xx,yy+1,zz+1)]) / 4;
+                                        Ex[IDX3D_FIELDS(xx,yy+1,zz+1)]) * ($REAL)0.25;
         snapEy[IDX4D_SNAPS(p,x,y,z)] = (Ey[IDX3D_FIELDS(xx,yy,zz)] +
                                         Ey[IDX3D_FIELDS(xx+1,yy,zz)] +
                                         Ey[IDX3D_FIELDS(xx,yy,zz+1)] +
-                                        Ey[IDX3D_FIELDS(xx+1,yy,zz+1)]) / 4;
+                                        Ey[IDX3D_FIELDS(xx+1,yy,zz+1)]) * ($REAL)0.25;
         snapEz[IDX4D_SNAPS(p,x,y,z)] = (Ez[IDX3D_FIELDS(xx,yy,zz)] +
                                         Ez[IDX3D_FIELDS(xx+1,yy,zz)] +
                                         Ez[IDX3D_FIELDS(xx,yy+1,zz)] +
-                                        Ez[IDX3D_FIELDS(xx+1,yy+1,zz)]) / 4;
+                                        Ez[IDX3D_FIELDS(xx+1,yy+1,zz)]) * ($REAL)0.25;
 
         // The magnetic field component value at a point comes from average of
         // 2 magnetic field component values in that cell and the following cell
         snapHx[IDX4D_SNAPS(p,x,y,z)] = (Hx[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hx[IDX3D_FIELDS(xx+1,yy,zz)]) / 2;
+                                        Hx[IDX3D_FIELDS(xx+1,yy,zz)]) * ($REAL)0.5;
         snapHy[IDX4D_SNAPS(p,x,y,z)] = (Hy[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hy[IDX3D_FIELDS(xx,yy+1,zz)]) / 2;
+                                        Hy[IDX3D_FIELDS(xx,yy+1,zz)]) * ($REAL)0.5;
         snapHz[IDX4D_SNAPS(p,x,y,z)] = (Hz[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hz[IDX3D_FIELDS(xx,yy,zz+1)]) / 2;
+                                        Hz[IDX3D_FIELDS(xx,yy,zz+1)]) * ($REAL)0.5;
     }
 """
     ),

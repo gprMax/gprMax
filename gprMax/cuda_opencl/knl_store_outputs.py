@@ -18,14 +18,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from string import Template
-
+ 
 store_outputs = {
     "args_cuda": Template(
         """
                                 __global__ void store_outputs(int NRX,
                                                     int iteration,
                                                     const int* __restrict__ rxcoords,
-                                                    $REAL *rxs,
+                                                    $REAL* __restrict__ rxs,
                                                     const $REAL* __restrict__ Ex,
                                                     const $REAL* __restrict__ Ey,
                                                     const $REAL* __restrict__ Ez,
@@ -39,7 +39,7 @@ store_outputs = {
                                     int NRX,
                                     int iteration,
                                     __global const int* restrict rxcoords,
-                                    __global $REAL *rxs,
+                                    __global $REAL* restrict rxs,
                                     __global const $REAL* restrict Ex,
                                     __global const $REAL* restrict Ey,
                                     __global const $REAL* restrict Ez,
@@ -71,9 +71,9 @@ store_outputs = {
     //    NRX: total number of receivers in the model.
     //    rxs: array to store field components for receivers - rows
     //          are field components; columns are iterations; pages are receiver.
-
+ 
     $CUDA_IDX
-
+ 
     if (i < NRX) {
         int x, y, z;
         x = rxcoords[IDX2D_RXCOORDS(i,0)];
@@ -89,3 +89,4 @@ store_outputs = {
 """
     ),
 }
+ 
