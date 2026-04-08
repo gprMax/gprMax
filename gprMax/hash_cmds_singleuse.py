@@ -133,7 +133,6 @@ def process_singlecmds(singlecmds):
             pml_formulation = PMLFormulation(formulation=tmp[0])
             scene_objects.append(pml_formulation)
 
-
     cmd = "#pml_cells"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
