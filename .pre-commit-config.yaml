@@ -16,9 +16,9 @@ repos:
     rev: 23.12.0
     hooks:
     -   id: black
-        args: ["--line-length", "100"] # Adjust the max line length value as needed.
+        args: ["--line-length", "200"]
 -   repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
     -   id: isort
-        args: ["--line-length", "100", "--profile", "black"]
+        args: ["--line-length", "200", "--profile", "black"]

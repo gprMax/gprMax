@@ -469,7 +469,6 @@ class FDTDGrid:
         This is used when axial propagation is used and the DPW needs the grid ID components to have been build first
         """
         # Process any Discrete plane wave sources that are need extra information
-       
         for dpw in self.discreteplanewaves:
             dpw.grid_init(self)
 
@@ -927,7 +926,7 @@ class FDTDGrid:
         return Iy
 
     def calculate_Iz(self, x: int, y: int, z: int) -> float:
-        """Calculates the y-component of current at a grid position.
+        """Calculates the z-component of current at a grid position.
 
         Args:
             x: x coordinate of position in grid

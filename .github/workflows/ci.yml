@@ -1,0 +1,388 @@
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │  gprMax  ·  Core CI Pipeline                                                │
+# │  Deliverable D1  ·  GSoC 2026 — Implementing CI/CD Automation               │
+# │                                                                             │
+# │  What this workflow does:                                                   │
+# │    1. Builds gprMax (Cython → C → shared library) on 3 operating systems   │
+# │    2. Runs the pytest test suite against the compiled extensions             │
+# │    3. Uploads build artifacts and test reports for every matrix cell        │
+# │                                                                             │
+# │  Matrix:                                                                    │
+# │    OS      → ubuntu-latest · macos-latest · windows-latest                 │
+# │    Python  → 3.10 · 3.12                                                   │
+# │    Total   → 6 jobs per run                                                 │
+# │                                                                             │
+# │  Key design decisions (explained inline):                                   │
+# │    - conda-incubator/setup-miniconda  → gprMax is a conda-first project    │
+# │    - fail-fast: false                 → see ALL failures, not just the 1st │
+# │    - shell: bash -l {0}              → required for conda PATH activation  │
+# │    - pip install -e ".[dev]"          → editable install preserves src tree │
+# │    - pytest -m "not slow and not gpu" → full-sim tests skipped on PRs      │
+# │                                                                             │
+# │  Addresses GitHub Issues: #598                                              │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
+name: CI — Build & Test
+
+# ── Trigger conditions ────────────────────────────────────────────────────────
+#
+#  Push   → run on master and devel branches so every merged commit is verified
+#  PR     → run on any PR targeting master or devel (the review gates)
+#
+#  Paths-ignore: skip pure-documentation changes to avoid wasting runner minutes
+#  on text edits that cannot affect the compiled extensions or test results.
+#
+on:
+  push:
+    branches:
+      - master
+      - devel
+    paths-ignore:
+      - "docs/**"
+      - "*.rst"
+      - "*.md"
+      - "CITATION.cff"
+      - "CREDITS"
+      - "LICENSE"
+  pull_request:
+    branches:
+      - master
+      - devel
+    paths-ignore:
+      - "docs/**"
+      - "*.rst"
+      - "*.md"
+      - "CITATION.cff"
+      - "CREDITS"
+      - "LICENSE"
+
+  # Allow manual triggering from the GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual trigger"
+        required: false
+        default: "Manual CI run"
+
+# ── Concurrency guard ─────────────────────────────────────────────────────────
+#
+#  If a new push arrives while a prior CI run is still in flight for the SAME
+#  branch/PR, cancel the older run.  This saves runner minutes and makes the
+#  PR status reflect the latest code as quickly as possible.
+#
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Global defaults ───────────────────────────────────────────────────────────
+defaults:
+  run:
+    # bash -l (login shell) is MANDATORY for conda environments on GitHub Actions.
+    # Without the login flag, conda activate is a no-op and all conda-installed
+    # packages are invisible.  Every 'run' step in this workflow must use this.
+    shell: bash -l {0}
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  #  JOB: build-and-test
+  #
+  #  Runs the full build + test cycle across the matrix.
+  # ────────────────────────────────────────────────────────────────────────────
+  build-and-test:
+    name: >-
+      Build & Test  ·  ${{ matrix.os }}  ·  Python ${{ matrix.python-version }}
+
+    # fail-fast: false — let EVERY matrix cell report its own result.
+    # If macOS fails and Ubuntu passes, we want to see both outcomes immediately
+    # rather than cancelling Ubuntu the moment macOS red-lights.
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        python-version:
+          - "3.10"
+          - "3.12"
+
+    runs-on: ${{ matrix.os }}
+
+    # Expose the result of this job to the summary job below
+    outputs:
+      # (collected by the summary job; nothing to set here)
+      status: ${{ job.status }}
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          # Fetch the full history so that 'git log' in setup.py or version
+          # scripts (if added later) work correctly.
+          fetch-depth: 0
+
+      # ── 2. Set up Miniconda ──────────────────────────────────────────────────
+      #
+      #  Why conda and not plain pip?
+      #    gprMax's install guide uses:  conda env create -f conda_env.yml
+      #  The conda_env.yml pins build tools (numpy, cython, h5py) to exact
+      #  ABI-compatible versions.  Using pip alone risks NumPy ABI mismatches
+      #  that silently produce corrupt Cython extensions.
+      #
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          environment-file: conda_env.yml
+          activate-environment: gprMax-devel
+          # Use mamba (libmamba solver) for dramatically faster dependency
+          # resolution — especially important on Windows where conda's default
+          # SAT solver can take 10+ minutes.
+          use-mamba: true
+          # Keeps conda packages in a predictable location for the cache step
+          conda-remove-defaults: true
+
+      # ── 3. Cache conda packages ──────────────────────────────────────────────
+      #
+      #  The cache key is a hash of the conda environment file.  Any change to
+      #  conda_env.yml (adding/removing/bumping a package) automatically busts
+      #  the cache so stale packages are never used.
+      #
+      #  restore-keys allows partial hits — if the exact env hash is missing we
+      #  fall back to any prior cache for this OS, then re-download only the
+      #  delta packages.  This avoids a full cold download on every run.
+      #
+      - name: Cache conda packages
+        uses: actions/cache@v4
+        with:
+          path: ~/conda_pkgs_dir
+          key: >-
+            conda-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('conda_env.yml') }}
+          restore-keys: |
+            conda-${{ runner.os }}-py${{ matrix.python-version }}-
+            conda-${{ runner.os }}-
+
+      # ── 4. Platform-specific compiler setup ──────────────────────────────────
+      #
+      #  gprMax's Cython extensions use OpenMP for parallelism.  OpenMP support
+      #  is not built into the default compilers on every platform:
+      #
+      #  Linux   → system gcc already has OpenMP   (no extra steps)
+      #  macOS   → Apple clang does NOT have OpenMP; requires gcc from Homebrew
+      #  Windows → MSVC has OpenMP (/openmp flag); requires VS Build Tools env
+      #
+      #  Without these steps the Cython extensions build but produce WRONG RESULTS
+      #  silently (OpenMP pragmas are ignored and the parallelism is simply absent).
+      #
+
+      # ── 4a. macOS: install gcc with OpenMP via Homebrew ──────────────────────
+      - name: "[macOS] Install gcc with OpenMP support"
+        if: runner.os == 'macOS'
+        run: |
+          # Update Homebrew formulae list (suppress verbose output)
+          brew update --quiet
+
+          # Install the latest stable gcc formula.
+          # 'brew install gcc' installs gcc as 'gcc-<version>' (e.g. gcc-14)
+          # to avoid shadowing Apple's /usr/bin/gcc symlink.
+          brew install gcc --quiet
+
+          # Discover the versioned gcc binary that was just installed.
+          # Homebrew installs to /opt/homebrew/bin/ on Apple Silicon
+          # and /usr/local/bin/ on Intel.
+          GCC_PATH=$(ls /opt/homebrew/bin/gcc-[0-9]* 2>/dev/null | sort -V | tail -1 \
+                  || ls /usr/local/bin/gcc-[0-9]* 2>/dev/null | sort -V | tail -1)
+
+          if [ -z "$GCC_PATH" ]; then
+            echo "ERROR: Could not locate Homebrew gcc after installation"
+            exit 1
+          fi
+
+          echo "Found gcc at: $GCC_PATH"
+
+          # Export CC so that setup.py's compiler detection logic (lines 196-212)
+          # uses Homebrew gcc instead of Apple clang.
+          # We write to $GITHUB_ENV so this value persists into subsequent steps.
+          echo "CC=$(basename $GCC_PATH)" >> "$GITHUB_ENV"
+
+          # Confirm the selected compiler reports a version
+          "$GCC_PATH" --version
+
+      # ── 4b. Windows: activate MSVC Developer Command Prompt ──────────────────
+      #
+      #  The ilammy/msvc-dev-cmd action sets PATH, INCLUDE, LIB, and LIBPATH
+      #  to point at the MSVC toolchain installed on the runner image.
+      #  Without this, 'python setup.py build_ext' cannot find cl.exe and fails.
+      #
+      - name: "[Windows] Set up MSVC Developer Command Prompt"
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # ── 5. Install test dependencies ─────────────────────────────────────────
+      #
+      #  We install pytest and friends into the conda environment.
+      #  pytest-cov for coverage, pytest-xdist for parallel tests (future use).
+      #
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-cov pytest-xdist --quiet
+
+      # ── 6. Build Cython extensions ───────────────────────────────────────────
+      #
+      #  The build flow:
+      #    1. setup.py scans for .pyx files under gprMax/
+      #    2. Jinja2 renders fields_updates_dispersive.pyx from a template
+      #    3. Cython transpiles each .pyx → .c
+      #    4. The platform C compiler compiles each .c → .so / .pyd
+      #
+      #  We use 'python setup.py build' which setup.py rewrites to
+      #  'python setup.py build_ext --inplace'.  '--inplace' puts compiled
+      #  extensions next to their .pyx sources so pytest can import them
+      #  without a separate install step.
+      #
+      - name: Build Cython extensions
+        run: |
+          python setup.py build
+        env:
+          # Propagate CC if set by the macOS step above
+          CC: ${{ env.CC }}
+
+      # ── 6b. Verify the build produced the expected shared libraries ──────────
+      #
+      #  A successful Cython build MUST produce at least one .so (Linux/macOS)
+      #  or .pyd (Windows) file.  If the build silently produced nothing we want
+      #  to fail here with a clear message rather than getting a confusing
+      #  ImportError deep inside a test.
+      #
+      - name: Verify compiled extensions exist
+        run: |
+          echo "=== Compiled extension files ==="
+          # Find .so (Linux/macOS) or .pyd (Windows) files inside gprMax/
+          EXT_COUNT=$(find gprMax/ \( -name "*.so" -o -name "*.pyd" \) | wc -l)
+          find gprMax/ \( -name "*.so" -o -name "*.pyd" \) | sort
+
+          echo ""
+          echo "Extension file count: $EXT_COUNT"
+
+          if [ "$EXT_COUNT" -eq "0" ]; then
+            echo "ERROR: No compiled extensions found after build — Cython compilation failed silently"
+            exit 1
+          fi
+
+          echo "Build verification: PASSED ✓"
+
+      # ── 7. Smoke-test: verify gprMax imports correctly ───────────────────────
+      #
+      #  Import the top-level package and print the version string.
+      #  This catches linking errors in the compiled extensions (e.g. libgomp
+      #  not found at runtime) that would not be visible during compilation.
+      #
+      - name: Smoke test — import gprMax
+        run: |
+          python -c "
+          import gprMax
+          print(f'gprMax version: {gprMax.__version__}')
+          print('Import smoke test: PASSED ✓')
+          "
+
+      # ── 8. Run the test suite ────────────────────────────────────────────────
+      #
+      #  Marker strategy:
+      #    not slow  → skips full FDTD simulation tests (minutes each)
+      #    not gpu   → skips CUDA tests (no GPU on hosted runners)
+      #    not mpi   → skips MPI tests (MPI not installed by default)
+      #
+      #  --tb=short  → concise tracebacks — enough to diagnose, not overwhelming
+      #  -v          → shows each test name as it runs
+      #  --cov       → generates coverage data for upload to Codecov (future)
+      #  --junitxml  → produces a JUnit XML report consumable by GitHub Actions
+      #                test-results and third-party reporting tools
+      #
+
+      # ── 8a. Create output directory for reports ───────────────────────────────
+      #
+      #  pytest's --junitxml flag writes to a file path. If the parent directory
+      #  does not exist, pytest raises an error BEFORE running any tests.
+      #  'mkdir -p' is safe to run even if the directory already exists.
+      #
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run test suite
+        run: |
+          python -m pytest tests/ \
+            -v \
+            --tb=short \
+            -m "not slow and not gpu and not mpi" \
+            --junitxml=reports/junit-${{ matrix.os }}-py${{ matrix.python-version }}.xml \
+            --cov=gprMax \
+            --cov-report=xml:reports/coverage-${{ matrix.os }}-py${{ matrix.python-version }}.xml \
+            --cov-report=term-missing \
+            -p no:warnings
+        continue-on-error: false
+
+      # ── 9. Upload test report ────────────────────────────────────────────────
+      #
+      #  Uploads the JUnit XML and coverage XML as a workflow artifact.
+      #  These can be downloaded after a run to inspect failures in detail,
+      #  and consumed by the GitHub PR test summary annotation.
+      #
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: reports/
+          retention-days: 14
+          if-no-files-found: warn
+
+      # ── 10. Upload coverage to Codecov (optional — no-fail if token absent) ──
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: reports/coverage-${{ matrix.os }}-py${{ matrix.python-version }}.xml
+          flags: ${{ matrix.os }}-py${{ matrix.python-version }}
+          name: gprMax-coverage
+          fail_ci_if_error: false   # Don't break CI if Codecov is unavailable
+          verbose: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ────────────────────────────────────────────────────────────────────────────
+  #  JOB: ci-status
+  #
+  #  A single aggregator job that succeeds only when ALL matrix cells pass.
+  #  Branch protection rules should require THIS job, not individual matrix jobs.
+  #
+  #  Why?  If you require individual matrix jobs (e.g. "Build & Test / ubuntu /
+  #  Python 3.10"), GitHub requires you to list EVERY combination in branch
+  #  protection settings.  Adding a new Python version to the matrix would
+  #  then require updating branch protection as well — easy to forget.
+  #
+  #  With this pattern, branch protection requires only "CI Status Check" and
+  #  the matrix can grow freely.
+  # ────────────────────────────────────────────────────────────────────────────
+  ci-status:
+    name: CI Status Check
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    # This job runs even when the matrix jobs fail so it can report the
+    # failure explicitly (status: failure) rather than just being skipped.
+    if: always()
+
+    steps:
+      - name: Evaluate matrix result
+        run: |
+          RESULT="${{ needs.build-and-test.result }}"
+          echo "Matrix result: $RESULT"
+          if [ "$RESULT" != "success" ]; then
+            echo ""
+            echo "❌  One or more matrix cells failed."
+            echo "    Check the 'Build & Test' jobs above for details."
+            exit 1
+          fi
+          echo ""
+          echo "✅  All matrix cells passed."

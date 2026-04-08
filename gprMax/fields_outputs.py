@@ -146,7 +146,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         basegrp["tls/tl" + str(tlindex + 1) + "/Itotal"] = tl.Itotal
 
     # Ensure the order of receivers is always consistent (Needed for
-    # consistancy when using MPI with multiple receivers)
+    # consistency when using MPI with multiple receivers)
     grid.rxs.sort(key=lambda rx: rx.ID)
 
     # Create group, add positional data and write field component arrays for receivers

@@ -120,10 +120,7 @@ def test_update_electric_a_non_dispersive_zero_grid(config_mock):
 def test_update_electric_a_non_dispersive(config_mock):
     grid = build_grid(11, 11, 11)
 
-    print(grid.updatecoeffsE)
-    print(grid.updatecoeffsE[1])
     grid.updatecoeffsE[1] = 1
-    print(grid.updatecoeffsE[1])
 
     grid.Ex = np.tile(np.array([[[3, 1], [1, 3]], [[1, 3], [3, 1]]], dtype=np.float32), (6, 6, 6))
     grid.Ey = np.tile(np.array([[[1, 5], [5, 1]], [[5, 1], [1, 5]]], dtype=np.float32), (6, 6, 6))
