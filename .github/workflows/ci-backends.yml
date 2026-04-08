@@ -151,6 +151,9 @@ jobs:
       - name: Install pytest
         run: pip install pytest --quiet
 
+      - name: Create reports directory
+        run: mkdir -p reports
+
       - name: Run MPI-tagged tests (if any)
         run: |
           python -m pytest tests/ \

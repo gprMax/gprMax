@@ -9,6 +9,6 @@
 #   prevents import shadowing between gprMax modules and test modules that may
 #   share a name.
 #
-#   Using setup.cfg's [tool:pytest] import-mode = importlib (set there) is the
-#   more modern solution, but having __init__.py present ensures backward
-#   compatibility with older pytest versions used by contributors.
+#   The more modern solution is using --import-mode=importlib (configurable via
+#   setup.cfg [tool:pytest] addopts), but having __init__.py present ensures
+#   backward compatibility with older pytest versions used by contributors.

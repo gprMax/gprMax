@@ -56,6 +56,14 @@ on:
       - "CREDITS"
       - "LICENSE"
 
+  # Allow manual triggering from the GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual trigger"
+        required: false
+        default: "Manual CI run"
+
 # ── Concurrency guard ─────────────────────────────────────────────────────────
 #
 #  If a new push arrives while a prior CI run is still in flight for the SAME
@@ -291,6 +299,16 @@ jobs:
       #  --junitxml  → produces a JUnit XML report consumable by GitHub Actions
       #                test-results and third-party reporting tools
       #
+
+      # ── 8a. Create output directory for reports ───────────────────────────────
+      #
+      #  pytest's --junitxml flag writes to a file path. If the parent directory
+      #  does not exist, pytest raises an error BEFORE running any tests.
+      #  'mkdir -p' is safe to run even if the directory already exists.
+      #
+      - name: Create reports directory
+        run: mkdir -p reports
+
       - name: Run test suite
         run: |
           python -m pytest tests/ \

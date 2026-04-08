@@ -35,7 +35,7 @@ def tile(a: float, b: float, n: int = 1) -> np.ndarray:
     Args:
         a: first value
         b: second value
-        n: number of repititions
+        n: number of repetitions
 
     Returns:
         c: tiled numpy array
