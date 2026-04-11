@@ -224,11 +224,12 @@ class FDTDGrid(Grid):
 
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
 
-    def memory_check(self, snapsmemsize=0):
+    def memory_check(self, snapsmemsize=0, force_gpu=False):
         """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
 
         Args:
             snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
+            force_gpu (bool): bypass GPU VRAM limit checks
         """
 
         # Check if model can be built and/or run on host
@@ -238,7 +239,12 @@ class FDTDGrid(Grid):
         # Check if model can be run on specified GPU if required
         if self.gpu is not None:
             if self.memoryusage - snapsmemsize > self.gpu.totalmem:
-                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
+                msg = 'Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name)
+                if force_gpu:
+                    import warnings
+                    warnings.warn(msg + '\nForcing execution via --force-gpu. Memory will spill to System RAM resulting in performance degradation.', RuntimeWarning)
+                else:
+                    raise GeneralError(msg + '\n')
 
             # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
             if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:

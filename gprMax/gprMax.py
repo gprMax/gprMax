@@ -64,6 +64,7 @@ def main():
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='flag to optimise parameters using the Taguchi optimisation method')
+    parser.add_argument('--force-gpu', action='store_true', default=False, help='bypass GPU VRAM checks and allow memory to spill to System RAM')
     args = parser.parse_args()
 
     run_main(args)
@@ -82,7 +83,8 @@ def api(
     geometry_only=False,
     geometry_fixed=False,
     write_processed=False,
-    opt_taguchi=False
+    opt_taguchi=False,
+    force_gpu=False
 ):
     """If installed as a module this is the entry point."""
 
@@ -104,6 +106,7 @@ def api(
     args.geometry_fixed = geometry_fixed
     args.write_processed = write_processed
     args.opt_taguchi = opt_taguchi
+    args.force_gpu = force_gpu
 
     run_main(args)
 
