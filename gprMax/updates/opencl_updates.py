@@ -19,6 +19,7 @@
 
 import logging
 from importlib import import_module
+import time
 
 import numpy as np
 from jinja2 import Environment, PackageLoader
@@ -48,6 +49,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             G: OpenCLGrid class describing a grid in a model.
         """
         super().__init__(G)
+
+        # Defining time for fallback
+        self._time_wall_start = None
 
         # Import pyopencl module
         self.cl = import_module("pyopencl")
@@ -569,6 +573,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""
+        self._time_wall_start = time.perf_counter()
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
         self.event_marker1.wait()
 
@@ -585,10 +590,13 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         pass
 
     def calculate_solve_time(self):
-        """Calculates solving time for model."""
+        """Calculates solving time for model.""" 
         event_marker2 = self.cl.enqueue_marker(self.queue)
         event_marker2.wait()
-        return (event_marker2.profile.end - self.event_marker1.profile.start) * 1e-9
+        elapsed = (event_marker2.profile.end - self.event_marker1.profile.start) * 1e-9
+        if elapsed <= 0:
+            elapsed = time.perf_counter() - self._time_wall_start
+        return elapsed
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
