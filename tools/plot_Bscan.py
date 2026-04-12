@@ -24,10 +24,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
+from gprMax.utilities import handle_plot_output
 from .outputfiles_merge import get_output_data
 
 
-def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
+def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
     """Creates a plot (with matplotlib) of the B-scan.
 
     Args:
@@ -36,6 +37,7 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
         dt (float): Temporal resolution of the model.
         rxnumber (int): Receiver output number.
         rxcomponent (str): Receiver output field/current component.
+        show (boolean): Show plot switch.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -65,12 +67,8 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
     elif 'I' in rxcomponent:
         cb.set_label('Current [A]')
 
-    # Save a PDF/PNG of the figure
-    # savefile = os.path.splitext(filename)[0]
-    # fig.savefig(path + os.sep + savefile + '.pdf', dpi=None, format='pdf', 
-    #             bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(path + os.sep + savefile + '.png', dpi=150, format='png', 
-    #             bbox_inches='tight', pad_inches=0.1)
+    # Save or show the figure
+    handle_plot_output(plt, fig, filename, suffix='_rx' + str(rxnumber), show=show)
 
     return plt
 
@@ -83,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('rx_component', help='name of output component to be plotted', 
                         choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('--no-show', action='store_false', help='do not show plots (only save them)', default=True, dest='show')
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
@@ -96,6 +95,6 @@ if __name__ == "__main__":
 
     for rx in range(1, nrx + 1):
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component)
+        plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component, show=args.show)
 
-    plthandle.show()
+
