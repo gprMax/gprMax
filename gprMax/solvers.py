@@ -94,7 +94,7 @@ class Solver:
 
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_electric()
-            if isinstance(self.updates, CUDAUpdates):
+            if isinstance(self.updates, (CUDAUpdates, OpenCLUpdates)):
                 self.memused = self.updates.calculate_memory_used(iteration)
 
         self.updates.finalise()

@@ -541,17 +541,15 @@ class Model:
 
         # Run solver
         solver.solve(iterator)
-
         # Write output data, i.e. field data for receivers and snapshots to file(s)
         self.write_output_data()
-
         # Print information about memory usage and solving time for a model
         # Add a string on device (GPU) memory usage if applicable
         mem_str = ""
         if config.sim_config.general["solver"] == "cuda":
             mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
         elif config.sim_config.general["solver"] == "opencl":
-            mem_str = f" host + unknown for device"
+            mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device (estimated, excludes driver overhead)"
 
         logger.info(
             f"Memory used (estimated): "

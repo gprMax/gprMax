@@ -573,16 +573,63 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.event_marker1.wait()
 
     def calculate_memory_used(self, iteration):
-        """Calculates memory used on last iteration.
+        """Calculates memory used on last iteration by summing sizes of all
+        device buffers allocated by this solver.
+
+        Note: Unlike the CUDA backend (which can query free vs total device
+        memory directly via mem_get_info), OpenCL provides no runtime API to
+        query currently-used device memory. This method instead sums the sizes
+        of all buffers explicitly allocated by gprMax on the device, which
+        accurately reflects model memory usage but excludes driver/context
+        overhead (~15-65 MB depending on device).
 
         Args:
             iteration: int for iteration number.
 
         Returns:
-            Memory (RAM) used on compute device.
+            Memory used on compute device in bytes, or None if not last iteration.
         """
-        # No clear way to determine memory used from PyOpenCL unlike PyCUDA.
-        pass
+        if iteration == self.grid.iterations - 1:
+            mem_info = self.cl.mem_info
+
+            def buf_size(cl_array_or_none):
+                """Return byte size of a pyopencl.array.Array, or 0 if None."""
+                if cl_array_or_none is None:
+                    return 0
+                return cl_array_or_none.nbytes
+
+            # Core field arrays
+            total = sum(buf_size(b) for b in [
+                self.grid.ID_dev,
+                self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev,
+                self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev,
+            ])
+
+            # Dispersive material arrays (optional)
+            for attr in ("updatecoeffsdispersive_dev", "Tx_dev", "Ty_dev", "Tz_dev"):
+                total += buf_size(getattr(self.grid, attr, None))
+
+            # Receiver arrays
+            for attr in ("rxcoords_dev", "rxs_dev"):
+                total += buf_size(getattr(self, attr, None))
+
+            # Source arrays
+            for attr in (
+                "srcinfo1_hertzian_dev", "srcinfo2_hertzian_dev", "srcwaves_hertzian_dev",
+                "srcinfo1_magnetic_dev", "srcinfo2_magnetic_dev", "srcwaves_magnetic_dev",
+                "srcinfo1_voltage_dev",  "srcinfo2_voltage_dev",  "srcwaves_voltage_dev",
+            ):
+                total += buf_size(getattr(self, attr, None))
+
+            # Snapshot arrays
+            for attr in ("snapEx_dev", "snapEy_dev", "snapEz_dev",
+                        "snapHx_dev", "snapHy_dev", "snapHz_dev"):
+                total += buf_size(getattr(self, attr, None))
+            print(f'Total Memory : {total}')
+
+            return total
+        
+        return None
 
     def calculate_solve_time(self):
         """Calculates solving time for model."""
