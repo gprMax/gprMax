@@ -26,7 +26,6 @@ jobs:
       - name: Run Physics Test
         run: python .github/workflows/script.py
 
-      # Ye step tere 'physics_report.png' ko GitHub par save kar dega
       - name: Upload Plot Artifact
         uses: actions/upload-artifact@v4
         with:

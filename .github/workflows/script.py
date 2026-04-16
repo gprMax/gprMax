@@ -8,15 +8,11 @@ def calculate_nrmse(reference, simulation):
     return rmse / (np.max(reference) - np.min(reference))
 
 def run_physics_test():
-    # 1. Dummy Golden Data (Real project mein ye file se load hoga)
     t = np.linspace(0, 1, 500)
     golden_wave = np.sin(2 * np.pi * 5 * t) 
     
-    # 2. Current Simulation Data (Jo naye code se generate hua)
-    # Thoda sa noise add kar rahe hain simulation feel dene ke liye
     current_sim = np.sin(2 * np.pi * 5 * t) + np.random.normal(0, 0.01, 500)
     
-    # 3. Physics Check (Threshold 2% rakhte hain)
     error = calculate_nrmse(golden_wave, current_sim)
     threshold = 0.02 
     
@@ -29,14 +25,12 @@ def run_physics_test():
     plt.title(f"Physics Validation (NRMSE: {error:.5f})")
     plt.legend()
     plt.grid(True)
-    plt.savefig('physics_report.png') # CI/CD isse artifact banayega
-    
+    plt.savefig('physics_report.png') 
     if error > threshold:
         print("❌ Physics Validation Failed!")
-        exit(1) # Workflow fail ho jayega
+        exit(1) 
     else:
         print("✅ Physics Validation Passed!")
-        exit(0) # Workflow success ho jayega
-
+        exit(0) 
 if __name__ == "__main__":
     run_physics_test()
