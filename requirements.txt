@@ -16,7 +16,7 @@ click==8.1.7
 colorama==0.4.6
 comm==0.2.1
 contourpy==1.2.0
-cryptography==46.0.5
+cryptography==46.0.7
 cycler==0.11.0
 Cython==3.0.11
 debugpy==1.6.7
@@ -56,7 +56,7 @@ matplotlib-inline==0.1.6
 mistune==2.0.4
 munkres==1.1.4
 nbclient==0.8.0
-nbconvert==7.17.0
+nbconvert==7.17.1
 nbformat==5.9.2
 nest-asyncio==1.6.0
 notebook==7.2.2
@@ -79,6 +79,8 @@ pur==7.3.1
 pure-eval==0.2.2
 pycparser==2.21
 Pygments==2.15.1
+pyOpenSSL==26.0.0
+Pygments==2.20.0
 pyOpenSSL==26.0.0
 pyparsing==3.0.9
 PyQt5==5.15.10
