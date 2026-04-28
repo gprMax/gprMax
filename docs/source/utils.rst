@@ -11,7 +11,7 @@ inputfile_old2new.py
 
 This modules assists with the process of migrating input files from the syntax of the old (pre v.3) version of gprMax to the new syntax. It will produce a new input file with the old syntax (attempted to be!) translated to the new syntax. Usage (from the top-level gprMax directory) is:
 
-.. code-block:: none
+.. code-block:: bash
 
     python -m tools.inputfile_old2new inputfile
 
@@ -23,7 +23,7 @@ outputfiles_merge.py
 
 gprMax produces a separate output file for each trace (A-scan) in a B-scan. This module combines the separate output files into a single file, and can remove the separate output files afterwards. Usage (from the top-level gprMax directory) is:
 
-.. code-block:: none
+.. code-block:: bash
 
     python -m tools.outputfiles_merge basefilename --remove-files
 
@@ -38,7 +38,7 @@ convert_png2h5.py
 
 This module enables a Portable Network Graphics (PNG) image file to be converted into a HDF5 file that can then be used to import geometry into gprMax (see the ``#geometry_objects_read`` command for information on how to use the HDF5 file with a materials file to import the geometry). The resulting geometry will be 2D but maybe extended in the z-(invariate) direction if a 3D model was desired. Usage (from the top-level gprMax directory) is:
 
-.. code-block:: none
+.. code-block:: bash
 
     python -m tools.convert_png2h5 imagefile dxdydz
 
@@ -53,7 +53,7 @@ There is an optional command line argument:
 
 For example create a HDF5 geometry objects file from the PNG image ``my_layers.png`` with a spatial discretisation of :math:`\Delta x = \Delta y = \Delta z = 0.002` metres, and extending 150 cells in the z-(invariate) direction of the model:
 
-.. code-block:: none
+.. code-block:: bash
 
     python -m tools.convert_png2h5 my_layers.png 0.002 0.002 0.002 -zcells 150
 
