@@ -1,0 +1,96 @@
+name: Question / Help Needed
+description: Get help using gprMax or understanding its features
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help with gprMax? Please provide details about what you're trying to accomplish.
+        
+        **Note:** For general questions, you may also want to visit the [gprMax forum](http://www.gprmax.com/forum.shtml).
+        
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to accomplish?
+      description: Describe your simulation goal or what you're trying to model
+      placeholder: "I'm trying to model a..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: What approaches have you already attempted?
+      placeholder: "I've tried using... but it didn't work because..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: What specific issue are you encountering or what don't you understand?
+      placeholder: "I don't understand how to..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: code
+    attributes:
+      label: Relevant Code/Input File
+      description: Share the relevant parts of your input file or code
+      render: python
+      
+  - type: input
+    id: version
+    attributes:
+      label: gprMax Version
+      description: Which version of gprMax are you using?
+      placeholder: "e.g., v.3.1.7"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation References
+      description: Have you checked the documentation? Which sections have you consulted?
+      placeholder: "I've read the section on..."
+      
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic Area
+      description: Which area does your question relate to?
+      options:
+        - Geometry/Model building
+        - Materials and properties
+        - Sources and receivers
+        - Running simulations
+        - Output files and visualization
+        - Performance/optimization
+        - Installation/setup
+        - CUDA/GPU usage
+        - Python API
+        - Other
+    validations:
+      required: true
+      
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other information that might help us answer your question
+      
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked the [documentation](http://docs.gprmax.com/)
+          required: true
+        - label: I have searched existing issues for similar questions
+          required: true
