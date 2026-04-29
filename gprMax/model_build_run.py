@@ -40,6 +40,7 @@ from gprMax.exceptions import GeneralError
 from gprMax.fields_outputs import store_outputs
 from gprMax.fields_outputs import kernel_template_store_outputs
 from gprMax.fields_outputs import write_hdf5_outputfile
+from gprMax.fields_outputs import _prepare_receiver_cache
 
 from gprMax.fields_updates_ext import update_electric
 from gprMax.fields_updates_ext import update_magnetic
@@ -322,6 +323,13 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             receiver.xcoord = receiver.xcoordorigin + (currentmodelrun - 1) * G.rxsteps[0]
             receiver.ycoord = receiver.ycoordorigin + (currentmodelrun - 1) * G.rxsteps[1]
             receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
+
+    # Prepare receiver cache for optimized output storage (optimization #1)
+    # Done after receiver positions are adjusted (for rxsteps support)
+    if G.rxs:
+        G._rx_cache = _prepare_receiver_cache(G)
+    else:
+        G._rx_cache = None
 
     # Write files for any geometry views and geometry object outputs
     if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and G.messages:
