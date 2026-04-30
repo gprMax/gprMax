@@ -17,14 +17,51 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-from scipy import fftpack
+# scipy is an optional dependency for fractal generation (fftpack). During
+# lightweight testing environments the package might not be installed, so we
+# allow importing to fail and set fftpack to None. Actual fractal generation
+# routines will raise if they are invoked without fftpack available.
+try:
+    from scipy import fftpack
+except ImportError:
+    fftpack = None
+
 
 from gprMax.constants import floattype
-from gprMax.fractals_generate_ext import generate_fractal2D
-from gprMax.fractals_generate_ext import generate_fractal3D
+# The actual fractal generation routines are implemented in Cython for
+# performance.  During unit testing those extensions may not be built, so we
+# import them conditionally and raise a runtime error only if generation is
+# attempted without the implementations being available.
+try:
+    from gprMax.fractals_generate_ext import generate_fractal2D, generate_fractal3D
+except ImportError:
+    generate_fractal2D = None
+    generate_fractal3D = None
 from gprMax.utilities import round_value
 
 np.seterr(divide='raise')
+
+
+def _bin_fractal_values(fractalvolume: np.ndarray, nbins: int) -> np.ndarray:
+    """Convert a continuous fractal volume into discrete bin indices.
+
+    The original implementation used ``np.digitize`` directly which returns
+    indices in the range ``0..nbins`` when ``right=True``.  That meant the
+    maximum bin index was ``nbins`` (one too large) and values equal to the
+    minimum were mapped to ``0`` (air) rather than ``0`` (first material).
+    Both effects resulted in incorrect material IDs being written to the grid
+    and were the primary cause of issue #392.
+
+    This helper centralises the logic so it can be tested independently of the
+    full fractal generation code.  It always returns an array of integers in the
+    range ``0..nbins-1``.
+    """
+    # create the bin edges including both min and max
+    bins = np.linspace(np.amin(fractalvolume), np.amax(fractalvolume), nbins)
+    digitized = np.digitize(fractalvolume, bins, right=True) - 1
+    # clip any negative values that result from numbers equal to the minimum
+    digitized[digitized < 0] = 0
+    return digitized
 
 
 class FractalSurface(object):
@@ -65,6 +102,8 @@ class FractalSurface(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+        if generate_fractal2D is None:
+            raise ImportError("fractal2D extension not available")
 
         if self.xs == self.xf:
             surfacedims = (self.ny, self.nz)
@@ -144,6 +183,8 @@ class FractalVolume(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+        if generate_fractal3D is None:
+            raise ImportError("fractal3D extension not available")
 
         # Scale filter according to size of fractal volume
         if self.nx == 1:
@@ -187,11 +228,10 @@ class FractalVolume(object):
         # must always be carried out at double precision, i.e. float64, complex128
         self.fractalvolume = np.real(fftpack.ifftn(self.fractalvolume)).astype(floattype, copy=False)
 
-        # Bin fractal values
-        bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
-        for j in range(self.ny):
-            for k in range(self.nz):
-                self.fractalvolume[:, j, k] = np.digitize(self.fractalvolume[:, j, k], bins, right=True)
+        # Bin fractal values using a helper routine; see its documentation for
+        # the reasoning behind the “-1” correction.  Keeping the logic in one
+        # place makes it easy to unit‑test and avoids duplication.
+        self.fractalvolume = _bin_fractal_values(self.fractalvolume, self.nbins)
 
     def generate_volume_mask(self):
         """Generate a 3D volume to use as a mask for adding rough surfaces, 

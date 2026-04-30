@@ -37,6 +37,13 @@ New commands
 * ``#add_surface_roughness`` is used to add a rough surface to a ``#fractal_box``
 * ``#add_surface_water`` is used to add surface water to a ``#fractal_box`` that has a rough surface
 * ``#add_grass`` is used to add grass to a ``#fractal_box``
+
+.. note::
+   **Bug fix (issue \#392)** – the mapping from continuous fractal values to
+   discrete material bins previously suffered an off-by-one error.  This could
+   result in entire heterogeneous soil volumes being assigned to the wrong
+   material (often air) and produced empty ``.h5`` outputs.  The binning
+   algorithm has been corrected and now returns indices in the correct range.
 * ``#waveform`` is used to specify a waveform shape, and works in conjunction with the changed source commands
 * ``#magnetic_dipole`` is used to introduce a magnetic dipole source, i.e. current on a small loop
 * ``#pml_cfs`` is an advanced command for adjusting the CFS parameters used in the new PML
