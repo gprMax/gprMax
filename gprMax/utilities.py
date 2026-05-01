@@ -295,6 +295,10 @@ def get_host_info():
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
                     cpuID = re.sub('.*model name.*:', '', line, 1).strip()
+            
+            sockets = 1
+            threadspercore = 1
+            corespersocket = None
             allcpuinfo = subprocess.check_output("lscpu", shell=True, env=my_env, stderr=subprocess.STDOUT).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
@@ -306,8 +310,12 @@ def get_host_info():
         except subprocess.CalledProcessError:
             pass
 
-        physicalcores = sockets * corespersocket
-        logicalcores = sockets * corespersocket * threadspercore
+        if corespersocket:
+            physicalcores = sockets * corespersocket
+            logicalcores = sockets * corespersocket * threadspercore
+        else:
+            physicalcores = psutil.cpu_count(logical=False) or 1
+            logicalcores = psutil.cpu_count(logical=True) or physicalcores
 
         # OS version
         osversion = platform.platform()
