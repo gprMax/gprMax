@@ -25,16 +25,17 @@ import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
 from gprMax.receivers import Rx
-from gprMax.utilities import fft_power
+from gprMax.utilities import fft_power, handle_plot_output
 
 
-def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, show=True):
     """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.
 
     Args:
         filename (string): Filename (including path) of output file.
         outputs (list): List of field/current components to plot.
         fft (boolean): Plot FFT switch.
+        show (boolean): Show plot switch.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -203,9 +204,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     ax.set_xlim([0, np.amax(time)])
                     ax.grid(which="both", axis="both", linestyle="-.")
 
-        # Save a PDF/PNG of the figure
-        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+        # Save or show the figure
+        handle_plot_output(plt, fig, filename, suffix='_rx' + str(rx), show=show)
 
     f.close()
 
@@ -218,8 +218,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('--outputs', help='outputs to be plotted', default=Rx.defaultoutputs, choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'], nargs='+')
-    parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
+    parser.add_argument('--no-show', action='store_false', help='do not show plots (only save them)', default=True, dest='show')
     args = parser.parse_args()
 
-    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
-    plthandle.show()
+    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, show=args.show)
