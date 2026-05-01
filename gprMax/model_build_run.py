@@ -558,8 +558,9 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.voltagesources + G.hertziandipoles + G.magneticdipoles:
-        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-        # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for source kernels
+        # Single JIT compilation shared across all source types - nsources passed as runtime arg
+        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NX_FIELDS=G.nx + 1, NY_FIELDS=G.ny + 1, NZ_FIELDS=G.nz + 1, NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        # Copy material coefficient arrays to constant memory of GPU once
         updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
         updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
@@ -642,6 +643,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update magnetic field components for magetic dipole sources
         if G.magneticdipoles:
             update_magnetic_dipole_gpu(np.int32(len(G.magneticdipoles)), np.int32(iteration),
+                                       np.int32(len(G.magneticdipoles)),
                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
                                        srcinfo1_magnetic_gpu.gpudata, srcinfo2_magnetic_gpu.gpudata,
                                        srcwaves_magnetic_gpu.gpudata, G.ID_gpu.gpudata,
@@ -652,9 +654,9 @@ def solve_gpu(currentmodelrun, modelend, G):
         # If all materials are non-dispersive do standard update
         if Material.maxpoles == 0:
             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
-                         G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                         G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                         block=G.tpb, grid=G.bpg)
+                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                        block=G.tpb, grid=G.bpg)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         else:
@@ -672,6 +674,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update electric field components for voltage sources
         if G.voltagesources:
             update_voltage_source_gpu(np.int32(len(G.voltagesources)), np.int32(iteration),
+                                      np.int32(len(G.voltagesources)),
                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
                                       srcinfo1_voltage_gpu.gpudata, srcinfo2_voltage_gpu.gpudata,
                                       srcwaves_voltage_gpu.gpudata, G.ID_gpu.gpudata,
@@ -681,6 +684,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update electric field components for Hertzian dipole sources (update any Hertzian dipole sources last)
         if G.hertziandipoles:
             update_hertzian_dipole_gpu(np.int32(len(G.hertziandipoles)), np.int32(iteration),
+                                       np.int32(len(G.hertziandipoles)),
                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
                                        srcinfo1_hertzian_gpu.gpudata, srcinfo2_hertzian_gpu.gpudata,
                                        srcwaves_hertzian_gpu.gpudata, G.ID_gpu.gpudata,
