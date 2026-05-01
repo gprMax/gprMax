@@ -130,7 +130,7 @@ while(lindex < len(inputlines)):
         elif cmdname == '#hertzian_dipole':
             hertziandipoles.append(inputlines[lindex])
             lindex += 1
-        
+
         elif cmdname == '#transmission_line':
             transmissionlines.append(inputlines[lindex])
             lindex += 1
@@ -331,7 +331,7 @@ while(lindex < len(inputlines)):
 # Convert separate #line_source and associated #tx to #waveform and #hertzian_dipole
 for source in linesources:
     params = source.split()
-    if params[3] is badwaveforms:
+    if params[3] in badwaveforms:
         raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
     elif params[3] == 'ricker':
         params[3] = 'gaussiandotnorm'
@@ -352,7 +352,7 @@ for source in linesources:
 # Convert separate #hertzian_dipole and associated #tx to #waveform and #hertzian_dipole
 for source in hertziandipoles:
     params = source.split()
-    if params[3] is badwaveforms:
+    if params[3] in badwaveforms:
         raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
     elif params[3] == 'ricker':
         params[3] = 'gaussiandotnorm'
@@ -373,7 +373,7 @@ for source in hertziandipoles:
 # Convert separate #voltage_source and associated #tx to #waveform and #voltage_source
 for source in voltagesources:
     params = source.split()
-    if params[3] is badwaveforms:
+    if params[3] in badwaveforms:
         raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
     elif params[3] == 'ricker':
         params[3] = 'gaussiandotnorm'
@@ -394,7 +394,7 @@ for source in voltagesources:
 # Convert separate #transmission_line and associated #tx to #waveform and #transmission_line
 for source in transmissionlines:
     params = source.split()
-    if params[3] is badwaveforms:
+    if params[3] in badwaveforms:
         raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
     elif params[3] == 'ricker':
         params[3] = 'gaussiandotnorm'
