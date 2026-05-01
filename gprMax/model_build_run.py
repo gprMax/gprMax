@@ -167,7 +167,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Estimate and check memory (RAM) usage
         G.memory_estimate_basic()
-        G.memory_check()
+        G.memory_check(force_gpu=args.force_gpu)
         if G.messages:
             if G.gpu is None:
                 print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
@@ -253,7 +253,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         if Material.maxpoles != 0:
             # Update estimated memory (RAM) usage
             G.memoryusage += int(3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize)
-            G.memory_check()
+            G.memory_check(force_gpu=args.force_gpu)
             if G.messages:
                 print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
 
@@ -266,7 +266,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                 # 2 x required to account for electric and magnetic fields
                 snapsmemsize += (2 * snap.datasizefield)
             G.memoryusage += int(snapsmemsize)
-            G.memory_check(snapsmemsize=int(snapsmemsize))
+            G.memory_check(snapsmemsize=int(snapsmemsize), force_gpu=args.force_gpu)
             if G.messages:
                 print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
