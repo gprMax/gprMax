@@ -161,6 +161,12 @@ When the simulation is complete you can plot the A-scan using:
 
     (gprMax)$ python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
+To save the plot to a file instead of displaying it (e.g. in Docker or on a headless server), use ``--save``:
+
+.. code-block:: bash
+
+    (gprMax)$ python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out --save output_plot.png
+
 Your results should be like those from the A-scan from the metal cylinder example in `introductory/basic 2D models section <http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results>`_
 
 When you are finished using gprMax, the conda environment can be deactivated using :code:`conda deactivate`.
