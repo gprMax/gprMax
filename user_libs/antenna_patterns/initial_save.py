@@ -77,8 +77,17 @@ iterations = f.attrs['Iterations']
 dt = f.attrs['dt']
 nrx = f.attrs['nrx']
 if antenna:
-    nrx = nrx - 1  # Ignore first receiver point with full antenna model
-    start = 2
+    nrx = nrx - 1  # Ignore the antenna's internal receiver point
+    # Determine start index by checking whether the first receiver has all
+    # default field outputs. If it does, the antenna's internal receiver (which
+    # only saves a single component, e.g. 'Ey') must be at the end of the list,
+    # so observation receivers begin at rx1. Otherwise the antenna receiver is
+    # first and observation receivers begin at rx2.
+    first_rx_outputs = list(f['/rxs/rx1/'].keys())
+    if all(c in first_rx_outputs for c in ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']):
+        start = 1  # Antenna receiver is last; observation receivers start at rx1
+    else:
+        start = 2  # Antenna receiver is first; observation receivers start at rx2
 else:
     start = 1
 time = np.arange(0, dt * iterations, dt)
