@@ -1,0 +1,72 @@
+name: Bug report
+about: Create a report to help us fix a bug in gprMax
+title: "[BUG] "
+labels: bug
+assignees: ''
+
+body:
+  - type: markdown
+    attributes:
+      value: "Please fill in the details below to help us reproduce and fix the bug."
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the problem.
+      placeholder: "What is the bug?"
+      value: ""
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Repository version
+      description: Provide `git rev-parse --short HEAD` or installed package version.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the .in model file or minimal reproduction.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+  - type: checkboxes
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - label: OS
+          value: os
+        - label: Python version
+          value: python
+        - label: gprMax version/commit
+          value: gprmax
+        - label: Installed from (pip/conda/source)
+          value: installed_from
+        - label: GPU or hardware details
+          value: hardware
+  - type: attachments
+    id: attachments
+    attributes:
+      label: Attachments
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other details, related issues or workarounds tried.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues
+          value: searched
+        - label: Reproducible on latest commit
+          value: latest
+        - label: I attached a minimal test case
+          value: attached
