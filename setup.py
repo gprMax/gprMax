@@ -19,8 +19,7 @@
 try:
     from setuptools import setup, Extension
 except ImportError:
-    from distutils.core import setup
-    from distutils.extension import Extension
+    raise ImportError('gprMax requires setuptools. Install it with: pip install setuptools')
 
 try:
     import numpy as np
@@ -52,8 +51,8 @@ with open('README.rst', 'r', encoding='utf-8') as fd:
     long_description = fd.read()
 
 # Python version
-if sys.version_info[:2] < (3, 4):
-    sys.exit('\nExited: Requires Python 3.4 or newer!\n')
+if sys.version_info[:2] < (3, 6):
+    sys.exit('\nExited: Requires Python 3.6 or newer!\n')
 
 # Process 'build' command line argument
 if 'build' in sys.argv:
@@ -123,22 +122,22 @@ elif sys.platform == 'darwin':
     cpuID = ' '.join(cpuID.split())
     if 'Apple' in cpuID:
         gccpath = glob.glob('/opt/homebrew/bin/gcc-[4-9]*')
-        gccpath += glob.glob('/opt/homebrew/bin/gcc-[10-11]*')
+        gccpath += glob.glob('/opt/homebrew/bin/gcc-1[0-9]*')
         if gccpath:
             # Use newest gcc found
             os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
-            rpath = '/opt/homebrew/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1][-1] + '/'
+            rpath = '/opt/homebrew/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1].split('-')[-1] + '/'
         else:
-            raise('Cannot find gcc 4-10 in /opt/homebrew/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
+            raise RuntimeError('Cannot find gcc in /opt/homebrew/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
     else:
         gccpath = glob.glob('/usr/local/bin/gcc-[4-9]*')
-        gccpath += glob.glob('/usr/local/bin/gcc-[10-11]*')
+        gccpath += glob.glob('/usr/local/bin/gcc-1[0-9]*')
         if gccpath:
             # Use newest gcc found
             os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
-            rpath = '/usr/local/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1][-1] + '/'
+            rpath = '/usr/local/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1].split('-')[-1] + '/'
         else:
-            raise('Cannot find gcc 4-10 in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
+            raise RuntimeError('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']  # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp', '-Wl,-rpath,' + rpath]
     libraries = ['iomp5', 'pthread']
@@ -200,7 +199,7 @@ setup(name=packagename,
           'Topic :: Scientific/Engineering'
       ],
       #requirements
-      python_requires=">3.6",
+      python_requires=">=3.6",
       install_requires=[
           "colorama",
           "cython",
