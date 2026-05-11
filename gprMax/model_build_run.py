@@ -333,6 +333,20 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
             geometryview.write_vtk(G, pbar)
             pbar.close()
+
+            if geometryview.export_properties:
+                basefilepath = os.path.splitext(geometryview.filename)[0]
+                property_views = [('_relative_permittivity', 'relative_permittivity'),
+                                  ('_conductivity', 'conductivity')]
+                for j, (suffix, arrayname) in enumerate(property_views):
+                    filepath = basefilepath + suffix + '.vti'
+                    pbar = tqdm(total=geometryview.propertydatawritesize, unit='byte', unit_scale=True, desc='Writing geometry property view file {}/{}, {}'.format(j + 1, len(property_views), os.path.basename(filepath)), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+                    geometryview.write_property_vti(G, pbar, geometryview.solid_geometry, geometryview.srcs_pml_geometry, geometryview.rxs_geometry, arrayname, filepath)
+                    pbar.close()
+                del geometryview.solid_geometry
+                del geometryview.srcs_pml_geometry
+                del geometryview.rxs_geometry
+
     if G.geometryobjectswrite:
         for i, geometryobject in enumerate(G.geometryobjectswrite):
             pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
