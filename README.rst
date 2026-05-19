@@ -7,14 +7,13 @@
 .. image:: docs/source/images/gprMax_logo_small.png
     :target: http://www.gprmax.com
 
-.. note::
+***************************************
+Note for reviewers and new contributors
+***************************************
 
-   **Note for reviewers and new contributors:** Active development takes place on the
-   `devel branch <https://github.com/gprMax/gprMax/tree/devel>`_. The ``master`` branch
-   contains stable releases only and does not reflect the full commit history, contributor
-   base, or pace of ongoing development. For an accurate picture of project activity please
-   consult the `devel branch commit history <https://github.com/gprMax/gprMax/commits/devel>`_
-   and `contributor graph <https://github.com/gprMax/gprMax/graphs/contributors?from=2016-01-01&type=c>`_.
+⚠️ Active development takes place on the `devel branch <https://github.com/gprMax/gprMax/tree/devel>`_. The ``master`` branch contains stable releases only and does not reflect the full commit history, contributor base, or pace of ongoing development. For an accurate picture of project activity please consult the `devel branch commit history <https://github.com/gprMax/gprMax/commits/devel>`_
+and `contributor graph <https://github.com/gprMax/gprMax/graphs/contributors?from=2016-01-01&type=c>`_.
+
 
 ***************
 Getting Started
