@@ -37,6 +37,46 @@ _CURRENT_FUNC_MAP = {
 }
 
 
+def _prepare_receiver_cache(G):
+    """Pre-compute receiver data structure for faster access during simulation.
+    
+    Creates a cache that stores receiver coordinates and output arrays
+    in a format optimized for fast iteration, avoiding repeated attribute
+    lookups during the hot loop.
+    
+    Args:
+        G (class): Grid class instance - holds essential parameters describing the model.
+        
+    Returns:
+        list: List of receiver cache entries, where each entry is a list of
+              output tuples: (output_type, output_array, x, y, z, func_or_idx)
+              - output_type: 'field' or 'current'
+              - output_array: numpy array to store the output
+              - x, y, z: receiver coordinates
+              - func_or_idx: function (for current) or field index (for field)
+    """
+    rx_cache = []
+    
+    for rx in G.rxs:
+        # Cache coordinates once
+        x, y, z = rx.xcoord, rx.ycoord, rx.zcoord
+        receiver_outputs = []
+        
+        for output_name, output_array in rx.outputs.items():
+            if output_name in _FIELD_MAP:
+                # Field output: store type, array, coords, and field index
+                receiver_outputs.append(('field', output_array, x, y, z, _FIELD_MAP[output_name]))
+            elif output_name in _CURRENT_FUNC_MAP:
+                # Current output: store type, array, coords, and function
+                receiver_outputs.append(('current', output_array, x, y, z, _CURRENT_FUNC_MAP[output_name]))
+            else:
+                raise ValueError(f"Unknown output type: {output_name}")
+        
+        rx_cache.append(receiver_outputs)
+    
+    return rx_cache
+
+
 def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """Stores field component values for every receiver and transmission line.
 
@@ -48,21 +88,43 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
 
     # Create field tuple once for efficient access
     fields = (Ex, Ey, Ez, Hx, Hy, Hz)
+    
+    # Use cached receiver data if available (optimization #1), otherwise fall back to standard method
+    if hasattr(G, '_rx_cache') and G._rx_cache is not None:
+        # Use pre-computed cache for maximum performance
+        for receiver_outputs in G._rx_cache:
+            for output_type, output_array, x, y, z, func_or_idx in receiver_outputs:
+                if output_type == 'field':
+                    # Direct field component access using cached index
+                    output_array[iteration] = fields[func_or_idx][x, y, z]
+                else:  # output_type == 'current'
+                    # Call cached function reference
+                    output_array[iteration] = func_or_idx(x, y, z, Hx, Hy, Hz, G)
+    else:
+        # Standard method (backward compatible)
+        rxs = G.rxs
+        transmissionlines = G.transmissionlines
 
-    for rx in G.rxs:
-        for output in rx.outputs:
-            # Store electric or magnetic field components
-            if output in _FIELD_MAP:
-                field_idx = _FIELD_MAP[output]
-                rx.outputs[output][iteration] = fields[field_idx][rx.xcoord, rx.ycoord, rx.zcoord]
-            # Store current component
-            elif output in _CURRENT_FUNC_MAP:
-                func = _CURRENT_FUNC_MAP[output]
-                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
-            else:
-                raise ValueError(f"Unknown output type: {output}")
+        for rx in rxs:
+            # Cache coordinates once per receiver to avoid repeated attribute access
+            x, y, z = rx.xcoord, rx.ycoord, rx.zcoord
+            outputs = rx.outputs  # Cache dictionary reference
+            
+            for output in outputs:
+                # Store electric or magnetic field components
+                if output in _FIELD_MAP:
+                    field_idx = _FIELD_MAP[output]
+                    outputs[output][iteration] = fields[field_idx][x, y, z]
+                # Store current component
+                elif output in _CURRENT_FUNC_MAP:
+                    func = _CURRENT_FUNC_MAP[output]
+                    outputs[output][iteration] = func(x, y, z, Hx, Hy, Hz, G)
+                else:
+                    raise ValueError(f"Unknown output type: {output}")
 
-    for tl in G.transmissionlines:
+    # Process transmission lines
+    transmissionlines = G.transmissionlines
+    for tl in transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
         tl.Itotal[iteration] = tl.current[tl.antpos]
 
@@ -117,45 +179,51 @@ def write_hdf5_outputfile(outputfile, G):
     """
 
     f = h5py.File(outputfile, 'w')
+    
+    # Pre-compute source list once to avoid repeated concatenations
+    srclist = list(G.voltagesources) + list(G.hertziandipoles) + list(G.magneticdipoles)
+    nsrc = len(srclist) + len(G.transmissionlines)
+    
+    # Cache frequently used attributes
+    dx, dy, dz = G.dx, G.dy, G.dz
+    
     f.attrs['gprMax'] = __version__
     f.attrs['Title'] = G.title
     f.attrs['Iterations'] = G.iterations
     f.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
-    f.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
+    f.attrs['dx_dy_dz'] = (dx, dy, dz)
     f.attrs['dt'] = G.dt
-    nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
     f.attrs['nsrc'] = nsrc
     f.attrs['nrx'] = len(G.rxs)
     f.attrs['srcsteps'] = G.srcsteps
     f.attrs['rxsteps'] = G.rxsteps
 
     # Create group for sources (except transmission lines); add type and positional data attributes
-    srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
-    for srcindex, src in enumerate(srclist):
-        grp = f.create_group('/srcs/src' + str(srcindex + 1))
+    for srcindex, src in enumerate(srclist, start=1):
+        grp = f.create_group(f'/srcs/src{srcindex}')
         grp.attrs['Type'] = type(src).__name__
-        grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
+        grp.attrs['Position'] = (src.xcoord * dx, src.ycoord * dy, src.zcoord * dz)
 
     # Create group for transmission lines; add positional data, line resistance and
     # line discretisation attributes; write arrays for line voltages and currents
-    for tlindex, tl in enumerate(G.transmissionlines):
-        grp = f.create_group('/tls/tl' + str(tlindex + 1))
-        grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
+    for tlindex, tl in enumerate(G.transmissionlines, start=1):
+        grp = f.create_group(f'/tls/tl{tlindex}')
+        grp.attrs['Position'] = (tl.xcoord * dx, tl.ycoord * dy, tl.zcoord * dz)
         grp.attrs['Resistance'] = tl.resistance
         grp.attrs['dl'] = tl.dl
         # Save incident voltage and current
         grp['Vinc'] = tl.Vinc
         grp['Iinc'] = tl.Iinc
         # Save total voltage and current
-        f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
-        f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
+        f[f'/tls/tl{tlindex}/Vtotal'] = tl.Vtotal
+        f[f'/tls/tl{tlindex}/Itotal'] = tl.Itotal
 
     # Create group, add positional data and write field component arrays for receivers
-    for rxindex, rx in enumerate(G.rxs):
-        grp = f.create_group('/rxs/rx' + str(rxindex + 1))
+    for rxindex, rx in enumerate(G.rxs, start=1):
+        grp = f.create_group(f'/rxs/rx{rxindex}')
         if rx.ID:
             grp.attrs['Name'] = rx.ID
-        grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
+        grp.attrs['Position'] = (rx.xcoord * dx, rx.ycoord * dy, rx.zcoord * dz)
 
         for output in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
+            f[f'/rxs/rx{rxindex}/{output}'] = rx.outputs[output]
