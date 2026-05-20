@@ -465,7 +465,7 @@ def waveform(shape, amplitude, frequency, identifier):
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
 
-    command('waveform', shape, amplitude, frequency, identifier)
+    command('waveform', shape, amplitude, '{:g}'.format(frequency), identifier)
 
     return identifier
 
@@ -658,7 +658,7 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
     c = Coordinate(x, y, z)
     to_save_str = ''
     if to_save is not None:
-        to_save_str = ''.join(to_save)
+        to_save_str = ' '.join(to_save)
 
     command('rx', str(c), identifier, to_save_str)
 
