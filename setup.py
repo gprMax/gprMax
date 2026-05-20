@@ -16,11 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    from setuptools import setup, Extension
-except ImportError:
-    from distutils.core import setup
-    from distutils.extension import Extension
+from setuptools import setup, Extension  # type: ignore[import-not-found]
 
 try:
     import numpy as np
@@ -51,9 +47,9 @@ packages = [packagename, 'tests', 'tools', 'user_libs']
 with open('README.rst', 'r', encoding='utf-8') as fd:
     long_description = fd.read()
 
-# Python version
-if sys.version_info[:2] < (3, 4):
-    sys.exit('\nExited: Requires Python 3.4 or newer!\n')
+# Python version guard (align with pyproject.toml requires-python >=3.7)
+if sys.version_info < (3, 7):
+    sys.exit('\nExited: Requires Python 3.7 or newer.\n')
 
 # Process 'build' command line argument
 if 'build' in sys.argv:
@@ -141,7 +137,11 @@ elif sys.platform == 'darwin':
             raise('Cannot find gcc 4-10 in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']  # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp', '-Wl,-rpath,' + rpath]
-    libraries = ['iomp5', 'pthread']
+    # Homebrew fournit GCC avec libgomp (runtime OpenMP GNU). L'ancienne configuration essayait de lier iomp5 (runtime Intel),
+    # absent sur la plupart des installations standard et cause une erreur: ld: library 'iomp5' not found.
+    # Avec -fopenmp, GCC ajoute déjà automatiquement libgomp, donc on n'a pas besoin de préciser libraries.
+    # Si on voulait être explicite on pourrait utiliser ['gomp'], mais on laisse vide pour portabilité.
+    libraries = []
     extra_objects = []
 # Linux
 elif sys.platform == 'linux':
@@ -149,6 +149,24 @@ elif sys.platform == 'linux':
     linker_args = ['-fopenmp']
     extra_objects = []
     libraries=[]
+
+# Optional: Intel OpenMP runtime (iomp5) support
+# ----------------------------------------------
+# Historically the project listed iomp5 which produced link failures on
+# standard GCC + libgomp installs. It is now optional so default builds rely
+# on the platform OpenMP runtime while still permitting Intel toolchains
+# (icx/icc/icl) to request iomp5.
+# Enable by exporting GPRMAX_USE_INTEL_OPENMP=1 before installation, or by
+# setting CC=icx/icc/icl for auto detection. Warning: if libiomp5.* is not
+# present on the system the link step will fail.
+use_intel_omp_env = os.environ.get('GPRMAX_USE_INTEL_OPENMP', '').lower() in ('1', 'true', 'yes')
+cc_lower = os.environ.get('CC', '').lower()
+detected_intel_cc = any(tok in cc_lower for tok in ('icx', 'icc', 'icl'))
+if use_intel_omp_env or detected_intel_cc:
+    # Évite les doublons si déjà ajouté
+    if 'iomp5' not in libraries and sys.platform != 'win32':  # Sous Windows Intel fournit généralement la DLL automatiquement
+        libraries.append('iomp5')
+        print("[gprMax] Activation du runtime Intel OpenMP: liaison avec iomp5 (détection compilateur Intel ou variable GPRMAX_USE_INTEL_OPENMP).")
 
 # Build a list of all the extensions
 extensions = []
@@ -181,40 +199,28 @@ if USE_CYTHON:
                            },
                            annotate=False)
 
-setup(name=packagename,
-      version=version,
-      author='Craig Warren and Antonis Giannopoulos',
-      url='http://www.gprmax.com',
-      description='Electromagnetic Modelling Software based on the Finite-Difference Time-Domain (FDTD) method',
-      long_description=long_description,
-      long_description_content_type="text/x-rst",
-      license='GPLv3+',
-      classifiers=[
-          'Environment :: Console',
-          'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-          'Operating System :: MacOS',
-          'Operating System :: Microsoft :: Windows',
-          'Operating System :: POSIX :: Linux',
-          'Programming Language :: Cython',
-          'Programming Language :: Python :: 3',
-          'Topic :: Scientific/Engineering'
-      ],
-      #requirements
-      python_requires=">3.6",
-      install_requires=[
-          "colorama",
-          "cython",
-          "h5py",
-          "jupyter",
-          "matplotlib",
-          "numpy",
-          "psutil",
-          "scipy",
-          "terminaltables",
-          "tqdm",
-          ],
-      ext_modules=extensions,
-      packages=packages,
-      include_package_data=True,
-      include_dirs=[np.get_include()],
-      zip_safe=False)
+setup(
+    name=packagename,
+    version=version,
+    author='Craig Warren and Antonis Giannopoulos',
+    url='http://www.gprmax.com',
+    # Les métadonnées (description, license, classifiers, long_description) sont définies dans pyproject.toml.
+    python_requires=">=3.7",
+    install_requires=[
+        # Core runtime dependencies (Jupyter moved to optional extras in pyproject.toml)
+        "colorama",
+        "cython",
+        "h5py",
+        "matplotlib",
+        "numpy",
+        "psutil",
+        "scipy",
+        "terminaltables",
+        "tqdm",
+    ],
+    ext_modules=extensions,
+    packages=packages,
+    include_package_data=True,
+    include_dirs=[np.get_include()],
+    zip_safe=False,
+)
