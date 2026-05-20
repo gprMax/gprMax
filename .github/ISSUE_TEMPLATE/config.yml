@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: gprMax Forum
+    url: http://www.gprmax.com/forum.shtml
+    about: Ask questions and discuss gprMax with the community on our Google Group
+  - name: Documentation
+    url: http://docs.gprmax.com/
+    about: Read the comprehensive gprMax user guide
+  - name: Website
+    url: http://www.gprmax.com/
+    about: Visit the official gprMax website
