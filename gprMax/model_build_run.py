@@ -18,6 +18,7 @@
 
 import datetime
 from importlib import import_module
+import gc
 import itertools
 import os
 import psutil
@@ -399,8 +400,19 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
     # If geometry information to be reused between model runs then FDTDGrid
     # class instance must be global so that it persists
-    if not args.geometry_fixed or currentmodelrun == modelend:
-        del G
+    # Enhanced memory management - always cleanup between models unless geometry_fixed
+    # This fixes the memory leak in multiscene calculations (Issue #389)
+    if not args.geometry_fixed:
+        # Always cleanup between models to prevent memory accumulation
+        if 'G' in globals():
+            del G
+        # Force garbage collection to free memory
+        gc.collect()
+    elif currentmodelrun == modelend:
+        # Final cleanup for geometry_fixed mode
+        if 'G' in globals():
+            del G
+        gc.collect()
 
     return tsolve
 
