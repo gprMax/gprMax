@@ -38,3 +38,81 @@ To make it easier to create commands within a block of Python code, there is a b
     #end_python:
 
 The ``domain`` function will print the ``#domain`` command to the input file and return a variable with the extent of the domain that can be used elsewhere in a Python code block, e.g. in this case with the ``cylinder`` function. The ``cylinder`` function is just a functional version of the ``#cylinder`` command which prints it to the input file.
+
+Running gprMax from the Python API
+===================================
+
+Instead of using the command line, gprMax can be run directly from a Python script or notebook using the :mod:`gprMax.api` module. This is useful for parameter sweeps, automated workflows, and building interactive tools such as reactive notebooks.
+
+Basic A-scan
+------------
+
+.. code-block:: python
+
+    from gprMax.api import run
+
+    # Run a single A-scan simulation
+    run('user_models/cylinder_Ascan_2D.in', n=1, geometry_only=False)
+
+Running a B-scan
+----------------
+
+A B-scan is made up of multiple A-scan runs with the source and receiver
+stepping along a profile. Use the ``n`` parameter to set the number of traces:
+
+.. code-block:: python
+
+    from gprMax.api import run
+
+    # Run 30 traces for a B-scan
+    run('user_models/cylinder_Bscan_2D.in', n=30)
+
+Checking geometry only
+-----------------------
+
+To visualise the model geometry without running the full FDTD simulation:
+
+.. code-block:: python
+
+    from gprMax.api import run
+
+    run('user_models/cylinder_Ascan_2D.in', n=1, geometry_only=True)
+
+Reading output files
+--------------------
+
+Simulation results are saved as HDF5 ``.out`` files. Field components are
+stored under ``/rxs/rx1/`` and can be read with ``h5py``:
+
+.. code-block:: python
+
+    import h5py
+    import numpy as np
+
+    with h5py.File('user_models/cylinder_Ascan_2D.out', 'r') as f:
+        ez = np.array(f['/rxs/rx1/Ez'])   # Ez field component
+        dt = f.attrs['dt']                 # time step in seconds
+
+    print(f'Ez shape:  {ez.shape}')
+    print(f'Time step: {dt:.3e} s')
+
+Plotting an A-scan
+------------------
+
+.. code-block:: python
+
+    import h5py
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    with h5py.File('user_models/cylinder_Ascan_2D.out', 'r') as f:
+        ez = np.array(f['/rxs/rx1/Ez'])
+        dt = f.attrs['dt']
+
+    time = np.arange(len(ez)) * dt * 1e9  # convert to nanoseconds
+    plt.plot(time, ez)
+    plt.xlabel('Time (ns)')
+    plt.ylabel('Ez field strength (V/m)')
+    plt.title('A-scan')
+    plt.grid(True)
+    plt.show()
