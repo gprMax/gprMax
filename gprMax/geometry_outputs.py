@@ -349,41 +349,42 @@ class GeometryObjects(object):
         """
 
         # Write the geometry objects to a HDF5 file
-        fdata = h5py.File(os.path.abspath(os.path.join(G.inputdirectory, self.filename)), 'w')
-        fdata.attrs['gprMax'] = __version__
-        fdata.attrs['Title'] = G.title
-        fdata.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
+        with h5py.File(os.path.abspath(os.path.join(G.inputdirectory, self.filename)), 'w') as fdata:
+            fdata.attrs['gprMax'] = __version__
+            fdata.attrs['Title'] = G.title
+            fdata.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
 
-        # Get minimum and maximum integers of materials in geometry objects volume
-        minmat = np.amin(G.ID[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf])
-        maxmat = np.amax(G.ID[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf])
-        fdata['/data'] = G.solid[self.xs:self.xf, self.ys:self.yf, self.zs:self.zf].astype('int16') - minmat
-        pbar.update(self.solidsize)
-        fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf]
-        fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf]
-        pbar.update(self.rigidsize)
-        fdata['/ID'] = G.ID[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf] - minmat
-        pbar.update(self.IDsize)
+            # Get minimum and maximum integers of materials in geometry objects volume
+            minmat = np.amin(G.ID[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf])
+            maxmat = np.amax(G.ID[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf])
+            fdata['/data'] = G.solid[self.xs:self.xf, self.ys:self.yf, self.zs:self.zf].astype('int16') - minmat
+            pbar.update(self.solidsize)
+            fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf]
+            fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf]
+            pbar.update(self.rigidsize)
+            fdata['/ID'] = G.ID[:, self.xs:self.xf, self.ys:self.yf, self.zs:self.zf] - minmat
+            pbar.update(self.IDsize)
 
         # Write materials list to a text file
         # This includes all materials in range whether used in volume or not
-        fmaterials = open(os.path.abspath(os.path.join(G.inputdirectory, self.materialsfilename)), 'w')
-        for numID in range(minmat, maxmat + 1):
-            for material in G.materials:
-                if material.numID == numID:
-                    fmaterials.write('#material: {:g} {:g} {:g} {:g} {}\n'.format(material.er, material.se, material.mr, material.sm, material.ID))
-                    if material.poles > 0:
-                        if 'debye' in material.type:
-                            dispersionstr = '#add_dispersion_debye: {:g} '.format(material.poles)
-                            for pole in range(material.poles):
-                                dispersionstr += '{:g} {:g} '.format(material.deltaer[pole], material.tau[pole])
-                        elif 'lorenz' in material.type:
-                            dispersionstr = '#add_dispersion_lorenz: {:g} '.format(material.poles)
-                            for pole in range(material.poles):
-                                dispersionstr += '{:g} {:g} {:g} '.format(material.deltaer[pole], material.tau[pole], material.alpha[pole])
-                        elif 'drude' in material.type:
-                            dispersionstr = '#add_dispersion_drude: {:g} '.format(material.poles)
-                            for pole in range(material.poles):
-                                dispersionstr += '{:g} {:g} '.format(material.tau[pole], material.alpha[pole])
-                        dispersionstr += material.ID
-                        fmaterials.write(dispersionstr + '\n')
+        with open(os.path.abspath(os.path.join(G.inputdirectory, self.materialsfilename)), 'w') as fmaterials:
+            for numID in range(minmat, maxmat + 1):
+                for material in G.materials:
+                    if material.numID == numID:
+                        fmaterials.write('#material: {:g} {:g} {:g} {:g} {}\n'.format(material.er, material.se, material.mr, material.sm, material.ID))
+                        if material.poles > 0:
+                            if 'debye' in material.type:
+                                dispersionstr = '#add_dispersion_debye: {:g} '.format(material.poles)
+                                for pole in range(material.poles):
+                                    dispersionstr += '{:g} {:g} '.format(material.deltaer[pole], material.tau[pole])
+                            elif 'lorenz' in material.type:
+                                dispersionstr = '#add_dispersion_lorenz: {:g} '.format(material.poles)
+                                for pole in range(material.poles):
+                                    dispersionstr += '{:g} {:g} {:g} '.format(material.deltaer[pole], material.tau[pole], material.alpha[pole])
+                            elif 'drude' in material.type:
+                                dispersionstr = '#add_dispersion_drude: {:g} '.format(material.poles)
+                                for pole in range(material.poles):
+                                    dispersionstr += '{:g} {:g} '.format(material.tau[pole], material.alpha[pole])
+                            dispersionstr += material.ID
+                            fmaterials.write(dispersionstr + '\n')
+

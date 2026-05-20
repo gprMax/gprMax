@@ -52,6 +52,9 @@ from gprMax.fields_updates_gpu import kernels_template_fields
 from gprMax.grid import FDTDGrid
 from gprMax.grid import dispersion_analysis
 
+from gprMax.materials import Material
+from gprMax.snapshots import Snapshot
+
 from gprMax.input_cmds_geometry import process_geometrycmds
 from gprMax.input_cmds_file import process_python_include_code
 from gprMax.input_cmds_file import write_processed_file
@@ -400,6 +403,11 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     # If geometry information to be reused between model runs then FDTDGrid
     # class instance must be global so that it persists
     if not args.geometry_fixed or currentmodelrun == modelend:
+        # Explicitly release large arrays and reset class-level state
+        # before removing the reference to prevent memory accumulation
+        G.cleanup()
+        Material.reset_class_state()
+        Snapshot.reset_class_state()
         del G
 
     return tsolve
