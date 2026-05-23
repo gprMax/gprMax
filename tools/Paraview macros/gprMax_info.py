@@ -199,6 +199,9 @@ pmls = {}
 # To hold the maximum numerical ID for materials across multiple files
 material_ID_max = 0
 
+# Property arrays written by gprMax geometry views with the optional p flag
+property_arrays = set()
+
 #################################################################
 # Read and display data from file(s), i.e. materials, sources,  #
 #                                           receivers, and PMLs #
@@ -213,6 +216,9 @@ for file in files:
         # Determine gprMax version
         # Read XML data
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        for array_name in ('relative_permittivity', 'conductivity'):
+            if mm.find(('Name="{}"'.format(array_name)).encode()) != -1:
+                property_arrays.add(array_name)
         
         # Look for <gprMax> tag which indicates version <4
         try:
@@ -323,18 +329,52 @@ for file in files:
                 thresholddisplay.ColorArrayName = 'Receivers'
                 threshold.UpdatePipeline()
 
-# Display materials
+# Display materials or property views
 material_range = range(0, material_ID_max + 1)
-for k, v in sorted(materials.items(), key=lambda x: x[1]):
-    if v in material_range:
-        threshold = threshold_filt(model, v, v, ['CELLS', 'Material'])
-        RenameSource(k, threshold)
-
-        # Show data in view, except for free_space
-        if v != 1:
-            thresholddisplay = Show(threshold, renderview)
-            thresholddisplay.ColorArrayName = ['CELLS', 'Material']
+if property_arrays:
+    free_space_property = sorted(property_arrays)[0]
+    if 0 in material_range:
+        threshold = threshold_filt(model, 0, 0, ['CELLS', 'Material'])
+        RenameSource('pec', threshold)
+        thresholddisplay = Show(threshold, renderview)
+        thresholddisplay.ColorArrayName = [None, '']
+        thresholddisplay.DiffuseColor = [0.05, 0.05, 0.05]
         threshold.UpdatePipeline()
+
+    if 1 in material_range:
+        threshold = threshold_filt(model, 1, 1, ['CELLS', 'Material'])
+        RenameSource('free_space', threshold)
+        thresholddisplay = Show(threshold, renderview)
+        thresholddisplay.ColorArrayName = ['CELLS', free_space_property]
+        thresholddisplay.Opacity = 0.35
+        threshold.UpdatePipeline()
+        try:
+            thresholddisplay.RescaleTransferFunctionToDataRange(True, False)
+        except Exception:
+            pass
+
+    for property_name in sorted(property_arrays):
+        if material_ID_max >= 2:
+            threshold = threshold_filt(model, 2, material_ID_max, ['CELLS', 'Material'])
+            RenameSource('model - ' + property_name, threshold)
+            thresholddisplay = Show(threshold, renderview)
+            thresholddisplay.ColorArrayName = ['CELLS', property_name]
+            threshold.UpdatePipeline()
+            try:
+                thresholddisplay.RescaleTransferFunctionToDataRange(True, False)
+            except Exception:
+                pass
+else:
+    for k, v in sorted(materials.items(), key=lambda x: x[1]):
+        if v in material_range:
+            threshold = threshold_filt(model, v, v, ['CELLS', 'Material'])
+            RenameSource(k, threshold)
+
+            # Show data in view, except for free_space
+            if v != 1:
+                thresholddisplay = Show(threshold, renderview)
+                thresholddisplay.ColorArrayName = ['CELLS', 'Material']
+            threshold.UpdatePipeline()
 
 
 RenderAllViews()

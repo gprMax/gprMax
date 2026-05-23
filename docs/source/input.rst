@@ -394,13 +394,14 @@ Allows you output to file(s) information about the geometry of model. The file(s
 
 .. code-block:: none
 
-    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file1 c1
+    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file1 c1 [p]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired.
 * ``file1`` is the filename of the file where the geometry view will be stored in the same directory as the input file.
 * ``c1`` can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f). The fine mode should be reserved for viewing detailed parts of the geometry that occupy small volumes, as using this mode can generate geometry files with large file sizes.
+* ``p`` is optional and can only be used with normal (``n``) geometry views. It also writes ``relative_permittivity`` and ``conductivity`` ``.vti`` property files that can be processed with the ``gprMax_info.py`` macro.
 
 .. tip::
 

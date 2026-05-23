@@ -726,8 +726,8 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 11:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+            if len(tmp) not in (11, 12):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires eleven parameters, or twelve with a final p to also write permittivity/conductivity .vti files')
 
             xs = G.calculate_coord('x', tmp[0])
             ys = G.calculate_coord('y', tmp[1])
@@ -757,16 +757,27 @@ def process_multicmds(multicmds, G):
             if tmp[10].lower() == 'f' and (dx * G.dx != G.dx or dy * G.dy != G.dy or dz * G.dz != G.dz):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the spatial discretisation for the geometry view to be the same as the model for geometry view of type f (fine)')
 
+            export_properties = False
+            if len(tmp) == 12:
+                if tmp[11].lower() != 'p':
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' when using twelve parameters the last must be p (write permittivity and conductivity from material properties)')
+                if tmp[10].lower() != 'n':
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' permittivity/conductivity export (p) is only available with type n (normal, .vti)')
+                export_properties = True
+
             # Set type of geometry file
             if tmp[10].lower() == 'n':
                 fileext = '.vti'
             else:
                 fileext = '.vtp'
 
-            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], fileext)
+            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], fileext, export_properties=export_properties)
 
             if G.messages:
-                print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, with filename base {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
+                msg = 'Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, with filename base {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename)
+                if export_properties:
+                    msg += ' Permittivity and conductivity .vti files will also be written.'
+                print(msg)
 
             # Append the new GeometryView object to the geometry views list
             G.geometryviews.append(g)

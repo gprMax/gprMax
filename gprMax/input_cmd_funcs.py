@@ -216,7 +216,7 @@ def material(permittivity, conductivity, permeability, magconductivity, name):
     command('material', permittivity, conductivity, permeability, magconductivity, name)
 
 
-def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
+def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n', export_properties=False):
     """Prints the gprMax #geometry_view command.
 
     Args:
@@ -226,6 +226,8 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
         type (str): Can be either n (normal) or f (fine) which specifies whether
                 to output the geometry information on a per-cell basis (n) or a
                 per-cell-edge basis (f).
+        export_properties (bool): If True, add a final p to also write
+                permittivity and conductivity .vti files (only with type n).
 
     Returns:
         s, f, d (tuple): 3 namedtuple Coordinate for the start,
@@ -235,7 +237,10 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
-    command('geometry_view', s, f, d, filename, type)
+    if export_properties:
+        command('geometry_view', s, f, d, filename, type, 'p')
+    else:
+        command('geometry_view', s, f, d, filename, type)
 
     return s, f, d
 

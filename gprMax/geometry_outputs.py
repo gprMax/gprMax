@@ -37,7 +37,7 @@ class GeometryView(object):
     else:
         byteorder = 'BigEndian'
 
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None):
+    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None, export_properties=False):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
@@ -45,6 +45,8 @@ class GeometryView(object):
             filename (str): Filename to save to.
             fileext (str): File extension of VTK file - either '.vti' for a per cell
                     geometry view, or '.vtp' for a per cell edge geometry view.
+            export_properties (bool): If True, also write permittivity and
+                    conductivity .vti files alongside the main geometry view.
         """
 
         self.xs = xs
@@ -61,6 +63,7 @@ class GeometryView(object):
         self.dz = dz
         self.basefilename = filename
         self.fileext = fileext
+        self.export_properties = export_properties
 
         if self.fileext == '.vti':
             # Calculate number of cells according to requested sampling for geometry view
@@ -77,6 +80,11 @@ class GeometryView(object):
             self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells
                                   + 2 * np.dtype(np.int8).itemsize * self.vtk_ncells
                                   + 3 * np.dtype(np.uint32).itemsize)
+            if self.export_properties:
+                self.propertydatawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells
+                                              + np.dtype(np.float32).itemsize * self.vtk_ncells
+                                              + 2 * np.dtype(np.int8).itemsize * self.vtk_ncells
+                                              + 4 * np.dtype(np.uint32).itemsize)
 
         elif self.fileext == '.vtp':
             self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
@@ -115,6 +123,76 @@ class GeometryView(object):
 
         self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + appendmodelnumber))
         self.filename += self.fileext
+
+    def _get_material_property_values(self, G, solid_geometry, property_name):
+        """Maps material numeric IDs in the geometry view to a material property."""
+
+        property_attrs = {
+            'relative_permittivity': 'er',
+            'conductivity': 'se',
+        }
+        lut = np.zeros(max(m.numID for m in G.materials) + 1, dtype=np.float32)
+        attr = property_attrs[property_name]
+        for material in G.materials:
+            lut[material.numID] = np.float32(getattr(material, attr))
+
+        return np.ascontiguousarray(lut[solid_geometry], dtype=np.float32)
+
+    def write_property_vti(self, G, pbar, solid_geometry, srcs_pml_geometry, rxs_geometry, dataarray_name, filepath):
+        """
+        Writes a material property field as a VTK ImageData file.
+
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+            pbar (class): Progress bar class instance.
+            solid_geometry (array): 1-D uint32 array of material numeric IDs per cell.
+            srcs_pml_geometry (array): 1-D int8 array of source and PML numeric IDs per cell.
+            rxs_geometry (array): 1-D int8 array of receiver numeric IDs per cell.
+            dataarray_name (str): Name for the VTK DataArray, e.g. 'relative_permittivity'.
+            filepath (str): Full path of the .vti file to write.
+        """
+
+        property_geometry = self._get_material_property_values(G, solid_geometry, dataarray_name)
+        vtk_property_offset = round_value(np.dtype(np.uint32).itemsize + solid_geometry.nbytes)
+        vtk_srcs_pml_offset = round_value(vtk_property_offset + np.dtype(np.uint32).itemsize + property_geometry.nbytes)
+        vtk_rxs_offset = round_value(vtk_srcs_pml_offset + np.dtype(np.uint32).itemsize + srcs_pml_geometry.nbytes)
+
+        with open(filepath, 'wb') as f:
+            f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
+            f.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'.format(GeometryView.byteorder).encode('utf-8'))
+            f.write('<ImageData WholeExtent="{} {} {} {} {} {}" Origin="0 0 0" Spacing="{:.3} {:.3} {:.3}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells, self.dx * G.dx, self.dy * G.dy, self.dz * G.dz).encode('utf-8'))
+            f.write('<Piece Extent="{} {} {} {} {} {}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells).encode('utf-8'))
+            f.write('<CellData Scalars="{}">\n'.format(dataarray_name).encode('utf-8'))
+            f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="0" />\n'.encode('utf-8'))
+            f.write('<DataArray type="Float32" Name="{}" format="appended" offset="{}" />\n'.format(dataarray_name, vtk_property_offset).encode('utf-8'))
+            f.write('<DataArray type="Int8" Name="Sources_PML" format="appended" offset="{}" />\n'.format(vtk_srcs_pml_offset).encode('utf-8'))
+            f.write('<DataArray type="Int8" Name="Receivers" format="appended" offset="{}" />\n'.format(vtk_rxs_offset).encode('utf-8'))
+            f.write('</CellData>\n'.encode('utf-8'))
+            f.write('</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
+
+            f.write(pack('I', solid_geometry.nbytes))
+            pbar.update(n=4)
+            f.write(solid_geometry)
+            pbar.update(n=solid_geometry.nbytes)
+
+            f.write(pack('I', property_geometry.nbytes))
+            pbar.update(n=4)
+            f.write(property_geometry)
+            pbar.update(n=property_geometry.nbytes)
+
+            f.write(pack('I', srcs_pml_geometry.nbytes))
+            pbar.update(n=4)
+            f.write(srcs_pml_geometry)
+            pbar.update(n=srcs_pml_geometry.nbytes)
+
+            f.write(pack('I', rxs_geometry.nbytes))
+            pbar.update(n=4)
+            f.write(rxs_geometry)
+            pbar.update(n=rxs_geometry.nbytes)
+
+            f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
+
+            self.write_gprmax_info(f, G)
 
     def write_vtk(self, G, pbar):
         """
@@ -200,6 +278,13 @@ class GeometryView(object):
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
 
                 self.write_gprmax_info(f, G)
+
+            # Retain the material ID array so that property files can be
+            # written with a separate progress bar from model_build_run.
+            if self.export_properties:
+                self.solid_geometry = solid_geometry
+                self.srcs_pml_geometry = srcs_pml_geometry
+                self.rxs_geometry = rxs_geometry
 
         elif self.fileext == '.vtp':
             with open(self.filename, 'wb') as f:

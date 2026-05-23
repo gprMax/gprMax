@@ -137,7 +137,7 @@ Geometry output
 
 Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
 
-The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view. The per-cell geometry views also show the location of the PML regions and any sources and receivers in the model. The following are steps to get started with viewing geometry files in Paraview:
+The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view. The per-cell geometry views also show the location of the PML regions and any sources and receivers in the model. If the optional ``p`` flag is used with a normal geometry view, additional ``.vti`` property files are written for ``relative_permittivity`` and ``conductivity``. These property files can be processed with the ``gprMax_info.py`` macro to create separate ``free_space`` and model pipeline items. The following are steps to get started with viewing geometry files in Paraview:
 
 .. _pv_toolbar:
 
