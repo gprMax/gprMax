@@ -24,7 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
-from gprMax.utilities import fft_power
+from gprMax.utilities import fft_power, handle_plot_output
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
@@ -59,7 +59,7 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def mpl_plot(w, timewindow, dt, iterations, fft=False):
+def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     """Plots waveform and prints useful information about its properties.
 
     Args:
@@ -68,6 +68,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         dt (float): Time discretisation.
         iterations (int): Number of iterations.
         fft (boolean): Plot FFT switch.
+        show (boolean): Show plot switch.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -135,11 +136,8 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         ax1.set_xlabel('Time [s]')
         ax1.set_ylabel('Amplitude')
 
-    [ax.grid(which='both', axis='both', linestyle='-.') for ax in fig.axes]  # Turn on grid
-
-    # Save a PDF/PNG of the figure
-    # fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # Save or show the figure
+    handle_plot_output(plt, fig, w.type, show=show)
 
     return plt
 
@@ -154,6 +152,7 @@ if __name__ == "__main__":
     parser.add_argument('timewindow', help='time window to view waveform')
     parser.add_argument('dt', type=float, help='time step to view waveform')
     parser.add_argument('-fft', action='store_true', help='plot FFT of waveform', default=False)
+    parser.add_argument('--no-show', action='store_false', help='do not show plots (only save them)', default=True, dest='show')
     args = parser.parse_args()
 
     # Check waveform parameters
@@ -169,5 +168,4 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plthandle = mpl_plot(w, timewindow, args.dt, iterations, args.fft)
-    plthandle.show()
+    plthandle = mpl_plot(w, timewindow, args.dt, iterations, args.fft, show=args.show)

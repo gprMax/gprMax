@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from gprMax.exceptions import CmdInputError
+from gprMax.utilities import handle_plot_output
 
 
 def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
@@ -148,7 +149,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     return antennaparams
 
 
-def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
+def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None, show=True):
     """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
 
     Args:
@@ -160,6 +161,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
         Vtotal, Vtotalp, Itotal, Itotalp (array): Time and frequency domain representations of total voltage and current.
         s11, s21 (array): s11 and, optionally, s21 parameters.
         zin, yin (array): Input impedance and input admittance parameters.
+        show (boolean): Show plot switch.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -399,11 +401,9 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # ax.set_ylim([-40, 100])
     # ax.grid(which='both', axis='both', linestyle='-.')
 
-    # Save a PDF/PNG of the figure
-    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # Save or show the figures
+    handle_plot_output(plt, fig1, filename, suffix='_tl_params', show=show)
+    handle_plot_output(plt, fig2, filename, suffix='_ant_params', show=show)
 
     return plt
 
@@ -417,8 +417,8 @@ if __name__ == "__main__":
     parser.add_argument('--tlrx-num', type=int, help='receiver antenna - transmission line number')
     parser.add_argument('--rx-num', type=int, help='receiver antenna - output number')
     parser.add_argument('--rx-component', type=str, help='receiver antenna - output electric field component', choices=['Ex', 'Ey', 'Ez'])
+    parser.add_argument('--no-show', action='store_false', help='do not show plots (only save them)', default=True, dest='show')
     args = parser.parse_args()
 
     antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component)
-    plthandle = mpl_plot(args.outputfile, **antennaparams)
-    plthandle.show()
+    plthandle = mpl_plot(args.outputfile, show=args.show, **antennaparams)

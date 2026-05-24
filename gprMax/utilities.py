@@ -415,3 +415,28 @@ def detect_check_gpus(deviceIDs):
 def timer():
     """Function to return the current process wide time in fractional seconds."""
     return perf_counter()
+
+
+def handle_plot_output(plt, fig, base_filename, suffix='', show=True):
+    """Handle the output of a plot - either show it or save it based on the environment and user preference.
+
+    Args:
+        plt (object): matplotlib.pyplot object.
+        fig (object): matplotlib.figure object.
+        base_filename (str): Base filename (including path) of the output file.
+        suffix (str): Optional suffix to append to the filename.
+        show (bool): Whether to attempt showing the plot.
+    """
+
+    is_interactive = plt.get_backend().lower() not in ['agg', 'pdf', 'svg', 'ps', 'template']
+    
+    # Save a PNG of the figure
+    save_path = os.path.splitext(os.path.abspath(base_filename))[0] + suffix + '.png'
+    
+    if not show or not is_interactive:
+        fig.savefig(save_path, dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+        print(Fore.GREEN + 'Plot saved to: ' + save_path + Style.RESET_ALL)
+        if show and not is_interactive:
+             print(Fore.YELLOW + 'Warning: Non-interactive backend detected. Plot was automatically saved instead of shown.' + Style.RESET_ALL)
+    else:
+        plt.show()
