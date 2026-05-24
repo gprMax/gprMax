@@ -105,6 +105,12 @@ class FDTDGrid(Grid):
         # GPU object
         self.gpu = None
 
+        # GPU memory strategy when VRAM is insufficient:
+        # 'strict'      - raise an error and stop (default, preserves original behaviour)
+        # 'overflow'    - warn and continue; model spills into system RAM (slower)
+        # 'fallback_cpu'- warn and fall back to CPU execution
+        self.gpu_memory_strategy = 'strict' 
+
         # Copy snapshot data from GPU to CPU during simulation
         # N.B. This will happen if the requested snapshots are too large to fit
         # on the memory of the GPU. If True this will slow performance significantly
@@ -224,25 +230,93 @@ class FDTDGrid(Grid):
 
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
 
+    # def memory_check(self, snapsmemsize=0):
+    #     """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
+
+    #     Args:
+    #         snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
+    #     """
+
+    #     # Check if model can be built and/or run on host
+    #     if self.memoryusage > self.hostinfo['ram']:
+    #         raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+
+    #     # Check if model can be run on specified GPU if required
+    #     if self.gpu is not None:
+    #         if self.memoryusage - snapsmemsize > self.gpu.totalmem:
+    #             raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
+
+    #         # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
+    #         if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
+    #             self.snapsgpu2cpu = True
+
     def memory_check(self, snapsmemsize=0):
-        """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
+        """Check if the required amount of memory (RAM) is available on the host
+        and GPU if specified.
 
         Args:
-            snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
+            snapsmemsize (int): amount of memory (bytes) required to store all
+                                requested snapshots.
         """
 
         # Check if model can be built and/or run on host
         if self.memoryusage > self.hostinfo['ram']:
-            raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+            raise GeneralError(
+                'Memory (RAM) required ~{} exceeds {} detected!\n'.format(
+                    human_size(self.memoryusage),
+                    human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)
+                )
+            )
 
         # Check if model can be run on specified GPU if required
         if self.gpu is not None:
-            if self.memoryusage - snapsmemsize > self.gpu.totalmem:
-                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
+            required_mem = self.memoryusage - snapsmemsize
+            available_mem = self.gpu.totalmem
 
-            # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
-            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
-                self.snapsgpu2cpu = True
+            if required_mem > available_mem:
+                mem_msg = (
+                    'Memory required ~{} exceeds {} detected on {} - {} GPU.\n'.format(
+                        human_size(self.memoryusage),
+                        human_size(available_mem, a_kilobyte_is_1024_bytes=True),
+                        self.gpu.deviceID,
+                        self.gpu.name
+                    )
+                )
+
+                if self.gpu_memory_strategy == 'strict':
+                    raise GeneralError(
+                        mem_msg +
+                        "Use --gpu-memory-strategy=overflow to run with RAM spillover "
+                        "(slower), or --gpu-memory-strategy=fallback_cpu to switch to CPU.\n"
+                    )
+
+                elif self.gpu_memory_strategy == 'overflow':
+                    print(Fore.YELLOW + '\nWARNING: ' + mem_msg +
+                        'Continuing with system RAM spillover — '
+                        'expect significantly reduced performance.\n' + Style.RESET_ALL)
+                    # snapsgpu2cpu still applies: if snapshots alone fit, offload them to host
+                    if snapsmemsize != 0 and required_mem < available_mem:
+                        self.snapsgpu2cpu = True
+
+                elif self.gpu_memory_strategy == 'fallback_cpu':
+                    print(Fore.YELLOW + '\nWARNING: ' + mem_msg +
+                        'Falling back to CPU execution.\n' + Style.RESET_ALL)
+                    self.gpu = None  # downstream code already branches on self.gpu is None
+
+                else:
+                    raise GeneralError(
+                        "Unknown gpu_memory_strategy '{}'. "
+                        "Valid options are: 'strict', 'overflow', 'fallback_cpu'.\n".format(
+                            self.gpu_memory_strategy
+                        )
+                    )
+
+            else:
+                # Memory fits on GPU — check if snapshots should be offloaded to host
+                if snapsmemsize != 0 and self.memoryusage - snapsmemsize < available_mem:
+                    self.snapsgpu2cpu = True
+
+    
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
