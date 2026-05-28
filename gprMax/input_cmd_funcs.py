@@ -186,6 +186,27 @@ def dx_dy_dz(x, y, z):
 
     return dx_dy_dz
 
+def pml_cells(n1, n2=None, n3=None):
+    """Prints the gprMax #pml_cells command.
+
+    Args:
+        n1 (int): Number of PML cells in the x direction.
+        n2 (int): Number of PML cells in the y direction.
+        n3 (int): Number of PML cells in the z direction.
+
+    Returns:
+        pml_cells (tuple): Tuple of the number of PML cells in each direction.
+    """
+
+    if n2 is None and n3 is None:
+        command('pml_cells', n1)
+        return (n1)
+
+    pml_cells = (n1, n2, n3)
+    command('pml_cells', n1, n2, n3)
+
+    return pml_cells
+
 
 def time_window(time_window):
     """Prints the gprMax #time_window command.
@@ -452,7 +473,7 @@ def excitation_file(file1):
     return file1
 
 
-def waveform(shape, amplitude, frequency, identifier):
+def waveform(shape, amplitude, frequency, identifier, std=None):
     """Prints the #waveform: shape amplitude frequency identifier
 
     Args:
@@ -460,10 +481,15 @@ def waveform(shape, amplitude, frequency, identifier):
         amplitude (float): is the amplitude of the waveform.
         frequency (float): is the frequency of the waveform in Hertz.
         identifier (str): is an identifier for the waveform used to assign it to a source.
+        std (float): standard deviation for Gaussian-type waveform; interpreted as the temporal sigma.
 
     Returns:
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
+
+    if std is not None:
+        command('waveform', shape, amplitude, frequency, identifier, std)
+        return identifier
 
     command('waveform', shape, amplitude, frequency, identifier)
 
@@ -711,4 +737,39 @@ def geometry_objects_read(x, y, z, file1, file2):
 
     c = Coordinate(x, y, z)
     command('geometry_objects_read', str(c), file1, file2)
+    return c
+
+def flux(x1, y1, z1, x2, y2, z2, normal, direction, filename, w1, w2, n):
+    """Prints the gprMax #flux command.
+
+    Args:
+        x1, y1, z1, x2, y2, z2 (float): Start and finish coordinates.
+        direction (str): Direction of the flux plane and can be 'x', 'y', or 'z'.
+        filename (str): Filename where flux file information will be stored.
+        averaging (str): Turn averaging on or off.
+
+    Returns:
+        s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
+    """
+
+    s = Coordinate(x1, y1, z1)
+    f = Coordinate(x2, y2, z2)
+    command('flux', s, f, normal, direction, filename, w1, w2, n)
+
+    return s, f
+
+def box_flux(x, y, z, dx1, dx2, dy1, dy2, dz1, dz2, w1, w2, n):
+    """Prints the gprMax #box_flux command.
+
+    Args:
+        x, y, z (float): Centre coordinates.
+        dx1, dx2, dy1, dy2, dz1, dz2 (float): Distances from the centre to the box faces in the x, y, and z directions.
+
+    Returns:
+        c (tuple): namedtuple Coordinate for the centre of the box
+    """
+
+    c = Coordinate(x, y, z)
+    command('box_flux', c, dx1, dx2, dy1, dy2, dz1, dz2, w1, w2, n)
+
     return c

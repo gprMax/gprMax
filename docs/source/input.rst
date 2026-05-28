@@ -41,6 +41,7 @@ The commands have been grouped into six categories:
 * **Material** - used to introduce different materials into the model
 * **Object construction** - used to build geometric shapes with different constitutive parameters
 * **Source and output** - used to place source and output points in the model
+* **Fluxes commands and scattering environment** - used to create flux monitors and to design scattering geometry
 * **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
 Essential commands
@@ -668,7 +669,7 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
 
 .. code-block:: none
 
-    #waveform: str1 f1 f2 str2
+    #waveform: str1 f1 f2 str2 (f3)
 
 * ``str1`` is the type of waveform which can be:
 
@@ -685,8 +686,18 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
 * ``f1`` is the scaling of the maximum amplitude of the waveform (for a ``#hertzian_dipole`` the units will be Amps, for a ``#voltage_source`` or ``#transmission_line`` the units will be Volts).
 * ``f2`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``str2`` is an identifier for the waveform used to assign it to a source.
+* ``f3`` is an optional parameter that can be used to specify the freqency standard deviation (Hz) of the waveform for the following types: ``gaussian``, ``gaussiandot``, ``gaussiandotnorm``, ``gaussianprime`` or ``gaussiandoubleprime``. If not specified a default value of :math:`2\pi \, f3` is used.
 
-For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
+For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``. 
+
+If we define a frequency standard deviation with the following command : ``#waveform: gaussian 1 1.2e9 my_gaussian dfrq`` where dfrq is a float, we obtain the following results:
+
++----------------------------------------------------+----------------------------------------------------+----------------------------------------------------+
+| .. figure:: images/wavelength_std_1e9.png          | .. figure:: images/wavelength_std_3e9.png          | .. figure:: images/wavelength_std_5e9.png          |
+|    :width: 200 px                                  |    :width: 200 px                                  |    :width: 200 px                                  |
+|                                                    |                                                    |                                                    |
+|    Frequency standard deviation: 1e9 Hz            |    Frequency standard deviation: 3e9 Hz            |    Frequency standard deviation: 5e9 Hz            |
++----------------------------------------------------+----------------------------------------------------+----------------------------------------------------+
 
 .. note::
 
@@ -804,6 +815,23 @@ Allows you to introduce a voltage source at an electric field location. It can b
 
 For example, to specify a y directed voltage source with an internal resistance of 50 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#voltage_source: y 0.05 0.05 0.05 50 my_gauss_pulse``.
 
+#plane_voltage_source:
+----------------------
+
+Allows you to introduce a plane voltage source into the model. It can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed, or if it's resistance is non-zero it behaves as a resistive voltage source. The syntax of the command is:
+
+.. code-block:: none
+
+    #plane_voltage_source: c1 f1 f2 f3 f4 f5 f6 f7 str1 [f8 f9]
+
+* ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the lower left corner of the plane voltage source in the model.
+* ``f4 f5 f6`` are the coordinates (x,y,z) of the upper right corner of the plane voltage source in the model. Please ensure that there is at least ``f1`` == ``f4``, ``f2`` == ``f5``, or ``f3`` == ``f6`` so that the plane voltage source is aligned with the grid. You can also define a line. Be careful when extending through PMLs as this will affect the emitting signal.
+* ``f7`` is the internal resistance of the voltage source in Ohms. If ``f7`` is set to zero then the voltage source is a hard source. That means it prescribes the value of the electric field component. If the waveform becomes zero then the source is perfectly reflecting.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+* ``f8 f9`` are optional parameters. ``f8`` is a time delay in starting the source. ``f9`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f8 f9`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
+
+
 #transmission_line:
 -------------------
 
@@ -906,6 +934,94 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
         #end_python:
 
 
+.. _fluxes-commands:
+
+Fluxes commands and scattering environment
+==========================================
+
+Fluxes constructions commands are processed in the order the appear in the input file. Therefore, the first flux monitor defined with the function ``#flux`` will be named "flux1" in the output file, the second flux monitor defined will be named "flux2" in the output file, and so on. The same applies to the ``#flux_box`` command. Those fluxes are computed based on the Fourier transformed fields on specified wavelengths with the formula:
+
+The Fourier transform of a continuous signal is defined as:
+
+.. math::
+
+    F(\omega) = \frac{1}{\sqrt{2\pi}} \int_{0}^{+\infty} f(t) e^{-i \omega t} \, dt
+
+For a discrete signal sampled at intervals of :math:`\Delta t` over a finite time window of :math:`T = N \Delta t`, the Discrete Fourier Transform (DFT) is given by:
+
+.. math::
+
+    F(\omega) \approx \sum_{n=0}^{N-1} f_n(n\Delta t) \, e^{-i \omega n \Delta t} \frac{\Delta t}{\sqrt{2\pi}}
+
+where:
+
+- :math:`f(n \Delta t)`` is the discrete signal at time step :math:`n`
+- :math:`N` is the total number of time steps
+- :math:`k` is the frequency index, with :math:`k = 0, 1, \ldots, N-1`
+
+At each time step, we update the value of the Fourier tranforms. At the end of the simulation, we then compute the flux by computing:
+
+.. math::
+
+    \Phi_\omega = \iint_S \mathbf{\Pi_\omega} \cdot \mathbf{dS} \\
+    \iint_S \Re(\mathbf{E_\omega^*} \times \mathbf{H_\omega}) \cdot \mathbf{dS}
+
+Fluxes commands are compatible with GPU(s) calculations.
+
+#flux:
+------
+
+Allows you to define a planar flux monitor in the model. The flux is computed based on the Fourier transformed fields on specified wavelengths. The syntax of the command is:
+
+.. code-block:: none
+
+    #flux: s1 s2 f1 f2 f3 f4 f5 f6 f7 f8 i1
+
+* ``s1`` is the normal direction of the flux plane and can be ``x``, ``y``, or ``z``.
+* ``s2`` is the counting sign of the flux plane and can be ``plus`` or ``minus``.
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the flux plane in meters.
+* ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the flux plane in meters.
+* ``f7 f8`` are respectfully the minimum and the maximul wavelengths to compute, both in meters.
+* ``i1`` is the number of wavelengths to be specified. The computed wavelengths will ``np.linspace(f7, f8, i1)``.
+
+
+#box_flux:
+----------
+
+Allows you to define a box flux monitor in the model. The flux is computed based on the Fourier transformed fields on specified wavelengths. The syntax of the command is:
+
+.. code-block:: none
+
+    #flux_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 i1
+
+* ``f1 f2 f3`` are the center (x,y,z) coordinates of the flux box in meters.
+* ``f4 f5`` are respectfully the extension of the box in the +x and -x directions, both in meters.
+* ``f6 f7`` are respectfully the extension of the box in the +y and -y directions, both in meters.
+* ``f8 f9`` are respectfully the extension of the box in the +z and -z directions, both in meters.
+* ``f10 f11`` are respectfully the minimum and the maximul wavelengths to compute, both in meters.
+* ``i1`` is the number of wavelengths to be specified. The computed wavelengths will ``np.linspace(f10, f11, i1)``.
+
+The figure below should help to understand how ``#box_flux`` is designed:
+
+.. figure:: images/box_flux.png
+    :width: 500 px
+    :align: center
+
+    Illustration of the parameters for the ``#box_flux: x y z dx1 dx2 dy1 dy2 dz1 dz2 w1 w2 n1`` command.
+
+
+#scattering: and #scattering_end:
+---------------------------------
+
+Allows you to define a scattering environment in the model. This is useful for computing the scattered field from an object in the presence of a background environment. If this environment is defined, then two simulations will be run: The first won't include the scattering geometry, and the second will include the scattering geometry. The scattered field is then computed by subtracting the fields from the first simulation from the fields of the second simulation (and not by simply substracting both fluxes !). The syntax of the commands are:
+
+.. code-block:: none
+
+    #scattering:
+    ---Some geometry commands---
+    #scattering_end:
+
+In the scattering environment, you can only define geometry commands (e.g. ``#box``, ``#cylinder``, etc...), but not material commands (e.g. ``#material``, ``#dispersive_material``, etc...) or others. Other commands must be called outside the environment. Their is no python command implemented in the API, you must *print* the command.
 .. _pml-commands:
 
 PML commands
