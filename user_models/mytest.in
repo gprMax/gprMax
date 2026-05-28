@@ -1,0 +1,6 @@
+#title: Test module for dipole
+#domain: 0.50 0.50 0.50
+#dx_dy_dz: 0.01 0.01 0.01
+#time_window: 500
+#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse
+#hertzian_dipole: z 0.25 0.25 0.25 my_gauss_pulse
