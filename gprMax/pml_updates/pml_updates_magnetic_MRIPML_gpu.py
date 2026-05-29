@@ -23,7 +23,7 @@ kernels_template_pml_magnetic_MRIPML = Template("""
 // Macros for converting subscripts to linear index:
 #define INDEX2D_R(m, n) (m)*(NY_R)+(n)
 #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
-#define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
+#define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS) + (k)
 #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
 #define INDEX4D_PHI1(p, i, j, k) (p)*(NX_PHI1)*(NY_PHI1)*(NZ_PHI1)+(i)*(NY_PHI1)*(NZ_PHI1)+(j)*(NZ_PHI1)+(k)
 #define INDEX4D_PHI2(p, i, j, k) (p)*(NX_PHI2)*(NY_PHI2)*(NZ_PHI2)+(i)*(NY_PHI2)*(NZ_PHI2)+(j)*(NZ_PHI2)+(k)
@@ -59,7 +59,7 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, dEy, dEz;
-    $REAL dx = d;
+    $REAL inv_d = 1.0f / d ;
     int ii, jj, kk, materialHy, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -81,7 +81,7 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 
         // Hy
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEz - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dEz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
@@ -102,7 +102,7 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 
         // Hz
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEy - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEy - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
@@ -136,7 +136,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2, dEy, dEz;
-    $REAL dx = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHy, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -163,7 +163,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Hy
         Psi1 = RB0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)];
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEz - IRA * Psi1);
         PHI1[INDEX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)] + RC1 * (dEz - Psi1);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * (dEz - Psi1);
@@ -190,7 +190,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Hz
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEy - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEy - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEy - Psi2);
@@ -225,7 +225,7 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, dEy, dEz;
-    $REAL dx = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHy, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -247,7 +247,7 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 
         // Hy
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEz - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dEz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
@@ -268,7 +268,7 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 
         // Hz
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEy - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEy - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
@@ -302,7 +302,7 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2, dEy, dEz;
-    $REAL dx = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHy, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -329,7 +329,7 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         // Hy
         Psi1 = RB0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)];
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEz = (Ez[INDEX3D_FIELDS(ii+1,jj,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEz - IRA * Psi1);
         PHI1[INDEX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)] + RC1 * (dEz - Psi1);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * (dEz - Psi1);
@@ -356,7 +356,7 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         // Hz
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
+        dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEy - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEy - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEy - Psi2);
@@ -391,7 +391,7 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, dEx, dEz;
-    $REAL dy = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -413,7 +413,7 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 
         // Hx
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEz - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dEz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
@@ -434,7 +434,7 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 
         // Hz
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEx - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
@@ -468,7 +468,7 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2, dEx, dEz;
-    $REAL dy = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -495,7 +495,7 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Hx
         Psi1 = RB0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)];
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEz - IRA * Psi1);
         PHI1[INDEX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)] + RC1 * (dEz - Psi1);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * (dEz - Psi1);
@@ -522,7 +522,7 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Hz
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEx - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
@@ -557,7 +557,7 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, dEx, dEz;
-    $REAL dy = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -579,7 +579,7 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 
         // Hx
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEz - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dEz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
@@ -600,7 +600,7 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 
         // Hz
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEx - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
@@ -634,7 +634,7 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2, dEx, dEz;
-    $REAL dy = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -661,7 +661,7 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         // Hx
         Psi1 = RB0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)];
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEz = (Ez[INDEX3D_FIELDS(ii,jj+1,kk)] - Ez[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEz - IRA * Psi1);
         PHI1[INDEX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)] + RC1 * (dEz - Psi1);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * (dEz - Psi1);
@@ -688,7 +688,7 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         // Hz
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dy;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj+1,kk)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEx - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
@@ -723,7 +723,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, dEx, dEy;
-    $REAL dz = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -745,7 +745,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 
         // Hx
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEy - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dEy - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
@@ -766,7 +766,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 
         // Hy
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEx - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
@@ -800,7 +800,7 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2, dEx, dEy;
-    $REAL dz = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -827,7 +827,7 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Hx
         Psi1 = RB0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)];
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEy - IRA * Psi1);
         PHI1[INDEX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)] + RC1 * (dEy - Psi1);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * (dEy - Psi1);
@@ -854,7 +854,7 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Hy
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEx - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
@@ -889,7 +889,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, dEx, dEy;
-    $REAL dz = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -911,7 +911,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 
         // Hx
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEy - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dEy - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
@@ -932,7 +932,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 
         // Hy
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEx - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dEx - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
@@ -966,7 +966,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
     $REAL IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2, dEx, dEy;
-    $REAL dz = d;
+    $REAL inv_d = 1.0f / d;
     int ii, jj, kk, materialHx, materialHy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -993,7 +993,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         // Hx
         Psi1 = RB0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)];
         materialHx = ID[INDEX4D_ID(3,ii,jj,kk)];
-        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEy = (Ey[INDEX3D_FIELDS(ii,jj,kk+1)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hx[INDEX3D_FIELDS(ii,jj,kk)] = Hx[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[INDEX2D_MAT(materialHx,4)] * (IRA1 * dEy - IRA * Psi1);
         PHI1[INDEX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[INDEX4D_PHI1(1,i1,j1,k1)] + RC1 * (dEy - Psi1);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * (dEy - Psi1);
@@ -1020,7 +1020,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         // Hy
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHy = ID[INDEX4D_ID(4,ii,jj,kk)];
-        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) / dz;
+        dEx = (Ex[INDEX3D_FIELDS(ii,jj,kk+1)] - Ex[INDEX3D_FIELDS(ii,jj,kk)]) * inv_d;
         Hy[INDEX3D_FIELDS(ii,jj,kk)] = Hy[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHy,4)] * (IRA1 * dEx - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEx - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEx - Psi2);
