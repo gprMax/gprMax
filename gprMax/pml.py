@@ -19,7 +19,13 @@
 from importlib import import_module
 
 import numpy as np
-from tqdm import tqdm
+# optional progress bar dependency
+try:
+    from tqdm import tqdm
+except ImportError:
+    # fallback no-op iterator
+    def tqdm(x, **kwargs):
+        return x
 
 from gprMax.constants import e0
 from gprMax.constants import z0

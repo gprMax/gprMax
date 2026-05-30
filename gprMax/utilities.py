@@ -21,7 +21,14 @@ import codecs
 import decimal as d
 import os
 import platform
-import psutil
+
+# psutil is used for querying hosts (CPU count, memory).  Make it optional so
+# that the library can be imported in constrained test environments.
+try:
+    import psutil
+except ImportError:
+    psutil = None
+
 import re
 import subprocess
 from shutil import get_terminal_size
@@ -238,8 +245,11 @@ def get_host_info():
         except subprocess.CalledProcessError:
             pass
 
-        physicalcores = psutil.cpu_count(logical=False)
-        logicalcores = psutil.cpu_count(logical=True)
+        if psutil is not None:
+            physicalcores = psutil.cpu_count(logical=False)
+            logicalcores = psutil.cpu_count(logical=True)
+        else:
+            physicalcores = logicalcores = None
 
         # OS version
         if platform.machine().endswith('64'):
@@ -333,7 +343,10 @@ def get_host_info():
     # Handle case where cpu_count returns None on some machines
     if not hostinfo['physicalcores']:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
-    hostinfo['ram'] = psutil.virtual_memory().total
+    if psutil is not None:
+        hostinfo['ram'] = psutil.virtual_memory().total
+    else:
+        hostinfo['ram'] = None
 
     return hostinfo
 
