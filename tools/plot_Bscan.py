@@ -41,17 +41,23 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
         plt (object): matplotlib plot object.
     """
 
-    (path, filename) = os.path.split(filename)
+    (path, basename) = os.path.split(filename)
 
-    fig = plt.figure(num=filename + ' - rx' + str(rxnumber), 
+    # Convert time axis to nanoseconds for readability
+    time_max_ns = outputdata.shape[0] * dt * 1e9
+
+    fig = plt.figure(num=basename + ' - rx' + str(rxnumber),
                      figsize=(20, 10), facecolor='w', edgecolor='w')
-    plt.imshow(outputdata, 
-               extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0], 
-               interpolation='nearest', aspect='auto', cmap='seismic', 
-               vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+
+    plt.imshow(outputdata,
+               extent=[0, outputdata.shape[1], time_max_ns, 0],
+               interpolation='nearest', aspect='auto', cmap='seismic',
+               vmin=-np.amax(np.abs(outputdata)),
+               vmax=np.amax(np.abs(outputdata)))
+
     plt.xlabel('Trace number')
-    plt.ylabel('Time [s]')
-    # plt.title('{}'.format(filename))
+    plt.ylabel('Time (ns)')
+    plt.title('B-scan  - {} (rx{}, {})'.format(basename, rxnumber, rxcomponent))
 
     # Grid properties
     ax = fig.gca()
@@ -65,11 +71,13 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
     elif 'I' in rxcomponent:
         cb.set_label('Current [A]')
 
+    plt.tight_layout()
+
     # Save a PDF/PNG of the figure
     # savefile = os.path.splitext(filename)[0]
-    # fig.savefig(path + os.sep + savefile + '.pdf', dpi=None, format='pdf', 
+    # fig.savefig(path + os.sep + savefile + '.pdf', dpi=None, format='pdf',
     #             bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(path + os.sep + savefile + '.png', dpi=150, format='png', 
+    # fig.savefig(path + os.sep + savefile + '.png', dpi=150, format='png',
     #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
@@ -78,11 +86,13 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plots a B-scan image.', 
+    parser = argparse.ArgumentParser(description='Plots a B-scan image.',
                                      usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('rx_component', help='name of output component to be plotted', 
+    parser.add_argument('rx_component', help='name of output component to be plotted',
                         choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('--save', metavar='FILENAME',
+                        help='save plot to file (e.g. output.png, output.pdf)')
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
@@ -98,4 +108,10 @@ if __name__ == "__main__":
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
         plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component)
 
-    plthandle.show()
+    # Save plot to file if --save is provided, otherwise show interactively
+    if args.save:
+        plthandle.savefig(args.save, dpi=150, bbox_inches='tight',
+                          pad_inches=0.1)
+        print('Plot saved to: {}'.format(os.path.abspath(args.save)))
+    else:
+        plthandle.show()
