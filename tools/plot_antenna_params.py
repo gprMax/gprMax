@@ -22,6 +22,12 @@ import sys
 
 import h5py
 import numpy as np
+import matplotlib
+# --- FIX FOR HEADLESS ENVIRONMENTS (#621) ---
+# Force non-interactive Agg backend for headless CI/CD environments or 
+# Linux nodes without a display to prevent _tkinter.TclError crashes.
+if os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS') or (os.name == 'posix' and not os.environ.get('DISPLAY')):
+    matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
