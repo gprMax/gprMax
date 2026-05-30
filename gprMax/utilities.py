@@ -142,6 +142,7 @@ def round32(value):
 
 
 def fft_power(waveform, dt):
+
     """Calculate a FFT of the given waveform of amplitude values;
         converted to decibels and shifted so that maximum power is 0dB
 
@@ -166,6 +167,51 @@ def fft_power(waveform, dt):
 
     # Shift powers so that frequency with maximum power is at zero decibels
     power -= np.amax(power)
+
+    return freqs, power
+
+import numpy as np
+
+def fft_power_real(waveform, dt):
+    """Compute a one-sided FFT power spectrum for real-valued signals.
+
+    This is faster than fft_power because it uses np.fft.rfft
+    and returns only non-negative frequencies.
+
+    Converted to decibels and shifted so that maximum power is 0 dB.
+    
+      Args:
+        waveform (ndarray): time domain waveform
+        dt (float): time step
+
+    Returns:
+        freqs (ndarray): frequency bins
+        power (ndarray): power
+    """
+
+    if not np.isrealobj(waveform):
+        raise ValueError("fft_power_onesided requires real-valued input")
+
+    # Real FFT (2x speedup)
+    spectrum = np.fft.rfft(waveform)
+
+    # Power spectrum without sqrt
+    power_linear = (
+        np.square(spectrum.real) +
+        np.square(spectrum.imag)
+    )
+
+    # Convert to dB
+    with np.errstate(divide='ignore'):
+        power = 10 * np.log10(power_linear)
+
+    power[~np.isfinite(power)] = 0
+
+    # One-sided frequency bins
+    freqs = np.fft.rfftfreq(waveform.size, d=dt)
+
+    # Normalize so max power is 0 dB
+    power -= power.max()
 
     return freqs, power
 
