@@ -28,13 +28,27 @@ from gprMax.receivers import Rx
 from gprMax.utilities import fft_power
 
 
-def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
+def _ensure_output_dir(path):
+    """Create parent directory for path if it does not exist."""
+    dirname = os.path.dirname(path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+
+
+def _save_path_with_suffix(path, rx):
+    """Insert receiver number before extension for multi-receiver save paths."""
+    base, ext = os.path.splitext(path)
+    return base + '_rx' + str(rx) + ext
+
+
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save_path=None):
     """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.
 
     Args:
         filename (string): Filename (including path) of output file.
         outputs (list): List of field/current components to plot.
         fft (boolean): Plot FFT switch.
+        save_path (string, optional): If provided, save each figure to this path (with receiver suffix for multiple receivers). Directories are created as needed.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -126,7 +140,12 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     plt.setp(stemlines, 'color', 'b')
                     plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
 
-                plt.show()
+                if save_path is None:
+                    plt.show()
+                else:
+                    outpath = save_path if nrx == 1 else _save_path_with_suffix(save_path, rx)
+                    _ensure_output_dir(outpath)
+                    fig.savefig(outpath, dpi=150, bbox_inches='tight', pad_inches=0.1)
 
             # Plotting if no FFT required
             else:
@@ -141,6 +160,11 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 elif 'I' in output:
                     plt.setp(line, color='b')
                     plt.setp(ax, ylabel=outputtext + ', current [A]')
+
+                if save_path is not None:
+                    outpath = save_path if nrx == 1 else _save_path_with_suffix(save_path, rx)
+                    _ensure_output_dir(outpath)
+                    fig.savefig(outpath, dpi=150, bbox_inches='tight', pad_inches=0.1)
 
         # If multiple outputs required, create all nine subplots and populate only the specified ones
         else:
@@ -203,9 +227,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     ax.set_xlim([0, np.amax(time)])
                     ax.grid(which="both", axis="both", linestyle="-.")
 
-        # Save a PDF/PNG of the figure
-        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+            if save_path is not None:
+                outpath = save_path if nrx == 1 else _save_path_with_suffix(save_path, rx)
+                _ensure_output_dir(outpath)
+                fig.savefig(outpath, dpi=150, bbox_inches='tight', pad_inches=0.1)
 
     f.close()
 
@@ -219,7 +244,9 @@ if __name__ == "__main__":
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('--outputs', help='outputs to be plotted', default=Rx.defaultoutputs, choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'], nargs='+')
     parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
+    parser.add_argument('--save', metavar='output_file', dest='save', help='save plot(s) to file instead of displaying (creates directories if needed; multiple receivers get _rxN suffix)')
     args = parser.parse_args()
 
-    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
-    plthandle.show()
+    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save_path=args.save)
+    if args.save is None:
+        plthandle.show()

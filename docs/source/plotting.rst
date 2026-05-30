@@ -23,12 +23,19 @@ There are optional command line arguments:
 
 * ``--outputs`` to specify a subset of the default output components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot. By default all electric and magnetic field components are plotted.
 * ``-fft`` to plot the Fast Fourier Transform (FFT) of a single output component
+* ``--save output_file`` to save the plot(s) to a file instead of displaying them. Useful in headless environments (Docker, HPC, remote servers). Output directories are created if they do not exist. If there are multiple receivers, each figure is saved with a ``_rxN`` suffix before the extension.
 
 For example to plot the ``Ez`` output component with it's FFT:
 
 .. code-block:: none
 
     python -m tools.plot_Ascan my_outputfile.out --outputs Ez -fft
+
+To save the plot to a file (e.g. for use in Docker or when no display is available):
+
+.. code-block:: none
+
+    python -m tools.plot_Ascan my_outputfile.out --outputs Ez --save plots/ascan.png
 
 B-scans
 =======
@@ -47,6 +54,14 @@ where:
 * ``outputfile`` is the name of output file including the path
 * ``rx-component`` is the name of the receiver output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
 
+Optional argument:
+
+* ``--save output_file`` to save the plot(s) to a file instead of displaying them. Useful in headless environments (Docker, HPC). Multiple receivers get a ``_rxN`` suffix. Example:
+
+.. code-block:: none
+
+    python -m tools.plot_Bscan my_merged.out Ez --save results/bscan.png
+
 
 Antenna parameters
 ==================
@@ -61,6 +76,8 @@ This module uses matplotlib to plot the input impedance (resistance and reactanc
     python -m tools.plot_antenna_params outputfile
 
 where ``outputfile`` is the name of output file including the path.
+
+Optional command line arguments include ``--save output_file`` to save the two figures (transmission line parameters and antenna parameters) to files with ``_tl_params`` and ``_ant_params`` suffixes instead of displaying them.
 
 There are optional command line arguments:
 
@@ -92,6 +109,8 @@ This module uses matplotlib to plot one of the built-in waveforms and it's FFT. 
 
     python -m tools.plot_source_wave type amp freq timewindow dt
 
+Optional argument: ``--save output_file`` to save the figure to a file instead of displaying it (e.g. in headless environments).
+
 where:
 
 * ``type`` is the type of waveform, e.g. gaussian, ricker etc...
@@ -100,9 +119,10 @@ where:
 * ``timewindow`` is the time window (seconds) to view the waveform, i.e. the time window of the proposed simulation
 * ``dt`` is the time step (seconds) to view waveform, i.e. the time step of the proposed simulation
 
-There is an optional command line argument:
+There are optional command line arguments:
 
 * ``-fft`` to plot the Fast Fourier Transform (FFT) of the waveform
+* ``--save output_file`` to save the figure to a file instead of displaying it
 
 Definitions
 -----------

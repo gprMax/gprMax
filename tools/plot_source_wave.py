@@ -59,7 +59,14 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def mpl_plot(w, timewindow, dt, iterations, fft=False):
+def _ensure_output_dir(path):
+    """Create parent directory for path if it does not exist."""
+    dirname = os.path.dirname(path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+
+
+def mpl_plot(w, timewindow, dt, iterations, fft=False, save_path=None):
     """Plots waveform and prints useful information about its properties.
 
     Args:
@@ -68,6 +75,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         dt (float): Time discretisation.
         iterations (int): Number of iterations.
         fft (boolean): Plot FFT switch.
+        save_path (string, optional): If provided, save figure to this path. Directories are created as needed.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -137,9 +145,9 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
     [ax.grid(which='both', axis='both', linestyle='-.') for ax in fig.axes]  # Turn on grid
 
-    # Save a PDF/PNG of the figure
-    # fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    if save_path is not None:
+        _ensure_output_dir(save_path)
+        fig.savefig(save_path, dpi=150, bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -154,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument('timewindow', help='time window to view waveform')
     parser.add_argument('dt', type=float, help='time step to view waveform')
     parser.add_argument('-fft', action='store_true', help='plot FFT of waveform', default=False)
+    parser.add_argument('--save', metavar='output_file', dest='save', help='save plot to file instead of displaying (creates directories if needed)')
     args = parser.parse_args()
 
     # Check waveform parameters
@@ -169,5 +178,6 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plthandle = mpl_plot(w, timewindow, args.dt, iterations, args.fft)
-    plthandle.show()
+    plthandle = mpl_plot(w, timewindow, args.dt, iterations, args.fft, save_path=args.save)
+    if args.save is None:
+        plthandle.show()

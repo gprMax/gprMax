@@ -148,7 +148,14 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     return antennaparams
 
 
-def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
+def _ensure_output_dir(path):
+    """Create parent directory for path if it does not exist."""
+    dirname = os.path.dirname(path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+
+
+def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None, save_path=None):
     """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
 
     Args:
@@ -160,6 +167,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
         Vtotal, Vtotalp, Itotal, Itotalp (array): Time and frequency domain representations of total voltage and current.
         s11, s21 (array): s11 and, optionally, s21 parameters.
         zin, yin (array): Input impedance and input admittance parameters.
+        save_path (string, optional): If provided, save the two figures to this path (base name; _tl_params and _ant_params are appended). Directories are created as needed.
 
     Returns:
         plt (object): matplotlib plot object.
@@ -399,11 +407,12 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # ax.set_ylim([-40, 100])
     # ax.grid(which='both', axis='both', linestyle='-.')
 
-    # Save a PDF/PNG of the figure
-    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    if save_path is not None:
+        _ensure_output_dir(save_path)
+        base, ext = os.path.splitext(save_path)
+        suffix = ext if ext else '.png'
+        fig1.savefig(base + '_tl_params' + suffix, dpi=150, bbox_inches='tight', pad_inches=0.1)
+        fig2.savefig(base + '_ant_params' + suffix, dpi=150, bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -417,8 +426,10 @@ if __name__ == "__main__":
     parser.add_argument('--tlrx-num', type=int, help='receiver antenna - transmission line number')
     parser.add_argument('--rx-num', type=int, help='receiver antenna - output number')
     parser.add_argument('--rx-component', type=str, help='receiver antenna - output electric field component', choices=['Ex', 'Ey', 'Ez'])
+    parser.add_argument('--save', metavar='output_file', dest='save', help='save plot(s) to file instead of displaying (creates directories if needed; produces _tl_params and _ant_params files)')
     args = parser.parse_args()
 
     antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component)
-    plthandle = mpl_plot(args.outputfile, **antennaparams)
-    plthandle.show()
+    plthandle = mpl_plot(args.outputfile, **antennaparams, save_path=args.save)
+    if args.save is None:
+        plthandle.show()
