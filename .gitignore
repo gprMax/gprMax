@@ -36,3 +36,8 @@ examples/*.pdf
 # Test coverage files
 .coverage
 cov.xml
+
+# IDEs
+.idea/
+.vscode/
+target/
