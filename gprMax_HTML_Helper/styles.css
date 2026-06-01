@@ -181,6 +181,10 @@ button.remove {
   font-size: 12px;
 }
 
+.file-picker {
+  display: none;
+}
+
 .checks {
   display: grid;
   align-content: end;

@@ -8,6 +8,7 @@ const state = {
   sources: [],
   receivers: [],
   snapshots: [],
+  other: [],
   ids: { material: 1, pole: 1, geometry: 1, waveform: 1, source: 1, rx: 1, snapshot: 1 },
 };
 
@@ -285,6 +286,7 @@ function convertDispersionFrequency() {
 }
 
 function poleCommand(pole) {
+  if (pole.command) return pole.command;
   if (pole.type === "Debye") return `#add_dispersion_debye: 1 ${pole.a} ${pole.freq} ${pole.material}`;
   if (pole.type === "Lorentz") return `#add_dispersion_lorentz: 1 ${pole.a} ${pole.freq} ${fmt(pole.damping)} ${pole.material}`;
   return `#add_dispersion_drude: 1 ${pole.freq} ${pole.a} ${pole.material}`;
@@ -656,6 +658,7 @@ function renderCommands() {
     state.sources.map((s) => s.command).join("\n"),
     state.receivers.map((r) => r.command).join("\n"),
     state.snapshots.map((s) => s.command).join("\n"),
+    state.other.map((item) => item.command).join("\n"),
   ].filter((part) => part.trim());
   $("outputCommands").value = `${parts.join("\n\n")}\n`;
 }
@@ -704,6 +707,129 @@ function setStatus(message) {
   $("status").textContent = message;
 }
 
+function clearCommandState() {
+  state.materials = [];
+  state.poles = [];
+  state.geometry = [];
+  state.waveforms = [];
+  state.sources = [];
+  state.receivers = [];
+  state.snapshots = [];
+  state.other = [];
+  state.ids = { material: 1, pole: 1, geometry: 1, waveform: 1, source: 1, rx: 1, snapshot: 1 };
+}
+
+function commandName(command) {
+  const match = command.match(/^#([^:\s]+)\s*:/);
+  return match ? match[1] : "";
+}
+
+function commandParts(command) {
+  const index = command.indexOf(":");
+  if (index === -1) return [];
+  return command.slice(index + 1).trim().split(/\s+/).filter(Boolean);
+}
+
+function setSelectValue(id, wanted) {
+  const select = $(id);
+  const valueToSet = [...select.options].some((option) => option.value === wanted) ? wanted : select.options[0]?.value;
+  if (valueToSet !== undefined) select.value = valueToSet;
+}
+
+function setModelFieldsFromCommand(name, parts) {
+  if (name === "title") {
+    $("titleValue").value = parts.join(" ") || "model";
+    return true;
+  }
+  if (name === "domain" && parts.length >= 3) {
+    $("domainXUnit").value = "m";
+    $("domainYUnit").value = "m";
+    $("domainZUnit").value = "m";
+    $("domainX").value = parts[0];
+    $("domainY").value = parts[1];
+    $("domainZ").value = parts[2];
+    return true;
+  }
+  if (name === "dx_dy_dz" && parts.length >= 3) {
+    setSelectValue("dxChoice", "User defined");
+    $("dxUnit").value = "m";
+    $("dxX").value = parts[0];
+    $("dxY").value = parts[1];
+    $("dxZ").value = parts[2];
+    return true;
+  }
+  if (name === "time_window" && parts.length >= 1) {
+    setSelectValue("timeChoice", "User defined");
+    $("timeUnit").value = "s";
+    $("timeWindow").value = parts[0];
+    return true;
+  }
+  return false;
+}
+
+function importCommand(command) {
+  const name = commandName(command);
+  const parts = commandParts(command);
+  if (!name) return false;
+  if (setModelFieldsFromCommand(name, parts)) return true;
+  if (name === "material" && parts.length >= 5) {
+    state.materials.push({ id: `m${state.ids.material++}`, name: parts[4], command });
+    return true;
+  }
+  if (name.startsWith("add_dispersion_")) {
+    state.poles.push({ id: `p${state.ids.pole++}`, command });
+    return true;
+  }
+  if (Object.prototype.hasOwnProperty.call(geometrySchemas, name)) {
+    const material = parts.find((part) => materialNames().includes(part)) || "";
+    state.geometry.push({ id: `g${state.ids.geometry++}`, type: name, material, command });
+    return true;
+  }
+  if (name === "waveform") {
+    state.waveforms.push({ id: `w${state.ids.waveform++}`, name: parts[3] || `waveform${state.ids.waveform}`, command });
+    return true;
+  }
+  if (["hertzian_dipole", "magnetic_dipole", "voltage_source", "transmission_line"].includes(name)) {
+    state.sources.push({ id: `s${state.ids.source++}`, command });
+    return true;
+  }
+  if (name === "rx") {
+    state.receivers.push({ id: `r${state.ids.rx++}`, command });
+    return true;
+  }
+  if (name === "snapshot") {
+    state.snapshots.push({ id: `sn${state.ids.snapshot++}`, command });
+    return true;
+  }
+  state.other.push({ command });
+  return true;
+}
+
+function loadInputText(text, filename) {
+  clearCommandState();
+  const commands = text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.startsWith("#") && line.includes(":"));
+  let imported = 0;
+  for (const command of commands) {
+    if (importCommand(command)) imported += 1;
+  }
+  if (!state.materials.length) state.materials.push({ id: `m${state.ids.material++}`, name: "soil", command: "#material: 6 0.001 1 0 soil" });
+  renderAll();
+  const extras = state.other.length ? ` ${state.other.length} unclassified command(s) preserved in output.` : "";
+  setStatus(`Loaded ${imported} command(s) from ${filename || ".in file"}.${extras}`);
+}
+
+function loadInputFile(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith(".in")) {
+    setStatus("Choose a gprMax .in file.");
+    return;
+  }
+  const reader = new FileReader();
+  reader.addEventListener("load", () => loadInputText(String(reader.result || ""), file.name));
+  reader.addEventListener("error", () => setStatus("Could not read the selected .in file."));
+  reader.readAsText(file);
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -747,15 +873,14 @@ function bindEvents() {
     setSnapshotTimeDefaults();
     renderAll();
   });
+  $("loadInputFile").addEventListener("click", () => $("inputFilePicker").click());
+  $("inputFilePicker").addEventListener("change", (event) => {
+    loadInputFile(event.target.files[0]);
+    event.target.value = "";
+  });
   $("clearAll").addEventListener("click", () => {
     if (!window.confirm("Clear all material, geometry, source, receiver, and snapshot commands?")) return;
-    state.materials = [];
-    state.poles = [];
-    state.geometry = [];
-    state.waveforms = [];
-    state.sources = [];
-    state.receivers = [];
-    state.snapshots = [];
+    clearCommandState();
     renderAll();
   });
   $("copyOutput").addEventListener("click", () => {
