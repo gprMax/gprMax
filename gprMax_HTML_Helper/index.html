@@ -50,19 +50,19 @@
         </div>
         <div class="grid3">
           <label>x
-            <div class="inline-unit"><input id="domainX" value="0.24"><select id="domainXUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div>
+            <div class="inline-unit"><input id="domainX" value="240"><select id="domainXUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
           </label>
           <label>y
-            <div class="inline-unit"><input id="domainY" value="0.18"><select id="domainYUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div>
+            <div class="inline-unit"><input id="domainY" value="180"><select id="domainYUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
           </label>
           <label>z
-            <div class="inline-unit"><input id="domainZ" value="0.002"><select id="domainZUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div>
+            <div class="inline-unit"><input id="domainZ" value="2"><select id="domainZUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
           </label>
         </div>
         <div class="grid3">
           <label>Max eps_r<input id="epsMax" value="6"></label>
           <label>Smallest feature
-            <div class="inline-unit"><input id="smallestFeature" value="0.005"><select id="featureUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div>
+            <div class="inline-unit"><input id="smallestFeature" value="5"><select id="featureUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
           </label>
           <div class="checks">
             <label><input id="curvedShape" type="checkbox" checked> curved/circular geometry</label>
@@ -77,7 +77,7 @@
           <h2>dx dy dz</h2>
           <div class="grid2">
             <label>Choice<select id="dxChoice"><option>Recommended</option><option>Very coarse</option><option>Coarse</option><option>Normal</option><option>Fine</option><option>Extra fine</option><option>User defined</option></select></label>
-            <label>Unit<select id="dxUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></label>
+            <label>Unit<select id="dxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></label>
           </div>
           <div class="grid3">
             <label>dx<input id="dxX"></label>
@@ -90,7 +90,7 @@
           <h2>Time Window</h2>
           <div class="grid2">
             <label>Choice<select id="timeChoice"><option>Recommended</option><option>Very low resonance</option><option>Low resonance</option><option>Normal</option><option>Resonant</option><option>Very resonant</option><option>User defined</option></select></label>
-            <label>Unit<select id="timeUnit"><option>s</option><option>ms</option><option>us</option><option>ns</option><option>ps</option></select></label>
+            <label>Unit<select id="timeUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option></select></label>
           </div>
           <label>Time window<input id="timeWindow"></label>
           <pre id="timeSuggestions" class="hintbox"></pre>
@@ -146,10 +146,10 @@
           <div class="grid3">
             <label id="dispAName">Value A<input id="dispA" value="75.2"></label>
             <label id="dispFreqName">Pole freq/time
-              <div class="inline-unit"><input id="dispFreq" value="9.231e-12"><select id="dispFreqUnit"><option>s</option><option>Hz</option><option>kHz</option><option>MHz</option><option>GHz</option><option>THz</option></select></div>
+              <div class="inline-unit"><input id="dispFreq" value="0.009231"><select id="dispFreqUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option><option>Hz</option><option>kHz</option><option>MHz</option><option>GHz</option><option>THz</option></select></div>
             </label>
             <label id="dispDampingWrap">Damping, \( \delta_p \)
-              <div class="inline-unit"><input id="dispDamping" value="0"><select id="dispDampingUnit"><option>Hz</option><option>kHz</option><option>MHz</option><option>GHz</option><option>THz</option></select></div>
+              <div class="inline-unit"><input id="dispDamping" value="0"><select id="dispDampingUnit"><option>Hz</option><option>kHz</option><option>MHz</option><option selected>GHz</option><option>THz</option></select></div>
             </label>
           </div>
           <div id="dispDescription" class="equation-note"></div>
@@ -216,9 +216,9 @@
           <label>Waveform id<select id="sourceWaveformId"></select></label>
         </div>
           <div class="grid3">
-            <label>x<div class="inline-unit"><input id="sourceX" value="0.12"><select id="sourceXUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-            <label>y<div class="inline-unit"><input id="sourceY" value="0.09"><select id="sourceYUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-            <label>z<div class="inline-unit"><input id="sourceZ" value="0.001"><select id="sourceZUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>x<div class="inline-unit"><input id="sourceX" value="120"><select id="sourceXUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>y<div class="inline-unit"><input id="sourceY" value="90"><select id="sourceYUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>z<div class="inline-unit"><input id="sourceZ" value="1"><select id="sourceZUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
           </div>
           <label>Extra parameters<input id="sourceExtra" placeholder="optional"></label>
           <button id="addSource">Add source command</button>
@@ -234,9 +234,9 @@
           <h2>Add Receiver</h2>
           <p class="note">Creates <code>#rx: x y z [identifier output_components]</code>. The optional text after coordinates is copied as the receiver identifier/options.</p>
           <div class="grid3">
-            <label>x<div class="inline-unit"><input id="rxX" value="0.12"><select id="rxXUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-            <label>y<div class="inline-unit"><input id="rxY" value="0.09"><select id="rxYUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-            <label>z<div class="inline-unit"><input id="rxZ" value="0.001"><select id="rxZUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>x<div class="inline-unit"><input id="rxX" value="120"><select id="rxXUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>y<div class="inline-unit"><input id="rxY" value="90"><select id="rxYUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>z<div class="inline-unit"><input id="rxZ" value="1"><select id="rxZUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
           </div>
           <label>Identifier<input id="rxId" placeholder="optional"></label>
           <button id="addRx">Add receiver command</button>
@@ -250,20 +250,28 @@
       </div>
       <div class="panel">
         <h2>Add Snapshot</h2>
-        <p class="note">Creates <code>#snapshot: xmin ymin zmin xmax ymax zmax dx dy dz time filename</code>.</p>
+        <p class="note">Creates one or more <code>#snapshot: xmin ymin zmin xmax ymax zmax dx dy dz time filename</code> commands.</p>
+        <pre id="snapshotInfo" class="hintbox"></pre>
         <div class="field-grid">
-          <label>xmin<div class="inline-unit"><input id="snapXmin" value="0"><select id="snapXminUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>ymin<div class="inline-unit"><input id="snapYmin" value="0"><select id="snapYminUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>zmin<div class="inline-unit"><input id="snapZmin" value="0"><select id="snapZminUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>xmax<div class="inline-unit"><input id="snapXmax" value="0.24"><select id="snapXmaxUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>ymax<div class="inline-unit"><input id="snapYmax" value="0.18"><select id="snapYmaxUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>zmax<div class="inline-unit"><input id="snapZmax" value="0.002"><select id="snapZmaxUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>dx<div class="inline-unit"><input id="snapDx"><select id="snapDxUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>dy<div class="inline-unit"><input id="snapDy"><select id="snapDyUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>dz<div class="inline-unit"><input id="snapDz"><select id="snapDzUnit"><option>m</option><option>mm</option><option>um</option><option>nm</option></select></div></label>
-          <label>Time<div class="inline-unit"><input id="snapshotTime" value="1"><select id="snapshotTimeUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option></select></div></label>
+          <label>xmin<div class="inline-unit"><input id="snapXmin" value="0"><select id="snapXminUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>ymin<div class="inline-unit"><input id="snapYmin" value="0"><select id="snapYminUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>zmin<div class="inline-unit"><input id="snapZmin" value="0"><select id="snapZminUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>xmax<div class="inline-unit"><input id="snapXmax" value="240"><select id="snapXmaxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>ymax<div class="inline-unit"><input id="snapYmax" value="180"><select id="snapYmaxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>zmax<div class="inline-unit"><input id="snapZmax" value="2"><select id="snapZmaxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>dx<div class="inline-unit"><input id="snapDx"><select id="snapDxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>dy<div class="inline-unit"><input id="snapDy"><select id="snapDyUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>dz<div class="inline-unit"><input id="snapDz"><select id="snapDzUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>Time method<select id="snapshotRangeMode"><option value="single">Single time</option><option value="linspace">Evenly spaced</option><option value="arange">Fixed step</option></select></label>
+          <div class="time-row span3">
+            <label id="snapshotStartWrap">Start<input id="snapshotStart" value="0.1"></label>
+            <label id="snapshotStopWrap">Stop<input id="snapshotStop" value="1"></label>
+            <label id="snapshotThirdWrap">Points<input id="snapshotThird" value="11"></label>
+            <label>Unit<select id="snapshotTimeUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option></select></label>
+          </div>
           <label>Name<input id="snapshotName" value="snapshot_1"></label>
         </div>
+        <button id="fillSnapshotDomain" class="secondary" type="button">Use current domain</button>
         <button id="addSnapshot">Add snapshot command</button>
       </div>
     </section>

@@ -117,6 +117,17 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.span3 {
+  grid-column: 1 / -1;
+}
+
+.time-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 78px;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 label {
   display: grid;
   gap: 4px;
@@ -251,7 +262,8 @@ button.remove {
 
   .split,
   .grid3,
-  .field-grid {
+  .field-grid,
+  .time-row {
     grid-template-columns: 1fr;
   }
 }

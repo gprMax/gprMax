@@ -280,7 +280,8 @@ function addPole() {
 function convertDispersionFrequency() {
   const raw = Number.parseFloat(value("dispFreq")) || 0;
   const unit = value("dispFreqUnit");
-  return unit === "s" ? fmt(raw) : fmt(convertFrequency(raw, unit));
+  if (["s", "ms", "us", "ns", "ps"].includes(unit)) return fmt(convertTime(raw, unit));
+  return fmt(convertFrequency(raw, unit));
 }
 
 function poleCommand(pole) {
@@ -425,10 +426,11 @@ function createGeometryField(field) {
     wrap.className = "inline-unit";
     const input = document.createElement("input");
     input.id = `geom_${field.key}`;
-    input.value = field.initial;
+    input.value = fmt(fromBaseLength(Number.parseFloat(field.initial) || 0, "mm"));
     const unit = document.createElement("select");
     unit.id = `geom_${field.key}_unit`;
     for (const option of lengthUnits) unit.add(new Option(option, option));
+    unit.value = "mm";
     wrap.append(input, unit);
     label.appendChild(wrap);
     return label;
@@ -510,11 +512,73 @@ function addRx() {
   renderAll();
 }
 
+function setSnapshotDomainFromModel() {
+  const d = domainValues();
+  const maxFields = [
+    ["snapXmax", d.x],
+    ["snapYmax", d.y],
+    ["snapZmax", d.z],
+  ];
+  for (const id of ["snapXmin", "snapYmin", "snapZmin"]) $(id).value = "0";
+  for (const [id, metres] of maxFields) {
+    $(id).value = fmt(fromBaseLength(metres, value(`${id}Unit`)));
+  }
+}
+
+function setSnapshotTimeDefaults() {
+  const tw = convertTime(num("timeWindow"), value("timeUnit"));
+  const unit = value("snapshotTimeUnit");
+  const start = Math.max(tw / 10, convertTime(1e-6, unit));
+  $("snapshotStart").value = fmt(fromBaseTime(start, unit));
+  $("snapshotStop").value = fmt(fromBaseTime(tw, unit));
+  $("snapshotThird").value = value("snapshotRangeMode") === "arange" ? fmt(fromBaseTime((tw - start) / 10, unit)) : "11";
+}
+
+function updateSnapshotRangeMode() {
+  const mode = value("snapshotRangeMode");
+  $("snapshotStartWrap").firstChild.nodeValue = mode === "single" ? "Time" : "Start";
+  $("snapshotStopWrap").style.display = mode === "single" ? "none" : "grid";
+  $("snapshotThirdWrap").style.display = mode === "single" ? "none" : "grid";
+  $("snapshotThirdWrap").firstChild.nodeValue = mode === "arange" ? "Step" : "Points";
+}
+
+function snapshotTimes() {
+  const unit = value("snapshotTimeUnit");
+  const positiveMin = convertTime(1e-12, unit);
+  const start = Math.max(convertTime(num("snapshotStart"), unit), positiveMin);
+  const mode = value("snapshotRangeMode");
+  if (mode === "single") return [start];
+  const stop = convertTime(num("snapshotStop"), unit);
+  if (mode === "linspace") {
+    const count = Math.max(1, Math.round(num("snapshotThird")));
+    if (count === 1) return [start];
+    return Array.from({ length: count }, (_, i) => start + ((stop - start) * i) / (count - 1));
+  }
+  const step = convertTime(num("snapshotThird"), unit);
+  const end = stop;
+  if (step <= 0) return [start];
+  const count = Math.max(1, Math.floor((end - start) / step + 1e-9) + 1);
+  return Array.from({ length: count }, (_, i) => start + step * i).filter((time) => time <= end + Math.abs(step) * 1e-9);
+}
+
+function validSnapshotTimes() {
+  const times = snapshotTimes().filter((time) => time > 0);
+  return times.length ? times : [convertTime(1e-12, value("snapshotTimeUnit"))];
+}
+
+function snapshotFilename(base, index, count) {
+  const name = base || "snapshot";
+  if (count === 1) return name;
+  return `${name}_${String(index + 1).padStart(3, "0")}`;
+}
+
 function addSnapshot() {
   const fields = ["snapXmin", "snapYmin", "snapZmin", "snapXmax", "snapYmax", "snapZmax", "snapDx", "snapDy", "snapDz"];
   const converted = fields.map((id) => fmt(convertLength(num(id), value(`${id}Unit`))));
-  const time = fmt(convertTime(num("snapshotTime"), value("snapshotTimeUnit")));
-  state.snapshots.push({ id: `sn${state.ids.snapshot++}`, command: `#snapshot: ${converted.join(" ")} ${time} ${value("snapshotName") || "snapshot"}` });
+  const times = validSnapshotTimes();
+  const baseName = value("snapshotName") || "snapshot";
+  const commands = times.map((time, index) => `#snapshot: ${converted.join(" ")} ${fmt(time)} ${snapshotFilename(baseName, index, times.length)}`);
+  state.snapshots.push({ id: `sn${state.ids.snapshot++}`, command: commands.join("\n") });
   renderAll();
 }
 
@@ -612,11 +676,26 @@ function renderSuggestions() {
   $("timeSuggestions").textContent = timeSuggestionSet().text;
 }
 
+function renderSnapshotInfo() {
+  const d = domainValues();
+  const tw = convertTime(num("timeWindow"), value("timeUnit"));
+  const snapUnit = value("snapshotTimeUnit");
+  const times = validSnapshotTimes();
+  const last = times.length ? times[times.length - 1] : 0;
+  $("snapshotInfo").textContent = [
+    `Current domain: x 0 to ${fmt(d.x)} m, y 0 to ${fmt(d.y)} m, z 0 to ${fmt(d.z)} m`,
+    `Time window: 0 to ${fmt(tw)} s (${fmt(fromBaseTime(tw, snapUnit))} ${snapUnit})`,
+    `Snapshot range: ${times.length} point(s), ${fmt(fromBaseTime(times[0] || 0, snapUnit))} to ${fmt(fromBaseTime(last, snapUnit))} ${snapUnit}`,
+  ].join("\n");
+}
+
 function renderAll() {
   syncSelects();
   renderGeometryFields();
   updateDispersionText();
+  updateSnapshotRangeMode();
   renderSuggestions();
+  renderSnapshotInfo();
   renderCommands();
   setStatus("Generated text updated.");
 }
@@ -642,19 +721,30 @@ function bindEvents() {
   $("addSource").addEventListener("click", addSource);
   $("addRx").addEventListener("click", addRx);
   $("addSnapshot").addEventListener("click", addSnapshot);
+  $("fillSnapshotDomain").addEventListener("click", () => {
+    setSnapshotDomainFromModel();
+    renderAll();
+  });
   $("shapeType").addEventListener("change", renderGeometryFields);
   $("dispType").addEventListener("change", updateDispersionText);
+  $("snapshotRangeMode").addEventListener("change", () => {
+    updateSnapshotRangeMode();
+    setSnapshotTimeDefaults();
+    renderAll();
+  });
   $("dxChoice").addEventListener("change", () => {
     applyDxChoice();
     renderAll();
   });
   $("timeChoice").addEventListener("change", () => {
     applyTimeChoice();
+    setSnapshotTimeDefaults();
     renderAll();
   });
   $("updateAll").addEventListener("click", () => {
     applyDxChoice();
     applyTimeChoice();
+    setSnapshotTimeDefaults();
     renderAll();
   });
   $("clearAll").addEventListener("click", () => {
@@ -673,7 +763,10 @@ function bindEvents() {
   });
   document.addEventListener("input", (event) => {
     if (event.target.matches("input, select, textarea")) {
+      if (["timeWindow", "timeUnit", "snapshotTimeUnit"].includes(event.target.id)) setSnapshotTimeDefaults();
       renderSuggestions();
+      updateSnapshotRangeMode();
+      renderSnapshotInfo();
       renderCommands();
     }
   });
@@ -684,10 +777,12 @@ function initialise() {
   state.materials.push({ id: `m${state.ids.material++}`, name: "soil", command: "#material: 6 0.001 1 0 soil" });
   applyDxChoice();
   applyTimeChoice();
+  setSnapshotDomainFromModel();
+  setSnapshotTimeDefaults();
   const dx = dxSuggestionSet().values[dxSuggestionSet().recommended];
-  $("snapDx").value = fmt(dx);
-  $("snapDy").value = fmt(dx);
-  $("snapDz").value = fmt(dx);
+  $("snapDx").value = fmt(fromBaseLength(dx, value("snapDxUnit")));
+  $("snapDy").value = fmt(fromBaseLength(dx, value("snapDyUnit")));
+  $("snapDz").value = fmt(fromBaseLength(dx, value("snapDzUnit")));
   addWaveform();
   renderAll();
 }
