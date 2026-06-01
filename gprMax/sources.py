@@ -205,6 +205,9 @@ class EigenmodeSource(Source):
         self.modal_h[local_to_global[0]] = self._reshape_modal_field(solver.modal_Hx)
         self.modal_h[local_to_global[1]] = self._reshape_modal_field(solver.modal_Hy)
         self.modal_h[local_to_global[2]] = self._reshape_modal_field(solver.modal_Hz)
+        if self._modal_basis_handedness() < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
         self._phase_align_modal_fields(G)
         self.modal_e_real = [
             np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
@@ -223,6 +226,13 @@ class EigenmodeSource(Source):
             ),
             order="F",
         )
+
+    def _modal_basis_handedness(self):
+        basis = np.eye(3, dtype=np.int32)
+        transverse_u = basis[self.transverse_axes[0]]
+        transverse_v = basis[self.transverse_axes[1]]
+        normal = basis[self.normal_axis]
+        return int(np.dot(np.cross(transverse_u, transverse_v), normal))
 
     def _phase_align_modal_fields(self, G):
         """Rotate the complex mode so its real-valued profile carries power."""
