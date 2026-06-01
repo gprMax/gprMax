@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+import math
 
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
@@ -12,6 +13,7 @@ class FDFD_2D_mode_solver:
         self.epsilon0 = 8.85e-12
         self.mu0 = 1.26e-6
         self.c = 1 / np.sqrt(self.epsilon0 * self.mu0)
+        self.eta0 = np.sqrt(self.mu0 / self.epsilon0)
         self.omega = 2 * np.pi * frequency
         self.k0 = self.omega / self.c
 
@@ -39,6 +41,7 @@ class FDFD_2D_mode_solver:
 
         self.eigenvectors = None
         self.gammas = None
+        self.powers = None
 
         self._init_operators()
 
@@ -92,13 +95,18 @@ class FDFD_2D_mode_solver:
         Exy = self.eigenvectors
         Nx, Ny = self.Nx, self.Ny
         eigenvalues_inv = diags(np.sqrt(self.eigenvalues)).power(-1)
-        self.Ex = Exy[: Nx * Ny, :]
-        self.Ey = Exy[Nx * Ny:, :]
+        self.Ex = np.asarray(Exy[: Nx * Ny, :], dtype=np.complex128)
+        self.Ey = np.asarray(Exy[Nx * Ny:, :], dtype=np.complex128)
         Hxy = Q @ Exy @ eigenvalues_inv
-        self.Hx = Hxy[: Nx * Ny, :]
-        self.Hy = Hxy[Nx * Ny:, :]
-        self.Ez = eps_r_zz_diag_inv @ (self.DHX @ self.Hy - self.DHY @ self.Hx)
-        self.Hz = mu_r_zz_diag_inv @ (self.DEX @ self.Ey - self.DEY @ self.Ex)
+        Hx_norm = Hxy[: Nx * Ny, :]
+        Hy_norm = Hxy[Nx * Ny:, :]
+        Hz_norm = mu_r_zz_diag_inv @ (self.DEX @ self.Ey - self.DEY @ self.Ex)
+        self.Ez = np.asarray(eps_r_zz_diag_inv @ (self.DHX @ Hy_norm - self.DHY @ Hx_norm), dtype=np.complex128)
+        self.Hx = np.asarray(1j * Hx_norm / self.eta0, dtype=np.complex128)
+        self.Hy = np.asarray(1j * Hy_norm / self.eta0, dtype=np.complex128)
+        self.Hz = np.asarray(1j * Hz_norm / self.eta0, dtype=np.complex128)
+
+        self._normalize_modes_to_power()
 
         self.modal_Ex = self.Ex[:, self.mode_index]
         self.modal_Ey = self.Ey[:, self.mode_index]
@@ -108,6 +116,65 @@ class FDFD_2D_mode_solver:
         self.modal_Hz = self.Hz[:, self.mode_index]
         self.modal_complex_neff = self.complex_neff[self.mode_index]
         self.modal_real_neff = self.real_neff[self.mode_index]
+        self.modal_power = self.powers[self.mode_index]
+
+    def _normalize_modes_to_power(self, target_power=1.0):
+        """Normalize all solved modes to carry `target_power` watts.
+
+        The transverse power is calculated from the time-average Poynting flux
+        in the solver's longitudinal direction:
+
+            P = 0.5 Re integral((E x H*) . z dA)
+
+        The H fields returned by the FDFD matrices are converted to physical
+        A/m before this method is called.
+        """
+        self.powers = np.zeros(self.num_modes, dtype=np.float64)
+        cell_area = self.dx * self.dy
+
+        for mode in range(self.num_modes):
+            power = self._calculate_mode_power(mode, cell_area)
+
+            if not np.isfinite(power) or abs(power) < 1e-300:
+                raise ValueError(f"Cannot normalize mode {mode}: modal power is {power}.")
+
+            if power < 0:
+                self.Hx[:, mode] = -self.Hx[:, mode]
+                self.Hy[:, mode] = -self.Hy[:, mode]
+                self.Hz[:, mode] = -self.Hz[:, mode]
+                power = -power
+
+            scale = np.sqrt(target_power / power)
+            self.Ex[:, mode] = self.Ex[:, mode] * scale
+            self.Ey[:, mode] = self.Ey[:, mode] * scale
+            self.Ez[:, mode] = self.Ez[:, mode] * scale
+            self.Hx[:, mode] = self.Hx[:, mode] * scale
+            self.Hy[:, mode] = self.Hy[:, mode] * scale
+            self.Hz[:, mode] = self.Hz[:, mode] * scale
+
+            for _ in range(5):
+                normalized_power = self._calculate_mode_power(mode, cell_area)
+                if np.isclose(normalized_power, target_power, rtol=1e-12, atol=1e-15):
+                    break
+                correction = np.sqrt(target_power / normalized_power)
+                self.Ex[:, mode] = self.Ex[:, mode] * correction
+                self.Ey[:, mode] = self.Ey[:, mode] * correction
+                self.Ez[:, mode] = self.Ez[:, mode] * correction
+                self.Hx[:, mode] = self.Hx[:, mode] * correction
+                self.Hy[:, mode] = self.Hy[:, mode] * correction
+                self.Hz[:, mode] = self.Hz[:, mode] * correction
+
+            normalized_power = self._calculate_mode_power(mode, cell_area)
+            self.powers[mode] = normalized_power
+
+    def _calculate_mode_power(self, mode, cell_area=None):
+        if cell_area is None:
+            cell_area = self.dx * self.dy
+        poynting_z = (
+            self.Ex[:, mode] * np.conj(self.Hy[:, mode])
+            - self.Ey[:, mode] * np.conj(self.Hx[:, mode])
+        )
+        return 0.5 * math.fsum(np.real(poynting_z)) * cell_area
 
     def plot_e_fields(self, output_path="fdfd_modes_ex_ey.png"):
         fig, axes = plt.subplots(self.num_modes, 2, figsize=(8, 3 * self.num_modes), constrained_layout=True)

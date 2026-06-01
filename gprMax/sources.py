@@ -37,6 +37,10 @@ from .cython.plane_wave import (
     updatePlaneWave_electric_dispersive,
     updatePlaneWave_electric_dispersive_axial,
 )
+from .cython.eigenmode_source import (
+    update_eigenmode_magnetic as updateEigenmode_magnetic,
+    update_eigenmode_electric as updateEigenmode_electric,
+)
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
@@ -110,10 +114,10 @@ class Source:
 class EigenmodeSource(Source):
     """Holds data for an eigenmode source and prepares material slices.
 
-    The actual eigenmode solve and TFSF injection are intentionally left as
-    TODO hooks. `grid_init()` runs after geometry has been converted to Yee
-    component material IDs, so it is the right place to extract material data
-    from `G.ID`.
+    `grid_init()` runs after geometry has been converted to Yee component
+    material IDs, so it is the right place to extract material data from
+    `G.ID`, solve the transverse mode, and prepare modal fields for TF/SF
+    injection.
     """
 
     def __init__(self, G):
@@ -135,6 +139,8 @@ class EigenmodeSource(Source):
         self.complex_mu_r_zz = None
         self.modal_e = None
         self.modal_h = None
+        self.modal_e_real = None
+        self.modal_h_real = None
         self.neff = None
         self.mode_solver = None
 
@@ -199,6 +205,15 @@ class EigenmodeSource(Source):
         self.modal_h[local_to_global[0]] = self._reshape_modal_field(solver.modal_Hx)
         self.modal_h[local_to_global[1]] = self._reshape_modal_field(solver.modal_Hy)
         self.modal_h[local_to_global[2]] = self._reshape_modal_field(solver.modal_Hz)
+        self._phase_align_modal_fields(G)
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_h
+        ]
 
     def _reshape_modal_field(self, field):
         return field.reshape(
@@ -208,6 +223,57 @@ class EigenmodeSource(Source):
             ),
             order="F",
         )
+
+    def _phase_align_modal_fields(self, G):
+        """Rotate the complex mode so its real-valued profile carries power."""
+        cell_area = G.dl[self.transverse_axes[0]] * G.dl[self.transverse_axes[1]]
+        initial_power = self._real_profile_power(self.modal_e, self.modal_h, cell_area)
+
+        e_real = [np.real(field) for field in self.modal_e]
+        e_imag = [np.imag(field) for field in self.modal_e]
+        h_real = [np.real(field) for field in self.modal_h]
+        h_imag = [np.imag(field) for field in self.modal_h]
+
+        paa = self._real_profile_power(e_real, h_real, cell_area)
+        pbb = self._real_profile_power(e_imag, h_imag, cell_area)
+        pab = self._real_profile_power(e_real, h_imag, cell_area)
+        pba = self._real_profile_power(e_imag, h_real, cell_area)
+
+        mean_power = 0.5 * (paa + pbb)
+        cos_coeff = 0.5 * (paa - pbb)
+        sin_coeff = -0.5 * (pab + pba)
+        phase = 0.5 * np.arctan2(sin_coeff, cos_coeff)
+        best_power = mean_power + np.hypot(cos_coeff, sin_coeff)
+
+        phase_factor = np.exp(1j * phase)
+        self.modal_e = [phase_factor * field for field in self.modal_e]
+        self.modal_h = [phase_factor * field for field in self.modal_h]
+
+        aligned_power = self._real_profile_power(self.modal_e, self.modal_h, cell_area)
+        if aligned_power < 0:
+            phase += 0.5 * np.pi
+            phase_factor = np.exp(1j * 0.5 * np.pi)
+            self.modal_e = [phase_factor * field for field in self.modal_e]
+            self.modal_h = [phase_factor * field for field in self.modal_h]
+            aligned_power = self._real_profile_power(self.modal_e, self.modal_h, cell_area)
+
+        logger.info(
+            f"Eigenmode real-profile power: initial={initial_power:g} W, "
+            f"aligned={aligned_power:g} W, max_estimate={best_power:g} W, phase={phase:g} rad"
+        )
+
+        if not np.isfinite(aligned_power) or aligned_power <= 0:
+            logger.warning(
+                "Eigenmode real-profile power is not positive after phase alignment; "
+                "modal H sign or eigenvalue branch may still be inconsistent."
+            )
+
+    def _real_profile_power(self, e_fields, h_fields, cell_area):
+        sx = e_fields[1] * h_fields[2] - e_fields[2] * h_fields[1]
+        sy = e_fields[2] * h_fields[0] - e_fields[0] * h_fields[2]
+        sz = e_fields[0] * h_fields[1] - e_fields[1] * h_fields[0]
+        poynting = (sx, sy, sz)[self.normal_axis]
+        return math.fsum(np.ravel(np.real(poynting))) * cell_area
 
     def _plot_eigenmode_fields(self, solver):
         input_path = config.sim_config.input_file_path
@@ -281,12 +347,218 @@ class EigenmodeSource(Source):
         return mur
 
     def update_eigenmode_magnetic(self, iteration, G):
-        # TODO: User implementation hook for magnetic TFSF injection.
-        pass
+        """Apply magnetic-field TF/SF corrections using incident modal E."""
+        time = iteration * G.dt
+        if not self._source_is_active(time):
+            return
+
+        updateEigenmode_magnetic(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_e_real[0],
+            self.modal_e_real[1],
+            self.modal_e_real[2],
+            G.updatecoeffsH,
+            G.ID,
+            G.Hx,
+            G.Hy,
+            G.Hz,
+        )
 
     def update_eigenmode_electric(self, iteration, G):
-        # TODO: User implementation hook for electric TFSF injection.
-        pass
+        """Apply electric-field TF/SF corrections using incident modal H."""
+        time = iteration * G.dt + self._magnetic_modal_time_offset(G)
+        if not self._source_is_active(time):
+            return
+
+        updateEigenmode_electric(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_h_real[0],
+            self.modal_h_real[1],
+            self.modal_h_real[2],
+            G.updatecoeffsE,
+            G.ID,
+            G.Ex,
+            G.Ey,
+            G.Ez,
+        )
+
+    def _source_is_active(self, time):
+        return self.start <= time <= self.stop
+
+    def _magnetic_modal_time_offset(self, G):
+        """Half-step plus half-cell propagation delay for modal H sampling."""
+        neff = abs(float(np.real(self.neff)))
+        return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.c)
+
+    def _waveform_value(self, time, G):
+        return self.waveform.calculate_value(time - self.start, G.dt)
+
+    def _modal_value(self, field, u, v, time, G):
+        if field is None:
+            return 0.0
+        local_time = time - self.start
+        envelope = self.waveform.calculate_value(local_time, G.dt)
+        value = field[u - self.transverse_start[0], v - self.transverse_start[1]]
+        return float(envelope * np.real(value))
+
+    def _e_incident(self, component, u, v, time, G):
+        return self._modal_value(self.modal_e[component], u, v, time, G)
+
+    def _h_incident(self, component, u, v, time, G):
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return direction_scale * self._modal_value(self.modal_h[component], u, v, time, G)
+
+    def _add_h(self, G, component, i, j, k, value):
+        fields = (G.Hx, G.Hy, G.Hz)
+        material = G.ID[3 + component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsH[material, self.normal_axis + 1] * value
+
+    def _add_e(self, G, component, i, j, k, value):
+        fields = (G.Ex, G.Ey, G.Ez)
+        material = G.ID[component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsE[material, self.normal_axis + 1] * value
+
+    def _update_magnetic_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            target_i = i - 1
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, -self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, self._e_incident(1, j, k, time, G))
+        else:
+            target_i = i
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, -self._e_incident(1, j, k, time, G))
+
+    def _update_electric_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(2, j, k, time, G))
+        else:
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(2, j, k, time, G))
+
+    def _update_magnetic_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            target_j = j - 1
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, -self._e_incident(0, i, k, time, G))
+        else:
+            target_j = j
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, -self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, self._e_incident(0, i, k, time, G))
+
+    def _update_electric_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(2, i, k, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(2, i, k, time, G))
+
+    def _update_magnetic_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            target_k = k - 1
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, -self._e_incident(1, i, j, time, G))
+        else:
+            target_k = k
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, -self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, self._e_incident(1, i, j, time, G))
+
+    def _update_electric_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(1, i, j, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(1, i, j, time, G))
 
 
 class VoltageSource(Source):
