@@ -24,7 +24,7 @@ import math
 import logging
 
 import gprMax.config as config
-from gprMax.FDFD_Eigenmode_Solver.FDFD_2D_mode_solver import FDFD_2D_mode_solver
+from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
