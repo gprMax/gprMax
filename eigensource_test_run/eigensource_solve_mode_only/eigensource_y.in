@@ -9,4 +9,4 @@
 
 #box: 0.046 0.034 0.022 0.058 0.046 0.034 core
 
-#eigenmode_source: normal y + 0.008 0.008 0.072 0.072 0.040 2 20e9 eig_pulse
+#eigenmode_source: normal y + 0.008 0.008 0.072 0.072 0.040 4 20e9 eig_pulse

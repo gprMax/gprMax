@@ -208,7 +208,6 @@ class EigenmodeSource(Source):
         if self._modal_basis_handedness() < 0:
             self.modal_h = [-field for field in self.modal_h]
             logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
-        self._phase_align_modal_fields(G)
         self.modal_e_real = [
             np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
             for field in self.modal_e
@@ -233,57 +232,6 @@ class EigenmodeSource(Source):
         transverse_v = basis[self.transverse_axes[1]]
         normal = basis[self.normal_axis]
         return int(np.dot(np.cross(transverse_u, transverse_v), normal))
-
-    def _phase_align_modal_fields(self, G):
-        """Rotate the complex mode so its real-valued profile carries power."""
-        cell_area = G.dl[self.transverse_axes[0]] * G.dl[self.transverse_axes[1]]
-        initial_power = self._real_profile_power(self.modal_e, self.modal_h, cell_area)
-
-        e_real = [np.real(field) for field in self.modal_e]
-        e_imag = [np.imag(field) for field in self.modal_e]
-        h_real = [np.real(field) for field in self.modal_h]
-        h_imag = [np.imag(field) for field in self.modal_h]
-
-        paa = self._real_profile_power(e_real, h_real, cell_area)
-        pbb = self._real_profile_power(e_imag, h_imag, cell_area)
-        pab = self._real_profile_power(e_real, h_imag, cell_area)
-        pba = self._real_profile_power(e_imag, h_real, cell_area)
-
-        mean_power = 0.5 * (paa + pbb)
-        cos_coeff = 0.5 * (paa - pbb)
-        sin_coeff = -0.5 * (pab + pba)
-        phase = 0.5 * np.arctan2(sin_coeff, cos_coeff)
-        best_power = mean_power + np.hypot(cos_coeff, sin_coeff)
-
-        phase_factor = np.exp(1j * phase)
-        self.modal_e = [phase_factor * field for field in self.modal_e]
-        self.modal_h = [phase_factor * field for field in self.modal_h]
-
-        aligned_power = self._real_profile_power(self.modal_e, self.modal_h, cell_area)
-        if aligned_power < 0:
-            phase += 0.5 * np.pi
-            phase_factor = np.exp(1j * 0.5 * np.pi)
-            self.modal_e = [phase_factor * field for field in self.modal_e]
-            self.modal_h = [phase_factor * field for field in self.modal_h]
-            aligned_power = self._real_profile_power(self.modal_e, self.modal_h, cell_area)
-
-        logger.info(
-            f"Eigenmode real-profile power: initial={initial_power:g} W, "
-            f"aligned={aligned_power:g} W, max_estimate={best_power:g} W, phase={phase:g} rad"
-        )
-
-        if not np.isfinite(aligned_power) or aligned_power <= 0:
-            logger.warning(
-                "Eigenmode real-profile power is not positive after phase alignment; "
-                "modal H sign or eigenvalue branch may still be inconsistent."
-            )
-
-    def _real_profile_power(self, e_fields, h_fields, cell_area):
-        sx = e_fields[1] * h_fields[2] - e_fields[2] * h_fields[1]
-        sy = e_fields[2] * h_fields[0] - e_fields[0] * h_fields[2]
-        sz = e_fields[0] * h_fields[1] - e_fields[1] * h_fields[0]
-        poynting = (sx, sy, sz)[self.normal_axis]
-        return math.fsum(np.ravel(np.real(poynting))) * cell_area
 
     def _plot_eigenmode_fields(self, solver):
         input_path = config.sim_config.input_file_path

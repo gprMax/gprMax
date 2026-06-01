@@ -88,7 +88,7 @@ class FDFD_2D_mode_solver:
         sort_indices = np.argsort(np.real(self.eigenvalues))
         self.eigenvalues = self.eigenvalues[sort_indices]
         self.eigenvectors = self.eigenvectors[:, sort_indices]
-        self.complex_neff = self._sqrt_positive_real(-self.eigenvalues)
+        self.complex_neff = self._passive_positive_neff(-self.eigenvalues)
         self.real_neff = np.real(self.complex_neff)
 
         # Calculate fields
@@ -107,6 +107,7 @@ class FDFD_2D_mode_solver:
         self.Hz = np.asarray(1j * Hz_norm / self.eta0, dtype=np.complex128)
 
         self._normalize_modes_to_power()
+        self._align_modes_for_real_profile_power()
 
         self.modal_Ex = self.Ex[:, self.mode_index]
         self.modal_Ey = self.Ey[:, self.mode_index]
@@ -167,12 +168,57 @@ class FDFD_2D_mode_solver:
             normalized_power = self._calculate_mode_power(mode, cell_area)
             self.powers[mode] = normalized_power
 
+    def _align_modes_for_real_profile_power(self):
+        """Rotate each mode so its real-valued field profile carries power."""
+        cell_area = self.dx * self.dy
+
+        for mode in range(self.num_modes):
+            e_real = (np.real(self.Ex[:, mode]), np.real(self.Ey[:, mode]))
+            e_imag = (np.imag(self.Ex[:, mode]), np.imag(self.Ey[:, mode]))
+            h_real = (np.real(self.Hx[:, mode]), np.real(self.Hy[:, mode]))
+            h_imag = (np.imag(self.Hx[:, mode]), np.imag(self.Hy[:, mode]))
+
+            paa = self._calculate_real_profile_power(e_real, h_real, cell_area)
+            pbb = self._calculate_real_profile_power(e_imag, h_imag, cell_area)
+            pab = self._calculate_real_profile_power(e_real, h_imag, cell_area)
+            pba = self._calculate_real_profile_power(e_imag, h_real, cell_area)
+
+            cos_coeff = 0.5 * (paa - pbb)
+            sin_coeff = -0.5 * (pab + pba)
+            phase = 0.5 * np.arctan2(sin_coeff, cos_coeff)
+            self._rotate_mode(mode, phase)
+
+            aligned_power = self._calculate_real_profile_power(
+                (np.real(self.Ex[:, mode]), np.real(self.Ey[:, mode])),
+                (np.real(self.Hx[:, mode]), np.real(self.Hy[:, mode])),
+                cell_area,
+            )
+            if aligned_power < 0:
+                self._rotate_mode(mode, 0.5 * np.pi)
+
+    def _rotate_mode(self, mode, phase):
+        phase_factor = np.exp(1j * phase)
+        self.Ex[:, mode] = phase_factor * self.Ex[:, mode]
+        self.Ey[:, mode] = phase_factor * self.Ey[:, mode]
+        self.Ez[:, mode] = phase_factor * self.Ez[:, mode]
+        self.Hx[:, mode] = phase_factor * self.Hx[:, mode]
+        self.Hy[:, mode] = phase_factor * self.Hy[:, mode]
+        self.Hz[:, mode] = phase_factor * self.Hz[:, mode]
+
+    def _calculate_real_profile_power(self, e_fields, h_fields, cell_area=None):
+        if cell_area is None:
+            cell_area = self.dx * self.dy
+        ex, ey = e_fields
+        hx, hy = h_fields
+        poynting_z = ex * hy - ey * hx
+        return math.fsum(np.ravel(np.real(poynting_z))) * cell_area
+
     def _calculate_mode_power(self, mode, cell_area=None):
         if cell_area is None:
             cell_area = self.dx * self.dy
         poynting_z = (
-            self.Ex[:, mode] * np.conj(self.Hy[:, mode])
-            - self.Ey[:, mode] * np.conj(self.Hx[:, mode])
+                self.Ex[:, mode] * np.conj(self.Hy[:, mode])
+                - self.Ey[:, mode] * np.conj(self.Hx[:, mode])
         )
         return 0.5 * math.fsum(np.real(poynting_z)) * cell_area
 
@@ -214,10 +260,17 @@ class FDFD_2D_mode_solver:
         plt.close(fig)
         return output_path
 
-    def _sqrt_positive_real(self, x):
-        """Calculate the square root with positive real part."""
-        sqrt = np.sqrt(x)
-        return np.where(np.imag(sqrt) < 0, -sqrt, sqrt)
+    def _passive_positive_neff(self, neff_squared):
+        """Return neff as positive phase constant plus positive attenuation."""
+        sqrt = np.sqrt(neff_squared)
+        neff = np.where(np.real(sqrt) < 0, -sqrt, sqrt)
+
+        real = np.real(neff)
+        imag = np.imag(neff)
+        tolerance = 1e-12 * np.maximum(1.0, np.abs(neff))
+        real = np.where(np.abs(real) <= tolerance, 0.0, real)
+        imag = np.where(np.abs(imag) <= tolerance, 0.0, np.abs(imag))
+        return real + 1j * imag
 
     def _max_finite_magnitude(self, x):
         finite = np.isfinite(x)
@@ -231,16 +284,16 @@ if __name__ == "__main__":
     dy = 0.1e-3
     frequency = 100e9
     mode_index = 5
-    eps_r_xx = np.ones([120, 100])
-    eps_r_yy = np.ones([120, 100])
-    eps_r_zz = np.ones([120, 100])
-    mu_r_xx = np.ones([120, 100])
-    mu_r_yy = np.ones([120, 100])
-    mu_r_zz = np.ones([120, 100])
+    eps_r_xx = np.ones([120, 100], dtype=complex)
+    eps_r_yy = np.ones([120, 100], dtype=complex)
+    eps_r_zz = np.ones([120, 100], dtype=complex)
+    mu_r_xx = np.ones([120, 100], dtype=complex)
+    mu_r_yy = np.ones([120, 100], dtype=complex)
+    mu_r_zz = np.ones([120, 100], dtype=complex)
 
-    eps_r_xx[30:60, 40:60] = 4
-    eps_r_yy[30:60, 40:60] = 4
-    eps_r_zz[30:60, 40:60] = 4
+    eps_r_xx[30:60, 40:60] = 4 - 3j
+    eps_r_yy[30:60, 40:60] = 5 - 1j
+    eps_r_zz[30:60, 40:60] = 6 - 3j
 
     solver = FDFD_2D_mode_solver(frequency=frequency, dx=dx, dy=dy, mode_index=mode_index, eps_r_xx=eps_r_xx,
                                  eps_r_yy=eps_r_yy, eps_r_zz=eps_r_zz, mu_r_xx=mu_r_xx, mu_r_yy=mu_r_yy,
