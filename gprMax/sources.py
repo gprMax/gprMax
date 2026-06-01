@@ -18,13 +18,13 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from copy import deepcopy
-
 import numpy as np
 import numpy.typing as npt
 import math
 import logging
 
 import gprMax.config as config
+from gprMax.FDFD_Eigenmode_Solver.FDFD_2D_mode_solver import FDFD_2D_mode_solver
 from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
@@ -105,6 +105,188 @@ class Source:
     @zcoordorigin.setter
     def zcoordorigin(self, value: int):
         self.coordorigin[2] = value
+
+
+class EigenmodeSource(Source):
+    """Holds data for an eigenmode source and prepares material slices.
+
+    The actual eigenmode solve and TFSF injection are intentionally left as
+    TODO hooks. `grid_init()` runs after geometry has been converted to Yee
+    component material IDs, so it is the right place to extract material data
+    from `G.ID`.
+    """
+
+    def __init__(self, G):
+        super().__init__()
+        self.normal = None
+        self.direction = None
+        self.normal_axis = None
+        self.transverse_axes = None
+        self.transverse_start = None
+        self.transverse_stop = None
+        self.mode_index = None
+        self.frequency = None
+        self.plane_index = None
+        self.complex_eps_r_xx = None
+        self.complex_eps_r_yy = None
+        self.complex_eps_r_zz = None
+        self.complex_mu_r_xx = None
+        self.complex_mu_r_yy = None
+        self.complex_mu_r_zz = None
+        self.modal_e = None
+        self.modal_h = None
+        self.neff = None
+        self.mode_solver = None
+
+    def grid_init(self, G):
+        """Prepare source data that depends on the final built Yee grid."""
+        if self.plane_index is None:
+            self.plane_index = self._select_plane_index(G)
+        (
+            self.complex_eps_r_xx,
+            self.complex_eps_r_yy,
+            self.complex_eps_r_zz,
+        ) = self._extract_complex_property_tensors(G, electric=True)
+        (
+            self.complex_mu_r_xx,
+            self.complex_mu_r_yy,
+            self.complex_mu_r_zz,
+        ) = self._extract_complex_property_tensors(G, electric=False)
+
+        self._solve_eigenmode(G)
+
+    def _solve_eigenmode(self, G):
+        """Solve the local 2D eigenmode and map fields onto global components."""
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        eps_components = (
+            self.complex_eps_r_xx,
+            self.complex_eps_r_yy,
+            self.complex_eps_r_zz,
+        )
+        mu_components = (
+            self.complex_mu_r_xx,
+            self.complex_mu_r_yy,
+            self.complex_mu_r_zz,
+        )
+
+        solver = FDFD_2D_mode_solver(
+            frequency=self.frequency,
+            dx=G.dl[self.transverse_axes[0]],
+            dy=G.dl[self.transverse_axes[1]],
+            mode_index=self.mode_index,
+            eps_r_xx=eps_components[local_to_global[0]],
+            eps_r_yy=eps_components[local_to_global[1]],
+            eps_r_zz=eps_components[local_to_global[2]],
+            mu_r_xx=mu_components[local_to_global[0]],
+            mu_r_yy=mu_components[local_to_global[1]],
+            mu_r_zz=mu_components[local_to_global[2]],
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+
+        self.modal_e[local_to_global[0]] = self._reshape_modal_field(solver.modal_Ex)
+        self.modal_e[local_to_global[1]] = self._reshape_modal_field(solver.modal_Ey)
+        self.modal_e[local_to_global[2]] = self._reshape_modal_field(solver.modal_Ez)
+        self.modal_h[local_to_global[0]] = self._reshape_modal_field(solver.modal_Hx)
+        self.modal_h[local_to_global[1]] = self._reshape_modal_field(solver.modal_Hy)
+        self.modal_h[local_to_global[2]] = self._reshape_modal_field(solver.modal_Hz)
+
+    def _reshape_modal_field(self, field):
+        return field.reshape(
+            (
+                self.transverse_stop[0] - self.transverse_start[0] + 1,
+                self.transverse_stop[1] - self.transverse_start[1] + 1,
+            ),
+            order="F",
+        )
+
+    def _plot_eigenmode_fields(self, solver):
+        input_path = config.sim_config.input_file_path
+        output_dir = input_path.parent
+        filename_base = (
+            f"{input_path.stem}_eigenmode_{self.normal}{self.direction}"
+            f"_w{self.plane_index}_u{self.transverse_start[0]}-{self.transverse_stop[0]}"
+            f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
+            f"_mode{self.mode_index}"
+        )
+        e_path = output_dir / f"{filename_base}_Ex_Ey.png"
+        h_path = output_dir / f"{filename_base}_Hx_Hy.png"
+        solver.plot_e_fields(e_path)
+        solver.plot_h_fields(h_path)
+        logger.info(f"Eigenmode electric field plot written to {e_path}")
+        logger.info(f"Eigenmode magnetic field plot written to {h_path}")
+
+    def _select_plane_index(self, G):
+        """Choose the normal-axis plane from the propagation direction."""
+        axis_names = ("x", "y", "z")
+        axis_name = axis_names[self.normal_axis]
+        if self.direction == "+":
+            return G.pmls["thickness"][f"{axis_name}0"]
+        return G.size[self.normal_axis] - G.pmls["thickness"][f"{axis_name}max"]
+
+    def _extract_complex_property_tensors(self, G, electric):
+        """Return xx, yy, zz complex er or mu_r arrays on the Yee slice."""
+        material_values = np.zeros(len(G.materials), dtype=np.complex128)
+        for material in G.materials:
+            material_values[material.numID] = (
+                self._complex_er(material) if electric else self._complex_mur(material)
+            )
+
+        component_offset = 0 if electric else 3
+        values = []
+        for component in range(3):
+            ids = self._slice_component_ids(G, component + component_offset)
+            values.append(material_values[ids].copy())
+        return tuple(values)
+
+    def _slice_component_ids(self, G, component):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        n = self.plane_index
+
+        if self.normal_axis == 0:
+            return G.ID[component, n, u0 : u1 + 1, v0 : v1 + 1]
+        if self.normal_axis == 1:
+            return G.ID[component, u0 : u1 + 1, n, v0 : v1 + 1]
+        return G.ID[component, u0 : u1 + 1, v0 : v1 + 1, n]
+
+    def _complex_er(self, material):
+        omega = 2 * np.pi * self.frequency
+        if hasattr(material, "calculate_er") and material.__class__.__name__ != "Material":
+            er = material.calculate_er(self.frequency)
+        else:
+            er = material.er
+            if getattr(material, "se", 0) not in [0, float("inf")]:
+                er = er - 1j * material.se / (omega * config.e0)
+        if getattr(material, "se", 0) == float("inf"):
+            er = np.inf + 0j
+        return er
+
+    def _complex_mur(self, material):
+        omega = 2 * np.pi * self.frequency
+        mur = material.mr
+        if getattr(material, "sm", 0) not in [0, float("inf")]:
+            mur = mur - 1j * material.sm / (omega * config.m0)
+        if getattr(material, "sm", 0) == float("inf"):
+            mur = np.inf + 0j
+        return mur
+
+    def update_eigenmode_magnetic(self, iteration, G):
+        # TODO: User implementation hook for magnetic TFSF injection.
+        pass
+
+    def update_eigenmode_electric(self, iteration, G):
+        # TODO: User implementation hook for electric TFSF injection.
+        pass
 
 
 class VoltageSource(Source):

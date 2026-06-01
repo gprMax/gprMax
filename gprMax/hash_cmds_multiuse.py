@@ -27,6 +27,7 @@ from .user_objects.cmds_multiuse import (
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
     DiscretePlaneWaveVector,
+    EigenmodeSource,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -338,6 +339,40 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             scene_objects.append(plWave)
+
+
+    cmdname = "#eigenmode_source"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) != 11:
+                logger.exception(
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " requires exactly eleven parameters: normal axis direction u0 v0 u1 v1 w mode_index frequency waveform_id"
+                )
+                raise ValueError
+
+            if tmp[0].lower() != "normal":
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "' must start with 'normal'"
+                )
+                raise ValueError
+
+            eigenmode_source = EigenmodeSource(
+                normal=tmp[1].lower(),
+                direction=tmp[2],
+                p1=(float(tmp[3]), float(tmp[4])),
+                p2=(float(tmp[5]), float(tmp[6])),
+                w=float(tmp[7]),
+                mode_index=int(tmp[8]),
+                frequency=float(tmp[9]),
+                waveform_id=tmp[10],
+            )
+            scene_objects.append(eigenmode_source)
 
 
 

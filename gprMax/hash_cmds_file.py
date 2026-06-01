@@ -252,6 +252,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#plane_wave_angles",
             "#plane_wave_axial",
             "#plane_wave_vector",
+            "#eigenmode_source",
             "#excitation_file",
             "#rx",
             "#rx_array",

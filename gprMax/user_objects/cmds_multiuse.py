@@ -38,6 +38,7 @@ from gprMax.materials import RangeMaterial as RangeMaterialUser
 from gprMax.pml import CFS, CFSParameter
 from gprMax.receivers import Rx as RxUser
 from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
+from gprMax.sources import EigenmodeSource as EigenmodeSourceUser
 from gprMax.sources import HertzianDipole as HertzianDipoleUser
 from gprMax.sources import MagneticDipole as MagneticDipoleUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
@@ -1384,6 +1385,126 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
 
         grid.discreteplanewaves.append(DPW)
+
+
+
+class EigenmodeSource(GridUserObject):
+    """
+    Specifies an eigenmode source plane. The command form is:
+
+        #eigenmode_source: normal <x|y|z> <+|-> u0 v0 u1 v1 w mode_index frequency waveform_id
+
+    The two coordinates (u, v) are the transverse coordinates of the source
+    plane. For normal z they are x/y; for normal x they are y/z; for normal y
+    they are x/z. The w coordinate is the source plane position along the
+    normal axis.
+    """
+
+    @property
+    def order(self):
+        return 21
+
+    @property
+    def hash(self):
+        return "#eigenmode_source"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            normal = self.kwargs["normal"]
+            direction = self.kwargs["direction"]
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            w = self.kwargs["w"]
+            mode_index = self.kwargs["mode_index"]
+            frequency = self.kwargs["frequency"]
+            waveform_id = self.kwargs["waveform_id"]
+        except KeyError:
+            logger.exception(
+                f"{self.params_str()} requires normal, direction, p1, p2, w, mode_index, frequency, and waveform_id."
+            )
+            raise
+
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+            logger.exception(
+                f"{self.params_str()} cannot currently be used with the CUDA, OpenCL, or Apple Metal solver."
+            )
+            raise ValueError
+
+        if normal not in ["x", "y", "z"]:
+            logger.exception(f"{self.params_str()} normal must be x, y, or z.")
+            raise ValueError
+
+        if direction not in ["+", "-"]:
+            logger.exception(f"{self.params_str()} direction must be + or -.")
+            raise ValueError
+
+        if mode_index < 0:
+            logger.exception(f"{self.params_str()} mode_index must be zero or greater.")
+            raise ValueError
+
+        if frequency <= 0:
+            logger.exception(f"{self.params_str()} frequency must be greater than zero.")
+            raise ValueError
+
+        if not any(x.ID == waveform_id for x in grid.waveforms):
+            logger.exception(
+                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+            )
+            raise ValueError
+
+        axis_map = {"x": 0, "y": 1, "z": 2}
+        normal_axis = axis_map[normal]
+        transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+
+        lower = np.zeros(3, dtype=np.int32)
+        upper = np.zeros(3, dtype=np.int32)
+        plane_index = int(round(w / grid.dl[normal_axis]))
+        lower[transverse_axes[0]] = int(round(p1[0] / grid.dl[transverse_axes[0]]))
+        lower[transverse_axes[1]] = int(round(p1[1] / grid.dl[transverse_axes[1]]))
+        upper[transverse_axes[0]] = int(round(p2[0] / grid.dl[transverse_axes[0]]))
+        upper[transverse_axes[1]] = int(round(p2[1] / grid.dl[transverse_axes[1]]))
+
+        if plane_index < 0 or plane_index > grid.size[normal_axis]:
+            logger.exception(f"{self.params_str()} normal source plane coordinate is outside the grid.")
+            raise ValueError
+
+        if np.any(lower[transverse_axes] < 0) or np.any(
+            upper[transverse_axes] > grid.size[transverse_axes]
+        ):
+            logger.exception(f"{self.params_str()} transverse source bounds are outside the grid.")
+            raise ValueError
+
+        if np.any(lower[transverse_axes] >= upper[transverse_axes]):
+            logger.exception(
+                f"{self.params_str()} lower transverse coordinates must be less than upper transverse coordinates."
+            )
+            raise ValueError
+
+        source = EigenmodeSourceUser(grid)
+        source.normal = normal
+        source.direction = direction
+        source.normal_axis = normal_axis
+        source.transverse_axes = tuple(transverse_axes)
+        source.transverse_start = lower[transverse_axes].copy()
+        source.transverse_stop = upper[transverse_axes].copy()
+        source.plane_index = plane_index
+        source.mode_index = mode_index
+        source.frequency = frequency
+        source.waveformID = waveform_id
+        source.waveform = next(x for x in grid.waveforms if x.ID == waveform_id)
+        source.start = 0
+        source.stop = grid.timewindow
+
+        logger.info(
+            f"{self.grid_name(grid)}Eigenmode source with normal {normal}{direction}, "
+            f"transverse bounds {p1} m to {p2} m, normal coordinate {w:g} m, mode index {mode_index}, "
+            f"frequency {frequency:g} Hz, using waveform {waveform_id} created."
+        )
+
+        grid.eigenmodesources.append(source)
 
 
 
