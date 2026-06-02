@@ -120,6 +120,8 @@ class EigenmodeSource(Source):
     injection.
     """
 
+    FDFD_INFINITE_PROPERTY_APPROX = 1e10 + 0j
+
     def __init__(self, G):
         super().__init__()
         self.normal = None
@@ -292,7 +294,7 @@ class EigenmodeSource(Source):
             if getattr(material, "se", 0) not in [0, float("inf")]:
                 er = er - 1j * material.se / (omega * config.e0)
         if getattr(material, "se", 0) == float("inf"):
-            er = np.inf + 0j
+            er = self.FDFD_INFINITE_PROPERTY_APPROX
         return er
 
     def _complex_mur(self, material):
@@ -301,7 +303,7 @@ class EigenmodeSource(Source):
         if getattr(material, "sm", 0) not in [0, float("inf")]:
             mur = mur - 1j * material.sm / (omega * config.m0)
         if getattr(material, "sm", 0) == float("inf"):
-            mur = np.inf + 0j
+            mur = self.FDFD_INFINITE_PROPERTY_APPROX
         return mur
 
     def update_eigenmode_magnetic(self, iteration, G):
