@@ -56,9 +56,9 @@ The constructor signature is:
        pec_ex_mask=None,
        pec_ey_mask=None,
        pec_ez_mask=None,
-       pec_hx_mask=None,
-       pec_hy_mask=None,
-       pec_hz_mask=None,
+       pmc_hx_mask=None,
+       pmc_hy_mask=None,
+       pmc_hz_mask=None,
    )
 
 ``frequency``
@@ -84,9 +84,12 @@ The constructor signature is:
     These are mainly useful for tests or non-gprMax callers. In normal gprMax
     integration, PEC is passed through non-finite electric material values.
 
-``pec_hx_mask``, ``pec_hy_mask``, ``pec_hz_mask``
-    Currently unsupported. Passing any magnetic conductor mask raises
-    ``NotImplementedError``.
+``pmc_hx_mask``, ``pmc_hy_mask``, ``pmc_hz_mask``
+    Reserved names for future magnetic conductor constraints. gprMax currently
+    supports PEC materials, but not PMC materials, so passing any non-empty PMC
+    mask raises ``NotImplementedError``. The names are intentionally kept in
+    the solver API so a future PMC implementation can be enabled without
+    changing the public argument names.
 
 Array Ordering
 --------------
@@ -151,13 +154,21 @@ electric PEC in eigenmode slices.
 PMC and Magnetic Conductors
 ---------------------------
 
-PMC is not implemented. The solver raises ``NotImplementedError`` if:
+PMC is not implemented because gprMax currently supports PEC materials but does
+not yet provide a PMC material workflow. The solver therefore raises
+``NotImplementedError`` if:
 
 * any ``mu_r_*`` array contains non-finite values, or
 * any explicit magnetic conductor mask is supplied.
 
 This is deliberate. Approximating PMC with a large permeability is not a
 correct replacement for enforcing the magnetic tangential boundary condition.
+
+The solver does reserve ``pmc_hx_mask``, ``pmc_hy_mask`` and ``pmc_hz_mask``
+constructor arguments. These are currently fail-fast placeholders, but they
+make the intended extension point explicit: once gprMax supports PMC material
+sampling, the solver can implement magnetic-field constraints behind these
+existing argument names.
 
 Eigenproblem
 ------------
@@ -355,4 +366,3 @@ For gprMax integration, prefer this path:
 4. Construct ``FDFD_2D_mode_solver``.
 5. Call ``solver.solve()`` with default spurious rejection enabled.
 6. Use ``solver.modal_*`` fields for eigenmode source injection.
-

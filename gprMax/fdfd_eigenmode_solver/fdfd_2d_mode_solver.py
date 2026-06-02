@@ -42,9 +42,9 @@ class FDFD_2D_mode_solver:
             pec_ex_mask=None,
             pec_ey_mask=None,
             pec_ez_mask=None,
-            pec_hx_mask=None,
-            pec_hy_mask=None,
-            pec_hz_mask=None,
+            pmc_hx_mask=None,
+            pmc_hy_mask=None,
+            pmc_hz_mask=None,
     ):
         self.epsilon0 = 8.85e-12
         self.mu0 = 1.26e-6
@@ -72,18 +72,18 @@ class FDFD_2D_mode_solver:
         self.pec_ex_mask = self._component_pec_mask(self.eps_r_xx, pec_ex_mask)
         self.pec_ey_mask = self._component_pec_mask(self.eps_r_yy, pec_ey_mask)
         self.pec_ez_mask = self._component_pec_mask(self.eps_r_zz, pec_ez_mask)
-        self.pec_hx_mask = self._component_pec_mask(self.mu_r_xx, pec_hx_mask, default=False)
-        self.pec_hy_mask = self._component_pec_mask(self.mu_r_yy, pec_hy_mask, default=False)
-        self.pec_hz_mask = self._component_pec_mask(self.mu_r_zz, pec_hz_mask, default=False)
-        if np.any(self.pec_hx_mask) or np.any(self.pec_hy_mask) or np.any(self.pec_hz_mask):
+        self.pmc_hx_mask = self._component_pec_mask(self.mu_r_xx, pmc_hx_mask, default=False)
+        self.pmc_hy_mask = self._component_pec_mask(self.mu_r_yy, pmc_hy_mask, default=False)
+        self.pmc_hz_mask = self._component_pec_mask(self.mu_r_zz, pmc_hz_mask, default=False)
+        if np.any(self.pmc_hx_mask) or np.any(self.pmc_hy_mask) or np.any(self.pmc_hz_mask):
             raise NotImplementedError("PMC or magnetic conductor constraints are not supported by this solver.")
 
         self.free_ex_mask = ~self.pec_ex_mask.ravel(order="F")
         self.free_ey_mask = ~self.pec_ey_mask.ravel(order="F")
         self.free_ez_mask = ~self.pec_ez_mask.ravel(order="F")
-        self.free_hx_mask = ~self.pec_hx_mask.ravel(order="F")
-        self.free_hy_mask = ~self.pec_hy_mask.ravel(order="F")
-        self.free_hz_mask = ~self.pec_hz_mask.ravel(order="F")
+        self.free_hx_mask = ~self.pmc_hx_mask.ravel(order="F")
+        self.free_hy_mask = ~self.pmc_hy_mask.ravel(order="F")
+        self.free_hz_mask = ~self.pmc_hz_mask.ravel(order="F")
         self.free_exy_mask = np.concatenate((self.free_ex_mask, self.free_ey_mask))
         self.free_hxy_mask = np.concatenate((self.free_hx_mask, self.free_hy_mask))
 
@@ -93,9 +93,9 @@ class FDFD_2D_mode_solver:
         self.eps_r_xx[self.pec_ex_mask] = 1.0 + 0j
         self.eps_r_yy[self.pec_ey_mask] = 1.0 + 0j
         self.eps_r_zz[self.pec_ez_mask] = 1.0 + 0j
-        self.mu_r_xx[self.pec_hx_mask] = 1.0 + 0j
-        self.mu_r_yy[self.pec_hy_mask] = 1.0 + 0j
-        self.mu_r_zz[self.pec_hz_mask] = 1.0 + 0j
+        self.mu_r_xx[self.pmc_hx_mask] = 1.0 + 0j
+        self.mu_r_yy[self.pmc_hy_mask] = 1.0 + 0j
+        self.mu_r_zz[self.pmc_hz_mask] = 1.0 + 0j
 
         self.mode_index = mode_index
         self.num_modes = self.mode_index + 1
