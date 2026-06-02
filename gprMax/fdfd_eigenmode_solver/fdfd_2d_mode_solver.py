@@ -489,7 +489,7 @@ if __name__ == "__main__":
     cell_pec_mask = np.zeros(shape, dtype=bool)
 
     # cell_pec_mask[40:50, 60:62] = True
-    cell_pec_mask[20:70, 38:40] = True
+    cell_pec_mask[10:80, 38:40] = True
     pec_ex_mask, pec_ey_mask, pec_ez_mask = FDFD_2D_mode_solver.component_pec_masks_from_cell_mask(cell_pec_mask)
 
     solver = FDFD_2D_mode_solver(
