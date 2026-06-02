@@ -48,54 +48,75 @@ def get_host_info():
     if sys.platform == "win32":
         # Manufacturer/model
         try:
-            manufacturer = (
-                subprocess.check_output(
-                    ["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT
-                )
-                .decode("utf-8")
-                .strip()
+            raw = subprocess.check_output(
+                ["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT
             )
-            manufacturer = manufacturer.split("\n")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            try:
+                raw = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-Command",
+                     "Get-CimInstance -ClassName Win32_ComputerSystemProduct | Select-Object -ExpandProperty Vendor"],
+                    shell=False, stderr=subprocess.STDOUT
+                )
+                manufacturer = raw.decode("utf-8").strip()
+            except subprocess.CalledProcessError:
+                pass
+        else:
+            manufacturer = raw.decode("utf-8").strip().split("\n")
             if len(manufacturer) > 1:
                 manufacturer = manufacturer[1]
             else:
                 manufacturer = manufacturer[0]
-            model = (
-                subprocess.check_output(
-                    ["wmic", "computersystem", "get", "model"],
-                    shell=False,
-                    stderr=subprocess.STDOUT,
-                )
-                .decode("utf-8")
-                .strip()
+        manufacturer = manufacturer.strip()
+
+        try:
+            raw = subprocess.check_output(
+                ["wmic", "computersystem", "get", "model"], shell=False, stderr=subprocess.STDOUT
             )
-            model = model.split("\n")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            try:
+                raw = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-Command",
+                     "Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty Model"],
+                    shell=False, stderr=subprocess.STDOUT
+                )
+                model = raw.decode("utf-8").strip()
+            except subprocess.CalledProcessError:
+                pass
+        else:
+            model = raw.decode("utf-8").strip().split("\n")
             if len(model) > 1:
                 model = model[1]
             else:
                 model = model[0]
-        except subprocess.CalledProcessError:
-            pass
+        model = model.strip()
+
         machineID = " ".join(manufacturer.split()) + " " + " ".join(model.split())
 
         # CPU information
         try:
-            allcpuinfo = (
-                subprocess.check_output(
-                    ["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT
-                )
-                .decode("utf-8")
-                .strip()
+            raw = subprocess.check_output(
+                ["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT
             )
-            allcpuinfo = allcpuinfo.split("\n")
-            sockets = 0
-            for line in allcpuinfo:
-                if "CPU" in line:
-                    cpuID = line.strip()
-                    cpuID = " ".join(cpuID.split())
-                    sockets += 1
-        except subprocess.CalledProcessError:
-            pass
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            try:
+                raw = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-Command",
+                     "Get-CimInstance -ClassName Win32_Processor | Select-Object -ExpandProperty Name"],
+                    shell=False, stderr=subprocess.STDOUT
+                )
+                allcpuinfo = raw.decode("utf-8").strip().split("\n")
+            except subprocess.CalledProcessError:
+                allcpuinfo = []
+        else:
+            allcpuinfo = raw.decode("utf-8").strip().split("\n")
+
+        sockets = 0
+        for line in allcpuinfo:
+            line = line.strip()
+            if line and line != "Name":
+                cpuID = " ".join(line.split())
+                sockets += 1
 
         # Hyperthreading
         if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):

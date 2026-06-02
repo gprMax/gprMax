@@ -36,3 +36,6 @@ examples/*.pdf
 # Test coverage files
 .coverage
 cov.xml
+
+#Sahib's files
+notes
