@@ -9,6 +9,8 @@ from scipy.sparse.linalg import eigs
 
 
 class FDFD_2D_mode_solver:
+    MAX_GUESS_MATERIAL_MAGNITUDE = 1e6
+
     def __init__(self, frequency, dx, dy, mode_index, eps_r_xx, eps_r_yy, eps_r_zz, mu_r_xx, mu_r_yy, mu_r_zz):
         self.epsilon0 = 8.85e-12
         self.mu0 = 1.26e-6
@@ -273,10 +275,10 @@ class FDFD_2D_mode_solver:
         return real + 1j * imag
 
     def _max_finite_magnitude(self, x):
-        finite = np.isfinite(x)
-        if not np.any(finite):
+        finite_physical = np.isfinite(x) & (np.abs(x) <= self.MAX_GUESS_MATERIAL_MAGNITUDE)
+        if not np.any(finite_physical):
             return 1.0
-        return float(np.max(np.abs(x[finite])))
+        return float(np.max(np.abs(x[finite_physical])))
 
 
 if __name__ == "__main__":
