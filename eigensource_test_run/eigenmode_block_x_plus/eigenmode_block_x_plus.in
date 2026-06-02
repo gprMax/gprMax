@@ -7,11 +7,11 @@
 
 #material: 6 0 1 0 guide_core
 
-#waveform: ricker 1 50e9 eig_pulse
+#waveform: ricker 1 80e9 eig_pulse
 
 #box: 0.000 0.007 0.007 0.064 0.011 0.011 guide_core
 
-#eigenmode_source: normal x + 0.0025 0.0025 0.0155 0.0155 0.008 1 50e9 eig_pulse
+#eigenmode_source: normal x + 0.0025 0.0025 0.0155 0.0155 0.008 1 80e9 eig_pulse
 
 #rx: 0.020 0.009 0.009
 #rx: 0.035 0.009 0.009

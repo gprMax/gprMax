@@ -40,4 +40,5 @@ cov.xml
 # IDEs
 .idea/
 .vscode/
+.codex_tmp
 target/

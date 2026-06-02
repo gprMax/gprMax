@@ -7,7 +7,7 @@
 
 #material: 6 0 1 0 guide_core
 
-#waveform: ricker 1 50e9 eig_pulse
+#waveform: ricker 1 30e9 eig_pulse
 
 #box: 0.000 0.007 0.007 0.064 0.011 0.011 guide_core
 
