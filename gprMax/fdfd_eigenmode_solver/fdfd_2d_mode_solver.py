@@ -467,11 +467,12 @@ class FDFD_2D_mode_solver:
 
 
 if __name__ == "__main__":
-    dx = 0.1e-3
-    dy = 0.1e-3
+    n = 2  # grid number multiplier
+    dx = 0.1e-3 / n
+    dy = 0.1e-3 / n
     frequency = 100e9
     mode_index = 5
-    shape = (120, 100)
+    shape = (120 * n, 100 * n)
     eps_r_xx = np.ones(shape, dtype=complex)
     eps_r_yy = np.ones(shape, dtype=complex)
     eps_r_zz = np.ones(shape, dtype=complex)
@@ -479,17 +480,17 @@ if __name__ == "__main__":
     mu_r_yy = np.ones(shape, dtype=complex)
     mu_r_zz = np.ones(shape, dtype=complex)
 
-    eps_r_xx[30:60, 40:60] = 4
-    eps_r_yy[30:60, 40:60] = 4
-    eps_r_zz[30:60, 40:60] = 4
+    eps_r_xx[20 * n:100 * n, 40 * n:50 * n] = 4
+    eps_r_yy[20 * n:100 * n, 40 * n:50 * n] = 4
+    eps_r_zz[20 * n:100 * n, 40 * n:50 * n] = 4
 
     # Standalone fallback: convert a cell-centred PEC object into distinct
     # component masks. In gprMax integration these masks should come directly
     # from component material IDs.
     cell_pec_mask = np.zeros(shape, dtype=bool)
 
-    # cell_pec_mask[40:50, 60:62] = True
-    cell_pec_mask[10:80, 38:40] = True
+    cell_pec_mask[50 * n:70 * n, 50 * n:51 * n] = True
+    cell_pec_mask[5 * n:115 * n, 39 * n:40 * n] = True
     pec_ex_mask, pec_ey_mask, pec_ez_mask = FDFD_2D_mode_solver.component_pec_masks_from_cell_mask(cell_pec_mask)
 
     solver = FDFD_2D_mode_solver(
