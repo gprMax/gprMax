@@ -1392,12 +1392,12 @@ class EigenmodeSource(GridUserObject):
     """
     Specifies an eigenmode source plane. The command form is:
 
-        #eigenmode_source: normal <x|y|z> <+|-> u0 v0 u1 v1 w mode_index frequency waveform_id
+        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> mode_index frequency waveform_id
 
-    The two coordinates (u, v) are the transverse coordinates of the source
-    plane. For normal z they are x/y; for normal x they are y/z; for normal y
-    they are x/z. The w coordinate is the source plane position along the
-    normal axis.
+    Exactly one coordinate pair must match between the two points. If x0=x1
+    the source lies in the yz plane with normal x; if y0=y1 the source lies in
+    the xz plane with normal y; if z0=z1 the source lies in the xy plane with
+    normal z.
     """
 
     @property

@@ -345,32 +345,48 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 11:
+            if len(tmp) != 10:
                 logger.exception(
                     "'"
                     + cmdname
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " requires exactly eleven parameters: normal axis direction u0 v0 u1 v1 w mode_index frequency waveform_id"
+                    + " requires exactly ten parameters: x0 y0 z0 x1 y1 z1 direction mode_index frequency waveform_id"
                 )
                 raise ValueError
 
-            if tmp[0].lower() != "normal":
+            p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
+            p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
+            equal_axes = [axis for axis in range(3) if p0[axis] == p1[axis]]
+            if len(equal_axes) != 1:
                 logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "' must start with 'normal'"
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " must have exactly one matching coordinate pair: x0=x1, y0=y1, or z0=z1"
                 )
                 raise ValueError
+
+            axis_names = ("x", "y", "z")
+            normal_axis = equal_axes[0]
+            transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+            transverse_p0 = [p0[axis] for axis in transverse_axes]
+            transverse_p1 = [p1[axis] for axis in transverse_axes]
+            transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
+            transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
 
             eigenmode_source = EigenmodeSource(
-                normal=tmp[1].lower(),
-                direction=tmp[2],
-                p1=(float(tmp[3]), float(tmp[4])),
-                p2=(float(tmp[5]), float(tmp[6])),
-                w=float(tmp[7]),
-                mode_index=int(tmp[8]),
-                frequency=float(tmp[9]),
-                waveform_id=tmp[10],
+                normal=axis_names[normal_axis],
+                direction=tmp[6],
+                p1=transverse_lower,
+                p2=transverse_upper,
+                w=p0[normal_axis],
+                mode_index=int(tmp[7]),
+                frequency=float(tmp[8]),
+                waveform_id=tmp[9],
             )
             scene_objects.append(eigenmode_source)
 
