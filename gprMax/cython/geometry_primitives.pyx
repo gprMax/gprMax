@@ -691,6 +691,7 @@ cpdef void build_box(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint constrain_all_edges,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -703,6 +704,8 @@ cpdef void build_box(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        constrain_all_edges: bint for rigid materials such as PEC that must set
+                    every Yee edge of every voxel, including high-side faces.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -715,6 +718,11 @@ cpdef void build_box(
                     solid[i, j, k] = numID
                     unset_rigid_E(i, j, k, rigidE)
                     unset_rigid_H(i, j, k, rigidH)
+    elif constrain_all_edges:
+        for i in range(xs, xf):
+            for j in range(ys, yf):
+                for k in range(zs, zf):
+                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
     else:
         for i in range(xs, xf):
             for j in range(ys, yf):

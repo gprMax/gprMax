@@ -3,6 +3,8 @@ import math
 import matplotlib
 import numpy as np
 
+import gprMax.config as config
+
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 from scipy.sparse import bmat, diags, eye, kron
@@ -46,10 +48,10 @@ class FDFD_2D_mode_solver:
             pmc_hy_mask=None,
             pmc_hz_mask=None,
     ):
-        self.epsilon0 = 8.85e-12
-        self.mu0 = 1.26e-6
-        self.c = 1 / np.sqrt(self.epsilon0 * self.mu0)
-        self.eta0 = np.sqrt(self.mu0 / self.epsilon0)
+        self.epsilon0 = config.sim_config.em_consts["e0"]
+        self.mu0 = config.sim_config.em_consts["m0"]
+        self.c = config.sim_config.em_consts["c"]
+        self.eta0 = config.sim_config.em_consts["z0"]
         self.omega = 2 * np.pi * frequency
         self.k0 = self.omega / self.c
 
@@ -137,14 +139,15 @@ class FDFD_2D_mode_solver:
                 raise NotImplementedError("PMC or magnetic conductor constraints are not supported by this solver.")
 
     def _component_pec_mask(self, values, explicit_mask, default=True):
+        mask = np.zeros(values.shape, dtype=bool)
+        if default:
+            mask |= ~np.isfinite(values)
         if explicit_mask is not None:
-            mask = np.asarray(explicit_mask, dtype=bool).copy()
-            if mask.shape != values.shape:
-                raise ValueError(f"PEC mask shape {mask.shape} does not match component shape {values.shape}.")
-            return mask
-        if not default:
-            return np.zeros(values.shape, dtype=bool)
-        return ~np.isfinite(values)
+            explicit_mask = np.asarray(explicit_mask, dtype=bool)
+            if explicit_mask.shape != values.shape:
+                raise ValueError(f"PEC mask shape {explicit_mask.shape} does not match component shape {values.shape}.")
+            mask |= explicit_mask
+        return mask
 
     @staticmethod
     def component_pec_masks_from_cell_mask(cell_pec_mask):

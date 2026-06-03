@@ -141,6 +141,7 @@ class Box(RotatableMixin, GeometryUserObject):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
+        constrain_all_edges = any(getattr(material, "se", 0) == float("inf") for material in materials)
         build_box(
             xs,
             xf,
@@ -153,6 +154,7 @@ class Box(RotatableMixin, GeometryUserObject):
             numIDy,
             numIDz,
             averaging,
+            constrain_all_edges,
             grid.solid,
             grid.rigidE,
             grid.rigidH,

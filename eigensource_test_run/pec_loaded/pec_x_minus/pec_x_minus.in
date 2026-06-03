@@ -1,0 +1,29 @@
+﻿#title: High-frequency x-minus eigenmode source in PEC-loaded guide with top PEC
+
+#domain: 0.024 0.018 0.018
+#dx_dy_dz: 0.0001 0.0001 0.0001
+#time_window: 0.22e-9
+#pml_cells: 10
+
+#material: 5 0.01 1 0 guide_core
+
+#waveform: contsine 1 5e+10 eig_pulse
+
+#box: 0 0.007 0.007 0.024 0.011 0.01 guide_core
+#box: 0 0.003 0.006 0.024 0.015 0.007 pec
+
+#eigenmode_source: 0.02 0.002 0.0025 0.02 0.016 0.0155 - 0 5e+10 eig_pulse
+
+#rx: 0.016 0.009 0.009
+#rx: 0.012 0.009 0.009
+#rx: 0.008 0.009 0.009
+
+#snapshot: 0 0.009 0 0.024 0.0091 0.018 0.0001 0.0001 0.0001 6e-11 xz_center_060ps.h5
+#snapshot: 0 0.009 0 0.024 0.0091 0.018 0.0001 0.0001 0.0001 1.2e-10 xz_center_120ps.h5
+#snapshot: 0 0.009 0 0.024 0.0091 0.018 0.0001 0.0001 0.0001 1.8e-10 xz_center_180ps.h5
+
+#snapshot: 0 0 0.009 0.024 0.018 0.0091 0.0001 0.0001 0.0001 6e-11 xy_center_060ps.h5
+#snapshot: 0 0 0.009 0.024 0.018 0.0091 0.0001 0.0001 0.0001 1.2e-10 xy_center_120ps.h5
+#snapshot: 0 0 0.009 0.024 0.018 0.0091 0.0001 0.0001 0.0001 1.8e-10 xy_center_180ps.h5
+
+#geometry_view: 0 0 0 0.024 0.018 0.018 0.0001 0.0001 0.0001 pec_x_minus n

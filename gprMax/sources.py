@@ -181,6 +181,7 @@ class EigenmodeSource(Source):
             self.complex_mu_r_zz,
         )
 
+        pec_ex_mask, pec_ey_mask, pec_ez_mask = self._cell_pec_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
             dx=G.dl[self.transverse_axes[0]],
@@ -192,6 +193,9 @@ class EigenmodeSource(Source):
             mu_r_xx=mu_components[local_to_global[0]],
             mu_r_yy=mu_components[local_to_global[1]],
             mu_r_zz=mu_components[local_to_global[2]],
+            pec_ex_mask=pec_ex_mask,
+            pec_ey_mask=pec_ey_mask,
+            pec_ez_mask=pec_ez_mask,
         )
         solver.solve()
         self._plot_eigenmode_fields(solver)
@@ -284,6 +288,61 @@ class EigenmodeSource(Source):
         if self.normal_axis == 1:
             return G.ID[component, u0 : u1 + 1, n, v0 : v1 + 1]
         return G.ID[component, u0 : u1 + 1, v0 : v1 + 1, n]
+
+    def _cell_pec_component_masks(self, G):
+        """Build local FDFD PEC masks from cell-centred PEC geometry.
+
+        Component IDs on non-averaged PEC boxes are one-sided at Yee faces.
+        These masks supplement the component-sampled material IDs so opposite
+        PEC faces produce symmetric constraints in the transverse mode solve.
+        """
+        cell_pec_mask = self._slice_cell_pec_mask(G)
+        nu = self.transverse_stop[0] - self.transverse_start[0] + 1
+        nv = self.transverse_stop[1] - self.transverse_start[1] + 1
+        pec_ex_mask = np.zeros((nu, nv), dtype=bool)
+        pec_ey_mask = np.zeros((nu, nv), dtype=bool)
+        pec_ez_mask = np.zeros((nu, nv), dtype=bool)
+        if cell_pec_mask.size == 0:
+            return pec_ex_mask, pec_ey_mask, pec_ez_mask
+
+        cu, cv = cell_pec_mask.shape
+        pec_ex_mask[:cu, :cv] |= cell_pec_mask
+        pec_ex_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+
+        pec_ey_mask[:cu, :cv] |= cell_pec_mask
+        pec_ey_mask[1 : cu + 1, :cv] |= cell_pec_mask
+
+        pec_ez_mask[:cu, :cv] |= cell_pec_mask
+        pec_ez_mask[1 : cu + 1, :cv] |= cell_pec_mask
+        pec_ez_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+        pec_ez_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
+        return pec_ex_mask, pec_ey_mask, pec_ez_mask
+
+    def _slice_cell_pec_mask(self, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        normal_indices = [
+            index
+            for index in (self.plane_index - 1, self.plane_index)
+            if 0 <= index < G.solid.shape[self.normal_axis]
+        ]
+        if not normal_indices:
+            return np.zeros((u1 - u0, v1 - v0), dtype=bool)
+
+        material_is_pec = np.zeros(len(G.materials), dtype=bool)
+        for material in G.materials:
+            material_is_pec[material.numID] = self._complex_er(material) == self.FDFD_PEC_PROPERTY
+
+        cell_pec_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
+        for n in normal_indices:
+            if self.normal_axis == 0:
+                ids = G.solid[n, u0:u1, v0:v1]
+            elif self.normal_axis == 1:
+                ids = G.solid[u0:u1, n, v0:v1]
+            else:
+                ids = G.solid[u0:u1, v0:v1, n]
+            cell_pec_mask |= material_is_pec[ids]
+        return cell_pec_mask
 
     def _complex_er(self, material):
         omega = 2 * np.pi * self.frequency
