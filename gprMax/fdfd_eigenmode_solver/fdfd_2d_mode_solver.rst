@@ -325,6 +325,67 @@ For magnetic materials:
 * finite magnetic conductivity is folded into complex permeability,
 * ``sm == inf`` raises ``NotImplementedError`` because PMC is not supported.
 
+PEC Boxes and ``constrain_all_edges``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Eigenmode sources need the FDFD mode solve and the time-domain FDTD injection
+to see the same PEC boundary. This is stricter than ordinary geometry
+placement because the FDFD solver removes constrained electric degrees of
+freedom from the modal eigenproblem, while the FDTD source later injects the
+same modal fields through the Yee-grid update coefficients.
+
+A PEC ``#box`` is specified by cell-centred extents, but electric fields live
+on component-specific Yee edges. The legacy non-averaged box builder only
+assigned a limited set of component IDs around each PEC cell, with selected
+high-side faces handled separately. That behaviour is preserved for existing
+models without eigenmode sources.
+
+For a PEC-loaded waveguide eigenmode source, however, this limited assignment
+can leave a tangential electric edge active on one side of a PEC interface. The
+FDFD solve may still classify the nearby cell as PEC through the supplemental
+cell mask, so the solved mode satisfies a PEC boundary there. The FDTD update,
+using ``G.ID`` and ``G.updatecoeffsE``, then still treats the unmatched edge as
+an active field location. The result is not a wrong propagation direction, but
+an impure injected modal field because the source is adding a clean FDFD mode
+onto a slightly different FDTD boundary condition.
+
+The ``constrain_all_edges`` option fixes this mismatch for PEC boxes used with
+eigenmode sources. When enabled, the box geometry path assigns every Yee
+electric edge touched by each PEC voxel, including the high-side edges. This
+makes the component material IDs, the FDTD update coefficients, and the FDFD
+PEC masks agree at the source cross-section.
+
+The option is intentionally gated in ``gprMax/user_objects/cmds_geometry/box.py``:
+
+.. code-block:: python
+
+   constrain_all_edges = bool(grid.eigenmodesources) and any(
+       getattr(material, "se", 0) == float("inf") for material in materials
+   )
+
+This keeps the old PEC box behaviour when no eigenmode source is present, and
+only uses the stricter edge assignment for PEC boxes in models that actually
+need modal FDFD/FDTD consistency. gprMax builds grid objects, including
+eigenmode sources, before geometry objects, so ``Box.build()`` can safely check
+``grid.eigenmodesources``.
+
+The related implementation points are:
+
+* ``gprMax/user_objects/cmds_geometry/box.py`` decides when
+  ``constrain_all_edges`` should be enabled.
+* ``gprMax/cython/geometry_primitives.pyx`` implements the stricter box build
+  path by calling ``build_voxel()`` for every PEC cell when
+  ``constrain_all_edges`` is true.
+* ``gprMax/sources.py`` builds the source-plane PEC masks passed into the FDFD
+  solver, including the cell-mask supplement used by eigenmode sources.
+* ``gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py`` consumes the explicit
+  component PEC masks and removes those constrained electric degrees of freedom
+  from the eigenproblem.
+
+The 2D TM artificial PEC boundaries do not use ``box.py``. They are applied by
+the grid setup code for ``2D TMx``, ``2D TMy`` and ``2D TMz`` models, so the
+``constrain_all_edges`` gate does not change those boundary conditions.
+
 Standalone Helper
 -----------------
 

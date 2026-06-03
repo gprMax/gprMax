@@ -99,12 +99,3 @@ snapshot files:
 
 The script expects each case directory to contain a snapshot directory named
 ``<case_name>_snaps``.
-
-Debugging Notes
----------------
-
-The detailed debugging record for the FDFD PEC mode solve and modal injection
-fixes is in:
-
-``gprMax/fdfd_eigenmode_solver/eigensource_pec_debugging_notes.md``
-
