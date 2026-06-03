@@ -10,7 +10,7 @@
 #waveform: contsine 1 5e+10 eig_pulse
 
 #box: 0 0.007 0.007 0.024 0.011 0.01 guide_core
-#box: 0 0.003 0.006 0.024 0.015 0.007 pec
+#box: 0 0.003 0.01 0.024 0.015 0.011 pec
 
 #eigenmode_source: 0.02 0.002 0.0025 0.02 0.016 0.0155 - 0 5e+10 eig_pulse
 
