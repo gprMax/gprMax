@@ -34,6 +34,17 @@ Test Groups
     guide. These are the main stress tests for PEC-constrained FDFD modes and
     modal field injection into the FDTD Yee grid.
 
+``microstrip``
+    Six microstrip tests:
+
+    - ``microstrip_x_plus`` and ``microstrip_x_minus``
+    - ``microstrip_y_plus`` and ``microstrip_y_minus``
+    - ``microstrip_z_plus`` and ``microstrip_z_minus``
+
+    Each case uses a lossy FR4 substrate, a bottom PEC ground plane, and a top
+    PEC strip. These tests check eigenmode solving and injection for a practical
+    lossy guided structure in all six propagation directions.
+
 Direction Convention
 --------------------
 
@@ -70,6 +81,12 @@ consistent between:
 - the FDFD eigenmode solver;
 - the gprMax Yee component material IDs;
 - the time-domain TF/SF source update.
+
+For the ``microstrip`` group, strong attenuation in the field-against-time
+plots is expected and is not a failed source injection by itself. These cases
+use FR4 with non-zero conductivity at 20 GHz, and FR4 is highly lossy at this
+frequency. The decaying received fields therefore reflect the material loss in
+the guided structure.
 
 Useful Outputs
 --------------
