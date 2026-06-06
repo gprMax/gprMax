@@ -116,3 +116,40 @@ snapshot files:
 
 The script expects each case directory to contain a snapshot directory named
 ``<case_name>_snaps``.
+
+Run All Cases
+-------------
+
+Use the run-all helper to execute every ``.in`` file below
+``eigensource_test_run`` and then regenerate all combined ``|E|`` snapshot
+plots with ``plot_direction_snapshots.py``.
+
+Windows PowerShell:
+
+.. code-block:: powershell
+
+   .\eigensource_test_run\run_all_eigensource_tests.ps1
+
+Windows Command Prompt:
+
+.. code-block:: bat
+
+   eigensource_test_run\run_all_eigensource_tests.bat
+
+macOS/Linux:
+
+.. code-block:: bash
+
+   sh eigensource_test_run/run_all_eigensource_tests.sh
+
+Run the commands from the repository root with the ``gprMax`` environment
+active.
+
+Useful options:
+
+.. code-block:: text
+
+   --dry-run       Print commands without running them.
+   --skip-runs     Only regenerate plots from existing snapshot files.
+   --skip-plots    Only run the gprMax input files.
+   --gprmax-arg X  Pass an extra argument to every gprMax run. Repeat as needed.

@@ -133,12 +133,12 @@ class EigenmodeSource(Source):
         self.mode_index = None
         self.frequency = None
         self.plane_index = None
-        self.complex_eps_r_xx = None
-        self.complex_eps_r_yy = None
-        self.complex_eps_r_zz = None
-        self.complex_mu_r_xx = None
-        self.complex_mu_r_yy = None
-        self.complex_mu_r_zz = None
+        self.complex_eps_r_uu = None
+        self.complex_eps_r_vv = None
+        self.complex_eps_r_ww = None
+        self.complex_mu_r_uu = None
+        self.complex_mu_r_vv = None
+        self.complex_mu_r_ww = None
         self.modal_e = None
         self.modal_h = None
         self.modal_e_real = None
@@ -151,15 +151,15 @@ class EigenmodeSource(Source):
         if self.plane_index is None:
             self.plane_index = self._select_plane_index(G)
         (
-            self.complex_eps_r_xx,
-            self.complex_eps_r_yy,
-            self.complex_eps_r_zz,
-        ) = self._extract_complex_property_tensors(G, electric=True)
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=True)
         (
-            self.complex_mu_r_xx,
-            self.complex_mu_r_yy,
-            self.complex_mu_r_zz,
-        ) = self._extract_complex_property_tensors(G, electric=False)
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=False)
 
         self._solve_eigenmode(G)
 
@@ -170,32 +170,21 @@ class EigenmodeSource(Source):
             self.transverse_axes[1],
             self.normal_axis,
         )
-        eps_components = (
-            self.complex_eps_r_xx,
-            self.complex_eps_r_yy,
-            self.complex_eps_r_zz,
-        )
-        mu_components = (
-            self.complex_mu_r_xx,
-            self.complex_mu_r_yy,
-            self.complex_mu_r_zz,
-        )
-
-        pec_ex_mask, pec_ey_mask, pec_ez_mask = self._cell_pec_component_masks(G)
+        pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
-            dx=G.dl[self.transverse_axes[0]],
-            dy=G.dl[self.transverse_axes[1]],
+            du=G.dl[self.transverse_axes[0]],
+            dv=G.dl[self.transverse_axes[1]],
             mode_index=self.mode_index,
-            eps_r_xx=eps_components[local_to_global[0]],
-            eps_r_yy=eps_components[local_to_global[1]],
-            eps_r_zz=eps_components[local_to_global[2]],
-            mu_r_xx=mu_components[local_to_global[0]],
-            mu_r_yy=mu_components[local_to_global[1]],
-            mu_r_zz=mu_components[local_to_global[2]],
-            pec_ex_mask=pec_ex_mask,
-            pec_ey_mask=pec_ey_mask,
-            pec_ez_mask=pec_ez_mask,
+            eps_r_uu=self.complex_eps_r_uu,
+            eps_r_vv=self.complex_eps_r_vv,
+            eps_r_ww=self.complex_eps_r_ww,
+            mu_r_uu=self.complex_mu_r_uu,
+            mu_r_vv=self.complex_mu_r_vv,
+            mu_r_ww=self.complex_mu_r_ww,
+            pec_u_mask=pec_u_mask,
+            pec_v_mask=pec_v_mask,
+            pec_w_mask=pec_w_mask,
         )
         solver.solve()
         self._plot_eigenmode_fields(solver)
@@ -205,15 +194,16 @@ class EigenmodeSource(Source):
         self.modal_e = [None, None, None]
         self.modal_h = [None, None, None]
 
-        self.modal_e[local_to_global[0]] = self._reshape_modal_field(solver.modal_Ex)
-        self.modal_e[local_to_global[1]] = self._reshape_modal_field(solver.modal_Ey)
-        self.modal_e[local_to_global[2]] = self._reshape_modal_field(solver.modal_Ez)
-        self.modal_h[local_to_global[0]] = self._reshape_modal_field(solver.modal_Hx)
-        self.modal_h[local_to_global[1]] = self._reshape_modal_field(solver.modal_Hy)
-        self.modal_h[local_to_global[2]] = self._reshape_modal_field(solver.modal_Hz)
+        self.modal_e[local_to_global[0]] = solver.modal_Eu
+        self.modal_e[local_to_global[1]] = solver.modal_Ev
+        self.modal_e[local_to_global[2]] = solver.modal_Ew
+        self.modal_h[local_to_global[0]] = solver.modal_Hu
+        self.modal_h[local_to_global[1]] = solver.modal_Hv
+        self.modal_h[local_to_global[2]] = solver.modal_Hw
         if self._modal_basis_handedness() < 0:
             self.modal_h = [-field for field in self.modal_h]
             logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
+        self._validate_modal_field_shapes()
         self.modal_e_real = [
             np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
             for field in self.modal_e
@@ -223,14 +213,22 @@ class EigenmodeSource(Source):
             for field in self.modal_h
         ]
 
-    def _reshape_modal_field(self, field):
-        return field.reshape(
-            (
-                self.transverse_stop[0] - self.transverse_start[0] + 1,
-                self.transverse_stop[1] - self.transverse_start[1] + 1,
-            ),
-            order="F",
-        )
+    def _validate_modal_field_shapes(self):
+        nu, nv = self._transverse_cell_shape()
+        expected_e = ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        expected_h = ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            actual = self.modal_e[global_axis].shape
+            if actual != expected_e[local_axis]:
+                raise ValueError(
+                    f"Eigenmode E local component {local_axis} shape {actual} does not match {expected_e[local_axis]}."
+                )
+            actual = self.modal_h[global_axis].shape
+            if actual != expected_h[local_axis]:
+                raise ValueError(
+                    f"Eigenmode H local component {local_axis} shape {actual} does not match {expected_h[local_axis]}."
+                )
 
     def _modal_basis_handedness(self):
         basis = np.eye(3, dtype=np.int32)
@@ -248,12 +246,12 @@ class EigenmodeSource(Source):
             f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
             f"_mode{self.mode_index}"
         )
-        e_path = output_dir / f"{filename_base}_Ex_Ey.png"
-        h_path = output_dir / f"{filename_base}_Hx_Hy.png"
+        e_path = output_dir / f"{filename_base}_Eu_Ev.png"
+        h_path = output_dir / f"{filename_base}_Hu_Hv.png"
         solver.plot_e_fields(e_path)
         solver.plot_h_fields(h_path)
-        logger.info(f"Eigenmode electric field plot written to {e_path}")
-        logger.info(f"Eigenmode magnetic field plot written to {h_path}")
+        logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
+        logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
 
     def _select_plane_index(self, G):
         """Choose the normal-axis plane from the propagation direction."""
@@ -263,60 +261,79 @@ class EigenmodeSource(Source):
             return G.pmls["thickness"][f"{axis_name}0"]
         return G.size[self.normal_axis] - G.pmls["thickness"][f"{axis_name}max"]
 
-    def _extract_complex_property_tensors(self, G, electric):
-        """Return xx, yy, zz complex er or mu_r arrays on the Yee slice."""
+    def _extract_local_complex_property_tensors(self, G, electric):
+        """Return local uu, vv, ww complex er or mu_r arrays on the Yee slice."""
         material_values = np.zeros(len(G.materials), dtype=np.complex128)
         for material in G.materials:
             material_values[material.numID] = (
                 self._complex_er(material) if electric else self._complex_mur(material)
             )
 
-        component_offset = 0 if electric else 3
+        field_kind = "E" if electric else "H"
         values = []
-        for component in range(3):
-            ids = self._slice_component_ids(G, component + component_offset)
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            ids = self._slice_local_component_ids(G, component, local_axis, field_kind)
             values.append(material_values[ids].copy())
         return tuple(values)
 
-    def _slice_component_ids(self, G, component):
+    def _transverse_cell_shape(self):
         u0, v0 = self.transverse_start
         u1, v1 = self.transverse_stop
-        n = self.plane_index
+        return u1 - u0, v1 - v0
 
-        if self.normal_axis == 0:
-            return G.ID[component, n, u0 : u1 + 1, v0 : v1 + 1]
-        if self.normal_axis == 1:
-            return G.ID[component, u0 : u1 + 1, n, v0 : v1 + 1]
-        return G.ID[component, u0 : u1 + 1, v0 : v1 + 1, n]
+    def _local_component_ranges(self, local_axis, field_kind):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        if field_kind == "E":
+            if local_axis == 0:
+                return slice(u0, u1), slice(v0, v1 + 1)
+            if local_axis == 1:
+                return slice(u0, u1 + 1), slice(v0, v1)
+            return slice(u0, u1 + 1), slice(v0, v1 + 1)
 
-    def _cell_pec_component_masks(self, G):
-        """Build local FDFD PEC masks from cell-centred PEC geometry.
+        if local_axis == 0:
+            return slice(u0, u1 + 1), slice(v0, v1)
+        if local_axis == 1:
+            return slice(u0, u1), slice(v0, v1 + 1)
+        return slice(u0, u1), slice(v0, v1)
+
+    def _slice_local_component_ids(self, G, component, local_axis, field_kind):
+        u_slice, v_slice = self._local_component_ranges(local_axis, field_kind)
+        grid_slices = [slice(None), slice(None), slice(None)]
+        grid_slices[self.normal_axis] = self.plane_index
+        grid_slices[self.transverse_axes[0]] = u_slice
+        grid_slices[self.transverse_axes[1]] = v_slice
+        return G.ID[(component, *grid_slices)]
+
+    def _cell_pec_electric_component_masks(self, G):
+        """Build local Yee electric PEC masks from cell-centred PEC geometry.
 
         Component IDs on non-averaged PEC boxes are one-sided at Yee faces.
         These masks supplement the component-sampled material IDs so opposite
         PEC faces produce symmetric constraints in the transverse mode solve.
         """
         cell_pec_mask = self._slice_cell_pec_mask(G)
-        nu = self.transverse_stop[0] - self.transverse_start[0] + 1
-        nv = self.transverse_stop[1] - self.transverse_start[1] + 1
-        pec_ex_mask = np.zeros((nu, nv), dtype=bool)
-        pec_ey_mask = np.zeros((nu, nv), dtype=bool)
-        pec_ez_mask = np.zeros((nu, nv), dtype=bool)
+        nu, nv = self._transverse_cell_shape()
+        pec_u_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pec_v_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pec_w_mask = np.zeros((nu + 1, nv + 1), dtype=bool)
         if cell_pec_mask.size == 0:
-            return pec_ex_mask, pec_ey_mask, pec_ez_mask
+            return pec_u_mask, pec_v_mask, pec_w_mask
 
         cu, cv = cell_pec_mask.shape
-        pec_ex_mask[:cu, :cv] |= cell_pec_mask
-        pec_ex_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+        pec_u_mask[:cu, :cv] |= cell_pec_mask
+        pec_u_mask[:cu, 1 : cv + 1] |= cell_pec_mask
 
-        pec_ey_mask[:cu, :cv] |= cell_pec_mask
-        pec_ey_mask[1 : cu + 1, :cv] |= cell_pec_mask
+        pec_v_mask[:cu, :cv] |= cell_pec_mask
+        pec_v_mask[1 : cu + 1, :cv] |= cell_pec_mask
 
-        pec_ez_mask[:cu, :cv] |= cell_pec_mask
-        pec_ez_mask[1 : cu + 1, :cv] |= cell_pec_mask
-        pec_ez_mask[:cu, 1 : cv + 1] |= cell_pec_mask
-        pec_ez_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
-        return pec_ex_mask, pec_ey_mask, pec_ez_mask
+        pec_w_mask[:cu, :cv] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, :cv] |= cell_pec_mask
+        pec_w_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
+        return pec_u_mask, pec_v_mask, pec_w_mask
 
     def _slice_cell_pec_mask(self, G):
         u0, v0 = self.transverse_start
