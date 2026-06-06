@@ -45,6 +45,18 @@ Test Groups
     PEC strip. These tests check eigenmode solving and injection for a practical
     lossy guided structure in all six propagation directions.
 
+``rectangular_waveguide``
+    Six air-filled rectangular PEC waveguide tests:
+
+    - ``waveguide_x_plus`` and ``waveguide_x_minus``
+    - ``waveguide_y_plus`` and ``waveguide_y_minus``
+    - ``waveguide_z_plus`` and ``waveguide_z_minus``
+
+    Each case uses only PEC walls around an air-filled 6 mm by 4 mm inner
+    waveguide aperture. The eigenmode source plane is limited to that inner
+    aperture and does not include the PEC wall cells. The 50 GHz source is
+    above the TE10 cutoff of the 6 mm broad wall.
+
 Direction Convention
 --------------------
 
