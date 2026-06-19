@@ -283,6 +283,7 @@ else:
             "colorama",
             "cython",
             "h5py",
+            "humanize",
             "jinja2",
             "matplotlib",
             "numpy",

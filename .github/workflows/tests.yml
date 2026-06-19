@@ -34,8 +34,14 @@ jobs:
             setup.py
             pyproject.toml
 
+      - name: Set up MPI runtime
+        uses: mpi4py/setup-mpi@v1
+
       - name: Upgrade pip tooling
         run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install mpi4py (pulled by gprMax import chain)
+        run: pip install mpi4py
 
       - name: Install gprMax (builds Cython extensions)
         run: pip install -e .

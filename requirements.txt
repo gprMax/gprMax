@@ -8,7 +8,6 @@ humanize
 jinja2
 jupyter
 matplotlib
-mpi4py
 numpy
 numpy-stl
 pandas
@@ -39,8 +38,9 @@ wheel
 
 
 # If running with mpi domain decomposition, the following dependencies
-# are also required:
+# are also required (require a system MPI runtime — Open MPI, MPICH, or MS-MPI):
 
+# mpi4py
 # mpi4py-fft
 
 
