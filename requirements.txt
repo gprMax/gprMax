@@ -17,6 +17,7 @@ psutil
 scipy
 terminaltables
 tqdm
+typing_extensions
 wheel
 
 # If running with CUDA backend, the following dependencies

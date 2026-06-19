@@ -290,6 +290,7 @@ else:
             "scipy",
             "terminaltables",
             "tqdm",
+            "typing_extensions",
         ],
         ext_modules=extensions,
         packages=find_packages(),
