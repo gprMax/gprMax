@@ -73,18 +73,84 @@ def make_dispersive():
 def fake_grid():
     """Factory for a minimal FDTDGrid stand-in.
 
-    The real FDTDGrid carries hundreds of attributes — Material methods only
-    read ``dt``, ``dx``, ``dy``, ``dz``, and a ``materials`` list. A
-    ``SimpleNamespace`` is enough at the unit level.
+    Materials tests use the minimal attribute set (``dt``, ``dx``, ``dy``,
+    ``dz``, ``materials``). Sources / receivers tests pass extra kwargs for
+    the richer attributes those methods read (``iterations``, ``timewindow``,
+    ``waveforms``, per-type source lists, ``IDlookup``, ``ID``, ``rxs``).
+    A ``SimpleNamespace`` is enough at the unit level.
     """
 
-    def _make(dt=1e-12, dx=1e-3, dy=1e-3, dz=1e-3, materials=None):
-        return SimpleNamespace(
+    def _make(
+        dt=1e-12,
+        dx=1.0,
+        dy=1.0,
+        dz=1.0,
+        materials=None,
+        iterations=10,
+        timewindow=None,
+        waveforms=None,
+        voltagesources=None,
+        hertziandipoles=None,
+        magneticdipoles=None,
+        transmissionlines=None,
+        IDlookup=None,
+        ID=None,
+        rxs=None,
+        **extra,
+    ):
+        if timewindow is None:
+            timewindow = iterations * dt
+        if IDlookup is None:
+            IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
+        ns = SimpleNamespace(
             dt=dt,
             dx=dx,
             dy=dy,
             dz=dz,
             materials=materials if materials is not None else [],
+            iterations=iterations,
+            timewindow=timewindow,
+            waveforms=waveforms if waveforms is not None else [],
+            voltagesources=voltagesources if voltagesources is not None else [],
+            hertziandipoles=hertziandipoles if hertziandipoles is not None else [],
+            magneticdipoles=magneticdipoles if magneticdipoles is not None else [],
+            transmissionlines=transmissionlines if transmissionlines is not None else [],
+            IDlookup=IDlookup,
+            ID=ID,
+            rxs=rxs if rxs is not None else [],
         )
+        for key, val in extra.items():
+            setattr(ns, key, val)
+        return ns
+
+    return _make
+
+
+class _ConstantWaveform:
+    """Test double for ``gprMax.waveforms.Waveform``.
+
+    ``calculate_value(t, dt)`` returns ``value`` whenever ``t >= 0`` and
+    ``0`` otherwise, so tests that need a non-trivial source amplitude can
+    pin it without re-deriving the gaussian / ricker formula. Tests that
+    care about the time-window logic should rely on ``Source.start``/
+    ``Source.stop``, not on the waveform itself.
+    """
+
+    def __init__(self, ID="wf", freq=1e9, value=1.0, wave_type="gaussian"):
+        self.ID = ID
+        self.freq = freq
+        self.type = wave_type
+        self._value = value
+
+    def calculate_value(self, time, dt):
+        return self._value if time >= 0 else 0.0
+
+
+@pytest.fixture
+def make_constant_waveform():
+    """Returns the ``_ConstantWaveform`` test double."""
+
+    def _make(ID="wf", freq=1e9, value=1.0, wave_type="gaussian"):
+        return _ConstantWaveform(ID=ID, freq=freq, value=value, wave_type=wave_type)
 
     return _make
