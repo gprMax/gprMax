@@ -68,7 +68,7 @@ def merge_files(basefilename, removefiles=False):
 
     Args:
         basefilename (string): Base name of output file series including path.
-        outputs (boolean): Flag to remove individual output files after merge.
+        removefiles (boolean): Flag to remove individual output files after merge.
     """
 
     outputfile = basefilename + '_merged.out'

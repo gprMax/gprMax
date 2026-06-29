@@ -154,7 +154,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     Args:
         filename (string): Filename (including path) of output file.
         time (array): Simulation time.
-        freq (array): Frequencies for FFTs.
+        freqs (array): Frequencies for FFTs.
         Vinc, Vincp, Iinc, Iincp (array): Time and frequency domain representations of incident voltage and current.
         Vref, Vrefp, Iref, Irefp (array): Time and frequency domain representations of reflected voltage and current.
         Vtotal, Vtotalp, Itotal, Itotalp (array): Time and frequency domain representations of total voltage and current.

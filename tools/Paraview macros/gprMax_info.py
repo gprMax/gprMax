@@ -81,7 +81,7 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
     Args:
         pmlthick (tuple): PML thickness values for each slab (cells)
         dx_dy_dz (tuple): Spatial resolution (m)
-        nx_ny_dz (tuple): Domain size (cells)
+        nx_ny_nz (tuple): Domain size (cells)
     """
 
     pml_names = ['x0', 'y0', 'z0', 'xmax', 'ymax', 'zmax']
