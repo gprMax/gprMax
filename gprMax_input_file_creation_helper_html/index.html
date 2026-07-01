@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gprMax HTML Helper</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    window.MathJax = { tex: { inlineMath: [["\\(", "\\)"], ["$", "$"]] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>gprMax Input Helper</h1>
+      <div class="top-actions">
+        <button id="updateAll">Update all</button>
+        <button id="loadInputFile" class="secondary" type="button">Load .in</button>
+        <input id="inputFilePicker" class="file-picker" type="file" accept=".in,text/plain">
+        <button id="copyOutput" class="secondary">Copy output</button>
+        <button id="clearAll" class="danger">Clear model</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Tools">
+      <button class="tab active" data-tab="model">Model</button>
+      <button class="tab" data-tab="materials">Materials</button>
+      <button class="tab" data-tab="geometry">Geometry</button>
+      <button class="tab" data-tab="waveforms">Waveforms</button>
+      <button class="tab" data-tab="sources">Sources</button>
+      <button class="tab" data-tab="rx">Rx</button>
+      <button class="tab" data-tab="snapshot">Snapshot</button>
+      <button class="tab" data-tab="output">Output</button>
+    </nav>
+
+    <section class="page active" id="page-model">
+      <div class="panel command-panel">
+        <h2>Model Commands</h2>
+        <div id="modelCommandRows" class="command-list"></div>
+      </div>
+      <div class="panel wide">
+        <h2>Domain and Frequency</h2>
+        <div class="grid3">
+          <label>Title<input id="titleValue" value="simple_test"></label>
+          <label>Min frequency
+            <div class="inline-unit"><input id="minFreq" placeholder="optional"><select id="minFreqUnit"><option>Hz</option><option>kHz</option><option>MHz</option><option selected>GHz</option><option>THz</option></select></div>
+          </label>
+          <label>Max frequency
+            <div class="inline-unit"><input id="maxFreq" value="1.5"><select id="maxFreqUnit"><option>Hz</option><option>kHz</option><option>MHz</option><option selected>GHz</option><option>THz</option></select></div>
+          </label>
+        </div>
+        <div class="grid3">
+          <label>x
+            <div class="inline-unit"><input id="domainX" value="240"><select id="domainXUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
+          </label>
+          <label>y
+            <div class="inline-unit"><input id="domainY" value="180"><select id="domainYUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
+          </label>
+          <label>z
+            <div class="inline-unit"><input id="domainZ" value="2"><select id="domainZUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
+          </label>
+        </div>
+        <div class="grid3">
+          <label>Max eps_r<input id="epsMax" value="6"></label>
+          <label>Smallest feature
+            <div class="inline-unit"><input id="smallestFeature" value="5"><select id="featureUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div>
+          </label>
+          <div class="checks">
+            <label><input id="curvedShape" type="checkbox" checked> curved/circular geometry</label>
+            <label><input id="subpixel" type="checkbox" checked> subpixel smoothing</label>
+            <label><input id="highEps" type="checkbox"> high refractive index material</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="panel">
+          <h2>dx dy dz</h2>
+          <div class="grid2">
+            <label>Choice<select id="dxChoice"><option>Recommended</option><option>Very coarse</option><option>Coarse</option><option>Normal</option><option>Fine</option><option>Extra fine</option><option>User defined</option></select></label>
+            <label>Unit<select id="dxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></label>
+          </div>
+          <div class="grid3">
+            <label>dx<input id="dxX"></label>
+            <label>dy<input id="dxY"></label>
+            <label>dz<input id="dxZ"></label>
+          </div>
+          <pre id="dxSuggestions" class="hintbox"></pre>
+        </div>
+        <div class="panel">
+          <h2>Time Window</h2>
+          <div class="grid2">
+            <label>Choice<select id="timeChoice"><option>Recommended</option><option>Very low resonance</option><option>Low resonance</option><option>Normal</option><option>Resonant</option><option>Very resonant</option><option>User defined</option></select></label>
+            <label>Unit<select id="timeUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option></select></label>
+          </div>
+          <label>Time window<input id="timeWindow"></label>
+          <pre id="timeSuggestions" class="hintbox"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-materials">
+      <div class="panel command-panel">
+        <h2>Material Commands</h2>
+        <div id="materialCommandRows" class="command-list"></div>
+      </div>
+      <div class="split">
+        <div class="panel">
+          <h2>Add Material</h2>
+          <div class="grid2">
+            <label>Identifier<input id="materialId" value="soil"></label>
+            <label>Relative permittivity, \( \epsilon_r \)<input id="materialEps" value="6"></label>
+            <label>Conductivity, \( \sigma \) S/m<input id="materialSigma" value="0.001"></label>
+            <label>Relative permeability, \( \mu_r \)<input id="materialMu" value="1"></label>
+            <label>Magnetic loss, \( \sigma_* \) Ohm/m<input id="materialSigmaStar" value="0"></label>
+          </div>
+          <p class="note">Diagonal anisotropy is applied when geometry objects use separate x, y, and z material identifiers. Define the directional materials here, then choose anisotropic material mode in Geometry.</p>
+          <button id="addMaterial">Add material command</button>
+        </div>
+        <div class="panel">
+          <h2>Add Anisotropic Material Set</h2>
+          <p class="note">Creates three ordinary <code>#material</code> commands named <code>prefix_x</code>, <code>prefix_y</code>, and <code>prefix_z</code>. Use these as x/y/z materials in Geometry.</p>
+          <label>Prefix<input id="anisPrefix" value="wood"></label>
+          <div class="field-grid">
+            <label>\( \epsilon_{xx} \)<input id="anisEpsX" value="4"></label>
+            <label>\( \epsilon_{yy} \)<input id="anisEpsY" value="6"></label>
+            <label>\( \epsilon_{zz} \)<input id="anisEpsZ" value="8"></label>
+            <label>\( \sigma_{xx} \)<input id="anisSigmaX" value="0"></label>
+            <label>\( \sigma_{yy} \)<input id="anisSigmaY" value="0"></label>
+            <label>\( \sigma_{zz} \)<input id="anisSigmaZ" value="0"></label>
+            <label>\( \mu_{xx} \)<input id="anisMuX" value="1"></label>
+            <label>\( \mu_{yy} \)<input id="anisMuY" value="1"></label>
+            <label>\( \mu_{zz} \)<input id="anisMuZ" value="1"></label>
+            <label>\( \sigma^*_{xx} \)<input id="anisLossX" value="0"></label>
+            <label>\( \sigma^*_{yy} \)<input id="anisLossY" value="0"></label>
+            <label>\( \sigma^*_{zz} \)<input id="anisLossZ" value="0"></label>
+          </div>
+          <button id="addAnisotropic">Add anisotropic material set</button>
+        </div>
+        <div class="panel">
+          <h2>Add Dispersion Pole</h2>
+          <div class="grid3">
+            <label>Material<select id="dispMaterial"></select></label>
+            <label>Type<select id="dispType"><option>Debye</option><option>Lorentz</option><option>Drude</option></select></label>
+            <label>Mode<select id="dispMode"><option>Append pole</option><option>Single pole</option></select></label>
+          </div>
+          <div class="grid3">
+            <label id="dispAName">Value A<input id="dispA" value="75.2"></label>
+            <label id="dispFreqName">Pole freq/time
+              <div class="inline-unit"><input id="dispFreq" value="0.009231"><select id="dispFreqUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option><option>Hz</option><option>kHz</option><option>MHz</option><option>GHz</option><option>THz</option></select></div>
+            </label>
+            <label id="dispDampingWrap">Damping, \( \delta_p \)
+              <div class="inline-unit"><input id="dispDamping" value="0"><select id="dispDampingUnit"><option>Hz</option><option>kHz</option><option>MHz</option><option selected>GHz</option><option>THz</option></select></div>
+            </label>
+          </div>
+          <div id="dispDescription" class="equation-note"></div>
+          <button id="addPole">Add dispersion command</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-geometry">
+      <div class="panel command-panel">
+        <h2>Geometry Commands</h2>
+        <div id="geometryCommandRows" class="command-list"></div>
+      </div>
+      <div class="panel">
+        <h2>Add Geometry</h2>
+        <div class="grid3">
+          <label>Command<select id="shapeType"></select></label>
+          <label id="shapeMaterialWrap">Material<select id="shapeMaterial"></select></label>
+          <label id="shapeSmoothingWrap">Smoothing<select id="shapeSmoothing"><option value="y">yes</option><option value="n">no</option><option value="">omit</option></select></label>
+        </div>
+        <div id="anisotropyControls" class="grid3">
+          <label>Material mode<select id="shapeMaterialMode"><option>Isotropic</option><option>Anisotropic x/y/z</option></select></label>
+          <label>x material<select id="shapeMaterialX"></select></label>
+          <label>y material<select id="shapeMaterialY"></select></label>
+          <label>z material<select id="shapeMaterialZ"></select></label>
+        </div>
+        <p id="shapeDescription" class="note"></p>
+        <div id="geometryFields" class="field-grid"></div>
+        <button id="addGeometry">Add geometry command</button>
+      </div>
+    </section>
+
+    <section class="page" id="page-waveforms">
+      <div class="panel command-panel">
+        <h2>Waveform Commands</h2>
+        <div id="waveformCommandRows" class="command-list"></div>
+      </div>
+      <div class="panel">
+        <h2>Add Waveform</h2>
+        <p class="note">Creates <code>#waveform: type amplitude centre_frequency identifier</code>. Sources reference the waveform identifier separately.</p>
+        <div class="grid3">
+          <label>Waveform type<select id="waveformType"><option>ricker</option><option>gaussian</option><option>gaussiandot</option><option>gaussiandotnorm</option><option>sine</option></select></label>
+          <label>Amplitude<input id="waveformAmp" value="1"></label>
+          <label>Identifier<input id="waveformId" value="pulse"></label>
+        </div>
+        <label>Centre frequency
+          <div class="inline-unit"><input id="waveformFreq" value="1.5"><select id="waveformFreqUnit"><option>Hz</option><option>kHz</option><option>MHz</option><option selected>GHz</option><option>THz</option></select></div>
+        </label>
+        <button id="addWaveform">Add waveform command</button>
+      </div>
+    </section>
+
+    <section class="page" id="page-sources">
+      <div class="panel command-panel">
+        <h2>Source Commands</h2>
+        <div id="sourceCommandRows" class="command-list"></div>
+      </div>
+      <div class="panel">
+        <h2>Add Source</h2>
+        <p class="note">A source references an existing waveform identifier. For voltage source and transmission line, the extra field is resistance in ohms and defaults to 50.</p>
+        <div class="grid3">
+          <label>Source<select id="sourceType"><option>hertzian_dipole</option><option>magnetic_dipole</option><option>voltage_source</option><option>transmission_line</option></select></label>
+          <label>Polarisation<input id="sourcePol" value="z"></label>
+          <label>Waveform id<select id="sourceWaveformId"></select></label>
+        </div>
+          <div class="grid3">
+            <label>x<div class="inline-unit"><input id="sourceX" value="120"><select id="sourceXUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>y<div class="inline-unit"><input id="sourceY" value="90"><select id="sourceYUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>z<div class="inline-unit"><input id="sourceZ" value="1"><select id="sourceZUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          </div>
+          <label>Extra parameters<input id="sourceExtra" placeholder="optional"></label>
+          <button id="addSource">Add source command</button>
+      </div>
+    </section>
+
+    <section class="page" id="page-rx">
+      <div class="panel command-panel">
+        <h2>Receiver Commands</h2>
+        <div id="rxCommandRows" class="command-list"></div>
+      </div>
+      <div class="panel">
+          <h2>Add Receiver</h2>
+          <p class="note">Creates <code>#rx: x y z [identifier output_components]</code>. The optional text after coordinates is copied as the receiver identifier/options.</p>
+          <div class="grid3">
+            <label>x<div class="inline-unit"><input id="rxX" value="120"><select id="rxXUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>y<div class="inline-unit"><input id="rxY" value="90"><select id="rxYUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+            <label>z<div class="inline-unit"><input id="rxZ" value="1"><select id="rxZUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          </div>
+          <label>Identifier<input id="rxId" placeholder="optional"></label>
+          <button id="addRx">Add receiver command</button>
+      </div>
+    </section>
+
+    <section class="page" id="page-snapshot">
+      <div class="panel command-panel">
+        <h2>Snapshot Commands</h2>
+        <div id="snapshotCommandRows" class="command-list"></div>
+      </div>
+      <div class="panel">
+        <h2>Add Snapshot</h2>
+        <p class="note">Creates one or more <code>#snapshot: xmin ymin zmin xmax ymax zmax dx dy dz time filename</code> commands.</p>
+        <pre id="snapshotInfo" class="hintbox"></pre>
+        <div class="field-grid">
+          <label>xmin<div class="inline-unit"><input id="snapXmin" value="0"><select id="snapXminUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>ymin<div class="inline-unit"><input id="snapYmin" value="0"><select id="snapYminUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>zmin<div class="inline-unit"><input id="snapZmin" value="0"><select id="snapZminUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>xmax<div class="inline-unit"><input id="snapXmax" value="240"><select id="snapXmaxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>ymax<div class="inline-unit"><input id="snapYmax" value="180"><select id="snapYmaxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>zmax<div class="inline-unit"><input id="snapZmax" value="2"><select id="snapZmaxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>dx<div class="inline-unit"><input id="snapDx"><select id="snapDxUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>dy<div class="inline-unit"><input id="snapDy"><select id="snapDyUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>dz<div class="inline-unit"><input id="snapDz"><select id="snapDzUnit"><option>m</option><option selected>mm</option><option>um</option><option>nm</option></select></div></label>
+          <label>Time method<select id="snapshotRangeMode"><option value="single">Single time</option><option value="linspace">Evenly spaced</option><option value="arange">Fixed step</option></select></label>
+          <div class="time-row span3">
+            <label id="snapshotStartWrap">Start<input id="snapshotStart" value="0.1"></label>
+            <label id="snapshotStopWrap">Stop<input id="snapshotStop" value="1"></label>
+            <label id="snapshotThirdWrap">Points<input id="snapshotThird" value="11"></label>
+            <label>Unit<select id="snapshotTimeUnit"><option>s</option><option>ms</option><option>us</option><option selected>ns</option><option>ps</option></select></label>
+          </div>
+          <label>Name<input id="snapshotName" value="snapshot_1"></label>
+        </div>
+        <button id="fillSnapshotDomain" class="secondary" type="button">Use current domain</button>
+        <button id="addSnapshot">Add snapshot command</button>
+      </div>
+    </section>
+
+    <section class="page" id="page-output">
+      <div class="panel">
+        <h2>Generated .in</h2>
+        <textarea id="outputCommands" class="codebox outputbox" readonly></textarea>
+        <p id="status" class="note"></p>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

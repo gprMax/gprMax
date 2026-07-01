@@ -1,0 +1,30 @@
+﻿#title: High-frequency y-plus eigenmode source in dielectric ridge guide with bottom slab
+
+#domain: 0.018 0.024 0.018
+#dx_dy_dz: 0.000125 0.000125 0.000125
+#time_window: 0.22e-9
+#pml_cells: 10
+
+#material: 6 0.02 1 0 guide_core
+#material: 4 0.01 1 0 guide_sub
+
+#waveform: contsine 1 7e+10 eig_pulse
+
+#box: 0.008 0 0.009 0.01 0.024 0.01 guide_core
+#box: 0.004 0 0.007 0.014 0.024 0.009 guide_sub
+
+#eigenmode_source: 0.0025 0.004 0.0025 0.0155 0.004 0.0155 + 0 7e+10 eig_pulse
+
+#rx: 0.009 0.008 0.009
+#rx: 0.009 0.012 0.009
+#rx: 0.009 0.016 0.009
+
+#snapshot: 0.009 0 0 0.009125 0.024 0.018 0.000125 0.000125 0.000125 6e-11 yz_center_060ps.h5
+#snapshot: 0.009 0 0 0.009125 0.024 0.018 0.000125 0.000125 0.000125 1.2e-10 yz_center_120ps.h5
+#snapshot: 0.009 0 0 0.009125 0.024 0.018 0.000125 0.000125 0.000125 1.8e-10 yz_center_180ps.h5
+
+#snapshot: 0 0 0.009 0.018 0.024 0.009125 0.000125 0.000125 0.000125 6e-11 xy_center_060ps.h5
+#snapshot: 0 0 0.009 0.018 0.024 0.009125 0.000125 0.000125 0.000125 1.2e-10 xy_center_120ps.h5
+#snapshot: 0 0 0.009 0.018 0.024 0.009125 0.000125 0.000125 0.000125 1.8e-10 xy_center_180ps.h5
+
+#geometry_view: 0 0 0 0.018 0.024 0.018 0.000125 0.000125 0.000125 ridge_y_plus n

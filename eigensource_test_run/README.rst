@@ -1,0 +1,181 @@
+Eigensource Test Runs
+=====================
+
+This folder contains small 3D regression-style runs for checking eigenmode
+source solving and injection in different propagation directions.
+
+The tests are not intended as high-accuracy production examples. They are short
+runs designed to make modal purity, propagation direction, and PEC/Yee-grid
+staggering problems visible in field snapshots.
+
+Test Groups
+-----------
+
+``dielectric_ridge``
+    Six dielectric-only tests:
+
+    - ``ridge_x_plus`` and ``ridge_x_minus``
+    - ``ridge_y_plus`` and ``ridge_y_minus``
+    - ``ridge_z_plus`` and ``ridge_z_minus``
+
+    Each case uses a dielectric ridge-like cross-section made from two
+    dielectric rectangles. These runs are the baseline direction tests. They
+    should inject cleanly for all ``+`` and ``-`` directions because there is no
+    PEC boundary to stress the Yee-component constraint handling.
+
+``pec_loaded``
+    Six PEC-loaded tests:
+
+    - ``pec_x_plus`` and ``pec_x_minus``
+    - ``pec_y_plus`` and ``pec_y_minus``
+    - ``pec_z_plus`` and ``pec_z_minus``
+
+    Each case uses one dielectric guide block and one PEC block adjacent to the
+    guide. These are the main stress tests for PEC-constrained FDFD modes and
+    modal field injection into the FDTD Yee grid.
+
+``microstrip``
+    Six microstrip tests:
+
+    - ``microstrip_x_plus`` and ``microstrip_x_minus``
+    - ``microstrip_y_plus`` and ``microstrip_y_minus``
+    - ``microstrip_z_plus`` and ``microstrip_z_minus``
+
+    Each case uses a lossy FR4 substrate, a bottom PEC ground plane, and a top
+    PEC strip. These tests check eigenmode solving and injection for a practical
+    lossy guided structure in all six propagation directions.
+
+``rectangular_waveguide``
+    Six air-filled rectangular PEC waveguide tests:
+
+    - ``waveguide_x_plus`` and ``waveguide_x_minus``
+    - ``waveguide_y_plus`` and ``waveguide_y_minus``
+    - ``waveguide_z_plus`` and ``waveguide_z_minus``
+
+    Each case uses only PEC walls around an air-filled 6 mm by 4 mm inner
+    waveguide aperture. The eigenmode source plane is limited to that inner
+    aperture and does not include the PEC wall cells. The 50 GHz source is
+    above the TE10 cutoff of the 6 mm broad wall.
+
+``cylindrical_waveguide``
+    Six air-filled cylindrical PEC waveguide tests:
+
+    - ``cylindrical_waveguide_x_plus`` and ``cylindrical_waveguide_x_minus``
+    - ``cylindrical_waveguide_y_plus`` and ``cylindrical_waveguide_y_minus``
+    - ``cylindrical_waveguide_z_plus`` and ``cylindrical_waveguide_z_minus``
+
+    Each case uses a 3.2 mm radius PEC cylinder and a concentric 3 mm radius
+    air cylinder along the propagation axis. The rectangular eigenmode source
+    plane extends one grid cell beyond the outer PEC cylinder's bounding
+    square, so these cases check circular PEC constraints and the cylinder
+    geometry primitive in the FDFD solve and source injection path. The 50 GHz
+    source is above the dominant TE11 cutoff of the air bore radius.
+
+Direction Convention
+--------------------
+
+The suffix gives the source normal and propagation direction:
+
+``x_plus`` / ``x_minus``
+    Source plane is normal to x and injects in ``+x`` or ``-x``.
+
+``y_plus`` / ``y_minus``
+    Source plane is normal to y and injects in ``+y`` or ``-y``.
+
+``z_plus`` / ``z_minus``
+    Source plane is normal to z and injects in ``+z`` or ``-z``.
+
+The simulation domain is shortened in the source normal direction to keep the
+runs quick. The two transverse dimensions are kept unchanged so the source
+cross-section remains comparable between axes.
+
+Expected Behaviour
+------------------
+
+For each ``+/-`` pair:
+
+- The solved effective index should match to numerical precision.
+- The solved modal field should be the same field mirrored across the
+  transverse top/bottom direction.
+- The injected wave should propagate in the requested direction.
+- The transverse modal profile should stay clean as it propagates.
+
+The ``dielectric_ridge`` group should pass these checks without involving PEC
+logic. The ``pec_loaded`` group additionally checks that PEC constraints are
+consistent between:
+
+- the FDFD eigenmode solver;
+- the gprMax Yee component material IDs;
+- the time-domain TF/SF source update.
+
+For the ``microstrip`` group, strong attenuation in the field-against-time
+plots is expected and is not a failed source injection by itself. These cases
+use FR4 with non-zero conductivity at 20 GHz, and FR4 is highly lossy at this
+frequency. The decaying received fields therefore reflect the material loss in
+the guided structure.
+
+Useful Outputs
+--------------
+
+Each run writes:
+
+``*_eigenmode_*_Ex_Ey.png`` and ``*_eigenmode_*_Hx_Hy.png``
+    Field plots of the solved FDFD mode.
+
+``*_snaps/*.h5``
+    Time snapshots from planes containing the propagation axis.
+
+``*_center_snapshots_Eabs.png``
+    Combined ``|E|`` snapshot plots generated by the plotting helper.
+
+Plotting Helper
+---------------
+
+Use ``plot_direction_snapshots.py`` to regenerate combined ``|E|`` images from
+snapshot files:
+
+.. code-block:: powershell
+
+   python eigensource_test_run\plot_direction_snapshots.py `
+       eigensource_test_run\pec_loaded\pec_x_plus `
+       eigensource_test_run\pec_loaded\pec_x_minus
+
+The script expects each case directory to contain a snapshot directory named
+``<case_name>_snaps``.
+
+Run All Cases
+-------------
+
+Use the run-all helper to execute every ``.in`` file below
+``eigensource_test_run`` and then regenerate all combined ``|E|`` snapshot
+plots with ``plot_direction_snapshots.py``.
+
+Windows PowerShell:
+
+.. code-block:: powershell
+
+   .\eigensource_test_run\run_all_eigensource_tests.ps1
+
+Windows Command Prompt:
+
+.. code-block:: bat
+
+   eigensource_test_run\run_all_eigensource_tests.bat
+
+macOS/Linux:
+
+.. code-block:: bash
+
+   sh eigensource_test_run/run_all_eigensource_tests.sh
+
+Run the commands from the repository root with the ``gprMax`` environment
+active.
+
+Useful options:
+
+.. code-block:: text
+
+   --dry-run       Print commands without running them.
+   --skip-runs     Only regenerate plots from existing snapshot files.
+   --skip-plots    Only run the gprMax input files.
+   --gprmax-arg X  Pass an extra argument to every gprMax run. Repeat as needed.

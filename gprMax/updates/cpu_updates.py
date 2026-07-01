@@ -126,6 +126,11 @@ class CPUUpdates(Updates[GridType]):
                     precompute=True,
                 )
 
+    def update_eigenmode_sources_electric(self, iteration):
+        """Updates eigenmode source electric fields."""
+        for source in self.grid.eigenmodesources:
+            source.update_eigenmode_electric(iteration, self.grid)
+
      
 
     def update_plane_waves_magnetic(self, iteration):
@@ -147,6 +152,11 @@ class CPUUpdates(Updates[GridType]):
                     cythonize=True,
                     precompute=True,
                 )
+
+    def update_eigenmode_sources_magnetic(self, iteration):
+        """Updates eigenmode source magnetic fields."""
+        for source in self.grid.eigenmodesources:
+            source.update_eigenmode_magnetic(iteration, self.grid)
             
     def update_electric_a(self):
         """Updates electric field components."""

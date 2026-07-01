@@ -49,6 +49,7 @@ from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
     DiscretePlaneWave,
+    EigenmodeSource,
     HertzianDipole,
     MagneticDipole,
     Source,
@@ -131,6 +132,7 @@ class FDTDGrid:
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines: List[TransmissionLine] = []
         self.discreteplanewaves: List[DiscretePlaneWave] = []
+        self.eigenmodesources: List[EigenmodeSource] = []
         self.rxs: List[Rx] = []
         self.snapshots = []  # List[Snapshot]
 
@@ -237,6 +239,8 @@ class FDTDGrid:
             self.transmissionlines.append(source)
         elif isinstance(source, DiscretePlaneWave):
             self.discreteplanewaves.append(source)
+        elif isinstance(source, EigenmodeSource):
+            self.eigenmodesources.append(source)
         else:
             raise TypeError(f"Source of type '{type(source)}' is unknown to gprMax")
 
@@ -265,6 +269,7 @@ class FDTDGrid:
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
         self._DPW__source_grid_init()
+        self._eigenmode_source_grid_init()
 
     def _build_pmls(self) -> None:
         """Construct and calculate material properties of the PMLs."""
@@ -472,6 +477,11 @@ class FDTDGrid:
        
         for dpw in self.discreteplanewaves:
             dpw.grid_init(self)
+
+    def _eigenmode_source_grid_init(self):
+        """Process eigenmode sources after Yee component IDs have been built."""
+        for source in self.eigenmodesources:
+            source.grid_init(self)
 
     def _build_materials(self) -> None:
         """Calculate properties of materials in the grid.

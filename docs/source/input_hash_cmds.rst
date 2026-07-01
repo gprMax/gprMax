@@ -976,6 +976,30 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 
 
+#eigenmode_source:
+------------------
+
+Allows you to introduce a two-dimensional eigenmode source port. The command extracts the material slice on the specified source plane, solves for the requested transverse eigenmode at the specified frequency, and uses the referenced waveform to excite that mode. The syntax of the command is:
+
+.. code-block:: none
+
+    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1 f7 str1
+
+* ``f1 f2 f3`` are the first point ``x0 y0 z0`` of the rectangular source port in metres.
+* ``f4 f5 f6`` are the opposite point ``x1 y1 z1`` of the rectangular source port in metres.
+* Exactly one coordinate pair must be the same between the two points. If ``x0=x1`` the port lies in the yz plane and is normal to x; if ``y0=y1`` the port lies in the xz plane and is normal to y; if ``z0=z1`` the port lies in the xy plane and is normal to z. Commands with zero, two, or three matching coordinate pairs are invalid because the source plane cannot be inferred unambiguously.
+* ``c1`` is the propagation direction from the source plane and can be ``+`` or ``-``.
+* ``i1`` is the zero-based mode index to excite.
+* ``f7`` is the frequency in Hertz used to solve the eigenmode fields.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+
+For example, to specify an eigenmode source on the yz plane at ``x=0.008`` m, propagating in the positive x direction, using mode index 1 solved at 80 GHz and the waveform defined by the identifier ``eig_pulse``, use: ``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 80e9 eig_pulse``.
+
+.. note::
+
+    * The ``#eigenmode_source`` command currently cannot be used with the CUDA, OpenCL, or Apple Metal solvers.
+
+
 #rx:
 ----
 

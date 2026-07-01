@@ -1,0 +1,30 @@
+#title: High-frequency y-minus eigenmode source in microstrip
+
+#domain: 0.018 0.024 0.018
+#dx_dy_dz: 0.0001 0.0001 0.0001
+#time_window: 0.22e-9
+#pml_cells: 10
+
+#material: 4 0.1 1 0 FR4
+
+#waveform: contsine 1 2e+10 eig_pulse
+
+#box: 0.0085 0 0.01 0.0095 0.024 0.0102 pec
+#box: 0.003 0 0.007 0.015 0.024 0.01 FR4
+#box: 0.003 0 0.0068 0.015 0.024 0.007 pec
+
+#eigenmode_source: 0.002 0.02 0.0025 0.016 0.02 0.0155 - 0 2e+10 eig_pulse
+
+#rx: 0.009 0.008 0.009
+#rx: 0.009 0.012 0.009
+#rx: 0.009 0.016 0.009
+
+#snapshot: 0.009 0 0 0.0091 0.024 0.018 0.0001 0.0001 0.0001 6e-11 yz_center_060ps.h5
+#snapshot: 0.009 0 0 0.0091 0.024 0.018 0.0001 0.0001 0.0001 1.2e-10 yz_center_120ps.h5
+#snapshot: 0.009 0 0 0.0091 0.024 0.018 0.0001 0.0001 0.0001 1.8e-10 yz_center_180ps.h5
+
+#snapshot: 0 0 0.009 0.018 0.024 0.0091 0.0001 0.0001 0.0001 6e-11 xy_center_060ps.h5
+#snapshot: 0 0 0.009 0.018 0.024 0.0091 0.0001 0.0001 0.0001 1.2e-10 xy_center_120ps.h5
+#snapshot: 0 0 0.009 0.018 0.024 0.0091 0.0001 0.0001 0.0001 1.8e-10 xy_center_180ps.h5
+
+#geometry_view: 0 0 0 0.018 0.024 0.018 0.0001 0.0001 0.0001 pec_y_minus n

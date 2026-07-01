@@ -18,13 +18,13 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from copy import deepcopy
-
 import numpy as np
 import numpy.typing as npt
 import math
 import logging
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
@@ -36,6 +36,10 @@ from .cython.plane_wave import (
     updatePlaneWave_electric_axial,
     updatePlaneWave_electric_dispersive,
     updatePlaneWave_electric_dispersive_axial,
+)
+from .cython.eigenmode_source import (
+    update_eigenmode_magnetic as updateEigenmode_magnetic,
+    update_eigenmode_electric as updateEigenmode_electric,
 )
 from .utilities.utilities import round_value
 
@@ -105,6 +109,492 @@ class Source:
     @zcoordorigin.setter
     def zcoordorigin(self, value: int):
         self.coordorigin[2] = value
+
+
+class EigenmodeSource(Source):
+    """Holds data for an eigenmode source and prepares material slices.
+
+    `grid_init()` runs after geometry has been converted to Yee component
+    material IDs, so it is the right place to extract material data from
+    `G.ID`, solve the transverse mode, and prepare modal fields for TF/SF
+    injection.
+    """
+
+    FDFD_PEC_PROPERTY = np.inf + 0j
+
+    def __init__(self, G):
+        super().__init__()
+        self.normal = None
+        self.direction = None
+        self.normal_axis = None
+        self.transverse_axes = None
+        self.transverse_start = None
+        self.transverse_stop = None
+        self.mode_index = None
+        self.frequency = None
+        self.plane_index = None
+        self.complex_eps_r_uu = None
+        self.complex_eps_r_vv = None
+        self.complex_eps_r_ww = None
+        self.complex_mu_r_uu = None
+        self.complex_mu_r_vv = None
+        self.complex_mu_r_ww = None
+        self.modal_e = None
+        self.modal_h = None
+        self.modal_e_real = None
+        self.modal_h_real = None
+        self.neff = None
+        self.mode_solver = None
+
+    def grid_init(self, G):
+        """Prepare source data that depends on the final built Yee grid."""
+        if self.plane_index is None:
+            self.plane_index = self._select_plane_index(G)
+        (
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=True)
+        (
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=False)
+
+        self._solve_eigenmode(G)
+
+    def _solve_eigenmode(self, G):
+        """Solve the local 2D eigenmode and map fields onto global components."""
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
+        solver = FDFD_2D_mode_solver(
+            frequency=self.frequency,
+            du=G.dl[self.transverse_axes[0]],
+            dv=G.dl[self.transverse_axes[1]],
+            mode_index=self.mode_index,
+            eps_r_uu=self.complex_eps_r_uu,
+            eps_r_vv=self.complex_eps_r_vv,
+            eps_r_ww=self.complex_eps_r_ww,
+            mu_r_uu=self.complex_mu_r_uu,
+            mu_r_vv=self.complex_mu_r_vv,
+            mu_r_ww=self.complex_mu_r_ww,
+            pec_u_mask=pec_u_mask,
+            pec_v_mask=pec_v_mask,
+            pec_w_mask=pec_w_mask,
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+
+        self.modal_e[local_to_global[0]] = solver.modal_Eu
+        self.modal_e[local_to_global[1]] = solver.modal_Ev
+        self.modal_e[local_to_global[2]] = solver.modal_Ew
+        self.modal_h[local_to_global[0]] = solver.modal_Hu
+        self.modal_h[local_to_global[1]] = solver.modal_Hv
+        self.modal_h[local_to_global[2]] = solver.modal_Hw
+        if self._modal_basis_handedness() < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
+        self._validate_modal_field_shapes()
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_h
+        ]
+
+    def _validate_modal_field_shapes(self):
+        nu, nv = self._transverse_cell_shape()
+        expected_e = ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        expected_h = ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            actual = self.modal_e[global_axis].shape
+            if actual != expected_e[local_axis]:
+                raise ValueError(
+                    f"Eigenmode E local component {local_axis} shape {actual} does not match {expected_e[local_axis]}."
+                )
+            actual = self.modal_h[global_axis].shape
+            if actual != expected_h[local_axis]:
+                raise ValueError(
+                    f"Eigenmode H local component {local_axis} shape {actual} does not match {expected_h[local_axis]}."
+                )
+
+    def _modal_basis_handedness(self):
+        basis = np.eye(3, dtype=np.int32)
+        transverse_u = basis[self.transverse_axes[0]]
+        transverse_v = basis[self.transverse_axes[1]]
+        normal = basis[self.normal_axis]
+        return int(np.dot(np.cross(transverse_u, transverse_v), normal))
+
+    def _plot_eigenmode_fields(self, solver):
+        input_path = config.sim_config.input_file_path
+        output_dir = input_path.parent
+        filename_base = (
+            f"{input_path.stem}_eigenmode_{self.normal}{self.direction}"
+            f"_w{self.plane_index}_u{self.transverse_start[0]}-{self.transverse_stop[0]}"
+            f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
+            f"_mode{self.mode_index}"
+        )
+        e_path = output_dir / f"{filename_base}_Eu_Ev.png"
+        h_path = output_dir / f"{filename_base}_Hu_Hv.png"
+        solver.plot_e_fields(e_path)
+        solver.plot_h_fields(h_path)
+        logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
+        logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
+
+    def _select_plane_index(self, G):
+        """Choose the normal-axis plane from the propagation direction."""
+        axis_names = ("x", "y", "z")
+        axis_name = axis_names[self.normal_axis]
+        if self.direction == "+":
+            return G.pmls["thickness"][f"{axis_name}0"]
+        return G.size[self.normal_axis] - G.pmls["thickness"][f"{axis_name}max"]
+
+    def _extract_local_complex_property_tensors(self, G, electric):
+        """Return local uu, vv, ww complex er or mu_r arrays on the Yee slice."""
+        material_values = np.zeros(len(G.materials), dtype=np.complex128)
+        for material in G.materials:
+            material_values[material.numID] = (
+                self._complex_er(material) if electric else self._complex_mur(material)
+            )
+
+        field_kind = "E" if electric else "H"
+        values = []
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            ids = self._slice_local_component_ids(G, component, local_axis, field_kind)
+            values.append(material_values[ids].copy())
+        return tuple(values)
+
+    def _transverse_cell_shape(self):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        return u1 - u0, v1 - v0
+
+    def _local_component_ranges(self, local_axis, field_kind):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        if field_kind == "E":
+            if local_axis == 0:
+                return slice(u0, u1), slice(v0, v1 + 1)
+            if local_axis == 1:
+                return slice(u0, u1 + 1), slice(v0, v1)
+            return slice(u0, u1 + 1), slice(v0, v1 + 1)
+
+        if local_axis == 0:
+            return slice(u0, u1 + 1), slice(v0, v1)
+        if local_axis == 1:
+            return slice(u0, u1), slice(v0, v1 + 1)
+        return slice(u0, u1), slice(v0, v1)
+
+    def _slice_local_component_ids(self, G, component, local_axis, field_kind):
+        u_slice, v_slice = self._local_component_ranges(local_axis, field_kind)
+        grid_slices = [slice(None), slice(None), slice(None)]
+        grid_slices[self.normal_axis] = self.plane_index
+        grid_slices[self.transverse_axes[0]] = u_slice
+        grid_slices[self.transverse_axes[1]] = v_slice
+        return G.ID[(component, *grid_slices)]
+
+    def _cell_pec_electric_component_masks(self, G):
+        """Build local Yee electric PEC masks from cell-centred PEC geometry.
+
+        Component IDs on non-averaged PEC boxes are one-sided at Yee faces.
+        These masks supplement the component-sampled material IDs so opposite
+        PEC faces produce symmetric constraints in the transverse mode solve.
+        """
+        cell_pec_mask = self._slice_cell_pec_mask(G)
+        nu, nv = self._transverse_cell_shape()
+        pec_u_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pec_v_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pec_w_mask = np.zeros((nu + 1, nv + 1), dtype=bool)
+        if cell_pec_mask.size == 0:
+            return pec_u_mask, pec_v_mask, pec_w_mask
+
+        cu, cv = cell_pec_mask.shape
+        pec_u_mask[:cu, :cv] |= cell_pec_mask
+        pec_u_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+
+        pec_v_mask[:cu, :cv] |= cell_pec_mask
+        pec_v_mask[1 : cu + 1, :cv] |= cell_pec_mask
+
+        pec_w_mask[:cu, :cv] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, :cv] |= cell_pec_mask
+        pec_w_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
+        return pec_u_mask, pec_v_mask, pec_w_mask
+
+    def _slice_cell_pec_mask(self, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        normal_indices = [
+            index
+            for index in (self.plane_index - 1, self.plane_index)
+            if 0 <= index < G.solid.shape[self.normal_axis]
+        ]
+        if not normal_indices:
+            return np.zeros((u1 - u0, v1 - v0), dtype=bool)
+
+        material_is_pec = np.zeros(len(G.materials), dtype=bool)
+        for material in G.materials:
+            material_is_pec[material.numID] = self._complex_er(material) == self.FDFD_PEC_PROPERTY
+
+        cell_pec_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
+        for n in normal_indices:
+            if self.normal_axis == 0:
+                ids = G.solid[n, u0:u1, v0:v1]
+            elif self.normal_axis == 1:
+                ids = G.solid[u0:u1, n, v0:v1]
+            else:
+                ids = G.solid[u0:u1, v0:v1, n]
+            cell_pec_mask |= material_is_pec[ids]
+        return cell_pec_mask
+
+    def _complex_er(self, material):
+        omega = 2 * np.pi * self.frequency
+        if hasattr(material, "calculate_er") and material.__class__.__name__ != "Material":
+            er = material.calculate_er(self.frequency)
+        else:
+            er = material.er
+            if getattr(material, "se", 0) not in [0, float("inf")]:
+                er = er - 1j * material.se / (omega * config.e0)
+        if getattr(material, "se", 0) == float("inf"):
+            er = self.FDFD_PEC_PROPERTY
+        return er
+
+    def _complex_mur(self, material):
+        omega = 2 * np.pi * self.frequency
+        mur = material.mr
+        if getattr(material, "sm", 0) not in [0, float("inf")]:
+            mur = mur - 1j * material.sm / (omega * config.m0)
+        if getattr(material, "sm", 0) == float("inf"):
+            raise NotImplementedError("Eigenmode FDFD solver does not support PMC materials yet.")
+        return mur
+
+    def update_eigenmode_magnetic(self, iteration, G):
+        """Apply magnetic-field TF/SF corrections using incident modal E."""
+        time = iteration * G.dt
+        if not self._source_is_active(time):
+            return
+
+        updateEigenmode_magnetic(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_e_real[0],
+            self.modal_e_real[1],
+            self.modal_e_real[2],
+            G.updatecoeffsH,
+            G.ID,
+            G.Hx,
+            G.Hy,
+            G.Hz,
+        )
+
+    def update_eigenmode_electric(self, iteration, G):
+        """Apply electric-field TF/SF corrections using incident modal H."""
+        time = iteration * G.dt + self._magnetic_modal_time_offset(G)
+        if not self._source_is_active(time):
+            return
+
+        updateEigenmode_electric(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_h_real[0],
+            self.modal_h_real[1],
+            self.modal_h_real[2],
+            G.updatecoeffsE,
+            G.ID,
+            G.Ex,
+            G.Ey,
+            G.Ez,
+        )
+
+    def _source_is_active(self, time):
+        return self.start <= time <= self.stop
+
+    def _magnetic_modal_time_offset(self, G):
+        """Half-step plus half-cell propagation delay for modal H sampling."""
+        neff = abs(float(np.real(self.neff)))
+        return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.c)
+
+    def _waveform_value(self, time, G):
+        return self.waveform.calculate_value(time - self.start, G.dt)
+
+    def _modal_value(self, field, u, v, time, G):
+        if field is None:
+            return 0.0
+        local_time = time - self.start
+        envelope = self.waveform.calculate_value(local_time, G.dt)
+        value = field[u - self.transverse_start[0], v - self.transverse_start[1]]
+        return float(envelope * np.real(value))
+
+    def _e_incident(self, component, u, v, time, G):
+        return self._modal_value(self.modal_e[component], u, v, time, G)
+
+    def _h_incident(self, component, u, v, time, G):
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return direction_scale * self._modal_value(self.modal_h[component], u, v, time, G)
+
+    def _add_h(self, G, component, i, j, k, value):
+        fields = (G.Hx, G.Hy, G.Hz)
+        material = G.ID[3 + component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsH[material, self.normal_axis + 1] * value
+
+    def _add_e(self, G, component, i, j, k, value):
+        fields = (G.Ex, G.Ey, G.Ez)
+        material = G.ID[component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsE[material, self.normal_axis + 1] * value
+
+    def _update_magnetic_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            target_i = i - 1
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, -self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, self._e_incident(1, j, k, time, G))
+        else:
+            target_i = i
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, -self._e_incident(1, j, k, time, G))
+
+    def _update_electric_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(2, j, k, time, G))
+        else:
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(2, j, k, time, G))
+
+    def _update_magnetic_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            target_j = j - 1
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, -self._e_incident(0, i, k, time, G))
+        else:
+            target_j = j
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, -self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, self._e_incident(0, i, k, time, G))
+
+    def _update_electric_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(2, i, k, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(2, i, k, time, G))
+
+    def _update_magnetic_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            target_k = k - 1
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, -self._e_incident(1, i, j, time, G))
+        else:
+            target_k = k
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, -self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, self._e_incident(1, i, j, time, G))
+
+    def _update_electric_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(1, i, j, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(1, i, j, time, G))
 
 
 class VoltageSource(Source):
