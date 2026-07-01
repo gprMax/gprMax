@@ -57,6 +57,20 @@ Test Groups
     aperture and does not include the PEC wall cells. The 50 GHz source is
     above the TE10 cutoff of the 6 mm broad wall.
 
+``cylindrical_waveguide``
+    Six air-filled cylindrical PEC waveguide tests:
+
+    - ``cylindrical_waveguide_x_plus`` and ``cylindrical_waveguide_x_minus``
+    - ``cylindrical_waveguide_y_plus`` and ``cylindrical_waveguide_y_minus``
+    - ``cylindrical_waveguide_z_plus`` and ``cylindrical_waveguide_z_minus``
+
+    Each case uses a 3.2 mm radius PEC cylinder and a concentric 3 mm radius
+    air cylinder along the propagation axis. The rectangular eigenmode source
+    plane extends one grid cell beyond the outer PEC cylinder's bounding
+    square, so these cases check circular PEC constraints and the cylinder
+    geometry primitive in the FDFD solve and source injection path. The 50 GHz
+    source is above the dominant TE11 cutoff of the air bore radius.
+
 Direction Convention
 --------------------
 
