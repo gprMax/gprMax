@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 anyio==4.2.0
 appnope==0.1.3
 argon2-cffi==21.3.0
@@ -115,3 +116,29 @@ webencodings==0.5.1
 websocket-client==0.58.0
 wheel==0.46.2
 widgetsnbextension==4.0.10
+=======
+# gprMax runtime dependencies
+#
+# This mirrors install_requires in setup.py: direct dependencies only.
+# Transitive packages (the JupyterLab stack, tornado, PyQt5, etc.) are
+# intentionally NOT listed here - let the resolver pull current, non-
+# vulnerable versions of those at install time rather than pinning stale
+# ones. Pinning transitive deps was the source of the Dependabot backlog.
+#
+# Versions below are floors set to the last known-good releases used with
+# gprMax 3.1.7. Floors (not ==) keep the file from re-accumulating alerts.
+
+colorama>=0.4.6
+Cython>=3.0.11
+h5py>=3.12.1
+matplotlib>=3.8.0
+numpy>=1.26.4        # No upper bound: gprMax supports NumPy 2.x. Floor kept at
+                     # 1.26.4 for backward compatibility; raise to >=2.0 if you
+                     # want to drop 1.x support.
+psutil>=5.9.0
+scipy>=1.15.1
+terminaltables>=3.1.10
+tqdm>=4.67.1
+jupyter>=1.1.1        # Only needed for the example notebooks, not the core solver.
+                      # See note below about moving this to an optional extra.
+>>>>>>> d00f0696 (Slim requirements.txt to direct dependencies only)
