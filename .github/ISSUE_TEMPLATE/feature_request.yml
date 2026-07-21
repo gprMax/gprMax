@@ -1,0 +1,102 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for gprMax
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide details about what you'd like to see in gprMax.
+        
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like
+      placeholder: "I would like to be able to..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: How would this feature be used? What research or application would benefit?
+      placeholder: "This would be useful for modeling..."
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which area does this feature relate to?
+      options:
+        - Geometry/Materials
+        - Sources/Receivers
+        - GPU/Performance
+        - Output/Visualization
+        - Input file syntax
+        - Documentation
+        - Other
+    validations:
+      required: true
+      
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Proposed Implementation (optional)
+      description: If you have ideas about how this could be implemented, share them here
+      placeholder: "This could be implemented by..."
+      
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: "I've tried..."
+      
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Any relevant research papers, documentation, or other software implementations?
+      placeholder: "See paper by Smith et al. (2020)..."
+      
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (your perspective)
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would be useful
+        - Important for my work
+        - Critical for my research
+        
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or examples about the feature request
+      
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this hasn't been requested before
+          required: true
+        - label: This feature aligns with the goals of gprMax (GPR simulation)
+          required: true
+        - label: I have checked the [documentation](http://docs.gprmax.com/) to confirm this doesn't already exist
+          required: false
