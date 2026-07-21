@@ -271,6 +271,41 @@ class FDTDGrid(Grid):
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
         self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
 
+    def cleanup(self):
+        """Explicitly release all large arrays and object references to free
+        memory. Called between model runs to prevent memory accumulation."""
+
+        # Delete large field arrays
+        for attr in ('Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz',
+                     'solid', 'rigidE', 'rigidH', 'ID',
+                     'updatecoeffsE', 'updatecoeffsH',
+                     'updatecoeffsdispersive',
+                     'Tx', 'Ty', 'Tz'):
+            if hasattr(self, attr):
+                delattr(self, attr)
+
+        # Clear lists holding objects with their own arrays
+        # (PML objects hold EPhi/HPhi arrays; sources hold waveform arrays)
+        for listattr in ('pmls', 'rxs', 'snapshots', 'materials',
+                         'voltagesources', 'hertziandipoles',
+                         'magneticdipoles', 'transmissionlines',
+                         'waveforms', 'geometryviews', 'geometryobjectswrite'):
+            lst = getattr(self, listattr, None)
+            if lst is not None:
+                lst.clear()
+
+        # Free GPU arrays if they were allocated
+        for attr in ('Ex_gpu', 'Ey_gpu', 'Ez_gpu',
+                     'Hx_gpu', 'Hy_gpu', 'Hz_gpu', 'ID_gpu',
+                     'Tx_gpu', 'Ty_gpu', 'Tz_gpu',
+                     'updatecoeffsdispersive_gpu'):
+            if hasattr(self, attr):
+                try:
+                    getattr(self, attr).gpudata.free()
+                except Exception:
+                    pass
+                delattr(self, attr)
+
 
 def dispersion_analysis(G):
     """
