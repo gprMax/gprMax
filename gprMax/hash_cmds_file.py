@@ -217,6 +217,7 @@ def check_cmd_names(processedlines, checkessential=True):
         [
             "#domain",
             "#domain_mode",
+            "#magnetic_averaging",
             "#dx_dy_dz",
             "#time_window",
             "#title",
@@ -258,6 +259,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx_array",
             "#snapshot",
             "#pml_cfs",
+            "#symmetry_boundary",
             "#include_file",
         ]
     }
@@ -267,6 +269,7 @@ def check_cmd_names(processedlines, checkessential=True):
     geometrycmds = [
         "#geometry_objects_read",
         "#edge",
+        "#magnetic_edge",
         "#plate",
         "#triangle",
         "#box",

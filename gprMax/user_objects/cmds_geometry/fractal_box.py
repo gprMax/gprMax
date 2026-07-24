@@ -737,6 +737,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 grassnumID = next((x.numID for x in grid.materials if x.ID == "grass"), 0)
                 data = self.volume.fractalvolume.astype("int16", order="C")
                 mask = self.volume.mask.copy(order="C")
+                is_pec_lookup = np.array([m.is_pec for m in grid.materials], dtype=np.uint8)
+                is_averagable_lookup = np.array(
+                    [m.averagable for m in grid.materials], dtype=np.uint8
+                )
                 build_voxels_from_array_mask(
                     self.volume.xs,
                     self.volume.ys,
@@ -744,6 +748,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     waternumID,
                     grassnumID,
                     self.volume.averaging,
+                    is_pec_lookup,
+                    is_averagable_lookup,
                     mask,
                     data,
                     grid.solid,
@@ -771,12 +777,18 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                 ]
 
                 data = self.volume.fractalvolume.astype("int16", order="C")
+                is_pec_lookup = np.array([m.is_pec for m in grid.materials], dtype=np.uint8)
+                is_averagable_lookup = np.array(
+                    [m.averagable for m in grid.materials], dtype=np.uint8
+                )
                 build_voxels_from_array(
                     self.volume.xs,
                     self.volume.ys,
                     self.volume.zs,
                     0,
                     self.volume.averaging,
+                    is_pec_lookup,
+                    is_averagable_lookup,
                     data,
                     grid.solid,
                     grid.rigidE,

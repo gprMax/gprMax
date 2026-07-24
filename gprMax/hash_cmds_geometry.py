@@ -31,6 +31,7 @@ from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
 from .user_objects.cmds_geometry.edge import Edge
 from .user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from .user_objects.cmds_geometry.fractal_box import FractalBox
+from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
 from .user_objects.cmds_geometry.sphere import Sphere
 from .user_objects.cmds_geometry.triangle import Triangle
@@ -80,6 +81,18 @@ def process_geometrycmds(geometry):
             )
 
             scene_objects.append(edge)
+
+        elif tmp[0] == "#magnetic_edge:":
+            if len(tmp) != 8:
+                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly seven parameters")
+                raise ValueError
+
+            magnetic_edge = MagneticEdge(
+                p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
+                p2=(float(tmp[4]), float(tmp[5]), float(tmp[6])),
+                material_id=tmp[7],
+            )
+            scene_objects.append(magnetic_edge)
 
         elif tmp[0] == "#plate:":
             if len(tmp) < 8:

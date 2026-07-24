@@ -238,7 +238,13 @@ Material commands
 Built-in materials
 ------------------
 
-gprMax has two builtin materials which can be used by specifying the identifiers ``pec`` and ``free_space``. These simulate a perfect electric conductor and air, i.e. a non-magnetic material with :math:`\epsilon_r = 1`, :math:`\sigma = 0`, respectively. Additionally the identifiers ``grass`` and ``water`` are currently reserved for internal use and should not be used unless you intentionally want to change their properties.
+gprMax has three built-in materials which can be used by specifying their identifiers:
+
+* ``pec`` is a perfect electric conductor (PEC), represented by infinite electric conductivity.
+* ``pmc`` is a perfect magnetic conductor (PMC), represented by infinite magnetic conductivity.
+* ``free_space`` is free space, with :math:`\epsilon_r = \mu_r = 1` and :math:`\sigma = \sigma_* = 0`.
+
+The identifiers ``grass`` and ``water`` are reserved for internal use and should not be used unless you intentionally want to change their properties.
 
 #material:
 ----------
@@ -477,6 +483,24 @@ At the boundaries between different materials in the model there is the question
     * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular patch not triangular prism) cannot have dielectric smoothing.
 
 
+#magnetic_averaging:
+---------------------
+
+Selects the mixing rule used for magnetic-field components at smoothed material interfaces. Each H component is constructed from the two cells stacked along its own axis. Because the normal component of magnetic flux density is continuous across an interface, the harmonic mean of relative permeability (:math:`\mu_r`) and magnetic loss (:math:`\sigma_*`) is used by default. Electric-field smoothing is unchanged and continues to use its arithmetic four-cell average. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_averaging: str1
+
+* ``str1`` is ``harmonic`` or ``arithmetic`` (case-insensitive).
+
+.. note::
+
+    * This command is optional; the default is ``harmonic``.
+    * Earlier versions of gprMax used an arithmetic magnetic average. Add ``#magnetic_averaging: arithmetic`` when exact reproduction of those results is required.
+    * The command chooses the magnetic mixing rule only; it does not enable or disable dielectric smoothing.
+
+
 .. _geometryview:
 
 #geometry_view:
@@ -512,6 +536,25 @@ Allows you to introduce a wire with specific properties into the model. A wire i
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 
 For example to specify a x-directed wire that is a perfect electric conductor, use: ``#edge: 0.5 0.5 0.5 0.7 0.5 0.5 pec``. Note that the y and z coordinates are identical.
+
+
+#magnetic_edge:
+----------------
+
+Allows you to introduce a single magnetic-field edge with specific properties into the model. It is the magnetic dual of ``#edge``. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_edge: f1 f2 f3 f4 f5 f6 str1
+
+* ``f1 f2 f3`` are the starting (x,y,z) coordinates of the edge, and ``f4 f5 f6`` are its ending coordinates. The coordinates must define a single axis-aligned line.
+* ``str1`` is a material identifier that has already been defined, or one of the built-in materials.
+
+For example, an x-directed perfect magnetic conductor is specified with ``#magnetic_edge: 0.5 0.5 0.5 0.7 0.5 0.5 pmc``.
+
+.. note::
+
+    ``#magnetic_edge`` is not currently supported in 2D mode.
 
 #plate:
 -------
@@ -1182,3 +1225,30 @@ The parameters will be applied to all slabs of the PML that are switched on.
 .. tip::
 
     ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
+
+
+#symmetry_boundary:
+--------------------
+
+Sets a PEC or PMC symmetry boundary on one face of the model domain, replacing the PML on that face. The command may be used more than once to set different faces. The syntax is:
+
+.. code-block:: none
+
+    #symmetry_boundary: str1 str2
+
+* ``str1`` is ``x0``, ``y0``, ``z0``, ``xmax``, ``ymax``, or ``zmax``.
+* ``str2`` is ``pec`` or ``pmc``.
+
+For example:
+
+.. code-block:: none
+
+    #symmetry_boundary: x0 pec
+    #symmetry_boundary: ymax pmc
+
+.. note::
+
+    * The PML thickness on a symmetry face is set to zero automatically.
+    * PEC boundaries and nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and Metal solvers.
+    * PMC boundaries in models containing dispersive materials are currently CPU-only.
+    * Symmetry boundaries are not currently supported in 2D mode, with MPI, or on a subgrid. They may be used on the main grid of a model that contains subgrids.

@@ -71,6 +71,11 @@ class Updates(Generic[GridType], ABC):
         """Updates electric field components."""
         pass
 
+    def update_symmetry_boundaries_electric(self) -> None:
+        """Apply any PMC ghost-image electric boundary correction."""
+
+        pass
+
     @abstractmethod
     def update_electric_pml(self) -> None:
         """Updates electric field components with the PML correction."""
@@ -91,6 +96,11 @@ class Updates(Generic[GridType], ABC):
         updated after the electric field has been updated by the PML and
         source updates.
         """
+        pass
+
+    def update_symmetry_boundaries_electric_b(self) -> None:
+        """Apply phase B of any dispersive PMC boundary correction."""
+
         pass
 
     @abstractmethod

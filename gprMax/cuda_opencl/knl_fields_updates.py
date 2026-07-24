@@ -174,24 +174,26 @@ update_magnetic = {
     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
 
-    // Hx component
-    if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
+    // Hx component. Include both own-axis domain walls; PMC symmetry uses
+    // the lower-wall value, while the ordinary outer-wall result remains
+    // mathematically inert because its tangential E values are zero.
+    if (NX != 1 && x >= 0 && x <= NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
         int materialHx = ID[IDX4D_ID(3,x_ID,y_ID,z_ID)];
         Hx[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHx,0)] * Hx[IDX3D_FIELDS(x,y,z)] -
                                     updatecoeffsH[IDX2D_MAT(materialHx,2)] * (Ez[IDX3D_FIELDS(x,y+1,z)] - Ez[IDX3D_FIELDS(x,y,z)]) +
                                     updatecoeffsH[IDX2D_MAT(materialHx,3)] * (Ey[IDX3D_FIELDS(x,y,z+1)] - Ey[IDX3D_FIELDS(x,y,z)]);
     }
 
-    // Hy component
-    if (NY != 1 && x >= 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
+    // Hy component - include both own-axis domain walls.
+    if (NY != 1 && x >= 0 && x < NX && y >= 0 && y <= NY && z >= 0 && z < NZ) {
         int materialHy = ID[IDX4D_ID(4,x_ID,y_ID,z_ID)];
         Hy[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHy,0)] * Hy[IDX3D_FIELDS(x,y,z)] -
                                     updatecoeffsH[IDX2D_MAT(materialHy,3)] * (Ex[IDX3D_FIELDS(x,y,z+1)] - Ex[IDX3D_FIELDS(x,y,z)]) +
                                     updatecoeffsH[IDX2D_MAT(materialHy,1)] * (Ez[IDX3D_FIELDS(x+1,y,z)] - Ez[IDX3D_FIELDS(x,y,z)]);
     }
 
-    // Hz component
-    if (NZ != 1 && x >= 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
+    // Hz component - include both own-axis domain walls.
+    if (NZ != 1 && x >= 0 && x < NX && y >= 0 && y < NY && z >= 0 && z <= NZ) {
         int materialHz = ID[IDX4D_ID(5,x_ID,y_ID,z_ID)];
         Hz[IDX3D_FIELDS(x,y,z)] = updatecoeffsH[IDX2D_MAT(materialHz,0)] * Hz[IDX3D_FIELDS(x,y,z)] -
                                     updatecoeffsH[IDX2D_MAT(materialHz,1)] * (Ey[IDX3D_FIELDS(x+1,y,z)] - Ey[IDX3D_FIELDS(x,y,z)]) +

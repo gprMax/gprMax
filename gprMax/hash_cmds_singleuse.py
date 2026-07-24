@@ -23,6 +23,7 @@ from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
     DomainMode,
+    MagneticAveraging,
     OMPThreads,
     OutputDir,
     PMLFormulation,
@@ -94,6 +95,16 @@ def process_singlecmds(singlecmds):
 
         domain_mode = DomainMode(mode=tmp[0])
         scene_objects.append(domain_mode)
+
+    cmd = "#magnetic_averaging"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires exactly one parameter, either 'harmonic' or 'arithmetic'")
+            raise ValueError
+
+        magnetic_averaging = MagneticAveraging(mode=tmp[0])
+        scene_objects.append(magnetic_averaging)
 
     cmd = "#domain"
     if singlecmds[cmd] is not None:

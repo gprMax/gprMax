@@ -122,6 +122,17 @@ Output Directory
 ----------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.OutputDir
 
+Magnetic Averaging
+------------------
+.. autoclass:: gprMax.user_objects.cmds_singleuse.MagneticAveraging
+
+The physically appropriate harmonic average is the default. Select the older
+arithmetic behaviour only when reproducing results from earlier versions:
+
+.. code-block:: python
+
+    scene.add(gprMax.MagneticAveraging(mode='arithmetic'))
+
 Material functions
 ==================
 
@@ -170,6 +181,20 @@ Cylindrical Sector
 Edge
 ----
 .. autoclass:: gprMax.user_objects.cmds_geometry.edge.Edge
+
+Magnetic Edge
+-------------
+.. autoclass:: gprMax.user_objects.cmds_geometry.magnetic_edge.MagneticEdge
+
+For example, add an x-directed perfect magnetic-conductor edge with:
+
+.. code-block:: python
+
+    scene.add(gprMax.MagneticEdge(
+        p1=(0.5, 0.5, 0.5),
+        p2=(0.7, 0.5, 0.5),
+        material_id='pmc',
+    ))
 
 Ellipsoid
 ---------
@@ -297,6 +322,16 @@ PML Formulation
 PML Thickness
 -------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.PMLThickness
+
+Symmetry Boundary
+-----------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.SymmetryBoundary
+
+For example, replace the PML on the lower x face with a PMC symmetry plane:
+
+.. code-block:: python
+
+    scene.add(gprMax.SymmetryBoundary(face='x0', type='pmc'))
 
 PML Properties
 --------------
