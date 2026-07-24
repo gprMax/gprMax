@@ -102,6 +102,8 @@ class Snapshot(OutputUserObject):
             raise ValueError(f"{self.params_str()} do not add snapshots to subgrids.")
 
         uip = self._create_uip(grid)
+        self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
+        self.upper_bound = uip.resolve_inf_point(self.upper_bound, role="upper")
         discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(
             self.lower_bound, self.upper_bound, self.params_str()
         )
@@ -295,6 +297,8 @@ class GeometryView(OutputUserObject):
 
     def build(self, model: Model, grid: FDTDGrid):
         uip = self._create_uip(grid)
+        self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
+        self.upper_bound = uip.resolve_inf_point(self.upper_bound, role="upper")
         discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(
             self.lower_bound, self.upper_bound, self.params_str()
         )
@@ -385,6 +389,8 @@ class GeometryObjectsWrite(OutputUserObject):
             raise ValueError(f"{self.params_str()} do not add geometry objects to subgrids.")
 
         uip = self._create_uip(grid)
+        self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
+        self.upper_bound = uip.resolve_inf_point(self.upper_bound, role="upper")
 
         discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(
             self.lower_bound, self.upper_bound, self.params_str()

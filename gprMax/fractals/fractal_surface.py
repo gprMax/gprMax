@@ -141,8 +141,38 @@ class FractalSurface:
 
         return surfacedims
 
+    def _te_invariant_inplane_index(self, invariant_axis: int) -> int:
+        """Maps a global axis index (0/1/2 for x/y/z) to its position (0 or
+        1) within this surface's 2D in-plane dims, as returned by
+        get_surface_dims(). Only valid for axes other than the surface's own
+        normal axis.
+        """
+
+        if self.xs == self.xf:
+            dims_axes = (1, 2)
+        elif self.ys == self.yf:
+            dims_axes = (0, 2)
+        else:
+            dims_axes = (0, 1)
+
+        return dims_axes.index(invariant_axis)
+
     def generate_fractal_surface(self) -> bool:
         """Generate a 2D array with a fractal distribution."""
+
+        # In 2D TE mode the invariant axis is 2 cells thick. If this surface
+        # spans both cells along that axis (i.e. the invariant axis is one
+        # of the surface's 2 in-plane dims, not its normal axis - normal ==
+        # invariant is rejected earlier, at #add_surface_roughness build
+        # time), generate a single 1-cell-thick shadow surface and copy it
+        # to both cells, for the same invariance/reproducibility reasons as
+        # FractalVolume.
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TE"):
+            invariant_axis = "xyz".index(mode[-1])
+            if self.size[invariant_axis] == 2:
+                in_plane_index = self._te_invariant_inplane_index(invariant_axis)
+                return self._generate_fractal_surface_te(invariant_axis, in_plane_index)
 
         surfacedims = self.get_surface_dims()
 
@@ -196,6 +226,46 @@ class FractalSurface:
             + self.fractalrange[0]
             - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
         )
+
+        return True
+
+    def _generate_fractal_surface_te(self, invariant_axis: int, in_plane_index: int) -> bool:
+        """Generate a fractal surface for a 2D TE-mode rough surface that is
+        2 cells thick along the invariant axis, by generating a single
+        1-cell-thick shadow surface (same seed/dimension/weighting/range,
+        reusing the existing, unmodified generation code) and broadcasting
+        it to both cells.
+
+        Args:
+            invariant_axis: 0, 1 or 2 for x, y or z - the axis on which this
+                surface is 2 cells thick.
+            in_plane_index: 0 or 1 - position of invariant_axis within this
+                surface's 2D in-plane dims (see get_surface_dims()).
+        """
+
+        shadow_stop = self.stop.copy()
+        shadow_stop[invariant_axis] = self.start[invariant_axis] + 1
+
+        shadow = FractalSurface(
+            self.start[0],
+            shadow_stop[0],
+            self.start[1],
+            shadow_stop[1],
+            self.start[2],
+            shadow_stop[2],
+            self.dimension,
+            self.seed,
+        )
+        shadow.weighting = self.weighting.copy()
+        shadow.fractalrange = self.fractalrange
+        shadow.generate_fractal_surface()
+
+        self.fractalsurface = np.zeros(self.get_surface_dims(), dtype=shadow.fractalsurface.dtype)
+        layer = np.take(shadow.fractalsurface, 0, axis=in_plane_index)
+        for i in range(self.size[invariant_axis]):
+            indexer = [slice(None), slice(None)]
+            indexer[in_plane_index] = i
+            self.fractalsurface[tuple(indexer)] = layer
 
         return True
 

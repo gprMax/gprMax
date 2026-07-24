@@ -21,6 +21,7 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.grass import Grass
 from gprMax.grid.fdtd_grid import FDTDGrid
@@ -100,6 +101,47 @@ class AddGrass(RotatableMixin, GeometryUserObject):
             raise ValueError(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
 
         uip = self._create_uip(grid)
+
+        # p1/p2 have one flat (normal) axis, where the coordinates must be
+        # equal, and two extent axes - same structure as
+        # #add_surface_roughness. Resolve the flat axis sign-based
+        # (role=None) so both points land on the same value, and the two
+        # extent axes positionally (role="lower"/"upper").
+        # A literal (non-inf) coordinate match always wins over a "both
+        # inf" match - the latter is ambiguous with a non-normal axis that
+        # legitimately spans its full range via `inf` on both endpoints
+        # (e.g. the model's own invariant axis, resolved positionally like
+        # any other extent axis), and only means "flat" when no genuinely
+        # flat axis exists elsewhere.
+        p1_arr = np.asarray(p1, dtype=np.float64)
+        p2_arr = np.asarray(p2, dtype=np.float64)
+        flat_axis = next(
+            (
+                axis
+                for axis in range(3)
+                if p1_arr[axis] == p2_arr[axis]
+                and not (np.isinf(p1_arr[axis]) and np.isinf(p2_arr[axis]))
+            ),
+            None,
+        )
+        if flat_axis is None:
+            flat_axis = next(
+                (axis for axis in range(3) if np.isinf(p1_arr[axis]) and np.isinf(p2_arr[axis])),
+                None,
+            )
+        p1_ranged = uip.resolve_inf_point(p1, role="lower")
+        p2_ranged = uip.resolve_inf_point(p2, role="upper")
+        if flat_axis is not None and (
+            np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])
+        ):
+            p1_single = uip.resolve_inf_point(p1, role=None)
+            p2_single = uip.resolve_inf_point(p2, role=None)
+            p1 = tuple(p1_single[a] if a == flat_axis else p1_ranged[a] for a in range(3))
+            p2 = tuple(p2_single[a] if a == flat_axis else p2_ranged[a] for a in range(3))
+        else:
+            p1 = p1_ranged
+            p2 = p2_ranged
+
         discretised_p1, discretised_p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
         xs, ys, zs = discretised_p1
         xf, yf, zf = discretised_p2
@@ -173,6 +215,14 @@ class AddGrass(RotatableMixin, GeometryUserObject):
         else:
             raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
 
+        mode = config.get_model_config().mode
+        if mode.startswith("2D") and requestedsurface[0] == mode[-1]:
+            raise ValueError(
+                f"{self.__str__()} cannot be applied to the {requestedsurface} surface in 2D "
+                "mode - its normal is the invariant axis, which has no meaningful depth for "
+                "grass (the same restriction as #add_surface_roughness in 2D mode)."
+            )
+
         surface = grid.create_fractal_surface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.ID = "grass"
         surface.surfaceID = requestedsurface
@@ -189,7 +239,35 @@ class AddGrass(RotatableMixin, GeometryUserObject):
         surface.operatingonID = volume.ID
         if not surface.generate_fractal_surface():
             return
-        if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
+
+        # In 2D TE mode the invariant axis is 2 cells thick, and
+        # generate_fractal_surface() has already made the underlying density
+        # map identical on both (see FractalSurface). But blade position/
+        # height sampling below is a *separate* random draw over the full
+        # flattened array - sampling it directly would place different
+        # blades on each of the two cells and would not reproduce what an
+        # equivalent TM-mode (1-cell) grass surface with the same seed would
+        # produce (the flattened probability vector, and hence every
+        # downstream digitize() result, has a different length/order for a
+        # 2-cell vs 1-cell array). So sample on a single reduced-thickness
+        # slice, matching TM's own shape/computation exactly. The result is
+        # placed at only one of the two cells below (not broadcast) - see
+        # that comment for why, and how the other cell still ends up
+        # correctly invariant.
+        te_axis = None
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TE"):
+            invariant_axis = "xyz".index(mode[-1])
+            if surface.size[invariant_axis] == 2:
+                te_axis = surface._te_invariant_inplane_index(invariant_axis)
+
+        density = surface.fractalsurface
+        if te_axis == 0:
+            density = density[:1, :]
+        elif te_axis == 1:
+            density = density[:, :1]
+
+        if n_blades > density.shape[0] * density.shape[1]:
             raise ValueError(
                 f"{self.__str__()} the specified surface is not large "
                 "enough for the number of grass blades/roots specified"
@@ -197,11 +275,11 @@ class AddGrass(RotatableMixin, GeometryUserObject):
 
         # Scale the distribution so that the summation is equal to one,
         # i.e. a probability distribution
-        surface.fractalsurface = surface.fractalsurface / np.sum(surface.fractalsurface)
+        density = density / np.sum(density)
 
         # Set location of grass blades using probability distribution
         # Create 1D vector of probability values from the 2D surface
-        probability1D = np.cumsum(np.ravel(surface.fractalsurface))
+        probability1D = np.cumsum(np.ravel(density))
 
         # Create random numbers between zero and one for the number of blades of grass
         R = np.random.RandomState(surface.seed)
@@ -212,7 +290,7 @@ class AddGrass(RotatableMixin, GeometryUserObject):
         # for the original surface.
         bladesindex = np.unravel_index(
             np.digitize(A, probability1D),
-            (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]),
+            (density.shape[0], density.shape[1]),
         )
 
         # Set the fractal range to minimum and maximum heights of the grass blades
@@ -220,13 +298,36 @@ class AddGrass(RotatableMixin, GeometryUserObject):
 
         # Set the fractal surface using the pre-calculated spatial distribution
         # and a random height
-        surface.fractalsurface = np.zeros(
-            (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1])
-        )
+        heights = np.zeros((density.shape[0], density.shape[1]))
         for i in range(len(bladesindex[0])):
-            surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(
+            heights[bladesindex[0][i], bladesindex[1][i]] = R.randint(
                 surface.fractalrange[0], surface.fractalrange[1], size=1
             )
+
+        if te_axis is not None:
+            # Deliberately do NOT broadcast heights to both invariant-axis
+            # cells here (unlike the plain density map above). The
+            # FractalBox.build() blade/root loop below increments a
+            # sequential index into Grass's fixed-size geometryparams array
+            # once per "blade found" grid point it visits - if both cells
+            # showed height>0 for the same row, that loop would visit (and
+            # allocate a geometry-parameter row for) the same logical blade
+            # twice, overflowing geometryparams (sized for exactly n_blades)
+            # and also giving the two cells different wobble geometry from
+            # different array rows. Instead, leave the duplicate cell at
+            # zero here so the loop only ever builds each blade once; the
+            # post-hoc mask broadcast in FractalBox.build() then copies the
+            # actual built voxels to the duplicate cell, achieving
+            # invariance without touching that loop at all.
+            full_shape = list(heights.shape)
+            full_shape[te_axis] = 2
+            full = np.zeros(tuple(full_shape))
+            indexer = [slice(None), slice(None)]
+            indexer[te_axis] = slice(0, 1)
+            full[tuple(indexer)] = heights
+            surface.fractalsurface = full
+        else:
+            surface.fractalsurface = heights
 
         # Check to see if grass has been already defined as a material
         if not any(x.ID == "grass" for x in grid.materials):

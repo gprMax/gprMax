@@ -190,6 +190,19 @@ class FractalVolume:
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
 
+        # In 2D TE mode the invariant axis is 2 cells thick. Generating the
+        # fractal independently over both cells would break invariance (the
+        # two cells would differ) and would not reproduce what a TM-mode
+        # FractalBox of the same footprint would generate. Instead generate
+        # a single 1-cell-thick "shadow" volume - identical to what a TM box
+        # would produce for the same seed/dimension/weighting - and copy it
+        # to both invariant-axis cells.
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TE"):
+            invariant_axis = "xyz".index(mode[-1])
+            if self.size[invariant_axis] == 2:
+                return self._generate_fractal_volume_te(invariant_axis)
+
         # Scale filter according to size of fractal volume
         if self.nx == 1:
             filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array([self.ny, self.nz])
@@ -261,6 +274,45 @@ class FractalVolume:
                 self.fractalvolume[:, j, k] = np.digitize(
                     self.fractalvolume[:, j, k], bins, right=True
                 )
+
+        return True
+
+    def _generate_fractal_volume_te(self, invariant_axis: int) -> bool:
+        """Generate a fractal volume for a 2D TE-mode FractalBox that is 2
+        cells thick along the invariant axis, by generating a single
+        1-cell-thick shadow volume (same seed/dimension/weighting/nbins,
+        reusing the existing, unmodified generation code) and broadcasting
+        it to both cells.
+
+        Args:
+            invariant_axis: 0, 1 or 2 for x, y or z - the axis on which this
+                volume is 2 cells thick.
+        """
+
+        shadow_stop = self.stop.copy()
+        shadow_stop[invariant_axis] = self.start[invariant_axis] + 1
+
+        shadow = FractalVolume(
+            self.start[0],
+            shadow_stop[0],
+            self.start[1],
+            shadow_stop[1],
+            self.start[2],
+            shadow_stop[2],
+            self.dimension,
+            self.seed,
+        )
+        shadow.weighting = self.weighting.copy()
+        shadow.nbins = self.nbins
+        shadow.generate_fractal_volume()
+        self.weighting = shadow.weighting
+
+        self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=shadow.fractalvolume.dtype)
+        layer = np.take(shadow.fractalvolume, 0, axis=invariant_axis)
+        for i in range(self.size[invariant_axis]):
+            indexer = [slice(None), slice(None), slice(None)]
+            indexer[invariant_axis] = i
+            self.fractalvolume[tuple(indexer)] = layer
 
         return True
 

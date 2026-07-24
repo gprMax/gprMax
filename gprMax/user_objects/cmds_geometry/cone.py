@@ -21,6 +21,7 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_cone
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
@@ -64,6 +65,14 @@ class Cone(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify two points and two radii")
             raise
 
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(
+                f"{self.__str__()} cannot be used in 2D mode - a cone's circular "
+                "cross-section varies along its axis, so it is not invariant along "
+                "the invariant axis. Use a Cylinder instead if a constant "
+                "cross-section is required."
+            )
+
         # Check averaging
         try:
             # Try user-specified averaging
@@ -85,6 +94,8 @@ class Cone(GeometryUserObject):
                 raise
 
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 

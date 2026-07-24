@@ -82,6 +82,8 @@ class Cylinder(GeometryUserObject):
                 raise
 
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
