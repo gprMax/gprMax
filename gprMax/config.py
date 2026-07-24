@@ -258,7 +258,12 @@ class SimulationConfig:
 
         self.general = {
             "solver": "cpu",
-            "precision": "single",
+            # Deliberately "single" by default (not "double") to preserve
+            # memory on large CPU models. Overridable via -cpu_precision/
+            # cpu_precision= (this branch only - the CUDA/OpenCL/Metal and
+            # subgrid branches below have their own, separate precision
+            # arguments/overrides).
+            "precision": args.cpu_precision,
             "progressbars": (
                 args.show_progress_bars or (args.log_level <= 20 and not args.hide_progress_bars)
             ),
@@ -275,9 +280,10 @@ class SimulationConfig:
         # CUDA
         if self.gpu is not None:
             self.general["solver"] = "cuda"
-            # Both single and double precision are possible on GPUs, but single
-            # provides best performance.
-            self.general["precision"] = "single"
+            # Both single and double precision are possible on GPUs.
+            # Deliberately "single" by default (best performance) - see
+            # -gpu_precision/gpu_precision=.
+            self.general["precision"] = args.gpu_precision
             self.devices = {
                 "devs": [],
                 "nvcc_opts": None,
@@ -292,7 +298,7 @@ class SimulationConfig:
         # OpenCL
         if self.opencl is not None:
             self.general["solver"] = "opencl"
-            self.general["precision"] = "single"
+            self.general["precision"] = args.gpu_precision
             self.devices = {
                 "devs": [],
                 "compiler_opts": None,
@@ -310,8 +316,27 @@ class SimulationConfig:
         # Apple Metal
         if self.args.metal is not None:
             self.general["solver"] = "metal"
-            self.general["precision"] = "single"
+            self.general["precision"] = args.gpu_precision
             self.devices = {"devs": [], "compiler_opts": None}  # Apple Metal device object(s); compiler options
+
+            # Apple GPU hardware has no native double-precision floating
+            # point support, and the Metal Shading Language has no "double"
+            # type at all - unlike CUDA/OpenCL, this isn't a gprMax-side
+            # limitation to work around, it's a hard platform constraint.
+            # Without this guard, requesting double precision here would
+            # silently generate invalid Metal shader source (e.g. "device
+            # const double& dx", "metal::complex<double>") that fails to
+            # compile - and since Metal library-compile call sites discard
+            # the compile error, that would surface later as an opaque
+            # AttributeError on None.newFunctionWithName_ instead of this
+            # clear diagnostic.
+            if self.general["precision"] == "double":
+                logger.error(
+                    "The Metal solver does not support double precision - Apple GPU "
+                    "hardware and the Metal Shading Language have no native double "
+                    "type. Use the CPU, CUDA, or OpenCL solver for double precision."
+                )
+                raise ValueError
 
             # Add metal available device(s)
             self.devices["devs"] = detect_metal()
@@ -320,6 +345,12 @@ class SimulationConfig:
         if hasattr(self.args, "subgrid") and self.args.subgrid:
             self.general["subgrid"] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
+            # - always wins, regardless of -cpu_precision/-gpu_precision.
+            if self.general["precision"] == "single":
+                logger.warning(
+                    "Sub-gridding requires double precision - overriding the requested"
+                    " single precision."
+                )
             self.general["precision"] = "double"
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
                 self.general["subgrid"] and self.general["solver"] == "opencl") or (
@@ -409,6 +440,20 @@ class SimulationConfig:
                 self.dtypes["C_complex"] = "cdouble"
             elif self.general["solver"] == "metal":
                 self.dtypes["C_complex"] = "metal::complex<double>"
+
+        else:
+            # The CLI protects against this via argparse's
+            # choices=["single", "double"] on -cpu_precision/-gpu_precision,
+            # but the Python API (cpu_precision=/gpu_precision=) bypasses
+            # argparse entirely and accepts any string. Without this
+            # branch, an invalid value left self.dtypes completely unset,
+            # failing later with a confusing, unrelated
+            # AttributeError/KeyError far from the actual bad input.
+            logger.error(
+                f"Precision '{self.general['precision']}' is not recognised - "
+                "it must be 'single' or 'double'."
+            )
+            raise ValueError
 
     def _set_input_file_path(self):
         """Sets input file path for CLI or API."""
