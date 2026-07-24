@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -43,6 +43,7 @@ cpdef void {{ item.name_a }}(
     int nx,
     int ny,
     int nz,
+    int mode2d,
     int nthreads,
     int maxpoles,
     {{ item.field_type }}[:, ::1] updatecoeffsE,
@@ -63,6 +64,11 @@ cpdef void {{ item.name_a }}(
 
     Args:
         nx, ny, nz: int for grid size in cells.
+        mode2d: int explicitly identifying the active 2D reduction (if
+                any) - see update_electric() in fields_updates_normal.pyx
+                for the full encoding and reasoning. -1 = 3D; 0/1/2 = 2D
+                TM, invariant axis x/y/z; 3/4/5 = 2D TE, invariant axis
+                x/y/z.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
         updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
@@ -71,10 +77,10 @@ cpdef void {{ item.name_a }}(
 
     cdef Py_ssize_t i, j, k, pole
     cdef int material
-    cdef float phi = 0
+    cdef {{ item.field_type }} phi = 0
 
-    # Ex component
-    if ny != 1 or nz != 1:
+    # 2D TM, invariant x - Ex component only
+    if mode2d == 0:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -99,8 +105,8 @@ cpdef void {{ item.name_a }}(
                                    * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
                                    * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
 
-    # Ey component
-    if nx != 1 or nz != 1:
+    # 2D TM, invariant y - Ey component only
+    elif mode2d == 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -125,8 +131,227 @@ cpdef void {{ item.name_a }}(
                                    * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
                                    * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
 
-    # Ez component
-    if nx != 1 or ny != 1:
+    # 2D TM, invariant z - Ez component only
+    elif mode2d == 2:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Tz[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
+                        {% endif %}
+                        Tz[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tz[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ez[i, j, k])
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
+                                   * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 2D TE, invariant x - Ey, Ez components (Ex forced dead)
+    elif mode2d == 3:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Ty[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
+                        {% endif %}
+                        Ty[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Ty[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ey[i, j, k])
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
+                                   * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Tz[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
+                        {% endif %}
+                        Tz[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tz[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ez[i, j, k])
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
+                                   * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 2D TE, invariant y - Ex, Ez components (Ey forced dead)
+    elif mode2d == 4:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Tx[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
+                        {% endif %}
+                        Tx[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tx[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ex[i, j, k])
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
+                                   * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Tz[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
+                        {% endif %}
+                        Tz[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tz[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ez[i, j, k])
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
+                                   * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 2D TE, invariant z - Ex, Ey components (Ez forced dead)
+    elif mode2d == 5:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Tx[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
+                        {% endif %}
+                        Tx[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tx[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ex[i, j, k])
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
+                                   * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Ty[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
+                        {% endif %}
+                        Ty[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Ty[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ey[i, j, k])
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
+                                   * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 3D
+    else:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Tx[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
+                        {% endif %}
+                        Tx[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tx[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ex[i, j, k])
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
+                                   * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    phi = 0
+                    for pole in range(maxpoles):
+                        {% if 'complex' in item.dispersive_type %}
+                        {% if item.iswin %}
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
+                               * Ty[pole, i, j, k].real)
+                        {% else %}
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
+                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        {% endif %}
+                        {% else %}
+                        phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
+                        {% endif %}
+                        Ty[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Ty[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ey[i, j, k])
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
+                                   * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
@@ -162,6 +387,7 @@ cpdef void {{ item.name_b }}(
     int nx,
     int ny,
     int nz,
+    int mode2d,
     int nthreads,
     int maxpoles,
     {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
@@ -178,6 +404,11 @@ cpdef void {{ item.name_b }}(
 
     Args:
         nx, ny, nz: int for grid size in cells.
+        mode2d: int explicitly identifying the active 2D reduction (if
+                any) - see update_electric() in fields_updates_normal.pyx
+                for the full encoding and reasoning. -1 = 3D; 0/1/2 = 2D
+                TM, invariant axis x/y/z; 3/4/5 = 2D TE, invariant axis
+                x/y/z.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
         updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
@@ -187,8 +418,8 @@ cpdef void {{ item.name_b }}(
     cdef Py_ssize_t i, j, k, pole
     cdef int material
 
-    # Ex component
-    if ny != 1 or nz != 1:
+    # 2D TM, invariant x - Ex component only
+    if mode2d == 0:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -198,8 +429,8 @@ cpdef void {{ item.name_b }}(
                                              - updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ex[i, j, k])
 
-    # Ey component
-    if nx != 1 or nz != 1:
+    # 2D TM, invariant y - Ey component only
+    elif mode2d == 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -209,8 +440,8 @@ cpdef void {{ item.name_b }}(
                                              - updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ey[i, j, k])
 
-    # Ez component
-    if nx != 1 or ny != 1:
+    # 2D TM, invariant z - Ez component only
+    elif mode2d == 2:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
@@ -220,6 +451,89 @@ cpdef void {{ item.name_b }}(
                                              - updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ez[i, j, k])
 
+    # 2D TE, invariant x - Ey, Ez components (Ex forced dead)
+    elif mode2d == 3:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    for pole in range(maxpoles):
+                        Ty[pole, i, j, k] = (Ty[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ey[i, j, k])
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    for pole in range(maxpoles):
+                        Tz[pole, i, j, k] = (Tz[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ez[i, j, k])
+
+    # 2D TE, invariant y - Ex, Ez components (Ey forced dead)
+    elif mode2d == 4:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    for pole in range(maxpoles):
+                        Tx[pole, i, j, k] = (Tx[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ex[i, j, k])
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    for pole in range(maxpoles):
+                        Tz[pole, i, j, k] = (Tz[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ez[i, j, k])
+
+    # 2D TE, invariant z - Ex, Ey components (Ez forced dead)
+    elif mode2d == 5:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    for pole in range(maxpoles):
+                        Tx[pole, i, j, k] = (Tx[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ex[i, j, k])
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    for pole in range(maxpoles):
+                        Ty[pole, i, j, k] = (Ty[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ey[i, j, k])
+
+    # 3D
+    else:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    for pole in range(maxpoles):
+                        Tx[pole, i, j, k] = (Tx[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ex[i, j, k])
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    for pole in range(maxpoles):
+                        Ty[pole, i, j, k] = (Ty[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ey[i, j, k])
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    for pole in range(maxpoles):
+                        Tz[pole, i, j, k] = (Tz[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
+                                             * Ez[i, j, k])
 {% endfor %}
 
 
@@ -232,6 +546,7 @@ cpdef void {{ item.name_a_1 }}(
     int nx,
     int ny,
     int nz,
+    int mode2d,
     int nthreads,
     int maxpoles,
     {{ item.field_type }}[:, ::1] updatecoeffsE,
@@ -252,6 +567,11 @@ cpdef void {{ item.name_a_1 }}(
 
     Args:
         nx, ny, nz: int for grid size in cells.
+        mode2d: int explicitly identifying the active 2D reduction (if
+                any) - see update_electric() in fields_updates_normal.pyx
+                for the full encoding and reasoning. -1 = 3D; 0/1/2 = 2D
+                TM, invariant axis x/y/z; 3/4/5 = 2D TE, invariant axis
+                x/y/z.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
         updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
@@ -260,10 +580,10 @@ cpdef void {{ item.name_a_1 }}(
 
     cdef Py_ssize_t i, j, k
     cdef int material
-    cdef float phi = 0
+    cdef {{ item.field_type }} phi = 0
 
-    # Ex component
-    if ny != 1 or nz != 1:
+    # 2D TM, invariant x - Ex component only
+    if mode2d == 0:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -285,8 +605,8 @@ cpdef void {{ item.name_a_1 }}(
                                    * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
                                    * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
 
-    # Ey component
-    if nx != 1 or nz != 1:
+    # 2D TM, invariant y - Ey component only
+    elif mode2d == 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -308,8 +628,8 @@ cpdef void {{ item.name_a_1 }}(
                                    * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
                                    * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
 
-    # Ez component
-    if nx != 1 or ny != 1:
+    # 2D TM, invariant z - Ez component only
+    elif mode2d == 2:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
@@ -331,6 +651,197 @@ cpdef void {{ item.name_a_1 }}(
                                    * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
                                    * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
 
+    # 2D TE, invariant x - Ey, Ez components (Ex forced dead)
+    elif mode2d == 3:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Ty[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
+                    {% endif %}
+                    Ty[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Ty[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ey[i, j, k])
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
+                                   * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Tz[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
+                    {% endif %}
+                    Tz[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tz[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ez[i, j, k])
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
+                                   * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 2D TE, invariant y - Ex, Ez components (Ey forced dead)
+    elif mode2d == 4:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Tx[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
+                    {% endif %}
+                    Tx[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tx[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ex[i, j, k])
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
+                                   * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Tz[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
+                    {% endif %}
+                    Tz[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tz[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ez[i, j, k])
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
+                                   * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 2D TE, invariant z - Ex, Ey components (Ez forced dead)
+    elif mode2d == 5:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Tx[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
+                    {% endif %}
+                    Tx[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tx[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ex[i, j, k])
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
+                                   * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Ty[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
+                    {% endif %}
+                    Ty[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Ty[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ey[i, j, k])
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
+                                   * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
+
+    # 3D
+    else:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Tx[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
+                    {% endif %}
+                    Tx[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tx[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ex[i, j, k])
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
+                                   * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Ty[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
+                    {% endif %}
+                    Ty[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Ty[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ey[i, j, k])
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
+                                   * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    {% if 'complex' in item.dispersive_type %}
+                    {% if item.iswin %}
+                    phi = (updatecoeffsdispersive[material, 0].real
+                           * Tz[0, i, j, k].real)
+                    {% else %}
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
+                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    {% endif %}
+                    {% else %}
+                    phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
+                    {% endif %}
+                    Tz[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tz[0, i, j, k]
+                                      + updatecoeffsdispersive[material, 2] * Ez[i, j, k])
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
+                                   * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
 {% endfor %}
 
 
@@ -343,6 +854,7 @@ cpdef void {{ item.name_b_1 }}(
     int nx,
     int ny,
     int nz,
+    int mode2d,
     int nthreads,
     int maxpoles,
     {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
@@ -359,6 +871,11 @@ cpdef void {{ item.name_b_1 }}(
 
     Args:
         nx, ny, nz: int for grid size in cells.
+        mode2d: int explicitly identifying the active 2D reduction (if
+                any) - see update_electric() in fields_updates_normal.pyx
+                for the full encoding and reasoning. -1 = 3D; 0/1/2 = 2D
+                TM, invariant axis x/y/z; 3/4/5 = 2D TE, invariant axis
+                x/y/z.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
         updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
@@ -368,24 +885,81 @@ cpdef void {{ item.name_b_1 }}(
     cdef Py_ssize_t i, j, k
     cdef int material
 
-    # Ex component
-    if ny != 1 or nz != 1:
+    # 2D TM, invariant x - Ex component only
+    if mode2d == 0:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
                     material = ID[0, i, j, k]
                     Tx[0, i, j, k] = Tx[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ex[i, j, k]
 
-    # Ey component
-    if nx != 1 or nz != 1:
+    # 2D TM, invariant y - Ey component only
+    elif mode2d == 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
                     material = ID[1, i, j, k]
                     Ty[0, i, j, k] = Ty[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ey[i, j, k]
 
-    # Ez component
-    if nx != 1 or ny != 1:
+    # 2D TM, invariant z - Ez component only
+    elif mode2d == 2:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    Tz[0, i, j, k] = Tz[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ez[i, j, k]
+
+    # 2D TE, invariant x - Ey, Ez components (Ex forced dead)
+    elif mode2d == 3:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    Ty[0, i, j, k] = Ty[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ey[i, j, k]
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    Tz[0, i, j, k] = Tz[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ez[i, j, k]
+
+    # 2D TE, invariant y - Ex, Ez components (Ey forced dead)
+    elif mode2d == 4:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    Tx[0, i, j, k] = Tx[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ex[i, j, k]
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    material = ID[2, i, j, k]
+                    Tz[0, i, j, k] = Tz[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ez[i, j, k]
+
+    # 2D TE, invariant z - Ex, Ey components (Ez forced dead)
+    elif mode2d == 5:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    Tx[0, i, j, k] = Tx[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ex[i, j, k]
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    Ty[0, i, j, k] = Ty[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ey[i, j, k]
+
+    # 3D
+    else:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    material = ID[0, i, j, k]
+                    Tx[0, i, j, k] = Tx[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ex[i, j, k]
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    material = ID[1, i, j, k]
+                    Ty[0, i, j, k] = Ty[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ey[i, j, k]
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):

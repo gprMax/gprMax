@@ -52,6 +52,7 @@ from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapsh
 from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
+    DomainMode,
     OMPThreads,
     OutputDir,
     PMLFormulation,

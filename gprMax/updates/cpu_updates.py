@@ -39,6 +39,14 @@ class CPUUpdates(Updates[GridType]):
         """
         super().__init__(G)
 
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TM"):
+            self.mode2d = "xyz".index(mode[-1])
+        elif mode.startswith("2D TE"):
+            self.mode2d = 3 + "xyz".index(mode[-1])
+        else:
+            self.mode2d = -1
+
     def store_outputs(self, iteration):
         """Stores field component values for every receiver and transmission line."""
         store_outputs_cpu(self.grid, iteration)
@@ -59,6 +67,7 @@ class CPUUpdates(Updates[GridType]):
             self.grid.nx,
             self.grid.ny,
             self.grid.nz,
+            self.mode2d,
             config.get_model_config().ompthreads,
             self.grid.updatecoeffsH,
             self.grid.ID,
@@ -156,6 +165,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
+                self.mode2d,
                 config.get_model_config().ompthreads,
                 self.grid.updatecoeffsE,
                 self.grid.ID,
@@ -174,6 +184,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
+                self.mode2d,
                 config.get_model_config().ompthreads,
                 config.get_model_config().materials["maxpoles"],
                 self.grid.updatecoeffsE,
@@ -224,6 +235,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
+                self.mode2d,
                 config.get_model_config().ompthreads,
                 config.get_model_config().materials["maxpoles"],
                 self.grid.updatecoeffsdispersive,

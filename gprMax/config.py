@@ -96,6 +96,7 @@ class ModelConfig:
 
     def __init__(self, model_num):
         self.mode = "3D"
+        self.requested_2d_mode = None
         self.grids = []
         self.ompthreads = None
         self.model_num = model_num
@@ -190,11 +191,11 @@ class ModelConfig:
         "dispersiveCdtype"/"crealfunc"]. Without this, every run after the
         first would silently see this fresh ModelConfig's defaults
         ("3D", maxpoles=0) instead of what the model's own geometry/
-        materials actually require - code inspecting the current mode would
-        see a 3D model for a genuinely 2D geometry, and
-        FDTDGrid.reset_fields() would skip reinitialising Tx/Ty/Tz for a
-        genuinely dispersive material, leaking the previous run's
-        polarisation-current state into the next run.
+        materials actually require - e.g. CPUUpdates.mode2d (gprMax/
+        updates/cpu_updates.py) would pick 3D kernels for a genuinely 2D
+        model, and FDTDGrid.reset_fields() would skip reinitialising
+        Tx/Ty/Tz for a genuinely dispersive material, leaking the
+        previous run's polarisation-current state into the next run.
 
         Args:
             reference: ModelConfig of the model that built the geometry
@@ -202,6 +203,7 @@ class ModelConfig:
         """
 
         self.mode = reference.mode
+        self.requested_2d_mode = reference.requested_2d_mode
         self.materials = dict(reference.materials)
 
     def get_scene(self):

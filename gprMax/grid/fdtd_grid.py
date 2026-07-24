@@ -257,7 +257,7 @@ class FDTDGrid:
             snapshot.initialise_snapfields()
         if self.averagevolumeobjects:
             self._build_components()
-        self._tm_grid_update()
+        self._2d_mode_grid_update()
         self._create_voltage_source_materials()
         self.initialise_field_arrays()
         self.initialise_std_update_coeff_arrays()
@@ -463,14 +463,21 @@ class FDTDGrid:
         pbar.update()
         pbar.close()
 
-    def _tm_grid_update(self) -> None:
-        """Add PEC boundaries to invariant if in 2D mode."""
-        if config.get_model_config().mode == "2D TMx":
+    def _2d_mode_grid_update(self) -> None:
+        """Set the invariant-axis boundary materials for a 2D mode."""
+        mode = config.get_model_config().mode
+        if mode == "2D TMx":
             self.tmx()
-        elif config.get_model_config().mode == "2D TMy":
+        elif mode == "2D TMy":
             self.tmy()
-        elif config.get_model_config().mode == "2D TMz":
+        elif mode == "2D TMz":
             self.tmz()
+        elif mode == "2D TEx":
+            self.tex()
+        elif mode == "2D TEy":
+            self.tey()
+        elif mode == "2D TEz":
+            self.tez()
 
     def _create_voltage_source_materials(self):
         """Create materials for voltage sources.
@@ -701,13 +708,18 @@ class FDTDGrid:
         arrays for specifying whether materials can have dielectric
         smoothing (rigid); and an array for cell edge IDs (ID).
 
-        Solid and ID arrays are initialised to free_space (one); rigid
-        arrays to allow dielectric smoothing (zero).
+        Solid and ID arrays are initialised to free_space; rigid arrays to
+        allow dielectric smoothing (zero).
         """
-        self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
+        free_space_numid = next(m.numID for m in self.materials if m.ID == "free_space")
+        self.solid = np.full((self.nx, self.ny, self.nz), free_space_numid, dtype=np.uint32)
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
-        self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
+        self.ID = np.full(
+            (6, self.nx + 1, self.ny + 1, self.nz + 1),
+            free_space_numid,
+            dtype=np.uint32,
+        )
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
@@ -883,45 +895,85 @@ class FDTDGrid:
         """Add PEC boundaries to invariant direction in 2D TMx mode.
         N.B. 2D modes are a single cell slice of 3D grid.
         """
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         # Ey & Ez components
-        self.ID[1, 0, :, :] = 0
-        self.ID[1, 1, :, :] = 0
-        self.ID[2, 0, :, :] = 0
-        self.ID[2, 1, :, :] = 0
+        self.ID[1, 0, :, :] = pec_numid
+        self.ID[1, 1, :, :] = pec_numid
+        self.ID[2, 0, :, :] = pec_numid
+        self.ID[2, 1, :, :] = pec_numid
 
     def tmy(self):
         """Add PEC boundaries to invariant direction in 2D TMy mode.
         N.B. 2D modes are a single cell slice of 3D grid.
         """
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         # Ex & Ez components
-        self.ID[0, :, 0, :] = 0
-        self.ID[0, :, 1, :] = 0
-        self.ID[2, :, 0, :] = 0
-        self.ID[2, :, 1, :] = 0
+        self.ID[0, :, 0, :] = pec_numid
+        self.ID[0, :, 1, :] = pec_numid
+        self.ID[2, :, 0, :] = pec_numid
+        self.ID[2, :, 1, :] = pec_numid
 
     def tmz(self):
         """Add PEC boundaries to invariant direction in 2D TMz mode.
         N.B. 2D modes are a single cell slice of 3D grid.
         """
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         # Ex & Ey components
-        self.ID[0, :, :, 0] = 0
-        self.ID[0, :, :, 1] = 0
-        self.ID[1, :, :, 0] = 0
-        self.ID[1, :, :, 1] = 0
+        self.ID[0, :, :, 0] = pec_numid
+        self.ID[0, :, :, 1] = pec_numid
+        self.ID[1, :, :, 0] = pec_numid
+        self.ID[1, :, :, 1] = pec_numid
+
+    def tex(self):
+        """Set the invariant-axis boundary materials for 2D TEx mode."""
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        pmc_numid = next(m.numID for m in self.materials if m.ID == "pmc")
+
+        # Ex and the transverse H components are inactive throughout the slice.
+        self.ID[0, 0:2, :, :] = pec_numid
+        self.ID[4, 0:2, :, :] = pmc_numid
+        self.ID[5, 0:2, :, :] = pmc_numid
+        # Mark the inactive outer-wall components explicitly.
+        self.ID[1:3, (0, 2), :, :] = pec_numid
+        self.ID[3, (0, 2), :, :] = pmc_numid
+
+    def tey(self):
+        """Set the invariant-axis boundary materials for 2D TEy mode."""
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        pmc_numid = next(m.numID for m in self.materials if m.ID == "pmc")
+
+        self.ID[1, :, 0:2, :] = pec_numid
+        self.ID[3, :, 0:2, :] = pmc_numid
+        self.ID[5, :, 0:2, :] = pmc_numid
+        self.ID[0, :, (0, 2), :] = pec_numid
+        self.ID[2, :, (0, 2), :] = pec_numid
+        self.ID[4, :, (0, 2), :] = pmc_numid
+
+    def tez(self):
+        """Set the invariant-axis boundary materials for 2D TEz mode."""
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        pmc_numid = next(m.numID for m in self.materials if m.ID == "pmc")
+
+        self.ID[2, :, :, 0:2] = pec_numid
+        self.ID[3, :, :, 0:2] = pmc_numid
+        self.ID[4, :, :, 0:2] = pmc_numid
+        self.ID[0, :, :, (0, 2)] = pec_numid
+        self.ID[1, :, :, (0, 2)] = pec_numid
+        self.ID[5, :, :, (0, 2)] = pmc_numid
 
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
-        if config.get_model_config().mode == "2D TMx":
+        if config.get_model_config().mode in ("2D TMx", "2D TEx"):
             self.dt = 1 / (
                 config.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
             )
-        elif config.get_model_config().mode == "2D TMy":
+        elif config.get_model_config().mode in ("2D TMy", "2D TEy"):
             self.dt = 1 / (
                 config.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
             )
-        elif config.get_model_config().mode == "2D TMz":
+        elif config.get_model_config().mode in ("2D TMz", "2D TEz"):
             self.dt = 1 / (
                 config.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
@@ -1136,16 +1188,17 @@ class FDTDGrid:
             maxer = 0
             matmaxer = ""
             for x in self.materials:
-                if x.se != float("inf"):
-                    er = x.er
-                    # If there are dispersive materials calculate the complex
-                    # relative permittivity at maximum frequency and take the real part
-                    if x.__class__.__name__ == "DispersiveMaterial":
-                        er = x.calculate_er(results["maxfreq"])
-                        er = er.real
-                    if er > maxer:
-                        maxer = er
-                        matmaxer = x.ID
+                if x.se == float("inf") or x.sm == float("inf"):
+                    continue
+                er = x.er
+                # If there are dispersive materials calculate the complex
+                # relative permittivity at maximum frequency and take the real part
+                if x.__class__.__name__ == "DispersiveMaterial":
+                    er = x.calculate_er(results["maxfreq"])
+                    er = er.real
+                if er > maxer:
+                    maxer = er
+                    matmaxer = x.ID
             results["material"] = next(x for x in self.materials if x.ID == matmaxer)
 
             # Minimum velocity
@@ -1155,14 +1208,16 @@ class FDTDGrid:
             minwavelength = minvelocity / results["maxfreq"]
 
             # Maximum spatial step
-            if "3D" in config.get_model_config().mode:
+            mode = config.get_model_config().mode
+            if "3D" in mode:
                 delta = max(self.dx, self.dy, self.dz)
-            elif "2D" in config.get_model_config().mode:
-                if self.nx == 1:
+            elif "2D" in mode:
+                invariant_axis = mode[-1]
+                if invariant_axis == "x":
                     delta = max(self.dy, self.dz)
-                elif self.ny == 1:
+                elif invariant_axis == "y":
                     delta = max(self.dx, self.dz)
-                elif self.nz == 1:
+                else:
                     delta = max(self.dx, self.dy)
 
             # Courant stability factor

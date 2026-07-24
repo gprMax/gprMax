@@ -22,6 +22,7 @@ import logging
 from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
+    DomainMode,
     OMPThreads,
     OutputDir,
     PMLFormulation,
@@ -83,6 +84,16 @@ def process_singlecmds(singlecmds):
         dl = (tmp[0], tmp[1], tmp[2])
         discretisation = Discretisation(p1=dl)
         scene_objects.append(discretisation)
+
+    cmd = "#domain_mode"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires exactly one parameter, either 'TM', 'TE' or '3D'")
+            raise ValueError
+
+        domain_mode = DomainMode(mode=tmp[0])
+        scene_objects.append(domain_mode)
 
     cmd = "#domain"
     if singlecmds[cmd] is not None:
