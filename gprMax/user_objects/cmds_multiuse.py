@@ -392,17 +392,60 @@ class VoltageSource(RotatableMixin, GridUserObject):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def _validate_parameters(self, grid: FDTDGrid):
+    def _validate_parameters(
+        self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
+    ):
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
-            raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
+        mode = config.get_model_config().mode
+        if mode.startswith("2D"):
+            invariant_letter = mode[-1]
+            other_axes = [a for a in "xyz" if a != invariant_letter]
+            if "TM" in mode and self.polarisation != invariant_letter:
+                # E survives along the invariant axis in TM (e.g. Ez for
+                # TMz) - the two tangential components are forced pec.
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode."
+                )
+            elif "TE" in mode and self.polarisation == invariant_letter:
+                # E survives perpendicular to the invariant axis in TE
+                # (e.g. Ex, Ey for TEz) - the own-axis component is
+                # forced pec, same rule as HertzianDipole.
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {other_axes[0]} or "
+                    f"{other_axes[1]} in {mode} mode."
+                )
+
+            # Once polarisation is valid, the surviving E component is
+            # only ever computed by the interior update loop at one
+            # specific index on the invariant axis: index 0 for TM (the
+            # domain is 1 cell thick) or index 1 for TE (the interior
+            # layer - the two outer walls, index 0 and 2, are forced
+            # pec/pmc and never read;
+            # `inf` already resolves to the correct index, but an
+            # explicit coordinate might not. A voltage source landing on
+            # the wrong index would be positioned on a dead cell: for a
+            # resistive source this is merely ineffective
+            # (create_material() would still run, but nothing reads the
+            # resulting field there); for a hard (resistance=0) source
+            # it's worse, since a hard source directly overwrites the
+            # field value every iteration regardless of what
+            # material/ID is present, bypassing the se=inf-style
+            # protection a resistive source's material lookup would
+            # otherwise get.
+            if discretised_point is not None:
+                invariant_axis = "xyz".index(invariant_letter)
+                required_index = 0 if "TM" in mode else 1
+                if discretised_point[invariant_axis] != required_index:
+                    raise ValueError(
+                        f"{self.params_str()} in {mode} mode, a voltage source must be "
+                        f"positioned at index {required_index} on the invariant axis "
+                        f"('{invariant_letter}') - it resolved to index "
+                        f"{discretised_point[invariant_axis]}, which is never read by "
+                        "the update loops and would be a dead source."
+                    )
 
         # Check resistance
         if self.resistance < 0:
@@ -475,10 +518,11 @@ class VoltageSource(RotatableMixin, GridUserObject):
 
         # Check the position of the voltage source
         uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
         if point_within_grid:
-            self._validate_parameters(grid)
+            self._validate_parameters(grid, discretised_point)
             voltage_source = self._create_voltage_source(grid, discretised_point)
             grid.add_source(voltage_source)
             position = uip.round_to_grid_static_point(self.point)
@@ -532,17 +576,52 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def _validate_parameters(self, grid: FDTDGrid):
+    def _validate_parameters(
+        self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
+    ):
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
-            raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
+        mode = config.get_model_config().mode
+        if mode.startswith("2D"):
+            invariant_letter = mode[-1]
+            other_axes = [a for a in "xyz" if a != invariant_letter]
+            if "TM" in mode and self.polarisation != invariant_letter:
+                # E survives along the invariant axis in TM (e.g. Ez for
+                # TMz) - the two tangential components are forced pec.
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode."
+                )
+            elif "TE" in mode and self.polarisation == invariant_letter:
+                # E survives perpendicular to the invariant axis in TE
+                # (e.g. Ex, Ey for TEz) - the own-axis component is
+                # forced pec.
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {other_axes[0]} or "
+                    f"{other_axes[1]} in {mode} mode."
+                )
+
+            # Once polarisation is valid, the surviving E component is
+            # only ever computed by the interior update loop at one
+            # specific index on the invariant axis: index 0 for TM
+            # (the domain is 1 cell thick, own-axis E offset gives a
+            # single valid position) or index 1 for TE (the interior
+            # layer - the two outer walls, index 0 and 2, are forced
+            # pec/pmc and never read). See VoltageSource for the TM
+            # case's full reasoning; the TE case was verified directly
+            # from tex()/tey()/tez()'s outer-wall forcing.
+            if discretised_point is not None:
+                invariant_axis = "xyz".index(invariant_letter)
+                required_index = 0 if "TM" in mode else 1
+                if discretised_point[invariant_axis] != required_index:
+                    raise ValueError(
+                        f"{self.params_str()} in {mode} mode, a hertzian dipole must be "
+                        f"positioned at index {required_index} on the invariant axis "
+                        f"('{invariant_letter}') - it resolved to index "
+                        f"{discretised_point[invariant_axis]}, which is never read by "
+                        "the update loops and would be a dead source."
+                    )
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
@@ -627,10 +706,11 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
         # Check the position of the hertzian dipole
         uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
         if point_within_grid:
-            self._validate_parameters(grid)
+            self._validate_parameters(grid, discretised_point)
             hertzian_dipole = self._create_hertzian_dipole(grid, discretised_point)
             grid.add_source(hertzian_dipole)
             position = uip.round_to_grid_static_point(self.point)
@@ -682,10 +762,11 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
         # Check the position of the magnetic dipole
         uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
         if point_within_grid:
-            self._validate_parameters(grid)
+            self._validate_parameters(grid, discretised_point)
             magnetic_dipole = self._create_magnetic_dipole(grid, discretised_point)
             grid.add_source(magnetic_dipole)
             position = uip.round_to_grid_static_point(self.point)
@@ -699,17 +780,53 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def _validate_parameters(self, grid: FDTDGrid):
+    def _validate_parameters(
+        self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
+    ):
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
-            raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
+        # A magnetic dipole's polarisation requirement is the dual of an
+        # electric source's: in TM, H survives PERPENDICULAR to the
+        # invariant axis (e.g. Hx, Hy for TMz - Hz is never updated); in
+        # TE, H survives ALONG the invariant axis (e.g. Hz for TEz - Hx,
+        # Hy are forced pmc by tex()/tey()/tez()).
+        mode = config.get_model_config().mode
+        if mode.startswith("2D"):
+            invariant_letter = mode[-1]
+            other_axes = [a for a in "xyz" if a != invariant_letter]
+            if "TM" in mode and self.polarisation == invariant_letter:
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {other_axes[0]} or "
+                    f"{other_axes[1]} in {mode} mode."
+                )
+            elif "TE" in mode and self.polarisation != invariant_letter:
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode."
+                )
+
+            # Once polarisation is valid, the surviving H component is
+            # only ever computed at one specific index on the invariant
+            # axis: index 0 for TM (confirmed directly from the update
+            # loops - fields_updates_normal.pyx's 2D Hx/Hy branches gate
+            # on `k in range(0, nz)` = {0} for TMz, analogously for
+            # TMx/TMy) or index 1 for TE (the interior layer - index 0
+            # and 2 are the outer walls, forced pmc by
+            # tex()/tey()/tez()'s defensive forcing on the own-axis H
+            # survivor). Index 1 (TM) / 0,2 (TE) exist in the padded
+            # array but are dead.
+            if discretised_point is not None:
+                invariant_axis = "xyz".index(invariant_letter)
+                required_index = 0 if "TM" in mode else 1
+                if discretised_point[invariant_axis] != required_index:
+                    raise ValueError(
+                        f"{self.params_str()} in {mode} mode, a magnetic dipole must be "
+                        f"positioned at index {required_index} on the invariant axis "
+                        f"('{invariant_letter}') - it resolved to index "
+                        f"{discretised_point[invariant_axis]}, which is never read by "
+                        "the update loops and would be a dead source."
+                    )
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
@@ -830,6 +947,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
         # Check the position of the voltage source
         uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
         if point_within_grid:
@@ -848,16 +966,25 @@ class TransmissionLine(RotatableMixin, GridUserObject):
                 "using a #voltage_source instead."
             )
 
+        # A transmission line is a 3D-only source: its internal 1D line
+        # model uses a "magic time step" (TransmissionLineUser.dl =
+        # sqrt(3) * c * dt) derived from the 3D Courant condition. In 2D
+        # mode, calculate_dt() uses the 2-axis CFL formula instead, which
+        # breaks that relationship and risks the numerical instability
+        # the magic-time-step approach is already known to be sensitive
+        # to even in 3D.
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(
+                f"{self.params_str()} cannot be used in 2D mode - its internal "
+                "line model assumes a time step derived from the 3D Courant "
+                "condition, which does not match the time step used in a 2D "
+                "(TM/TE) model. Consider using a #voltage_source instead."
+            )
+
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
-        if "2D TMx" in config.get_model_config().mode and self.polarisation in ["y", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be x in 2D TMx mode.")
-        elif "2D TMy" in config.get_model_config().mode and self.polarisation in ["x", "z"]:
-            raise ValueError(f"{self.params_str()} polarisation must be y in 2D TMy mode.")
-        elif "2D TMz" in config.get_model_config().mode and self.polarisation in ["x", "y"]:
-            raise ValueError(f"{self.params_str()} polarisation must be z in 2D TMz mode.")
 
         # Check resistance
         if self.resistance <= 0 or self.resistance >= config.sim_config.em_consts["z0"]:
@@ -925,6 +1052,70 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             f" resistance {t.resistance:.1f} Ohms,{startstop} using"
             f" waveform {t.waveformID} created."
         )
+
+
+def _dpw_tfsf_corners(uip, p1, p2, params_str):
+    """Discretises and validates the TFSF box corners for a discrete plane
+    wave, shared by all three #plane_wave_* builders.
+
+    Resolves `inf` coordinates first (the recommended idiom for the
+    invariant axis in 2D, matching other box-like commands; a clear error
+    is raised if `inf` is used in 3D). Then, in a 2D mode, the
+    mode-determined invariant-axis extent is imposed: (0, 1) for TM and
+    the degenerate (1, 1) for TE - the live interior layer; the full 0..2
+    TE slab must NOT be used, as its perpendicular in-plane face loops
+    would write TFSF corrections into the wall-forced layers at 0 and 2.
+    The invariant extent is not a user degree of freedom: explicitly-typed
+    coordinates that disagree are overridden with a warning (use `inf` to
+    avoid it); `inf`-typed coordinates are overridden silently - that is
+    their meaning.
+
+    Also enforces start < stop on the free (in-plane) axes - all three
+    axes in 3D.
+
+    Returns:
+        start, stop: discretised corner index arrays.
+    """
+    mode = config.get_model_config().mode
+    is_2d = mode.startswith("2D")
+    if is_2d:
+        inv = "xyz".index(mode[-1])
+        p1_explicit = not math.isinf(p1[inv])
+        p2_explicit = not math.isinf(p2[inv])
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
+
+    _, start = uip.check_src_rx_point(p1, params_str)
+    _, stop = uip.check_src_rx_point(p2, params_str)
+
+    if is_2d:
+        forced = (0, 1) if "TM" in mode else (1, 1)
+        overridden_explicit = (p1_explicit and start[inv] != forced[0]) or (
+            p2_explicit and stop[inv] != forced[1]
+        )
+        if overridden_explicit:
+            logger.warning(
+                f"{params_str} the TFSF box extent on the invariant "
+                f"{'xyz'[inv]}-axis is fixed by the {mode} mode (indices "
+                f"{forced[0]} to {forced[1]}) and is not adjustable - the "
+                f"specified coordinates have been overridden. Use 'inf' for "
+                f"the {'xyz'[inv]}-coordinates of the TFSF box corners to "
+                f"avoid this warning."
+            )
+        start[inv], stop[inv] = forced
+
+    for ax in range(3):
+        if is_2d and ax == inv:
+            continue
+        if start[ax] >= stop[ax]:
+            logger.exception(
+                f"{params_str} the lower TFSF box corner must be strictly "
+                f"less than the upper corner on the {'xyz'[ax]}-axis "
+                f"(got indices {start[ax]} and {stop[ax]})."
+            )
+            raise ValueError
+
+    return start, stop
 
 
 class DiscretePlaneWaveAngles(GridUserObject):
@@ -1033,8 +1224,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
 
       
         uip = self._create_uip(grid)
-        _, start = uip.check_src_rx_point(p1, self.params_str())
-        _, stop = uip.check_src_rx_point(p2, self.params_str())
+        start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
 
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([*start, *stop], dtype=np.int32)
@@ -1201,19 +1391,26 @@ class DiscretePlaneWaveVector(GridUserObject):
 
       
         uip = self._create_uip(grid)
-        _, start = uip.check_src_rx_point(p1, self.params_str())
-        _, stop = uip.check_src_rx_point(p2, self.params_str())
+        start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
 
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([*start, *stop], dtype=np.int32)
-        DPW.m = np.array(m_vec, dtype=np.int32)
-        DPW.phi = math.degrees(math.atan2(DPW.m[1] * grid.dx, DPW.m[0] * grid.dy))
-        DPW.theta = math.degrees(math.acos(DPW.m[2] * grid.dz / (math.sqrt((DPW.m[0] * grid.dy) ** 2 + (DPW.m[1] * grid.dx) ** 2 + (DPW.m[2] * grid.dz) ** 2))))
+        # Log-only angles (the authoritative computation lives in
+        # initializeDiscretePlaneWave's m-vector branch): the physical
+        # propagation direction is the wavefront normal (m_x/dx, m_y/dy,
+        # m_z/dz) - the same convention find_dpw_integers_optimized uses.
+        _phys = np.array(m_vec, dtype=np.float64) / np.array([grid.dx, grid.dy, grid.dz])
+        _phys /= np.linalg.norm(_phys)
+        DPW.theta = math.degrees(math.acos(np.clip(_phys[2], -1.0, 1.0)))
+        DPW.phi = math.degrees(math.atan2(_phys[1], _phys[0]))
         DPW.psi = psi
         DPW.max_angle_diff = 0
         DPW.waveformID = waveform_id
         DPW.materialID = material_id
-        DPW.m = np.zeros(3 + 1, dtype=np.int32) 
+        # m is a 4-element array: the user's [m_x, m_y, m_z] plus a 4th slot
+        # that initializeDiscretePlaneWave() fills with max(|m_x|, |m_y|, |m_z|)
+        DPW.m = np.zeros(3 + 1, dtype=np.int32)
+        DPW.m[:3] = np.array(m_vec, dtype=np.int32)
         DPW.axial = 0
              
         try:
@@ -1351,8 +1548,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
       
         uip = self._create_uip(grid)
-        _, start = uip.check_src_rx_point(p1, self.params_str())
-        _, stop = uip.check_src_rx_point(p2, self.params_str())
+        start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
 
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([*start, *stop], dtype=np.int32)
@@ -1384,6 +1580,15 @@ class DiscretePlaneWaveAxial(GridUserObject):
         else:
             logger.exception(
                 f"{self.params_str()} DPW Axis must be x, y, or z."
+            )
+            raise ValueError
+
+        # In a 2D model the propagation axis must be in-plane.
+        mode = config.get_model_config().mode
+        if mode.startswith("2D") and axis.lower() == mode[-1]:
+            logger.exception(
+                f"{self.params_str()} in {mode} mode the propagation axis must be "
+                f"in-plane; '{axis.lower()}' is the invariant axis."
             )
             raise ValueError
 
@@ -1531,6 +1736,7 @@ class Rx(RotatableMixin, GridUserObject):
 
         # Check position of the receiver
         uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
         if point_within_grid:
@@ -1576,11 +1782,39 @@ class RxArray(GridUserObject):
 
     def build(self, grid: FDTDGrid):
         uip = self._create_uip(grid)
+
+        # p1/p2 are each a full 3D point (not a Box-style corner pair) that
+        # together define an array's extent along the two real (transverse)
+        # axes and its step count. On the invariant axis of an active 2D
+        # model, `inf` should behave like a single source/Rx point (sign-
+        # based, redirecting to the mode's interior reference layer) rather
+        # than the range-style lower/upper rule - a stepped invariant-axis
+        # range would otherwise place receivers on the forced-dead wall
+        # positions in TE mode. The other two axes use the ordinary lower/
+        # upper positional rule to define the array's real extent.
+        mode = config.get_model_config().mode
+        invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+
+        lower_ranged = uip.resolve_inf_point(self.lower_point, role="lower")
+        upper_ranged = uip.resolve_inf_point(self.upper_point, role="upper")
+        if invariant_axis is not None:
+            lower_single = uip.resolve_inf_point(self.lower_point, role=None)
+            upper_single = uip.resolve_inf_point(self.upper_point, role=None)
+            self.lower_point = tuple(
+                lower_single[a] if a == invariant_axis else lower_ranged[a] for a in range(3)
+            )
+            self.upper_point = tuple(
+                upper_single[a] if a == invariant_axis else upper_ranged[a] for a in range(3)
+            )
+        else:
+            self.lower_point = lower_ranged
+            self.upper_point = upper_ranged
+
         _, discretised_lower_point = uip.check_src_rx_point(
             self.lower_point, self.params_str(), "lower"
         )
         _, discretised_upper_point = uip.check_src_rx_point(
-            self.lower_point, self.params_str(), "upper"
+            self.upper_point, self.params_str(), "upper"
         )
         discretised_dl = uip.discretise_static_point(self.dl)
 
@@ -1600,7 +1834,16 @@ class RxArray(GridUserObject):
 
         xs, ys, zs = uip.round_to_grid_static_point(self.lower_point)
         xf, yf, zf = uip.round_to_grid_static_point(self.upper_point)
-        dx, dy, dz = uip.round_to_grid_static_point(self.dl)
+        # Use discretised_dl (already corrected to a minimum of 1 cell on
+        # any axis given dl=0, a common "single row along this axis"
+        # pattern) rather than re-deriving from the raw self.dl, which
+        # still contains the uncorrected 0 - previously caused
+        # np.arange()'s internal division to divide by zero below.
+        # grid.dl is whichever grid this was built against (main grid or a
+        # subgrid, each with their own .dl - see SubGridBase.
+        # set_discretisation()), matching what round_to_grid_static_point()
+        # itself uses internally (self.grid.dl, where uip.grid is grid).
+        dx, dy, dz = discretised_dl * grid.dl
 
         logger.info(
             f"{self.grid_name(grid)}Receiver array"

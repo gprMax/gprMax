@@ -234,7 +234,7 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[9],
                     material_id=tmp[10],
                 )
-            elif len(tmp) == 13:
+            elif len(tmp) == 14:
                 plWave = DiscretePlaneWaveAngles(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
