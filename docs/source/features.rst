@@ -27,6 +27,18 @@ geometry, and imported geometry objects observe the reduced component set.
 See :ref:`input-hash-cmds` and :ref:`guidance` for the command syntax and field
 equations.
 
+PEC and PMC symmetry boundaries
+===============================
+
+PEC and PMC symmetry planes can replace the PML on selected model faces,
+reducing the simulated domain when the geometry and excitation have the
+required symmetry. PEC planes constrain the tangential electric fields,
+whereas PMC planes use an image-theory ghost-node update. Multiple symmetry
+planes may be combined. Nondispersive models are supported by the CPU, CUDA,
+OpenCL, and Metal solvers; dispersive PMC boundaries currently require the
+CPU solver. See ``#symmetry_boundary`` in :ref:`input-hash-cmds` for the
+syntax and current restrictions.
+
 Subgridding
 ===========
 
@@ -66,7 +78,7 @@ At the boundaries between different materials in a model there is the question o
 * Should the last object to be defined at that location dictate the electric and magnetic properties?
 * Should an average set of electric and magnetic properties of the materials of the objects that share that location be used?
 
-This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_ [WHI2009]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. When dielectric smoothing is on gprMax calculates the arithmetic mean of the electric and magnetic properties of the surrounding Yee cells, to use for the single Yee cell edge (boundary) of interest.
+This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_ [WHI2009]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. When dielectric smoothing is on, gprMax uses an arithmetic mean for the four cells surrounding each electric-field edge and, by default, a harmonic mean for the two cells normal to each magnetic-field edge. The harmonic magnetic average follows continuity of the normal magnetic flux density. The earlier arithmetic magnetic behaviour remains available for reproducing results from older versions; see ``#magnetic_averaging`` in :ref:`input-hash-cmds`.
 
 Perfectly Matched Layer (PML) absorbing boundary conditions
 ===========================================================
