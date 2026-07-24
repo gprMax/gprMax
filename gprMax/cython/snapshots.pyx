@@ -44,7 +44,10 @@ cpdef void calculate_snapshot_fields(
     float_or_double[:, :, ::1] Ezsnap,
     float_or_double[:, :, ::1] Hxsnap,
     float_or_double[:, :, ::1] Hysnap,
-    float_or_double[:, :, ::1] Hzsnap
+    float_or_double[:, :, ::1] Hzsnap,
+    int sx=1,
+    int sy=1,
+    int sz=1
 ):
     """Calculates electric and magnetic values at points from averaging values
         in cells.
@@ -55,6 +58,15 @@ cpdef void calculate_snapshot_fields(
         is: boolean to determine whether that field snapshot is required.
         slice: memoryviews to access slices of field arrays.
         snap: memoryviews to access snapshot arrays.
+        sx, sy, sz: neighbour-offset strides along x, y, z (1 = genuine
+            averaging with the +1 neighbour, as in 3D/2D-TM mode; 0 = no
+            genuine neighbour exists along that axis, so both terms of any
+            pair on that axis collapse to the same index - used for a 2D
+            TE-mode model's invariant axis, where there is only ever one
+            real field value flanked by forced-zero boundary padding, not
+            a second genuine value to average against. Defaults to 1 for
+            every axis, reproducing the original (pre-2D-TE-mode) formula
+            exactly.
     """
 
     cdef Py_ssize_t i, j, k
@@ -66,29 +78,29 @@ cpdef void calculate_snapshot_fields(
                 # average of the 4 electric field component values in that cell.
                 if isEx:
                     Exsnap[i, j, k] = (Exslice[i, j, k] +
-                                       Exslice[i, j + 1, k] +
-                                       Exslice[i, j, k + 1] +
-                                       Exslice[i, j + 1, k + 1]) / 4
+                                       Exslice[i, j + sy, k] +
+                                       Exslice[i, j, k + sz] +
+                                       Exslice[i, j + sy, k + sz]) / 4
                 if isEy:
                     Eysnap[i, j, k] = (Eyslice[i, j, k] +
-                                       Eyslice[i + 1, j, k] +
-                                       Eyslice[i, j, k + 1] +
-                                       Eyslice[i + 1, j, k + 1]) / 4
+                                       Eyslice[i + sx, j, k] +
+                                       Eyslice[i, j, k + sz] +
+                                       Eyslice[i + sx, j, k + sz]) / 4
                 if isEz:
                     Ezsnap[i, j, k] = (Ezslice[i, j, k] +
-                                       Ezslice[i + 1, j, k] +
-                                       Ezslice[i, j + 1, k] +
-                                       Ezslice[i + 1, j + 1, k]) / 4
+                                       Ezslice[i + sx, j, k] +
+                                       Ezslice[i, j + sy, k] +
+                                       Ezslice[i + sx, j + sy, k]) / 4
 
                 # The magnetic field component value at a point comes from
                 # average of 2 magnetic field component values in that cell and
                 # the neighbouring cell.
                 if isHx:
                     Hxsnap[i, j, k] = (Hxslice[i, j, k] +
-                                       Hxslice[i + 1, j, k]) / 2
+                                       Hxslice[i + sx, j, k]) / 2
                 if isHy:
                     Hysnap[i, j, k] = (Hyslice[i, j, k] +
-                                       Hyslice[i, j + 1, k]) / 2
+                                       Hyslice[i, j + sy, k]) / 2
                 if isHz:
                     Hzsnap[i, j, k] = (Hzslice[i, j, k] +
-                                       Hzslice[i, j, k + 1]) / 2
+                                       Hzslice[i, j, k + sz]) / 2

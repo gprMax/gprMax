@@ -841,10 +841,10 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
     def _validate_parameters(self, grid: FDTDGrid):
         # Warn about using a transmission line on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             raise ValueError(
                 f"{self.params_str()} cannot currently be used "
-                "with the CUDA or OpenCL-based solver. Consider "
+                "with the CUDA, OpenCL, or Metal-based solver. Consider "
                 "using a #voltage_source instead."
             )
 
@@ -1505,7 +1505,7 @@ class Rx(RotatableMixin, GridUserObject):
 
         self.outputs.sort()
         # Get allowable outputs
-        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             allowableoutputs = RxUser.allowableoutputs_dev
         else:
             allowableoutputs = RxUser.allowableoutputs

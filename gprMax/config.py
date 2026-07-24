@@ -494,7 +494,11 @@ class SimulationConfig:
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cfloat"
             elif self.general["solver"] == "metal":
-                self.dtypes["C_complex"] = "metal::complex<float>"
+                # Metal Shading Language has no native complex type - a
+                # small custom struct (gprMaxComplex, with the needed
+                # +/-/* operators and .real()) is defined in
+                # knl_common_metal.tmpl instead.
+                self.dtypes["C_complex"] = "gprMaxComplex"
 
         elif self.general["precision"] == "double":
             self.dtypes = {
@@ -510,7 +514,10 @@ class SimulationConfig:
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cdouble"
             elif self.general["solver"] == "metal":
-                self.dtypes["C_complex"] = "metal::complex<double>"
+                # Unreachable in practice - the Metal branch above already
+                # raises ValueError for double precision - kept consistent
+                # with the single-precision case regardless.
+                self.dtypes["C_complex"] = "gprMaxComplex"
 
         else:
             # The CLI protects against this via argparse's
