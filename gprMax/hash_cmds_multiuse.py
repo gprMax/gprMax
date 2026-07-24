@@ -36,6 +36,7 @@ from .user_objects.cmds_multiuse import (
     Rx,
     RxArray,
     SoilPeplinski,
+    SymmetryBoundary,
     TransmissionLine,
     VoltageSource,
     Waveform,
@@ -694,5 +695,19 @@ def process_multicmds(multicmds):
             )
 
             scene_objects.append(pml_cfs)
+
+    cmdname = "#symmetry_boundary"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 2:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly two parameters"
+                )
+                raise ValueError
+
+            symmetry_boundary = SymmetryBoundary(face=tmp[0].lower(), type=tmp[1].lower())
+            scene_objects.append(symmetry_boundary)
 
     return scene_objects

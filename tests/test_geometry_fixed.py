@@ -64,6 +64,46 @@ def test_geometry_fixed_multiple_runs_completes_without_exception(tmp_path):
             assert not np.any(np.isnan(f["rxs/rx1/Ez"][:]))
 
 
+def test_geometry_fixed_with_symmetry_boundary_and_steps_produces_distinct_finite_output(tmp_path):
+    """Symmetry build state must survive geometry reuse while sources step."""
+    dl = 1e-3
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=2e-10))
+    scene.add(gprMax.SymmetryBoundary(face="x0", type="pmc"))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=1.5e10, id="w"))
+    scene.add(
+        gprMax.HertzianDipole(
+            polarisation="z", p1=(0.001, 0.01, 0.01), waveform_id="w"
+        )
+    )
+    scene.add(gprMax.SrcSteps(p1=(0.001, 0.0, 0.0)))
+    scene.add(gprMax.Rx(p1=(0.01, 0.01, 0.01)))
+    scene.add(gprMax.RxSteps(p1=(0.0, 0.0, 0.0)))
+
+    outputfile = tmp_path / "run"
+    gprMax.run(
+        scenes=[scene],
+        n=3,
+        geometry_fixed=True,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    peaks = []
+    for i in (1, 2, 3):
+        with h5py.File(f"{outputfile}{i}.h5", "r") as f:
+            ez = f["rxs/rx1/Ez"][:]
+            assert not np.any(np.isnan(ez))
+            peak = np.max(np.abs(ez))
+            assert peak > 1e-3
+            peaks.append(peak)
+
+    assert len(set(peaks)) == 3
+
+
 def _make_scene():
     dl = 1e-3
     scene = gprMax.Scene()

@@ -29,6 +29,7 @@ from gprMax.cuda_opencl import (
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
+    knl_symmetry_boundaries,
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
@@ -78,6 +79,8 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
+        if "pmc" in self.grid.symmetry_boundaries.values():
+            self._set_symmetry_boundary_knl()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
         if self.grid.rxs:
@@ -221,6 +224,36 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.grid.htod_field_arrays(self.queue)
         if config.get_model_config().materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays(self.queue)
+
+    def _set_symmetry_boundary_knl(self):
+        """Build the nondispersive PMC ghost-image boundary kernel."""
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NX_FIELDS": self.grid.nx + 1,
+            "NY_FIELDS": self.grid.ny + 1,
+            "NZ_FIELDS": self.grid.nz + 1,
+            "NX_ID": self.grid.ID.shape[1],
+            "NY_ID": self.grid.ID.shape[2],
+            "NZ_ID": self.grid.ID.shape[3],
+        }
+        self.update_electric_pmc_dev = self.elwiseknl(
+            self.ctx,
+            knl_symmetry_boundaries.update_electric_pmc["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_symmetry_boundaries.update_electric_pmc["func"].substitute(substitutions),
+            "update_electric_pmc",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _pmc_flags(self):
+        boundaries = self.grid.symmetry_boundaries
+        return tuple(
+            np.int32(boundaries.get(face) == "pmc")
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
+        )
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
@@ -520,6 +553,25 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ty_dev,
                 self.grid.Tz_dev,
             )
+
+    def update_symmetry_boundaries_electric(self):
+        """Apply the nondispersive PMC ghost-image correction on OpenCL."""
+        if "pmc" not in self.grid.symmetry_boundaries.values():
+            return
+
+        self.update_electric_pmc_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            *self._pmc_flags(),
+            self.grid.ID_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            self.grid.Hx_dev,
+            self.grid.Hy_dev,
+            self.grid.Hz_dev,
+        )
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""

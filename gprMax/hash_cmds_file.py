@@ -259,6 +259,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx_array",
             "#snapshot",
             "#pml_cfs",
+            "#symmetry_boundary",
             "#include_file",
         ]
     }

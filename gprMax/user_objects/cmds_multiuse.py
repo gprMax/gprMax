@@ -42,6 +42,7 @@ from gprMax.sources import HertzianDipole as HertzianDipoleUser
 from gprMax.sources import MagneticDipole as MagneticDipoleUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     rotate_2point_object,
     rotate_polarisation,
@@ -2578,6 +2579,96 @@ class PMLCFS(GridUserObject):
                 f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML."
             )
             raise ValueError
+
+
+class SymmetryBoundary(GridUserObject):
+    """Sets a PEC or PMC symmetry boundary condition on a model-domain face.
+
+    The selected boundary replaces the PML on that face. A PEC boundary
+    forces the tangential electric-field component IDs to the built-in PEC
+    material during grid construction. A PMC boundary uses an image-theory
+    ghost-node update for the on-wall tangential electric fields.
+
+    Nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and
+    Metal solvers. Dispersive PMC boundaries are currently CPU-only.
+    Symmetry boundaries are not supported in 2D mode, with MPI, or on a
+    subgrid, although they may be used on the main grid of a model that
+    contains subgrids.
+
+    Attributes:
+        face: One of ``x0``, ``y0``, ``z0``, ``xmax``, ``ymax``, or ``zmax``.
+        type: Either ``pec`` or ``pmc``.
+    """
+
+    VALID_FACES = ("x0", "y0", "z0", "xmax", "ymax", "zmax")
+    VALID_TYPES = ("pec", "pmc")
+
+    @property
+    def order(self):
+        # Build before sources and receivers so their PML-position checks see
+        # the symmetry face's disabled PML thickness.
+        return 0
+
+    @property
+    def hash(self):
+        return "#symmetry_boundary"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            face = self.kwargs["face"]
+            boundary_type = self.kwargs["type"]
+        except KeyError:
+            logger.exception(f"{self.params_str()} requires a face and a boundary type.")
+            raise
+
+        if face not in self.VALID_FACES:
+            logger.exception(
+                f"{self.params_str()} face must be one of {', '.join(self.VALID_FACES)}."
+            )
+            raise ValueError
+
+        if boundary_type not in self.VALID_TYPES:
+            logger.exception(
+                f"{self.params_str()} type must be one of {', '.join(self.VALID_TYPES)}."
+            )
+            raise ValueError
+
+        if config.sim_config.mpi:
+            logger.exception(f"{self.params_str()} cannot currently be used with MPI.")
+            raise ValueError
+
+        if config.get_model_config().mode.startswith("2D"):
+            logger.exception(f"{self.params_str()} cannot currently be used in 2D mode.")
+            raise ValueError
+
+        if isinstance(grid, SubGridBaseGrid):
+            logger.exception(
+                f"{self.params_str()} cannot be used on a subgrid. It may still be "
+                "used on the main grid of a model that contains subgrids."
+            )
+            raise ValueError
+
+        if face in grid.symmetry_boundaries:
+            logger.exception(
+                f"{self.params_str()} a symmetry boundary has already been set on face '{face}'."
+            )
+            raise ValueError
+
+        grid.symmetry_boundaries[face] = boundary_type
+        overridden_thickness = grid.pmls["thickness"][face]
+        grid.pmls["thickness"][face] = 0
+
+        logger.info(
+            f"Symmetry boundary ({boundary_type}) set on face '{face}'"
+            + (
+                f"; PML thickness on that face (was {overridden_thickness}) disabled."
+                if overridden_thickness
+                else "; PML on that face disabled."
+            )
+        )
 
 
 """

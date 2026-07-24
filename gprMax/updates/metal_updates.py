@@ -29,6 +29,7 @@ from gprMax.cuda_opencl import (
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
+    knl_symmetry_boundaries,
 )
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import (
@@ -92,6 +93,8 @@ class MetalUpdates:
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
+        if "pmc" in self.grid.symmetry_boundaries.values():
+            self._set_symmetry_boundary_knl()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
         if self.grid.rxs:
@@ -269,6 +272,28 @@ class MetalUpdates:
         self.grid.htod_geometry_arrays(self.dev)
         self.grid.htod_field_arrays(self.dev)
         self.grid.htod_material_arrays(self.dev)
+
+    def _set_symmetry_boundary_knl(self):
+        """Build the nondispersive PMC ghost-image boundary kernel."""
+        source = self._build_knl(
+            knl_symmetry_boundaries.update_electric_pmc,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        library, error = self.dev.newLibraryWithSource_options_error_(source, self.opts, None)
+        if library is None:
+            raise RuntimeError(f"Failed to compile Metal PMC kernel: {error}")
+        function = library.newFunctionWithName_("update_electric_pmc")
+        self.pso_electric_pmc = self.dev.newComputePipelineStateWithFunction_error_(
+            function, None
+        )[0]
+
+    def _pmc_flags(self):
+        boundaries = self.grid.symmetry_boundaries
+        return tuple(
+            np.int32(boundaries.get(face) == "pmc")
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
+        )
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
@@ -825,6 +850,45 @@ class MetalUpdates:
             cmdbuffer.commit()
             cmdbuffer.waitUntilCompleted()
 
+    def update_symmetry_boundaries_electric(self):
+        """Apply the nondispersive PMC ghost-image correction on Metal."""
+        if "pmc" not in self.grid.symmetry_boundaries.values():
+            return
+
+        command = self.cmdqueue.commandBuffer()
+        encoder = command.computeCommandEncoder()
+        encoder.setComputePipelineState_(self.pso_electric_pmc)
+        scalars = (
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            *self._pmc_flags(),
+        )
+        for index, value in enumerate(scalars):
+            encoder.setBytes_length_atIndex_(value.tobytes(), 4, index)
+
+        buffers = (
+            self.grid.ID_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            self.grid.Hx_dev,
+            self.grid.Hy_dev,
+            self.grid.Hz_dev,
+        )
+        for index, buffer in enumerate(buffers, start=9):
+            encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+
+        encoder.dispatchThreads_threadsPerThreadgroup_(
+            self.grid.tptg,
+            self.metal.MTLSizeMake(
+                self.pso_electric_pmc.maxTotalThreadsPerThreadgroup(), 1, 1
+            ),
+        )
+        encoder.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -1046,6 +1110,11 @@ class MetalUpdates:
             cmpencoder.endEncoding()
             cmdbuffer.commit()
             cmdbuffer.waitUntilCompleted()
+
+    def update_symmetry_boundaries_electric_b(self):
+        """No-op because dispersive PMC symmetry is rejected for Metal."""
+
+        pass
 
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""

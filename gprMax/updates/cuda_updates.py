@@ -30,6 +30,7 @@ from gprMax.cuda_opencl import (
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
+    knl_symmetry_boundaries,
 )
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
@@ -96,6 +97,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
+        if "pmc" in self.grid.symmetry_boundaries.values():
+            self._set_symmetry_boundary_knl()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
         if self.grid.rxs:
@@ -227,6 +230,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.grid.htod_field_arrays()
         if config.get_model_config().materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays()
+
+    def _set_symmetry_boundary_knl(self):
+        """Build the nondispersive PMC ghost-image boundary kernel."""
+        source = self._build_knl(
+            knl_symmetry_boundaries.update_electric_pmc,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_electric_pmc_dev = module.get_function("update_electric_pmc")
+        self._copy_mat_coeffs(module, module)
+
+    def _pmc_flags(self):
+        boundaries = self.grid.symmetry_boundaries
+        return tuple(
+            np.int32(boundaries.get(face) == "pmc")
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
+        )
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
@@ -526,6 +547,27 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=self.grid.tpb,
                 grid=self.grid.bpg,
             )
+
+    def update_symmetry_boundaries_electric(self):
+        """Apply the nondispersive PMC ghost-image correction on CUDA."""
+        if "pmc" not in self.grid.symmetry_boundaries.values():
+            return
+
+        self.update_electric_pmc_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            *self._pmc_flags(),
+            self.grid.ID_dev.gpudata,
+            self.grid.Ex_dev.gpudata,
+            self.grid.Ey_dev.gpudata,
+            self.grid.Ez_dev.gpudata,
+            self.grid.Hx_dev.gpudata,
+            self.grid.Hy_dev.gpudata,
+            self.grid.Hz_dev.gpudata,
+            block=self.grid.tpb,
+            grid=self.grid.bpg,
+        )
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
