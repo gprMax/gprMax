@@ -86,7 +86,7 @@ class Discretisation(ModelUserObject):
         self.discretisation = p1
 
     def build(self, model: Model):
-        if any(self.discretisation) <= 0:
+        if any(d <= 0 for d in self.discretisation):
             raise ValueError(
                 f"{self} discretisation requires the spatial step to be"
                 " greater than zero in all dimensions"
@@ -127,7 +127,7 @@ class Domain(ModelUserObject):
 
         model.set_size(discretised_domain_size)
 
-        if model.nx == 0 or model.ny == 0 or model.nz == 0:
+        if not (model.nx > 0 and model.ny > 0 and model.nz > 0):
             raise ValueError(f"{self} requires at least one cell in every dimension")
 
         logger.info(
@@ -138,18 +138,22 @@ class Domain(ModelUserObject):
 
         # Set mode and switch off appropriate PMLs for 2D models
         grid = model.G
-        if model.nx == 1:
-            config.get_model_config().mode = "2D TMx"
-            grid.pmls["thickness"]["x0"] = 0
-            grid.pmls["thickness"]["xmax"] = 0
-        elif model.ny == 1:
-            config.get_model_config().mode = "2D TMy"
-            grid.pmls["thickness"]["y0"] = 0
-            grid.pmls["thickness"]["ymax"] = 0
-        elif model.nz == 1:
-            config.get_model_config().mode = "2D TMz"
-            grid.pmls["thickness"]["z0"] = 0
-            grid.pmls["thickness"]["zmax"] = 0
+        cells = (model.nx, model.ny, model.nz)
+        singleton_axes = [i for i, c in enumerate(cells) if c == 1]
+        if len(singleton_axes) > 1:
+            axis_names = ("x", "y", "z")
+            raise ValueError(
+                f"{self} domain has more than one axis with only 1 cell "
+                f"({', '.join(axis_names[i] for i in singleton_axes)}) - 2D mode "
+                "requires exactly one invariant axis; check the domain size and "
+                "spatial discretisation"
+            )
+        elif len(singleton_axes) == 1:
+            axis = singleton_axes[0]
+            axis_letter = "xyz"[axis]
+            config.get_model_config().mode = f"2D TM{axis_letter}"
+            grid.pmls["thickness"][f"{axis_letter}0"] = 0
+            grid.pmls["thickness"][f"{axis_letter}max"] = 0
         else:
             config.get_model_config().mode = "3D"
 
@@ -241,6 +245,9 @@ class TimeWindow(ModelUserObject):
             else:
                 raise ValueError(f"{self} must have a value greater than zero")
         elif self.iterations is not None:
+            if self.iterations <= 0:
+                raise ValueError(f"{self} must have a value greater than zero")
+
             # The +/- 1 used in calculating the number of iterations is
             # to account for the fact that the solver (iterations) loop
             # runs from 0 to < G.iterations
@@ -369,6 +376,17 @@ class PMLThickness(ModelUserObject):
             isinstance(self.thickness, int) or len(self.thickness) == 1 or len(self.thickness) == 6
         ):
             raise ValueError(f"{self} requires either one or six parameter(s)")
+
+        # A negative thickness isn't rejected here without this check -
+        # FDTDGrid._build_pmls() only constructs a slab when
+        # `thickness > 0`, so a negative value would silently behave
+        # like 0 (no PML on that face) instead of raising an error for a
+        # nonsensical request.
+        thickness_values = (
+            (self.thickness,) if isinstance(self.thickness, int) else tuple(self.thickness)
+        )
+        if any(t < 0 for t in thickness_values):
+            raise ValueError(f"{self} requires the PML thickness to be zero or greater")
 
         model.G.set_pml_thickness(self.thickness)
 

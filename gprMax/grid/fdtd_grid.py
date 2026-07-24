@@ -251,6 +251,7 @@ class FDTDGrid:
             self.pmls["cfs"] = [CFS()]
         logger.info(print_pml_info(self))
         if not all(value == 0 for value in self.pmls["thickness"].values()):
+            self._validate_pml_thickness()
             self._build_pmls()
         for snapshot in self.snapshots:  # TODO: Remove if implement parallel build
             snapshot.initialise_snapfields()
@@ -265,6 +266,26 @@ class FDTDGrid:
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
         self._DPW__source_grid_init()
+
+    def _validate_pml_thickness(self) -> None:
+        """Check that no PML reaches or crosses the domain midpoint.
+
+        ``PMLThickness.build()`` performs this check when the user supplies
+        ``#pml_cells`` explicitly. Grids otherwise retain their default
+        10-cell PML on every side, so small domains previously reached grid
+        construction without an equivalent check. Running it here covers
+        both explicit and default thicknesses.
+        """
+        thickness = self.pmls["thickness"]
+        if (
+            2 * thickness["x0"] >= self.nx
+            or 2 * thickness["y0"] >= self.ny
+            or 2 * thickness["z0"] >= self.nz
+            or 2 * thickness["xmax"] >= self.nx
+            or 2 * thickness["ymax"] >= self.ny
+            or 2 * thickness["zmax"] >= self.nz
+        ):
+            raise ValueError("PML has too many cells for the domain size")
 
     def _build_pmls(self) -> None:
         """Construct and calculate material properties of the PMLs."""
@@ -514,14 +535,40 @@ class FDTDGrid:
             ValueError: Raised if any of the items would be stepped
                 outside of the grid.
         """
-        if any(step_size > 0):
+        # `!= 0` (not `> 0`) - a negative step is a valid request to move
+        # backward each model; the old `> 0` check silently skipped both
+        # the bounds check and the actual repositioning below whenever
+        # every component of step_size was <= 0 (e.g. an all-negative
+        # step), even though SrcSteps/RxSteps accepted and logged it.
+        if any(step_size != 0):
             for item in items:
-                if step_number == 0:
-                    # Check item won't be stepped outside of the grid
-                    end_coord = item.coord + step_size * config.sim_config.model_end
+                # The one-time "won't be stepped outside the grid" check
+                # must run on the first model actually processed in this
+                # run - step_number == config.sim_config.model_start, not
+                # a literal 0. step_number is the ABSOLUTE model index, so
+                # with a restart (-i/i=) the first model processed has
+                # step_number == model_start (never 0), and a literal-0
+                # check would never fire at all on any restarted run.
+                # Degrades to the exact original check when there's no
+                # restart (model_start defaults to 0).
+                if step_number == config.sim_config.model_start:
+                    # The last model actually run has index model_end - 1
+                    # (models run over range(model_start, model_end)), not
+                    # model_end itself - checking one step further than
+                    # any real run would reject some valid scans that fit
+                    # exactly within the domain boundary.
+                    end_coord = item.coord + step_size * (config.sim_config.model_end - 1)
                     self.within_bounds(end_coord)
-                else:
-                    item.coord = item.coordorigin + step_number * step_size
+                # Always reposition (not just on step_number !=
+                # model_start): step_number is the absolute model index,
+                # so this is correct regardless of restart - for the
+                # first model processed (step_number == model_start),
+                # this must still run alongside the bounds check above,
+                # not instead of it, since a restarted run's first model
+                # (model_start != 0) genuinely needs real repositioning,
+                # unlike a non-restarted run's model 0 (model_start == 0),
+                # where this is a harmless no-op (coordorigin + 0*step).
+                item.coord = item.coordorigin + step_number * step_size
 
     def update_simple_source_positions(self, step: int = 0) -> None:
         """Update the positions of sources in the grid.

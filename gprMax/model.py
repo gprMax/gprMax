@@ -398,6 +398,7 @@ class Model:
         # Combine available grids
         grids = [self.G] + self.subgrids
 
+        self._check_stateful_sources_with_geometry_fixed(grids)
         self._check_for_dispersive_materials(grids)
         self._check_memory_requirements(grids)
 
@@ -405,18 +406,81 @@ class Model:
             grid.build()
             grid.dispersion_analysis(self.iterations)
 
+    def _check_stateful_sources_with_geometry_fixed(self, grids: Sequence[FDTDGrid]):
+        # TransmissionLine and DiscretePlaneWave each carry their own
+        # persistent internal state (TL: voltage/current/ABC history;
+        # DPW: its own internal 1D E/H-field and PML-integral arrays) that
+        # is never reset between geometry_fixed reuse runs (only grid
+        # fields/PMLs are). Neither source can even vary between those
+        # runs in the first place - TransmissionLine is explicitly
+        # excluded from #src_steps repositioning
+        # (FDTDGrid.update_simple_source_positions()), and a
+        # DiscretePlaneWave's angle/direction is fixed once at scene-parse
+        # time with no per-run mechanism to change it. So with
+        # geometry_fixed and more than one model requested, every run
+        # after the first would silently reuse the exact same source at
+        # the exact same configuration, contaminated by the previous
+        # run's leftover internal state - not a "reuse the geometry, vary
+        # something else" scenario at all, just a broken repeat of an
+        # identical model. (A stepped receiver/dipole elsewhere in the
+        # same scene doesn't need multiple runs either - use multiple
+        # #rx commands, or #src_steps/#rx_steps, in a single run instead.)
+        if config.sim_config.geometry_fixed and config.sim_config.number_of_models > 1:
+            if any(grid.transmissionlines for grid in grids):
+                raise ValueError(
+                    "#transmission_line cannot be used with geometry_fixed when more "
+                    "than one model is requested (n > 1) - a transmission line's "
+                    "internal state (voltage/current/ABC history) is not reset "
+                    "between reused-geometry runs, and it cannot be repositioned "
+                    "via #src_steps, so every run after the first would silently "
+                    "repeat the identical, contaminated source. Run a single model "
+                    "instead, or use #voltage_source if you need geometry_fixed."
+                )
+            if any(grid.discreteplanewaves for grid in grids):
+                raise ValueError(
+                    "A discrete plane wave command cannot be used with "
+                    "geometry_fixed when more than one model is requested (n > 1) "
+                    "- its internal state (the plane wave's own 1D E/H-field and "
+                    "PML-integral arrays) is not reset between reused-geometry "
+                    "runs, and its angle/direction cannot vary between runs, so "
+                    "every run after the first would silently repeat the "
+                    "identical, contaminated source. Run a single model instead."
+                )
+
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
         # Check for dispersive materials (and specific type)
         if config.get_model_config().materials["maxpoles"] != 0:
-            # TODO: This sets materials["drudelorentz"] based only the
-            # last grid/subgrid. Is that correct?
-            for grid in grids:
-                config.get_model_config().materials["drudelorentz"] = any(
-                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
-                )
+            # dispersivedtype/dispersiveCdtype are single, model-wide
+            # settings (not per-grid) - every grid's dispersive arrays are
+            # allocated using them (FDTDGrid.initialise_dispersive_arrays()),
+            # so drudelorentz must be True if ANY grid (main or subgrid)
+            # contains a Drude/Lorentz material, not just the last one
+            # checked. Getting this wrong doesn't just pick the wrong
+            # update kernel - it allocates a real-dtype updatecoeffsdispersive
+            # array for a grid whose materials need complex pole
+            # coefficients, silently truncating them (numpy raises only a
+            # ComplexWarning on such an assignment, not an error).
+            config.get_model_config().materials["drudelorentz"] = any(
+                "drude" in m.type or "lorentz" in m.type
+                for grid in grids
+                for m in grid.materials
+            )
 
             # Set data type if any dispersive materials (must be done before memory checks)
             config.get_model_config().set_dispersive_material_types()
+
+            # TODO: This is the correct, model-wide-safe fix (every grid
+            # gets a dtype capable of any dispersive material present
+            # anywhere), but it's not the ideal one. A Debye-only subgrid
+            # still pays for complex-arithmetic dispersive kernels/arrays
+            # just because the main grid (or another subgrid) has a
+            # Lorentz/Drude material. Doing this properly would mean
+            # making drudelorentz/dispersivedtype/dispersiveCdtype/
+            # crealfunc per-grid attributes instead of singleton
+            # ModelConfig ones, and updating every backend's dispersive
+            # kernel-selection code (e.g. CPUUpdates.set_dispersive_updates(),
+            # the CUDA/OpenCL/Metal equivalents) to read the owning grid's
+            # own flag rather than the global one.
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory

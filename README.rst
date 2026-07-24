@@ -324,6 +324,12 @@ Optional command line arguments
     * - ``-metal``
       - list/bool
       - Flag to use Apple Metal GPU or list of Metal device ID(s) for specific compute device(s) (macOS with M-series chips).
+    * - ``-cpu_precision``
+      - string
+      - Precision for the CPU solver: ``single`` (default) or ``double``. This option is ignored when a GPU solver is used. Sub-gridding always uses double precision regardless of this setting.
+    * - ``-gpu_precision``
+      - string
+      - Precision for the CUDA, OpenCL, or Metal solver: ``single`` (default) or ``double``. Apple Metal currently supports single precision only. This option is ignored when the CPU solver or sub-gridding is used.
     * - ``--geometry-only``
       - flag
       - Build a model and produce any geometry views but do not run the simulation, e.g. to check

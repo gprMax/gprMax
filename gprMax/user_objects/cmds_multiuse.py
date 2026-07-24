@@ -251,38 +251,89 @@ class Waveform(GridUserObject):
 
         else:
             try:
-                uservalues = self.kwargs["user_values"]
                 ID = self.kwargs["id"]
-                fullargspec = inspect.getfullargspec(interpolate.interp1d)
-                kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
             except KeyError:
                 logger.exception(
                     self.params_str()
-                    + (" a user-defined waveform requires at least two parameters.")
+                    + (" a user-defined waveform requires an 'id' and either "
+                       "'user_func' or 'user_values'.")
                 )
                 raise
-
-            if "user_time" in self.kwargs:
-                waveformtime = self.kwargs["user_time"]
-            else:
-                waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
-
-            # Set args for interpolation if given by user
-            if "kind" in self.kwargs:
-                kwargs["kind"] = self.kwargs["kind"]
-            if "fill_value" in self.kwargs:
-                kwargs["fill_value"] = self.kwargs["fill_value"]
 
             if any(x.ID == ID for x in grid.waveforms):
                 logger.exception(self.params_str() + (f" with ID {ID} already exists."))
                 raise ValueError
 
+            if "user_func" in self.kwargs and "user_values" in self.kwargs:
+                msg = (
+                    self.params_str()
+                    + " a user-defined waveform requires exactly one of "
+                    "'user_func' or 'user_values', not both."
+                )
+                logger.exception(msg)
+                raise ValueError(msg)
+
             w = WaveformUser()
             w.ID = ID
             w.type = wavetype
-            w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
 
-            logger.info(self.grid_name(grid) + (f"Waveform {w.ID} that is user-defined created."))
+            if "user_func" in self.kwargs:
+                userfunc = self.kwargs["user_func"]
+                if not callable(userfunc):
+                    msg = self.params_str() + " 'user_func' must be a callable."
+                    logger.exception(msg)
+                    raise ValueError(msg)
+                # Smoke-test at build time so a broken signature or a return
+                # type fails fast here, before any more expensive grid
+                # build work runs, rather than deep inside the per-source
+                # waveform precompute loop.
+                try:
+                    float(userfunc(0.0))
+                except Exception as err:
+                    msg = (
+                        self.params_str()
+                        + " 'user_func' must accept a single float (time in "
+                        "seconds) and return a numeric value."
+                    )
+                    logger.exception(msg)
+                    raise ValueError(msg) from err
+                w.userfunc = userfunc
+
+                logger.info(
+                    self.grid_name(grid)
+                    + (f"Waveform {w.ID} using a user-supplied function created.")
+                )
+
+            elif "user_values" in self.kwargs:
+                uservalues = self.kwargs["user_values"]
+                fullargspec = inspect.getfullargspec(interpolate.interp1d)
+                kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
+
+                if "user_time" in self.kwargs:
+                    waveformtime = self.kwargs["user_time"]
+                else:
+                    waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+
+                # Set args for interpolation if given by user
+                if "kind" in self.kwargs:
+                    kwargs["kind"] = self.kwargs["kind"]
+                if "fill_value" in self.kwargs:
+                    kwargs["fill_value"] = self.kwargs["fill_value"]
+
+                w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
+
+                logger.info(
+                    self.grid_name(grid) + (f"Waveform {w.ID} that is user-defined created.")
+                )
+
+            else:
+                msg = (
+                    self.params_str()
+                    + " a user-defined waveform requires either 'user_func' "
+                    "or 'user_values'."
+                )
+                logger.exception(msg)
+                raise ValueError(msg)
 
         grid.waveforms.append(w)
 
@@ -790,10 +841,10 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
     def _validate_parameters(self, grid: FDTDGrid):
         # Warn about using a transmission line on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             raise ValueError(
                 f"{self.params_str()} cannot currently be used "
-                "with the CUDA or OpenCL-based solver. Consider "
+                "with the CUDA, OpenCL, or Metal-based solver. Consider "
                 "using a #voltage_source instead."
             )
 
@@ -1454,7 +1505,7 @@ class Rx(RotatableMixin, GridUserObject):
 
         self.outputs.sort()
         # Get allowable outputs
-        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             allowableoutputs = RxUser.allowableoutputs_dev
         else:
             allowableoutputs = RxUser.allowableoutputs
@@ -1937,22 +1988,28 @@ class SoilPeplinski(GridUserObject):
             logger.exception(f"{self.params_str()} requires at exactly seven parameters.")
             raise
 
-        if sand_fraction < 0:
+        # sand_fraction/clay_fraction are physical fractions - values
+        # above 1 were previously unvalidated.
+        if not (0 <= sand_fraction <= 1):
             logger.exception(
-                f"{self.params_str()} requires a positive value for the sand fraction."
+                f"{self.params_str()} requires the sand fraction to be between 0 and 1."
             )
             raise ValueError
-        if clay_fraction < 0:
+        if not (0 <= clay_fraction <= 1):
             logger.exception(
-                f"{self.params_str()} requires a positive value for the clay fraction."
+                f"{self.params_str()} requires the clay fraction to be between 0 and 1."
             )
             raise ValueError
         if bulk_density < 0:
             logger.exception(f"{self.params_str()} requires a positive value for the bulk density.")
             raise ValueError
-        if sand_density < 0:
+        # sand_density is a divisor in PeplinskiSoil.calculate_properties()
+        # (materials.py) - zero would raise a ZeroDivisionError there,
+        # not here, at build time.
+        if sand_density <= 0:
             logger.exception(
-                f"{self.params_str()} requires a positive value for the sand particle density."
+                f"{self.params_str()} requires a value greater than zero for the sand particle "
+                "density."
             )
             raise ValueError
         if water_fraction_lower < 0:
@@ -1961,10 +2018,20 @@ class SoilPeplinski(GridUserObject):
                 "fraction."
             )
             raise ValueError
-        if water_fraction_upper < 0:
+        # water_fraction_upper is also a divisor (via the bin midpoints
+        # calculate_properties() generates between the lower/upper
+        # limits) - a reversed or all-zero range would produce a zero (or
+        # negative-width) bin range and risk division by zero.
+        if water_fraction_upper <= 0:
             logger.exception(
-                f"{self.params_str()} requires a positive value for the upper limit of the water volumetric "
-                "fraction."
+                f"{self.params_str()} requires a value greater than zero for the upper limit of "
+                "the water volumetric fraction."
+            )
+            raise ValueError
+        if water_fraction_lower > water_fraction_upper:
+            logger.exception(
+                f"{self.params_str()} requires the lower limit of the water volumetric fraction "
+                "to be less than or equal to the upper limit."
             )
             raise ValueError
         if any(x.ID == ID for x in grid.mixingmodels):

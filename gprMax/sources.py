@@ -444,9 +444,7 @@ def htod_src_arrays(sources, G, queue=None):
                 srcwaves[i, :] = src.waveformvalues_halfdt
             else:
                 srcinfo2[i] = 0
-                srcwaves[i, :] = src.waveformvalues_wholedt 
-            srcinfo2[i] = src.resistance
-            srcwaves[i, :] = src.waveformvalues_halfdt
+                srcwaves[i, :] = src.waveformvalues_wholedt
         elif src.__class__.__name__ == "MagneticDipole":
             srcwaves[i, :] = src.waveformvalues_wholedt
 
