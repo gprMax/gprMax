@@ -221,12 +221,20 @@ class GeometryObjectsRead(GeometryUserObject):
                 data = f.get_data()
                 if data is not None:
                     averaging = False
+                    is_pec_lookup = np.array(
+                        [m.is_pec for m in grid.materials], dtype=np.uint8
+                    )
+                    is_averagable_lookup = np.array(
+                        [m.averagable for m in grid.materials], dtype=np.uint8
+                    )
                     build_voxels_from_array(
                         discretised_p1[0],
                         discretised_p1[1],
                         discretised_p1[2],
                         0,
                         averaging,
+                        is_pec_lookup,
+                        is_averagable_lookup,
                         data,
                         grid.solid,
                         grid.rigidE,

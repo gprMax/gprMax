@@ -459,7 +459,8 @@ class FDTDGrid:
         )
         build_electric_components(self.solid, self.rigidE, self.ID, self)
         pbar.update()
-        build_magnetic_components(self.solid, self.rigidH, self.ID, self)
+        harmonic = config.get_model_config().magnetic_averaging_mode == "harmonic"
+        build_magnetic_components(self.solid, self.rigidH, self.ID, self, harmonic)
         pbar.update()
         pbar.close()
 

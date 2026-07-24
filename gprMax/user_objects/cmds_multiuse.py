@@ -1927,8 +1927,9 @@ class Material(GridUserObject):
         m.mr = mr
         m.sm = sm
 
-        # Set material averaging to False if infinite conductivity, i.e. pec
-        if m.se == float("inf"):
+        # Perfect electric and magnetic conductors cannot participate in
+        # dielectric smoothing at a material interface.
+        if m.se == float("inf") or m.sm == float("inf"):
             m.averagable = False
 
         m.er = er

@@ -97,6 +97,10 @@ class ModelConfig:
     def __init__(self, model_num):
         self.mode = "3D"
         self.requested_2d_mode = None
+        # Mixing rule for magnetic (H-field) material averaging at cell
+        # boundaries during Yee-cell smoothing. Harmonic averaging is the
+        # default; arithmetic averaging preserves results from older versions.
+        self.magnetic_averaging_mode = "harmonic"
         self.grids = []
         self.ompthreads = None
         self.model_num = model_num
@@ -204,6 +208,7 @@ class ModelConfig:
 
         self.mode = reference.mode
         self.requested_2d_mode = reference.requested_2d_mode
+        self.magnetic_averaging_mode = reference.magnetic_averaging_mode
         self.materials = dict(reference.materials)
 
     def get_scene(self):

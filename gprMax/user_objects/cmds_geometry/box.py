@@ -119,6 +119,7 @@ class Box(RotatableMixin, GeometryUserObject):
         if len(materials) == 1:
             averaging = materials[0].averagable and averagebox
             numID = numIDx = numIDy = numIDz = materials[0].numID
+            pec_x = pec_y = pec_z = materials[0].is_pec
 
         # Uniaxial anisotropic case
         elif len(materials) == 3:
@@ -126,6 +127,9 @@ class Box(RotatableMixin, GeometryUserObject):
             numIDx = materials[0].numID
             numIDy = materials[1].numID
             numIDz = materials[2].numID
+            pec_x = materials[0].is_pec
+            pec_y = materials[1].is_pec
+            pec_z = materials[2].is_pec
             requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
             averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
@@ -155,6 +159,9 @@ class Box(RotatableMixin, GeometryUserObject):
             numIDy,
             numIDz,
             averaging,
+            pec_x,
+            pec_y,
+            pec_z,
             grid.solid,
             grid.rigidE,
             grid.rigidH,

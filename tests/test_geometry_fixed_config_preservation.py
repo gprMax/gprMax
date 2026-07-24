@@ -67,6 +67,18 @@ def _capture_materials(monkeypatch):
     return captured
 
 
+def _capture_magnetic_averaging_modes(monkeypatch):
+    captured = []
+    orig_init = CPUUpdates.__init__
+
+    def patched_init(self, grid):
+        orig_init(self, grid)
+        captured.append(config.get_model_config().magnetic_averaging_mode)
+
+    monkeypatch.setattr(CPUUpdates, "__init__", patched_init)
+    return captured
+
+
 def _base_2d_tm_scene(dl=1e-3, domain_transverse=0.02):
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
@@ -119,6 +131,22 @@ def test_explicit_te_mode_preserved_across_geometry_fixed_runs(monkeypatch, tmp_
     )
 
     assert captured == ["2D TEz", "2D TEz", "2D TEz"]
+
+
+def test_magnetic_averaging_mode_preserved_across_geometry_fixed_runs(monkeypatch, tmp_path):
+    captured = _capture_magnetic_averaging_modes(monkeypatch)
+    scene = _base_2d_tm_scene()
+    scene.add(gprMax.MagneticAveraging(mode="arithmetic"))
+
+    gprMax.run(
+        scenes=[scene],
+        n=3,
+        geometry_fixed=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
+
+    assert captured == ["arithmetic", "arithmetic", "arithmetic"]
 
 
 def _dispersive_scene(material_type, dl=1e-3):

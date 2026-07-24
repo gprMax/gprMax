@@ -138,6 +138,55 @@ class DomainMode(ModelUserObject):
         logger.info(f"Requested domain mode: {self.requested_mode}")
 
 
+class MagneticAveraging(ModelUserObject):
+    """Sets the mixing rule used to combine the relative magnetic
+    permeability (mu_r) and magnetic loss (sigma*) of two different
+    materials when a magnetic (H) field component's Yee-cell smoothing
+    needs to average across a material boundary.
+
+    Optional. Defaults to 'harmonic'. Each H component (Hx, Hy, Hz) is
+    averaged from the two neighbouring cells stacked along the component's
+    own axis, i.e. normal to any interface between them. The normal
+    component of B is continuous across a material interface, so the
+    harmonic mean of mu_r (and, for consistency, sigma*) is the physically
+    correct mixing rule for this direction - unlike the tangential 4-cell
+    average used for E-field smoothing, where the arithmetic mean already
+    used remains correct and is unaffected by this command.
+
+    Versions of gprMax prior to the introduction of this command always
+    used a simple arithmetic mean here instead. Set this command to
+    'arithmetic' to reproduce that older behaviour exactly, e.g. to
+    reproduce results generated with an older version of gprMax.
+
+    Attributes:
+        mode (str): 'harmonic' (default) or 'arithmetic'.
+    """
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#magnetic_averaging"
+
+    def __init__(self, mode: str = "harmonic"):
+        """Create a MagneticAveraging user object.
+
+        Args:
+            mode: 'harmonic' (default) or 'arithmetic' (case-insensitive).
+        """
+        super().__init__(mode=mode)
+        self.mode = mode.lower()
+
+    def build(self, model: Model):
+        if self.mode not in ("harmonic", "arithmetic"):
+            raise ValueError(f"{self} requires the mode to be 'harmonic' or 'arithmetic'")
+
+        config.get_model_config().magnetic_averaging_mode = self.mode
+        logger.info(f"Magnetic (H-field) averaging mixing rule: {self.mode}")
+
+
 class Domain(ModelUserObject):
     """Size of the model.
 
