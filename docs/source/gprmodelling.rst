@@ -25,7 +25,14 @@ where :math:`t` is time (seconds) and :math:`q_v` is the volume electric charge 
 The nature of the GPR forward problem classifies it as an *initial value -- open boundary* problem. This means that in order to obtain a solution you have to define an initial condition (i.e. excitation of the GPR transmitting antenna) and allow for the resulting fields to propagate through space reaching a zero value at infinity since, there is no specific boundary which limits the geometry of the problem and where the electromagnetic fields can take a predetermined value. Although the first part is easy to accommodate (i.e. specification of the source), the second part cannot be easily tackled using a finite computational space.
 
 The FDTD approach to the numerical solution of Maxwell's equations is to discretize both the space and time continua. Thus the discretization spatial :math:`\Delta x`, :math:`\Delta y` and :math:`\Delta z` and
-temporal :math:`\Delta t` steps play a very significant role -- since the smaller they are the closer the FDTD model is to a real representation of the problem. However, the values of the discretization steps always have to be finite, since computers have a limited amount of storage and finite processing speed. Hence, the FDTD model represents a discretized version of the real problem and is of limited size. The building block of this discretized FDTD grid is the Yee cell [YEE1966]_ named after Kane Yee who pioneered the FDTD method. This is illustrated for the 3D case in :numref:`yeecell3D`.
+temporal :math:`\Delta t` steps play a very significant role -- since the smaller they are the closer the FDTD model is to a real representation of the problem.
+However, the values of the discretization steps always have to be finite, since computers have a limited amount of storage and finite processing speed. Hence, the FDTD model represents a discretized version of the real problem and is of limited size.
+The building block of this discretized FDTD grid is the Yee cell [YEE1966]_ named after Kane Yee who pioneered the FDTD method. This is illustrated for the 3D case in :numref:`yeecell3D`.
+
+Notice in :numref:`yeecell3D` that all electromagnetic
+field components are staggered in space and time. The electric field components are assumed to be located at the edges of the Yee cell and the magnetic field components at the faces of the cell. The time staggering is such that the electric field components are updated at integer time steps and the magnetic field components at half-integer time steps. This staggering is essential for the numerical stability of the FDTD method.
+In reality the Yee cell is not a real structure representing a physical object, but rather a mathematical construct which is used to represent the electromagnetic field components in space and time. The Yee cell is the basic building block of the FDTD grid and the electromagnetic fields are calculated at each cell in the grid at their location.
+Objects are represented in the FDTD grid by assigning appropriate constitutive parameters to the locations of the electromagnetic field components.
 
 .. _yeecell3D:
 
@@ -36,7 +43,26 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 
 By assigning appropriate constitutive parameters to the locations of the electromagnetic field components complex shaped targets can be included easily in the models. However, objects with curved boundaries are represented using a staircase approximation.
 
-gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D using the transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one dimension of the domain must be equal to the spatial discretization in that direction. When this occurs the electric and magnetic field components on the two faces of a single cell slice in the invariant direction are set to zero. This is illustrated for the 2D TMz case in :numref:`yeecell2DTMz`.
+gprMax is fundamentally based on solving Maxwell's equations in 3D. However,
+some problems can be solved in 2D when the geometry and sources are invariant
+along one Cartesian axis. Maxwell's equations then reduce to a simpler set that
+is computationally less expensive to solve. For example, a Hertzian dipole
+represents a line source in a 2D problem.
+
+gprMax supports both two-dimensional transverse-magnetic (TM) and
+transverse-electric (TE) reductions. A reduced 3D Yee-grid structure is used so
+that model descriptions remain consistent between 2D and 3D. TM models are one
+cell thick on the invariant axis, whereas TE models are two cells thick. This
+internal representation is transparent to the user.
+
+The recommended input is to declare ``#domain_mode: TM`` or
+``#domain_mode: TE`` and write ``inf`` for
+the invariant component of ``#domain``. The ``inf`` token identifies the
+invariant direction; it does not allocate an infinite grid. gprMax represents
+TM with one internal cell and TE with two internal cells on that axis, as
+required by the Yee staggering. The older one-cell-domain convention remains
+available and selects TM mode. The 2D TMz and TEz arrangements are illustrated
+in :numref:`yeecell2DTMz` and :numref:`yeecell2DTEz`, respectively.
 
 .. _yeecell2DTMz:
 
@@ -45,7 +71,17 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
 
-Using this approach means that Maxwell's equations in 3D, shown in :eq:`maxwell3D` as six coupled partial differential equations, reduce to the corresponding 2D form - in this case 2D TMz, shown in :eq:`maxwell2DTMz`.
+.. _yeecell2DTEz:
+
+.. figure:: ../../images_shared/yeecell2dTEz.png
+    :width: 675px
+
+    Two FDTD Yee cells showing the 2D transverse electric (TE) z-direction mode. The active :math:`E_x`, :math:`E_y`, and :math:`H_z` components (red and green) lie on the shared interior plane. Their inactive values on the two outer boundary planes, together with the suppressed :math:`E_z`, :math:`H_x`, and :math:`H_y` components, are grey. The outer planes provide the PEC/PMC closure required by the Yee staggering.
+
+Using this approach means that Maxwell's equations in 3D, shown in
+:eq:`maxwell3D` as six coupled partial differential equations, reduce to three
+coupled equations. The TMz system is shown in :eq:`maxwell2DTMz`, and the
+complementary TEz system in :eq:`maxwell2DTEz`.
 
 .. math::
     :label: maxwell3D
@@ -63,6 +99,18 @@ Using this approach means that Maxwell's equations in 3D, shown in :eq:`maxwell3
     &\frac{\partial E_z}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
     &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
     &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right)
+
+.. math::
+    :label: maxwell2DTEz
+
+    &\frac{\partial E_x}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - J_{Sx} - \sigma E_x \right) \\
+    &\frac{\partial E_y}{\partial t} = \frac{1}{\epsilon} \left( - \frac{\partial H_z}{\partial x} - J_{Sy} - \sigma E_y \right) \\
+    &\frac{\partial H_z}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_x}{\partial y} - \frac{\partial E_y}{\partial x} - M_{Sz} - \sigma^* H_z \right)
+
+For an invariant x or y axis, the component labels are permuted accordingly.
+Sources, receivers, snapshots, material construction, and geometry outputs use
+only the components active in the selected 2D system. Unsupported source
+polarisations and features are rejected during model construction.
 
 These equations are discretized in both space and time and applied in each FDTD cell. The numerical solution is obtained directly in the time domain in an iterative fashion. In each iteration, the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
 

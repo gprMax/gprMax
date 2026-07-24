@@ -45,7 +45,7 @@ These should generally be known, often based on the GPR system or scenario being
 .. code-block:: none
 
     #waveform: ricker 1 1.5e9 my_ricker
-    #hertzian_dipole: z 0.100 0.170 0 my_ricker
+    #hertzian_dipole: z 0.100 0.170 inf my_ricker
 
 The Ricker waveform is created with the ``#waveform`` command, specifying an amplitude of one, centre frequency of 1.5 GHz, and picking an arbitrary identifier of ``my_ricker``. The Hertzian dipole source is created using the ``#hertzian_dipole`` command, specifying a z direction polarisation (perpendicular to the survey direction if a B-scan were being created), location on the surface of the slab, and using the Ricker waveform already created.
 
@@ -62,11 +62,19 @@ This would give a minimum spatial resolution of 3 mm. However, the diameter of t
 
     #dx_dy_dz: 0.002 0.002 0.002
 
-The domain size should be enough to enclose the volume of interest, plus allow 10 cells (if using the default value) for the PML absorbing boundary conditions and approximately another 10 cells of between the PML and any objects of interest. In this case the plan is to take a B-scan of the scenario (in the next example) so the domain should be large enough to do that. Although this is a 2D model one cell must be specified in the infinite direction (in this case the z direction) of the domain.
+The domain size should be enough to enclose the volume of interest, plus allow 10 cells (if using the default value) for the PML absorbing boundary conditions and approximately another 10 cells of between the PML and any objects of interest. In this case the plan is to take a B-scan of the scenario (in the next example) so the domain should be large enough to do that. This model is invariant in the z direction and uses the TMz field system because its electric source is z directed. The mode and invariant axis are declared explicitly:
 
 .. code-block:: none
 
-    #domain: 0.240 0.210 0.002
+    #domain_mode: TM
+    #domain: 0.240 0.210 inf
+
+Here ``inf`` identifies the invariant axis; it does not create an infinitely
+large grid. gprMax resolves it to the one-cell internal thickness required by
+TM mode. TEz instead uses ``#domain_mode: TE`` with the same domain declaration
+and is represented internally by two cells. A TEz model would require an
+in-plane electric source or a z-directed magnetic source because its active
+components are :math:`E_x`, :math:`E_y`, and :math:`H_z`.
 
 Choose a time window
 --------------------
@@ -90,8 +98,18 @@ Now physical objects can be created for the half-space and the cylinder. First, 
 
 .. code-block:: none
 
-    #box: 0 0 0 0.240 0.170 0.002 half_space
-    #cylinder: 0.120 0.080 0 0.120 0.080 0.002 0.010 pec
+    #box: 0 0 0 0.240 0.170 inf half_space
+    #cylinder: 0.120 0.080 0 0.120 0.080 inf 0.010 pec
+
+For an upper bound, ``inf`` spans the object to the far face of the invariant
+axis. For a single source or receiver coordinate, it selects the active
+interior reference layer. The source and receiver in this example therefore
+use:
+
+.. code-block:: none
+
+    #hertzian_dipole: z 0.100 0.170 inf my_ricker
+    #rx: 0.140 0.170 inf
 
 Run the model
 -------------
@@ -137,7 +155,7 @@ This example uses the same geometry as the previous example but this time a B-sc
     :language: none
     :linenos:
 
-The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). As before, the source and receiver are offset by 40mm from each other as before but they are now shifted to a starting position for the scan. The ``#src_steps`` command is used to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to move every receiver in the model by specified steps each time the model is run. Note, the same functionality can be achieved by using our Python API to move the source and receiver individually (see the :ref:`Python API <input-api>` section).
+The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver, and the commands needed to move the source and receiver. As before, the source and receiver are offset by 40mm from each other but they are now shifted to a starting position for the scan. The ``#src_steps`` command is used to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to move every receiver each time the model is run. The invariant z coordinates remain ``inf`` throughout the scan. The same stepping functionality can be achieved by using our Python API to move the source and receiver individually (see the :ref:`Python API <input-api>` section).
 
 To run the model to create a B-scan you must pass an optional argument to specify the number of times the model should be run. In this case, this is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
 

@@ -15,6 +15,18 @@ There is now a **Python API**, which includes all the functionality of the input
 2. gprMax objects can be used directly within functions, classes, modules and packages. In this way, collections of components can be defined, reused, and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
 3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
 
+Two-dimensional TM and TE modes
+===============================
+
+Models that are invariant in one Cartesian direction can use either a
+transverse-magnetic (TM) or transverse-electric (TE) field reduction. The
+invariant axis is declared with ``inf`` in ``#domain`` and the polarisation is
+selected with ``#domain_mode``. The same modes are available through the
+Python API. Sources, receivers, snapshots, material construction, fractal
+geometry, and imported geometry objects observe the reduced component set.
+See :ref:`input-hash-cmds` and :ref:`guidance` for the command syntax and field
+equations.
+
 Subgridding
 ===========
 
