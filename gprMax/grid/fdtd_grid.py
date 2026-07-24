@@ -514,14 +514,40 @@ class FDTDGrid:
             ValueError: Raised if any of the items would be stepped
                 outside of the grid.
         """
-        if any(step_size > 0):
+        # `!= 0` (not `> 0`) - a negative step is a valid request to move
+        # backward each model; the old `> 0` check silently skipped both
+        # the bounds check and the actual repositioning below whenever
+        # every component of step_size was <= 0 (e.g. an all-negative
+        # step), even though SrcSteps/RxSteps accepted and logged it.
+        if any(step_size != 0):
             for item in items:
-                if step_number == 0:
-                    # Check item won't be stepped outside of the grid
-                    end_coord = item.coord + step_size * config.sim_config.model_end
+                # The one-time "won't be stepped outside the grid" check
+                # must run on the first model actually processed in this
+                # run - step_number == config.sim_config.model_start, not
+                # a literal 0. step_number is the ABSOLUTE model index, so
+                # with a restart (-i/i=) the first model processed has
+                # step_number == model_start (never 0), and a literal-0
+                # check would never fire at all on any restarted run.
+                # Degrades to the exact original check when there's no
+                # restart (model_start defaults to 0).
+                if step_number == config.sim_config.model_start:
+                    # The last model actually run has index model_end - 1
+                    # (models run over range(model_start, model_end)), not
+                    # model_end itself - checking one step further than
+                    # any real run would reject some valid scans that fit
+                    # exactly within the domain boundary.
+                    end_coord = item.coord + step_size * (config.sim_config.model_end - 1)
                     self.within_bounds(end_coord)
-                else:
-                    item.coord = item.coordorigin + step_number * step_size
+                # Always reposition (not just on step_number !=
+                # model_start): step_number is the absolute model index,
+                # so this is correct regardless of restart - for the
+                # first model processed (step_number == model_start),
+                # this must still run alongside the bounds check above,
+                # not instead of it, since a restarted run's first model
+                # (model_start != 0) genuinely needs real repositioning,
+                # unlike a non-restarted run's model 0 (model_start == 0),
+                # where this is a harmless no-op (coordorigin + 0*step).
+                item.coord = item.coordorigin + step_number * step_size
 
     def update_simple_source_positions(self, step: int = 0) -> None:
         """Update the positions of sources in the grid.
