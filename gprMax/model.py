@@ -400,6 +400,7 @@ class Model:
 
         self._check_stateful_sources_with_geometry_fixed(grids)
         self._check_for_dispersive_materials(grids)
+        self._check_accelerator_symmetry_boundaries(grids)
         self._check_memory_requirements(grids)
 
         for grid in grids:
@@ -481,6 +482,19 @@ class Model:
             # kernel-selection code (e.g. CPUUpdates.set_dispersive_updates(),
             # the CUDA/OpenCL/Metal equivalents) to read the owning grid's
             # own flag rather than the global one.
+
+    def _check_accelerator_symmetry_boundaries(self, grids: Sequence[FDTDGrid]):
+        """Reject accelerator PMC after material dispersion is resolved."""
+        solver = config.sim_config.general["solver"]
+        maxpoles = config.get_model_config().materials["maxpoles"]
+        has_pmc = any("pmc" in grid.symmetry_boundaries.values() for grid in grids)
+
+        if solver in ("cuda", "opencl", "metal") and maxpoles > 0 and has_pmc:
+            raise ValueError(
+                "Dispersive PMC symmetry boundaries currently require the CPU "
+                "solver. PEC and nondispersive PMC symmetry are supported by "
+                "CUDA, OpenCL, and Apple Metal."
+            )
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory

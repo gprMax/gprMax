@@ -45,6 +45,7 @@ from .user_objects.cmds_multiuse import (
     Rx,
     RxArray,
     SoilPeplinski,
+    SymmetryBoundary,
     TransmissionLine,
     VoltageSource,
     Waveform,

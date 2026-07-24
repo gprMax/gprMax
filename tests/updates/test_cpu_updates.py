@@ -88,11 +88,12 @@ def test_update_magnetic(config_mock):
     expected_Hx = grid.Hx.copy()
     expected_Hy = grid.Hy.copy()
     expected_Hz = grid.Hz.copy()
-    expected_Hx[1:, :-1, :-1] = np.tile(np.array([[[2]]], dtype=np.float32), (21, 21, 21))
-    expected_Hy[:-1, 1:, :-1] = np.tile(np.array([[[3]]], dtype=np.float32), (21, 21, 21))
-    expected_Hz[:-1, :-1, 1:] = np.tile(np.array([[[4]]], dtype=np.float32), (21, 21, 21))
+    expected_Hx[:, :-1, :-1] = np.tile(np.array([[[2]]], dtype=np.float32), (22, 21, 21))
+    expected_Hy[:-1, :, :-1] = np.tile(np.array([[[3]]], dtype=np.float32), (21, 22, 21))
+    expected_Hz[:-1, :-1, :] = np.tile(np.array([[[4]]], dtype=np.float32), (21, 21, 22))
 
-    # Magnetic components occupy the positive, staggered Yee-grid locations.
+    # The own-axis range includes both domain walls; this is required for
+    # symmetric PMC ghost-node updates at the lower and upper faces.
     cpu_updates = CPUUpdates(grid)
     cpu_updates.update_magnetic()
 

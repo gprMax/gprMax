@@ -25,6 +25,11 @@ from gprMax import config
 from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
 from gprMax.cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
 from gprMax.fields_outputs import store_outputs as store_outputs_cpu
+from gprMax.symmetry_boundaries import (
+    update_symmetry_boundaries_electric_dispersive,
+    update_symmetry_boundaries_electric_dispersive_b,
+    update_symmetry_boundaries_electric_normal,
+)
 from gprMax.updates.updates import GridType, Updates
 from gprMax.utilities.utilities import timer
 
@@ -200,6 +205,18 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.Hy,
                 self.grid.Hz,
             )
+
+    def update_symmetry_boundaries_electric(self):
+        """Apply the PMC ghost-node E update on CPU symmetry faces."""
+        if config.get_model_config().materials["maxpoles"] == 0:
+            update_symmetry_boundaries_electric_normal(self.grid)
+        else:
+            update_symmetry_boundaries_electric_dispersive(self.grid)
+
+    def update_symmetry_boundaries_electric_b(self):
+        """Complete the dispersive PMC ghost-node update's second phase."""
+        if config.get_model_config().materials["maxpoles"] > 0:
+            update_symmetry_boundaries_electric_dispersive_b(self.grid)
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""

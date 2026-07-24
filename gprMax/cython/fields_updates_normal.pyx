@@ -325,3 +325,28 @@ cpdef void update_magnetic(
                     Hz[i, j, k + 1] = (updatecoeffsH[materialHz, 0] * Hz[i, j, k + 1] -
                                        updatecoeffsH[materialHz, 1] * (Ey[i + 1, j, k + 1] - Ey[i, j, k + 1]) +
                                        updatecoeffsH[materialHz, 2] * (Ex[i, j + 1, k + 1] - Ex[i, j, k + 1]))
+
+        # The main loops above update the upper own-axis walls (i=nx for Hx,
+        # j=ny for Hy, and k=nz for Hz) but not the corresponding lower walls.
+        # Updating both sides is required by the PMC ghost-node formulation
+        # and restores structural symmetry with the accelerator kernels.
+        for j in prange(0, ny, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(0, nz):
+                materialHx = ID[3, 0, j, k]
+                Hx[0, j, k] = (updatecoeffsH[materialHx, 0] * Hx[0, j, k] -
+                               updatecoeffsH[materialHx, 2] * (Ez[0, j + 1, k] - Ez[0, j, k]) +
+                               updatecoeffsH[materialHx, 3] * (Ey[0, j, k + 1] - Ey[0, j, k]))
+
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(0, nz):
+                materialHy = ID[4, i, 0, k]
+                Hy[i, 0, k] = (updatecoeffsH[materialHy, 0] * Hy[i, 0, k] -
+                               updatecoeffsH[materialHy, 3] * (Ex[i, 0, k + 1] - Ex[i, 0, k]) +
+                               updatecoeffsH[materialHy, 1] * (Ez[i + 1, 0, k] - Ez[i, 0, k]))
+
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                materialHz = ID[5, i, j, 0]
+                Hz[i, j, 0] = (updatecoeffsH[materialHz, 0] * Hz[i, j, 0] -
+                               updatecoeffsH[materialHz, 1] * (Ey[i + 1, j, 0] - Ey[i, j, 0]) +
+                               updatecoeffsH[materialHz, 2] * (Ex[i, j + 1, 0] - Ex[i, j, 0]))

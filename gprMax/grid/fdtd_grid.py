@@ -55,6 +55,11 @@ from gprMax.sources import (
     TransmissionLine,
     VoltageSource,
 )
+from gprMax.symmetry_boundaries import (
+    build_symmetry_boundary_edges,
+    build_symmetry_boundary_edges_dispersive,
+    build_symmetry_boundary_edges_dispersive_b,
+)
 from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
 from gprMax.waveforms import Waveform
 
@@ -118,6 +123,13 @@ class FDTDGrid:
         # corrections will be different.
         self.pmls["thickness"] = OrderedDict()
         self.set_pml_thickness(10)
+
+        # PEC/PMC symmetry boundaries, keyed by domain face. Edge dispatch
+        # is resolved once after geometry and material IDs are finalised.
+        self.symmetry_boundaries: dict = {}
+        self.symmetry_boundary_edges: list = []
+        self.symmetry_boundary_edges_dispersive: list = []
+        self.symmetry_boundary_edges_dispersive_b: list = []
 
         # Materials used by this grid
         self.materials: List[Material] = []
@@ -258,6 +270,8 @@ class FDTDGrid:
         if self.averagevolumeobjects:
             self._build_components()
         self._2d_mode_grid_update()
+        self._terminate_pmls_with_pec()
+        self._build_symmetry_boundaries()
         self._create_voltage_source_materials()
         self.initialise_field_arrays()
         self.initialise_std_update_coeff_arrays()
@@ -479,6 +493,61 @@ class FDTDGrid:
             self.tey()
         elif mode == "2D TEz":
             self.tez()
+
+    def _terminate_pmls_with_pec(self) -> None:
+        """Mark the tangential E components at active PML outer faces as PEC.
+
+        The existing field-update bounds already make the outer PML wall a
+        PEC termination. Updating the material IDs makes that termination
+        explicit for inspection and for edges shared with a PMC symmetry
+        face. This must run after geometry and component averaging.
+        """
+        pml_faces = [face for face, thickness in self.pmls["thickness"].items() if thickness > 0]
+        if not pml_faces:
+            return
+
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        for face in pml_faces:
+            self._force_pec_tangential_e(face, pec_numid)
+
+    def _build_symmetry_boundaries(self) -> None:
+        """Apply PEC faces and resolve the per-iteration PMC edge dispatch."""
+        if not self.symmetry_boundaries:
+            return
+
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        for face, boundary_type in self.symmetry_boundaries.items():
+            if boundary_type == "pec":
+                self._force_pec_tangential_e(face, pec_numid)
+
+        self.symmetry_boundary_edges = build_symmetry_boundary_edges(self)
+        self.symmetry_boundary_edges_dispersive = build_symmetry_boundary_edges_dispersive(self)
+        self.symmetry_boundary_edges_dispersive_b = build_symmetry_boundary_edges_dispersive_b(self)
+
+    def _force_pec_tangential_e(self, face: str, pec_numid: int) -> None:
+        """Force the two tangential E-component IDs on a domain face to PEC."""
+        idx_ex, idx_ey, idx_ez = 0, 1, 2
+
+        if face == "x0":
+            self.ID[idx_ey, 0, 0 : self.ny, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, 0, 0 : self.ny + 1, 0 : self.nz] = pec_numid
+        elif face == "xmax":
+            self.ID[idx_ey, self.nx, 0 : self.ny, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, self.nx, 0 : self.ny + 1, 0 : self.nz] = pec_numid
+        elif face == "y0":
+            self.ID[idx_ex, 0 : self.nx, 0, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, 0 : self.nx + 1, 0, 0 : self.nz] = pec_numid
+        elif face == "ymax":
+            self.ID[idx_ex, 0 : self.nx, self.ny, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, 0 : self.nx + 1, self.ny, 0 : self.nz] = pec_numid
+        elif face == "z0":
+            self.ID[idx_ex, 0 : self.nx, 0 : self.ny + 1, 0] = pec_numid
+            self.ID[idx_ey, 0 : self.nx + 1, 0 : self.ny, 0] = pec_numid
+        elif face == "zmax":
+            self.ID[idx_ex, 0 : self.nx, 0 : self.ny + 1, self.nz] = pec_numid
+            self.ID[idx_ey, 0 : self.nx + 1, 0 : self.ny, self.nz] = pec_numid
+        else:
+            raise ValueError(f"Unknown symmetry boundary face '{face}'")
 
     def _create_voltage_source_materials(self):
         """Create materials for voltage sources.
