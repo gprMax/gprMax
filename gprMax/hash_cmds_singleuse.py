@@ -145,12 +145,14 @@ def process_singlecmds(singlecmds):
             pml_thickness = PMLThickness(thickness=int(tmp[0]))
         else:
             pml_thickness = PMLThickness(
-                x0=int(tmp[0]),
-                y0=int(tmp[1]),
-                z0=int(tmp[2]),
-                xmax=int(tmp[3]),
-                ymax=int(tmp[4]),
-                zmax=int(tmp[5]),
+                thickness=(
+                    int(tmp[0]),
+                    int(tmp[1]),
+                    int(tmp[2]),
+                    int(tmp[3]),
+                    int(tmp[4]),
+                    int(tmp[5]),
+                )
             )
 
         scene_objects.append(pml_thickness)

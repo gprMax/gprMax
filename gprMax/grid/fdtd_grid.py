@@ -251,6 +251,7 @@ class FDTDGrid:
             self.pmls["cfs"] = [CFS()]
         logger.info(print_pml_info(self))
         if not all(value == 0 for value in self.pmls["thickness"].values()):
+            self._validate_pml_thickness()
             self._build_pmls()
         for snapshot in self.snapshots:  # TODO: Remove if implement parallel build
             snapshot.initialise_snapfields()
@@ -265,6 +266,26 @@ class FDTDGrid:
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
         self._DPW__source_grid_init()
+
+    def _validate_pml_thickness(self) -> None:
+        """Check that no PML reaches or crosses the domain midpoint.
+
+        ``PMLThickness.build()`` performs this check when the user supplies
+        ``#pml_cells`` explicitly. Grids otherwise retain their default
+        10-cell PML on every side, so small domains previously reached grid
+        construction without an equivalent check. Running it here covers
+        both explicit and default thicknesses.
+        """
+        thickness = self.pmls["thickness"]
+        if (
+            2 * thickness["x0"] >= self.nx
+            or 2 * thickness["y0"] >= self.ny
+            or 2 * thickness["z0"] >= self.nz
+            or 2 * thickness["xmax"] >= self.nx
+            or 2 * thickness["ymax"] >= self.ny
+            or 2 * thickness["zmax"] >= self.nz
+        ):
+            raise ValueError("PML has too many cells for the domain size")
 
     def _build_pmls(self) -> None:
         """Construct and calculate material properties of the PMLs."""
