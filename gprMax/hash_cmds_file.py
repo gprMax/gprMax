@@ -216,6 +216,7 @@ def check_cmd_names(processedlines, checkessential=True):
     singlecmds = dict.fromkeys(
         [
             "#domain",
+            "#domain_mode",
             "#dx_dy_dz",
             "#time_window",
             "#title",

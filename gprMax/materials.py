@@ -111,6 +111,21 @@ class Material:
         """
         return self.ID.count("+") > 0
 
+    @property
+    def is_pec(self) -> bool:
+        """Check if a material is electrically a perfect conductor (PEC).
+
+        Matches the builtin 'pec' material by name, or any user-defined
+        material with infinite electric conductivity (se == inf) - the same
+        criterion already used in calculate_update_coeffsE() and in
+        Material.build()'s averagable check, so a custom PEC-equivalent
+        material is treated consistently everywhere.
+
+        Returns:
+            is_pec: True if material is PEC or PEC-equivalent.
+        """
+        return self.ID == "pec" or self.se == float("inf")
+
     @staticmethod
     def create_compound_id(*materials: "Material") -> str:
         """Create a compound ID from existing materials.
@@ -139,11 +154,19 @@ class Material:
 
         HA = (config.m0 * self.mr / G.dt) + 0.5 * self.sm
         HB = (config.m0 * self.mr / G.dt) - 0.5 * self.sm
-        self.DA = HB / HA
-        self.DBx = (1 / G.dx) * 1 / HA
-        self.DBy = (1 / G.dy) * 1 / HA
-        self.DBz = (1 / G.dz) * 1 / HA
-        self.srcm = 1 / HA
+
+        if self.ID == "pmc" or self.sm == float("inf"):
+            self.DA = 0
+            self.DBx = 0
+            self.DBy = 0
+            self.DBz = 0
+            self.srcm = 0
+        else:
+            self.DA = HB / HA
+            self.DBx = (1 / G.dx) * 1 / HA
+            self.DBy = (1 / G.dy) * 1 / HA
+            self.DBz = (1 / G.dz) * 1 / HA
+            self.srcm = 1 / HA
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -583,7 +606,13 @@ def create_built_in_materials(G):
     m.averagable = False
     G.materials.append(m)
 
-    m = Material(1, "free_space")
+    m = Material(1, "pmc")
+    m.sm = float("inf")
+    m.type = "builtin"
+    m.averagable = False
+    G.materials.append(m)
+
+    m = Material(2, "free_space")
     m.type = "builtin"
     G.materials.append(m)
 

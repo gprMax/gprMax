@@ -18,6 +18,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import math
 
 import numpy as np
 
@@ -98,6 +99,16 @@ class Triangle(RotatableMixin, GeometryUserObject):
                 raise
 
         uip = self._create_uip(grid)
+
+        # Resolve an invariant-axis triangle and its thickness as a slab.
+        for axis in range(3):
+            if math.isinf(up1[axis]) and math.isinf(up2[axis]) and math.isinf(up3[axis]):
+                up1 = tuple(0.0 if i == axis else v for i, v in enumerate(up1))
+                up2 = tuple(0.0 if i == axis else v for i, v in enumerate(up2))
+                up3 = tuple(0.0 if i == axis else v for i, v in enumerate(up3))
+                if math.isinf(thickness):
+                    thickness = grid.dl[axis] * (grid.nx, grid.ny, grid.nz)[axis]
+                break
 
         # Check whether points are valid against grid
         dp1, dp2, dp3 = uip.check_tri_points(up1, up2, up3, self.__str__())

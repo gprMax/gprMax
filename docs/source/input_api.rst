@@ -80,6 +80,21 @@ Domain
 ------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.Domain
 
+Domain Mode
+-----------
+.. autoclass:: gprMax.user_objects.cmds_singleuse.DomainMode
+
+For an explicit 2D model, set one component of ``Domain.p1`` to
+``float('inf')`` and add ``DomainMode('TM')`` or ``DomainMode('TE')``. The
+infinite value identifies the invariant axis; it is resolved internally to the
+one-cell TM or two-cell TE Yee-grid thickness.
+
+.. code-block:: python
+
+    scene.add(gprMax.Discretisation(p1=(0.002, 0.002, 0.002)))
+    scene.add(gprMax.DomainMode(mode='TE'))
+    scene.add(gprMax.Domain(p1=(0.24, 0.21, float('inf'))))
+
 Discretisation
 --------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.Discretisation

@@ -95,6 +95,32 @@ def test_2d_tm_mode_preserved_across_geometry_fixed_runs(monkeypatch, tmp_path):
     assert captured == ["2D TMz", "2D TMz", "2D TMz"]
 
 
+def test_explicit_te_mode_preserved_across_geometry_fixed_runs(monkeypatch, tmp_path):
+    captured = _capture_modes(monkeypatch)
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode="TE"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, float("inf"))))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=3e-10))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=1.5e10, id="w"))
+    scene.add(
+        gprMax.HertzianDipole(
+            polarisation="x", p1=(0.01, 0.01, 1e-3), waveform_id="w"
+        )
+    )
+
+    gprMax.run(
+        scenes=[scene],
+        n=3,
+        geometry_fixed=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
+
+    assert captured == ["2D TEz", "2D TEz", "2D TEz"]
+
+
 def _dispersive_scene(material_type, dl=1e-3):
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))

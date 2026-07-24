@@ -67,7 +67,70 @@ Allows you to specify the size of the model. The syntax of the command is:
 
     #domain: f1 f2 f3
 
-where ``f1 f2 f3`` are the size of the model in the x, y, and z directions respectively. For example to specify a 500 x 500 x 1000mm model use: ``#domain: 0.5 0.5 1.0``
+where ``f1 f2 f3`` are the size of the model in the x, y, and z directions
+respectively. For example, to specify a 500 x 500 x 1000 mm model use
+``#domain: 0.5 0.5 1.0``.
+
+For an explicitly declared 2D model, use ``inf`` for its invariant axis and
+select the polarisation with ``#domain_mode``. gprMax resolves ``inf`` to the
+internal Yee-grid thickness required by the chosen mode; it does not create an
+infinite allocation. For example, the following specifies a model invariant in
+z:
+
+.. code-block:: none
+
+    #domain_mode: TM
+    #domain: 0.5 0.5 inf
+
+The legacy convention of giving one spatial cell on one axis remains supported
+and is interpreted as TM mode, but ``#domain_mode`` with ``inf`` is recommended
+for new models and is required for TE mode.
+
+#domain_mode:
+-------------
+
+Selects whether the domain is three-dimensional or uses a two-dimensional TM
+or TE field reduction. The syntax is:
+
+.. code-block:: none
+
+    #domain_mode: str1
+
+``str1`` is ``TM``, ``TE``, or ``3D`` (case-insensitive). ``3D`` is the
+default when this command is omitted. For TM or TE, exactly one coordinate of
+``#domain`` must be ``inf``; that coordinate selects the invariant axis. If
+``inf`` is used without ``#domain_mode``, gprMax defaults to TM for backwards
+compatibility.
+
+For example, these declarations select TMz and TEz respectively:
+
+.. code-block:: none
+
+    #domain_mode: TM
+    #domain: 0.5 0.5 inf
+
+.. code-block:: none
+
+    #domain_mode: TE
+    #domain: 0.5 0.5 inf
+
+TM uses one internal cell and TE uses two internal cells on the invariant axis.
+The physical coordinates on that axis may be written as ``inf`` in commands
+that accept points or bounds; gprMax resolves lower and upper bounds to the
+appropriate faces of the reduced domain. For a single source or receiver,
+``inf`` on the invariant axis selects the active interior reference layer
+(rather than a TE boundary layer whose fields are constrained). On an
+in-plane axis, ``-inf`` selects the lower domain face and ``inf`` the upper
+face.
+
+.. note::
+
+    * A 2D model must have exactly one invariant axis.
+    * Subgrids and transmission-line sources are not currently supported in
+      2D mode.
+    * A source polarisation must be one of the active components for the
+      selected plane and mode. gprMax rejects incompatible electric and
+      magnetic sources rather than silently creating a zero source.
 
 #dx_dy_dz:
 ----------
@@ -909,14 +972,14 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11 f12]
+    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [str2 f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``f7`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
 * ``f8`` is phi which defines the azimuthal propagation angle (degrees) of the incident plane wave.
 * ``f9`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str2 f10 f11`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle :math:`\psi` of 90 degrees, azimuthal propagation angle :math:`\phi` of 63.4 degrees, polar propagation angle :math:`\theta` of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_angles: 0.010 0.010 0.010 0.040 0.040 0.040 36.7 63.4 90.0 mypulse``.
@@ -933,13 +996,13 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [str2 f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``i1 i2 i3`` are integers that specify the direction of the wave vector (Mx, My, Mz) of the incident plane wave.
 * ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str2 f10 f11`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the diagonal of your grid using a polarisation angle :math:`\psi` of 90 degrees, you can use as a vector (1,1,1) resulting in an azimuthal propagation angle :math:`\phi` of 45.0  degrees, polar propagation angle :math:`\theta` of approximately 54.736 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_vector: 0.010 0.010 0.010 0.040 0.040 0.040 1 1 1 90.0 mypulse``.
@@ -957,16 +1020,16 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_axial: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+    #plane_wave_axial: f1 f2 f3 f4 f5 f6 f7 c1 str1 [f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``c1`` is a character that specifies the axis along which the incident plane wave propagates and can be ``x``, ``y``, or ``z``. originating at the lower left corner of the TFSF box and propagating in the positive axis direction.
 * ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``f11 f12`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
-For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 x 90.0 mypulse``.
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 x mypulse``.
 
 .. note::
     

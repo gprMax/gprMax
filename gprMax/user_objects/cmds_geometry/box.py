@@ -92,6 +92,8 @@ class Box(RotatableMixin, GeometryUserObject):
             averagebox = grid.averagevolumeobjects
 
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         grid_contains_box, p3, p4 = uip.check_box_points(p1, p2, self.__str__())
 
         # Exit early if none of the box is in this grid as there is

@@ -734,7 +734,7 @@ class DiscretePlaneWave(Source):
         #self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
         self.projections = np.zeros(6, dtype=np.float64)  # Use float64 for better precision in projections
         self.corners = None
-        self.materialID = 1
+        self.materialID = None
         self.ds = 0
         self.speed = config.c
         self.axial = 0
@@ -747,7 +747,38 @@ class DiscretePlaneWave(Source):
         self.actual_angles = np.zeros(2, dtype=np.float64)  # [theta, phi]
         self.angle_errors = np.zeros(2, dtype=np.float64)  # [Delta_theta, Delta_phi]
         self.total_error = 0.0
-  
+
+        # 2D-mode state, resolved once here (the mode is final by the time
+        # any DPW user object is built - the same assumption HertzianDipole
+        # relies on). mode2d uses the same encoding as CPUUpdates.__init__:
+        # -1 = 3D, 0/1/2 = 2D TM invariant x/y/z, 3/4/5 = 2D TE invariant
+        # x/y/z. skip_axis is the invariant axis (-1 in 3D) and is passed to
+        # the Cython TFSF kernels so the pair of box faces normal to it is
+        # skipped - a 2D TFSF is a rectangle of 4 edges, not a box of 6
+        # faces; the perpendicular faces would write spurious corrections
+        # into structurally-dead field components (and, at a TM wall,
+        # out-of-bounds at index -1).
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TM"):
+            self.mode2d = "xyz".index(mode[-1])
+        elif mode.startswith("2D TE"):
+            self.mode2d = 3 + "xyz".index(mode[-1])
+        else:
+            self.mode2d = -1
+        self.skip_axis = self.mode2d % 3 if self.mode2d >= 0 else -1
+        self.is_TM = 0 <= self.mode2d < 3
+
+        # Transverse sample position used by axial-mode grid_init() when
+        # copying the layered material profile out of G.ID/G.solid: an
+        # arbitrary interior column in 3D ((1,1,1) - the historic choice),
+        # but in 2D the invariant-axis slot must be the mode's live layer -
+        # 0 for TM (the only cell; index 1 rows there are wall-forced) and
+        # 1 for TE (the live interior layer between the forced walls at 0
+        # and 2, which for TE coincides with the 3D default).
+        self.transverse_pos = [1, 1, 1]
+        if self.mode2d >= 0:
+            self.transverse_pos[self.skip_axis] = 0 if self.is_TM else 1
+
     def initializeDiscretePlaneWave(self, G):
         """Creates a DPW, assigns memory to the grids, and gets field values
             at different time and space indices.
@@ -791,13 +822,43 @@ class DiscretePlaneWave(Source):
             self.angle_errors[1] = 0.0
             self.total_error = 0.0
 
-        # check for plane wave definition using m vector and in this case angles should be zero and need to be calculated. There is no error in this case. 
+        # check for plane wave definition using m vector and in this case angles should be zero and need to be calculated. There is no error in this case.
         else:
-            self.actual_angles[0] = math.degrees(math.atan2(self.m[1] * G.dx, self.m[0] * G.dy))
-            self.actual_angles[1] = math.degrees(math.acos(self.m[2] * G.dz / (math.sqrt((self.m[0] * G.dy) ** 2 + (self.m[1] * G.dx) ** 2 + (self.m[2] * G.dz) ** 2))))
+            # The physical propagation direction is the wavefront normal
+            # (m_x/dx, m_y/dy, m_z/dz) - the same convention
+            # find_dpw_integers_optimized() uses for its candidate selection
+            # and returned angles (phys_vec = m / delta there), so vector
+            # mode and angles mode report identical angles for the same m,
+            # including for anisotropic cells.
+            phys_vec = self.m[:3] / np.array([G.dx, G.dy, G.dz])
+            phys_vec_norm = phys_vec / np.linalg.norm(phys_vec)
+            self.actual_angles[0] = math.degrees(math.acos(np.clip(phys_vec_norm[2], -1.0, 1.0)))
+            self.actual_angles[1] = math.degrees(math.atan2(phys_vec_norm[1], phys_vec_norm[0]))
             self.angle_errors[0] = 0.0
-            self.angle_errors[1] = 0.0            
+            self.angle_errors[1] = 0.0
             self.total_error = 0.0
+
+        # In a 2D model the plane wave must propagate in-plane: the integer
+        # mapping must have a zero component on the invariant axis. This is a
+        # hard error rather than a warning because it is also a stability
+        # requirement: the 1D DPW scheme is the bulk Yee scheme restricted to
+        # the wavevector family (kappa*m_x, kappa*m_y, kappa*m_z); with
+        # m[invariant] == 0 that family lies inside the 2D Brillouin zone,
+        # for which the (larger) 2D CFL timestep is stable by construction -
+        # but a nonzero invariant-axis m samples 3D wavevectors, for which
+        # the 2D timestep genuinely can be unstable. (Note c*dt <= ds is NOT
+        # the right stability criterion here - 1D neighbour coupling is at
+        # strides m_i, not 1 - so no such runtime check is used.)
+        if self.mode2d >= 0 and self.m[self.skip_axis] != 0:
+            letter = "xyz"[self.skip_axis]
+            logger.exception(
+                f"Discrete plane wave: in {config.get_model_config().mode} mode the plane "
+                f"wave must propagate in-plane: the propagation direction must have a zero "
+                f"{letter}-component, but the integer mapping gave m_{letter} = "
+                f"{self.m[self.skip_axis]}. (E.g. for a mode invariant in z this requires "
+                f"theta = 90 degrees.)"
+            )
+            raise ValueError
 
         # Get angles in radians
         self.phi_est_rad = math.radians(self.actual_angles[1])
@@ -961,111 +1022,130 @@ class DiscretePlaneWave(Source):
 
             self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
             if abs(self.projections[5]) <= 1e-15:
-                self.projections[5] = 0    
+                self.projections[5] = 0
 
-
+            # Axial mode computes its projections later, in grid_init()
+            # (they need the grid-sampled background material) - it runs
+            # this same validation there instead.
+            self._validate_2d_projections()
 
         # Get the waveform object with the matching ID and add it to the PlaneWave object
         self.waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        
+
         if self.axial == 0:
             self._get_pml_parameters(G)
-         
+
+
+    def _validate_2d_projections(self):
+        """Validates the polarisation of the plane wave against the active 2D
+        mode (no-op in 3D).
+
+        In a 2D model the structurally-dead field components must carry no
+        incident-wave amplitude, or the TFSF corrections would try to excite
+        components the bulk 2D kernels never update. Since the projections
+        are already clamped to exactly 0 below 1e-15, this is an exact-zero
+        operational check on the dead set - covering angles, vector and
+        axial modes with one rule, rather than a closed-form psi condition
+        (which depends on theta/phi for a general invariant axis):
+
+        - TM (E along the invariant axis only): the two in-plane E
+          projections and the invariant-axis H projection must be 0.
+        - TE (E in-plane only): the invariant-axis E projection and the two
+          in-plane H projections must be 0.
+        """
+        if self.mode2d < 0:
+            return
+
+        a = self.skip_axis
+        t1, t2 = [ax for ax in (0, 1, 2) if ax != a]
+        names = ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
+
+        if self.is_TM:
+            dead = [t1, t2, 3 + a]
+            hint = "for a mode invariant in z, TM requires psi = 90 or 270 degrees"
+        else:
+            dead = [a, 3 + t1, 3 + t2]
+            hint = "for a mode invariant in z, TE requires psi = 0 or 180 degrees"
+
+        nonzero = [
+            f"{names[c]} = {self.projections[c]:g}" for c in dead if self.projections[c] != 0
+        ]
+        if nonzero:
+            logger.exception(
+                f"Discrete plane wave: in {config.get_model_config().mode} mode the "
+                f"polarisation must not excite the structurally-dead field components, "
+                f"but the following incident-field projections are nonzero: "
+                f"{', '.join(nonzero)}. Adjust psi ({hint})."
+            )
+            raise ValueError
+
+        live = [c for c in range(6) if c not in dead]
+        if all(self.projections[c] == 0 for c in live):
+            logger.exception(
+                "Discrete plane wave: all live-component field projections are zero - "
+                "the plane wave would inject nothing. Check theta/phi/psi."
+            )
+            raise ValueError
 
     def grid_init(self,G):
         # Initialize the ID array for axial propagation problems only extending accordingly for the two PML regions
         if self.axial != 0:
             self.ID = np.zeros((6,self.length), dtype=np.uint32)  # 6 for the 6 field components
 
-            if self.axial == 1:  # x direction
-                for idx in range(self.origin_axial+1):
-                    self.ID[0,idx]=G.ID[0,1,1,1]
-                    self.ID[1,idx]=G.ID[1,1,1,1]
-                    self.ID[2,idx]=G.ID[2,1,1,1]
-                    self.ID[3,idx]=G.ID[3,1,1,1]
-                    self.ID[4,idx]=G.ID[4,1,1,1]
-                    self.ID[5,idx]=G.ID[5,1,1,1]
-                   
-                for idx in range(self.origin_axial+1, G.nx+self.origin_axial):
-                    self.ID[0,idx]=G.ID[0,idx-self.origin_axial,1,1]
-                    self.ID[1,idx]=G.ID[1,idx-self.origin_axial,1,1]
-                    self.ID[2,idx]=G.ID[2,idx-self.origin_axial,1,1]
-                    self.ID[3,idx]=G.ID[3,idx-self.origin_axial,1,1]
-                    self.ID[4,idx]=G.ID[4,idx-self.origin_axial,1,1]
-                    self.ID[5,idx]=G.ID[5,idx-self.origin_axial,1,1]
-                  
-                for idx in range(G.nx+self.origin_axial,self.length):
-                    self.ID[0,idx]=G.ID[0,G.nx-1,1,1] 
-                    self.ID[1,idx]=G.ID[1,G.nx-1,1,1]
-                    self.ID[2,idx]=G.ID[2,G.nx-1,1,1]
-                    self.ID[3,idx]=G.ID[3,G.nx-1,1,1]
-                    self.ID[4,idx]=G.ID[4,G.nx-1,1,1]
-                    self.ID[5,idx]=G.ID[5,G.nx-1,1,1]
-            
-                #for idx in range(G.nx):
-                #    print("postion DPW ", {idx+self.origin_axial}, " and ID ", {self.ID[1,idx + self.origin_axial]}," and position grid ", {idx}, " and GID ", {G.ID[1,idx, 1,1]})
+            # Copy the layered material profile out of G.ID along the
+            # propagation axis, sampling at self.transverse_pos on the two
+            # transverse axes - an arbitrary interior column in 3D (the
+            # layered-model assumption makes the choice arbitrary), and the
+            # mode's live layer on the invariant axis in 2D (see __init__).
+            # Dead components in 2D sample wall-forced pec/pmc rows, which
+            # is harmless AND desirable: their 1D field arrays are
+            # identically zero (zero projections + m[invariant] == 0), so
+            # those coefficient rows never multiply nonzero data, and a
+            # zero (pec) row additionally pins them at zero against
+            # roundoff.
+            prop = self.axial - 1  # 0/1/2 = x/y/z
+            n_prop = (G.nx, G.ny, G.nz)[prop]
+            pos = list(self.transverse_pos)
 
-            if self.axial == 2:  # y direction
-                for idx in range(self.origin_axial+1):
-                    self.ID[0,idx]=G.ID[0,1,1,1]
-                    self.ID[1,idx]=G.ID[1,1,1,1]
-                    self.ID[2,idx]=G.ID[2,1,1,1]
-                    self.ID[3,idx]=G.ID[3,1,1,1]
-                    self.ID[4,idx]=G.ID[4,1,1,1]
-                    self.ID[5,idx]=G.ID[5,1,1,1]
+            def _gid(component, prop_idx):
+                pos[prop] = prop_idx
+                return G.ID[(component, *pos)]
 
-                for idx in range(self.origin_axial+1,G.ny+self.origin_axial):
-                    self.ID[0,idx]=G.ID[0,1,idx-self.origin_axial,1]
-                    self.ID[1,idx]=G.ID[1,1,idx-self.origin_axial,1]
-                    self.ID[2,idx]=G.ID[2,1,idx-self.origin_axial,1]
-                    self.ID[3,idx]=G.ID[3,1,idx-self.origin_axial,1]
-                    self.ID[4,idx]=G.ID[4,1,idx-self.origin_axial,1]
-                    self.ID[5,idx]=G.ID[5,1,idx-self.origin_axial,1]
+            for c in range(6):
+                # Leading 1D buffer/PML region: extend the first grid cell's profile
+                for idx in range(self.origin_axial + 1):
+                    self.ID[c, idx] = _gid(c, 1)
+                # Main grid profile
+                for idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
+                    self.ID[c, idx] = _gid(c, idx - self.origin_axial)
+                # Trailing 1D PML region: extend the last grid cell's profile
+                for idx in range(n_prop + self.origin_axial, self.length):
+                    self.ID[c, idx] = _gid(c, n_prop - 1)
 
-                for idx in range(G.ny+self.origin_axial,self.length):
-                    self.ID[0,idx]=G.ID[0,1,G.ny-1,1]
-                    self.ID[1,idx]=G.ID[1,1,G.ny-1,1]
-                    self.ID[2,idx]=G.ID[2,1,G.ny-1,1]
-                    self.ID[3,idx]=G.ID[3,1,G.ny-1,1]
-                    self.ID[4,idx]=G.ID[4,1,G.ny-1,1]
-                    self.ID[5,idx]=G.ID[5,1,G.ny-1,1]
+            # Get the background material near the origin (used for the
+            # speed and impedance of the DPW) and near the far PML (used
+            # for the PML parameters). Sampled from G.solid - the
+            # cell-centred material array - rather than G.ID: solid is
+            # never wall-forced by the 2D framework (the tm*/te* forcing
+            # touches only ID), needs no field-component-row choice, and is
+            # immune to dielectric-smoothed compound rows at layer
+            # interfaces. The background at these positions is homogeneous
+            # by the plane wave's own assumption, so the cell-centred value
+            # is the right one. transverse_pos is valid for solid's
+            # cell-centred extents too: a TM invariant axis is 1 cell
+            # (index 0) and a TE one is 2 cells (index 1, the live
+            # interior layer).
+            pos_solid = list(self.transverse_pos)
 
-            if self.axial == 3:  # z direction
-                for idx in range(self.origin_axial+1):
-                    self.ID[0,idx]=G.ID[0,1,1,1]
-                    self.ID[1,idx]=G.ID[1,1,1,1]
-                    self.ID[2,idx]=G.ID[2,1,1,1]
-                    self.ID[3,idx]=G.ID[3,1,1,1]
-                    self.ID[4,idx]=G.ID[4,1,1,1]
-                    self.ID[5,idx]=G.ID[5,1,1,1]
+            pos_solid[prop] = 2
+            self.material = next(
+                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+            )
 
-                for idx in range(self.origin_axial+1,G.nz+self.origin_axial):
-                    self.ID[0,idx]=G.ID[0,1,1,idx-self.origin_axial]
-                    self.ID[1,idx]=G.ID[1,1,1,idx-self.origin_axial]
-                    self.ID[2,idx]=G.ID[2,1,1,idx-self.origin_axial]
-                    self.ID[3,idx]=G.ID[3,1,1,idx-self.origin_axial]
-                    self.ID[4,idx]=G.ID[4,1,1,idx-self.origin_axial]
-                    self.ID[5,idx]=G.ID[5,1,1,idx-self.origin_axial]
-
-                for idx in range(G.nz+self.origin_axial,self.length):
-                    self.ID[0,idx]=G.ID[0,1,1,G.nz-1]
-                    self.ID[1,idx]=G.ID[1,1,1,G.nz-1]
-                    self.ID[2,idx]=G.ID[2,1,1,G.nz-1]
-                    self.ID[3,idx]=G.ID[3,1,1,G.nz-1]
-                    self.ID[4,idx]=G.ID[4,1,1,G.nz-1]
-                    self.ID[5,idx]=G.ID[5,1,1,G.nz-1]   
-
-            
-            # Get material by numeric ID of the right cell next to the origin. This material is used for calculating the speed and impedance of the DPW
-            self.material = next((x for x in G.materials if x.numID == G.ID[0,2, 2, 2]), None)
-            
-            # Get material by numeric ID of the PML cell next to the last cell of the main grid. This material is used for calculating the PML parameters
-            if self.axial == 1:
-                self.materialPML = next((x for x in G.materials if x.numID == G.ID[0,G.nx-2,2,2]), None)
-            elif self.axial == 2:
-                self.materialPML = next((x for x in G.materials if x.numID == G.ID[0,2,G.ny-2,2]), None)
-            elif self.axial == 3:
-                self.materialPML = next((x for x in G.materials if x.numID == G.ID[0,2,2,G.nz-2]), None)    
+            pos_solid[prop] = n_prop - 2
+            self.materialPML = next(
+                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+            )
 
             # Find if the source material is dispersive
             if self.material.type == "debye":
@@ -1141,7 +1221,9 @@ class DiscretePlaneWave(Source):
 
             self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
             if abs(self.projections[5]) <= 1e-15:
-                self.projections[5] = 0    
+                self.projections[5] = 0
+
+            self._validate_2d_projections()
 
             self._get_pml_parameters(G)
 
@@ -1253,6 +1335,7 @@ class DiscretePlaneWave(Source):
                 self.length,
                 self.pml_length,
                 nthreads,
+                self.skip_axis,
                 self.origin_axial,
                 self.H_fields,
                 self.E_fields,
@@ -1317,6 +1400,7 @@ class DiscretePlaneWave(Source):
                     self.length,
                     self.pml_length,
                     nthreads,
+                    self.skip_axis,
                     self.H_fields,
                     self.E_fields,
                     self.Ix,
@@ -1382,6 +1466,7 @@ class DiscretePlaneWave(Source):
                 self.length,
                 self.pml_length,
                 nthreads,
+                self.skip_axis,
                 self.origin_axial,
                 self.H_fields,
                 self.E_fields,
@@ -1445,6 +1530,7 @@ class DiscretePlaneWave(Source):
                     self.length,
                     self.pml_length,
                     nthreads,
+                    self.skip_axis,
                     self.H_fields,
                     self.E_fields,
                     self.Ix,
@@ -1510,6 +1596,7 @@ class DiscretePlaneWave(Source):
                 self.length,
                 self.pml_length,
                 nthreads,
+                self.skip_axis,
                 self.origin_axial,
                 self.H_fields,
                 self.E_fields,
@@ -1581,6 +1668,7 @@ class DiscretePlaneWave(Source):
                     self.length,
                     self.pml_length,
                     nthreads,
+                    self.skip_axis,
                     self.H_fields,
                     self.E_fields,
                     self.Px,
@@ -1774,193 +1862,199 @@ class DiscretePlaneWave(Source):
         return array[component, np.dot(m[:-1], np.array([i-origin[0], j-origin[1], k-origin[2]]))]
 
     def apply_TFSF_conditions_magnetic(self, G):
-        # **** constant x faces -- scattered-field nodes ****
-        i = self.corners[0]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hy at firstX-1/2 by subtracting Ez_inc
-                G.Hy[i - 1, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at firstX-1/2 by adding Ey_inc
-                G.Hz[i - 1, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
-
-        i = self.corners[3]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hy at lastX+1/2 by adding Ez_inc
-                G.Hy[i, j, k] += G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at lastX+1/2 by subtractinging Ey_inc
-                G.Hz[i, j, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
-
-        # **** constant y faces -- scattered-field nodes ****
-        j = self.corners[1]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hx at firstY-1/2 by adding Ez_inc
-                G.Hx[i, j - 1, k] += G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at firstY-1/2 by subtracting Ex_inc
-                G.Hz[i, j - 1, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
-
-        j = self.corners[4]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hx at lastY+1/2 by subtracting Ez_inc
-                G.Hx[i, j, k] -= G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at lastY-1/2 by adding Ex_inc
-                G.Hz[i, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
-
-        # **** constant z faces -- scattered-field nodes ****
-        k = self.corners[2]
-        for i in range(self.corners[0], self.corners[3]):
+        if self.skip_axis != 0:
+            # **** constant x faces -- scattered-field nodes ****
+            i = self.corners[0]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Hy at firstZ-1/2 by adding Ex_inc
-                G.Hy[i, j, k - 1] += G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hy at firstX-1/2 by subtracting Ez_inc
+                    G.Hy[i - 1, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
 
-        for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
-                # correct Hx at firstZ-1/2 by subtracting Ey_inc
-                G.Hx[i, j, k - 1] -= G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at firstX-1/2 by adding Ey_inc
+                    G.Hz[i - 1, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
 
-        k = self.corners[5]
-        for i in range(self.corners[0], self.corners[3]):
+            i = self.corners[3]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Hy at firstZ-1/2 by subtracting Ex_inc
-                G.Hy[i, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hy at lastX+1/2 by adding Ez_inc
+                    G.Hy[i, j, k] += G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
 
-        for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
-                # correct Hx at lastZ+1/2 by adding Ey_inc
-                G.Hx[i, j, k] += G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at lastX+1/2 by subtractinging Ey_inc
+                    G.Hz[i, j, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
+
+        if self.skip_axis != 1:
+            # **** constant y faces -- scattered-field nodes ****
+            j = self.corners[1]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hx at firstY-1/2 by adding Ez_inc
+                    G.Hx[i, j - 1, k] += G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at firstY-1/2 by subtracting Ex_inc
+                    G.Hz[i, j - 1, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+            j = self.corners[4]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hx at lastY+1/2 by subtracting Ez_inc
+                    G.Hx[i, j, k] -= G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at lastY-1/2 by adding Ex_inc
+                    G.Hz[i, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+        if self.skip_axis != 2:
+            # **** constant z faces -- scattered-field nodes ****
+            k = self.corners[2]
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Hy at firstZ-1/2 by adding Ex_inc
+                    G.Hy[i, j, k - 1] += G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Hx at firstZ-1/2 by subtracting Ey_inc
+                    G.Hx[i, j, k - 1] -= G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
+
+            k = self.corners[5]
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Hy at firstZ-1/2 by subtracting Ex_inc
+                    G.Hy[i, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Hx at lastZ+1/2 by adding Ey_inc
+                    G.Hx[i, j, k] += G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
 
     def apply_TFSF_conditions_electric(self, G):
-        # **** constant x faces -- total-field nodes ****/
-        i = self.corners[0]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at firstX face by subtracting Hy_inc
-                G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
-                    i - 1, j, k, self.H_fields, self.m, self.origin, 1
-                )
-
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ey at firstX face by adding Hz_inc
-                G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
-                    i - 1, j, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        i = self.corners[3]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at lastX face by adding Hy_inc
-                G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 1
-                )
-
-        i = self.corners[3]
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ey at lastX face by subtracting Hz_inc
-                G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        # **** constant y faces -- total-field nodes ****/
-        j = self.corners[1]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at firstY face by adding Hx_inc
-                G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
-                    i, j - 1, k, self.H_fields, self.m, self.origin, 0
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ex at firstY face by subtracting Hz_inc
-                G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
-                    i, j - 1, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        j = self.corners[4]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at lastY face by subtracting Hx_inc
-                G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 0
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ex at lastY face by adding Hz_inc
-                G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        # **** constant z faces -- total-field nodes ****/
-        k = self.corners[2]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for j in range(self.corners[1], self.corners[4]):
-                # correct Ey at firstZ face by subtracting Hx_inc
-                G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
-                    i, j, k - 1, self.H_fields, self.m, self.origin, 0
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
+        if self.skip_axis != 0:
+            # **** constant x faces -- total-field nodes ****/
+            i = self.corners[0]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Ex at firstZ face by adding Hy_inc
-                G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
-                    i, j, k - 1, self.H_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at firstX face by subtracting Hy_inc
+                    G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
+                        i - 1, j, k, self.H_fields, self.m, self.origin, 1
+                    )
 
-        k = self.corners[5]
-        for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
-                # correct Ey at lastZ face by adding Hx_inc
-                G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 0
-                )
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ey at firstX face by adding Hz_inc
+                    G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
+                        i - 1, j, k, self.H_fields, self.m, self.origin, 2
+                    )
 
-        for i in range(self.corners[0], self.corners[3]):
+            i = self.corners[3]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Ex at lastZ face by subtracting Hy_inc
-                G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at lastX face by adding Hy_inc
+                    G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 1
+                    )
+
+            i = self.corners[3]
+            for j in range(self.corners[1], self.corners[4]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ey at lastX face by subtracting Hz_inc
+                    G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 2
+                    )
+
+        if self.skip_axis != 1:
+            # **** constant y faces -- total-field nodes ****/
+            j = self.corners[1]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at firstY face by adding Hx_inc
+                    G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
+                        i, j - 1, k, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ex at firstY face by subtracting Hz_inc
+                    G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
+                        i, j - 1, k, self.H_fields, self.m, self.origin, 2
+                    )
+
+            j = self.corners[4]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at lastY face by subtracting Hx_inc
+                    G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ex at lastY face by adding Hz_inc
+                    G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 2
+                    )
+
+        if self.skip_axis != 2:
+            # **** constant z faces -- total-field nodes ****/
+            k = self.corners[2]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Ey at firstZ face by subtracting Hx_inc
+                    G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
+                        i, j, k - 1, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Ex at firstZ face by adding Hy_inc
+                    G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
+                        i, j, k - 1, self.H_fields, self.m, self.origin, 1
+                    )
+
+            k = self.corners[5]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Ey at lastZ face by adding Hx_inc
+                    G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Ex at lastZ face by subtracting Hy_inc
+                    G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 1
+                    )
 
 
     def find_dpw_integers_optimized(self, theta_deg, phi_deg, delta_xyz, max_total_error_deg):
@@ -2020,6 +2114,15 @@ class DiscretePlaneWave(Source):
             math.cos(theta_rad)
         ])
 
+        #  Snap floating-point residue on components that are analytically
+        #  zero (e.g. cos(90 deg) evaluates to ~6.1e-17, not 0). Without
+        #  this, the continued-fraction search below sees a tiny-but-nonzero
+        #  target ratio and generates astronomically large integer
+        #  candidates chasing it (overflowing on integer conversion). An
+        #  exactly-zero component is also precisely what 2D in-plane
+        #  propagation requires (e.g. theta = 90 for a mode invariant in z).
+        u_vec_target[np.abs(u_vec_target) < 1e-12] = 0.0
+
         #  The algorithm works by dividing by one of the vector's components (x, y, or z).
         #  To avoid dividing by zero and to keep the math stable, we always choose
         #  the component with the LARGEST absolute value as the reference. We
@@ -2057,6 +2160,14 @@ class DiscretePlaneWave(Source):
         for p1, q1 in convergents1:
             for p2, q2 in convergents2:
                 common_denom = math.lcm(q1, q2)
+                # Guard against pathological convergents (from ratios that
+                # are irrational-like or extreme): integers this large can
+                # never be useful DPW mappings (the 1D vector length scales
+                # with max|m|) and would overflow the C long conversion
+                # below. Computed in Python ints, so this check itself
+                # cannot overflow.
+                if max(abs(p1 * (common_denom // q1)), abs(p2 * (common_denom // q2)), common_denom) > 10**6:
+                    continue
                 m_perm = np.array([
                     p1 * (common_denom // q1),
                     p2 * (common_denom // q2),

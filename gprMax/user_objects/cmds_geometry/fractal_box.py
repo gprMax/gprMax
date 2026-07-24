@@ -107,6 +107,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             averagefractalbox = False
 
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
@@ -296,6 +298,27 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                             ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
+                            # In 2D TE mode the invariant axis is 2 cells
+                            # thick (vs TM's 1). TM's own out-of-bounds check
+                            # already stops blade/root growth the instant the
+                            # wobble offset along that axis is nonzero (its
+                            # mask is only 1 cell deep there, so *any*
+                            # nonzero offset is out of bounds) - TE's mask is
+                            # 2 cells deep, so the same nonzero offset would
+                            # stay in-bounds and growth would continue
+                            # differently. Treat a nonzero invariant-axis
+                            # offset as out-of-bounds in TE too (even though
+                            # it's technically a valid index), so growth
+                            # stops at exactly the same (blade/root, height/
+                            # depth) step TM's would, keeping the two
+                            # reproducible and keeping growth confined to the
+                            # surface's own genuinely 2D in-plane axis.
+                            te_axis = None
+                            mode = config.get_model_config().mode
+                            if mode.startswith("2D TE"):
+                                invariant_axis = "xyz".index(mode[-1])
+                                if surface.size[invariant_axis] == 2:
+                                    te_axis = surface._te_invariant_inplane_index(invariant_axis)
                             # Build the blades of the grass
                             blade = 0
                             for j in range(surface.ys, surface.yf):
@@ -326,6 +349,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     or yy >= self.volume.mask.shape[1]
                                                     or zz < 0
                                                     or zz >= self.volume.mask.shape[2]
+                                                    or (te_axis == 0 and y != 0)
+                                                    or (te_axis == 1 and z != 0)
                                                 ):
                                                     break
                                                 else:
@@ -368,6 +393,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     or yy >= self.volume.mask.shape[1]
                                                     or zz < 0
                                                     or zz >= self.volume.mask.shape[2]
+                                                    or (te_axis == 0 and y != 0)
+                                                    or (te_axis == 1 and z != 0)
                                                 ):
                                                     break
                                                 else:
@@ -435,6 +462,16 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                             ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
+                            # See the equivalent xplus block above for why
+                            # this is needed: forces the invariant-axis
+                            # wobble component to zero for TM/TE-reproducible
+                            # blade/root growth.
+                            te_axis = None
+                            mode = config.get_model_config().mode
+                            if mode.startswith("2D TE"):
+                                invariant_axis = "xyz".index(mode[-1])
+                                if surface.size[invariant_axis] == 2:
+                                    te_axis = surface._te_invariant_inplane_index(invariant_axis)
                             # Build the blades of the grass
                             blade = 0
                             for i in range(surface.xs, surface.xf):
@@ -465,6 +502,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     or xx >= self.volume.mask.shape[0]
                                                     or zz < 0
                                                     or zz >= self.volume.mask.shape[2]
+                                                    or (te_axis == 0 and x != 0)
+                                                    or (te_axis == 1 and z != 0)
                                                 ):
                                                     break
                                                 else:
@@ -507,6 +546,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     or xx >= self.volume.mask.shape[0]
                                                     or zz < 0
                                                     or zz >= self.volume.mask.shape[2]
+                                                    or (te_axis == 0 and x != 0)
+                                                    or (te_axis == 1 and z != 0)
                                                 ):
                                                     break
                                                 else:
@@ -576,6 +617,16 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                             ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
+                            # See the equivalent xplus block above for why
+                            # this is needed: forces the invariant-axis
+                            # wobble component to zero for TM/TE-reproducible
+                            # blade/root growth.
+                            te_axis = None
+                            mode = config.get_model_config().mode
+                            if mode.startswith("2D TE"):
+                                invariant_axis = "xyz".index(mode[-1])
+                                if surface.size[invariant_axis] == 2:
+                                    te_axis = surface._te_invariant_inplane_index(invariant_axis)
                             # Build the blades of the grass
                             blade = 0
                             for i in range(surface.xs, surface.xf):
@@ -606,6 +657,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     or xx >= self.volume.mask.shape[0]
                                                     or yy < 0
                                                     or yy >= self.volume.mask.shape[1]
+                                                    or (te_axis == 0 and x != 0)
+                                                    or (te_axis == 1 and y != 0)
                                                 ):
                                                     break
                                                 else:
@@ -648,6 +701,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     or xx >= self.volume.mask.shape[0]
                                                     or yy < 0
                                                     or yy >= self.volume.mask.shape[1]
+                                                    or (te_axis == 0 and x != 0)
+                                                    or (te_axis == 1 and y != 0)
                                                 ):
                                                     break
                                                 else:
@@ -655,6 +710,27 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                                                     depth += 1
                                             k -= 1
                                         root += 1
+
+                # In 2D TE mode the invariant axis is 2 cells thick. The
+                # rough-surface/water mask assignment above is already
+                # invariant (it thresholds against fractalsurface, which
+                # generate_fractal_surface() already made identical on both
+                # cells), but grass's blade/root placement wobbles using a
+                # per-(row,column) counter into Grass's geometry parameters
+                # that isn't itself invariant-axis-aware, so it can build
+                # different blade shapes on each cell even from an identical
+                # underlying height map. Force the mask to match on both
+                # cells here as a general safety net - a no-op for content
+                # that's already invariant, a real fix for grass.
+                mode = config.get_model_config().mode
+                if mode.startswith("2D TE"):
+                    invariant_axis = "xyz".index(mode[-1])
+                    if self.volume.size[invariant_axis] == 2:
+                        indexer0 = [slice(None), slice(None), slice(None)]
+                        indexer0[invariant_axis] = 0
+                        indexer1 = [slice(None), slice(None), slice(None)]
+                        indexer1[invariant_axis] = 1
+                        self.volume.mask[tuple(indexer1)] = self.volume.mask[tuple(indexer0)]
 
                 # Build voxels from any true values of the 3D mask array
                 waternumID = next((x.numID for x in grid.materials if x.ID == "water"), 0)

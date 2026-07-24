@@ -21,6 +21,7 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
@@ -98,6 +99,49 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
             raise ValueError(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
 
         uip = self._create_uip(grid)
+
+        # p1/p2 have one flat (normal) axis, where the coordinates must be
+        # equal, and two extent axes. The extent axes resolve `inf`
+        # positionally, like Box (role="lower"/"upper"). The flat axis, if
+        # `inf`, must instead resolve sign-based (role=None) so p1 and p2
+        # land on the *same* value - a positional role would send them to
+        # different values (0 vs axis extent) and break the flatness
+        # constraint checked below.
+        # A literal (non-inf) coordinate match always wins over a "both
+        # inf" match - the latter is ambiguous with a non-normal axis that
+        # legitimately spans its full range via `inf` on both endpoints
+        # (e.g. the model's own invariant axis, resolved positionally like
+        # any other extent axis), and only means "flat" when no genuinely
+        # flat axis exists elsewhere.
+        p1_arr = np.asarray(p1, dtype=np.float64)
+        p2_arr = np.asarray(p2, dtype=np.float64)
+        flat_axis = next(
+            (
+                axis
+                for axis in range(3)
+                if p1_arr[axis] == p2_arr[axis]
+                and not (np.isinf(p1_arr[axis]) and np.isinf(p2_arr[axis]))
+            ),
+            None,
+        )
+        if flat_axis is None:
+            flat_axis = next(
+                (axis for axis in range(3) if np.isinf(p1_arr[axis]) and np.isinf(p2_arr[axis])),
+                None,
+            )
+        p1_ranged = uip.resolve_inf_point(p1, role="lower")
+        p2_ranged = uip.resolve_inf_point(p2, role="upper")
+        if flat_axis is not None and (
+            np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])
+        ):
+            p1_single = uip.resolve_inf_point(p1, role=None)
+            p2_single = uip.resolve_inf_point(p2, role=None)
+            p1 = tuple(p1_single[a] if a == flat_axis else p1_ranged[a] for a in range(3))
+            p2 = tuple(p2_single[a] if a == flat_axis else p2_ranged[a] for a in range(3))
+        else:
+            p1 = p1_ranged
+            p2 = p2_ranged
+
         discretised_p1, discretised_p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
         xs, ys, zs = discretised_p1
         xf, yf, zf = discretised_p2
@@ -180,6 +224,14 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
                 )
         else:
             raise ValueError(f"{self.__str__()} dimensions are not specified correctly")
+
+        mode = config.get_model_config().mode
+        if mode.startswith("2D") and requestedsurface[0] == mode[-1]:
+            raise ValueError(
+                f"{self.__str__()} cannot be applied to the {requestedsurface} surface in 2D "
+                "mode - its normal is the invariant axis, which has no meaningful depth for "
+                "roughness (the same restriction as #plate in 2D mode)."
+            )
 
         if any(lower_bound < volume.start):
             raise ValueError(
