@@ -19,6 +19,16 @@
 
 """Solver-independent near-to-far-field transformation utilities."""
 
+from .closures import (
+    ExperimentalMask,
+    ResolvedKSIRClosure,
+    SymmetryCompletion,
+    SymmetryImage,
+    SymmetryPlane,
+    closure_from_metadata,
+    component_parity,
+    resolve_closure,
+)
 from .conventions import (
     FORWARD_TRANSFORM_KERNEL,
     OUTGOING_GREEN_RADIAL_FACTOR,
@@ -49,17 +59,25 @@ __all__ = [
     "COMPONENT_OFFSETS",
     "FACES",
     "FORWARD_TRANSFORM_KERNEL",
+    "ExperimentalMask",
     "KSIRComponentSurface",
     "KSIRSurfaceFace",
     "OUTGOING_GREEN_RADIAL_FACTOR",
     "PHASOR_TIME_DEPENDENCE",
+    "ResolvedKSIRClosure",
+    "SymmetryCompletion",
+    "SymmetryImage",
+    "SymmetryPlane",
     "build_all_component_surfaces",
     "build_component_surface",
     "engineering_dft",
+    "closure_from_metadata",
+    "component_parity",
     "evaluate_exact_points_patches",
     "evaluate_far_zone",
     "evaluate_far_zone_patches",
     "project_cartesian_to_spherical",
+    "resolve_closure",
     "spherical_basis",
     "spherical_directions",
     "spherical_observation_points",
