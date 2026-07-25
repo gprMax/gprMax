@@ -62,6 +62,7 @@ from .surfaces import (
     build_all_component_surfaces,
     build_component_surface,
 )
+from .time_domain import KSIRTimeDomainMonitor, KSIRTimeDomainResult
 
 __all__ = [
     "COMPONENTS",
@@ -75,6 +76,8 @@ __all__ = [
     "KSIRFrequencyResult",
     "KSIRSavedFarField",
     "KSIRSurfaceFace",
+    "KSIRTimeDomainMonitor",
+    "KSIRTimeDomainResult",
     "OUTGOING_GREEN_RADIAL_FACTOR",
     "PHASOR_TIME_DEPENDENCE",
     "ResolvedKSIRClosure",
