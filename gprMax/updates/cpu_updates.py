@@ -52,6 +52,12 @@ class CPUUpdates(Updates[GridType]):
         else:
             self.mode2d = -1
 
+        for monitor in self.grid.ntff_monitors:
+            monitor.validate_materials(self.grid.ID, self.grid.IDlookup)
+            configure_background = getattr(monitor, "configure_background", None)
+            if configure_background is not None:
+                configure_background(self.grid.materials)
+
     def store_outputs(self, iteration):
         """Stores field component values for every receiver and transmission line."""
         store_outputs_cpu(self.grid, iteration)
@@ -65,6 +71,22 @@ class CPUUpdates(Updates[GridType]):
         for snap in self.grid.snapshots:
             if snap.time == iteration + 1:
                 snap.store()
+
+    def observe_ntff_electric(self, iteration):
+        """Observe E at physical time ``iteration * dt``."""
+
+        for monitor in self.grid.ntff_monitors:
+            monitor.observe_electric(
+                iteration, self.grid.Ex, self.grid.Ey, self.grid.Ez
+            )
+
+    def observe_ntff_magnetic(self, iteration):
+        """Observe H at physical time ``(iteration + 1/2) * dt``."""
+
+        for monitor in self.grid.ntff_monitors:
+            monitor.observe_magnetic(
+                iteration, self.grid.Hx, self.grid.Hy, self.grid.Hz
+            )
 
     def update_magnetic(self):
         """Updates magnetic field components."""
@@ -296,7 +318,8 @@ class CPUUpdates(Updates[GridType]):
         return timer() - self.timestart
 
     def finalise(self):
-        pass
+        for monitor in self.grid.ntff_monitors:
+            monitor.finalise()
 
     def cleanup(self):
         pass

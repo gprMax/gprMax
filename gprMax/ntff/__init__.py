@@ -53,6 +53,11 @@ from .frequency_domain import (
     surface_compatibility_signature,
     validate_nyquist_frequencies,
 )
+from .interface import (
+    KSIRFarFieldResult,
+    KSIRFrequencyReceiverResult,
+    KSIRTimeReceiverResult,
+)
 from .surfaces import (
     COMPONENTS,
     COMPONENT_OFFSETS,
@@ -73,11 +78,14 @@ __all__ = [
     "KSIRComponentSurface",
     "KSIRComponentPhasors",
     "KSIRFrequencyDomainMonitor",
+    "KSIRFrequencyReceiverResult",
     "KSIRFrequencyResult",
+    "KSIRFarFieldResult",
     "KSIRSavedFarField",
     "KSIRSurfaceFace",
     "KSIRTimeDomainMonitor",
     "KSIRTimeDomainResult",
+    "KSIRTimeReceiverResult",
     "OUTGOING_GREEN_RADIAL_FACTOR",
     "PHASOR_TIME_DEPENDENCE",
     "ResolvedKSIRClosure",

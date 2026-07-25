@@ -11,6 +11,12 @@ import gprMax.config as config
 
 from ._version import __version__
 from .gprMax import run as run
+from .ntff import (
+    ExperimentalMask,
+    SymmetryCompletion,
+    evaluate_saved_surface_dft,
+    spherical_observation_points,
+)
 from .scene import Scene
 from .subgrids.user_objects import SubGridHSG
 from .user_objects.cmds_geometry.add_grass import AddGrass
@@ -50,7 +56,21 @@ from .user_objects.cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
-from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
+from .user_objects.cmds_output import (
+    GeometryObjectsWrite,
+    GeometryView,
+    KSIRFarField,
+    KSIRFarFieldArray,
+    KSIRFrequencyRx,
+    KSIRFrequencyRxArray,
+    KSIRFrequencyRxSpherical,
+    KSIRFrequencyTransform,
+    KSIRSurface,
+    KSIRTimeRx,
+    KSIRTimeRxArray,
+    KSIRTimeRxSpherical,
+    Snapshot,
+)
 from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
