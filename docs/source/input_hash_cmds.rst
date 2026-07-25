@@ -67,7 +67,70 @@ Allows you to specify the size of the model. The syntax of the command is:
 
     #domain: f1 f2 f3
 
-where ``f1 f2 f3`` are the size of the model in the x, y, and z directions respectively. For example to specify a 500 x 500 x 1000mm model use: ``#domain: 0.5 0.5 1.0``
+where ``f1 f2 f3`` are the size of the model in the x, y, and z directions
+respectively. For example, to specify a 500 x 500 x 1000 mm model use
+``#domain: 0.5 0.5 1.0``.
+
+For an explicitly declared 2D model, use ``inf`` for its invariant axis and
+select the polarisation with ``#domain_mode``. gprMax resolves ``inf`` to the
+internal Yee-grid thickness required by the chosen mode; it does not create an
+infinite allocation. For example, the following specifies a model invariant in
+z:
+
+.. code-block:: none
+
+    #domain_mode: TM
+    #domain: 0.5 0.5 inf
+
+The legacy convention of giving one spatial cell on one axis remains supported
+and is interpreted as TM mode, but ``#domain_mode`` with ``inf`` is recommended
+for new models and is required for TE mode.
+
+#domain_mode:
+-------------
+
+Selects whether the domain is three-dimensional or uses a two-dimensional TM
+or TE field reduction. The syntax is:
+
+.. code-block:: none
+
+    #domain_mode: str1
+
+``str1`` is ``TM``, ``TE``, or ``3D`` (case-insensitive). ``3D`` is the
+default when this command is omitted. For TM or TE, exactly one coordinate of
+``#domain`` must be ``inf``; that coordinate selects the invariant axis. If
+``inf`` is used without ``#domain_mode``, gprMax defaults to TM for backwards
+compatibility.
+
+For example, these declarations select TMz and TEz respectively:
+
+.. code-block:: none
+
+    #domain_mode: TM
+    #domain: 0.5 0.5 inf
+
+.. code-block:: none
+
+    #domain_mode: TE
+    #domain: 0.5 0.5 inf
+
+TM uses one internal cell and TE uses two internal cells on the invariant axis.
+The physical coordinates on that axis may be written as ``inf`` in commands
+that accept points or bounds; gprMax resolves lower and upper bounds to the
+appropriate faces of the reduced domain. For a single source or receiver,
+``inf`` on the invariant axis selects the active interior reference layer
+(rather than a TE boundary layer whose fields are constrained). On an
+in-plane axis, ``-inf`` selects the lower domain face and ``inf`` the upper
+face.
+
+.. note::
+
+    * A 2D model must have exactly one invariant axis.
+    * Subgrids, symmetry boundaries, transmission-line sources, and magnetic
+      edges are not currently supported in 2D mode.
+    * A source polarisation must be one of the active components for the
+      selected plane and mode. gprMax rejects incompatible electric and
+      magnetic sources rather than silently creating a zero source.
 
 #dx_dy_dz:
 ----------
@@ -175,7 +238,13 @@ Material commands
 Built-in materials
 ------------------
 
-gprMax has two builtin materials which can be used by specifying the identifiers ``pec`` and ``free_space``. These simulate a perfect electric conductor and air, i.e. a non-magnetic material with :math:`\epsilon_r = 1`, :math:`\sigma = 0`, respectively. Additionally the identifiers ``grass`` and ``water`` are currently reserved for internal use and should not be used unless you intentionally want to change their properties.
+gprMax has three built-in materials which can be used by specifying their identifiers:
+
+* ``pec`` is a perfect electric conductor (PEC), represented by infinite electric conductivity.
+* ``pmc`` is a perfect magnetic conductor (PMC), represented by infinite magnetic conductivity.
+* ``free_space`` is free space, with :math:`\epsilon_r = \mu_r = 1` and :math:`\sigma = \sigma_* = 0`.
+
+The identifiers ``grass`` and ``water`` are reserved for internal use and should not be used unless you intentionally want to change their properties.
 
 #material:
 ----------
@@ -414,6 +483,24 @@ At the boundaries between different materials in the model there is the question
     * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular patch not triangular prism) cannot have dielectric smoothing.
 
 
+#magnetic_averaging:
+---------------------
+
+Selects the mixing rule used for magnetic-field components at smoothed material interfaces. Each H component is constructed from the two cells stacked along its own axis. Because the normal component of magnetic flux density is continuous across an interface, the harmonic mean of relative permeability (:math:`\mu_r`) and magnetic loss (:math:`\sigma_*`) is used by default. Electric-field smoothing is unchanged and continues to use its arithmetic four-cell average. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_averaging: str1
+
+* ``str1`` is ``harmonic`` or ``arithmetic`` (case-insensitive).
+
+.. note::
+
+    * This command is optional; the default is ``harmonic``.
+    * Earlier versions of gprMax used an arithmetic magnetic average. Add ``#magnetic_averaging: arithmetic`` when exact reproduction of those results is required.
+    * The command chooses the magnetic mixing rule only; it does not enable or disable dielectric smoothing.
+
+
 .. _geometryview:
 
 #geometry_view:
@@ -449,6 +536,25 @@ Allows you to introduce a wire with specific properties into the model. A wire i
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 
 For example to specify a x-directed wire that is a perfect electric conductor, use: ``#edge: 0.5 0.5 0.5 0.7 0.5 0.5 pec``. Note that the y and z coordinates are identical.
+
+
+#magnetic_edge:
+----------------
+
+Allows you to introduce a single magnetic-field edge with specific properties into the model. It is the magnetic dual of ``#edge``. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_edge: f1 f2 f3 f4 f5 f6 str1
+
+* ``f1 f2 f3`` are the starting (x,y,z) coordinates of the edge, and ``f4 f5 f6`` are its ending coordinates. The coordinates must define a single axis-aligned line.
+* ``str1`` is a material identifier that has already been defined, or one of the built-in materials.
+
+For example, an x-directed perfect magnetic conductor is specified with ``#magnetic_edge: 0.5 0.5 0.5 0.7 0.5 0.5 pmc``.
+
+.. note::
+
+    ``#magnetic_edge`` is not currently supported in 2D mode.
 
 #plate:
 -------
@@ -909,21 +1015,21 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11 f12]
+    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [str2 f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``f7`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
 * ``f8`` is phi which defines the azimuthal propagation angle (degrees) of the incident plane wave.
 * ``f9`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str2 f10 f11`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle :math:`\psi` of 90 degrees, azimuthal propagation angle :math:`\phi` of 63.4 degrees, polar propagation angle :math:`\theta` of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_angles: 0.010 0.010 0.010 0.040 0.040 0.040 36.7 63.4 90.0 mypulse``.
 
 .. note::
 
-    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms. 
+    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 #plane_wave_vector:
@@ -933,13 +1039,13 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [str2 f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``i1 i2 i3`` are integers that specify the direction of the wave vector (Mx, My, Mz) of the incident plane wave.
 * ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str2 f10 f11`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the diagonal of your grid using a polarisation angle :math:`\psi` of 90 degrees, you can use as a vector (1,1,1) resulting in an azimuthal propagation angle :math:`\phi` of 45.0  degrees, polar propagation angle :math:`\theta` of approximately 54.736 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_vector: 0.010 0.010 0.010 0.040 0.040 0.040 1 1 1 90.0 mypulse``.
@@ -957,19 +1063,19 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_axial: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+    #plane_wave_axial: f1 f2 f3 f4 f5 f6 f7 c1 str1 [f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``c1`` is a character that specifies the axis along which the incident plane wave propagates and can be ``x``, ``y``, or ``z``. originating at the lower left corner of the TFSF box and propagating in the positive axis direction.
 * ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``f11 f12`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
-For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 x 90.0 mypulse``.
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 x mypulse``.
 
 .. note::
-    
+
     * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
@@ -1071,6 +1177,258 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
 
+KSIR field transformation commands
+==================================
+
+The KSIR commands separate the integration surface from its output points.
+One surface can therefore be reused by many time-domain receivers, frequency-
+domain receivers, and far-field directions without repeating the six surface
+coordinates. All optional parameters use the traditional positional gprMax
+syntax; ``name=value`` tokens are not used.
+
+The following conventions apply to every KSIR command:
+
+* coordinates and radii are in metres, frequencies are in Hz, and angles are
+  in degrees;
+* requested frequencies must not exceed the temporal Nyquist limit
+  :math:`1/(2\Delta t)` for the model time step;
+* :math:`\theta` is the polar angle measured from ``+z`` and :math:`\phi` is
+  the azimuth measured from ``+x`` towards ``+y``;
+* a spherical coordinate is relative to the centre of its integration
+  surface. The Python API can instead give a custom surface origin;
+* Cartesian outputs are ``Ex Ey Ez Hx Hy Hz``. Spherical outputs are
+  ``Er Etheta Ephi Hr Htheta Hphi``;
+* every exact time- or frequency-domain point must be strictly outside the
+  completed integration surface. A point may be outside the FDTD model domain;
+* the sampled surface and exterior must be one homogeneous, lossless,
+  non-dispersive material. gprMax determines its wave speed and impedance
+  from the Yee material IDs; these are not user-entered command parameters;
+* surface samples must remain outside the PML and clear of the TFSF correction
+  stencil. The surface must enclose the radiating source or the complete TFSF
+  box and scatterer as appropriate;
+* the implementation currently requires a three-dimensional serial model and
+  does not support MPI, subgrids, or geometry-fixed reuse. Both time- and
+  frequency-domain KSIR collection are available with CPU, CUDA, OpenCL, and
+  Metal;
+* CPU collection uses the Cython/OpenMP implementation. Accelerator surface
+  state and time-domain output storage remain on the device during FDTD
+  iterations and are transferred to the host once, after the solve. CUDA is
+  hardware-qualified on the development server. OpenCL and Metal have source-
+  generation and dispatch coverage, but still require execution tests on
+  suitable hardware.
+
+A minimal dipole workflow can reuse one surface for an exact time-domain point
+and a frequency-domain radiation pattern:
+
+.. code-block:: none
+
+    #domain: 0.1 0.1 0.1
+    #dx_dy_dz: 0.002 0.002 0.002
+    #time_window: 10e-9
+
+    #waveform: gaussiandot 1 1e9 pulse
+    #hertzian_dipole: z 0.05 0.05 0.05 pulse
+
+    #ksir_surface: 0.03 0.03 0.03 0.07 0.07 0.07 radiation_surface
+    #ksir_time_rx: 0.12 0.05 0.05 radiation_surface transient Ez first_arrival
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+    #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+
+The observation point may lie outside the FDTD domain because KSIR evaluates
+the homogeneous exterior analytically. The integration surface itself must be
+inside the non-PML FDTD region and enclose the source.
+
+#ksir_surface:
+--------------
+
+Defines a reusable Yee-aligned cuboidal integration surface:
+
+.. code-block:: none
+
+    #ksir_surface: x1 y1 z1 x2 y2 z2 surface_id
+
+``x1 y1 z1`` and ``x2 y2 z2`` are the lower and upper logical corners.
+``surface_id`` must be unique and must not contain ``/``. The surface is
+physically closed unless one or more faces coincide exactly with a declared
+``#symmetry_boundary``. Coincident PEC/PMC faces are then omitted from direct
+sampling and completed automatically using the exact image parity, reflected
+normal, edge quadrature, and propagation distance for every component.
+
+For example:
+
+.. code-block:: none
+
+    #ksir_surface: 0.034 0.034 0.034 0.066 0.066 0.066 radiation_surface
+
+#ksir_frequency:
+----------------
+
+Declares a streaming frequency transform for a previously defined surface:
+
+.. code-block:: none
+
+    #ksir_frequency: surface_id transform_id f1 [f2 ...] [window]
+
+``transform_id`` must be globally unique. At least one non-negative frequency
+is required. The optional final ``window`` is ``rectangular`` (the default) or
+``hann``. Frequencies above the temporal Nyquist limit are rejected rather
+than being silently aliased. Frequencies are accumulated directly during time
+stepping; field histories are not retained. Surface phasors are saved under
+the transform's HDF5 group so that it remains useful even when it has no receiver
+or far-field command.
+
+The engineering convention is used throughout: phasors have time dependence
+``exp(+j*omega*t)``, the forward transform kernel is ``exp(-j*omega*t)``, and
+the outgoing Green function contains ``exp(-j*k*R)``.
+
+.. code-block:: none
+
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+
+#ksir_time_rx: and #ksir_time_rx_spherical:
+--------------------------------------------
+
+Request exact physical time-domain fields at one Cartesian or spherical
+point:
+
+.. code-block:: none
+
+    #ksir_time_rx: x y z surface_id [rx_id [output1 output2 ... [time_origin]]]
+    #ksir_time_rx_spherical: r theta phi surface_id [rx_id [output1 output2 ... [time_origin]]]
+
+The Cartesian command defaults to all six Cartesian components. The spherical
+command defaults to all six spherical components. ``rx_id`` is optional and
+is generated as ``rx1``, ``rx2``, and so on when omitted. ``time_origin`` is
+the final token and is either:
+
+* ``simulation`` (default): retain time from the start of the FDTD run; or
+* ``first_arrival``: omit the guaranteed retarded-time zero prefix separately
+  for each point while recording its absolute physical origin.
+
+Optional parameters are positional. Therefore an ID must be supplied before
+component names, and both the ID and any desired components must precede
+``time_origin``. For example:
+
+.. code-block:: none
+
+    #ksir_time_rx: 0.074 0.05 0.051 radiation_surface outside Ez Hy first_arrival
+    #ksir_time_rx_spherical: 0.25 90 0 radiation_surface principal Etheta Ephi simulation
+
+The spherical radius is explicit because these commands return the actual
+finite-distance field, including all ``1/R`` and ``1/R^2`` terms. It is not a
+normalization constant.
+
+#ksir_time_rx_array:
+--------------------
+
+Defines a Cartesian line, plane, or volume of exact time-domain points:
+
+.. code-block:: none
+
+    #ksir_time_rx_array: x1 y1 z1 x2 y2 z2 dx dy dz surface_id [rx_id [output1 output2 ... [time_origin]]]
+
+The bounds are inclusive and must contain an integer number of increments.
+An increment can be zero only on an axis whose lower and upper coordinates are
+equal. All points share one output ID and are stored as the first dimension of
+each field dataset.
+
+#ksir_frequency_rx: and #ksir_frequency_rx_spherical:
+------------------------------------------------------
+
+Request the exact finite-distance physical phasor at one point using a
+previously declared transform:
+
+.. code-block:: none
+
+    #ksir_frequency_rx: x y z transform_id [rx_id [output1 output2 ...]]
+    #ksir_frequency_rx_spherical: r theta phi transform_id [rx_id [output1 output2 ...]]
+
+The Cartesian and spherical component defaults match their time-domain
+counterparts. These results retain the full outgoing Green function and are
+not range normalized. Their arrays have shape ``(nfrequencies, npoints)``;
+``npoints`` is one for these two commands.
+
+.. code-block:: none
+
+    #ksir_frequency_rx: 0.074 0.05 0.051 antenna_band near_phasor Ez
+    #ksir_frequency_rx_spherical: 0.25 90 0 antenna_band spherical_phasor Etheta Ephi
+
+#ksir_frequency_rx_array:
+-------------------------
+
+Defines a Cartesian line, plane, or volume of exact frequency-domain points:
+
+.. code-block:: none
+
+    #ksir_frequency_rx_array: x1 y1 z1 x2 y2 z2 dx dy dz transform_id [rx_id [output1 output2 ...]]
+
+The inclusive bounds and zero-increment rule are the same as for
+``#ksir_time_rx_array``.
+
+#ksir_far_field:
+----------------
+
+Requests a range-normalized far field in one spherical direction:
+
+.. code-block:: none
+
+    #ksir_far_field: theta phi transform_id [output_id [output1 output2 ...]]
+
+The default outputs are ``Etheta Ephi``. Cartesian and spherical electric or
+magnetic components may be requested. ``radiation_intensity`` may also be
+requested. ``rcs`` requests bistatic radar cross section and requires the
+surface to enclose exactly one existing TFSF plane-wave source; that plane
+wave is associated automatically.
+
+Unlike the exact spherical receiver commands, ``#ksir_far_field`` has no
+radius. Each field component is the range-normalized quantity
+
+.. math::
+
+    F(\theta,\phi,f) = r\,\exp(+jkr)\,E(r,\theta,\phi,f),
+
+in the far-zone limit. The normalization and engineering phase convention are
+also written as HDF5 attributes.
+
+.. code-block:: none
+
+    #ksir_far_field: 90 180 antenna_band backscatter Etheta Ephi rcs
+
+#ksir_far_field_array:
+----------------------
+
+Requests the Cartesian product of inclusive theta and phi ranges:
+
+.. code-block:: none
+
+    #ksir_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
+
+Each range must contain an integer number of positive increments. For example,
+the following requests a five-degree full-sphere pattern:
+
+.. code-block:: none
+
+    #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+
+Symmetry-completed surface example
+----------------------------------
+
+A symmetry plane can coincide with an integration-surface face. No closure
+option is entered on the KSIR command:
+
+.. code-block:: none
+
+    #symmetry_boundary: x0 pmc
+    #ksir_surface: 0 0.034 0.034 0.026 0.066 0.066 half_surface
+    #ksir_time_rx: 0.04 0.05 0.051 half_surface half_fields Ez
+
+The physical ``x0`` face is not sampled. The other five faces and their
+reflected images form the completed closed surface. Observation points must be
+outside this completed physical-plus-image surface, not merely outside the
+simulated half. This workflow is supported by the local CPU, CUDA, OpenCL, and
+Metal solvers for nondispersive models. OpenCL and Metal still require
+end-to-end qualification on suitable hardware.
+
 
 PML commands
 ============
@@ -1143,3 +1501,30 @@ The parameters will be applied to all slabs of the PML that are switched on.
 .. tip::
 
     ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
+
+
+#symmetry_boundary:
+--------------------
+
+Sets a PEC or PMC symmetry boundary on one face of the model domain, replacing the PML on that face. The command may be used more than once to set different faces. The syntax is:
+
+.. code-block:: none
+
+    #symmetry_boundary: str1 str2
+
+* ``str1`` is ``x0``, ``y0``, ``z0``, ``xmax``, ``ymax``, or ``zmax``.
+* ``str2`` is ``pec`` or ``pmc``.
+
+For example:
+
+.. code-block:: none
+
+    #symmetry_boundary: x0 pec
+    #symmetry_boundary: ymax pmc
+
+.. note::
+
+    * The PML thickness on a symmetry face is set to zero automatically.
+    * PEC boundaries and nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and Metal solvers.
+    * PMC boundaries in models containing dispersive materials are currently CPU-only.
+    * Symmetry boundaries are not currently supported in 2D mode, with MPI, or on a subgrid. They may be used on the main grid of a model that contains subgrids.

@@ -111,6 +111,21 @@ class Material:
         """
         return self.ID.count("+") > 0
 
+    @property
+    def is_pec(self) -> bool:
+        """Check if a material is electrically a perfect conductor (PEC).
+
+        Matches the builtin 'pec' material by name, or any user-defined
+        material with infinite electric conductivity (se == inf) - the same
+        criterion already used in calculate_update_coeffsE() and in
+        Material.build()'s averagable check, so a custom PEC-equivalent
+        material is treated consistently everywhere.
+
+        Returns:
+            is_pec: True if material is PEC or PEC-equivalent.
+        """
+        return self.ID == "pec" or self.se == float("inf")
+
     @staticmethod
     def create_compound_id(*materials: "Material") -> str:
         """Create a compound ID from existing materials.
@@ -139,11 +154,19 @@ class Material:
 
         HA = (config.m0 * self.mr / G.dt) + 0.5 * self.sm
         HB = (config.m0 * self.mr / G.dt) - 0.5 * self.sm
-        self.DA = HB / HA
-        self.DBx = (1 / G.dx) * 1 / HA
-        self.DBy = (1 / G.dy) * 1 / HA
-        self.DBz = (1 / G.dz) * 1 / HA
-        self.srcm = 1 / HA
+
+        if self.ID == "pmc" or self.sm == float("inf"):
+            self.DA = 0
+            self.DBx = 0
+            self.DBy = 0
+            self.DBz = 0
+            self.srcm = 0
+        else:
+            self.DA = HB / HA
+            self.DBx = (1 / G.dx) * 1 / HA
+            self.DBy = (1 / G.dy) * 1 / HA
+            self.DBz = (1 / G.dz) * 1 / HA
+            self.srcm = 1 / HA
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -275,11 +298,24 @@ class DispersiveMaterial(Material):
             - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
 
-        self.CA = EB / EA
-        self.CBx = (1 / G.dx) * 1 / EA
-        self.CBy = (1 / G.dy) * 1 / EA
-        self.CBz = (1 / G.dz) * 1 / EA
-        self.srce = 1 / EA
+        # Matches the same guard in the base Material.calculate_update_coeffsE -
+        # without it, se=inf (the literal 'pec' material, or any user-defined
+        # material with infinite conductivity) makes EA and EB both contain a
+        # 0.5*inf term, so EB/EA is the indeterminate form -inf/inf, evaluating
+        # to NaN rather than the intended 0 - NaN then propagates through the
+        # whole simulation from the very first update.
+        if self.ID == "pec" or self.se == float("inf"):
+            self.CA = 0
+            self.CBx = 0
+            self.CBy = 0
+            self.CBz = 0
+            self.srce = 0
+        else:
+            self.CA = EB / EA
+            self.CBx = (1 / G.dx) * 1 / EA
+            self.CBy = (1 / G.dy) * 1 / EA
+            self.CBz = (1 / G.dz) * 1 / EA
+            self.srce = 1 / EA
 
     def calculate_er(self, freq):
         """Calculates the complex relative permittivity of the material at a
@@ -496,9 +532,17 @@ class RangeMaterial:
             # Check to see if the material already exists before creating a new one
             requiredID = f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
             material = next((x for x in G.materials if x.ID == requiredID), None)
-            if iter == 0 and material:
+            # `self.matID` must gain exactly one entry per bin, regardless
+            # of whether this bin reuses an existing material or needs a
+            # new one - the previous `iter == 0` guard only appended a
+            # reused material's ID on the first bin, so any later bin
+            # that happened to reuse an existing material appended
+            # nothing at all, leaving matID shorter than nbins and every
+            # subsequent bin's index into it wrong (see fractal_box.py's
+            # `mixingmodel.matID[int(numberinbin)]` lookup).
+            if material:
                 self.matID.append(material.numID)
-            if not material:
+            else:
                 m = Material(len(G.materials), requiredID)
                 m.type = ""
                 m.averagable = True
@@ -541,11 +585,12 @@ class ListMaterial:
             requiredID = self.mat[iter]
             # Check if the material already exists before creating a new one
             material = next((x for x in G.materials if x.ID == requiredID), None)
-            self.matID.append(material.numID)
 
             if not material:
-                logger.exception(self.__str__() + f" material(s) {material} do not exist")
+                logger.exception(self.__str__() + f" material(s) {requiredID} do not exist")
                 raise ValueError
+
+            self.matID.append(material.numID)
 
 
 def create_built_in_materials(G):
@@ -561,7 +606,13 @@ def create_built_in_materials(G):
     m.averagable = False
     G.materials.append(m)
 
-    m = Material(1, "free_space")
+    m = Material(1, "pmc")
+    m.sm = float("inf")
+    m.type = "builtin"
+    m.averagable = False
+    G.materials.append(m)
+
+    m = Material(2, "free_space")
     m.type = "builtin"
     G.materials.append(m)
 

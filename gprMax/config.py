@@ -40,6 +40,55 @@ from .utilities.utilities import get_terminal_width
 logger = logging.getLogger(__name__)
 
 
+def _multiple_accelerators_requested(non_cpu_solvers: List) -> bool:
+    """Whether more than one of gpu/opencl/metal was requested at once.
+
+    Each is "requested" whenever it isn't None - this can be a bool
+    (True/False) or a list of deviceIDs (flat, e.g. [1], or CLI-nested,
+    e.g. [[1]]). Counting `is not None` (rather than equality to True)
+    matters because list forms are never `== True`, so a naive
+    `.count(True)` only ever caught the bool form.
+
+    Args:
+        non_cpu_solvers: [args.gpu, args.opencl, args.metal].
+
+    Returns:
+        True if more than one of the three is not None.
+    """
+
+    return sum(solver is not None for solver in non_cpu_solvers) > 1
+
+
+def _resolve_device_id(devs) -> int:
+    """Normalises the various shapes the gpu=/opencl=/metal= (Python API)
+    and -gpu/-opencl/-metal (CLI) arguments can take into a single
+    requested deviceID.
+
+    Accepted forms:
+        None or a bool (e.g. gpu=True): no specific device requested.
+        A flat list of deviceIDs (Python API, e.g. gpu=[1]).
+        A list of lists (CLI's action="append" + nargs="*", e.g.
+            -gpu 1 -> [[1]], or repeated -gpu 1 -gpu 2 -> [[1], [2]]).
+
+    Args:
+        devs: value of args.gpu/args.opencl/args.metal.
+
+    Returns:
+        deviceID: int deviceID of the first requested device, or 0 if
+                    none was requested.
+    """
+
+    deviceIDs = []
+    if isinstance(devs, list):
+        for element in devs:
+            if isinstance(element, list):
+                deviceIDs.extend(element)
+            else:
+                deviceIDs.append(element)
+
+    return deviceIDs[0] if deviceIDs else 0
+
+
 class ModelConfig:
     """Configuration parameters for a model.
     N.B. Multiple models can exist within a simulation
@@ -47,6 +96,11 @@ class ModelConfig:
 
     def __init__(self, model_num):
         self.mode = "3D"
+        self.requested_2d_mode = None
+        # Mixing rule for magnetic (H-field) material averaging at cell
+        # boundaries during Yee-cell smoothing. Harmonic averaging is the
+        # default; arithmetic averaging preserves results from older versions.
+        self.magnetic_averaging_mode = "harmonic"
         self.grids = []
         self.ompthreads = None
         self.model_num = model_num
@@ -65,16 +119,7 @@ class ModelConfig:
             else:  # metal
                 devs = sim_config.args.metal
 
-            # If a list of lists of deviceIDs is found, flatten it
-            if any(isinstance(element, list) for element in devs):
-                deviceID = [val for sublist in devs for val in sublist]
-
-            # If no deviceID is given default to using deviceID 0. Else if either
-            # a single deviceID or list of deviceIDs is given use first one.
-            try:
-                deviceID = deviceID[0]
-            except:
-                deviceID = 0
+            deviceID = _resolve_device_id(devs)
 
             self.device = {
                 "dev": sim_config.set_model_device(deviceID),
@@ -131,7 +176,40 @@ class ModelConfig:
         }
 
     def reuse_geometry(self):
-        return self.model_num != 0 and sim_config.args.geometry_fixed
+        # Compare against the run's actual starting model number, not the
+        # literal 0 - with a restart offset (-i/i=), the first model in
+        # model_range can itself be non-zero, and that first model must
+        # still be built, not treated as a reuse of a never-built geometry.
+        return self.model_num != sim_config.model_start and sim_config.args.geometry_fixed
+
+    def restore_geometry_derived_config(self, reference: "ModelConfig") -> None:
+        """Copy configuration derived from building the geometry/materials
+        onto this (freshly-created) ModelConfig, from `reference` - the
+        ModelConfig of the model that actually built the geometry.
+
+        A fresh ModelConfig is created for every model run, even when
+        geometry_fixed=True causes Model.build() to skip build_geometry()
+        entirely (see reuse_geometry()) - which is where Domain.build()
+        sets `mode` and _check_for_dispersive_materials() sets
+        materials["maxpoles"/"drudelorentz"/"dispersivedtype"/
+        "dispersiveCdtype"/"crealfunc"]. Without this, every run after the
+        first would silently see this fresh ModelConfig's defaults
+        ("3D", maxpoles=0) instead of what the model's own geometry/
+        materials actually require - e.g. CPUUpdates.mode2d (gprMax/
+        updates/cpu_updates.py) would pick 3D kernels for a genuinely 2D
+        model, and FDTDGrid.reset_fields() would skip reinitialising
+        Tx/Ty/Tz for a genuinely dispersive material, leaking the
+        previous run's polarisation-current state into the next run.
+
+        Args:
+            reference: ModelConfig of the model that built the geometry
+                (i.e. sim_config.get_model_config(sim_config.model_start)).
+        """
+
+        self.mode = reference.mode
+        self.requested_2d_mode = reference.requested_2d_mode
+        self.magnetic_averaging_mode = reference.magnetic_averaging_mode
+        self.materials = dict(reference.materials)
 
     def get_scene(self):
         return sim_config.get_scene(self.model_num)
@@ -229,7 +307,7 @@ class SimulationConfig:
             raise ValueError
 
         non_cpu_solvers = [self.args.gpu, self.args.opencl, self.args.metal]
-        if non_cpu_solvers.count(True) > 1:
+        if _multiple_accelerators_requested(non_cpu_solvers):
             logger.error("You cannot use combinations of CUDA, OpenCl and Apple Metal solvers simultaneously.")
             raise ValueError
 
@@ -258,7 +336,12 @@ class SimulationConfig:
 
         self.general = {
             "solver": "cpu",
-            "precision": "single",
+            # Deliberately "single" by default (not "double") to preserve
+            # memory on large CPU models. Overridable via -cpu_precision/
+            # cpu_precision= (this branch only - the CUDA/OpenCL/Metal and
+            # subgrid branches below have their own, separate precision
+            # arguments/overrides).
+            "precision": args.cpu_precision,
             "progressbars": (
                 args.show_progress_bars or (args.log_level <= 20 and not args.hide_progress_bars)
             ),
@@ -275,9 +358,10 @@ class SimulationConfig:
         # CUDA
         if self.gpu is not None:
             self.general["solver"] = "cuda"
-            # Both single and double precision are possible on GPUs, but single
-            # provides best performance.
-            self.general["precision"] = "single"
+            # Both single and double precision are possible on GPUs.
+            # Deliberately "single" by default (best performance) - see
+            # -gpu_precision/gpu_precision=.
+            self.general["precision"] = args.gpu_precision
             self.devices = {
                 "devs": [],
                 "nvcc_opts": None,
@@ -292,7 +376,7 @@ class SimulationConfig:
         # OpenCL
         if self.opencl is not None:
             self.general["solver"] = "opencl"
-            self.general["precision"] = "single"
+            self.general["precision"] = args.gpu_precision
             self.devices = {
                 "devs": [],
                 "compiler_opts": None,
@@ -310,8 +394,27 @@ class SimulationConfig:
         # Apple Metal
         if self.args.metal is not None:
             self.general["solver"] = "metal"
-            self.general["precision"] = "single"
+            self.general["precision"] = args.gpu_precision
             self.devices = {"devs": [], "compiler_opts": None}  # Apple Metal device object(s); compiler options
+
+            # Apple GPU hardware has no native double-precision floating
+            # point support, and the Metal Shading Language has no "double"
+            # type at all - unlike CUDA/OpenCL, this isn't a gprMax-side
+            # limitation to work around, it's a hard platform constraint.
+            # Without this guard, requesting double precision here would
+            # silently generate invalid Metal shader source (e.g. "device
+            # const double& dx", "metal::complex<double>") that fails to
+            # compile - and since Metal library-compile call sites discard
+            # the compile error, that would surface later as an opaque
+            # AttributeError on None.newFunctionWithName_ instead of this
+            # clear diagnostic.
+            if self.general["precision"] == "double":
+                logger.error(
+                    "The Metal solver does not support double precision - Apple GPU "
+                    "hardware and the Metal Shading Language have no native double "
+                    "type. Use the CPU, CUDA, or OpenCL solver for double precision."
+                )
+                raise ValueError
 
             # Add metal available device(s)
             self.devices["devs"] = detect_metal()
@@ -320,6 +423,12 @@ class SimulationConfig:
         if hasattr(self.args, "subgrid") and self.args.subgrid:
             self.general["subgrid"] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
+            # - always wins, regardless of -cpu_precision/-gpu_precision.
+            if self.general["precision"] == "single":
+                logger.warning(
+                    "Sub-gridding requires double precision - overriding the requested"
+                    " single precision."
+                )
             self.general["precision"] = "double"
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
                 self.general["subgrid"] and self.general["solver"] == "opencl") or (
@@ -392,7 +501,11 @@ class SimulationConfig:
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cfloat"
             elif self.general["solver"] == "metal":
-                self.dtypes["C_complex"] = "metal::complex<float>"
+                # Metal Shading Language has no native complex type - a
+                # small custom struct (gprMaxComplex, with the needed
+                # +/-/* operators and .real()) is defined in
+                # knl_common_metal.tmpl instead.
+                self.dtypes["C_complex"] = "gprMaxComplex"
 
         elif self.general["precision"] == "double":
             self.dtypes = {
@@ -408,7 +521,24 @@ class SimulationConfig:
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cdouble"
             elif self.general["solver"] == "metal":
-                self.dtypes["C_complex"] = "metal::complex<double>"
+                # Unreachable in practice - the Metal branch above already
+                # raises ValueError for double precision - kept consistent
+                # with the single-precision case regardless.
+                self.dtypes["C_complex"] = "gprMaxComplex"
+
+        else:
+            # The CLI protects against this via argparse's
+            # choices=["single", "double"] on -cpu_precision/-gpu_precision,
+            # but the Python API (cpu_precision=/gpu_precision=) bypasses
+            # argparse entirely and accepts any string. Without this
+            # branch, an invalid value left self.dtypes completely unset,
+            # failing later with a confusing, unrelated
+            # AttributeError/KeyError far from the actual bad input.
+            logger.error(
+                f"Precision '{self.general['precision']}' is not recognised - "
+                "it must be 'single' or 'double'."
+            )
+            raise ValueError
 
     def _set_input_file_path(self):
         """Sets input file path for CLI or API."""
@@ -421,7 +551,19 @@ class SimulationConfig:
 
     def _set_model_start_end(self):
         """Sets range for number of models to run (internally 0 index)."""
-        if self.args.i:
+        if self.args.n <= 0:
+            logger.error(f"Number of models (n={self.args.n}) must be greater than zero.")
+            raise ValueError
+
+        # `is not None` (not a truthy check) - `i` is documented as a
+        # 1-indexed "model number to start/restart from", so i=0 is
+        # itself invalid (rejected below), but a bare truthy check would
+        # ALSO treat a legitimately-supplied i=0 identically to "i not
+        # given at all" (None), silently ignoring it instead of erroring.
+        if self.args.i is not None:
+            if self.args.i <= 0:
+                logger.error(f"Model start/restart number (i={self.args.i}) must be greater than zero.")
+                raise ValueError
             modelstart = self.args.i - 1
             modelend = modelstart + self.args.n
         else:
@@ -430,6 +572,18 @@ class SimulationConfig:
 
         self.model_start = modelstart
         self.model_end = modelend
+
+    def _list_index(self, model_num: int) -> int:
+        """Converts an absolute model number to an index into model_configs/
+        scenes.
+
+        Both lists are sized to hold exactly `n` entries (one per model in
+        *this* run), regardless of where model_num itself starts counting
+        from - with a restart (-i/i=), model_num starts at model_start, not
+        0. Indexing by model_num directly would run off the end of either
+        list as soon as model_start != 0.
+        """
+        return model_num - self.model_start
 
     def get_model_config(self, model_num: Optional[int] = None) -> ModelConfig:
         """Return ModelConfig instance for specific model.
@@ -443,7 +597,7 @@ class SimulationConfig:
         if model_num is None:
             model_num = self.current_model
 
-        model_config = self.model_configs[model_num]
+        model_config = self.model_configs[self._list_index(model_num)]
         if model_config is None:
             logger.error(f"Cannot get ModelConfig for model {model_num}. It has not been set.")
             raise ValueError
@@ -459,7 +613,7 @@ class SimulationConfig:
         if model_num is None:
             model_num = self.current_model
 
-        self.model_configs[model_num] = model_config
+        self.model_configs[self._list_index(model_num)] = model_config
 
     def set_current_model(self, model_num: int) -> None:
         """Set the current model by it's unique identifier
@@ -481,7 +635,7 @@ class SimulationConfig:
         if model_num is None:
             model_num = self.current_model
 
-        return self.scenes[model_num]
+        return self.scenes[self._list_index(model_num)]
 
     def set_scene(self, scene: Scene, model_num: Optional[int] = None) -> None:
         """Set Scene instace for specific model.
@@ -492,7 +646,7 @@ class SimulationConfig:
         if model_num is None:
             model_num = self.current_model
 
-        self.scenes[model_num] = scene
+        self.scenes[self._list_index(model_num)] = scene
 
 
 # Single instance of SimConfig to hold simulation configuration parameters.

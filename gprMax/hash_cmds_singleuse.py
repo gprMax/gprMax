@@ -22,6 +22,8 @@ import logging
 from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
+    DomainMode,
+    MagneticAveraging,
     OMPThreads,
     OutputDir,
     PMLFormulation,
@@ -84,6 +86,26 @@ def process_singlecmds(singlecmds):
         discretisation = Discretisation(p1=dl)
         scene_objects.append(discretisation)
 
+    cmd = "#domain_mode"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires exactly one parameter, either 'TM', 'TE' or '3D'")
+            raise ValueError
+
+        domain_mode = DomainMode(mode=tmp[0])
+        scene_objects.append(domain_mode)
+
+    cmd = "#magnetic_averaging"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires exactly one parameter, either 'harmonic' or 'arithmetic'")
+            raise ValueError
+
+        magnetic_averaging = MagneticAveraging(mode=tmp[0])
+        scene_objects.append(magnetic_averaging)
+
     cmd = "#domain"
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
@@ -145,12 +167,14 @@ def process_singlecmds(singlecmds):
             pml_thickness = PMLThickness(thickness=int(tmp[0]))
         else:
             pml_thickness = PMLThickness(
-                x0=int(tmp[0]),
-                y0=int(tmp[1]),
-                z0=int(tmp[2]),
-                xmax=int(tmp[3]),
-                ymax=int(tmp[4]),
-                zmax=int(tmp[5]),
+                thickness=(
+                    int(tmp[0]),
+                    int(tmp[1]),
+                    int(tmp[2]),
+                    int(tmp[3]),
+                    int(tmp[4]),
+                    int(tmp[5]),
+                )
             )
 
         scene_objects.append(pml_thickness)

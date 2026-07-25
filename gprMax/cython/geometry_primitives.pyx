@@ -28,7 +28,6 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
     set_rigid_Ex,
     set_rigid_Ey,
     set_rigid_Ez,
-    set_rigid_H,
     set_rigid_Hx,
     set_rigid_Hy,
     set_rigid_Hz,
@@ -242,6 +241,70 @@ cpdef void build_edge_z(
     ID[2, i, j, k] = numIDz
 
 
+cpdef void build_magnetic_edge_x(
+    int i,
+    int j,
+    int k,
+    int numIDx,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Set an x-orientated magnetic edge in the rigid and ID arrays - the
+    magnetic dual of build_edge_x, using the self-consistent single-position
+    Hx marker (set_rigid_Hx). Has no electric counterpart to touch, unlike
+    build_edge_x/y/z which take an (unused-by-them) rigidH parameter for
+    signature uniformity - a magnetic edge has no such relationship to E.
+
+    Args:
+        i, j, k: ints for cell coordinates of edge.
+        numIDx: int for numeric ID of material.
+        rigidH, ID: memoryviews to access rigid and ID arrays.
+    """
+
+    set_rigid_Hx(i, j, k, rigidH)
+    ID[3, i, j, k] = numIDx
+
+
+cpdef void build_magnetic_edge_y(
+    int i,
+    int j,
+    int k,
+    int numIDy,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Set a y-orientated magnetic edge in the rigid and ID arrays.
+
+    Args:
+        i, j, k: ints for cell coordinates of edge.
+        numIDy: int for numeric ID of material.
+        rigidH, ID: memoryviews to access rigid and ID arrays.
+    """
+
+    set_rigid_Hy(i, j, k, rigidH)
+    ID[4, i, j, k] = numIDy
+
+
+cpdef void build_magnetic_edge_z(
+    int i,
+    int j,
+    int k,
+    int numIDz,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Set a z-orientated magnetic edge in the rigid and ID arrays.
+
+    Args:
+        i, j, k: ints for cell coordinates of edge.
+        numIDz: int for numeric ID of material.
+        rigidH, ID: memoryviews to access rigid and ID arrays.
+    """
+
+    set_rigid_Hz(i, j, k, rigidH)
+    ID[5, i, j, k] = numIDz
+
+
 cpdef void build_face_yz(
     int i,
     int j,
@@ -335,6 +398,9 @@ cpdef void build_voxel(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -347,6 +413,13 @@ cpdef void build_voxel(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent, se=inf). PEC has no well-defined
+                    magnetic properties, so its H components are left
+                    completely untouched (ID value and rigid state both kept
+                    as whatever background was already there) rather than
+                    being set - unlike other rigid (non-averaged) materials,
+                    whose H is set at its correct 2 own-axis positions below.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -358,7 +431,20 @@ cpdef void build_voxel(
     else:
         solid[i, j, k] = numID
         set_rigid_E(i, j, k, rigidE)
-        set_rigid_H(i, j, k, rigidH)
+
+        # set_rigid_Hx/Hy/Hz are self-consistent single-position markers
+        # (mirroring set_rigid_Ex/Ey/Ez's shape) - a solid cell has 2 true
+        # H faces per component, so each is called twice, once per face,
+        # matching the two ID writes below exactly.
+        if not pec_x:
+            set_rigid_Hx(i, j, k, rigidH)
+            set_rigid_Hx(i + 1, j, k, rigidH)
+        if not pec_y:
+            set_rigid_Hy(i, j, k, rigidH)
+            set_rigid_Hy(i, j + 1, k, rigidH)
+        if not pec_z:
+            set_rigid_Hz(i, j, k, rigidH)
+            set_rigid_Hz(i, j, k + 1, rigidH)
 
         ID[0, i, j, k] = numIDx
         ID[0, i, j + 1, k + 1] = numIDx
@@ -375,20 +461,23 @@ cpdef void build_voxel(
         ID[2, i + 1, j, k] = numIDz
         ID[2, i, j + 1, k] = numIDz
 
-        ID[3, i, j, k] = numIDx
-        ID[3, i, j + 1, k + 1] = numIDx
-        ID[3, i, j + 1, k] = numIDx
-        ID[3, i, j, k + 1] = numIDx
+        # H components have only 2 true positions each, varying along their
+        # own dependency axis alone (tangential axes fixed to this cell) -
+        # unlike E's 4 tangential-corner positions above. This matches the
+        # established pattern in build_box(); the previous implementation
+        # incorrectly mirrored the E-component pattern. PEC axes skip this
+        # entirely - see the docstring above.
+        if not pec_x:
+            ID[3, i, j, k] = numIDx
+            ID[3, i + 1, j, k] = numIDx
 
-        ID[4, i, j, k] = numIDy
-        ID[4, i + 1, j, k + 1] = numIDy
-        ID[4, i + 1, j, k] = numIDy
-        ID[4, i, j, k + 1] = numIDy
+        if not pec_y:
+            ID[4, i, j, k] = numIDy
+            ID[4, i, j + 1, k] = numIDy
 
-        ID[5, i, j, k] = numIDz
-        ID[5, i + 1, j + 1, k] = numIDz
-        ID[5, i + 1, j, k] = numIDz
-        ID[5, i, j + 1, k] = numIDz
+        if not pec_z:
+            ID[5, i, j, k] = numIDz
+            ID[5, i, j, k + 1] = numIDz
 
 
 cpdef void build_triangle(
@@ -411,6 +500,9 @@ cpdef void build_triangle(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -429,6 +521,8 @@ cpdef void build_triangle(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -525,13 +619,16 @@ cpdef void build_triangle(
                     for k in range(levelcells, levelcells + thicknesscells):
                         if normal == 'x':
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
                         elif normal == 'y':
                             build_voxel(i, k, j, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
                         elif normal == 'z':
                             build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
 
 
 cpdef void build_cylindrical_sector(
@@ -551,6 +648,9 @@ cpdef void build_cylindrical_sector(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -576,6 +676,8 @@ cpdef void build_cylindrical_sector(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -612,7 +714,8 @@ cpdef void build_cylindrical_sector(
                     else:
                         for x in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
 
     elif normal == 'y':
         # Angles are defined from zero degrees on the positive x-axis going
@@ -644,7 +747,8 @@ cpdef void build_cylindrical_sector(
                     else:
                         for y in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
 
     elif normal == 'z':
         # Angles are defined from zero degrees on the positive x-axis going
@@ -676,7 +780,8 @@ cpdef void build_cylindrical_sector(
                     else:
                         for z in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
 
 
 cpdef void build_box(
@@ -691,7 +796,9 @@ cpdef void build_box(
     int numIDy,
     int numIDz,
     bint averaging,
-    bint constrain_all_edges,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -704,8 +811,8 @@ cpdef void build_box(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
-        constrain_all_edges: bint for rigid materials such as PEC that must set
-                    every Yee edge of every voxel, including high-side faces.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -718,54 +825,64 @@ cpdef void build_box(
                     solid[i, j, k] = numID
                     unset_rigid_E(i, j, k, rigidE)
                     unset_rigid_H(i, j, k, rigidH)
-    elif constrain_all_edges:
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                for k in range(zs, zf):
-                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
     else:
         for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
                     set_rigid_E(i, j, k, rigidE)
-                    set_rigid_H(i, j, k, rigidH)
+
+        # Each E/H component gets its own full-range loop. Ex/Ey/Ez are
+        # node-based on their two tangential axes, so those need the full
+        # ys..yf/zs..zf node range (+1), not just the cell range - matches
+        # the pre-2022 (pre-9c1b6f06) structure, which this restores. See
+        # project_2d_mode_framework.md for the investigation that found
+        # the regression (narrowed to single-line patches when prange was
+        # added in 9c1b6f06, and never restored when prange was later
+        # removed as a performance regression in b96ef3c1).
+        for i in range(xs, xf):
+            for j in range(ys, yf + 1):
+                for k in range(zs, zf + 1):
                     ID[0, i, j, k] = numIDx
-                    ID[1, i, j, k] = numIDy
-                    ID[2, i, j, k] = numIDz
-                    ID[3, i, j, k] = numIDx
-                    ID[4, i, j, k] = numIDy
-                    ID[5, i, j, k] = numIDz
 
-        for i in range(xs, xf):
-            j = yf
-            k = zf
-            ID[0, i, j, k] = numIDx
-
-        i = xf
-        for j in range(ys, yf):
-            for k in range(zf, zf + 1):
-                ID[1, i, j, k] = numIDy
-
-        i = xf
-        j = yf
-        for k in range(zs, zf):
-            ID[2, i, j, k] = numIDz
-
-        i = xf
-        for j in range(ys, yf):
-            for k in range(zs, zf):
-                ID[3, i, j, k] = numIDx
-
-        for i in range(xs, xf):
-            j = yf
-            for k in range(zs, zf):
-                ID[4, i, j, k] = numIDy
-
-        for i in range(xs, xf):
+        for i in range(xs, xf + 1):
             for j in range(ys, yf):
-                k = zf
-                ID[5, i, j, k] = numIDz
+                for k in range(zs, zf + 1):
+                    ID[1, i, j, k] = numIDy
+
+        for i in range(xs, xf + 1):
+            for j in range(ys, yf + 1):
+                for k in range(zs, zf):
+                    ID[2, i, j, k] = numIDz
+
+        # PEC has no well-defined magnetic properties, so a PEC axis's H is
+        # left completely untouched (background ID/rigid state kept as-is)
+        # rather than set - see build_voxel()'s docstring for the rationale.
+        # set_rigid_Hx/Hy/Hz are self-consistent single-position markers,
+        # so calling them once per position in these full-range loops
+        # (rather than once per cell in the loop above) correctly marks
+        # every position exactly once, with no redundant double-calls at
+        # shared interior boundaries.
+        if not pec_x:
+            for i in range(xs, xf + 1):
+                for j in range(ys, yf):
+                    for k in range(zs, zf):
+                        set_rigid_Hx(i, j, k, rigidH)
+                        ID[3, i, j, k] = numIDx
+
+        if not pec_y:
+            for i in range(xs, xf):
+                for j in range(ys, yf + 1):
+                    for k in range(zs, zf):
+                        set_rigid_Hy(i, j, k, rigidH)
+                        ID[4, i, j, k] = numIDy
+
+        if not pec_z:
+            for i in range(xs, xf):
+                for j in range(ys, yf):
+                    for k in range(zs, zf + 1):
+                        set_rigid_Hz(i, j, k, rigidH)
+                        ID[5, i, j, k] = numIDz
 
 
 cpdef void build_cylinder(
@@ -784,6 +901,9 @@ cpdef void build_cylinder(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -800,6 +920,8 @@ cpdef void build_cylinder(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -892,7 +1014,8 @@ cpdef void build_cylinder(
                 if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= r:
                     for i in range(xs, xf):
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
     # y-aligned cylinder
     elif y_align:
         for i in range(xs, xf):
@@ -900,7 +1023,8 @@ cpdef void build_cylinder(
                 if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= r:
                     for j in range(ys, yf):
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
     # z-aligned cylinder
     elif z_align:
         for i in range(xs, xf):
@@ -908,7 +1032,8 @@ cpdef void build_cylinder(
                 if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= r:
                     for k in range(zs, zf):
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
 
     # Not aligned with any axis
     else:
@@ -962,7 +1087,8 @@ cpdef void build_cylinder(
 
                     if build:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
 
 
 cpdef void build_cone(
@@ -982,6 +1108,9 @@ cpdef void build_cone(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -999,6 +1128,8 @@ cpdef void build_cone(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -1102,7 +1233,8 @@ cpdef void build_cone(
                 for i in range(xs_bound, xf_bound):
                     if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i- xs)/(xf-xs))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
     # y-aligned cone
     elif y_align:
         for i in range(xs_bound, xf_bound):
@@ -1110,7 +1242,8 @@ cpdef void build_cone(
                 for j in range(ys_bound, yf_bound):
                     if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((j-ys)/(yf-ys))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
     # z-aligned cone
     elif z_align:
         for i in range(xs_bound, xf_bound):
@@ -1118,7 +1251,8 @@ cpdef void build_cone(
                 for k in range(zs_bound, zf_bound):
                     if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= ((k-zs)/(zf-zs))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
 
     # Not aligned with any axis
     else:
@@ -1179,7 +1313,8 @@ cpdef void build_cone(
 
                     if build:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
 
 
 cpdef void build_sphere(
@@ -1195,6 +1330,9 @@ cpdef void build_sphere(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -1210,6 +1348,8 @@ cpdef void build_sphere(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -1245,7 +1385,8 @@ cpdef void build_sphere(
                             (j + 0.5 - yc)**2 * dy**2 +
                             (k + 0.5 - zc)**2 * dz**2) <= r):
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                averaging, pec_x, pec_y, pec_z,
+                                solid, rigidE, rigidH, ID)
 
 
 cpdef void build_ellipsoid(
@@ -1263,6 +1404,9 @@ cpdef void build_ellipsoid(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -1280,6 +1424,8 @@ cpdef void build_ellipsoid(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -1315,7 +1461,8 @@ cpdef void build_ellipsoid(
                             ((j + 0.5 - yc)**2 * dy**2)/yr**2 +
                             ((k + 0.5 - zc)**2 * dz**2)/zr**2 <= 1):
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                averaging, pec_x, pec_y, pec_z,
+                                solid, rigidE, rigidH, ID)
 
 
 cpdef void build_voxels_from_array(
@@ -1324,6 +1471,8 @@ cpdef void build_voxels_from_array(
     int zs,
     int numexistmaterials,
     bint averaging,
+    np.uint8_t[::1] is_pec_lookup,
+    np.uint8_t[::1] is_averagable_lookup,
     np.int16_t[:, :, ::1] data,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
@@ -1338,13 +1487,25 @@ cpdef void build_voxels_from_array(
         numexistmaterials: int for number of existing materials in model prior
                             to building voxels.
         averaging: bint for whether material property averaging will occur for
-                    the object.
+                    the object, requested by the user/grid default - combined
+                    per-voxel with is_averagable_lookup below, since a mixing
+                    model (e.g. #material_list/#material_range with a fractal
+                    box) may reference a non-averagable material (PEC/PMC, or
+                    any custom se=inf/sm=inf material) for only some of its
+                    bins - those voxels must always take the rigid path
+                    regardless of the requested averaging, matching how
+                    Box/Cylinder/etc. already gate on materials[0].averagable.
+        is_pec_lookup: memoryview indexed by numID, True where that material is
+                    PEC (or PEC-equivalent) - see build_voxel().
+        is_averagable_lookup: memoryview indexed by numID, True where that
+                    material permits dielectric smoothing (Material.averagable).
         data: memoryview to access array containing numeric IDs of voxels to create.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
     cdef int xf, yf, zf, numID
+    cdef bint pec, voxel_averaging
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1374,7 +1535,10 @@ cpdef void build_voxels_from_array(
                 numID = data[i - xs, j - ys, k - zs]
                 if numID >= 0:
                     numID = numID + numexistmaterials
-                    build_voxel(i, j, k, numID, numID, numID, numID, averaging, solid, rigidE, rigidH, ID)
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
+                    build_voxel(i, j, k, numID, numID, numID, numID, voxel_averaging,
+                                pec, pec, pec, solid, rigidE, rigidH, ID)
 
 
 cpdef void build_voxels_from_array_mask(
@@ -1384,6 +1548,8 @@ cpdef void build_voxels_from_array_mask(
     int waternumID,
     int grassnumID,
     bint averaging,
+    np.uint8_t[::1] is_pec_lookup,
+    np.uint8_t[::1] is_averagable_lookup,
     np.int8_t[:, :, ::1] mask,
     np.int16_t[:, :, ::1] data,
     np.uint32_t[:, :, ::1] solid,
@@ -1397,7 +1563,13 @@ cpdef void build_voxels_from_array_mask(
         xs, ys, zs: ints for cell coordinates of position of start of array in domain.
         waternumID, grassnumID: ints for numeric ID of water and grass materials.
         averaging: bint for whether material property averaging will occur for
-                the object.
+                the object, requested by the user/grid default - see
+                build_voxels_from_array() for why this is combined per-voxel
+                with is_averagable_lookup rather than applied uniformly.
+        is_pec_lookup: memoryview indexed by numID, True where that material is
+                    PEC (or PEC-equivalent) - see build_voxel().
+        is_averagable_lookup: memoryview indexed by numID, True where that
+                    material permits dielectric smoothing (Material.averagable).
         data: memoryview to access array containing numeric IDs of voxels to create.
         mask: memoryview to access to array containing a mask of voxels to create.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
@@ -1405,6 +1577,7 @@ cpdef void build_voxels_from_array_mask(
 
     cdef Py_ssize_t i, j, k
     cdef int xf, yf, zf, numID, numIDx, numIDy, numIDz
+    cdef bint pec, voxel_averaging
 
     # Set upper bounds
     xf = xs + data.shape[0]
@@ -1416,13 +1589,19 @@ cpdef void build_voxels_from_array_mask(
             for k in range(zs, zf):
                 if mask[i - xs, j - ys, k - zs] == 1:
                     numID = numIDx = numIDy = numIDz = data[i - xs, j - ys, k - zs]
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
                 elif mask[i - xs, j - ys, k - zs] == 2:
                     numID = numIDx = numIDy = numIDz = waternumID
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
                 elif mask[i - xs, j - ys, k - zs] == 3:
                     numID = numIDx = numIDy = numIDz = grassnumID
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)

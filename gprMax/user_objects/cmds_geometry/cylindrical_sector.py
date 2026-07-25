@@ -21,6 +21,7 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_cylindrical_sector
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
@@ -71,14 +72,57 @@ class CylindricalSector(GeometryUserObject):
             start = self.kwargs["start"]
             end = self.kwargs["end"]
             r = self.kwargs["r"]
-            thickness = extent2 - extent1
         except KeyError:
             logger.exception(self.__str__())
             raise
 
+        if normal not in ["x", "y", "z"]:
+            logger.exception(f"{self.__str__()} the normal direction must be either x, y or z.")
+            raise ValueError
+
+        uip = self._create_uip(grid)
+
+        # In 2D mode, a sector is only meaningful with its own (normal)
+        # axis matching the invariant axis - like #cylinder, this lets it
+        # span the full 1-cell (TM) or 2-cell (TE) thickness via `inf`,
+        # wall-to-wall. Unlike #cylinder's p1/p2 (full 3D points), a
+        # sector's cross-section coordinates (ctr1/ctr2) are two scalars
+        # in the plane perpendicular to `normal` - a sector whose normal
+        # is a *transverse* axis would need one of ctr1/ctr2 itself to
+        # span the invariant thickness (the sector's footprint would need
+        # to reach both TE cells), which isn't supported here, so that
+        # orientation is rejected outright in 2D rather than silently
+        # producing a cross-section that only exists on one cell.
+        mode = config.get_model_config().mode
+        if mode.startswith("2D"):
+            invariant_letter = mode[-1]
+            if normal != invariant_letter:
+                raise ValueError(
+                    f"{self.__str__()} in 2D mode, the normal axis must match the "
+                    f"invariant axis ('{invariant_letter}') - a sector normal to a "
+                    "transverse axis is not supported."
+                )
+
+        # extent1/extent2 are scalars along `normal` - resolve `inf` the
+        # same way #cylinder resolves its own-axis p1/p2 coordinates
+        # (role="lower"/"upper"), via a throwaway 3-tuple carrying the
+        # value in the correct axis slot. resolve_inf_point() is a no-op
+        # when there's no `inf` present, so this is safe to call
+        # unconditionally in 3D too - it naturally raises the standard
+        # "inf' is only allowed... in 2D mode" error there if `inf` is
+        # used, rather than a raw crash further down.
+        axis_index = "xyz".index(normal)
+        lower_point = [0.0, 0.0, 0.0]
+        lower_point[axis_index] = extent1
+        upper_point = [0.0, 0.0, 0.0]
+        upper_point[axis_index] = extent2
+        extent1 = uip.resolve_inf_point(tuple(lower_point), role="lower")[axis_index]
+        extent2 = uip.resolve_inf_point(tuple(upper_point), role="upper")[axis_index]
+
+        thickness = extent2 - extent1
+
         # Check thickness of the object first as may be able to exit
         # early if fully outside the grid.
-        uip = self._create_uip(grid)
 
         # yz-plane cylindrical sector
         if normal == "x":
@@ -124,9 +168,6 @@ class CylindricalSector(GeometryUserObject):
         sectorstartangle = 2 * np.pi * (start / 360)
         sectorangle = 2 * np.pi * (end / 360)
 
-        if normal not in ["x", "y", "z"]:
-            logger.exception(f"{self.__str__()} the normal direction must be either x, y or z.")
-            raise ValueError
         if r <= 0:
             logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
         if sectorstartangle < 0 or sectorangle <= 0:
@@ -153,12 +194,16 @@ class CylindricalSector(GeometryUserObject):
             if len(materials) == 1:
                 averaging = materials[0].averagable and averagecylindricalsector
                 numID = numIDx = numIDy = numIDz = materials[0].numID
+                pec_x = pec_y = pec_z = materials[0].is_pec
 
             elif len(materials) == 3:
                 averaging = False
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
+                pec_x = materials[0].is_pec
+                pec_y = materials[1].is_pec
+                pec_z = materials[2].is_pec
                 requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
                 averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
                 if averagedmaterial:
@@ -180,6 +225,7 @@ class CylindricalSector(GeometryUserObject):
             # Isotropic case
             if len(materials) == 1:
                 numID = numIDx = numIDy = numIDz = materials[0].numID
+                pec_x = pec_y = pec_z = materials[0].is_pec
 
             # Uniaxial anisotropic case
             elif len(materials) == 3:
@@ -188,6 +234,9 @@ class CylindricalSector(GeometryUserObject):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
+                pec_x = materials[0].is_pec
+                pec_y = materials[1].is_pec
+                pec_z = materials[2].is_pec
 
         build_cylindrical_sector(
             ctr1,
@@ -206,6 +255,9 @@ class CylindricalSector(GeometryUserObject):
             numIDy,
             numIDz,
             averaging,
+            pec_x,
+            pec_y,
+            pec_z,
             grid.solid,
             grid.rigidE,
             grid.rigidH,

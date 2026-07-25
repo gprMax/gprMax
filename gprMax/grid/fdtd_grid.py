@@ -56,6 +56,11 @@ from gprMax.sources import (
     TransmissionLine,
     VoltageSource,
 )
+from gprMax.symmetry_boundaries import (
+    build_symmetry_boundary_edges,
+    build_symmetry_boundary_edges_dispersive,
+    build_symmetry_boundary_edges_dispersive_b,
+)
 from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
 from gprMax.waveforms import Waveform
 
@@ -120,6 +125,13 @@ class FDTDGrid:
         self.pmls["thickness"] = OrderedDict()
         self.set_pml_thickness(10)
 
+        # PEC/PMC symmetry boundaries, keyed by domain face. Edge dispatch
+        # is resolved once after geometry and material IDs are finalised.
+        self.symmetry_boundaries: dict = {}
+        self.symmetry_boundary_edges: list = []
+        self.symmetry_boundary_edges_dispersive: list = []
+        self.symmetry_boundary_edges_dispersive_b: list = []
+
         # Materials used by this grid
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
@@ -135,6 +147,17 @@ class FDTDGrid:
         self.eigenmodesources: List[EigenmodeSource] = []
         self.rxs: List[Rx] = []
         self.snapshots = []  # List[Snapshot]
+        self.ntff_monitors = []  # Time- and frequency-domain KSIR monitors
+        # Reusable KSIR definitions are registered by user objects, then
+        # compiled after Yee material IDs have been constructed.
+        self.ksir_surface_specs = {}
+        self.ksir_transform_specs = {}
+        self.ksir_time_requests = []
+        self.ksir_frequency_requests = []
+        self.ksir_far_field_requests = []
+        self.ksir_request_owners = {}
+        self.ksir_transform_owners = {}
+        self.ntff_output_writers = []
 
         self.averagevolumeobjects = True
 
@@ -255,12 +278,15 @@ class FDTDGrid:
             self.pmls["cfs"] = [CFS()]
         logger.info(print_pml_info(self))
         if not all(value == 0 for value in self.pmls["thickness"].values()):
+            self._validate_pml_thickness()
             self._build_pmls()
         for snapshot in self.snapshots:  # TODO: Remove if implement parallel build
             snapshot.initialise_snapfields()
         if self.averagevolumeobjects:
             self._build_components()
-        self._tm_grid_update()
+        self._2d_mode_grid_update()
+        self._terminate_pmls_with_pec()
+        self._build_symmetry_boundaries()
         self._create_voltage_source_materials()
         self.initialise_field_arrays()
         self.initialise_std_update_coeff_arrays()
@@ -270,6 +296,26 @@ class FDTDGrid:
         self._build_materials()
         self._DPW__source_grid_init()
         self._eigenmode_source_grid_init()
+
+    def _validate_pml_thickness(self) -> None:
+        """Check that no PML reaches or crosses the domain midpoint.
+
+        ``PMLThickness.build()`` performs this check when the user supplies
+        ``#pml_cells`` explicitly. Grids otherwise retain their default
+        10-cell PML on every side, so small domains previously reached grid
+        construction without an equivalent check. Running it here covers
+        both explicit and default thicknesses.
+        """
+        thickness = self.pmls["thickness"]
+        if (
+            2 * thickness["x0"] >= self.nx
+            or 2 * thickness["y0"] >= self.ny
+            or 2 * thickness["z0"] >= self.nz
+            or 2 * thickness["xmax"] >= self.nx
+            or 2 * thickness["ymax"] >= self.ny
+            or 2 * thickness["zmax"] >= self.nz
+        ):
+            raise ValueError("PML has too many cells for the domain size")
 
     def _build_pmls(self) -> None:
         """Construct and calculate material properties of the PMLs."""
@@ -443,18 +489,81 @@ class FDTDGrid:
         )
         build_electric_components(self.solid, self.rigidE, self.ID, self)
         pbar.update()
-        build_magnetic_components(self.solid, self.rigidH, self.ID, self)
+        harmonic = config.get_model_config().magnetic_averaging_mode == "harmonic"
+        build_magnetic_components(self.solid, self.rigidH, self.ID, self, harmonic)
         pbar.update()
         pbar.close()
 
-    def _tm_grid_update(self) -> None:
-        """Add PEC boundaries to invariant if in 2D mode."""
-        if config.get_model_config().mode == "2D TMx":
+    def _2d_mode_grid_update(self) -> None:
+        """Set the invariant-axis boundary materials for a 2D mode."""
+        mode = config.get_model_config().mode
+        if mode == "2D TMx":
             self.tmx()
-        elif config.get_model_config().mode == "2D TMy":
+        elif mode == "2D TMy":
             self.tmy()
-        elif config.get_model_config().mode == "2D TMz":
+        elif mode == "2D TMz":
             self.tmz()
+        elif mode == "2D TEx":
+            self.tex()
+        elif mode == "2D TEy":
+            self.tey()
+        elif mode == "2D TEz":
+            self.tez()
+
+    def _terminate_pmls_with_pec(self) -> None:
+        """Mark the tangential E components at active PML outer faces as PEC.
+
+        The existing field-update bounds already make the outer PML wall a
+        PEC termination. Updating the material IDs makes that termination
+        explicit for inspection and for edges shared with a PMC symmetry
+        face. This must run after geometry and component averaging.
+        """
+        pml_faces = [face for face, thickness in self.pmls["thickness"].items() if thickness > 0]
+        if not pml_faces:
+            return
+
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        for face in pml_faces:
+            self._force_pec_tangential_e(face, pec_numid)
+
+    def _build_symmetry_boundaries(self) -> None:
+        """Apply PEC faces and resolve the per-iteration PMC edge dispatch."""
+        if not self.symmetry_boundaries:
+            return
+
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        for face, boundary_type in self.symmetry_boundaries.items():
+            if boundary_type == "pec":
+                self._force_pec_tangential_e(face, pec_numid)
+
+        self.symmetry_boundary_edges = build_symmetry_boundary_edges(self)
+        self.symmetry_boundary_edges_dispersive = build_symmetry_boundary_edges_dispersive(self)
+        self.symmetry_boundary_edges_dispersive_b = build_symmetry_boundary_edges_dispersive_b(self)
+
+    def _force_pec_tangential_e(self, face: str, pec_numid: int) -> None:
+        """Force the two tangential E-component IDs on a domain face to PEC."""
+        idx_ex, idx_ey, idx_ez = 0, 1, 2
+
+        if face == "x0":
+            self.ID[idx_ey, 0, 0 : self.ny, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, 0, 0 : self.ny + 1, 0 : self.nz] = pec_numid
+        elif face == "xmax":
+            self.ID[idx_ey, self.nx, 0 : self.ny, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, self.nx, 0 : self.ny + 1, 0 : self.nz] = pec_numid
+        elif face == "y0":
+            self.ID[idx_ex, 0 : self.nx, 0, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, 0 : self.nx + 1, 0, 0 : self.nz] = pec_numid
+        elif face == "ymax":
+            self.ID[idx_ex, 0 : self.nx, self.ny, 0 : self.nz + 1] = pec_numid
+            self.ID[idx_ez, 0 : self.nx + 1, self.ny, 0 : self.nz] = pec_numid
+        elif face == "z0":
+            self.ID[idx_ex, 0 : self.nx, 0 : self.ny + 1, 0] = pec_numid
+            self.ID[idx_ey, 0 : self.nx + 1, 0 : self.ny, 0] = pec_numid
+        elif face == "zmax":
+            self.ID[idx_ex, 0 : self.nx, 0 : self.ny + 1, self.nz] = pec_numid
+            self.ID[idx_ey, 0 : self.nx + 1, 0 : self.ny, self.nz] = pec_numid
+        else:
+            raise ValueError(f"Unknown symmetry boundary face '{face}'")
 
     def _create_voltage_source_materials(self):
         """Create materials for voltage sources.
@@ -524,14 +633,40 @@ class FDTDGrid:
             ValueError: Raised if any of the items would be stepped
                 outside of the grid.
         """
-        if any(step_size > 0):
+        # `!= 0` (not `> 0`) - a negative step is a valid request to move
+        # backward each model; the old `> 0` check silently skipped both
+        # the bounds check and the actual repositioning below whenever
+        # every component of step_size was <= 0 (e.g. an all-negative
+        # step), even though SrcSteps/RxSteps accepted and logged it.
+        if any(step_size != 0):
             for item in items:
-                if step_number == 0:
-                    # Check item won't be stepped outside of the grid
-                    end_coord = item.coord + step_size * config.sim_config.model_end
+                # The one-time "won't be stepped outside the grid" check
+                # must run on the first model actually processed in this
+                # run - step_number == config.sim_config.model_start, not
+                # a literal 0. step_number is the ABSOLUTE model index, so
+                # with a restart (-i/i=) the first model processed has
+                # step_number == model_start (never 0), and a literal-0
+                # check would never fire at all on any restarted run.
+                # Degrades to the exact original check when there's no
+                # restart (model_start defaults to 0).
+                if step_number == config.sim_config.model_start:
+                    # The last model actually run has index model_end - 1
+                    # (models run over range(model_start, model_end)), not
+                    # model_end itself - checking one step further than
+                    # any real run would reject some valid scans that fit
+                    # exactly within the domain boundary.
+                    end_coord = item.coord + step_size * (config.sim_config.model_end - 1)
                     self.within_bounds(end_coord)
-                else:
-                    item.coord = item.coordorigin + step_number * step_size
+                # Always reposition (not just on step_number !=
+                # model_start): step_number is the absolute model index,
+                # so this is correct regardless of restart - for the
+                # first model processed (step_number == model_start),
+                # this must still run alongside the bounds check above,
+                # not instead of it, since a restarted run's first model
+                # (model_start != 0) genuinely needs real repositioning,
+                # unlike a non-restarted run's model 0 (model_start == 0),
+                # where this is a harmless no-op (coordorigin + 0*step).
+                item.coord = item.coordorigin + step_number * step_size
 
     def update_simple_source_positions(self, step: int = 0) -> None:
         """Update the positions of sources in the grid.
@@ -664,13 +799,18 @@ class FDTDGrid:
         arrays for specifying whether materials can have dielectric
         smoothing (rigid); and an array for cell edge IDs (ID).
 
-        Solid and ID arrays are initialised to free_space (one); rigid
-        arrays to allow dielectric smoothing (zero).
+        Solid and ID arrays are initialised to free_space; rigid arrays to
+        allow dielectric smoothing (zero).
         """
-        self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
+        free_space_numid = next(m.numID for m in self.materials if m.ID == "free_space")
+        self.solid = np.full((self.nx, self.ny, self.nz), free_space_numid, dtype=np.uint32)
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
-        self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
+        self.ID = np.full(
+            (6, self.nx + 1, self.ny + 1, self.nz + 1),
+            free_space_numid,
+            dtype=np.uint32,
+        )
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
@@ -846,45 +986,85 @@ class FDTDGrid:
         """Add PEC boundaries to invariant direction in 2D TMx mode.
         N.B. 2D modes are a single cell slice of 3D grid.
         """
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         # Ey & Ez components
-        self.ID[1, 0, :, :] = 0
-        self.ID[1, 1, :, :] = 0
-        self.ID[2, 0, :, :] = 0
-        self.ID[2, 1, :, :] = 0
+        self.ID[1, 0, :, :] = pec_numid
+        self.ID[1, 1, :, :] = pec_numid
+        self.ID[2, 0, :, :] = pec_numid
+        self.ID[2, 1, :, :] = pec_numid
 
     def tmy(self):
         """Add PEC boundaries to invariant direction in 2D TMy mode.
         N.B. 2D modes are a single cell slice of 3D grid.
         """
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         # Ex & Ez components
-        self.ID[0, :, 0, :] = 0
-        self.ID[0, :, 1, :] = 0
-        self.ID[2, :, 0, :] = 0
-        self.ID[2, :, 1, :] = 0
+        self.ID[0, :, 0, :] = pec_numid
+        self.ID[0, :, 1, :] = pec_numid
+        self.ID[2, :, 0, :] = pec_numid
+        self.ID[2, :, 1, :] = pec_numid
 
     def tmz(self):
         """Add PEC boundaries to invariant direction in 2D TMz mode.
         N.B. 2D modes are a single cell slice of 3D grid.
         """
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         # Ex & Ey components
-        self.ID[0, :, :, 0] = 0
-        self.ID[0, :, :, 1] = 0
-        self.ID[1, :, :, 0] = 0
-        self.ID[1, :, :, 1] = 0
+        self.ID[0, :, :, 0] = pec_numid
+        self.ID[0, :, :, 1] = pec_numid
+        self.ID[1, :, :, 0] = pec_numid
+        self.ID[1, :, :, 1] = pec_numid
+
+    def tex(self):
+        """Set the invariant-axis boundary materials for 2D TEx mode."""
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        pmc_numid = next(m.numID for m in self.materials if m.ID == "pmc")
+
+        # Ex and the transverse H components are inactive throughout the slice.
+        self.ID[0, 0:2, :, :] = pec_numid
+        self.ID[4, 0:2, :, :] = pmc_numid
+        self.ID[5, 0:2, :, :] = pmc_numid
+        # Mark the inactive outer-wall components explicitly.
+        self.ID[1:3, (0, 2), :, :] = pec_numid
+        self.ID[3, (0, 2), :, :] = pmc_numid
+
+    def tey(self):
+        """Set the invariant-axis boundary materials for 2D TEy mode."""
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        pmc_numid = next(m.numID for m in self.materials if m.ID == "pmc")
+
+        self.ID[1, :, 0:2, :] = pec_numid
+        self.ID[3, :, 0:2, :] = pmc_numid
+        self.ID[5, :, 0:2, :] = pmc_numid
+        self.ID[0, :, (0, 2), :] = pec_numid
+        self.ID[2, :, (0, 2), :] = pec_numid
+        self.ID[4, :, (0, 2), :] = pmc_numid
+
+    def tez(self):
+        """Set the invariant-axis boundary materials for 2D TEz mode."""
+        pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
+        pmc_numid = next(m.numID for m in self.materials if m.ID == "pmc")
+
+        self.ID[2, :, :, 0:2] = pec_numid
+        self.ID[3, :, :, 0:2] = pmc_numid
+        self.ID[4, :, :, 0:2] = pmc_numid
+        self.ID[0, :, :, (0, 2)] = pec_numid
+        self.ID[1, :, :, (0, 2)] = pec_numid
+        self.ID[5, :, :, (0, 2)] = pmc_numid
 
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
-        if config.get_model_config().mode == "2D TMx":
+        if config.get_model_config().mode in ("2D TMx", "2D TEx"):
             self.dt = 1 / (
                 config.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
             )
-        elif config.get_model_config().mode == "2D TMy":
+        elif config.get_model_config().mode in ("2D TMy", "2D TEy"):
             self.dt = 1 / (
                 config.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
             )
-        elif config.get_model_config().mode == "2D TMz":
+        elif config.get_model_config().mode in ("2D TMz", "2D TEz"):
             self.dt = 1 / (
                 config.sim_config.em_consts["c"]
                 * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
@@ -1099,16 +1279,17 @@ class FDTDGrid:
             maxer = 0
             matmaxer = ""
             for x in self.materials:
-                if x.se != float("inf"):
-                    er = x.er
-                    # If there are dispersive materials calculate the complex
-                    # relative permittivity at maximum frequency and take the real part
-                    if x.__class__.__name__ == "DispersiveMaterial":
-                        er = x.calculate_er(results["maxfreq"])
-                        er = er.real
-                    if er > maxer:
-                        maxer = er
-                        matmaxer = x.ID
+                if x.se == float("inf") or x.sm == float("inf"):
+                    continue
+                er = x.er
+                # If there are dispersive materials calculate the complex
+                # relative permittivity at maximum frequency and take the real part
+                if x.__class__.__name__ == "DispersiveMaterial":
+                    er = x.calculate_er(results["maxfreq"])
+                    er = er.real
+                if er > maxer:
+                    maxer = er
+                    matmaxer = x.ID
             results["material"] = next(x for x in self.materials if x.ID == matmaxer)
 
             # Minimum velocity
@@ -1118,14 +1299,16 @@ class FDTDGrid:
             minwavelength = minvelocity / results["maxfreq"]
 
             # Maximum spatial step
-            if "3D" in config.get_model_config().mode:
+            mode = config.get_model_config().mode
+            if "3D" in mode:
                 delta = max(self.dx, self.dy, self.dz)
-            elif "2D" in config.get_model_config().mode:
-                if self.nx == 1:
+            elif "2D" in mode:
+                invariant_axis = mode[-1]
+                if invariant_axis == "x":
                     delta = max(self.dy, self.dz)
-                elif self.ny == 1:
+                elif invariant_axis == "y":
                     delta = max(self.dx, self.dz)
-                elif self.nz == 1:
+                else:
                     delta = max(self.dx, self.dy)
 
             # Courant stability factor

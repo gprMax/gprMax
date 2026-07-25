@@ -30,10 +30,18 @@ from gprMax.cuda_opencl import (
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
+    knl_symmetry_boundaries,
 )
 from gprMax.grid.cuda_grid import CUDAGrid
+from gprMax.ntff.device import CUDACombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
-from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
+from gprMax.snapshots import (
+    Snapshot,
+    _snapshot_axis_strides,
+    dtoh_snapshot_array,
+    htod_snapshot_array,
+    update_snapshot_max_dims,
+)
 from gprMax.sources import htod_src_arrays
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
@@ -81,9 +89,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
 
+        # Must happen before _set_macros(), which bakes NX_SNAPS/NY_SNAPS/
+        # NZ_SNAPS into the shared kernel preamble - see
+        # update_snapshot_max_dims()'s docstring.
+        if self.grid.snapshots:
+            update_snapshot_max_dims(self.grid.snapshots)
+
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
+        if "pmc" in self.grid.symmetry_boundaries.values():
+            self._set_symmetry_boundary_knl()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
         if self.grid.rxs:
@@ -92,6 +108,11 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        self.ntff_collector = None
+        if self.grid.ntff_monitors:
+            self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
+            self.ntff_compiler_options = config.sim_config.devices["nvcc_opts"]
+            self.ntff_collector = CUDACombinedKSIRCollector(self)
 
     def _build_knl(self, knl_func, subs_name_args, subs_func):
         """Builds a CUDA kernel from templates: 1) function name and args;
@@ -150,7 +171,14 @@ class CUDAUpdates(Updates[CUDAGrid]):
             NY_RXS=self.grid.iterations,
             NZ_RXS=len(self.grid.rxs),
             NY_SRCINFO=4,
-            NY_SRCWAVES=self.grid.iterations,
+            # Row stride for srcwaveforms must match htod_src_arrays()'s
+            # actual allocation (sources.py: (len(sources), G.iterations + 1),
+            # not G.iterations - the extra column holds a half-timestep
+            # sample). A stride one short here doesn't just misindex the
+            # last column: every row after the first is read shifted, since
+            # the stride mismatch compounds per source (source i's data
+            # starts 1*i elements early).
+            NY_SRCWAVES=self.grid.iterations + 1,
             NX_SNAPS=Snapshot.nx_max,
             NY_SNAPS=Snapshot.ny_max,
             NZ_SNAPS=Snapshot.nz_max,
@@ -209,6 +237,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
         if config.get_model_config().materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays()
 
+    def _set_symmetry_boundary_knl(self):
+        """Build the nondispersive PMC ghost-image boundary kernel."""
+        source = self._build_knl(
+            knl_symmetry_boundaries.update_electric_pmc,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_electric_pmc_dev = module.get_function("update_electric_pmc")
+        self._copy_mat_coeffs(module, module)
+
+    def _pmc_flags(self):
+        boundaries = self.grid.symmetry_boundaries
+        return tuple(
+            np.int32(boundaries.get(face) == "pmc")
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
+        )
+
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
         knl_pml_updates_electric = import_module(
@@ -263,7 +309,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Sources - initialises arrays on GPU, prepares kernel and gets kernel
         function.
         """
-        self.subs_func.update({"NY_SRCINFO": 4, "NY_SRCWAVES": self.grid.iterations})
+        self.subs_func.update({"NY_SRCINFO": 4, "NY_SRCWAVES": self.grid.iterations + 1})
 
         if self.grid.hertziandipoles:
             (
@@ -379,20 +425,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
             iteration: int for iteration number.
         """
 
+        sx, sy, sz = _snapshot_axis_strides()
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
-                    np.int32(snap.xf),
                     np.int32(snap.ys),
-                    np.int32(snap.yf),
                     np.int32(snap.zs),
-                    np.int32(snap.zf),
+                    np.int32(snap.nx),
+                    np.int32(snap.ny),
+                    np.int32(snap.nz),
                     np.int32(snap.dx),
                     np.int32(snap.dy),
                     np.int32(snap.dz),
+                    np.int32(sx),
+                    np.int32(sy),
+                    np.int32(sz),
                     self.grid.Ex_dev.gpudata,
                     self.grid.Ey_dev.gpudata,
                     self.grid.Ez_dev.gpudata,
@@ -436,6 +486,20 @@ class CUDAUpdates(Updates[CUDAGrid]):
             block=self.grid.tpb,
             grid=self.grid.bpg,
         )
+
+    def observe_ntff_electric(self, iteration):
+        """Collect electric frequency- and time-domain KSIR data on CUDA."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_ntff_magnetic(self, iteration):
+        """Collect magnetic frequency- and time-domain KSIR data on CUDA."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_magnetic(iteration)
 
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
@@ -503,6 +567,27 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=self.grid.tpb,
                 grid=self.grid.bpg,
             )
+
+    def update_symmetry_boundaries_electric(self):
+        """Apply the nondispersive PMC ghost-image correction on CUDA."""
+        if "pmc" not in self.grid.symmetry_boundaries.values():
+            return
+
+        self.update_electric_pmc_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            *self._pmc_flags(),
+            self.grid.ID_dev.gpudata,
+            self.grid.Ex_dev.gpudata,
+            self.grid.Ey_dev.gpudata,
+            self.grid.Ez_dev.gpudata,
+            self.grid.Hx_dev.gpudata,
+            self.grid.Hy_dev.gpudata,
+            self.grid.Hz_dev.gpudata,
+            block=self.grid.tpb,
+            grid=self.grid.bpg,
+        )
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
@@ -603,6 +688,10 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
     def finalise(self):
         """Copies data from GPU back to CPU to save to file(s)."""
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.finalise()
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)

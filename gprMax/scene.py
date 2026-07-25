@@ -112,16 +112,31 @@ class Scene:
             raise
 
     def process_single_use_objects(self, model: Model):
-        # Check for duplicate commands and warn user if they exist
-        # TODO: Test this works
-        unique_commands = list(set(self.single_use_objects))
-        if len(unique_commands) != len(self.single_use_objects):
-            logger.exception("Duplicate single-use commands exist in the input.")
+        # Check for duplicate commands and warn user if they exist. Each
+        # single-use command TYPE (Domain, Discretisation, TimeWindow,
+        # PMLThickness, ...) is meant to appear at most once per model.
+        # `set(self.single_use_objects)` cannot detect this: UserObject
+        # has no value-based __eq__/__hash__, so it falls back to
+        # identity, meaning two separate Domain(...) instances built from
+        # two `#domain` lines are never considered equal/duplicate - the
+        # old check never fired for real duplicate commands. Detect
+        # duplicates by command type instead.
+        seen_types = set()
+        duplicate_types = set()
+        for cmd in self.single_use_objects:
+            cmd_type = type(cmd)
+            if cmd_type in seen_types:
+                duplicate_types.add(cmd_type)
+            seen_types.add(cmd_type)
+
+        if duplicate_types:
+            names = ", ".join(sorted(t.__name__ for t in duplicate_types))
+            logger.exception(f"Duplicate single-use commands exist in the input: {names}.")
             raise ValueError
 
         # Check essential commands and warn user if missing
         for cmd_type in self.ESSENTIAL_CMDS:
-            d = any(isinstance(cmd, cmd_type) for cmd in unique_commands)
+            d = any(isinstance(cmd, cmd_type) for cmd in self.single_use_objects)
             if not d:
                 logger.exception(
                     "Your input file is missing essential commands "
@@ -130,7 +145,7 @@ class Scene:
                 )
                 raise ValueError
 
-        self.build_model_objects(unique_commands, model)
+        self.build_model_objects(self.single_use_objects, model)
 
     def process_multi_use_objects(self, model: Model):
         self.build_grid_objects(self.grid_objects, model.G)

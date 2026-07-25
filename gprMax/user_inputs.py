@@ -19,12 +19,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Generic, Tuple
+import math
+from typing import Generic, Optional, Tuple
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeVar
 
+from gprMax import config
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -66,6 +68,93 @@ class UserInput(Generic[GridType]):
                 s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
             logger.exception(s)
             raise
+
+    def resolve_inf_point(
+        self, point: Tuple[float, float, float], role: Optional[str] = None
+    ) -> Tuple[float, float, float]:
+        """Resolve any `inf` entries in a coordinate to a concrete
+        physical coordinate, before discretisation.
+
+        Only meaningful, and only allowed, in an active 2D mode (TM or
+        TE) - see #domain_mode. `inf` exists specifically to hide the
+        1-cell-TM-vs-2-cell-TE discrepancy on the invariant axis; there
+        is no equivalent ambiguity in a 3D model, where every coordinate
+        already has one unambiguous meaning, so `inf` there would only
+        ever be a convenience for "snap to the domain edge" - which
+        turned out to be more trouble than it's worth (in particular, it
+        cannot be resolved correctly for subgrid-scoped objects, whose
+        coordinates are in the global/main-grid frame, not relative to
+        the subgrid's own array).
+        Using `inf` in a 3D model (or on a subgrid, which can never be
+        2D - 2D and sub-gridding are mutually exclusive) is therefore
+        rejected outright, with a clear error, rather than silently
+        doing something that may be subtly wrong.
+
+        For a range endpoint (role="lower"/"upper"), resolution is
+        purely positional and ignores sign: `inf` in a "lower" role
+        resolves to the axis origin (0.0); in an "upper" role it
+        resolves to the axis extent. This correctly spans the full
+        invariant-axis thickness (TM's single cell or TE's two cells)
+        with no special-casing needed, since "lower" and "upper" are
+        still genuinely distinct positions (0 and axis extent) there.
+        This also applies normally to non-invariant axes within an
+        active 2D model (e.g. an edge's in-plane run axis) - the
+        2D-only restriction is a model-level gate, not an axis-level one.
+
+        For a single point (role=None), the sign of `inf` carries the
+        meaning directly: `-inf` resolves to the axis origin, `inf`/
+        `+inf` resolves to the axis extent - UNLESS the axis is the
+        invariant axis of the active 2D mode, in which case (regardless
+        of sign) it instead resolves to that mode's interior reference
+        layer. This override is single-point-only: unlike a range
+        endpoint, a single point has no "lower"/"upper" role to fall
+        back on, so without it `inf`/`-inf` would resolve to the axis
+        origin/extent - which for TE is a boundary layer forced to
+        pec/pmc (a dead position, see tex()/tey()/tez()), not the
+        genuinely propagating interior layer a source/receiver needs.
+
+        Args:
+            point: x, y, z coordinates of the point in space, may
+                contain `inf`/`-inf` entries.
+            role: "lower" or "upper" for a range endpoint, None for a
+                single point.
+
+        Returns:
+            resolved_point: point with any `inf` entries replaced by a
+                concrete physical coordinate.
+        """
+        if not any(math.isinf(v) for v in point):
+            return point
+
+        mode = config.get_model_config().mode
+        if not mode.startswith("2D"):
+            raise ValueError(
+                f"'inf' is only allowed in a coordinate when the model is in "
+                f"2D mode (see #domain_mode) - the current mode is '{mode}'. "
+                "In 3D, specify explicit coordinates instead."
+            )
+
+        invariant_axis = "xyz".index(mode[-1])
+
+        resolved = list(point)
+        for i, v in enumerate(point):
+            if not math.isinf(v):
+                continue
+
+            if role is None and i == invariant_axis:
+                reference_index = 1 if "TE" in mode else 0
+                resolved[i] = reference_index * self.grid.dl[i]
+                continue
+
+            axis_size = self.grid.dl[i] * (self.grid.nx, self.grid.ny, self.grid.nz)[i]
+            if role == "lower":
+                resolved[i] = 0.0
+            elif role == "upper":
+                resolved[i] = axis_size
+            else:
+                resolved[i] = axis_size if v > 0 else 0.0
+
+        return tuple(resolved)
 
     def discretise_static_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
         """Get the nearest grid index to a continuous static point.

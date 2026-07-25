@@ -3,6 +3,38 @@
 {% block header %}
 #include <metal_stdlib>
 using namespace metal;
+
+// Metal Shading Language has no native complex-number type (unlike CUDA's
+// pycuda::complex<T> or OpenCL's pyopencl-complex.h) - this is used for
+// Lorentz/Drude dispersive materials (Debye-only models never reference
+// this; their $COMPLEX substitutes to a plain float). Metal is always
+// single precision (see the ValueError raised in SimulationConfig for
+// any double-precision Metal request), so a single concrete float-based
+// struct is sufficient - no template needed.
+struct gprMaxComplex {
+    float re;
+    float im;
+
+    float real() const {
+        return re;
+    }
+};
+
+inline gprMaxComplex operator+(gprMaxComplex a, gprMaxComplex b) {
+    return gprMaxComplex{a.re + b.re, a.im + b.im};
+}
+
+inline gprMaxComplex operator-(gprMaxComplex a, gprMaxComplex b) {
+    return gprMaxComplex{a.re - b.re, a.im - b.im};
+}
+
+inline gprMaxComplex operator*(gprMaxComplex a, gprMaxComplex b) {
+    return gprMaxComplex{a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re};
+}
+
+inline gprMaxComplex operator*(gprMaxComplex a, float b) {
+    return gprMaxComplex{a.re * b, a.im * b};
+}
 {% endblock header %}
 
 

@@ -216,6 +216,8 @@ def check_cmd_names(processedlines, checkessential=True):
     singlecmds = dict.fromkeys(
         [
             "#domain",
+            "#domain_mode",
+            "#magnetic_averaging",
             "#dx_dy_dz",
             "#time_window",
             "#title",
@@ -257,7 +259,18 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx",
             "#rx_array",
             "#snapshot",
+            "#ksir_surface",
+            "#ksir_frequency",
+            "#ksir_time_rx",
+            "#ksir_time_rx_spherical",
+            "#ksir_time_rx_array",
+            "#ksir_frequency_rx",
+            "#ksir_frequency_rx_spherical",
+            "#ksir_frequency_rx_array",
+            "#ksir_far_field",
+            "#ksir_far_field_array",
             "#pml_cfs",
+            "#symmetry_boundary",
             "#include_file",
         ]
     }
@@ -267,6 +280,7 @@ def check_cmd_names(processedlines, checkessential=True):
     geometrycmds = [
         "#geometry_objects_read",
         "#edge",
+        "#magnetic_edge",
         "#plate",
         "#triangle",
         "#box",

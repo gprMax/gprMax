@@ -29,10 +29,18 @@ from gprMax.cuda_opencl import (
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
+    knl_symmetry_boundaries,
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.ntff.device import OpenCLCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
-from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
+from gprMax.snapshots import (
+    Snapshot,
+    _snapshot_axis_strides,
+    dtoh_snapshot_array,
+    htod_snapshot_array,
+    update_snapshot_max_dims,
+)
 from gprMax.sources import htod_src_arrays
 from gprMax.updates.updates import Updates
 
@@ -63,9 +71,17 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
 
+        # Must happen before _set_macros(), which bakes NX_SNAPS/NY_SNAPS/
+        # NZ_SNAPS into the shared kernel preamble - see
+        # update_snapshot_max_dims()'s docstring.
+        if self.grid.snapshots:
+            update_snapshot_max_dims(self.grid.snapshots)
+
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
+        if "pmc" in self.grid.symmetry_boundaries.values():
+            self._set_symmetry_boundary_knl()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
         if self.grid.rxs:
@@ -74,6 +90,11 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        self.ntff_collector = None
+        if self.grid.ntff_monitors:
+            self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
+            self.ntff_compiler_options = config.sim_config.devices["compiler_opts"]
+            self.ntff_collector = OpenCLCombinedKSIRCollector(self)
 
     def _set_macros(self):
         """Common macros to be used in kernels."""
@@ -112,7 +133,10 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             NY_RXS=self.grid.iterations,
             NZ_RXS=len(self.grid.rxs),
             NY_SRCINFO=4,
-            NY_SRCWAVES=self.grid.iterations,
+            # Must match htod_src_arrays()'s actual row stride (sources.py:
+            # (len(sources), G.iterations + 1)), not G.iterations - see
+            # cuda_updates.py's equivalent comment for the full mechanism.
+            NY_SRCWAVES=self.grid.iterations + 1,
             NX_SNAPS=Snapshot.nx_max,
             NY_SNAPS=Snapshot.ny_max,
             NZ_SNAPS=Snapshot.nz_max,
@@ -206,6 +230,36 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.grid.htod_field_arrays(self.queue)
         if config.get_model_config().materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays(self.queue)
+
+    def _set_symmetry_boundary_knl(self):
+        """Build the nondispersive PMC ghost-image boundary kernel."""
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NX_FIELDS": self.grid.nx + 1,
+            "NY_FIELDS": self.grid.ny + 1,
+            "NZ_FIELDS": self.grid.nz + 1,
+            "NX_ID": self.grid.ID.shape[1],
+            "NY_ID": self.grid.ID.shape[2],
+            "NZ_ID": self.grid.ID.shape[3],
+        }
+        self.update_electric_pmc_dev = self.elwiseknl(
+            self.ctx,
+            knl_symmetry_boundaries.update_electric_pmc["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_symmetry_boundaries.update_electric_pmc["func"].substitute(substitutions),
+            "update_electric_pmc",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _pmc_flags(self):
+        boundaries = self.grid.symmetry_boundaries
+        return tuple(
+            np.int32(boundaries.get(face) == "pmc")
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
+        )
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
@@ -386,20 +440,24 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             iteration: int for iteration number.
         """
 
+        sx, sy, sz = _snapshot_axis_strides()
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
-                    np.int32(snap.xf),
                     np.int32(snap.ys),
-                    np.int32(snap.yf),
                     np.int32(snap.zs),
-                    np.int32(snap.zf),
+                    np.int32(snap.nx),
+                    np.int32(snap.ny),
+                    np.int32(snap.nz),
                     np.int32(snap.dx),
                     np.int32(snap.dy),
                     np.int32(snap.dz),
+                    np.int32(sx),
+                    np.int32(sy),
+                    np.int32(sz),
                     self.grid.Ex_dev,
                     self.grid.Ey_dev,
                     self.grid.Ez_dev,
@@ -440,6 +498,20 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.grid.Ey_dev,
             self.grid.Ez_dev,
         )
+
+    def observe_ntff_electric(self, iteration):
+        """Collect electric frequency- and time-domain KSIR data on OpenCL."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_ntff_magnetic(self, iteration):
+        """Collect magnetic frequency- and time-domain KSIR data on OpenCL."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_magnetic(iteration)
 
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
@@ -501,6 +573,25 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ty_dev,
                 self.grid.Tz_dev,
             )
+
+    def update_symmetry_boundaries_electric(self):
+        """Apply the nondispersive PMC ghost-image correction on OpenCL."""
+        if "pmc" not in self.grid.symmetry_boundaries.values():
+            return
+
+        self.update_electric_pmc_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            *self._pmc_flags(),
+            self.grid.ID_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            self.grid.Hx_dev,
+            self.grid.Hy_dev,
+            self.grid.Hz_dev,
+        )
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
@@ -592,6 +683,10 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.finalise()
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)

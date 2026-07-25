@@ -1,8 +1,8 @@
 .. _accelerators:
 
-****************************
+******************************
 OpenMP/CUDA/OpenCL/Apple Metal
-****************************
+******************************
 
 The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelized using different CPU and GPU accelerators to offer performance and flexibility.
 
@@ -21,6 +21,36 @@ Some of these accelerators and frameworks require additional software to be inst
 
     You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it with the aforementioned accelerators.
 
+Solver precision
+================
+
+The CPU, CUDA, and OpenCL solvers support single- and double-precision field
+storage. Single precision is the default for both CPU and accelerator solves
+because it reduces memory use and generally gives the best accelerator
+performance.
+
+For a text input file, select CPU precision with ``-cpu_precision`` and CUDA or
+OpenCL precision with ``-gpu_precision``:
+
+.. code-block:: console
+
+    (gprMax)$ python -m gprMax model.in -cpu_precision double
+    (gprMax)$ python -m gprMax model.in -gpu -gpu_precision double
+
+The corresponding Python API arguments are ``cpu_precision="double"`` and
+``gpu_precision="double"`` on :func:`gprMax.run`. Each accepts ``single`` or
+``double``. The CPU option is ignored for an accelerator solve, and the GPU
+option is ignored for a CPU solve.
+
+.. note::
+
+    * Apple Metal supports single precision only. Requesting double precision
+      with Metal is rejected before kernel compilation because the Metal
+      Shading Language has no native ``double`` type.
+    * Subgridding requires double precision and overrides a requested single
+      precision. Subgridding is currently available only with the CPU solver.
+    * Output datasets and KSIR complex phasors use the type corresponding to
+      the configured solver precision.
 
 OpenMP
 ======
