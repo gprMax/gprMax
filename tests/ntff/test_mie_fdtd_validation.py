@@ -7,72 +7,13 @@ from scipy.constants import c
 
 import gprMax
 from testing.validation.mie_pec import pec_mie_amplitudes, pec_sphere_bistatic_rcs
-
-FREQUENCY = 5e9
-SPHERE_RADIUS = 0.0096
-SPHERE_CENTRE = (0.048, 0.048, 0.048)
-SCATTERING_ANGLES = np.arange(0.0, 181.0, 10.0)
-
-
-def _mie_scene():
-    dl = 0.0016
-    scene = gprMax.Scene()
-    scene.add(gprMax.Discretisation(p1=(dl,) * 3))
-    scene.add(gprMax.Domain(p1=(0.096,) * 3))
-    scene.add(gprMax.TimeWindow(iterations=900))
-    scene.add(gprMax.OMPThreads(n=4))
-    scene.add(gprMax.PMLThickness(thickness=10))
-    scene.add(
-        gprMax.Waveform(
-            wave_type="ricker", amp=1, freq=FREQUENCY, id="plane_pulse"
-        )
-    )
-    scene.add(
-        gprMax.DiscretePlaneWaveAxial(
-            p1=(0.032,) * 3,
-            p2=(0.064,) * 3,
-            axis="x",
-            psi=90,
-            waveform_id="plane_pulse",
-        )
-    )
-    scene.add(
-        gprMax.Sphere(
-            p1=SPHERE_CENTRE,
-            r=SPHERE_RADIUS,
-            material_id="pec",
-        )
-    )
-    scene.add(
-        gprMax.KSIRSurface(
-            p1=(0.024,) * 3,
-            p2=(0.072,) * 3,
-            id="mie_surface",
-            origin=SPHERE_CENTRE,
-        )
-    )
-    transform = gprMax.KSIRFrequencyTransform(
-        surface_id="mie_surface",
-        id="mie_spectrum",
-        frequencies=(FREQUENCY,),
-        save_surface_dft=False,
-    )
-    far_field = gprMax.KSIRFarField(
-        theta=np.full(SCATTERING_ANGLES.shape, 90.0),
-        phi=SCATTERING_ANGLES,
-        transform_id="mie_spectrum",
-        id="mie_pattern",
-        outputs=("Etheta", "Ephi", "rcs"),
-    )
-    scene.add(transform)
-    scene.add(far_field)
-    return scene, transform, far_field
+from testing.validation.validate_ntff import MIE_ANGLES, MIE_FREQUENCY, MIE_RADIUS, mie_scene
 
 
 def test_cpu_tfsf_ksir_pec_sphere_matches_mie(tmp_path):
     """Exercise the production FDTD scattering and HDF5 paths."""
 
-    scene, transform, far_field = _mie_scene()
+    scene, transform, far_field = mie_scene(threads=4)
     outputfile = tmp_path / "mie_sphere"
     gprMax.run(
         scenes=[scene],
@@ -84,9 +25,9 @@ def test_cpu_tfsf_ksir_pec_sphere_matches_mie(tmp_path):
 
     simulated = np.asarray(far_field.result.fields["rcs"][0])
     analytic = pec_sphere_bistatic_rcs(
-        FREQUENCY,
-        SPHERE_RADIUS,
-        np.deg2rad(SCATTERING_ANGLES),
+        MIE_FREQUENCY,
+        MIE_RADIUS,
+        np.deg2rad(MIE_ANGLES),
         polarisation="perpendicular",
     )
     simulated_pattern = simulated / np.max(simulated)
@@ -97,19 +38,17 @@ def test_cpu_tfsf_ksir_pec_sphere_matches_mie(tmp_path):
 
     monitor = transform._compiled_outputs.transform_monitor(transform.ID)
     incident_electric = monitor.result.incident_electric[0, 2]
-    wavenumber = 2 * np.pi * FREQUENCY / c
+    wavenumber = 2 * np.pi * MIE_FREQUENCY / c
     perpendicular, _ = pec_mie_amplitudes(
-        wavenumber * SPHERE_RADIUS,
-        np.deg2rad(SCATTERING_ANGLES),
+        wavenumber * MIE_RADIUS,
+        np.deg2rad(MIE_ANGLES),
     )
     analytic_amplitude = -1j * np.conj(perpendicular) / wavenumber
     numerical_amplitude = far_field.result.fields["Etheta"][0] / incident_electric
     complex_relative_l2_error = np.linalg.norm(
         numerical_amplitude - analytic_amplitude
     ) / np.linalg.norm(analytic_amplitude)
-    phase_rms_error = np.sqrt(
-        np.mean(np.angle(numerical_amplitude / analytic_amplitude) ** 2)
-    )
+    phase_rms_error = np.sqrt(np.mean(np.angle(numerical_amplitude / analytic_amplitude) ** 2))
 
     assert np.all(np.isfinite(simulated))
     assert np.all(simulated > 0)
