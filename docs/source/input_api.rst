@@ -85,9 +85,9 @@ Domain Mode
 .. autoclass:: gprMax.user_objects.cmds_singleuse.DomainMode
 
 For an explicit 2D model, set one component of ``Domain.p1`` to
-``float('inf')`` and add ``DomainMode('TM')`` or ``DomainMode('TE')``. The
-infinite value identifies the invariant axis; it is resolved internally to the
-one-cell TM or two-cell TE Yee-grid thickness.
+``float('inf')`` and add ``DomainMode('TM')`` or ``DomainMode('TE')`` before
+the domain is built. The infinite value identifies the invariant axis; it is
+resolved internally to the one-cell TM or two-cell TE Yee-grid thickness.
 
 .. code-block:: python
 
@@ -102,6 +102,17 @@ Discretisation
 Time Window
 -----------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.TimeWindow
+
+A minimal three-dimensional scene contains the three essential model objects:
+
+.. code-block:: python
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.Domain(p1=(0.30, 0.20, 0.15)))
+    scene.add(gprMax.Discretisation(p1=(0.002, 0.002, 0.002)))
+    scene.add(gprMax.TimeWindow(time=12e-9))
+
+    gprMax.run(scenes=[scene], n=1, outputfile='minimal_model')
 
 General functions
 =================
@@ -126,12 +137,15 @@ Magnetic Averaging
 ------------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.MagneticAveraging
 
-The physically appropriate harmonic average is the default. Select the older
-arithmetic behaviour only when reproducing results from earlier versions:
+Typical general settings are added directly to the scene:
 
 .. code-block:: python
 
-    scene.add(gprMax.MagneticAveraging(mode='arithmetic'))
+    scene.add(gprMax.Title(name='buried_target'))
+    scene.add(gprMax.OMPThreads(n=8))
+    scene.add(gprMax.TimeStepStabilityFactor(f=0.95))
+    scene.add(gprMax.OutputDir(dir='results'))
+    scene.add(gprMax.MagneticAveraging(mode='harmonic'))
 
 Material functions
 ==================
@@ -155,6 +169,51 @@ Drude Dispersion
 Soil Peplinski
 --------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.SoilPeplinski
+
+The dispersion objects modify materials that have already been added to the
+same scene. Each material ID below is therefore unique:
+
+.. code-block:: python
+
+    scene.add(gprMax.Material(
+        er=6, se=0.01, mr=1, sm=0, id='half_space'
+    ))
+
+    scene.add(gprMax.Material(
+        er=4, se=0, mr=1, sm=0, id='debye_medium'
+    ))
+    scene.add(gprMax.AddDebyeDispersion(
+        poles=1, er_delta=(2.0,), tau=(1e-10,),
+        material_ids=('debye_medium',),
+    ))
+
+    scene.add(gprMax.Material(
+        er=3, se=0, mr=1, sm=0, id='lorentz_medium'
+    ))
+    scene.add(gprMax.AddLorentzDispersion(
+        poles=1, er_delta=(2.0,), omega=(2e10,), delta=(5e9,),
+        material_ids=('lorentz_medium',),
+    ))
+
+    scene.add(gprMax.Material(
+        er=1, se=0, mr=1, sm=0, id='drude_medium'
+    ))
+    scene.add(gprMax.AddDrudeDispersion(
+        poles=1, omega=(2e10,), alpha=(5e9,),
+        material_ids=('drude_medium',),
+    ))
+
+The Peplinski object is a mixing model for a :class:`FractalBox`, rather than
+a homogeneous material:
+
+.. code-block:: python
+
+    scene.add(gprMax.SoilPeplinski(
+        sand_fraction=0.5, clay_fraction=0.2,
+        bulk_density=2.0, sand_density=2.66,
+        water_fraction_lower=0.05, water_fraction_upper=0.25,
+        id='soil_mix',
+    ))
 
 
 Object construction functions
@@ -186,8 +245,6 @@ Magnetic Edge
 -------------
 .. autoclass:: gprMax.user_objects.cmds_geometry.magnetic_edge.MagneticEdge
 
-For example, add an x-directed perfect magnetic-conductor edge with:
-
 .. code-block:: python
 
     scene.add(gprMax.MagneticEdge(
@@ -212,6 +269,48 @@ Triangle
 --------
 .. autoclass:: gprMax.user_objects.cmds_geometry.triangle.Triangle
 
+The following compact examples show the required geometry keywords. The
+referenced material IDs must already exist; ``pec`` and ``pmc`` are built in.
+
+.. code-block:: python
+
+    scene.add(gprMax.Box(
+        p1=(0, 0, 0), p2=(0.30, 0.20, 0.08), material_id='half_space'
+    ))
+    scene.add(gprMax.Cone(
+        p1=(0.05, 0.05, 0.08), p2=(0.05, 0.05, 0.13),
+        r1=0.02, r2=0, material_id='pec',
+    ))
+    scene.add(gprMax.Cylinder(
+        p1=(0.15, 0.02, 0.05), p2=(0.15, 0.18, 0.05),
+        r=0.01, material_id='pec',
+    ))
+    scene.add(gprMax.CylindricalSector(
+        normal='z', ctr1=0.15, ctr2=0.10,
+        extent1=0.04, extent2=0.08, r=0.04,
+        start=0, end=90, material_id='half_space',
+    ))
+    scene.add(gprMax.Edge(
+        p1=(0.10, 0.10, 0.02), p2=(0.10, 0.10, 0.12),
+        material_id='pec',
+    ))
+    scene.add(gprMax.Ellipsoid(
+        p1=(0.20, 0.10, 0.08), xr=0.03, yr=0.02, zr=0.01,
+        material_id='half_space',
+    ))
+    scene.add(gprMax.Plate(
+        p1=(0.04, 0.04, 0.06), p2=(0.10, 0.10, 0.06),
+        material_id='pec',
+    ))
+    scene.add(gprMax.Sphere(
+        p1=(0.24, 0.10, 0.08), r=0.015, material_id='pec'
+    ))
+    scene.add(gprMax.Triangle(
+        p1=(0.04, 0.04, 0.04), p2=(0.10, 0.04, 0.04),
+        p3=(0.04, 0.10, 0.04), thickness=0.01,
+        material_id='half_space',
+    ))
+
 Fractal Box
 -----------
 .. autoclass:: gprMax.user_objects.cmds_geometry.fractal_box.FractalBox
@@ -232,6 +331,32 @@ Add Surface Water
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_geometry.add_surface_water.AddSurfaceWater
 
+A fractal volume can use either a normal material or a mixing model such as
+``soil_mix`` from the material example above. Surface modifiers refer to the
+fractal box by its ID and must be added after it:
+
+.. code-block:: python
+
+    scene.add(gprMax.FractalBox(
+        p1=(0, 0, 0), p2=(0.30, 0.20, 0.10),
+        frac_dim=1.5, weighting=(1, 1, 1), n_materials=20,
+        mixing_model_id='soil_mix', id='ground', seed=1,
+    ))
+    scene.add(gprMax.AddSurfaceRoughness(
+        p1=(0, 0, 0.10), p2=(0.30, 0.20, 0.10),
+        frac_dim=1.5, weighting=(1, 1), limits=(0.08, 0.12),
+        fractal_box_id='ground', seed=1,
+    ))
+    scene.add(gprMax.AddSurfaceWater(
+        p1=(0, 0, 0.10), p2=(0.30, 0.20, 0.10),
+        depth=0.105, fractal_box_id='ground',
+    ))
+    scene.add(gprMax.AddGrass(
+        p1=(0, 0, 0.10), p2=(0.30, 0.20, 0.10),
+        frac_dim=1.5, limits=(0.01, 0.03), n_blades=100,
+        fractal_box_id='ground', seed=1,
+    ))
+
 Geometry View
 -------------
 .. autoclass:: gprMax.user_objects.cmds_output.GeometryView
@@ -244,12 +369,94 @@ Geometry Objects Write
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_output.GeometryObjectsWrite
 
+Geometry views are visualisations. Geometry-object files instead preserve
+material-index geometry for insertion into another model:
+
+.. code-block:: python
+
+    scene.add(gprMax.GeometryView(
+        p1=(0, 0, 0), p2=(0.30, 0.20, 0.15),
+        dl=(0.002, 0.002, 0.002),
+        filename='model_geometry', output_type='n',
+    ))
+    scene.add(gprMax.GeometryObjectsWrite(
+        p1=(0, 0, 0), p2=(0.30, 0.20, 0.15),
+        filename='reusable_geometry',
+    ))
+
+In a different scene, the saved geometry can be inserted at a chosen origin:
+
+.. code-block:: python
+
+    scene.add(gprMax.GeometryObjectsRead(
+        p1=(0.05, 0.05, 0),
+        geofile='reusable_geometry.h5',
+        matfile='reusable_geometry_materials.txt',
+    ))
+
 Source and output functions
 ===========================
 
 Waveform
 --------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.Waveform
+
+The constructor has three forms. Arguments should be supplied by keyword:
+
+.. code-block:: python
+
+    # Built-in analytic waveform
+    gprMax.Waveform(wave_type='ricker', amp=1, freq=1e9, id='pulse')
+
+    # User-defined Python function
+    gprMax.Waveform(wave_type='user', user_func=function, id='pulse')
+
+    # User-defined sample arrays
+    gprMax.Waveform(
+        wave_type='user', user_values=values, user_time=times,
+        kind='linear', fill_value=0, id='pulse'
+    )
+
+The callable keyword is ``user_func`` (not ``usr_func``). It provides a bespoke waveform shape as an alternative to the ``user_values``/``user_time`` sample arrays and is available only through the Python API because a function object cannot be represented in a text input file. The callable must accept one scalar time in seconds and return the complete numeric amplitude at that time; ``amp`` and ``freq`` are therefore not required for ``wave_type='user'``.
+
+For example, the following creates a callable waveform and assigns it to a Hertzian dipole:
+
+.. code-block:: python
+
+    import numpy as np
+    import gprMax
+
+    def my_waveform(time):
+        return np.sin(2 * np.pi * 1e9 * time) * np.exp(-time / 1e-9)
+
+    scene.add(gprMax.Waveform(wave_type='user', user_func=my_waveform, id='mywave'))
+    scene.add(gprMax.HertzianDipole(
+        p1=(0.05, 0.05, 0.05), polarisation='z', waveform_id='mywave'
+    ))
+
+gprMax first calls the function at :math:`t=0` to check its signature and return type. It is then sampled at the whole and/or half time steps required by each source while the source arrays are prepared. It is never called from the FDTD time-stepping loop, although a computationally expensive function can increase model setup time. Imports used by the function must be available in the scope where the function is *defined*, following normal Python name resolution.
+
+The callable can also be a closure, which is a convenient way to generate a family of related waveforms without duplicating code:
+
+.. code-block:: python
+
+    def make_waveform(freq, decay):
+        def waveform(time):
+            return np.sin(2 * np.pi * freq * time) * np.exp(-time / decay)
+        return waveform
+
+    for i, freq in enumerate([0.5e9, 1e9, 2e9, 4e9]):
+        scene.add(gprMax.Waveform(
+            wave_type='user', user_func=make_waveform(freq, decay=1e-9), id=f'wave_{i}'
+        ))
+
+Exactly one of ``user_func`` and ``user_values`` must be supplied. When
+``user_values`` is used without ``user_time``, gprMax associates the samples
+with its simulation time vector. ``kind`` and ``fill_value`` are passed to
+``scipy.interpolate.interp1d`` and apply only to sampled waveforms. User-defined
+waveforms can drive local Hertzian or magnetic dipoles, voltage sources, and
+transmission lines. The discrete-plane-wave formulation currently requires a
+built-in analytic waveform.
 
 Voltage Source
 --------------
@@ -267,6 +474,30 @@ Transmission Line
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.TransmissionLine
 
+All local sources refer to the ID of a waveform that has already been added to
+the scene. The following illustrates their required arguments; a model would
+normally contain only the source or sources that it needs:
+
+.. code-block:: python
+
+    scene.add(gprMax.Waveform(
+        wave_type='ricker', amp=1, freq=1e9, id='pulse'
+    ))
+    scene.add(gprMax.VoltageSource(
+        p1=(0.04, 0.05, 0.05), polarisation='z', resistance=50,
+        waveform_id='pulse',
+    ))
+    scene.add(gprMax.HertzianDipole(
+        p1=(0.05, 0.05, 0.05), polarisation='z', waveform_id='pulse'
+    ))
+    scene.add(gprMax.MagneticDipole(
+        p1=(0.06, 0.05, 0.05), polarisation='y', waveform_id='pulse'
+    ))
+    scene.add(gprMax.TransmissionLine(
+        p1=(0.07, 0.05, 0.05), polarisation='z', resistance=50,
+        waveform_id='pulse',
+    ))
+
 Plane Wave Angles
 -------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWaveAngles
@@ -279,9 +510,42 @@ Plane Wave Axial
 -------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.DiscretePlaneWaveAxial
 
+The angle, propagation-vector, and axial classes are alternative ways of
+describing a total-field/scattered-field plane wave. The two points define the
+total-field box. For example, choose one of:
+
+.. code-block:: python
+
+    scene.add(gprMax.DiscretePlaneWaveAngles(
+        theta=90, phi=0, psi=90,
+        p1=(0.02, 0.02, 0.02), p2=(0.08, 0.08, 0.08),
+        waveform_id='pulse',
+    ))
+
+    scene.add(gprMax.DiscretePlaneWaveVector(
+        m_vec=(1, 0, 0), psi=90,
+        p1=(0.02, 0.02, 0.02), p2=(0.08, 0.08, 0.08),
+        waveform_id='pulse',
+    ))
+
+    scene.add(gprMax.DiscretePlaneWaveAxial(
+        axis='x', psi=90,
+        p1=(0.02, 0.02, 0.02), p2=(0.08, 0.08, 0.08),
+        waveform_id='pulse',
+    ))
+
+Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
+currently use the CPU solver.
+
 Excitation File
 ---------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.ExcitationFile
+
+.. code-block:: python
+
+    scene.add(gprMax.ExcitationFile(
+        filepath='measured_waveforms.txt', kind='linear', fill_value=0
+    ))
 
 Receiver
 --------
@@ -303,9 +567,165 @@ Snapshot
 --------
 .. autoclass:: gprMax.user_objects.cmds_output.Snapshot
 
+Receivers can request selected field components, while an array produces
+regularly spaced receivers over a line, plane, or volume. Source and receiver
+steps are applied between repeated model runs:
+
+.. code-block:: python
+
+    scene.add(gprMax.Rx(
+        p1=(0.08, 0.05, 0.05), id='surface_rx', outputs=['Ez', 'Hy']
+    ))
+    scene.add(gprMax.RxArray(
+        p1=(0.02, 0.10, 0.05), p2=(0.12, 0.10, 0.05),
+        dl=(0.01, 0, 0),
+    ))
+    scene.add(gprMax.SrcSteps(p1=(0.002, 0, 0)))
+    scene.add(gprMax.RxSteps(p1=(0.002, 0, 0)))
+    scene.add(gprMax.Snapshot(
+        p1=(0, 0, 0), p2=(0.15, 0.12, 0.10),
+        dl=(0.002, 0.002, 0.002), time=2e-9,
+        filename='fields_2ns', fileext='.h5', outputs=['Ez', 'Hy'],
+    ))
+
+KSIR reusable integration surface
+---------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRSurface
+
+The reusable Python interface has a one-to-one mapping to the supported KSIR
+hash commands:
+
+.. list-table:: Reusable KSIR interfaces
+    :header-rows: 1
+    :widths: 42 38
+
+    * - Python class
+      - Hash command
+    * - ``KSIRSurface``
+      - ``#ksir_surface``
+    * - ``KSIRFrequencyTransform``
+      - ``#ksir_frequency``
+    * - ``KSIRTimeRx``
+      - ``#ksir_time_rx``
+    * - ``KSIRTimeRxSpherical``
+      - ``#ksir_time_rx_spherical``
+    * - ``KSIRTimeRxArray``
+      - ``#ksir_time_rx_array``
+    * - ``KSIRFrequencyRx``
+      - ``#ksir_frequency_rx``
+    * - ``KSIRFrequencyRxSpherical``
+      - ``#ksir_frequency_rx_spherical``
+    * - ``KSIRFrequencyRxArray``
+      - ``#ksir_frequency_rx_array``
+    * - ``KSIRFarField``
+      - ``#ksir_far_field``
+    * - ``KSIRFarFieldArray``
+      - ``#ksir_far_field_array``
+
+The mapping covers the reusable operations and their normal options. The
+Python API also exposes three advanced keyword arguments that cannot be
+entered positionally in a hash command: ``KSIRSurface.origin``, and
+``KSIRFrequencyTransform.save_surface_dft`` and ``plane_wave_index``. Hash
+commands use the default surface centre, save the surface DFT, and associate
+an enclosed plane wave automatically.
+
+The following example reuses one surface for an exact time-domain point and a
+frequency-domain radiation pattern. Python keyword arguments replace the
+positional optional parameters used by the equivalent hash commands.
+
+.. code-block:: python
+
+    scene.add(gprMax.KSIRSurface(
+        p1=(0.03, 0.03, 0.03),
+        p2=(0.07, 0.07, 0.07),
+        id='radiation_surface',
+    ))
+    scene.add(gprMax.KSIRTimeRx(
+        position=(0.12, 0.05, 0.05),
+        surface_id='radiation_surface',
+        id='transient',
+        outputs=('Ez',),
+        time_origin='first_arrival',
+    ))
+    scene.add(gprMax.KSIRFrequencyTransform(
+        surface_id='radiation_surface',
+        id='antenna_band',
+        frequencies=(0.8e9, 1.0e9, 1.2e9),
+        window='hann',
+    ))
+    scene.add(gprMax.KSIRFarFieldArray(
+        theta_start=0,
+        theta_stop=180,
+        theta_step=5,
+        phi_start=0,
+        phi_stop=360,
+        phi_step=5,
+        transform_id='antenna_band',
+        id='pattern',
+        outputs=('Etheta', 'Ephi', 'radiation_intensity'),
+    ))
+
+KSIR frequency transform
+------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRFrequencyTransform
+
+KSIR exact time-domain receivers
+--------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRTimeRx
+
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRTimeRxSpherical
+
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRTimeRxArray
+
+KSIR exact frequency-domain receivers
+-------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRFrequencyRx
+
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRFrequencyRxSpherical
+
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRFrequencyRxArray
+
+KSIR range-normalized far fields
+--------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRFarField
+
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRFarFieldArray
+
+The spherical receiver radius is explicit and produces an exact physical
+finite-distance field. :class:`KSIRFarField` deliberately has no radius and
+returns ``r * exp(+j*k*r) * field``. All spherical angles use theta from
+``+z`` and phi from ``+x`` towards ``+y``. A surface face that coincides with
+a declared PEC or PMC symmetry boundary is completed automatically by image
+theory.
+
 Subgrid
 -------
 .. autoclass:: gprMax.SubGridHSG
+
+A subgrid is added to the main scene, but its materials and geometry are added
+to the subgrid object. With ``autotranslate=True`` these objects can use main
+grid coordinates:
+
+.. code-block:: python
+
+    subgrid = gprMax.SubGridHSG(
+        p1=(0.06, 0.04, 0.03), p2=(0.12, 0.10, 0.09),
+        ratio=3, id='fine_grid',
+    )
+    scene.add(subgrid)
+
+    subgrid.add(gprMax.Material(
+        er=4, se=0, mr=1, sm=0, id='subgrid_material'
+    ))
+    subgrid.add(gprMax.Sphere(
+        p1=(0.09, 0.07, 0.06), r=0.01,
+        material_id='subgrid_material',
+    ))
+
+    gprMax.run(
+        scenes=[scene], n=1, outputfile='subgrid_model',
+        subgrid=True, autotranslate=True,
+    )
 
 
 .. _pml-tuning:
@@ -323,11 +743,17 @@ PML Thickness
 -------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.PMLThickness
 
+For example, select the multipole formulation and set the thickness of each
+domain face independently, in the order ``x0, y0, z0, xmax, ymax, zmax``:
+
+.. code-block:: python
+
+    scene.add(gprMax.PMLFormulation(formulation='MRIPML'))
+    scene.add(gprMax.PMLThickness(thickness=(12, 12, 10, 12, 12, 10)))
+
 Symmetry Boundary
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.SymmetryBoundary
-
-For example, replace the PML on the lower x face with a PMC symmetry plane:
 
 .. code-block:: python
 
@@ -337,13 +763,37 @@ PML Properties
 --------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.PMLProps
 
+.. warning::
+
+    ``PMLProps`` is retained for compatibility with older Python models. New
+    models should use ``PMLFormulation``, ``PMLThickness``, and, when detailed
+    coefficient control is needed, ``PMLCFS``.
+
 PML CFS
 -------
 Allows you control of the specific parameters that are used to build each order of the PML. Up to a second order PML can currently be specified, i.e. by using two ``PMLCFS`` commands.
 
 .. autoclass:: gprMax.user_objects.cmds_multiuse.PMLCFS
 
+For example, the following explicitly requests the coefficient profiles used
+by the default first-order PML:
+
+.. code-block:: python
+
+    scene.add(gprMax.PMLCFS(
+        alphascalingprofile='constant',
+        alphascalingdirection='forward',
+        alphamin=0, alphamax=0,
+        kappascalingprofile='constant',
+        kappascalingdirection='forward',
+        kappamin=1, kappamax=1,
+        sigmascalingprofile='quartic',
+        sigmascalingdirection='forward',
+        sigmamin=0, sigmamax=None,
+    ))
+
 The CFS values (which are internally specified) used for the default standard first order PML are:
+
 * ``alphascalingprofile = 'constant'``
 * ``alphascalingdirection = 'forward'``
 * ``alphamin = 0``
@@ -353,7 +803,7 @@ The CFS values (which are internally specified) used for the default standard fi
 * ``kappamin = 1``
 * ``kappamax = 1``
 * ``sigmascalingprofile = 'quartic'``
-* ``sigmascalingdirection = 'forward``
+* ``sigmascalingdirection = 'forward'``
 * ``sigmamin = 0``
 * ``sigmamax = None``
 

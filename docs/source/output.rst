@@ -25,7 +25,9 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``nsrc`` is the total number of sources in the model.
 - ``nrx`` is the total number of receievers in the model.
 
-The output file contains HDF5 groups for sources (``srcs``), transmission lines (``tls``), and receivers (``rxs``). Within each group are further groups that correspond to individual sources/transmission lines/receivers, e.g. ``src1``, ``src2`` etc...
+The output file contains HDF5 groups for sources (``srcs``), transmission lines
+(``tls``), receivers (``rxs``), and KSIR outputs (``ntff``) when requested.
+Within these are further groups for each named or numbered output.
 
 .. code-block:: none
 
@@ -63,6 +65,9 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
                 Itotal
             tl2/
                 ...
+        ntff/ [optional]
+            <monitor name>/
+                ...
 
 Within each individual ``rx`` group are the following attributes:
 
@@ -98,6 +103,77 @@ Within each individual ``tl`` group are the following datasets:
 * ``Iinc`` is an array containing the time history (for the model time window) of the values of the incident current in the transmission line.
 * ``Vtotal`` is an array containing the time history (for the model time window) of the values of the total (field) voltage in the transmission line.
 * ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
+
+KSIR field-transformation output
+--------------------------------
+
+Reusable KSIR outputs are stored in the normal model file under their surface
+and transform IDs:
+
+.. code-block:: none
+
+    /ntff/<surface_id>/
+        time/<rx_id>/
+            points
+            times
+            time_origins
+            valid_lengths
+            spherical_coordinates [spherical commands only]
+            fields/<output>
+        frequency/<transform_id>/
+            frequencies
+            surface_dft/<component>/
+                field
+                normal_derivative
+                patch_positions
+                patch_normals
+                area_weights
+            receivers/<rx_id>/
+                points
+                spherical_coordinates [spherical commands only]
+                fields/<output>
+            far_field/<output_id>/
+                theta
+                phi
+                directions
+                fields/<output>
+
+The surface group records logical bounds, physical reference origin, closure
+status, omitted symmetry faces, boundary types/coordinates, and image count.
+The frequency transform group records the window, inferred wave speed and impedance,
+configured precision and collection backend, plus the engineering convention:
+``exp(+j*omega*t)`` phasors, ``exp(-j*omega*t)`` forward transform, and
+``exp(-j*k*R)`` outgoing Green function.
+
+Exact frequency receiver groups have ``range_normalized=False``. They contain
+physical finite-distance phasors with every ``1/R`` and ``1/R**2`` term.
+Far-field groups have ``range_normalized=True`` and a ``normalization``
+attribute specifying ``r * exp(+j*k*r) * field``. Their radius is intentionally
+absent. Complex datasets use the complex type paired with the configured
+gprMax real precision.
+
+Time-domain fields have shape ``(npoints, max(valid_lengths))``. For point
+``q``, the physical time vector and valid trace are:
+
+.. code-block:: python
+
+    physical_time = time_origins[q] + times[:valid_lengths[q]]
+    trace = fields[output][q, :valid_lengths[q]]
+
+With ``time_origin=simulation`` every origin is zero. With
+``time_origin=first_arrival`` each origin retains its absolute propagation
+time without storing the potentially large guaranteed leading-zero prefix.
+
+The surface DFT datasets are present by default and allow later angular or
+point evaluation without rerunning FDTD. They can be large: their leading
+dimensions are frequency and surface patch. A KSIR output creates the normal
+model output file even when there are no conventional receivers or
+transmission lines.
+
+KSIR surfaces must strictly enclose every impressed source. For plane-wave
+scattering models, the associated total-field/scattered-field box must be
+strictly enclosed by the KSIR surface so that incident-field subtraction can
+be applied consistently.
 
 
 .. _outputs-snaps:
