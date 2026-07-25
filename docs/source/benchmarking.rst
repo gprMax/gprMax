@@ -23,6 +23,42 @@ The performance metric used to measure the throughput of the solver is:
 
 where P is the throughput in millions of cells per second; NX, NY, and NZ are the number of cells in domain in the x, y, and z directions; NT is the number of time-steps in the simulation; and T is the runtime of the simulation in seconds.
 
+NTFF benchmarking and validation
+================================
+
+The incremental cost of KSIR near-to-far-field collection can be measured with
+the reusable-surface benchmark. It brackets the monitored cases with
+unmonitored baseline runs and writes the complete configuration, individual
+run times, collection backend, slowdown, and overhead to JSON. CPU, CUDA,
+OpenCL, and Metal use the same benchmark model and configured gprMax precision.
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.benchmark_ntff --backend cpu --threads 8 --precision double
+    (gprMax)$ python -m testing.benchmarking.benchmark_ntff --backend cuda --device 0 --precision single
+
+The surface sizes, frequency counts, number of repeats, and output filename
+can be changed using command-line options; run the module with ``--help`` for
+the complete list.
+
+End-to-end KSIR validation cases are provided separately. They include the
+closed-form Hertzian-dipole pattern in both principal planes, PEC-sphere RCS
+against Mie theory, a broadband PEC-sphere backscatter sweep through the Mie
+resonances, finite-distance time-domain fields against direct Yee-grid
+receivers, and CPU/accelerator time-domain parity.
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.validation.validate_ntff --case all --backend cpu
+    (gprMax)$ python -m testing.validation.validate_ntff --case mie-sweep --backend cpu --plot mie-sweep.png
+    (gprMax)$ python -m testing.validation.validate_ntff --case dipole --backend cuda --device 0
+    (gprMax)$ python -m testing.validation.validate_ntff --case parity --backend opencl --device 0
+
+Results are written to ``ntff_validation_results.json`` by default. A summary
+figure can be requested with ``--plot filename.png``. The TFSF PEC-sphere Mie
+case is CPU-only because discrete plane-wave excitation is not currently
+available for accelerator solvers.
+
 Apple Metal GPU Benchmarking
 =============================
 
