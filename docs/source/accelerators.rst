@@ -49,6 +49,8 @@ option is ignored for a CPU solve.
       Shading Language has no native ``double`` type.
     * Subgridding requires double precision and overrides a requested single
       precision. Subgridding is currently available only with the CPU solver.
+    * Output datasets and KSIR complex phasors use the type corresponding to
+      the configured solver precision.
 
 OpenMP
 ======

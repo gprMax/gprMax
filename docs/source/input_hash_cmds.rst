@@ -126,8 +126,8 @@ face.
 .. note::
 
     * A 2D model must have exactly one invariant axis.
-    * Subgrids and transmission-line sources are not currently supported in
-      2D mode.
+    * Subgrids, symmetry boundaries, transmission-line sources, and magnetic
+      edges are not currently supported in 2D mode.
     * A source polarisation must be one of the active components for the
       selected plane and mode. gprMax rejects incompatible electric and
       magnetic sources rather than silently creating a zero source.
@@ -1029,7 +1029,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 .. note::
 
-    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms. 
+    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 #plane_wave_vector:
@@ -1075,7 +1075,7 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 x mypulse``.
 
 .. note::
-    
+
     * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
@@ -1152,6 +1152,258 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
+
+KSIR field transformation commands
+==================================
+
+The KSIR commands separate the integration surface from its output points.
+One surface can therefore be reused by many time-domain receivers, frequency-
+domain receivers, and far-field directions without repeating the six surface
+coordinates. All optional parameters use the traditional positional gprMax
+syntax; ``name=value`` tokens are not used.
+
+The following conventions apply to every KSIR command:
+
+* coordinates and radii are in metres, frequencies are in Hz, and angles are
+  in degrees;
+* requested frequencies must not exceed the temporal Nyquist limit
+  :math:`1/(2\Delta t)` for the model time step;
+* :math:`\theta` is the polar angle measured from ``+z`` and :math:`\phi` is
+  the azimuth measured from ``+x`` towards ``+y``;
+* a spherical coordinate is relative to the centre of its integration
+  surface. The Python API can instead give a custom surface origin;
+* Cartesian outputs are ``Ex Ey Ez Hx Hy Hz``. Spherical outputs are
+  ``Er Etheta Ephi Hr Htheta Hphi``;
+* every exact time- or frequency-domain point must be strictly outside the
+  completed integration surface. A point may be outside the FDTD model domain;
+* the sampled surface and exterior must be one homogeneous, lossless,
+  non-dispersive material. gprMax determines its wave speed and impedance
+  from the Yee material IDs; these are not user-entered command parameters;
+* surface samples must remain outside the PML and clear of the TFSF correction
+  stencil. The surface must enclose the radiating source or the complete TFSF
+  box and scatterer as appropriate;
+* the implementation currently requires a three-dimensional serial model and
+  does not support MPI, subgrids, or geometry-fixed reuse. Both time- and
+  frequency-domain KSIR collection are available with CPU, CUDA, OpenCL, and
+  Metal;
+* CPU collection uses the Cython/OpenMP implementation. Accelerator surface
+  state and time-domain output storage remain on the device during FDTD
+  iterations and are transferred to the host once, after the solve. CUDA is
+  hardware-qualified on the development server. OpenCL and Metal have source-
+  generation and dispatch coverage, but still require execution tests on
+  suitable hardware.
+
+A minimal dipole workflow can reuse one surface for an exact time-domain point
+and a frequency-domain radiation pattern:
+
+.. code-block:: none
+
+    #domain: 0.1 0.1 0.1
+    #dx_dy_dz: 0.002 0.002 0.002
+    #time_window: 10e-9
+
+    #waveform: gaussiandot 1 1e9 pulse
+    #hertzian_dipole: z 0.05 0.05 0.05 pulse
+
+    #ksir_surface: 0.03 0.03 0.03 0.07 0.07 0.07 radiation_surface
+    #ksir_time_rx: 0.12 0.05 0.05 radiation_surface transient Ez first_arrival
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+    #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+
+The observation point may lie outside the FDTD domain because KSIR evaluates
+the homogeneous exterior analytically. The integration surface itself must be
+inside the non-PML FDTD region and enclose the source.
+
+#ksir_surface:
+--------------
+
+Defines a reusable Yee-aligned cuboidal integration surface:
+
+.. code-block:: none
+
+    #ksir_surface: x1 y1 z1 x2 y2 z2 surface_id
+
+``x1 y1 z1`` and ``x2 y2 z2`` are the lower and upper logical corners.
+``surface_id`` must be unique and must not contain ``/``. The surface is
+physically closed unless one or more faces coincide exactly with a declared
+``#symmetry_boundary``. Coincident PEC/PMC faces are then omitted from direct
+sampling and completed automatically using the exact image parity, reflected
+normal, edge quadrature, and propagation distance for every component.
+
+For example:
+
+.. code-block:: none
+
+    #ksir_surface: 0.034 0.034 0.034 0.066 0.066 0.066 radiation_surface
+
+#ksir_frequency:
+----------------
+
+Declares a streaming frequency transform for a previously defined surface:
+
+.. code-block:: none
+
+    #ksir_frequency: surface_id transform_id f1 [f2 ...] [window]
+
+``transform_id`` must be globally unique. At least one non-negative frequency
+is required. The optional final ``window`` is ``rectangular`` (the default) or
+``hann``. Frequencies above the temporal Nyquist limit are rejected rather
+than being silently aliased. Frequencies are accumulated directly during time
+stepping; field histories are not retained. Surface phasors are saved under
+the transform's HDF5 group so that it remains useful even when it has no receiver
+or far-field command.
+
+The engineering convention is used throughout: phasors have time dependence
+``exp(+j*omega*t)``, the forward transform kernel is ``exp(-j*omega*t)``, and
+the outgoing Green function contains ``exp(-j*k*R)``.
+
+.. code-block:: none
+
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+
+#ksir_time_rx: and #ksir_time_rx_spherical:
+--------------------------------------------
+
+Request exact physical time-domain fields at one Cartesian or spherical
+point:
+
+.. code-block:: none
+
+    #ksir_time_rx: x y z surface_id [rx_id [output1 output2 ... [time_origin]]]
+    #ksir_time_rx_spherical: r theta phi surface_id [rx_id [output1 output2 ... [time_origin]]]
+
+The Cartesian command defaults to all six Cartesian components. The spherical
+command defaults to all six spherical components. ``rx_id`` is optional and
+is generated as ``rx1``, ``rx2``, and so on when omitted. ``time_origin`` is
+the final token and is either:
+
+* ``simulation`` (default): retain time from the start of the FDTD run; or
+* ``first_arrival``: omit the guaranteed retarded-time zero prefix separately
+  for each point while recording its absolute physical origin.
+
+Optional parameters are positional. Therefore an ID must be supplied before
+component names, and both the ID and any desired components must precede
+``time_origin``. For example:
+
+.. code-block:: none
+
+    #ksir_time_rx: 0.074 0.05 0.051 radiation_surface outside Ez Hy first_arrival
+    #ksir_time_rx_spherical: 0.25 90 0 radiation_surface principal Etheta Ephi simulation
+
+The spherical radius is explicit because these commands return the actual
+finite-distance field, including all ``1/R`` and ``1/R^2`` terms. It is not a
+normalization constant.
+
+#ksir_time_rx_array:
+--------------------
+
+Defines a Cartesian line, plane, or volume of exact time-domain points:
+
+.. code-block:: none
+
+    #ksir_time_rx_array: x1 y1 z1 x2 y2 z2 dx dy dz surface_id [rx_id [output1 output2 ... [time_origin]]]
+
+The bounds are inclusive and must contain an integer number of increments.
+An increment can be zero only on an axis whose lower and upper coordinates are
+equal. All points share one output ID and are stored as the first dimension of
+each field dataset.
+
+#ksir_frequency_rx: and #ksir_frequency_rx_spherical:
+------------------------------------------------------
+
+Request the exact finite-distance physical phasor at one point using a
+previously declared transform:
+
+.. code-block:: none
+
+    #ksir_frequency_rx: x y z transform_id [rx_id [output1 output2 ...]]
+    #ksir_frequency_rx_spherical: r theta phi transform_id [rx_id [output1 output2 ...]]
+
+The Cartesian and spherical component defaults match their time-domain
+counterparts. These results retain the full outgoing Green function and are
+not range normalized. Their arrays have shape ``(nfrequencies, npoints)``;
+``npoints`` is one for these two commands.
+
+.. code-block:: none
+
+    #ksir_frequency_rx: 0.074 0.05 0.051 antenna_band near_phasor Ez
+    #ksir_frequency_rx_spherical: 0.25 90 0 antenna_band spherical_phasor Etheta Ephi
+
+#ksir_frequency_rx_array:
+-------------------------
+
+Defines a Cartesian line, plane, or volume of exact frequency-domain points:
+
+.. code-block:: none
+
+    #ksir_frequency_rx_array: x1 y1 z1 x2 y2 z2 dx dy dz transform_id [rx_id [output1 output2 ...]]
+
+The inclusive bounds and zero-increment rule are the same as for
+``#ksir_time_rx_array``.
+
+#ksir_far_field:
+----------------
+
+Requests a range-normalized far field in one spherical direction:
+
+.. code-block:: none
+
+    #ksir_far_field: theta phi transform_id [output_id [output1 output2 ...]]
+
+The default outputs are ``Etheta Ephi``. Cartesian and spherical electric or
+magnetic components may be requested. ``radiation_intensity`` may also be
+requested. ``rcs`` requests bistatic radar cross section and requires the
+surface to enclose exactly one existing TFSF plane-wave source; that plane
+wave is associated automatically.
+
+Unlike the exact spherical receiver commands, ``#ksir_far_field`` has no
+radius. Each field component is the range-normalized quantity
+
+.. math::
+
+    F(\theta,\phi,f) = r\,\exp(+jkr)\,E(r,\theta,\phi,f),
+
+in the far-zone limit. The normalization and engineering phase convention are
+also written as HDF5 attributes.
+
+.. code-block:: none
+
+    #ksir_far_field: 90 180 antenna_band backscatter Etheta Ephi rcs
+
+#ksir_far_field_array:
+----------------------
+
+Requests the Cartesian product of inclusive theta and phi ranges:
+
+.. code-block:: none
+
+    #ksir_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
+
+Each range must contain an integer number of positive increments. For example,
+the following requests a five-degree full-sphere pattern:
+
+.. code-block:: none
+
+    #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+
+Symmetry-completed surface example
+----------------------------------
+
+A symmetry plane can coincide with an integration-surface face. No closure
+option is entered on the KSIR command:
+
+.. code-block:: none
+
+    #symmetry_boundary: x0 pmc
+    #ksir_surface: 0 0.034 0.034 0.026 0.066 0.066 half_surface
+    #ksir_time_rx: 0.04 0.05 0.051 half_surface half_fields Ez
+
+The physical ``x0`` face is not sampled. The other five faces and their
+reflected images form the completed closed surface. Observation points must be
+outside this completed physical-plus-image surface, not merely outside the
+simulated half. This workflow is supported by the local CPU, CUDA, OpenCL, and
+Metal solvers for nondispersive models. OpenCL and Metal still require
+end-to-end qualification on suitable hardware.
 
 
 PML commands
