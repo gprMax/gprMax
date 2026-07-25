@@ -54,8 +54,8 @@ class Updates(Generic[GridType], ABC):
     def observe_ntff_electric(self, iteration: int) -> None:
         """Observe electric fields for any KSIR monitors.
 
-        CPU updates override this hook. Other backends retain the no-op until
-        their device integration is added.
+        Local solver implementations override this hook; unsupported backends
+        retain the no-op.
         """
 
         pass

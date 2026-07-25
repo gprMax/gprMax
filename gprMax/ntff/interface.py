@@ -689,6 +689,7 @@ class KSIRCompiledOutputs:
 
         for key, spec in self.time_requests.items():
             result = self.result_for(key)
+            monitor, _ = self.time_bindings[key]
             group = (
                 base_group[f"ntff/{spec.surface_id}"]
                 .require_group("time")
@@ -697,6 +698,8 @@ class KSIRCompiledOutputs:
             group.attrs["coordinate_system"] = spec.coordinate_system
             group.attrs["time_origin"] = spec.time_origin
             group.attrs["outputs"] = np.asarray(spec.outputs, dtype="S20")
+            group.attrs["solver"] = monitor.device_backend or "cpu"
+            group.attrs["collection_backend"] = monitor.collection_backend
             group["points"] = result.points
             group["times"] = result.times
             group["time_origins"] = result.time_origins
@@ -719,6 +722,7 @@ class KSIRCompiledOutputs:
             group.attrs["wave_speed"] = monitor.wave_speed
             group.attrs["impedance"] = monitor.impedance
             group.attrs["precision"] = monitor.precision
+            group.attrs["solver"] = monitor.solver_backend
             group.attrs["collection_backend"] = monitor.collection_backend
             group["frequencies"] = monitor.frequencies
             if transform.save_surface_dft:
@@ -827,8 +831,10 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
         return None
     if config.sim_config.mpi:
         raise ValueError("the reusable KSIR interface does not yet support MPI")
-    if config.sim_config.general["solver"] != "cpu":
-        raise ValueError("the reusable KSIR interface currently supports only the CPU solver")
+    if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
+        raise ValueError(
+            "the reusable KSIR interface supports CPU, CUDA, OpenCL, and Metal solvers"
+        )
     if config.get_model_config().mode != "3D":
         raise ValueError("the reusable KSIR interface currently supports only 3-D models")
 
@@ -924,6 +930,11 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             wave_speed=wave_speed,
             nthreads=config.get_model_config().ompthreads,
             time_origin=time_origin,
+            device_backend=(
+                config.sim_config.general["solver"]
+                if config.sim_config.general["solver"] in ("cuda", "opencl", "metal")
+                else None
+            ),
             closure=compiled.closure,
         )
         monitor.managed_output = True
@@ -957,6 +968,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             real_dtype=real_dtype,
             complex_dtype=config.sim_config.dtypes["complex"],
             nthreads=config.get_model_config().ompthreads,
+            solver_backend=config.sim_config.general["solver"],
             origin=compiled.origin,
             window=transform.window,
             save_surface_dft=transform.save_surface_dft,

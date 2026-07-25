@@ -10,7 +10,7 @@ from gprMax import config
 
 
 @pytest.mark.parametrize("solver", ["cuda", "opencl", "metal"])
-def test_time_receiver_registration_rejects_accelerator_backends(monkeypatch, solver):
+def test_time_receiver_registration_accepts_accelerator_backends(monkeypatch, solver):
     monkeypatch.setattr(
         config,
         "sim_config",
@@ -34,8 +34,10 @@ def test_time_receiver_registration_rejects_accelerator_backends(monkeypatch, so
         outputs=("Ez",),
     )
 
-    with pytest.raises(ValueError, match="only the CPU solver"):
-        receiver.build(None, grid)
+    receiver.build(None, grid)
+
+    assert grid.ksir_time_requests[0].output_id == "point"
+    assert grid.ksir_request_owners["time:surface:point"] is receiver
 
 
 def test_python_api_groups_requests_and_exposes_results(tmp_path):
