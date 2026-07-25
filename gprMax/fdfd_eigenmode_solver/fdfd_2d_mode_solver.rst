@@ -135,8 +135,8 @@ The constructor signature is:
 
 ``pmc_u_mask``, ``pmc_v_mask``, ``pmc_w_mask``
     Optional explicit boolean masks for constrained magnetic degrees of
-    freedom. The solver can consume these masks, but gprMax does not currently
-    provide a PMC material workflow; ``sources.py`` still rejects ``sm == inf``.
+    freedom. Non-finite entries in the matching permeability arrays are also
+    interpreted as PMC.
 
 ``guess``
     Optional ARPACK shift. If omitted, the solver chooses a conservative shift
@@ -335,22 +335,22 @@ For electric materials:
 For magnetic materials:
 
 * finite magnetic conductivity is folded into complex permeability,
-* ``sm == inf`` raises ``NotImplementedError`` when PMC is present on the
-  source slice because PMC eigenmode slices are not currently supported.
+* ``sm == inf`` is converted to ``np.inf + 0j``, which the solver treats as
+  PMC.
 
 After solving, ``sources.py`` maps local modal fields back to global component
 slots. The Cython injection kernels consume the transverse components with
 their native staggered shapes; longitudinal modal fields are stored but are not
 used for TF/SF source corrections.
 
-PEC Boxes
-^^^^^^^^^
+PEC and PMC Material Geometry
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Eigenmode sources need the FDFD mode solve and the time-domain FDTD injection
-to see the same PEC boundary. This is stricter than ordinary geometry
-placement because the FDFD solver removes constrained electric degrees of
-freedom from the modal eigenproblem, while the FDTD source later injects the
-same modal fields through the Yee-grid update coefficients.
+to see the same PEC and PMC boundaries. This is stricter than ordinary
+geometry placement because the FDFD solver removes constrained electric or
+magnetic degrees of freedom from the modal eigenproblem, while the FDTD source
+later injects the same modal fields through the Yee-grid update coefficients.
 
 A PEC ``#box`` is specified by cell-centred extents, but electric fields live
 on component-specific Yee edges. The box builder assigns the full native range
@@ -359,15 +359,22 @@ makes the component material IDs, the FDTD update coefficients, and the FDFD
 PEC masks agree at the source cross-section without an eigenmode-specific
 geometry option.
 
+A PMC volume follows the magnetic dual layout. For each cell, the box and voxel
+builders assign the two own-axis faces of ``H_u`` and ``H_v`` and the matching
+normal ``H_w`` face. ``sources.py`` converts ``sm == inf`` component samples to
+PMC constraints and supplements them from cell-centred geometry so both faces
+remain constrained at material interfaces. Direct ``#magnetic_edge`` PMC
+assignments are detected from their component material IDs.
+
 The related implementation points are:
 
 * ``gprMax/cython/geometry_primitives.pyx`` assigns the complete component-wise
   Yee ranges for non-averaged boxes.
-* ``gprMax/sources.py`` builds local source-plane PEC masks with native Yee
-  electric component shapes and passes them into the FDFD solver.
+* ``gprMax/sources.py`` builds local source-plane PEC and PMC masks with native
+  Yee component shapes and passes them into the FDFD solver.
 * ``gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py`` consumes the explicit
-  component PEC masks and removes constrained electric degrees of freedom from
-  the eigenproblem.
+  component masks and removes constrained electric or magnetic degrees of
+  freedom from the eigenproblem.
 
 The 2D TM artificial PEC boundaries do not use ``box.py``. They are applied by
 the grid setup code for ``2D TMx``, ``2D TMy`` and ``2D TMz`` models.
@@ -376,11 +383,9 @@ Limitations
 -----------
 
 * Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
-* Electric PEC constraints are supported and are used by gprMax eigenmode
-  sources.
-* The solver has magnetic constraint masks, but eigenmode source slices do not
-  yet support PMC geometry.
-* Large finite permittivity is not PEC.
+* Electric PEC and magnetic PMC constraints are supported and are used by
+  gprMax eigenmode sources.
+* Large finite permittivity or permeability is not PEC or PMC.
 * The finite-difference operators use first-order sparse Yee-grid differences.
 
 Recommended Usage
@@ -393,8 +398,9 @@ For gprMax integration, use this path:
 2. Mark electric PEC entries with ``np.inf + 0j`` or explicit local PEC masks.
 3. Extract local ``mu_r_uu``, ``mu_r_vv`` and ``mu_r_ww`` from Yee magnetic
    component material IDs with native staggered shapes.
-4. Construct ``FDFD_2D_mode_solver`` using local ``du`` and ``dv``.
-5. Call ``solver.solve()``.
-6. Use ``solver.modal_Eu``, ``solver.modal_Ev``, ``solver.modal_Hu`` and
+4. Mark magnetic PMC entries with ``np.inf + 0j`` or explicit local PMC masks.
+5. Construct ``FDFD_2D_mode_solver`` using local ``du`` and ``dv``.
+6. Call ``solver.solve()``.
+7. Use ``solver.modal_Eu``, ``solver.modal_Ev``, ``solver.modal_Hu`` and
    ``solver.modal_Hv`` for transverse eigenmode source injection after mapping
    local components back to global gprMax components.

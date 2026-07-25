@@ -30,9 +30,10 @@ class FDFD_2D_mode_solver:
         mu_r_vv, H_v:       (Nu,     Nv + 1)
         mu_r_ww, H_w:       (Nu,     Nv)
 
-    Electric PEC masks constrain the corresponding electric component DOFs.
-    Non-finite electric material entries are also interpreted as PEC and are
-    replaced by finite placeholders after the masks have been built.
+    Electric PEC and magnetic PMC masks constrain the corresponding component
+    DOFs. Non-finite electric and magnetic material entries are interpreted as
+    PEC and PMC respectively, then replaced by finite placeholders after the
+    masks have been built.
     """
 
     def __init__(
@@ -101,9 +102,9 @@ class FDFD_2D_mode_solver:
         self.pec_u_mask = self._component_constraint_mask(self.eps_r_uu, pec_u_mask, self.shape_eu)
         self.pec_v_mask = self._component_constraint_mask(self.eps_r_vv, pec_v_mask, self.shape_ev)
         self.pec_w_mask = self._component_constraint_mask(self.eps_r_ww, pec_w_mask, self.shape_ew)
-        self.pmc_u_mask = self._component_constraint_mask(self.mu_r_uu, pmc_u_mask, self.shape_hu, default=False)
-        self.pmc_v_mask = self._component_constraint_mask(self.mu_r_vv, pmc_v_mask, self.shape_hv, default=False)
-        self.pmc_w_mask = self._component_constraint_mask(self.mu_r_ww, pmc_w_mask, self.shape_hw, default=False)
+        self.pmc_u_mask = self._component_constraint_mask(self.mu_r_uu, pmc_u_mask, self.shape_hu)
+        self.pmc_v_mask = self._component_constraint_mask(self.mu_r_vv, pmc_v_mask, self.shape_hv)
+        self.pmc_w_mask = self._component_constraint_mask(self.mu_r_ww, pmc_w_mask, self.shape_hw)
 
         self.eps_r_uu[self.pec_u_mask] = 1.0 + 0j
         self.eps_r_vv[self.pec_v_mask] = 1.0 + 0j
@@ -148,10 +149,8 @@ class FDFD_2D_mode_solver:
             if actual != shape:
                 raise ValueError(f"{name} shape {actual} does not match expected local Yee shape {shape}.")
 
-    def _component_constraint_mask(self, values, explicit_mask, expected_shape, default=True):
-        mask = np.zeros(expected_shape, dtype=bool)
-        if default:
-            mask |= ~np.isfinite(values)
+    def _component_constraint_mask(self, values, explicit_mask, expected_shape):
+        mask = ~np.isfinite(values)
         if explicit_mask is not None:
             explicit_mask = np.asarray(explicit_mask, dtype=bool)
             if explicit_mask.shape != expected_shape:

@@ -5,8 +5,8 @@ This folder contains small 3D regression-style runs for checking eigenmode
 source solving and injection in different propagation directions.
 
 The tests are not intended as high-accuracy production examples. They are short
-runs designed to make modal purity, propagation direction, and PEC/Yee-grid
-staggering problems visible in field snapshots.
+runs designed to make modal purity, propagation direction, and PEC/PMC
+Yee-grid staggering problems visible in field snapshots.
 
 Test Groups
 -----------
@@ -23,15 +23,15 @@ Test Groups
     should inject cleanly for all ``+`` and ``-`` directions because there is no
     PEC boundary to stress the Yee-component constraint handling.
 
-``pec_loaded``
-    Six PEC-loaded tests:
+``pmc_loaded``
+    Six PMC-loaded tests:
 
-    - ``pec_x_plus`` and ``pec_x_minus``
-    - ``pec_y_plus`` and ``pec_y_minus``
-    - ``pec_z_plus`` and ``pec_z_minus``
+    - ``pmc_x_plus`` and ``pmc_x_minus``
+    - ``pmc_y_plus`` and ``pmc_y_minus``
+    - ``pmc_z_plus`` and ``pmc_z_minus``
 
-    Each case uses one dielectric guide block and one PEC block adjacent to the
-    guide. These are the main stress tests for PEC-constrained FDFD modes and
+    Each case uses one dielectric guide block and one PMC block adjacent to the
+    guide. These are the main stress tests for PMC-constrained FDFD modes and
     modal field injection into the FDTD Yee grid.
 
 ``microstrip``
@@ -100,12 +100,12 @@ For each ``+/-`` pair:
 - The injected wave should propagate in the requested direction.
 - The transverse modal profile should stay clean as it propagates.
 
-The ``dielectric_ridge`` group should pass these checks without involving PEC
-logic. The ``pec_loaded`` group additionally checks that PEC constraints are
-consistent between:
+The ``dielectric_ridge`` group should pass these checks without involving
+perfect-conductor logic. The ``pmc_loaded`` group additionally checks that PMC
+constraints are consistent between:
 
 - the FDFD eigenmode solver;
-- the gprMax Yee component material IDs;
+- the gprMax Yee magnetic-component material IDs;
 - the time-domain TF/SF source update.
 
 For the ``microstrip`` group, strong attenuation in the field-against-time
@@ -119,7 +119,7 @@ Useful Outputs
 
 Each run writes:
 
-``*_eigenmode_*_Ex_Ey.png`` and ``*_eigenmode_*_Hx_Hy.png``
+``*_eigenmode_*_Eu_Ev.png`` and ``*_eigenmode_*_Hu_Hv.png``
     Field plots of the solved FDFD mode.
 
 ``*_snaps/*.h5``
@@ -137,8 +137,8 @@ snapshot files:
 .. code-block:: powershell
 
    python eigensource_test_run\plot_direction_snapshots.py `
-       eigensource_test_run\pec_loaded\pec_x_plus `
-       eigensource_test_run\pec_loaded\pec_x_minus
+       eigensource_test_run\pmc_loaded\pmc_x_plus `
+       eigensource_test_run\pmc_loaded\pmc_x_minus
 
 The script expects each case directory to contain a snapshot directory named
 ``<case_name>_snaps``.

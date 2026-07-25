@@ -121,6 +121,7 @@ class EigenmodeSource(Source):
     """
 
     FDFD_PEC_PROPERTY = np.inf + 0j
+    FDFD_PMC_PROPERTY = np.inf + 0j
 
     def __init__(self, G):
         super().__init__()
@@ -171,6 +172,7 @@ class EigenmodeSource(Source):
             self.normal_axis,
         )
         pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
+        pmc_u_mask, pmc_v_mask, pmc_w_mask = self._cell_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
             du=G.dl[self.transverse_axes[0]],
@@ -185,6 +187,9 @@ class EigenmodeSource(Source):
             pec_u_mask=pec_u_mask,
             pec_v_mask=pec_v_mask,
             pec_w_mask=pec_w_mask,
+            pmc_u_mask=pmc_u_mask,
+            pmc_v_mask=pmc_v_mask,
+            pmc_w_mask=pmc_w_mask,
         )
         solver.solve()
         self._plot_eigenmode_fields(solver)
@@ -340,6 +345,38 @@ class EigenmodeSource(Source):
         return pec_u_mask, pec_v_mask, pec_w_mask
 
     def _slice_cell_pec_mask(self, G):
+        return self._slice_cell_constraint_mask(G, electric=True)
+
+    def _cell_pmc_magnetic_component_masks(self, G):
+        """Build local Yee magnetic PMC masks from cell-centred PMC geometry.
+
+        Component-sampled PMC material IDs constrain their exact H positions
+        through the non-finite permeability tensors. These masks supplement
+        those IDs so both own-axis H faces of every PMC cell are constrained.
+        """
+        cell_pmc_mask = self._slice_cell_pmc_mask(G)
+        nu, nv = self._transverse_cell_shape()
+        pmc_u_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pmc_v_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pmc_w_mask = np.zeros((nu, nv), dtype=bool)
+        if cell_pmc_mask.size == 0:
+            return pmc_u_mask, pmc_v_mask, pmc_w_mask
+
+        cu, cv = cell_pmc_mask.shape
+        pmc_u_mask[:cu, :cv] |= cell_pmc_mask
+        pmc_u_mask[1 : cu + 1, :cv] |= cell_pmc_mask
+
+        pmc_v_mask[:cu, :cv] |= cell_pmc_mask
+        pmc_v_mask[:cu, 1 : cv + 1] |= cell_pmc_mask
+
+        pmc_w_mask[:cu, :cv] |= cell_pmc_mask
+        return pmc_u_mask, pmc_v_mask, pmc_w_mask
+
+    def _slice_cell_pmc_mask(self, G):
+        return self._slice_cell_constraint_mask(G, electric=False)
+
+    def _slice_cell_constraint_mask(self, G, electric):
+        """Return source-cross-section cells occupied by PEC or PMC."""
         u0, v0 = self.transverse_start
         u1, v1 = self.transverse_stop
         normal_indices = [
@@ -350,11 +387,12 @@ class EigenmodeSource(Source):
         if not normal_indices:
             return np.zeros((u1 - u0, v1 - v0), dtype=bool)
 
-        material_is_pec = np.zeros(len(G.materials), dtype=bool)
+        material_is_constrained = np.zeros(len(G.materials), dtype=bool)
         for material in G.materials:
-            material_is_pec[material.numID] = self._complex_er(material) == self.FDFD_PEC_PROPERTY
+            property_value = self._complex_er(material) if electric else self._complex_mur(material)
+            material_is_constrained[material.numID] = not np.isfinite(property_value)
 
-        cell_pec_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
+        cell_constraint_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
         for n in normal_indices:
             if self.normal_axis == 0:
                 ids = G.solid[n, u0:u1, v0:v1]
@@ -362,8 +400,8 @@ class EigenmodeSource(Source):
                 ids = G.solid[u0:u1, n, v0:v1]
             else:
                 ids = G.solid[u0:u1, v0:v1, n]
-            cell_pec_mask |= material_is_pec[ids]
-        return cell_pec_mask
+            cell_constraint_mask |= material_is_constrained[ids]
+        return cell_constraint_mask
 
     def _complex_er(self, material):
         omega = 2 * np.pi * self.frequency
@@ -383,7 +421,7 @@ class EigenmodeSource(Source):
         if getattr(material, "sm", 0) not in [0, float("inf")]:
             mur = mur - 1j * material.sm / (omega * config.m0)
         if getattr(material, "sm", 0) == float("inf"):
-            raise NotImplementedError("Eigenmode FDFD solver does not support PMC materials yet.")
+            mur = self.FDFD_PMC_PROPERTY
         return mur
 
     def update_eigenmode_magnetic(self, iteration, G):
