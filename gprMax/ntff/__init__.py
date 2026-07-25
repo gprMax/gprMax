@@ -44,6 +44,15 @@ from .evaluator import (
     spherical_directions,
     spherical_observation_points,
 )
+from .frequency_domain import (
+    KSIRComponentPhasors,
+    KSIRFrequencyDomainMonitor,
+    KSIRFrequencyResult,
+    KSIRSavedFarField,
+    evaluate_saved_surface_dft,
+    surface_compatibility_signature,
+    validate_nyquist_frequencies,
+)
 from .surfaces import (
     COMPONENTS,
     COMPONENT_OFFSETS,
@@ -61,6 +70,10 @@ __all__ = [
     "FORWARD_TRANSFORM_KERNEL",
     "ExperimentalMask",
     "KSIRComponentSurface",
+    "KSIRComponentPhasors",
+    "KSIRFrequencyDomainMonitor",
+    "KSIRFrequencyResult",
+    "KSIRSavedFarField",
     "KSIRSurfaceFace",
     "OUTGOING_GREEN_RADIAL_FACTOR",
     "PHASOR_TIME_DEPENDENCE",
@@ -76,9 +89,12 @@ __all__ = [
     "evaluate_exact_points_patches",
     "evaluate_far_zone",
     "evaluate_far_zone_patches",
+    "evaluate_saved_surface_dft",
     "project_cartesian_to_spherical",
     "resolve_closure",
     "spherical_basis",
     "spherical_directions",
     "spherical_observation_points",
+    "surface_compatibility_signature",
+    "validate_nyquist_frequencies",
 ]
