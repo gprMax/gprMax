@@ -23,17 +23,6 @@ Test Groups
     should inject cleanly for all ``+`` and ``-`` directions because there is no
     PEC boundary to stress the Yee-component constraint handling.
 
-``pmc_loaded``
-    Six PMC-loaded tests:
-
-    - ``pmc_x_plus`` and ``pmc_x_minus``
-    - ``pmc_y_plus`` and ``pmc_y_minus``
-    - ``pmc_z_plus`` and ``pmc_z_minus``
-
-    Each case uses one dielectric guide block and one PMC block adjacent to the
-    guide. These are the main stress tests for PMC-constrained FDFD modes and
-    modal field injection into the FDTD Yee grid.
-
 ``microstrip``
     Six microstrip tests:
 
@@ -56,6 +45,19 @@ Test Groups
     waveguide aperture. The eigenmode source plane is limited to that inner
     aperture and does not include the PEC wall cells. The 50 GHz source is
     above the TE10 cutoff of the 6 mm broad wall.
+
+``pmc_rectangular_waveguide``
+    Six air-filled rectangular PMC waveguide tests:
+
+    - ``pmc_waveguide_x_plus`` and ``pmc_waveguide_x_minus``
+    - ``pmc_waveguide_y_plus`` and ``pmc_waveguide_y_minus``
+    - ``pmc_waveguide_z_plus`` and ``pmc_waveguide_z_minus``
+
+    These cases use the same 6 mm by 4 mm aperture as the PEC rectangular
+    waveguide tests, but all four walls are PMC. The source plane is limited to
+    the air-filled aperture. These runs exercise PMC-constrained FDFD modes and
+    modal field injection into the FDTD Yee grid without relying on a
+    dielectric-loaded interface that may contain nearby spurious modes.
 
 ``cylindrical_waveguide``
     Six air-filled cylindrical PEC waveguide tests:
@@ -101,8 +103,8 @@ For each ``+/-`` pair:
 - The transverse modal profile should stay clean as it propagates.
 
 The ``dielectric_ridge`` group should pass these checks without involving
-perfect-conductor logic. The ``pmc_loaded`` group additionally checks that PMC
-constraints are consistent between:
+perfect-conductor logic. The ``pmc_rectangular_waveguide`` group additionally
+checks that PMC constraints are consistent between:
 
 - the FDFD eigenmode solver;
 - the gprMax Yee magnetic-component material IDs;
@@ -137,8 +139,8 @@ snapshot files:
 .. code-block:: powershell
 
    python eigensource_test_run\plot_direction_snapshots.py `
-       eigensource_test_run\pmc_loaded\pmc_x_plus `
-       eigensource_test_run\pmc_loaded\pmc_x_minus
+       eigensource_test_run\pmc_rectangular_waveguide\pmc_waveguide_x_plus `
+       eigensource_test_run\pmc_rectangular_waveguide\pmc_waveguide_x_minus
 
 The script expects each case directory to contain a snapshot directory named
 ``<case_name>_snaps``.
