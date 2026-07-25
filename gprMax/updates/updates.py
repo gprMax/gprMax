@@ -51,6 +51,20 @@ class Updates(Generic[GridType], ABC):
         """
         pass
 
+    def observe_ntff_electric(self, iteration: int) -> None:
+        """Observe electric fields for any KSIR monitors.
+
+        CPU updates override this hook. Other backends retain the no-op until
+        their device integration is added.
+        """
+
+        pass
+
+    def observe_ntff_magnetic(self, iteration: int) -> None:
+        """Observe magnetic fields for any KSIR monitors."""
+
+        pass
+
     @abstractmethod
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""

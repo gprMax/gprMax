@@ -349,11 +349,27 @@ class Model:
         else:
             self.build_geometry()
 
+        # KSIR definitions are registered while the scene is parsed, but the
+        # component surfaces can only be compiled after grid.build() has
+        # finalised the Yee material IDs.
+        if getattr(self.G, "ksir_surface_specs", None):
+            from gprMax.ntff.interface import compile_ksir_outputs
+
+            if not self.G.ntff_output_writers:
+                compile_ksir_outputs(self, self.G)
+
         logger.info(
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
 
         self.G.update_sources_and_recievers()
+
+        # Source stepping is applied immediately above, so enclosure is
+        # checked against the positions actually used by this model run.
+        if self.G.ntff_monitors:
+            from gprMax.ntff.interface import validate_ksir_source_enclosure
+
+            validate_ksir_source_enclosure(self.G)
 
         self._output_geometry()
 
@@ -540,7 +556,19 @@ class Model:
         # Write output data to file if they are any receivers in any grids
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
-        if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
+        ntff_outputs = [
+            monitor
+            for monitor in self.G.ntff_monitors
+            if getattr(monitor, "write_hdf5", None) is not None
+        ]
+        ntff_outputs.extend(getattr(self.G, "ntff_output_writers", ()))
+        if (
+            self.G.rxs
+            or sg_rxs
+            or self.G.transmissionlines
+            or sg_tls
+            or ntff_outputs
+        ):
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
         # Write any snapshots to file for each grid

@@ -65,21 +65,21 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
     """
     # Create output file and write top-level meta data, meta data for main grid,
     # and any outputs in the main grid
-    f = h5py.File(outputfile, "w")
-    f.attrs["gprMax"] = __version__
-    f.attrs["Title"] = title
-    f.attrs["Iterations"] = model.iterations
-    f.attrs["srcsteps"] = model.srcsteps
-    f.attrs["rxsteps"] = model.rxsteps
-    write_hd5_data(f, model.G)
+    with h5py.File(outputfile, "w") as f:
+        f.attrs["gprMax"] = __version__
+        f.attrs["Title"] = title
+        f.attrs["Iterations"] = model.iterations
+        f.attrs["srcsteps"] = model.srcsteps
+        f.attrs["rxsteps"] = model.rxsteps
+        write_hd5_data(f, model.G)
 
-    # Write meta data and data for any subgrids
-    sg_rxs = [True for sg in model.subgrids if sg.rxs]
-    sg_tls = [True for sg in model.subgrids if sg.transmissionlines]
-    if sg_rxs or sg_tls:
-        for sg in model.subgrids:
-            grp = f.create_group(f"/subgrids/{sg.name}")
-            write_hd5_data(grp, sg, is_subgrid=True)
+        # Write meta data and data for any subgrids
+        sg_rxs = [True for sg in model.subgrids if sg.rxs]
+        sg_tls = [True for sg in model.subgrids if sg.transmissionlines]
+        if sg_rxs or sg_tls:
+            for sg in model.subgrids:
+                grp = f.create_group(f"/subgrids/{sg.name}")
+                write_hd5_data(grp, sg, is_subgrid=True)
 
     logger.basic("")
     logger.basic(f"Written output file: {outputfile.name}\n")
@@ -162,6 +162,17 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
 
         for output in rx.outputs:
             basegrp["rxs/rx" + str(rxindex + 1) + "/" + output] = rx.outputs[output]
+
+    # Managed reusable outputs own their grouped schema. Standalone monitors
+    # may write themselves when they are not owned by a grouped writer.
+    for monitor in getattr(grid, "ntff_monitors", ()):
+        write_ntff = getattr(monitor, "write_hdf5", None)
+        if write_ntff is not None and not getattr(
+            monitor, "managed_output", False
+        ):
+            write_ntff(basegrp)
+    for writer in getattr(grid, "ntff_output_writers", ()):
+        writer.write_hdf5(basegrp)
 
 
 def Ix(x, y, z, Hx, Hy, Hz, G):
