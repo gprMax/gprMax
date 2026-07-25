@@ -278,8 +278,10 @@ def _check_ksir_interface_context(user_object, grid):
         raise ValueError(f"{user_object.params_str()} does not support subgrids.")
     if config.sim_config.mpi:
         raise ValueError(f"{user_object.params_str()} does not yet support MPI.")
-    if config.sim_config.general["solver"] != "cpu":
-        raise ValueError(f"{user_object.params_str()} currently supports only the CPU solver.")
+    if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
+        raise ValueError(
+            f"{user_object.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
+        )
     if config.sim_config.args.geometry_fixed:
         raise ValueError(f"{user_object.params_str()} does not support geometry-fixed runs.")
     if config.get_model_config().mode != "3D":

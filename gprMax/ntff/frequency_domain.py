@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <http://www.gnu.org/licenses/>.
 
-"""Streaming frequency-domain KSIR monitor for the CPU solver."""
+"""Streaming frequency-domain KSIR monitor shared by all local solvers."""
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -401,6 +401,28 @@ class _ComponentDFTAccumulator:
             self.inside_dft += contribution * inside[np.newaxis, :]
             self.outside_dft += contribution * outside[np.newaxis, :]
 
+    def load_device_dfts(
+        self, inside: npt.ArrayLike, outside: npt.ArrayLike
+    ) -> None:
+        """Load completed raw DFTs accumulated by a device backend."""
+
+        if self._finalised:
+            raise RuntimeError("cannot load a finalised KSIR DFT accumulator")
+        if self._next_iteration != self.iterations:
+            raise RuntimeError(
+                f"KSIR component {self.surface.component} received "
+                f"{self._next_iteration} of {self.iterations} expected samples"
+            )
+        expected = self.inside_dft.shape
+        inside_values = np.asarray(inside)
+        outside_values = np.asarray(outside)
+        if inside_values.shape != expected or outside_values.shape != expected:
+            raise ValueError(f"device DFT arrays must have shape {expected}")
+        if inside_values.dtype != self.dtype or outside_values.dtype != self.dtype:
+            raise ValueError(f"device DFT arrays must use dtype {self.dtype}")
+        self.inside_dft[...] = inside_values
+        self.outside_dft[...] = outside_values
+
     def finalise(
         self, background_er: float, background_mr: float
     ) -> KSIRComponentPhasors:
@@ -460,6 +482,7 @@ class KSIRFrequencyDomainMonitor:
         real_dtype,
         complex_dtype,
         nthreads: int = 1,
+        solver_backend: str = "cpu",
         origin: Optional[npt.ArrayLike] = None,
         window: str = "rectangular",
         wave_speed: Optional[float] = None,
@@ -537,12 +560,18 @@ class KSIRFrequencyDomainMonitor:
         elif self.window_name == "hanning":
             self.window_name = "hann"
         self.precision = "single" if self.real_dtype.itemsize == 4 else "double"
+        if solver_backend not in ("cpu", "cuda", "opencl", "metal"):
+            raise ValueError("solver_backend is not a supported gprMax solver")
+        self.solver_backend = solver_backend
         self.nthreads = int(nthreads)
-        self.collection_backend = (
-            "cython_openmp"
-            if _accumulate_surface_dft is not None
-            else "numpy_fallback"
-        )
+        if solver_backend == "cpu":
+            self.collection_backend = (
+                "cython_openmp"
+                if _accumulate_surface_dft is not None
+                else "numpy_fallback"
+            )
+        else:
+            self.collection_backend = f"{solver_backend}_device"
         self.save_surface_dft = bool(save_surface_dft)
         self.incident_surface_file = (
             None if incident_surface_file is None else Path(incident_surface_file)
@@ -861,6 +890,35 @@ class KSIRFrequencyDomainMonitor:
         for component in MAGNETIC_COMPONENTS:
             if component in self._accumulators:
                 self._accumulators[component].observe(iteration, fields[component])
+
+    def device_sampling_multiplier(
+        self, component: str, iteration: int
+    ) -> npt.NDArray[np.complexfloating]:
+        """Advance and return a component multiplier for device accumulation."""
+
+        try:
+            accumulator = self._accumulators[component]
+        except KeyError as exc:
+            raise ValueError(
+                f"component {component!r} is not active in monitor {self.name!r}"
+            ) from exc
+        return accumulator.sampling_multiplier(iteration)
+
+    def load_device_component_dfts(
+        self,
+        component: str,
+        inside: npt.ArrayLike,
+        outside: npt.ArrayLike,
+    ) -> None:
+        """Load raw DFTs downloaded from an accelerator backend."""
+
+        try:
+            accumulator = self._accumulators[component]
+        except KeyError as exc:
+            raise ValueError(
+                f"component {component!r} is not active in monitor {self.name!r}"
+            ) from exc
+        accumulator.load_device_dfts(inside, outside)
 
     def _subtract_incident_surface(
         self, data: Mapping[str, KSIRComponentPhasors]
@@ -1193,10 +1251,11 @@ class KSIRFrequencyDomainMonitor:
         group.attrs["real_dtype"] = self.real_dtype.name
         group.attrs["complex_dtype"] = self.complex_dtype.name
         group.attrs["window"] = self.window_name
-        group.attrs["solver"] = "cpu"
+        group.attrs["solver"] = self.solver_backend
         group.attrs["collection_backend"] = self.collection_backend
         group.attrs["phase_reanchor_interval"] = DFT_PHASE_REANCHOR_INTERVAL
-        group.attrs["openmp_threads"] = self.nthreads
+        if self.solver_backend == "cpu":
+            group.attrs["openmp_threads"] = self.nthreads
         group.attrs["dt"] = self.dt
         group.attrs["iterations"] = self.iterations
         group.attrs["components"] = np.asarray(self.components, dtype="S2")

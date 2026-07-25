@@ -33,6 +33,7 @@ from gprMax.cuda_opencl import (
     knl_symmetry_boundaries,
 )
 from gprMax.grid.cuda_grid import CUDAGrid
+from gprMax.ntff.device import CUDACombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import (
     Snapshot,
@@ -107,6 +108,11 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        self.ntff_collector = None
+        if self.grid.ntff_monitors:
+            self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
+            self.ntff_compiler_options = config.sim_config.devices["nvcc_opts"]
+            self.ntff_collector = CUDACombinedKSIRCollector(self)
 
     def _build_knl(self, knl_func, subs_name_args, subs_func):
         """Builds a CUDA kernel from templates: 1) function name and args;
@@ -481,6 +487,20 @@ class CUDAUpdates(Updates[CUDAGrid]):
             grid=self.grid.bpg,
         )
 
+    def observe_ntff_electric(self, iteration):
+        """Collect electric frequency- and time-domain KSIR data on CUDA."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_ntff_magnetic(self, iteration):
+        """Collect magnetic frequency- and time-domain KSIR data on CUDA."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_magnetic(iteration)
+
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -668,6 +688,10 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
     def finalise(self):
         """Copies data from GPU back to CPU to save to file(s)."""
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.finalise()
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)

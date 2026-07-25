@@ -31,6 +31,7 @@ from gprMax.cuda_opencl import (
     knl_store_outputs,
     knl_symmetry_boundaries,
 )
+from gprMax.ntff.device import MetalCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import (
     Snapshot,
@@ -107,6 +108,10 @@ class MetalUpdates:
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        self.ntff_collector = None
+        if self.grid.ntff_monitors:
+            self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
+            self.ntff_collector = MetalCombinedKSIRCollector(self)
 
     def _build_knl(self, knl_func, subs_name_args, subs_func):
         """Builds an Apple Metal kernel from templates: 1) function name and args;
@@ -652,6 +657,20 @@ class MetalUpdates:
                         *self._metal_snapshot_buffers_to_numpy(), 0, snap
                     )
 
+    def observe_ntff_electric(self, iteration):
+        """Collect electric frequency- and time-domain KSIR data on Metal."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_ntff_magnetic(self, iteration):
+        """Collect magnetic frequency- and time-domain KSIR data on Metal."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_magnetic(iteration)
+
     def update_magnetic(self):
         """Updates magnetic field components."""
         self.cmdbufferH = self.cmdqueue.commandBuffer()
@@ -1137,6 +1156,10 @@ class MetalUpdates:
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.finalise()
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev, self.rxcoords_dev, self.grid)

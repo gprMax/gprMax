@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <http://www.gnu.org/licenses/>.
 
-"""Advanced-time KSIR field extension for the CPU solver."""
+"""Advanced-time KSIR field extension for CPU and device collectors."""
 
 from collections import deque
 from dataclasses import dataclass
@@ -221,19 +221,24 @@ class _ComponentAccumulator:
         )
         self._derivative_buffer = np.empty_like(self._surface_buffer)
         self._time_origin_steps: npt.NDArray[np.int64]
-        self.output: npt.NDArray[np.floating]
+        self.output: npt.NDArray[np.floating] | None
 
     def allocate(
         self,
         output_length: int,
         time_origin_steps: npt.NDArray[np.int64],
+        *,
+        allocate_output: bool = True,
     ) -> None:
         self._time_origin_steps = np.ascontiguousarray(
             time_origin_steps, dtype=np.int64
         )
-        self.output = np.zeros(
-            (self.points.shape[0], output_length), dtype=self.real_dtype
-        )
+        if allocate_output:
+            self.output = np.zeros(
+                (self.points.shape[0], output_length), dtype=self.real_dtype
+            )
+        else:
+            self.output = None
 
     def _surface_values(
         self, field: npt.ArrayLike
@@ -386,8 +391,9 @@ class _ComponentAccumulator:
 class KSIRTimeDomainMonitor:
     """Advanced-time field reconstruction at explicit exterior points.
 
-    Collection uses configured-dtype Cython/OpenMP kernels, with a NumPy
-    fallback for source-tree use before the extensions are compiled.
+    CPU collection uses configured-dtype Cython/OpenMP kernels, with a NumPy
+    fallback before the extensions are compiled. Accelerator collection and
+    compact output storage remain device-resident until finalisation.
     """
 
     def __init__(
@@ -402,6 +408,7 @@ class KSIRTimeDomainMonitor:
         wave_speed: float = c,
         nthreads: int = 1,
         time_origin: str = "simulation",
+        device_backend: str | None = None,
         closure: ResolvedKSIRClosure | None = None,
     ):
         if not name:
@@ -422,6 +429,10 @@ class KSIRTimeDomainMonitor:
         ):
             raise ValueError(
                 "time_origin must be 'simulation' or 'first_arrival'"
+            )
+        if device_backend not in (None, "cuda", "opencl", "metal"):
+            raise ValueError(
+                "device_backend must be None, 'cuda', 'opencl', or 'metal'"
             )
         self.real_dtype = np.dtype(real_dtype)
         if self.real_dtype.kind != "f":
@@ -451,12 +462,16 @@ class KSIRTimeDomainMonitor:
         self.wave_speed = float(wave_speed)
         self.nthreads = int(nthreads)
         self.time_origin = time_origin
-        self.collection_backend = (
-            "cython_openmp"
-            if _gather_time_domain_surface is not None
-            and _deposit_time_domain_surface is not None
-            else "numpy_fallback"
-        )
+        self.device_backend = device_backend
+        if device_backend is None:
+            self.collection_backend = (
+                "cython_openmp"
+                if _gather_time_domain_surface is not None
+                and _deposit_time_domain_surface is not None
+                else "numpy_fallback"
+            )
+        else:
+            self.collection_backend = f"{device_backend}_device"
         self.components = components
         self.surfaces = MappingProxyType(dict(surfaces))
         self.closure = closure or ResolvedKSIRClosure(
@@ -556,7 +571,11 @@ class KSIRTimeDomainMonitor:
         self.valid_lengths.setflags(write=False)
         self.output_length = int(np.max(self.valid_lengths))
         for accumulator in self._accumulators.values():
-            accumulator.allocate(self.output_length, self.time_origin_steps)
+            accumulator.allocate(
+                self.output_length,
+                self.time_origin_steps,
+                allocate_output=self.device_backend is None,
+            )
 
     @property
     def result(self) -> KSIRTimeDomainResult:
@@ -620,6 +639,8 @@ class KSIRTimeDomainMonitor:
         Ey: npt.ArrayLike,
         Ez: npt.ArrayLike,
     ) -> None:
+        if self.device_backend is not None:
+            raise RuntimeError("device KSIR monitors must be observed on the device")
         fields = {"Ex": Ex, "Ey": Ey, "Ez": Ez}
         for component in ELECTRIC_COMPONENTS:
             if component in self._accumulators:
@@ -632,6 +653,8 @@ class KSIRTimeDomainMonitor:
         Hy: npt.ArrayLike,
         Hz: npt.ArrayLike,
     ) -> None:
+        if self.device_backend is not None:
+            raise RuntimeError("device KSIR monitors must be observed on the device")
         fields = {"Hx": Hx, "Hy": Hy, "Hz": Hz}
         for component in MAGNETIC_COMPONENTS:
             if component in self._accumulators:
@@ -640,8 +663,14 @@ class KSIRTimeDomainMonitor:
     def finalise(self) -> None:
         if self._finalised:
             return
-        for accumulator in self._accumulators.values():
-            accumulator.finalise()
+        if self.device_backend is None:
+            for accumulator in self._accumulators.values():
+                accumulator.finalise()
+        elif any(
+            accumulator.output is None
+            for accumulator in self._accumulators.values()
+        ):
+            raise RuntimeError("not all device KSIR component outputs were loaded")
 
         times = self.dt * np.arange(self.output_length, dtype=self.real_dtype)
         times.setflags(write=False)
@@ -671,6 +700,31 @@ class KSIRTimeDomainMonitor:
             mathematically_closed=self.closure.mathematically_closed,
         )
         self._finalised = True
+
+    def load_device_component_output(
+        self, component: str, output: npt.ArrayLike
+    ) -> None:
+        """Attach one configured-dtype history downloaded at finalisation."""
+
+        if self.device_backend is None:
+            raise RuntimeError("CPU KSIR monitors do not accept device output")
+        if self._finalised:
+            raise RuntimeError("cannot load output into a finalised KSIR monitor")
+        if component not in self._accumulators:
+            raise ValueError(f"component {component!r} is not monitored")
+        values = np.asarray(output)
+        expected_shape = (self.points.shape[0], self.output_length)
+        if values.shape != expected_shape:
+            raise ValueError(
+                f"device output for {component} must have shape {expected_shape}"
+            )
+        if values.dtype != self.real_dtype:
+            raise ValueError(
+                f"device output for {component} must use dtype {self.real_dtype}"
+            )
+        values = np.ascontiguousarray(values)
+        values.setflags(write=False)
+        self._accumulators[component].output = values
 
     def write_hdf5(self, base_group) -> None:
         """Write compact time-domain histories to the normal model output."""
@@ -711,9 +765,10 @@ class KSIRTimeDomainMonitor:
             "single" if self.real_dtype.itemsize == 4 else "double"
         )
         group.attrs["real_dtype"] = self.real_dtype.name
-        group.attrs["solver"] = "cpu"
+        group.attrs["solver"] = self.device_backend or "cpu"
         group.attrs["collection_backend"] = self.collection_backend
-        group.attrs["openmp_threads"] = self.nthreads
+        if self.device_backend is None:
+            group.attrs["openmp_threads"] = self.nthreads
         group.attrs["dt"] = self.dt
         group.attrs["iterations"] = self.iterations
         group.attrs["components"] = np.asarray(self.components, dtype="S2")

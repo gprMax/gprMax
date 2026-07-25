@@ -32,6 +32,7 @@ from gprMax.cuda_opencl import (
     knl_symmetry_boundaries,
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.ntff.device import OpenCLCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import (
     Snapshot,
@@ -89,6 +90,11 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self._set_src_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        self.ntff_collector = None
+        if self.grid.ntff_monitors:
+            self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
+            self.ntff_compiler_options = config.sim_config.devices["compiler_opts"]
+            self.ntff_collector = OpenCLCombinedKSIRCollector(self)
 
     def _set_macros(self):
         """Common macros to be used in kernels."""
@@ -493,6 +499,20 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.grid.Ez_dev,
         )
 
+    def observe_ntff_electric(self, iteration):
+        """Collect electric frequency- and time-domain KSIR data on OpenCL."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_ntff_magnetic(self, iteration):
+        """Collect magnetic frequency- and time-domain KSIR data on OpenCL."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_magnetic(iteration)
+
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -663,6 +683,10 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.finalise()
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
