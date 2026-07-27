@@ -42,6 +42,7 @@ from .user_objects.cmds_multiuse import (
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
     DiscretePlaneWaveVector,
+    EigenmodeSource,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,

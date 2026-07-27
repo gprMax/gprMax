@@ -1715,6 +1715,33 @@ class EigenmodeSource(GridUserObject):
         axis_map = {"x": 0, "y": 1, "z": 2}
         normal_axis = axis_map[normal]
         transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+        mode = config.get_model_config().mode
+        invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+        if invariant_axis is not None and normal_axis == invariant_axis:
+            logger.exception(
+                f"{self.params_str()} in {mode} mode the source normal must be "
+                "in-plane and cannot equal the invariant axis."
+            )
+            raise ValueError
+
+        full_lower = np.zeros(3, dtype=np.float64)
+        full_upper = np.zeros(3, dtype=np.float64)
+        full_lower[normal_axis] = w
+        full_upper[normal_axis] = w
+        full_lower[transverse_axes] = p1
+        full_upper[transverse_axes] = p2
+        uip = self._create_uip(grid)
+        full_lower = np.asarray(
+            uip.resolve_inf_point(tuple(full_lower), role="lower"),
+            dtype=np.float64,
+        )
+        full_upper = np.asarray(
+            uip.resolve_inf_point(tuple(full_upper), role="upper"),
+            dtype=np.float64,
+        )
+        p1 = tuple(full_lower[transverse_axes])
+        p2 = tuple(full_upper[transverse_axes])
+        w = float(full_lower[normal_axis])
 
         lower = np.zeros(3, dtype=np.int32)
         upper = np.zeros(3, dtype=np.int32)
@@ -1740,11 +1767,31 @@ class EigenmodeSource(GridUserObject):
             )
             raise ValueError
 
+        if invariant_axis is not None and (
+            lower[invariant_axis] != 0
+            or upper[invariant_axis] != grid.size[invariant_axis]
+        ):
+            logger.exception(
+                f"{self.params_str()} in {mode} mode must span the complete "
+                "invariant-axis thickness; use inf for both invariant coordinates."
+            )
+            raise ValueError
+
         source = EigenmodeSourceUser(grid)
         source.normal = normal
         source.direction = direction
         source.normal_axis = normal_axis
         source.transverse_axes = tuple(transverse_axes)
+        source.invariant_axis = invariant_axis
+        source.physical_transverse_axis = (
+            next(axis for axis in transverse_axes if axis != invariant_axis)
+            if invariant_axis is not None
+            else None
+        )
+        if mode.startswith("2D TM"):
+            source.domain_polarization = "TM"
+        elif mode.startswith("2D TE"):
+            source.domain_polarization = "TE"
         source.transverse_start = lower[transverse_axes].copy()
         source.transverse_stop = upper[transverse_axes].copy()
         source.plane_index = plane_index

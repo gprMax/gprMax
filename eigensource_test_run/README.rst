@@ -1,8 +1,8 @@
 Eigensource Test Runs
 =====================
 
-This folder contains small 3D regression-style runs for checking eigenmode
-source solving and injection in different propagation directions.
+This folder contains small 2D and 3D regression-style runs for checking
+eigenmode source solving and injection in different propagation directions.
 
 The tests are not intended as high-accuracy production examples. They are short
 runs designed to make modal purity, propagation direction, and PEC/PMC
@@ -10,6 +10,32 @@ Yee-grid staggering problems visible in field snapshots.
 
 Test Groups
 -----------
+
+``2d_tm`` and ``2d_te``
+    Six one-dimensional cross-section tests:
+
+    - ``2d_tm/pec_waveguide`` solves the one-dimensional ``E_z`` scalar mode
+      and injects the active ``E_z/H_x/H_y`` TMz field system.
+    - ``2d_te/pec_waveguide`` solves the one-dimensional ``H_z`` scalar mode
+      and injects the active ``E_x/E_y/H_z`` TEz field system.
+    - ``2d_tm/dielectric_slab`` exercises staggered dielectric sampling. Its
+      source aperture includes 25 mm of free space on both sides of the slab
+      core, allowing the evanescent modal tails to decay before the aperture
+      boundary and transverse PML.
+    - ``2d_te/pmc_waveguide`` exercises the magnetic-field constraints at two
+      PMC walls.
+    - ``2d_tm/dielectric_bend`` and ``2d_te/dielectric_bend`` inject a guided
+      slab mode into a straight input, a quarter-annulus 90 degree bend, and a
+      straight output. The time sequence makes the guided front and radiation
+      leaking from the bend visible for both polarizations.
+
+    All use ``inf`` for the invariant source coordinates. The generated
+    ``*_TM_fields.png`` or ``*_TE_fields.png`` image contains line plots of
+    all three active modal fields. Each case now contains eight ``xy``
+    timestamps over its longer propagation distance. The plotting script
+    writes both a linear ``*_Eabs.png`` sequence and a global-normalized
+    ``*_Eabs_dB.png`` sequence; the latter makes weak bend radiation easier
+    to see.
 
 ``dielectric_ridge``
     Six dielectric-only tests:
@@ -122,7 +148,12 @@ Useful Outputs
 Each run writes:
 
 ``*_eigenmode_*_Eu_Ev.png`` and ``*_eigenmode_*_Hu_Hv.png``
-    Field plots of the solved FDFD mode.
+    Field plots of a solved 3D-model FDFD mode.
+
+``*_eigenmode_*_TM_fields.png`` and ``*_eigenmode_*_TE_fields.png``
+    Yee-staggered line profiles of all three active fields in a solved 2D
+    model mode. Solid lines show the real profile and dashed lines show its
+    magnitude.
 
 ``*_snaps/*.h5``
     Time snapshots from planes containing the propagation axis.

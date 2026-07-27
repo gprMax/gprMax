@@ -19,6 +19,8 @@
 
 import logging
 
+import gprMax.config as config
+
 from .user_objects.cmds_multiuse import (
     PMLCFS,
     AddDebyeDispersion,
@@ -373,7 +375,15 @@ def process_multicmds(multicmds):
 
             p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
             p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
-            equal_axes = [axis for axis in range(3) if p0[axis] == p1[axis]]
+            mode = config.get_model_config().mode
+            invariant_axis = (
+                "xyz".index(mode[-1]) if mode.startswith("2D") else None
+            )
+            equal_axes = [
+                axis
+                for axis in range(3)
+                if axis != invariant_axis and p0[axis] == p1[axis]
+            ]
             if len(equal_axes) != 1:
                 logger.exception(
                     "'"
@@ -381,7 +391,8 @@ def process_multicmds(multicmds):
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " must have exactly one matching coordinate pair: x0=x1, y0=y1, or z0=z1"
+                    + " must have exactly one finite matching coordinate pair "
+                    "for the source normal"
                 )
                 raise ValueError
 

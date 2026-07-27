@@ -24,6 +24,7 @@ import math
 import logging
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.waveforms import Waveform
 
@@ -129,6 +130,9 @@ class EigenmodeSource(Source):
         self.direction = None
         self.normal_axis = None
         self.transverse_axes = None
+        self.invariant_axis = None
+        self.physical_transverse_axis = None
+        self.domain_polarization = None
         self.transverse_start = None
         self.transverse_stop = None
         self.mode_index = None
@@ -165,6 +169,11 @@ class EigenmodeSource(Source):
         self._solve_eigenmode(G)
 
     def _solve_eigenmode(self, G):
+        if self.invariant_axis is not None:
+            return self._solve_eigenmode_2d(G)
+        return self._solve_eigenmode_3d(G)
+
+    def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
         local_to_global = (
             self.transverse_axes[0],
@@ -218,6 +227,143 @@ class EigenmodeSource(Source):
             for field in self.modal_h
         ]
 
+    def _solve_eigenmode_2d(self, G):
+        """Solve a true 1D mode for a 2D TM/TE FDTD model."""
+        solver_inputs = self._one_dimensional_solver_inputs(G)
+        solver = FDFD_1D_mode_solver(
+            frequency=self.frequency,
+            dt=G.dl[self.physical_transverse_axis],
+            mode_index=self.mode_index,
+            polarization=self.domain_polarization,
+            **solver_inputs,
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        t_local = self.transverse_axes.index(self.physical_transverse_axis)
+        a_local = self.transverse_axes.index(self.invariant_axis)
+        e_local = [
+            np.zeros(shape, dtype=np.complex128)
+            for shape in self._expected_local_field_shapes("E")
+        ]
+        h_local = [
+            np.zeros(shape, dtype=np.complex128)
+            for shape in self._expected_local_field_shapes("H")
+        ]
+
+        if self.domain_polarization == "TM":
+            e_local[a_local] = self._embed_1d_profile(
+                solver.modal_Ea, a_local, "E"
+            )
+            h_local[t_local] = self._embed_1d_profile(
+                solver.modal_Ht, t_local, "H"
+            )
+            h_local[2] = self._embed_1d_profile(solver.modal_Hw, 2, "H")
+        else:
+            e_local[t_local] = self._embed_1d_profile(
+                solver.modal_Et, t_local, "E"
+            )
+            e_local[2] = self._embed_1d_profile(solver.modal_Ew, 2, "E")
+            h_local[a_local] = self._embed_1d_profile(
+                solver.modal_Ha, a_local, "H"
+            )
+
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+        for local_axis, global_axis in enumerate(local_to_global):
+            self.modal_e[global_axis] = e_local[local_axis]
+            self.modal_h[global_axis] = h_local[local_axis]
+        basis = np.eye(3, dtype=np.int32)
+        solver_handedness = int(
+            np.dot(
+                np.cross(
+                    basis[self.physical_transverse_axis],
+                    basis[self.invariant_axis],
+                ),
+                basis[self.normal_axis],
+            )
+        )
+        if solver_handedness < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode 1D local basis is left-handed; modal H fields were flipped.")
+
+        self._validate_modal_field_shapes()
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
+
+    def _expected_local_field_shapes(self, field_kind):
+        nu, nv = self._transverse_cell_shape()
+        if field_kind == "E":
+            return ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        return ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+
+    def _sample_1d_component(self, values):
+        """Collapse a local 2D Yee component onto the live invariant layer."""
+        invariant_local = self.transverse_axes.index(self.invariant_axis)
+        live_layer = 1 if self.domain_polarization == "TE" else 0
+        # TE fields propagate on the shared interior plane at index 1. Some
+        # inactive components are cell-sampled on the invariant axis and may
+        # have no index 1 in TM, so clamp those unused samples to index 0.
+        sample_index = min(live_layer, values.shape[invariant_local] - 1)
+        return np.take(values, sample_index, axis=invariant_local).copy()
+
+    def _one_dimensional_solver_inputs(self, G):
+        """Return staggered 1D material arrays and constraint masks."""
+        t_local = self.transverse_axes.index(self.physical_transverse_axis)
+        a_local = self.transverse_axes.index(self.invariant_axis)
+        eps = (
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        )
+        mu = (
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        )
+        pec = self._cell_pec_electric_component_masks(G)
+        pmc = self._cell_pmc_magnetic_component_masks(G)
+        return {
+            "eps_r_t": self._sample_1d_component(eps[t_local]),
+            "eps_r_a": self._sample_1d_component(eps[a_local]),
+            "eps_r_w": self._sample_1d_component(eps[2]),
+            "mu_r_t": self._sample_1d_component(mu[t_local]),
+            "mu_r_a": self._sample_1d_component(mu[a_local]),
+            "mu_r_w": self._sample_1d_component(mu[2]),
+            "pec_t_mask": self._sample_1d_component(pec[t_local]),
+            "pec_a_mask": self._sample_1d_component(pec[a_local]),
+            "pec_w_mask": self._sample_1d_component(pec[2]),
+            "pmc_t_mask": self._sample_1d_component(pmc[t_local]),
+            "pmc_a_mask": self._sample_1d_component(pmc[a_local]),
+            "pmc_w_mask": self._sample_1d_component(pmc[2]),
+        }
+
+    def _embed_1d_profile(self, profile, local_component, field_kind):
+        """Expand one physical line profile into a thin 2D Yee component."""
+        shape = self._expected_local_field_shapes(field_kind)[local_component]
+        result = np.zeros(shape, dtype=np.complex128)
+        invariant_local = self.transverse_axes.index(self.invariant_axis)
+        layer = 1 if self.domain_polarization == "TE" else 0
+        if invariant_local == 0:
+            result[layer, :] = profile
+        else:
+            result[:, layer] = profile
+        return result
+
     def _validate_modal_field_shapes(self):
         nu, nv = self._transverse_cell_shape()
         expected_e = ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
@@ -251,12 +397,17 @@ class EigenmodeSource(Source):
             f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
             f"_mode{self.mode_index}"
         )
-        e_path = output_dir / f"{filename_base}_Eu_Ev.png"
-        h_path = output_dir / f"{filename_base}_Hu_Hv.png"
-        solver.plot_e_fields(e_path)
-        solver.plot_h_fields(h_path)
-        logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
-        logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
+        if isinstance(solver, FDFD_1D_mode_solver):
+            field_path = output_dir / f"{filename_base}_{self.domain_polarization}_fields.png"
+            solver.plot_fields(field_path)
+            logger.info(f"Eigenmode 1D field profiles written to {field_path}")
+        else:
+            e_path = output_dir / f"{filename_base}_Eu_Ev.png"
+            h_path = output_dir / f"{filename_base}_Hu_Hv.png"
+            solver.plot_e_fields(e_path)
+            solver.plot_h_fields(h_path)
+            logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
+            logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
 
     def _select_plane_index(self, G):
         """Choose the normal-axis plane from the propagation direction."""

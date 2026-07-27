@@ -1093,13 +1093,25 @@ Allows you to introduce a two-dimensional eigenmode source port. The command ext
 
 * ``f1 f2 f3`` are the first point ``x0 y0 z0`` of the rectangular source port in metres.
 * ``f4 f5 f6`` are the opposite point ``x1 y1 z1`` of the rectangular source port in metres.
-* Exactly one coordinate pair must be the same between the two points. If ``x0=x1`` the port lies in the yz plane and is normal to x; if ``y0=y1`` the port lies in the xz plane and is normal to y; if ``z0=z1`` the port lies in the xy plane and is normal to z. Commands with zero, two, or three matching coordinate pairs are invalid because the source plane cannot be inferred unambiguously.
+* In a 3D model exactly one coordinate pair must be the same between the two points. If ``x0=x1`` the port lies in the yz plane and is normal to x; if ``y0=y1`` the port lies in the xz plane and is normal to y; if ``z0=z1`` the port lies in the xy plane and is normal to z.
+* In a 2D TM or TE model the source normal must be one of the two in-plane axes. The source becomes a line over the remaining physical transverse axis and must span the complete invariant-axis thickness. Use ``inf`` for the upper invariant coordinate. The source uses the one-dimensional Yee-staggered TM or TE eigensolver selected by ``#domain_mode``.
 * ``c1`` is the propagation direction from the source plane and can be ``+`` or ``-``.
 * ``i1`` is the zero-based mode index to excite.
 * ``f7`` is the frequency in Hertz used to solve the eigenmode fields.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
 For example, to specify an eigenmode source on the yz plane at ``x=0.008`` m, propagating in the positive x direction, using mode index 1 solved at 80 GHz and the waveform defined by the identifier ``eig_pulse``, use: ``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 80e9 eig_pulse``.
+
+For a TMz or TEz model, the equivalent invariant-axis form for a source
+normal to x is, for example:
+
+.. code-block:: none
+
+    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 80e9 eig_pulse
+
+The 2D modal fields are normalised to carry one watt per metre along the
+invariant direction. TM solves for the invariant electric component and TE
+solves for the invariant magnetic component.
 
 .. note::
 
