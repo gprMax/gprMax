@@ -85,6 +85,19 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
     logger.basic(f"Written output file: {outputfile.name}\n")
 
 
+def _global_position(grid, coordx: int, coordy: int, coordz: int, is_subgrid: bool):
+    """Converts a grid-local (x, y, z) index to a physical position in the
+    global/main-grid coordinate frame.
+
+    For the main grid, local index 0 coincides with the global origin so no
+    translation is needed. For a subgrid, SubGridBaseGrid.local_to_global
+    reverses the subgrid's boundary padding and i0/j0/k0 placement offset.
+    """
+    if is_subgrid:
+        return tuple(grid.local_to_global((coordx, coordy, coordz)))
+    return (coordx * grid.dx, coordy * grid.dy, coordz * grid.dz)
+
+
 def write_hd5_data(basegrp, grid, is_subgrid=False):
     """Writes grid meta data and data to HDF5 group.
 
@@ -121,20 +134,16 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     for srcindex, src in enumerate(srclist):
         grp = basegrp.create_group(f"srcs/src{str(srcindex + 1)}")
         grp.attrs["Type"] = type(src).__name__
-        grp.attrs["Position"] = (
-            src.xcoord * grid.dx,
-            src.ycoord * grid.dy,
-            src.zcoord * grid.dz,
+        grp.attrs["Position"] = _global_position(
+            grid, src.xcoord, src.ycoord, src.zcoord, is_subgrid
         )
 
     # Create group for transmission lines; add positional data, line resistance and
     # line discretisation attributes; write arrays for line voltages and currents
     for tlindex, tl in enumerate(grid.transmissionlines):
         grp = basegrp.create_group("tls/tl" + str(tlindex + 1))
-        grp.attrs["Position"] = (
-            tl.xcoord * grid.dx,
-            tl.ycoord * grid.dy,
-            tl.zcoord * grid.dz,
+        grp.attrs["Position"] = _global_position(
+            grid, tl.xcoord, tl.ycoord, tl.zcoord, is_subgrid
         )
         grp.attrs["Resistance"] = tl.resistance
         grp.attrs["dl"] = tl.dl
@@ -154,10 +163,8 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
         if rx.ID:
             grp.attrs["Name"] = rx.ID
-        grp.attrs["Position"] = (
-            rx.xcoord * grid.dx,
-            rx.ycoord * grid.dy,
-            rx.zcoord * grid.dz,
+        grp.attrs["Position"] = _global_position(
+            grid, rx.xcoord, rx.ycoord, rx.zcoord, is_subgrid
         )
 
         for output in rx.outputs:

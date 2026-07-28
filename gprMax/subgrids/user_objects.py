@@ -140,6 +140,12 @@ class SubGridBase(ModelUserObject):
         # Copy a reference for the main grid to the sub grid
         sg.parent_grid = model.G
 
+        # Inherit the time window from the main grid. Without this, sg.timewindow
+        # stays at the FDTDGrid default of 0.0, so any source built in the subgrid
+        # without an explicit start/stop (stop defaults to grid.timewindow) would
+        # only be active for iteration 0.
+        sg.timewindow = model.G.timewindow
+
         # Copy a subgrid reference to self so that children.build(grid, uip)
         # can access the correct grid.
         self.subgrid = sg
