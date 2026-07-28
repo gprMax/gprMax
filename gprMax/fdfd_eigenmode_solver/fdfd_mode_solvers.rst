@@ -1,12 +1,245 @@
-2D FDFD Eigenmode Solver
-========================
+FDFD Eigenmode Solvers
+======================
 
 Overview
 --------
 
-``fdfd_2d_mode_solver.py`` contains ``FDFD_2D_mode_solver``, a 2D
-full-vector finite-difference frequency-domain eigenmode solver used by gprMax
-to generate modal fields for eigenmode sources.
+gprMax uses two finite-difference frequency-domain eigenmode solvers:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Time-domain model
+     - Modal cross-section
+     - Solver
+   * - 2D TM or TE
+     - One physical transverse coordinate
+     - ``FDFD_1D_mode_solver``
+   * - 3D
+     - Two physical transverse coordinates
+     - ``FDFD_2D_mode_solver``
+
+Both solvers operate directly on component-sampled Yee grids, accept complex
+permittivity and permeability, enforce PEC and PMC constraints at the
+corresponding component locations, select the passive positive effective-index
+branch, and return power-normalised fields for ``EigenmodeSource``.
+
+1D Scalar Solver for 2D Models
+------------------------------
+
+``fdfd_1d_mode_solver.py`` supplies the scalar, Yee-staggered mode solve used
+by eigenmode sources in gprMax 2D TM and TE domains.
+
+1D Coordinates and Yee Shapes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The local basis is ``(t, a, w)``:
+
+``t``
+    The one physical transverse coordinate.
+
+``a``
+    The invariant 2D axis.
+
+``w``
+    The in-plane propagation direction and source normal.
+
+For ``N`` cells along ``t``, the native staggered shapes are:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Material array
+     - Field component
+     - Shape
+   * - ``eps_r_t``
+     - ``E_t``
+     - ``(N,)``
+   * - ``eps_r_a``
+     - ``E_a``
+     - ``(N + 1,)``
+   * - ``eps_r_w``
+     - ``E_w``
+     - ``(N + 1,)``
+   * - ``mu_r_t``
+     - ``H_t``
+     - ``(N + 1,)``
+   * - ``mu_r_a``
+     - ``H_a``
+     - ``(N,)``
+   * - ``mu_r_w``
+     - ``H_w``
+     - ``(N,)``
+
+The TM reduction solves the node-sampled scalar field ``E_a`` and reconstructs
+``H_t`` and ``H_w``. The TE reduction solves the cell-sampled scalar field
+``H_a`` and reconstructs ``E_t`` and ``E_w``. No derivative is taken through
+gprMax's artificial one-cell TM or two-cell TE invariant-axis thickness.
+
+1D Inputs
+^^^^^^^^^
+
+The constructor signature is:
+
+.. code-block:: python
+
+   FDFD_1D_mode_solver(
+       frequency,
+       dt,
+       mode_index,
+       polarization,
+       eps_r_t,
+       eps_r_a,
+       eps_r_w,
+       mu_r_t,
+       mu_r_a,
+       mu_r_w,
+       pec_t_mask=None,
+       pec_a_mask=None,
+       pec_w_mask=None,
+       pmc_t_mask=None,
+       pmc_a_mask=None,
+       pmc_w_mask=None,
+       guess=None,
+   )
+
+``frequency``
+    Modal solve frequency in Hz.
+
+``dt``
+    Yee-cell spacing along the physical transverse coordinate ``t``, in
+    metres. Despite its name, this is a spatial step rather than a time step.
+
+``mode_index``
+    Zero-based requested mode. The solver computes ``mode_index + 1`` modes
+    and exposes the selected one through ``modal_Et``, ``modal_Ea``,
+    ``modal_Ew``, ``modal_Ht``, ``modal_Ha``, ``modal_Hw`` and
+    ``modal_real_neff``.
+
+``polarization``
+    ``"TM"`` selects the ``E_a`` scalar problem. ``"TE"`` selects the ``H_a``
+    scalar problem.
+
+``eps_r_*`` and ``mu_r_*``
+    Complex relative material arrays sampled at the component locations in
+    `1D Coordinates and Yee Shapes`_.
+
+``pec_*_mask`` and ``pmc_*_mask``
+    Optional boolean masks at the matching electric or magnetic component
+    locations. Non-finite values in the corresponding material arrays are
+    also interpreted as constraints.
+
+``guess``
+    Optional ARPACK shift. If omitted, the solver derives a shift from the
+    largest finite material magnitude.
+
+1D Eigenproblem and Constraints
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The solver constructs a node-to-cell difference operator ``D_nc`` and its
+negative adjoint:
+
+.. code-block:: text
+
+   D_nc : node fields -> cell fields
+   D_cn = -D_nc.H : cell fields -> node fields
+
+Both operators are normalised by ``k0 * dt``. For TM, the scalar eigenproblem
+is assembled on the ``E_a`` nodes:
+
+.. code-block:: text
+
+   A_TM = -mu_t [D_cn inv(mu_w) D_nc + eps_a]
+   A_TM E_a = lambda E_a
+
+For TE, it is assembled on the ``H_a`` cells:
+
+.. code-block:: text
+
+   A_TE = -eps_t [D_nc inv(eps_w) D_cn + mu_a]
+   A_TE H_a = lambda H_a
+
+In both cases:
+
+.. code-block:: text
+
+   n_eff = sqrt(-lambda)
+
+The square-root branch is chosen for positive phase propagation and
+non-negative attenuation.
+
+PEC constraints remove electric scalar degrees of freedom from the TM
+problem, while PMC constraints remove magnetic scalar degrees of freedom from
+the TE problem. Longitudinal inverse-material operators are evaluated only on
+unconstrained degrees of freedom: constrained entries receive a zero inverse.
+After the reduced sparse eigenproblem is solved, the eigenvectors are expanded
+back to their full node or cell arrays and every constrained field component
+is explicitly zeroed.
+
+1D Field Reconstruction
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+For TM, the selected ``E_a`` eigenvector gives:
+
+.. code-block:: text
+
+   H_t = -n_eff E_a / (eta0 mu_t)
+   H_w = -i inv(mu_w) D_nc E_a / eta0
+
+For TE, the selected ``H_a`` eigenvector gives:
+
+.. code-block:: text
+
+   E_t = eta0 n_eff H_a / eps_t
+   E_w = i eta0 inv(eps_w) D_cn H_a
+
+The other three field components are identically zero for the selected 2D
+polarization. The reconstructed electric fields are in V/m and magnetic
+fields are in A/m.
+
+1D Normalisation and Phase Alignment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each mode is normalised to one watt per metre of invariant-axis length. For
+TM, node-sampled ``E_a`` and ``H_t`` are first averaged onto transverse cells:
+
+.. code-block:: text
+
+   P_TM = 0.5 Re sum(-E_a H_t*) dt
+
+For TE, ``E_t`` and ``H_a`` already share the cell locations:
+
+.. code-block:: text
+
+   P_TE = 0.5 Re sum(E_t H_a*) dt
+
+If the initial power is negative, all magnetic fields are reversed before
+normalisation. Each complex mode is then phase-rotated so that the real-valued
+profiles used by the FDTD injection carry positive real-profile power.
+
+1D gprMax Integration
+^^^^^^^^^^^^^^^^^^^^^^
+
+``EigenmodeSource`` samples component materials from the mode's live invariant
+layer, supplies the corresponding PEC/PMC masks, and maps the returned line
+profiles back into the thin 3D Yee arrays used by the CPU update kernels.
+The TM source uses the single live invariant layer; the TE source uses the
+shared interior layer of its two-cell invariant thickness. Inactive components
+and TE outer boundary planes are explicitly zero.
+
+Modes are selected using the same shift-invert convention as the full-vector
+2D solver. ``plot_fields`` writes one row per computed mode with line plots of
+all three active fields, including their node- or cell-sampled locations.
+
+2D Full-Vector Solver for 3D Models
+-----------------------------------
+
+``fdfd_2d_mode_solver.py`` contains ``FDFD_2D_mode_solver``, the full-vector
+solver used when a gprMax eigenmode source has two physical transverse
+coordinates.
+
+2D Coordinates and Yee Shapes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The solver works in a local coordinate system rather than the global gprMax
 ``x``, ``y`` and ``z`` axes:
@@ -28,9 +261,6 @@ The solver is built on a true staggered Yee grid. Material arrays supplied to
 the constructor must already be sampled at the corresponding local field
 component locations. The solver does not average cell-centred material data and
 it does not collapse all fields onto a common rectangular array.
-
-Local Yee Shapes
-----------------
 
 For a transverse source region containing ``Nu`` by ``Nv`` Yee cells, the
 expected local component shapes are:
@@ -85,8 +315,8 @@ longitudinal fields ``E_w`` and ``H_w`` are still reconstructed because they
 are part of the full-vector mode solution, but the TF/SF correction kernels use
 only the tangential/transverse modal components.
 
-Inputs
-------
+2D Inputs
+^^^^^^^^^
 
 The constructor signature is:
 
@@ -127,7 +357,7 @@ The constructor signature is:
 
 ``eps_r_*`` and ``mu_r_*``
     Complex relative permittivity and permeability arrays sampled at the local
-    Yee component locations listed in `Local Yee Shapes`_.
+    Yee component locations listed in `2D Coordinates and Yee Shapes`_.
 
 ``pec_u_mask``, ``pec_v_mask``, ``pec_w_mask``
     Optional explicit boolean masks for constrained electric degrees of
@@ -142,8 +372,8 @@ The constructor signature is:
     Optional ARPACK shift. If omitted, the solver chooses a conservative shift
     from the largest finite material magnitude.
 
-Array Ordering
---------------
+2D Array Ordering
+^^^^^^^^^^^^^^^^^
 
 All component arrays are flattened with Fortran order:
 
@@ -160,8 +390,8 @@ and modal vectors are reshaped back with:
 There is no axis-order switch. gprMax must pass local ``u``/``v`` slices in the
 same native transverse ordering used by the extracted source plane.
 
-PEC Handling
-------------
+2D PEC Handling
+^^^^^^^^^^^^^^^
 
 PEC is represented as constrained electric degrees of freedom, not as a large
 finite permittivity approximation.
@@ -197,8 +427,8 @@ The physics is carried by removed/constrained degrees of freedom, not by the
 placeholder value. Large finite values such as ``1e8`` or ``1e10`` are ordinary
 finite material values and are intentionally not treated as PEC.
 
-Eigenproblem
-------------
+2D Eigenproblem
+^^^^^^^^^^^^^^^
 
 The solver constructs rectangular sparse derivative matrices between true Yee
 component grids. The core local operators are:
@@ -246,8 +476,8 @@ Because the operators connect the correct staggered Yee component grids, there
 is no separate PEC-neighbour spurious-mode rejection heuristic in this solver.
 The old candidate scoring/filtering path has been removed.
 
-Degree-of-Freedom Reduction
----------------------------
+2D Degree-of-Freedom Reduction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 PEC constraints are applied by removing constrained transverse electric degrees
 of freedom from the eigenproblem:
@@ -264,8 +494,8 @@ longitudinal degrees of freedom. Constrained entries receive zero inverse
 values so that no division by ``np.inf`` or placeholder data affects the
 reconstructed fields.
 
-Field Reconstruction
---------------------
+2D Field Reconstruction
+^^^^^^^^^^^^^^^^^^^^^^^
 
 After solving the eigenproblem, the solver reconstructs:
 
@@ -283,8 +513,8 @@ Magnetic fields are converted to physical A/m using ``eta0``:
 The solver then zeroes all constrained fields to ensure returned modal fields
 satisfy the enforced constraints exactly.
 
-Normalisation and Phase Alignment
----------------------------------
+2D Normalisation and Phase Alignment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Modes are normalised to carry one watt of time-average power. Power is computed
 from cell-centred transverse Poynting flux by averaging the staggered
@@ -299,8 +529,8 @@ before normalisation. After normalisation, each complex mode is phase-rotated
 so that its real-valued field profile carries positive real-profile power.
 This makes plotted and injected real fields easier to interpret.
 
-gprMax Integration
-------------------
+2D gprMax Integration
+^^^^^^^^^^^^^^^^^^^^^
 
 ``sources.py`` extracts complex material tensors from ``G.ID`` after the Yee
 grid has been built. This is the correct integration point because ``G.ID`` is
@@ -343,53 +573,18 @@ slots. The Cython injection kernels consume the transverse components with
 their native staggered shapes; longitudinal modal fields are stored but are not
 used for TF/SF source corrections.
 
-PEC and PMC Material Geometry
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Eigenmode sources need the FDFD mode solve and the time-domain FDTD injection
-to see the same PEC and PMC boundaries. This is stricter than ordinary
-geometry placement because the FDFD solver removes constrained electric or
-magnetic degrees of freedom from the modal eigenproblem, while the FDTD source
-later injects the same modal fields through the Yee-grid update coefficients.
-
-A PEC ``#box`` is specified by cell-centred extents, but electric fields live
-on component-specific Yee edges. The box builder assigns the full native range
-for each electric component, including the high-side tangential edges. This
-makes the component material IDs, the FDTD update coefficients, and the FDFD
-PEC masks agree at the source cross-section without an eigenmode-specific
-geometry option.
-
-A PMC volume follows the magnetic dual layout. For each cell, the box and voxel
-builders assign the two own-axis faces of ``H_u`` and ``H_v`` and the matching
-normal ``H_w`` face. ``sources.py`` converts ``sm == inf`` component samples to
-PMC constraints and supplements them from cell-centred geometry so both faces
-remain constrained at material interfaces. Direct ``#magnetic_edge`` PMC
-assignments are detected from their component material IDs.
-
-The related implementation points are:
-
-* ``gprMax/cython/geometry_primitives.pyx`` assigns the complete component-wise
-  Yee ranges for non-averaged boxes.
-* ``gprMax/sources.py`` builds local source-plane PEC and PMC masks with native
-  Yee component shapes and passes them into the FDFD solver.
-* ``gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py`` consumes the explicit
-  component masks and removes constrained electric or magnetic degrees of
-  freedom from the eigenproblem.
-
-The 2D TM artificial PEC boundaries do not use ``box.py``. They are applied by
-the grid setup code for ``2D TMx``, ``2D TMy`` and ``2D TMz`` models.
-
 Limitations
 -----------
 
 * Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
-* Electric PEC and magnetic PMC constraints are supported and are used by
-  gprMax eigenmode sources.
-* Large finite permittivity or permeability is not PEC or PMC.
 * The finite-difference operators use first-order sparse Yee-grid differences.
+* A mode is solved at one frequency and used to approximate the spatial field
+  profile of the broadband FDTD source. Frequency-dependent changes in modal
+  shape, effective index, dispersion, and loss are therefore not represented
+  across the full source bandwidth.
 
-Recommended Usage
------------------
+Recommended 2D-Solver Usage
+---------------------------
 
 For gprMax integration, use this path:
 
