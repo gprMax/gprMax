@@ -34,6 +34,45 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
 from gprMax.materials import Material
 
 
+def _material_id_index(G):
+    """Returns a dict mapping material.ID -> material for every entry
+    currently in G.materials, incrementally extending a cache stored on
+    G rather than rescanning the whole list every call.
+
+    create_electric_average()/create_magnetic_average() used to look up
+    "does this compound material already exist" via a linear scan
+    (`[x for x in G.materials if x.ID == requiredID]`) - O(n) per lookup,
+    called once per boundary cell, against a list that itself grows with
+    every new compound material. For a large fine-grained fractal box
+    (many base materials -> many distinct compound IDs at boundaries)
+    this made building the Yee cells visibly slow (effectively O(n^2)).
+
+    Safe against materials being appended by any other code path between
+    calls (not just these two functions): each call only needs to catch
+    up from where it last left off, since G.materials is only ever
+    appended to, never reordered or removed from. Preserves the original
+    "first match wins" semantics of the linear scan (a later append with
+    a duplicate .ID, if that were ever to happen, is not overwritten).
+    """
+    index = getattr(G, "_material_id_index", None)
+    if index is None:
+        index = {}
+        G._material_id_index = index
+        G._material_id_index_scanned = 0
+
+    materials = G.materials
+    n = len(materials)
+    scanned = G._material_id_index_scanned
+    if scanned < n:
+        for idx in range(scanned, n):
+            material = materials[idx]
+            if material.ID not in index:
+                index[material.ID] = material
+        G._material_id_index_scanned = n
+
+    return index
+
+
 @cython.cdivision(True)
 cdef inline double harmonic_mean2(double a, double b) noexcept nogil:
     """Harmonic mean of two values.
@@ -84,10 +123,11 @@ cpdef void create_electric_average(
     requiredID = Material.create_compound_id(G.materials[numID1], G.materials[numID2], G.materials[numID3], G.materials[numID4])
 
     # Check if this material already exists
-    material = [x for x in G.materials if x.ID == requiredID]
+    index = _material_id_index(G)
+    material = index.get(requiredID)
 
-    if material:
-        G.ID[componentID, i, j, k] = material[0].numID
+    if material is not None:
+        G.ID[componentID, i, j, k] = material.numID
     else:
         # Create new material
         newNumID = len(G.materials)
@@ -105,6 +145,8 @@ cpdef void create_electric_average(
 
         # Append the new material object to the materials list
         G.materials.append(m)
+        index[requiredID] = m
+        G._material_id_index_scanned = len(G.materials)
 
         G.ID[componentID, i, j, k] = newNumID
 
@@ -157,10 +199,11 @@ cpdef void create_magnetic_average(
         requiredID = "Hmag_" + requiredID
 
     # Check if this material already exists
-    material = [x for x in G.materials if x.ID == requiredID]
+    index = _material_id_index(G)
+    material = index.get(requiredID)
 
-    if material:
-        G.ID[componentID, i, j, k] = material[0].numID
+    if material is not None:
+        G.ID[componentID, i, j, k] = material.numID
     else:
         # Create new material
         newNumID = len(G.materials)
@@ -181,6 +224,8 @@ cpdef void create_magnetic_average(
 
         # Append the new material object to the materials list
         G.materials.append(m)
+        index[requiredID] = m
+        G._material_id_index_scanned = len(G.materials)
 
         G.ID[componentID, i, j, k] = newNumID
 
