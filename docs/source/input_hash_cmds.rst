@@ -1031,6 +1031,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * Internally, theta and phi are approximated by an integer direction vector (Mx, My, Mz) found to within a maximum acceptable angular difference of 3 arc minutes (0.05 degrees) by default. This tolerance can be relaxed or tightened using the ``max_angle_diff`` parameter (in degrees) when using the Python API.
 
 #plane_wave_vector:
 ---------------------

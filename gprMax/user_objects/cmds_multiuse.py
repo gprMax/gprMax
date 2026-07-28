@@ -1131,7 +1131,8 @@ class DiscretePlaneWaveAngles(GridUserObject):
         phi: float required for propagation angle (degrees) of wave.
         psi: float required for polarisation of wave.
         max_angle_diff: float optional for tolerance of maximum acceptable angular difference between the
-                        desired direction of the wavevector and the estimated direction of it (degrees)
+                        desired direction of the wavevector and the estimated direction of it (degrees).
+                        Default is 3 arc minutes (0.05 degrees).
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
@@ -1168,8 +1169,21 @@ class DiscretePlaneWaveAngles(GridUserObject):
         try:
             max_angle_diff = self.kwargs["max_angle_diff"]
         except KeyError:
-            # Set default to 1 minute of arc
-            max_angle_diff = 0.017
+            # 1 arcminute (0.017) is tighter than the rounding error already
+            # introduced by writing theta/phi to just 1 decimal place - the
+            # normal way angles are specified - so a "nice" direction like
+            # (1, 2, 3) (theta=36.699.., phi=63.435..) rounds to 36.7/63.4,
+            # whose true angular error (~0.021 deg) then falls just outside
+            # a 0.017 deg tolerance. That silently rejects the small,
+            # obviously-intended integer vector and falls through to a far
+            # larger, far more expensive one satisfying the tolerance by
+            # chance, with no indication a much simpler solution existed.
+            # Default to 3 arc minutes (0.05 deg), which comfortably
+            # recovers 1-decimal-place "nice" vectors (verified against
+            # several, up to size 8) while still being a small fraction of
+            # a degree - well beyond what matters for practical FDTD
+            # propagation-direction accuracy.
+            max_angle_diff = 0.05
 
         try:
             material_id = self.kwargs["material_id"]
