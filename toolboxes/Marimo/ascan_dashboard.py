@@ -204,7 +204,7 @@ def _(
         _remove_section = mo.vstack(
             [
                 mo.md("**Remove a trace**"),
-                mo.hstack([remove_selector, remove_button], gap="1rem"),
+                mo.hstack([remove_selector, remove_button], gap="1rem", justify="start"),
             ],
             gap="0.3rem",
         )
@@ -223,10 +223,10 @@ def _(
                     "override before clicking Add._"
                 ),
                 mo.md("**Select source**"),
-                mo.hstack([file_selector, receiver_selector], gap="2rem"),
+                mo.hstack([file_selector, receiver_selector], gap="2rem", justify="start"),
                 mo.md("**Select component and colour**"),
-                mo.hstack([component_selector, colour_selector], gap="2rem"),
-                mo.hstack([add_button, clear_button], gap="1rem"),
+                mo.hstack([component_selector, colour_selector], gap="2rem", justify="start"),
+                mo.hstack([add_button, clear_button], gap="1rem", justify="start"),
                 mo.md("---"),
                 _remove_section,
             ],
@@ -363,6 +363,7 @@ def _(mo):
         step=0.5,
         value=1.5,
         label="Line width",
+        debounce=True,
     )
     font_size = mo.ui.slider(
         start=10,
@@ -370,6 +371,7 @@ def _(mo):
         step=1,
         value=13,
         label="Font size",
+        debounce=True,
     )
     show_grid = mo.ui.checkbox(label="Show grid", value=True)
 
@@ -408,6 +410,7 @@ def _(get_data, get_traces, mo):
         value=[0.0, _max_ns],
         label="Time window (ns)",
         full_width=True,
+        debounce=True,
     )
     mo.output.replace(
         mo.vstack(
@@ -629,49 +632,44 @@ def _(
     except Exception as _e:
         _csv_btn = mo.md(f"_CSV export error: `{_e}`_")
 
-    # ── SVG export ──────────────────────────────────────────────────────────
-    try:
+    # ── SVG/PDF export ─────────────────────────────────────────────────────
+    # Lazy on purpose: mo.download accepts a zero-arg callable and only
+    # calls it when the button is clicked. kaleido spins up headless
+    # Chrome per export, which is slow — computing it eagerly here meant
+    # this cell paid that cost twice (SVG + PDF) on every re-render, which
+    # includes every appearance-control change and every drag tick of an
+    # undebounced slider. Same bug and same fix as bscan_dashboard.py.
+    def _make_svg():
         import plotly.io as _pio
+        return _pio.to_image(_fig, format="svg", width=1200, height=600, scale=2)
 
-        _svg_bytes = _pio.to_image(_fig, format="svg", width=1200, height=600, scale=2)
-        _svg_btn = mo.download(
-            data=_svg_bytes,
-            filename="gprmax_ascan.svg",
-            label="Download SVG",
-            mimetype="image/svg+xml",
-        )
-    except Exception as _e:
-        _svg_btn = mo.md(
-            f"_SVG: `{type(_e).__name__}` — "
-            f"run `plotly_get_chrome` to install kaleido's Chrome, "
-            f"or use the camera icon in the plot toolbar._"
-        )
-
-    # ── PDF export ──────────────────────────────────────────────────────────
-    try:
+    def _make_pdf():
         import plotly.io as _pio
+        return _pio.to_image(_fig, format="pdf", width=1200, height=600, scale=2)
 
-        _pdf_bytes = _pio.to_image(_fig, format="pdf", width=1200, height=600, scale=2)
-        _pdf_btn = mo.download(
-            data=_pdf_bytes,
-            filename="gprmax_ascan.pdf",
-            label="Download PDF",
-            mimetype="application/pdf",
-        )
-    except Exception as _e:
-        _pdf_btn = mo.md(f"_PDF: `{type(_e).__name__}` — run `plotly_get_chrome` first._")
+    _svg_btn = mo.download(
+        data=_make_svg, filename="gprmax_ascan.svg", label="Download SVG", mimetype="image/svg+xml"
+    )
+    _pdf_btn = mo.download(
+        data=_make_pdf, filename="gprmax_ascan.pdf", label="Download PDF", mimetype="application/pdf"
+    )
 
-    # ── Interactive HTML — no kaleido needed ────────────────────────────────
-    try:
-        _html_bytes = _fig.to_html(full_html=True, include_plotlyjs=True).encode("utf-8")
-        _html_btn = mo.download(
-            data=_html_bytes,
-            filename="gprmax_ascan.html",
-            label="Download HTML (interactive)",
-            mimetype="text/html",
-        )
-    except Exception:
-        _html_btn = mo.md("")
+    # ── Interactive HTML — no kaleido needed, but still lazy ───────────────
+    # to_html(include_plotlyjs=True) embeds the entire Plotly.js library
+    # (several MB) as base64 into the button's data on every render,
+    # regardless of how much actual trace data there is. Not slow like
+    # kaleido since there's no external process, but still pure waste to
+    # recompute on every appearance/zoom change for a download that may
+    # never be clicked.
+    def _make_html():
+        return _fig.to_html(full_html=True, include_plotlyjs=True).encode("utf-8")
+
+    _html_btn = mo.download(
+        data=_make_html,
+        filename="gprmax_ascan.html",
+        label="Download HTML (interactive)",
+        mimetype="text/html",
+    )
 
     # ── Notes ────────────────────────────────────────────────────────────────
     _notes = []
