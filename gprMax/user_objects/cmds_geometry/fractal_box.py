@@ -162,6 +162,19 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 + "ID {mixing_model_id} does not exist"
             )
 
+        # grid.add_fractal_volume() already appends the new volume to
+        # grid.fractalvolumes (and MPIGrid's override does the same) -
+        # an extra `grid.fractalvolumes.append(self.volume)` used to sit
+        # at the end of this method, registering the identical object a
+        # second time. Harmless for add_grass/add_surface_roughness/
+        # add_surface_water (they only ever take the first match) and
+        # fractal generation itself (triggered directly via self.volume,
+        # never by iterating grid.fractalvolumes), but FDTDGrid.
+        # mem_est_fractals() sums memory per entry in that list, so every
+        # fractal box's estimated memory was silently doubled in the
+        # pre-run "Memory required" report and the host memory-sufficiency
+        # check (gprMax/utilities/host_info.py) - not real wasted memory
+        # (no second array was ever allocated), just an inflated estimate.
         self.volume = grid.add_fractal_volume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         self.volume.ID = ID
         self.volume.operatingonID = mixing_model_id
@@ -181,7 +194,6 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             f"with {self.volume.nbins} material(s) created, dielectric smoothing "
             f"is {dielectricsmoothing}."
         )
-        grid.fractalvolumes.append(self.volume)
 
     def build(self, grid: FDTDGrid):
         if self.do_pre_build:
@@ -758,6 +770,21 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     grid.ID,
                 )
 
+                # fractalvolume/mask are only needed to build the voxel data
+                # above (already consumed into grid.solid/rigidE/rigidH/ID) -
+                # nothing later reads them again (generate_fractal_volume()
+                # never reruns for this box: build() only takes this branch
+                # once, and geometry_fixed reuse skips build() entirely on
+                # later runs). Freeing them here matters for multi-scene
+                # sweeps, where the caller's own scenes list keeps every
+                # Scene - and therefore every FractalBox/FractalVolume -
+                # alive for the whole run; without this, a large fractal
+                # box's array (real memory, sized to its cell count) would
+                # otherwise persist for as long as the caller holds that
+                # scene, accumulating across scenes.
+                self.volume.fractalvolume = None
+                self.volume.mask = None
+
             else:
                 if self.volume.nbins == 1:
                     raise ValueError(
@@ -795,3 +822,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     grid.rigidH,
                     grid.ID,
                 )
+
+                # See the comment on the equivalent free in the
+                # fractalsurfaces branch above - fractalvolume is fully
+                # consumed by this point and never read again.
+                self.volume.fractalvolume = None
