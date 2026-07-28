@@ -20,6 +20,7 @@ import pytest
 
 import gprMax
 import gprMax.model as model_mod
+from gprMax.fractals.fractal_volume import FractalVolume
 
 INF = float("inf")
 
@@ -65,6 +66,28 @@ def _base_scene(mode, dl=1e-3):
 
 
 def _run_fractal_box(monkeypatch, mode, tmp_path, seed=42, n_materials=3):
+    # FractalBox.build() frees volume.fractalvolume/.mask once it has
+    # consumed them into grid.solid/rigidE/rigidH/ID (see
+    # gprMax/gprMax#389 - a large fractal box's array otherwise persists
+    # for as long as the caller's own Scene object does, accumulating
+    # across a multi-scene sweep). This test needs to inspect the raw
+    # per-bin fractal pattern afterward to verify TE-mode invariance, so
+    # snapshot it via generate_fractal_volume() (before the later
+    # bin->material-ID remapping and the free) and restore it onto the
+    # volume once the run completes - the shape/equality/invariance
+    # properties asserted below hold identically at this point, since the
+    # remapping that follows is a deterministic per-element lookup applied
+    # uniformly to both invariant-axis cells.
+    fractalvolume_snapshot = {}
+    orig_generate = FractalVolume.generate_fractal_volume
+
+    def patched_generate(self):
+        result = orig_generate(self)
+        fractalvolume_snapshot["value"] = self.fractalvolume.copy()
+        return result
+
+    monkeypatch.setattr(FractalVolume, "generate_fractal_volume", patched_generate)
+
     scene = _base_scene(mode)
     scene.add(
         gprMax.FractalBox(
@@ -87,7 +110,9 @@ def _run_fractal_box(monkeypatch, mode, tmp_path, seed=42, n_materials=3):
         hide_progress_bars=True,
     )
     grid = captured["grid"]
-    return next(v for v in grid.fractalvolumes if v.ID == "fb1")
+    volume = next(v for v in grid.fractalvolumes if v.ID == "fb1")
+    volume.fractalvolume = fractalvolume_snapshot["value"]
+    return volume
 
 
 def test_te_fractal_volume_invariant_across_both_cells(monkeypatch, tmp_path):
