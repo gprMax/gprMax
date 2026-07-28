@@ -298,3 +298,39 @@ def test_reads_genuinely_external_materials_file(tmp_path, monkeypatch):
     assert aorta_material.ID.startswith("Aorta")
     assert aorta_material.er == pytest.approx(44.77)
     assert background_material.ID == "free_space"
+
+
+def test_incomplete_materials_file_raises_clear_error(tmp_path, monkeypatch):
+    """GitHub #497: a written region using two materials (pec + the
+    implicit free_space background) paired with a hand-edited materials
+    file that only declares one of them (matching the reporter's own
+    materials.txt, which listed just "pec") used to crash deep inside numpy
+    fancy-indexing with a bare `IndexError: index 1 is out of bounds for
+    axis 0 with size 1` - confirmed still reproducible against current code
+    before this fix. Must now raise a clear, actionable ValueError instead.
+    """
+    geofile, matfile = _write_geometry(
+        tmp_path, [((0.005, 0.005, 0.005), (0.015, 0.015, 0.015), "pec")]
+    )
+    # Reproduce the reporter's own materials.txt: only "pec" declared, even
+    # though the written region also used free_space as its background.
+    incomplete_matfile = tmp_path / "incomplete_materials.txt"
+    incomplete_matfile.write_text("#material: 1 inf 1 0 pec\n")
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.Title(name="read"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0.0, 0.0, 0.0), geofile=str(geofile), matfile=str(incomplete_matfile)
+        )
+    )
+
+    with pytest.raises(ValueError, match="only declares 1 material"):
+        gprMax.run(
+            scenes=[scene], n=1, geometry_only=True,
+            outputfile=tmp_path / "read", hide_progress_bars=True,
+        )

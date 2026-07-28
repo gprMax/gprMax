@@ -150,6 +150,31 @@ class ReadGeometryObject(AbstractContextManager):
         reps[axis] = self.target_invariant_size + 1
         return np.tile(canonical, reps)
 
+    def _check_material_coverage(self, data: npt.NDArray[np.int16]) -> None:
+        """Raises a clear error if `data` references a file-local material
+        index this file's materials file never declared, rather than
+        letting numpy fancy-indexing fail with a bare IndexError. This
+        happens whenever the materials file supplied to
+        #geometry_objects_read omits a material that was actually present
+        (and so given an index) when the geometry file was originally
+        written - most commonly the implicit background material (e.g.
+        free_space) of the written region, if the user only listed the
+        material(s) they specifically cared about.
+        """
+        max_index = int(data.max()) if data.size else -1
+        n_declared = len(self.material_id_map)
+        if max_index >= n_declared:
+            raise ValueError(
+                f"'{self.file_handler.filename}' references material index "
+                f"{max_index}, but the accompanying materials file only "
+                f"declares {n_declared} "
+                "material(s). The materials file must list every material "
+                "present in the written region (including any implicit "
+                "background material, e.g. free_space) in the same order "
+                "they appeared when the geometry object file was written, "
+                "not just the ones of interest."
+            )
+
     def _remap(
         self, data: npt.NDArray[np.int16], existing: npt.NDArray[np.uint32]
     ) -> npt.NDArray[np.int32]:
@@ -162,6 +187,7 @@ class ReadGeometryObject(AbstractContextManager):
         and, in a model with prior geometry (e.g. a fractal soil built
         before an imported target), isn't the same thing as free_space.
         """
+        self._check_material_coverage(data)
         safe_indices = np.where(data < 0, 0, data)
         mapped = self.material_id_map[safe_indices]
         return np.where(data < 0, existing, mapped)
@@ -253,6 +279,7 @@ class ReadGeometryObject(AbstractContextManager):
         if data.dtype != "int16":
             data = data.astype("int16")
 
+        self._check_material_coverage(data)
         safe_indices = np.where(data < 0, 0, data)
         mapped = self.material_id_map[safe_indices].astype(data.dtype)
         return np.where(data < 0, data, mapped)
