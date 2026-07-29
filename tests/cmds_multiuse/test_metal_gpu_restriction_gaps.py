@@ -4,11 +4,8 @@ gprMax/user_objects/cmds_multiuse.py listed "cuda"/"opencl" but omitted
 feature they gate:
 
 1. TransmissionLine._validate_parameters() rejects transmission lines on
-   CUDA/OpenCL (no update path exists for them there), but Metal - which
-   also has zero transmission-line handling in
-   gprMax/updates/metal_updates.py - fell through and was silently
-   accepted. A Metal transmission-line model would run with no excitation
-   at all, and meaningless Vtotal/Itotal outputs.
+   OpenCL and Metal until their host-side lifecycle is enabled. CUDA has a
+   device-resident implementation.
 2. Rx.build()'s allowable-outputs check restricts CUDA/OpenCL receivers to
    the 6 field components the shared GPU kernel
    (gprMax/cuda_opencl/knl_store_outputs.py) actually writes, but Metal
@@ -23,6 +20,8 @@ Follows the established pattern (see tests/test_receivers_dtoh.py) of
 replacing config.sim_config wholesale to fake a non-CPU solver without
 needing real GPU/Metal hardware present.
 """
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -34,10 +33,11 @@ def _set_solver(monkeypatch, solver):
     monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
     config.sim_config.general = {"solver": solver}
     config.sim_config.dtypes = {"float_or_double": np.float64}
+    config.sim_config.em_consts = {"z0": 376.730313668}
 
 
-@pytest.mark.parametrize("solver", ["cuda", "opencl", "metal"])
-def test_transmission_line_rejected_on_every_gpu_solver(monkeypatch, solver):
+@pytest.mark.parametrize("solver", ["opencl", "metal"])
+def test_transmission_line_rejected_on_unimplemented_gpu_solvers(monkeypatch, solver):
     _set_solver(monkeypatch, solver)
 
     tl = TransmissionLine(
@@ -46,6 +46,21 @@ def test_transmission_line_rejected_on_every_gpu_solver(monkeypatch, solver):
 
     with pytest.raises(ValueError, match="cannot currently be used"):
         tl._validate_parameters(grid=None)
+
+
+def test_transmission_line_is_allowed_on_cuda(monkeypatch):
+    _set_solver(monkeypatch, "cuda")
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(mode="3D"),
+    )
+    grid = SimpleNamespace(waveforms=[SimpleNamespace(ID="w")])
+    tl = TransmissionLine(
+        p1=(0.01, 0.01, 0.01), polarisation="x", resistance=50, waveform_id="w"
+    )
+
+    tl._validate_parameters(grid)
 
 
 @pytest.mark.parametrize("solver", ["cuda", "opencl", "metal"])

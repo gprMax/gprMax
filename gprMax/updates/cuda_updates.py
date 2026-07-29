@@ -31,6 +31,7 @@ from gprMax.cuda_opencl import (
     knl_source_updates,
     knl_store_outputs,
     knl_symmetry_boundaries,
+    knl_transmission_line,
 )
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.ntff.device import CUDACombinedKSIRCollector
@@ -42,7 +43,11 @@ from gprMax.snapshots import (
     htod_snapshot_array,
     update_snapshot_max_dims,
 )
-from gprMax.sources import htod_src_arrays
+from gprMax.sources import (
+    dtoh_transmission_line_outputs,
+    htod_src_arrays,
+    htod_transmission_line_arrays,
+)
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
 
@@ -106,6 +111,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self._set_rx_knl()
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
             self._set_src_knls()
+        if self.grid.transmissionlines:
+            self._set_transmission_line_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
         self.ntff_collector = None
@@ -348,6 +355,55 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self._copy_mat_coeffs(knl, knl)
 
+    def _set_transmission_line_knls(self):
+        """Initialise device-resident transmission lines and their kernels."""
+
+        arrays = htod_transmission_line_arrays(self.grid.transmissionlines, self.grid)
+        for name, array in arrays.items():
+            setattr(self, f"tl_{name}_dev", array)
+
+        real = config.sim_config.dtypes["float_or_double"]
+        line = self.grid.transmissionlines[0]
+        self.tl_line_coefficient = real(config.c * self.grid.dt / line.dl)
+        self.tl_abc_coefficient = real(
+            (config.c * self.grid.dt - line.dl) / (config.c * self.grid.dt + line.dl)
+        )
+        self.tl_tpb = (32, 1, 1)
+        self.tl_bpg = (
+            int(np.ceil(len(self.grid.transmissionlines) / self.tl_tpb[0])),
+            1,
+            1,
+        )
+
+        substitutions = dict(self.subs_func)
+        substitutions.update(
+            {
+                "NY_TLINFO": 10,
+                "NY_TLWAVES": self.grid.iterations + 1,
+                "NY_TLOUTPUTS": self.grid.iterations + 1,
+            }
+        )
+
+        source = self._build_knl(
+            knl_transmission_line.update_transmission_line_magnetic,
+            self.subs_name_args,
+            substitutions,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_transmission_line_magnetic_dev = module.get_function(
+            "update_transmission_line_magnetic"
+        )
+
+        source = self._build_knl(
+            knl_transmission_line.update_transmission_line_electric,
+            self.subs_name_args,
+            substitutions,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_transmission_line_electric_dev = module.get_function(
+            "update_transmission_line_electric"
+        )
+
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on GPU, prepares kernel and gets kernel
         function.
@@ -509,6 +565,28 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
     def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
+        if self.grid.transmissionlines:
+            self.update_transmission_line_magnetic_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_info_dev.gpudata,
+                self.tl_resistance_dev.gpudata,
+                self.tl_waveform_half_dev.gpudata,
+                self.tl_voltage_dev.gpudata,
+                self.tl_current_dev.gpudata,
+                self.tl_Vtotal_dev.gpudata,
+                self.tl_Itotal_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+                block=self.tl_tpb,
+                grid=self.tl_bpg,
+            )
+
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
@@ -617,6 +695,29 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=(round32(len(self.grid.voltagesources)), 1, 1),
             )
 
+        if self.grid.transmissionlines:
+            self.update_transmission_line_electric_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_abc_coefficient,
+                self.tl_info_dev.gpudata,
+                self.tl_resistance_dev.gpudata,
+                self.tl_waveform_whole_dev.gpudata,
+                self.tl_voltage_dev.gpudata,
+                self.tl_current_dev.gpudata,
+                self.tl_abcv0_dev.gpudata,
+                self.tl_abcv1_dev.gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                block=self.tl_tpb,
+                grid=self.tl_bpg,
+            )
+
         if self.grid.hertziandipoles:
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
@@ -696,6 +797,11 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
+
+        if self.grid.transmissionlines:
+            dtoh_transmission_line_outputs(
+                self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
+            )
 
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:

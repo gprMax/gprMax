@@ -474,6 +474,14 @@ Transmission Line
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.TransmissionLine
 
+Every transmission-line source automatically writes its incident and terminal
+voltage/current histories together with ``frequency``, ``S11``, ``Zin``, and
+``Yin`` beneath ``/tls/tlN`` in the model HDF5 output. ``Zin`` is derived from
+the voltage-wave S11 result; ``Zin_current`` is an independent, stagger-aware
+current-wave check. An additional :class:`RxPort` is only needed for a
+resistive voltage source, not for a transmission line. See
+:ref:`Simulation Output <output>` for the equations and validity masks.
+
 All local sources refer to the ID of a waveform that has already been added to
 the scene. The following illustrates their required arguments; a model would
 normally contain only the source or sources that it needs:
@@ -557,6 +565,43 @@ Receiver
 Receiver Array
 --------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.RxArray
+
+Voltage-source S11 and input impedance
+--------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.RxPort
+
+``RxPort`` binds to one resistive, single-Yee-edge ``VoltageSource`` at the
+same discretised coordinate. It creates its electric-field monitor
+automatically and calculates corrected complex ``S11``, ``Zin``, and ``Yin``
+after the solve:
+
+.. code-block:: python
+
+    port = gprMax.RxPort(
+        p1=(0.050, 0.050, 0.020),
+        id='feed',
+        spectrum_limit=10,
+    )
+    scene.add(port)
+
+The default ``spectrum_limit=10`` retains frequencies having at least ten
+cells per shortest material wavelength. Because optional hash-command
+arguments are positional, an ``id`` is required when the Python object uses a
+non-default spectrum limit. A research run can explicitly request all native
+non-negative FFT bins while retaining the normal validity metadata:
+
+.. code-block:: python
+
+    scene.add(gprMax.RxPort(
+        p1=(0.050, 0.050, 0.020),
+        id='feed_full',
+        spectrum_limit='nyquist',
+    ))
+
+After ``gprMax.run`` completes, ``port.result`` provides the same numerical
+arrays that are stored under ``/ports/feed`` in the model HDF5 file. No current
+receiver is required; input impedance is calculated from the corrected S11
+and the voltage-source resistance.
 
 Source Steps
 ------------

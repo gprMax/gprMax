@@ -54,6 +54,7 @@ from .user_objects.cmds_output import (
     KSIRTimeRx,
     KSIRTimeRxArray,
     KSIRTimeRxSpherical,
+    RxPort,
     Snapshot,
 )
 
@@ -412,6 +413,30 @@ def process_multicmds(multicmds):
 
             rx_array = RxArray(p1=p1, p2=p2, dl=dl)
             scene_objects.append(rx_array)
+
+    cmdname = "#rx_port"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 3 or len(tokens) > 5:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires three coordinates, "
+                    "an optional ID, and one optional spectrum limit"
+                )
+            kwargs = {}
+            if len(tokens) >= 4:
+                kwargs["id"] = tokens[3]
+            if len(tokens) == 5:
+                try:
+                    kwargs["spectrum_limit"] = float(tokens[4])
+                except ValueError:
+                    kwargs["spectrum_limit"] = tokens[4].lower()
+            scene_objects.append(
+                RxPort(
+                    p1=tuple(float(value) for value in tokens[:3]),
+                    **kwargs,
+                )
+            )
 
     cmdname = "#snapshot"
     if multicmds[cmdname] is not None:

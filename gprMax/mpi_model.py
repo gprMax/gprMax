@@ -248,6 +248,12 @@ class MPIModel(Model):
         # Write output data to file if they are any receivers in any grids
         if self.is_coordinator() and (self.G.rxs or self.G.transmissionlines):
             self.G.size = self.G.global_size
+            # Transmission-line objects and their complete histories have now
+            # been gathered onto the coordinator. Derived terminal quantities
+            # must be calculated here, before the HDF5 file is opened.
+            from gprMax.ports import finalise_transmission_line_ports
+
+            finalise_transmission_line_ports(self.G)
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
     def _create_grid(self) -> MPIGrid:
