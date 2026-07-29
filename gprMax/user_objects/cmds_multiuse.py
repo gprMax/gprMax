@@ -889,7 +889,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
 class TransmissionLine(RotatableMixin, GridUserObject):
     """Specifies a one-dimensional transmission line model at an electric
-        field location.
+        field location. The source is supported by the CPU and CUDA solvers.
 
     Attributes:
         polarisation: string required for polarisation of the source x, y, z.
@@ -959,11 +959,13 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             self._log(grid, transmission_line, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # Warn about using a transmission line on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        # CUDA has a device-resident transmission-line update. OpenCL and
+        # Metal use the same kernel template but do not yet have their host
+        # buffer/launch lifecycle enabled and verified.
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             raise ValueError(
                 f"{self.params_str()} cannot currently be used "
-                "with the CUDA, OpenCL, or Metal-based solver. Consider "
+                "with the OpenCL or Metal-based solver. Consider "
                 "using a #voltage_source instead."
             )
 
@@ -1197,10 +1199,10 @@ class DiscretePlaneWaveAngles(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the OpenCL or Apple Metal-based solver. "
+                + "with the CUDA or OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1375,10 +1377,10 @@ class DiscretePlaneWaveVector(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the OpenCL or Apple Metal-based solver. "
+                + "with the CUDA or OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1540,10 +1542,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the OpenCL or Apple Metal-based solver. "
+                + "with the CUDA or OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -2708,3 +2710,6 @@ class Subgrid(UserObjectMulti):
             logger.exception("This object is unknown to gprMax.")
             raise ValueError
 """
+
+
+

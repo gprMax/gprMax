@@ -17,12 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import math
 from copy import deepcopy
 
 import numpy as np
 import numpy.typing as npt
-import math
-import logging
 
 import gprMax.config as config
 from gprMax.waveforms import Waveform
@@ -30,12 +30,12 @@ from gprMax.waveforms import Waveform
 from .cython.plane_wave import (
     calculate1DWaveformValues,
     getSource,
-    updatePlaneWave_magnetic,
-    updatePlaneWave_magnetic_axial,
     updatePlaneWave_electric,
     updatePlaneWave_electric_axial,
     updatePlaneWave_electric_dispersive,
     updatePlaneWave_electric_dispersive_axial,
+    updatePlaneWave_magnetic,
+    updatePlaneWave_magnetic_axial,
 )
 from .utilities.utilities import round_value
 
@@ -117,6 +117,19 @@ class VoltageSource(Source):
     def __init__(self):
         super().__init__()
         self.resistance = None
+        # Preserved when create_material() replaces the selected electric-edge
+        # material with a copy carrying the source resistance. Port outputs
+        # need the pre-source values to remove the numerical Yee-gap
+        # capacitance/conductance without accidentally including 1/R.
+        self.background_material_numID = None
+        self.background_material_ID = None
+        self.background_material_type = None
+        self.background_er = None
+        self.background_se = None
+        self.background_mr = None
+        self.background_sm = None
+        self.background_is_dispersive = False
+        self.source_material_numID = None
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -223,6 +236,14 @@ class VoltageSource(Source):
         componentID = f"E{self.polarisation}"
         requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
         material = next(x for x in G.materials if x.numID == requirednumID)
+        self.background_material_numID = int(material.numID)
+        self.background_material_ID = str(material.ID)
+        self.background_material_type = str(material.type)
+        self.background_er = float(material.er)
+        self.background_se = float(material.se)
+        self.background_mr = float(material.mr)
+        self.background_sm = float(material.sm)
+        self.background_is_dispersive = hasattr(material, "poles")
         newmaterial = deepcopy(material)
         newmaterial.ID = f"{material.ID}+{self.ID}"
         newmaterial.numID = len(G.materials)
@@ -239,6 +260,7 @@ class VoltageSource(Source):
 
         G.ID[G.IDlookup[componentID], i, j, k] = newmaterial.numID
         G.materials.append(newmaterial)
+        self.source_material_numID = int(newmaterial.numID)
 
 
 class HertzianDipole(Source):
@@ -471,6 +493,156 @@ def htod_src_arrays(sources, G, queue=None):
     return srcinfo1_dev, srcinfo2_dev, srcwaves_dev
 
 
+def transmission_line_host_arrays(transmissionlines, G):
+    """Pack transmission-line state into backend-neutral contiguous arrays.
+
+    The coupled part of every transmission line is normally very short, but
+    each line owns mutable voltage, current, and ABC state. Keeping this state
+    in flat arrays lets one device work-item advance one complete line without
+    any host interaction during the FDTD time loop.
+
+    Args:
+        transmissionlines: transmission-line sources attached to a grid.
+        G: FDTDGrid containing the sources.
+
+    Returns:
+        Dictionary of NumPy arrays ready to copy to a compute device.
+    """
+
+    real = config.sim_config.dtypes["float_or_double"]
+    ntl = len(transmissionlines)
+    niterations = G.iterations + 1
+    int32_max = np.iinfo(np.int32).max
+
+    # Columns are x, y, z, polarisation, state offset, number of active line
+    # cells, source position, antenna position, first active iteration, and
+    # last active iteration. Keep this layout in sync with knl_transmission_line.py.
+    info = np.zeros((ntl, 10), dtype=np.int32)
+    resistance = np.zeros(ntl, dtype=real)
+    abcv0 = np.zeros(ntl, dtype=real)
+    abcv1 = np.zeros(ntl, dtype=real)
+    waveform_whole = np.zeros((ntl, niterations), dtype=real)
+    waveform_half = np.zeros((ntl, niterations), dtype=real)
+    Vtotal = np.zeros((ntl, niterations), dtype=real)
+    Itotal = np.zeros((ntl, niterations), dtype=real)
+
+    nstate = sum(int(tl.nl) for tl in transmissionlines)
+    if nstate > int32_max or ntl * niterations > int32_max:
+        raise ValueError(
+            "Transmission-line device arrays exceed the signed 32-bit index range."
+        )
+
+    voltage = np.zeros(nstate, dtype=real)
+    current = np.zeros(nstate, dtype=real)
+    times = G.dt * np.arange(G.iterations, dtype=np.float64)
+    used_ports = set()
+    offset = 0
+
+    for i, tl in enumerate(transmissionlines):
+        port = (int(tl.xcoord), int(tl.ycoord), int(tl.zcoord), tl.polarisation)
+        if port in used_ports:
+            raise ValueError(
+                "More than one transmission line is attached to the same Yee "
+                f"electric-field edge at {port[:3]} with {port[3]} polarisation."
+            )
+        used_ports.add(port)
+
+        if tl.nl <= tl.antpos or tl.srcpos <= 0 or tl.srcpos >= tl.nl:
+            raise ValueError(f"Invalid internal transmission-line layout for {tl.ID}.")
+
+        if tl.polarisation == "x":
+            polarisation = 0
+        elif tl.polarisation == "y":
+            polarisation = 1
+        elif tl.polarisation == "z":
+            polarisation = 2
+        else:
+            raise ValueError(f"Invalid transmission-line polarisation {tl.polarisation!r}.")
+
+        active = np.flatnonzero((times >= tl.start) & (times <= tl.stop))
+        if active.size:
+            first_active = int(active[0])
+            last_active = int(active[-1])
+        else:
+            first_active = 1
+            last_active = 0
+
+        info[i, :] = (
+            tl.xcoord,
+            tl.ycoord,
+            tl.zcoord,
+            polarisation,
+            offset,
+            tl.nl,
+            tl.srcpos,
+            tl.antpos,
+            first_active,
+            last_active,
+        )
+        resistance[i] = tl.resistance
+        abcv0[i] = tl.abcv0
+        abcv1[i] = tl.abcv1
+        voltage[offset : offset + tl.nl] = tl.voltage[: tl.nl]
+        current[offset : offset + tl.nl] = tl.current[: tl.nl]
+        waveform_whole[i, :] = tl.waveformvalues_wholedt
+        waveform_half[i, :] = tl.waveformvalues_halfdt
+        Vtotal[i, :] = tl.Vtotal
+        Itotal[i, :] = tl.Itotal
+        offset += tl.nl
+
+    return {
+        "info": info,
+        "resistance": resistance,
+        "abcv0": abcv0,
+        "abcv1": abcv1,
+        "voltage": voltage,
+        "current": current,
+        "waveform_whole": waveform_whole,
+        "waveform_half": waveform_half,
+        "Vtotal": Vtotal,
+        "Itotal": Itotal,
+    }
+
+
+def htod_transmission_line_arrays(transmissionlines, G, queue=None):
+    """Copy packed transmission-line arrays to the active compute device."""
+
+    arrays = transmission_line_host_arrays(transmissionlines, G)
+    solver = config.sim_config.general["solver"]
+
+    if solver == "cuda":
+        import pycuda.gpuarray as gpuarray
+
+        return {name: gpuarray.to_gpu(array) for name, array in arrays.items()}
+    if solver == "opencl":
+        import pyopencl.array as clarray
+
+        return {name: clarray.to_device(queue, array) for name, array in arrays.items()}
+    if solver == "metal":
+        dev = config.get_model_config().device["dev"]
+        return {
+            name: dev.newBufferWithBytes_length_options_(array.tobytes(), array.nbytes, 0)
+            for name, array in arrays.items()
+        }
+
+    raise ValueError(f"Unknown device solver {solver!r} for transmission-line arrays.")
+
+
+def dtoh_transmission_line_outputs(Vtotal, Itotal, G):
+    """Copy device terminal histories into their transmission-line objects."""
+
+    expected = (len(G.transmissionlines), G.iterations + 1)
+    if Vtotal.shape != expected or Itotal.shape != expected:
+        raise ValueError(
+            "Transmission-line device output shape does not match the grid: "
+            f"expected {expected}, got {Vtotal.shape} and {Itotal.shape}."
+        )
+
+    for i, tl in enumerate(G.transmissionlines):
+        np.copyto(tl.Vtotal, Vtotal[i, :], casting="same_kind")
+        np.copyto(tl.Itotal, Itotal[i, :], casting="same_kind")
+
+
 class TransmissionLine(Source):
     """A transmission line source is a one-dimensional transmission line
     which is attached virtually to a grid cell.
@@ -511,6 +683,10 @@ class TransmissionLine(Source):
         self.Iinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
         self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
         self.Itotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        # Bound after the grid materials and time axis have been finalised.
+        # Kept here rather than in the update loop because all spectral port
+        # processing is post-solve.
+        self.port_output = None
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -560,6 +736,14 @@ class TransmissionLine(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
+        # The preliminary incident-wave calculation and the coupled FDTD run
+        # use separate output histories, but they advance the same internal
+        # line voltage/current vectors and ABC memories. Always start the
+        # preliminary line from rest and clear any old incident histories.
+        self._reset_update_state()
+        self.Vinc.fill(0)
+        self.Iinc.fill(0)
+
         for iteration in range(self.iterations):
             self.Iinc[iteration] = self.current[self.antpos]
             self.Vinc[iteration] = self.voltage[self.antpos]
@@ -568,6 +752,18 @@ class TransmissionLine(Source):
 
         # Shorten number of cells in the transmission line before use with main grid
         self.nl = self.antpos + 1
+
+        # Vinc/Iinc retain the completed incident histories, but the actual
+        # coupled source must begin with zero line fields and zero ABC memory.
+        self._reset_update_state()
+
+    def _reset_update_state(self):
+        """Reset mutable line and absorbing-boundary state to rest."""
+
+        self.voltage.fill(0)
+        self.current.fill(0)
+        self.abcv0 = 0
+        self.abcv1 = 0
 
     def update_abc(self, G):
         """Updates absorbing boundary condition at end of the transmission line.

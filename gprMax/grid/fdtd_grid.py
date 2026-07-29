@@ -32,19 +32,10 @@ from typing_extensions import TypeVar
 
 from gprMax import config
 from gprMax.cython.pml_build import pml_average_er_mr
-from gprMax.cython.yee_cell_build import (
-    build_electric_components,
-    build_magnetic_components,
-)
+from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.fractal_volume import FractalVolume
-from gprMax.materials import (
-    ListMaterial,
-    Material,
-    PeplinskiSoil,
-    RangeMaterial,
-    process_materials,
-)
+from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
@@ -144,6 +135,7 @@ class FDTDGrid:
         self.transmissionlines: List[TransmissionLine] = []
         self.discreteplanewaves: List[DiscretePlaneWave] = []
         self.rxs: List[Rx] = []
+        self.port_monitors = []  # Source-bound S-parameter/impedance outputs
         self.snapshots = []  # List[Snapshot]
         self.ntff_monitors = []  # Time- and frequency-domain KSIR monitors
         # Reusable KSIR definitions are registered by user objects, then
@@ -694,7 +686,12 @@ class FDTDGrid:
                 outside of the grid.
         """
         try:
-            self._update_positions(self.rxs, self.rxsteps, step)
+            # Internal port receivers must remain on their fixed voltage
+            # source; #rx_steps applies only to public receiver commands.
+            public_receivers = (
+                rx for rx in self.rxs if not getattr(rx, "source_bound", False)
+            )
+            self._update_positions(public_receivers, self.rxsteps, step)
         except ValueError as e:
             logger.exception(
                 "Receiver(s) will be stepped to a position outside the domain."

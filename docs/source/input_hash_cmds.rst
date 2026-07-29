@@ -990,7 +990,7 @@ For example, to specify a y directed voltage source with an internal resistance 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU and CUDA solvers; OpenCL and Metal support is not currently enabled. The syntax of the command is:
 
 .. code-block:: none
 
@@ -1002,7 +1002,15 @@ Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at 
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the excitation of the transmission line. ``f6`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f5 f6`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
-Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`Simulation Output <output>` section. These parameters are useful for calculating characteristics of an antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``toolboxes/Plotting`` package) to help you view the input impedance and s11 parameter from an antenna model fed using a transmission line.
+Time histories of incident and total voltage and current are saved to the
+output file. gprMax also calculates S11, input impedance, and input admittance
+automatically after the simulation. The line resistance is used as the S11
+reference impedance; ``Zin`` is derived from S11, while an independently
+de-embedded current result is saved as ``Zin_current`` for verification. The
+frequency axis, validity masks, and lambda/10 mesh limit are stored with the
+results. No separate ``#rx_port`` command is required for a transmission-line
+source. The complete schema and equations are documented in the
+:ref:`Simulation Output <output>` section.
 
 For example, to specify a z directed transmission line source with a resistance of 75 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#transmission_line: z 0.05 0.05 0.05 75 my_gauss_pulse``.
 
@@ -1111,6 +1119,86 @@ Provides a simple method of defining multiple output points in the model. The sy
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output line/rectangle/volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output line/rectangle/volume.
 * ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. ``f7``, ``f8``, or  ``f9`` can be set to zero to prevent any output points in a particular direction. Otherwise, the minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
+
+#rx_port:
+---------
+
+Calculates the complex reflection coefficient and input impedance of a
+single-cell resistive voltage-source port. The output point must coincide
+exactly with one ``#voltage_source`` after both positions have been resolved to
+the Yee grid. A separate ``#rx`` command is not required. The syntax is:
+
+.. code-block:: none
+
+    #rx_port: f1 f2 f3 [str1 [str2]]
+
+* ``f1 f2 f3`` are the source coordinates (x,y,z).
+* ``str1`` is the optional port/output identifier. If omitted, ``port1``,
+  ``port2``, and so on are generated.
+* ``str2`` is the optional spectrum limit. A number specifies the minimum
+  cells per shortest material wavelength; the default is 10. The keyword
+  ``nyquist`` requests every native non-negative FFT bin for research and
+  diagnostic use.
+
+Because optional hash-command arguments are positional, ``str1`` must be
+given before ``str2``. For example:
+
+.. code-block:: none
+
+    #voltage_source: z 0.050 0.050 0.020 50 source_wave
+    #rx_port: 0.050 0.050 0.020 feed
+    #rx_port: 0.050 0.050 0.020 feed nyquist
+
+The voltage-source resistance is the reference impedance :math:`Z_0`. At the
+source plane, the known generator spectrum :math:`V_g` and sampled total gap
+voltage :math:`V` give
+
+.. math::
+
+    S_{11,\mathrm{source}} = \frac{2V-V_g}{V_g}.
+
+No current calculation is required. gprMax removes the parallel capacitance
+and background conductance of the source Yee edge before reporting the
+antenna-terminal result. With :math:`c=Z_0Y_\mathrm{gap}`, this correction and
+the input impedance are
+
+.. math::
+
+    S_{11} =
+    \frac{2S_{11,\mathrm{source}}+c(1+S_{11,\mathrm{source}})}
+         {2-c(1+S_{11,\mathrm{source}})},
+    \qquad
+    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}}.
+
+The gap capacitance and conductance use the effective electric-edge material
+before the artificial source resistance is added. The discrete capacitive
+admittance is used so the correction is consistent with the trapezoidal Yee
+update.
+
+By default, output stops at the first native FFT bin that does not have at
+least 10 cells per shortest wavelength in the model. For nonmagnetic,
+nondispersive media this is the material with the largest :math:`\epsilon_r`.
+A numeric ``str2`` changes this sampling requirement; values below 10 produce
+a warning and values below 3 are rejected. ``nyquist`` deliberately retains
+the full spectrum but does not claim it is accurate: the lambda/10 limit and
+per-bin mesh/source validity masks are still written to HDF5. The actual
+stored range, native frequency resolution, Nyquist bound, and limiting
+material are reported when the model is built.
+
+.. note::
+
+    * The initial implementation supports one finite, non-zero-resistance
+      voltage source on the main 3D grid with the CPU, CUDA, OpenCL, or Metal
+      solver.
+    * MPI, subgrids, 2D modes, geometry-fixed runs, grouped sources, sources
+      inside a PML, and dispersive material on the source edge are currently
+      rejected. Dispersive materials elsewhere in the model are supported.
+    * ``S11`` remains the primary result. ``Zin`` is singular near an open
+      circuit (:math:`S_{11}=1`), so gprMax also stores ``Yin`` and separate
+      validity masks.
+    * A time trace that has not decayed before the end of the model window can
+      contaminate the spectrum. gprMax reports a tail-level warning rather
+      than hiding or clipping the result.
 
 #src_steps: and #rx_steps:
 --------------------------

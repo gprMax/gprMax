@@ -32,8 +32,8 @@ from gprMax.geometry_outputs.geometry_view_lines import GeometryViewLines
 from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels
 from gprMax.geometry_outputs.geometry_views import GeometryView, save_geometry_views
 from gprMax.grid.cuda_grid import CUDAGrid
-from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.grid.metal_grid import MetalGrid
+from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -364,6 +364,24 @@ class Model:
 
         self.G.update_sources_and_recievers()
 
+        # Voltage-source ports bind their receiver during scene processing,
+        # but their effective edge material and update coefficient only exist
+        # after grid.build() has completed.
+        for port in getattr(self.G, "port_monitors", ()):
+            port.prepare(self.G)
+
+        # Transmission lines already record incident and terminal voltage and
+        # current histories. Prepare their automatic S11/impedance outputs
+        # after materials and the native time/frequency axes are finalised.
+        from gprMax.ports import prepare_transmission_line_ports
+
+        # MPI transmission-line objects are gathered only after solving. Do
+        # not attach cached spectral arrays before that transfer; the
+        # coordinator prepares and finalises them after the gather instead.
+        if not hasattr(self.G, "comm"):
+            for grid in [self.G] + self.subgrids:
+                prepare_transmission_line_ports(grid)
+
         # Source stepping is applied immediately above, so enclosure is
         # checked against the positions actually used by this model run.
         if self.G.ntff_monitors:
@@ -553,6 +571,17 @@ class Model:
         file(s).
         """
 
+        # Device finalisation has already copied receiver histories to the
+        # host. Complete derived port spectra before opening the HDF5 file so
+        # a calculation error cannot leave a partially written port group.
+        for port in getattr(self.G, "port_monitors", ()):
+            port.finalise(self.G)
+
+        from gprMax.ports import finalise_transmission_line_ports
+
+        for grid in [self.G] + self.subgrids:
+            finalise_transmission_line_ports(grid)
+
         # Write output data to file if they are any receivers in any grids
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
@@ -568,6 +597,7 @@ class Model:
             or self.G.transmissionlines
             or sg_tls
             or ntff_outputs
+            or self.G.port_monitors
         ):
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 

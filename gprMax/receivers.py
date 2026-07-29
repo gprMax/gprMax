@@ -18,6 +18,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+
 import numpy as np
 
 import gprMax.config as config
@@ -202,14 +203,15 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
     # for Metal, the branch above has just produced the host numpy
     # equivalents. Either way, this assignment must run for every backend -
     # it is the only place rx.outputs actually gets populated.
-    for rx in G.rxs:
-        for rxd in range(len(G.rxs)):
-            if (
-                rx.xcoord == rxcoords_dev[rxd, 0]
-                and rx.ycoord == rxcoords_dev[rxd, 1]
-                and rx.zcoord == rxcoords_dev[rxd, 2]
-                ):
-                for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_dev[
-                        Rx.allowableoutputs_dev.index(output), :, rxd
-                        ]
+    if rxcoords_dev.shape != (len(G.rxs), 3) or rxs_dev.shape[2] != len(G.rxs):
+        raise RuntimeError("device receiver arrays do not match the grid receiver count")
+    for rxd, rx in enumerate(G.rxs):
+        expected = np.asarray((rx.xcoord, rx.ycoord, rx.zcoord), dtype=np.int32)
+        if not np.array_equal(expected, rxcoords_dev[rxd]):
+            raise RuntimeError(
+                "device receiver order/coordinates do not match the grid receiver list"
+            )
+        for output in rx.outputs:
+            rx.outputs[output] = rxs_dev[
+                Rx.allowableoutputs_dev.index(output), :, rxd
+            ]
