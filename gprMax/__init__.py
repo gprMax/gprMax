@@ -69,6 +69,7 @@ from .user_objects.cmds_output import (
     KSIRTimeRx,
     KSIRTimeRxArray,
     KSIRTimeRxSpherical,
+    RxPort,
     Snapshot,
 )
 from .user_objects.cmds_singleuse import (

@@ -68,3 +68,32 @@ def test_metal_dtoh_rx_array_populates_rx_outputs(monkeypatch):
     ex_index = Rx.allowableoutputs_dev.index("Ex")
     assert np.array_equal(rx.outputs["Ex"], known[ex_index, :, 0])
     assert not np.all(rx.outputs["Ex"] == 0), "Ex must not be left zero-filled"
+
+
+def test_device_receiver_copy_uses_order_for_colocated_receivers(monkeypatch):
+    """A hidden port receiver may share a coordinate with a public receiver."""
+
+    monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
+    config.sim_config.general = {"solver": "cuda"}
+    config.sim_config.dtypes = {"float_or_double": np.float64}
+
+    first = Rx()
+    second = Rx()
+    for rx in (first, second):
+        rx.xcoord, rx.ycoord, rx.zcoord = 1, 2, 3
+        rx.outputs["Ez"] = np.zeros(3)
+
+    class _DummyGrid:
+        rxs = [first, second]
+        iterations = 3
+
+    coordinates = np.asarray(((1, 2, 3), (1, 2, 3)), dtype=np.int32)
+    values = np.zeros((len(Rx.allowableoutputs_dev), 3, 2), dtype=np.float64)
+    ez = Rx.allowableoutputs_dev.index("Ez")
+    values[ez, :, 0] = (1, 2, 3)
+    values[ez, :, 1] = (10, 20, 30)
+
+    dtoh_rx_array(values, coordinates, _DummyGrid())
+
+    np.testing.assert_array_equal(first.outputs["Ez"], (1, 2, 3))
+    np.testing.assert_array_equal(second.outputs["Ez"], (10, 20, 30))

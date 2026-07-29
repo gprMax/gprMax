@@ -115,7 +115,9 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles + grid.transmissionlines
     )
     basegrp.attrs["nsrc"] = nsrc
-    basegrp.attrs["nrx"] = len(grid.rxs)
+    public_rxs = [rx for rx in grid.rxs if not getattr(rx, "internal", False)]
+    basegrp.attrs["nrx"] = len(public_rxs)
+    basegrp.attrs["nports"] = len(getattr(grid, "port_monitors", ()))
 
     if is_subgrid:
         # Write additional meta data about subgrid
@@ -153,13 +155,18 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         # Save total voltage and current
         basegrp["tls/tl" + str(tlindex + 1) + "/Vtotal"] = tl.Vtotal
         basegrp["tls/tl" + str(tlindex + 1) + "/Itotal"] = tl.Itotal
+        port_output = getattr(tl, "port_output", None)
+        if port_output is not None:
+            port_output.write_hdf5(grp)
 
-    # Ensure the order of receivers is always consistent (Needed for
-    # consistancy when using MPI with multiple receivers)
-    grid.rxs.sort(key=lambda rx: rx.ID)
+    # Ensure public receiver output order is consistent without mutating the
+    # solver's receiver order. Device transfer maps receiver pages by this
+    # original order and internal port monitors are intentionally omitted from
+    # the public /rxs namespace.
+    public_rxs.sort(key=lambda rx: rx.ID)
 
     # Create group, add positional data and write field component arrays for receivers
-    for rxindex, rx in enumerate(grid.rxs):
+    for rxindex, rx in enumerate(public_rxs):
         grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
         if rx.ID:
             grp.attrs["Name"] = rx.ID
@@ -180,6 +187,9 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
             write_ntff(basegrp)
     for writer in getattr(grid, "ntff_output_writers", ()):
         writer.write_hdf5(basegrp)
+
+    for port in getattr(grid, "port_monitors", ()):
+        port.write_hdf5(basegrp)
 
 
 def Ix(x, y, z, Hx, Hy, Hz, G):

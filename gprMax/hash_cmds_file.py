@@ -257,6 +257,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#excitation_file",
             "#rx",
             "#rx_array",
+            "#rx_port",
             "#snapshot",
             "#ksir_surface",
             "#ksir_frequency",
