@@ -297,9 +297,10 @@ update_electric_dispersive_A = {
         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + updatecoeffsdispersive[IDX2D_MATDISP(materialEx,pole*3)]$REALFUNC * Tx[IDX4D_T(pole,x_T,y_T,z_T)]$REALFUNC;
-            Tx[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEx,1+(pole*3))] * Tx[IDX4D_T(pole,x_T,y_T,z_T)] +
-                                            updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
+            phi = phi + GPRMAX_CREAL(GPRMAX_CMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,pole*3)], Tx[IDX4D_T(pole,x_T,y_T,z_T)]));
+            Tx[IDX4D_T(pole,x_T,y_T,z_T)] = GPRMAX_CADD(
+                GPRMAX_CMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,1+(pole*3))], Tx[IDX4D_T(pole,x_T,y_T,z_T)]),
+                GPRMAX_CRMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))], Ex[IDX3D_FIELDS(x,y,z)]));
         }
         Ex[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEx,0)] * Ex[IDX3D_FIELDS(x,y,z)] +
                                     updatecoeffsE[IDX2D_MAT(materialEx,2)] * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x,y-1,z)]) -
@@ -312,9 +313,10 @@ update_electric_dispersive_A = {
         int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + updatecoeffsdispersive[IDX2D_MATDISP(materialEy,pole*3)]$REALFUNC * Ty[IDX4D_T(pole,x_T,y_T,z_T)]$REALFUNC;
-            Ty[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEy,1+(pole*3))] * Ty[IDX4D_T(pole,x_T,y_T,z_T)] +
-                                            updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
+            phi = phi + GPRMAX_CREAL(GPRMAX_CMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,pole*3)], Ty[IDX4D_T(pole,x_T,y_T,z_T)]));
+            Ty[IDX4D_T(pole,x_T,y_T,z_T)] = GPRMAX_CADD(
+                GPRMAX_CMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,1+(pole*3))], Ty[IDX4D_T(pole,x_T,y_T,z_T)]),
+                GPRMAX_CRMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))], Ey[IDX3D_FIELDS(x,y,z)]));
         }
         Ey[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEy,0)] * Ey[IDX3D_FIELDS(x,y,z)] +
                                     updatecoeffsE[IDX2D_MAT(materialEy,3)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)]) -
@@ -327,9 +329,10 @@ update_electric_dispersive_A = {
         int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + updatecoeffsdispersive[IDX2D_MATDISP(materialEz,pole*3)]$REALFUNC * Tz[IDX4D_T(pole,x_T,y_T,z_T)]$REALFUNC;
-            Tz[IDX4D_T(pole,x_T,y_T,z_T)] = updatecoeffsdispersive[IDX2D_MATDISP(materialEz,1+(pole*3))] * Tz[IDX4D_T(pole,x_T,y_T,z_T)] +
-                                            updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
+            phi = phi + GPRMAX_CREAL(GPRMAX_CMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,pole*3)], Tz[IDX4D_T(pole,x_T,y_T,z_T)]));
+            Tz[IDX4D_T(pole,x_T,y_T,z_T)] = GPRMAX_CADD(
+                GPRMAX_CMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,1+(pole*3))], Tz[IDX4D_T(pole,x_T,y_T,z_T)]),
+                GPRMAX_CRMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))], Ez[IDX3D_FIELDS(x,y,z)]));
         }
         Ez[IDX3D_FIELDS(x,y,z)] = updatecoeffsE[IDX2D_MAT(materialEz,0)] * Ez[IDX3D_FIELDS(x,y,z)] +
                                     updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) -
@@ -425,8 +428,9 @@ update_electric_dispersive_B = {
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            Tx[IDX4D_T(pole,x_T,y_T,z_T)] = Tx[IDX4D_T(pole,x_T,y_T,z_T)] -
-                                                updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))] * Ex[IDX3D_FIELDS(x,y,z)];
+            Tx[IDX4D_T(pole,x_T,y_T,z_T)] = GPRMAX_CSUB(
+                Tx[IDX4D_T(pole,x_T,y_T,z_T)],
+                GPRMAX_CRMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEx,2+(pole*3))], Ex[IDX3D_FIELDS(x,y,z)]));
         }
     }
 
@@ -434,8 +438,9 @@ update_electric_dispersive_B = {
     if ((NX != 1 || NZ != 1) && x > 0 && x < NX && y >= 0 && y < NY && z > 0 && z < NZ) {
         int materialEy = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            Ty[IDX4D_T(pole,x_T,y_T,z_T)] = Ty[IDX4D_T(pole,x_T,y_T,z_T)] -
-                                                updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))] * Ey[IDX3D_FIELDS(x,y,z)];
+            Ty[IDX4D_T(pole,x_T,y_T,z_T)] = GPRMAX_CSUB(
+                Ty[IDX4D_T(pole,x_T,y_T,z_T)],
+                GPRMAX_CRMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEy,2+(pole*3))], Ey[IDX3D_FIELDS(x,y,z)]));
         }
     }
 
@@ -443,8 +448,9 @@ update_electric_dispersive_B = {
     if ((NX != 1 || NY != 1) && x > 0 && x < NX && y > 0 && y < NY && z >= 0 && z < NZ) {
         int materialEz = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            Tz[IDX4D_T(pole,x_T,y_T,z_T)] = Tz[IDX4D_T(pole,x_T,y_T,z_T)] -
-                                                updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
+            Tz[IDX4D_T(pole,x_T,y_T,z_T)] = GPRMAX_CSUB(
+                Tz[IDX4D_T(pole,x_T,y_T,z_T)],
+                GPRMAX_CRMUL(updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))], Ez[IDX3D_FIELDS(x,y,z)]));
         }
     }
     """

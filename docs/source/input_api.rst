@@ -535,7 +535,10 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-currently use the CPU solver.
+currently use the CPU solver. Homogeneous angle/vector plane waves and layered
+axial plane waves support non-dispersive materials and multi-pole Debye,
+Lorentz, and Drude materials. Their auxiliary dispersive state uses the same
+real or complex precision selected for the main grid.
 
 Excitation File
 ---------------

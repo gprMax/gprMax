@@ -115,6 +115,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             updatecoeffsE=self.grid.updatecoeffsE.ravel(),
             updatecoeffsH=self.grid.updatecoeffsH.ravel(),
             REAL=config.sim_config.dtypes["C_float_or_double"],
+            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
