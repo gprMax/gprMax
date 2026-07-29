@@ -1649,7 +1649,7 @@ class EigenmodeSource(GridUserObject):
     """
     Specifies an eigenmode source plane. The command form is:
 
-        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> mode_index frequency waveform_id
+        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> mode_index frequency [frequency ...] waveform_id
 
     Exactly one coordinate pair must match between the two points. If x0=x1
     the source lies in the yz plane with normal x; if y0=y1 the source lies in
@@ -1676,13 +1676,35 @@ class EigenmodeSource(GridUserObject):
             p2 = self.kwargs["p2"]
             w = self.kwargs["w"]
             mode_index = self.kwargs["mode_index"]
-            frequency = self.kwargs["frequency"]
             waveform_id = self.kwargs["waveform_id"]
         except KeyError:
             logger.exception(
-                f"{self.params_str()} requires normal, direction, p1, p2, w, mode_index, frequency, and waveform_id."
+                f"{self.params_str()} requires normal, direction, p1, p2, w, mode_index, "
+                "frequency or frequencies, and waveform_id."
             )
             raise
+
+        frequency = self.kwargs.get("frequency")
+        frequencies_arg = self.kwargs.get("frequencies")
+        if frequency is not None and frequencies_arg is not None:
+            raise ValueError(
+                f"{self.params_str()} accepts either frequency or frequencies, not both."
+            )
+        if frequencies_arg is None:
+            if frequency is None:
+                raise ValueError(
+                    f"{self.params_str()} requires frequency or frequencies."
+                )
+            if np.isscalar(frequency):
+                frequencies = (float(frequency),)
+            else:
+                frequencies = tuple(float(value) for value in frequency)
+        else:
+            frequencies = tuple(float(value) for value in frequencies_arg)
+        mode_overlap_threshold = float(
+            self.kwargs.get("mode_overlap_threshold", 0.9)
+        )
+        spectral_threshold = float(self.kwargs.get("spectral_threshold", 1e-3))
 
         if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
@@ -1702,9 +1724,27 @@ class EigenmodeSource(GridUserObject):
             logger.exception(f"{self.params_str()} mode_index must be zero or greater.")
             raise ValueError
 
-        if frequency <= 0:
-            logger.exception(f"{self.params_str()} frequency must be greater than zero.")
-            raise ValueError
+        if not frequencies:
+            raise ValueError(f"{self.params_str()} requires at least one frequency.")
+        if any(not np.isfinite(value) or value <= 0 for value in frequencies):
+            raise ValueError(
+                f"{self.params_str()} frequencies must be finite and greater than zero."
+            )
+        if any(
+            frequencies[index] >= frequencies[index + 1]
+            for index in range(len(frequencies) - 1)
+        ):
+            raise ValueError(
+                f"{self.params_str()} frequencies must be unique and strictly increasing."
+            )
+        if not 0 < mode_overlap_threshold <= 1:
+            raise ValueError(
+                f"{self.params_str()} mode_overlap_threshold must be greater than zero and no greater than one."
+            )
+        if not 0 < spectral_threshold < 1:
+            raise ValueError(
+                f"{self.params_str()} spectral_threshold must be between zero and one."
+            )
 
         if not any(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(
@@ -1796,16 +1836,26 @@ class EigenmodeSource(GridUserObject):
         source.transverse_stop = upper[transverse_axes].copy()
         source.plane_index = plane_index
         source.mode_index = mode_index
-        source.frequency = frequency
+        source.frequency = frequencies[0]
+        source.frequencies = frequencies
+        source.mode_overlap_threshold = mode_overlap_threshold
+        source.spectral_threshold = spectral_threshold
         source.waveformID = waveform_id
         source.waveform = next(x for x in grid.waveforms if x.ID == waveform_id)
         source.start = 0
         source.stop = grid.timewindow
 
+        frequency_description = (
+            f"frequency {frequencies[0]:g} Hz"
+            if len(frequencies) == 1
+            else "anchor frequencies "
+            + ", ".join(f"{value:g}" for value in frequencies)
+            + " Hz"
+        )
         logger.info(
             f"{self.grid_name(grid)}Eigenmode source with normal {normal}{direction}, "
             f"transverse bounds {p1} m to {p2} m, normal coordinate {w:g} m, mode index {mode_index}, "
-            f"frequency {frequency:g} Hz, using waveform {waveform_id} created."
+            f"{frequency_description}, using waveform {waveform_id} created."
         )
 
         grid.eigenmodesources.append(source)

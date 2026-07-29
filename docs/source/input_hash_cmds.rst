@@ -1085,11 +1085,11 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 #eigenmode_source:
 ------------------
 
-Allows you to introduce a two-dimensional eigenmode source port. The command extracts the material slice on the specified source plane, solves for the requested transverse eigenmode at the specified frequency, and uses the referenced waveform to excite that mode. The syntax of the command is:
+Allows you to introduce a two-dimensional eigenmode source port. The command extracts the material slice on the specified source plane, solves for the requested transverse eigenmode at one or more frequencies, and uses the referenced waveform to excite that mode. The syntax of the command is:
 
 .. code-block:: none
 
-    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1 f7 str1
+    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1 f7 [f8 ...] str1
 
 * ``f1 f2 f3`` are the first point ``x0 y0 z0`` of the rectangular source port in metres.
 * ``f4 f5 f6`` are the opposite point ``x1 y1 z1`` of the rectangular source port in metres.
@@ -1097,7 +1097,7 @@ Allows you to introduce a two-dimensional eigenmode source port. The command ext
 * In a 2D TM or TE model the source normal must be one of the two in-plane axes. The source becomes a line over the remaining physical transverse axis and must span the complete invariant-axis thickness. Use ``inf`` for the upper invariant coordinate. The source uses the one-dimensional Yee-staggered TM or TE eigensolver selected by ``#domain_mode``.
 * ``c1`` is the propagation direction from the source plane and can be ``+`` or ``-``.
 * ``i1`` is the zero-based mode index to excite.
-* ``f7`` is the frequency in Hertz used to solve the eigenmode fields.
+* ``f7 [f8 ...]`` are one or more strictly increasing frequencies in Hertz used to solve the eigenmode fields. One frequency retains the original fixed-profile source. Two or more frequencies create a broadband source by phase-aligning and linearly interpolating the complex modal fields and propagation constant.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
 For example, to specify an eigenmode source on the yz plane at ``x=0.008`` m, propagating in the positive x direction, using mode index 1 solved at 80 GHz and the waveform defined by the identifier ``eig_pulse``, use: ``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 80e9 eig_pulse``.
@@ -1108,6 +1108,23 @@ normal to x is, for example:
 .. code-block:: none
 
     #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 80e9 eig_pulse
+
+For example, a five-anchor broadband source using the same mode index at every
+frequency can be specified as:
+
+.. code-block:: none
+
+    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 20e9 40e9 60e9 80e9 100e9 eig_pulse
+
+Consecutive anchor modes are checked against the configured normalized
+field-overlap threshold. A low overlap emits a warning because it can indicate
+a mode-order change, cutoff, degeneracy, or anchors that are too widely spaced,
+but the run continues with the supplied modes. The anchor range should cover
+the significant spectrum of the waveform; uncovered bins emit a warning and
+use the nearest endpoint mode. Warnings are also emitted for unusable modal-power
+normalisation or significant DC/Nyquist content; finite fallbacks are applied
+so the simulation can continue, but the resulting source accuracy is not
+guaranteed.
 
 The 2D modal fields are normalised to carry one watt per metre along the
 invariant direction. TM solves for the invariant electric component and TE

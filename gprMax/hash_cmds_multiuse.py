@@ -362,14 +362,15 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 10:
+            if len(tmp) < 10:
                 logger.exception(
                     "'"
                     + cmdname
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " requires exactly ten parameters: x0 y0 z0 x1 y1 z1 direction mode_index frequency waveform_id"
+                    + " requires at least ten parameters: x0 y0 z0 x1 y1 z1 "
+                    "direction mode_index frequency [frequency ...] waveform_id"
                 )
                 raise ValueError
 
@@ -404,16 +405,21 @@ def process_multicmds(multicmds):
             transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
             transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
 
-            eigenmode_source = EigenmodeSource(
-                normal=axis_names[normal_axis],
-                direction=tmp[6],
-                p1=transverse_lower,
-                p2=transverse_upper,
-                w=p0[normal_axis],
-                mode_index=int(tmp[7]),
-                frequency=float(tmp[8]),
-                waveform_id=tmp[9],
-            )
+            frequencies = tuple(float(value) for value in tmp[8:-1])
+            kwargs = {
+                "normal": axis_names[normal_axis],
+                "direction": tmp[6],
+                "p1": transverse_lower,
+                "p2": transverse_upper,
+                "w": p0[normal_axis],
+                "mode_index": int(tmp[7]),
+                "waveform_id": tmp[-1],
+            }
+            if len(frequencies) == 1:
+                kwargs["frequency"] = frequencies[0]
+            else:
+                kwargs["frequencies"] = frequencies
+            eigenmode_source = EigenmodeSource(**kwargs)
             scene_objects.append(eigenmode_source)
 
 

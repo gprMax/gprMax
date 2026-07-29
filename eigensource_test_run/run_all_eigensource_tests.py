@@ -103,6 +103,13 @@ def main() -> int:
         print(f"\nPlotting snapshots for {len(case_dirs)} case directories", flush=True)
         command = [python, str(plot_script), *(str(case_dir) for case_dir in case_dirs)]
         run_command(command, cwd=repo_root, dry_run=args.dry_run)
+        for comparison_script in sorted(root.rglob("plot_power_comparison.py")):
+            print(f"\nPlotting power comparison with {comparison_script}", flush=True)
+            run_command(
+                [python, str(comparison_script), str(comparison_script.parent)],
+                cwd=repo_root,
+                dry_run=args.dry_run,
+            )
 
     return 0
 

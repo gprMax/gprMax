@@ -1,0 +1,24 @@
+#title: 2D TE broadband pulse in a dielectric slab using one eigenmode solve
+
+#domain_mode: TE
+#domain: 0.8 1.0 inf
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 5e-9
+#pml_cells: 10 10 0 10 10 0
+
+#material: 4 0 1 0 slab_core
+#waveform: gaussiandot 1 1e9 eig_pulse
+
+#box: 0 0.45 0 0.8 0.55 inf slab_core
+
+## Baseline TEz source: the broadband pulse uses a single modal profile.
+#eigenmode_source: 0.08 0.04 0 0.08 0.96 inf + 0 1e9 eig_pulse
+
+## For TEz propagation in +x, Sx = Ey*Hz.
+#rx_array: 0.04 0.04 inf 0.04 0.96 inf 1 0.004 1
+#rx_array: 0.20 0.04 inf 0.20 0.96 inf 1 0.004 1
+
+#snapshot: 0 0.35 0 0.8 0.65 inf 0.002 0.002 0.002 1.25e-9 xy_center_1250ps.h5
+#snapshot: 0 0.35 0 0.8 0.65 inf 0.002 0.002 0.002 2.5e-9 xy_center_2500ps.h5
+#snapshot: 0 0.35 0 0.8 0.65 inf 0.002 0.002 0.002 3.75e-9 xy_center_3750ps.h5
+#snapshot: 0 0.35 0 0.8 0.65 inf 0.002 0.002 0.002 4.9e-9 xy_center_4900ps.h5

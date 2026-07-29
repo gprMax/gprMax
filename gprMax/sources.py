@@ -137,6 +137,9 @@ class EigenmodeSource(Source):
         self.transverse_stop = None
         self.mode_index = None
         self.frequency = None
+        self.frequencies = None
+        self.mode_overlap_threshold = 0.9
+        self.spectral_threshold = 1e-3
         self.plane_index = None
         self.complex_eps_r_uu = None
         self.complex_eps_r_vv = None
@@ -149,12 +152,38 @@ class EigenmodeSource(Source):
         self.modal_e_real = None
         self.modal_h_real = None
         self.neff = None
+        self.complex_neff = None
         self.mode_solver = None
+        self.mode_solvers = None
+        self.anchor_modal_e = None
+        self.anchor_modal_h = None
+        self.anchor_complex_neff = None
+        self.anchor_overlaps = None
+        self.broadband_e_envelopes = None
+        self.broadband_h_envelopes = None
+        self.broadband_modal_e_real = None
+        self.broadband_modal_e_imag = None
+        self.broadband_modal_h_real = None
+        self.broadband_modal_h_imag = None
+        self.broadband_input_waveform = None
+        self.broadband_reconstructed_waveform = None
+        self.broadband_waveform_error = None
 
     def grid_init(self, G):
         """Prepare source data that depends on the final built Yee grid."""
         if self.plane_index is None:
             self.plane_index = self._select_plane_index(G)
+        frequencies = tuple(self.frequencies or (self.frequency,))
+        if len(frequencies) > 1:
+            self._solve_broadband_eigenmode(G, frequencies)
+            return
+
+        self.frequency = frequencies[0]
+        self._extract_frequency_dependent_materials(G)
+        self._solve_eigenmode(G)
+
+    def _extract_frequency_dependent_materials(self, G):
+        """Extract source-plane constitutive properties at the active frequency."""
         (
             self.complex_eps_r_uu,
             self.complex_eps_r_vv,
@@ -166,7 +195,54 @@ class EigenmodeSource(Source):
             self.complex_mu_r_ww,
         ) = self._extract_local_complex_property_tensors(G, electric=False)
 
-        self._solve_eigenmode(G)
+    def _solve_broadband_eigenmode(self, G, frequencies):
+        """Solve, align, validate, and synthesize a multi-frequency mode."""
+        anchor_e = []
+        anchor_h = []
+        anchor_neff = []
+        solvers = []
+
+        for frequency in frequencies:
+            self.frequency = frequency
+            self._extract_frequency_dependent_materials(G)
+            self._solve_eigenmode(G)
+            anchor_e.append(
+                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
+            )
+            anchor_h.append(
+                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
+            )
+            anchor_neff.append(complex(self.complex_neff))
+            solvers.append(self.mode_solver)
+
+        overlaps = self._align_and_validate_anchors(anchor_e, anchor_h, frequencies)
+        self.anchor_modal_e = anchor_e
+        self.anchor_modal_h = anchor_h
+        self.anchor_complex_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        self.anchor_overlaps = np.asarray(overlaps, dtype=np.float64)
+        self.mode_solvers = solvers
+        self._prepare_broadband_time_traces(G, frequencies)
+
+        # Keep representative modal data available to diagnostics and callers.
+        representative = min(
+            range(len(frequencies)),
+            key=lambda index: abs(frequencies[index] - self.waveform.freq),
+        )
+        self.frequency = frequencies[representative]
+        self.modal_e = self.anchor_modal_e[representative]
+        self.modal_h = self.anchor_modal_h[representative]
+        self.mode_solver = self.mode_solvers[representative]
+        self.complex_neff = self.anchor_complex_neff[representative]
+        self.neff = float(np.real(self.complex_neff))
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
 
     def _solve_eigenmode(self, G):
         if self.invariant_axis is not None:
@@ -205,6 +281,9 @@ class EigenmodeSource(Source):
 
         self.mode_solver = solver
         self.neff = solver.modal_real_neff
+        self.complex_neff = getattr(
+            solver, "modal_complex_neff", complex(solver.modal_real_neff)
+        )
         self.modal_e = [None, None, None]
         self.modal_h = [None, None, None]
 
@@ -242,6 +321,9 @@ class EigenmodeSource(Source):
 
         self.mode_solver = solver
         self.neff = solver.modal_real_neff
+        self.complex_neff = getattr(
+            solver, "modal_complex_neff", complex(solver.modal_real_neff)
+        )
         local_to_global = (
             self.transverse_axes[0],
             self.transverse_axes[1],
@@ -388,6 +470,402 @@ class EigenmodeSource(Source):
         normal = basis[self.normal_axis]
         return int(np.dot(np.cross(transverse_u, transverse_v), normal))
 
+    def _modal_overlap(self, first_e, first_h, second_e, second_h):
+        """Return the normalized complex overlap of two modal field sets."""
+        numerator = 0.0j
+        first_norm = 0.0
+        second_norm = 0.0
+        impedance = float(config.sim_config.em_consts["z0"])
+        for first, second in zip(first_e, second_e):
+            numerator += np.vdot(first, second)
+            first_norm += float(np.vdot(first, first).real)
+            second_norm += float(np.vdot(second, second).real)
+        for first, second in zip(first_h, second_h):
+            first_scaled = impedance * first
+            second_scaled = impedance * second
+            numerator += np.vdot(first_scaled, second_scaled)
+            first_norm += float(np.vdot(first_scaled, first_scaled).real)
+            second_norm += float(np.vdot(second_scaled, second_scaled).real)
+        denominator = np.sqrt(first_norm * second_norm)
+        if not np.isfinite(denominator) or denominator <= 1e-300:
+            logger.warning(
+                "Cannot compare broadband eigenmode anchors with zero or invalid "
+                "field norm. Treating their overlap as zero and continuing."
+            )
+            return 0.0j
+        return numerator / denominator
+
+    def _align_and_validate_anchors(self, anchor_e, anchor_h, frequencies):
+        """Phase-align consecutive anchors and warn about a likely mode switch."""
+        overlaps = []
+        for index in range(1, len(frequencies)):
+            overlap = self._modal_overlap(
+                anchor_e[index - 1],
+                anchor_h[index - 1],
+                anchor_e[index],
+                anchor_h[index],
+            )
+            magnitude = float(abs(overlap))
+            if not np.isfinite(magnitude) or magnitude < self.mode_overlap_threshold:
+                logger.warning(
+                    "Broadband eigenmode source mode-overlap check failed between "
+                    f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz "
+                    f"for mode index {self.mode_index}: overlap {magnitude:.6f} is below "
+                    f"the required {self.mode_overlap_threshold:.6f}. The eigenvalue ordering "
+                    "may have changed, the anchors may straddle a cutoff or degeneracy, or the "
+                    "frequency spacing may be too large. Add intermediate frequencies, narrow "
+                    "the source bandwidth, or use the single-frequency eigenmode source. "
+                    "Continuing with the supplied anchor modes."
+                )
+
+            phase_aligned = np.isfinite(magnitude) and magnitude > 1e-300
+            phase_factor = (
+                np.exp(-1j * np.angle(overlap))
+                if phase_aligned
+                else 1.0 + 0.0j
+            )
+            anchor_e[index] = [field * phase_factor for field in anchor_e[index]]
+            anchor_h[index] = [field * phase_factor for field in anchor_h[index]]
+            overlaps.append(magnitude)
+            logger.info(
+                f"Eigenmode anchor overlap {magnitude:.6f} between "
+                f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
+                + (
+                    "the latter anchor was phase-aligned."
+                    if phase_aligned
+                    else "its phase was left unchanged."
+                )
+            )
+        return overlaps
+
+    @staticmethod
+    def _average_to_transverse_cells(field, component):
+        if component in ("eu", "hv"):
+            return 0.5 * (field[:, :-1] + field[:, 1:])
+        if component in ("ev", "hu"):
+            return 0.5 * (field[:-1, :] + field[1:, :])
+        raise ValueError(f"Unknown transverse component {component!r}.")
+
+    def _modal_cross_power(self, electric, magnetic, G):
+        """Return complex power pairing for two global modal field sets."""
+        if self.invariant_axis is not None:
+            return self._modal_cross_power_2d(electric, magnetic, G)
+
+        u_axis, v_axis = self.transverse_axes
+        eu = self._average_to_transverse_cells(electric[u_axis], "eu")
+        ev = self._average_to_transverse_cells(electric[v_axis], "ev")
+        hu = self._average_to_transverse_cells(magnetic[u_axis], "hu")
+        hv = self._average_to_transverse_cells(magnetic[v_axis], "hv")
+        flux = eu * np.conj(hv) - ev * np.conj(hu)
+        if self.invariant_axis is None:
+            measure = G.dl[u_axis] * G.dl[v_axis]
+        else:
+            measure = G.dl[self.physical_transverse_axis]
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return (
+            0.5
+            * direction_scale
+            * self._modal_basis_handedness()
+            * np.sum(flux)
+            * measure
+        )
+
+    def _modal_cross_power_2d(self, electric, magnetic, G):
+        """Return modal power per metre from the live 2D field profiles.
+
+        The invariant direction in a 2D grid is represented by a small
+        synthetic Yee dimension. Its inactive layers must not be averaged
+        into the physical profiles, particularly for TE where both power
+        carrying components occupy the shared interior layer.
+        """
+        transverse_axis = self.physical_transverse_axis
+        invariant_axis = self.invariant_axis
+        invariant_local = self.transverse_axes.index(invariant_axis)
+        layer = 1 if self.domain_polarization == "TE" else 0
+
+        def live_profile(field):
+            return np.take(field, layer, axis=invariant_local)
+
+        if self.domain_polarization == "TE":
+            electric_profile = live_profile(electric[transverse_axis])
+            magnetic_profile = live_profile(magnetic[invariant_axis])
+        else:
+            electric_profile = live_profile(electric[invariant_axis])
+            magnetic_profile = live_profile(magnetic[transverse_axis])
+            electric_profile = 0.5 * (
+                electric_profile[:-1] + electric_profile[1:]
+            )
+            magnetic_profile = 0.5 * (
+                magnetic_profile[:-1] + magnetic_profile[1:]
+            )
+
+        basis = np.eye(3, dtype=np.int32)
+        flux_sign = int(
+            np.dot(
+                np.cross(basis[transverse_axis], basis[invariant_axis]),
+                basis[self.normal_axis],
+            )
+        )
+        if self.domain_polarization == "TM":
+            flux_sign *= -1
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return (
+            0.5
+            * direction_scale
+            * flux_sign
+            * np.sum(electric_profile * np.conj(magnetic_profile))
+            * G.dl[transverse_axis]
+        )
+
+    @staticmethod
+    def _linear_anchor_weights(bin_frequencies, anchor_frequencies):
+        """Return partition-of-unity weights with endpoint extrapolation.
+
+        Frequencies between anchors use ordinary piecewise-linear weights.
+        Bins below or above the anchor range retain the nearest endpoint mode.
+        The spectrum-coverage check warns when those extrapolated bins are
+        significant; retaining them avoids a hard spectral truncation and its
+        associated time-domain ringing.
+        """
+        anchor_frequencies = np.asarray(anchor_frequencies, dtype=np.float64)
+        weights = np.zeros((anchor_frequencies.size, bin_frequencies.size), dtype=np.float64)
+        weights[0, bin_frequencies < anchor_frequencies[0]] = 1.0
+        weights[-1, bin_frequencies > anchor_frequencies[-1]] = 1.0
+        inside = (bin_frequencies >= anchor_frequencies[0]) & (
+            bin_frequencies <= anchor_frequencies[-1]
+        )
+        for bin_index in np.flatnonzero(inside):
+            frequency = bin_frequencies[bin_index]
+            if frequency == anchor_frequencies[-1]:
+                weights[-1, bin_index] = 1.0
+                continue
+            lower = int(np.searchsorted(anchor_frequencies, frequency, side="right") - 1)
+            lower = max(0, min(lower, anchor_frequencies.size - 2))
+            span = anchor_frequencies[lower + 1] - anchor_frequencies[lower]
+            upper_weight = (frequency - anchor_frequencies[lower]) / span
+            weights[lower, bin_index] = 1.0 - upper_weight
+            weights[lower + 1, bin_index] = upper_weight
+        return weights
+
+    @staticmethod
+    def _magnetic_stagger_factor(omega, beta, dt, normal_spacing):
+        """Return each frequency bin's own E/H time-and-space staggering."""
+        return np.exp(1j * (0.5 * omega * dt + 0.5 * beta * normal_spacing))
+
+    def _prepare_broadband_time_traces(self, G, frequencies):
+        """Build real temporal bases for complex, linearly interpolated modes."""
+        sample_count = int(G.iterations)
+        times = np.arange(sample_count, dtype=np.float64) * G.dt
+        waveform = np.asarray(
+            [self.waveform.calculate_value(time - self.start, G.dt) for time in times],
+            dtype=np.float64,
+        )
+        if not np.all(np.isfinite(waveform)):
+            logger.warning(
+                "The broadband eigenmode source waveform contains non-finite samples. "
+                "Replacing them with zero and continuing."
+            )
+            waveform = np.nan_to_num(waveform, nan=0.0, posinf=0.0, neginf=0.0)
+        padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
+        spectrum = np.fft.rfft(waveform, n=padded_count)
+        bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
+        spectrum_magnitude = np.abs(spectrum)
+        peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            logger.warning(
+                "The broadband eigenmode source waveform has no finite spectral "
+                "energy. Continuing with a zero-valued source."
+            )
+
+        significant = (
+            spectrum_magnitude >= self.spectral_threshold * peak
+            if np.isfinite(peak) and peak > 0
+            else np.zeros_like(spectrum_magnitude, dtype=bool)
+        )
+        significant_indices = np.flatnonzero(significant)
+        if significant_indices.size == 0:
+            logger.warning(
+                "The broadband eigenmode source waveform has no significant FFT "
+                "bins. Continuing with endpoint mode extrapolation."
+            )
+            significant_low = float("nan")
+            significant_high = float("nan")
+        else:
+            significant_low = float(bin_frequencies[significant_indices[0]])
+            significant_high = float(bin_frequencies[significant_indices[-1]])
+        if significant_indices.size and (
+            significant_low < frequencies[0] or significant_high > frequencies[-1]
+        ):
+            logger.warning(
+                "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
+                f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
+                f"{self.spectral_threshold:g} of the peak span {significant_low:g} to "
+                f"{significant_high:g} Hz. Add wider frequency anchors, narrow the waveform "
+                "bandwidth, or use the single-frequency eigenmode source. Continuing by "
+                "using the nearest endpoint mode outside the anchor range."
+            )
+        if significant[0] or (padded_count % 2 == 0 and significant[-1]):
+            logger.warning(
+                "The broadband eigenmode source has significant DC or Nyquist content, where a "
+                "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
+                "band-limited zero-mean waveform or the single-frequency eigenmode source. "
+                "Continuing after discarding the DC and Nyquist bins."
+            )
+
+        weights = self._linear_anchor_weights(bin_frequencies, frequencies)
+        partition = np.sum(weights, axis=0)
+        if not np.allclose(partition, 1.0, rtol=0.0, atol=1e-14):
+            logger.warning(
+                "Internal broadband eigenmode interpolation error: anchor weights "
+                "do not form a partition of unity. Repairing the weights and continuing."
+            )
+            usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
+            weights[:, usable] /= partition[usable]
+            for bin_index in np.flatnonzero(~usable):
+                nearest = int(
+                    np.argmin(
+                        np.abs(
+                            np.asarray(frequencies, dtype=np.float64)
+                            - bin_frequencies[bin_index]
+                        )
+                    )
+                )
+                weights[:, bin_index] = 0.0
+                weights[nearest, bin_index] = 1.0
+            partition = np.sum(weights, axis=0)
+        anchor_count = len(frequencies)
+        power_matrix = np.empty((anchor_count, anchor_count), dtype=np.complex128)
+        for e_index in range(anchor_count):
+            for h_index in range(anchor_count):
+                power_matrix[e_index, h_index] = self._modal_cross_power(
+                    self.anchor_modal_e[e_index],
+                    self.anchor_modal_h[h_index],
+                    G,
+                )
+        interpolated_power = np.real(
+            np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
+        )
+        active_bins = np.sum(weights, axis=0) > 0
+        invalid_power = active_bins & (
+            ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
+        )
+        if np.any(invalid_power):
+            invalid_indices = np.flatnonzero(invalid_power)
+            bad_frequency = float(bin_frequencies[invalid_indices[0]])
+            bad_power = float(interpolated_power[invalid_indices[0]])
+            logger.warning(
+                "Cannot normalize the interpolated broadband eigenmode at "
+                f"{bad_frequency:g} Hz: modal power is {bad_power:g}. Add an anchor near this "
+                "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
+                f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
+            )
+            finite_nonzero = invalid_power & np.isfinite(interpolated_power) & (
+                np.abs(interpolated_power) > 1e-12
+            )
+            interpolated_power[finite_nonzero] = np.abs(
+                interpolated_power[finite_nonzero]
+            )
+            unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
+            if unresolved.size:
+                nearest = np.argmax(weights[:, unresolved], axis=0)
+                anchor_power = np.real(np.diag(power_matrix))[nearest]
+                interpolated_power[unresolved] = np.where(
+                    np.isfinite(anchor_power) & (np.abs(anchor_power) > 1e-12),
+                    np.abs(anchor_power),
+                    1.0,
+                )
+
+        normalization = np.zeros_like(interpolated_power)
+        normalization[active_bins] = 1.0 / np.sqrt(interpolated_power[active_bins])
+        omega = 2 * np.pi * bin_frequencies
+        interpolated_neff = np.einsum(
+            "kn,k->n", weights, self.anchor_complex_neff, optimize=True
+        )
+        beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
+        normal_spacing = G.dl[self.normal_axis]
+        magnetic_phase = self._magnetic_stagger_factor(
+            omega, beta, G.dt, normal_spacing
+        )
+
+        electric_weights = (
+            weights * (spectrum * normalization)[np.newaxis, :]
+        )
+        magnetic_weights = (
+            weights * (spectrum * normalization * magnetic_phase)[np.newaxis, :]
+        )
+        # DC and Nyquist are self-conjugate FFT bins and cannot carry a
+        # general complex modal coefficient.
+        electric_weights[:, 0] = 0
+        magnetic_weights[:, 0] = 0
+        if padded_count % 2 == 0:
+            electric_weights[:, -1] = 0
+            magnetic_weights[:, -1] = 0
+
+        scalar_spectrum = spectrum * partition
+        scalar_spectrum[0] = 0
+        if padded_count % 2 == 0:
+            scalar_spectrum[-1] = 0
+        reconstructed_waveform = np.fft.irfft(
+            scalar_spectrum, n=padded_count
+        )[:sample_count]
+        waveform_peak = float(np.max(np.abs(waveform)))
+        reconstruction_error = (
+            float(np.max(np.abs(reconstructed_waveform - waveform)) / waveform_peak)
+            if waveform_peak > 0
+            else float(np.max(np.abs(reconstructed_waveform - waveform)))
+        )
+        self.broadband_input_waveform = waveform
+        self.broadband_reconstructed_waveform = reconstructed_waveform
+        self.broadband_waveform_error = reconstruction_error
+
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.broadband_e_envelopes = np.empty(
+            (anchor_count, 2, sample_count), dtype=dtype
+        )
+        self.broadband_h_envelopes = np.empty(
+            (anchor_count, 2, sample_count), dtype=dtype
+        )
+        for anchor in range(anchor_count):
+            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(
+                electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(
+                1j * electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(
+                magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(
+                1j * magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+
+        def split_fields(anchor_fields):
+            real_fields = []
+            imag_fields = []
+            for fields in anchor_fields:
+                real_fields.append(
+                    [np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields]
+                )
+                imag_fields.append(
+                    [np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields]
+                )
+            return real_fields, imag_fields
+
+        (
+            self.broadband_modal_e_real,
+            self.broadband_modal_e_imag,
+        ) = split_fields(self.anchor_modal_e)
+        (
+            self.broadband_modal_h_real,
+            self.broadband_modal_h_imag,
+        ) = split_fields(self.anchor_modal_h)
+        logger.info(
+            f"Prepared broadband eigenmode source with {anchor_count} anchors, "
+            f"{sample_count} time samples, and significant waveform coverage from "
+            f"{significant_low:g} to {significant_high:g} Hz. Scalar waveform "
+            f"reconstruction relative peak error is {reconstruction_error:.3e}."
+        )
+
     def _plot_eigenmode_fields(self, solver):
         input_path = config.sim_config.input_file_path
         output_dir = input_path.parent
@@ -397,6 +875,8 @@ class EigenmodeSource(Source):
             f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
             f"_mode{self.mode_index}"
         )
+        if self.frequencies is not None and len(self.frequencies) > 1:
+            filename_base += f"_f{self.frequency:.12g}Hz"
         if isinstance(solver, FDFD_1D_mode_solver):
             field_path = output_dir / f"{filename_base}_{self.domain_polarization}_fields.png"
             solver.plot_fields(field_path)
@@ -580,6 +1060,9 @@ class EigenmodeSource(Source):
         time = iteration * G.dt
         if not self._source_is_active(time):
             return
+        if self.broadband_e_envelopes is not None:
+            self._update_broadband_magnetic(iteration, G)
+            return
 
         updateEigenmode_magnetic(
             config.get_model_config().ompthreads,
@@ -603,6 +1086,12 @@ class EigenmodeSource(Source):
 
     def update_eigenmode_electric(self, iteration, G):
         """Apply electric-field TF/SF corrections using incident modal H."""
+        if self.broadband_h_envelopes is not None:
+            time = iteration * G.dt
+            if self._source_is_active(time):
+                self._update_broadband_electric(iteration, G)
+            return
+
         time = iteration * G.dt + self._magnetic_modal_time_offset(G)
         if not self._source_is_active(time):
             return
@@ -626,6 +1115,76 @@ class EigenmodeSource(Source):
             G.Ey,
             G.Ez,
         )
+
+    def _update_broadband_magnetic(self, iteration, G):
+        """Apply the broadband incident-E temporal/modal basis expansion."""
+        if iteration >= self.broadband_e_envelopes.shape[2]:
+            return
+        dtype = config.sim_config.dtypes["float_or_double"]
+        field_bases = (
+            self.broadband_modal_e_real,
+            self.broadband_modal_e_imag,
+        )
+        for anchor in range(self.broadband_e_envelopes.shape[0]):
+            for quadrature, fields in enumerate(field_bases):
+                envelope = self.broadband_e_envelopes[anchor, quadrature, iteration]
+                if envelope == 0:
+                    continue
+                modal_fields = fields[anchor]
+                updateEigenmode_magnetic(
+                    config.get_model_config().ompthreads,
+                    self.normal_axis,
+                    1 if self.direction == "+" else -1,
+                    self.transverse_start[0],
+                    self.transverse_start[1],
+                    self.transverse_stop[0],
+                    self.transverse_stop[1],
+                    self.plane_index,
+                    dtype(envelope),
+                    modal_fields[0],
+                    modal_fields[1],
+                    modal_fields[2],
+                    G.updatecoeffsH,
+                    G.ID,
+                    G.Hx,
+                    G.Hy,
+                    G.Hz,
+                )
+
+    def _update_broadband_electric(self, iteration, G):
+        """Apply the broadband incident-H temporal/modal basis expansion."""
+        if iteration >= self.broadband_h_envelopes.shape[2]:
+            return
+        dtype = config.sim_config.dtypes["float_or_double"]
+        field_bases = (
+            self.broadband_modal_h_real,
+            self.broadband_modal_h_imag,
+        )
+        for anchor in range(self.broadband_h_envelopes.shape[0]):
+            for quadrature, fields in enumerate(field_bases):
+                envelope = self.broadband_h_envelopes[anchor, quadrature, iteration]
+                if envelope == 0:
+                    continue
+                modal_fields = fields[anchor]
+                updateEigenmode_electric(
+                    config.get_model_config().ompthreads,
+                    self.normal_axis,
+                    1 if self.direction == "+" else -1,
+                    self.transverse_start[0],
+                    self.transverse_start[1],
+                    self.transverse_stop[0],
+                    self.transverse_stop[1],
+                    self.plane_index,
+                    dtype(envelope),
+                    modal_fields[0],
+                    modal_fields[1],
+                    modal_fields[2],
+                    G.updatecoeffsE,
+                    G.ID,
+                    G.Ex,
+                    G.Ey,
+                    G.Ez,
+                )
 
     def _source_is_active(self, time):
         return self.start <= time <= self.stop
