@@ -120,7 +120,7 @@ def create_solver(model: Model) -> Solver:
     N.B. A large range of different functions exist to advance the time
     step for dispersive materials. The correct function is set by the
     set_dispersive_updates method, based on the required numerical
-    precision and dispersive material type. This is done for solvers
+    precision and dispersive material type.This is done for solvers
     running on CPU, i.e. where Cython is used. CUDA and OpenCL
     dispersive material functions are handled through templating and
     substitution at runtime.
