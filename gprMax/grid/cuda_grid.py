@@ -33,7 +33,7 @@ class CUDAGrid(FDTDGrid):
 
         self.gpuarray = import_module("pycuda.gpuarray")
 
-        # Threads per block - used for main electric/magnetic field updates
+        # Threads per block -used for main electric/magnetic field updates
         self.tpb = (128, 1, 1)
         # Blocks per grid - used for main electric/magnetic field updates
         self.bpg = None
@@ -95,7 +95,7 @@ class CUDAGrid(FDTDGrid):
                  dpw.axial == 1/2/3 for axial case (x/y/z direction).
         """
 
-        # -Standard arrays (uploaded for both standard and axial) -
+        # -Standard arrays  (uploaded for both standard and axial) -
 
         # 1D DPW field arrays - shape [3, n]
         # E_fields[0]=Ex, E_fields[1]=Ey, E_fields[2]=Ez
