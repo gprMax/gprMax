@@ -738,6 +738,7 @@ class DiscretePlaneWave(Source):
         self.ds = 0
         self.speed = config.c
         self.axial = 0
+        self.dispersive = False
         self.pml_cells = 20
         self.buffercells_axial = 5
         self.psi= 0.0
@@ -865,6 +866,12 @@ class DiscretePlaneWave(Source):
         self.theta_est_rad = math.radians(self.actual_angles[0])
         self.psi_rad = math.radians(self.psi)
 
+        # The dispersive background setup below needs the source frequency
+        # to evaluate the material impedance and propagation speed. Resolve
+        # the waveform before that setup, rather than at the end of this
+        # method after its first use.
+        self.waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+
         # Calculate the direction cosines
         px = math.sin(self.theta_est_rad)*math.cos(self.phi_est_rad)
         py = math.sin(self.theta_est_rad)*math.sin(self.phi_est_rad)
@@ -979,19 +986,19 @@ class DiscretePlaneWave(Source):
             self.material = next((x for x in G.materials if x.ID == self.materialID), None)
         
             
-            # Find if the source material is dispersive
-            if self.material.type == "debye":
+            # A homogeneous DPW can use any electric dispersion supported by
+            # the main grid. The real part of eps_r at the waveform centre
+            # frequency sets the reference speed and impedance; the complete
+            # time-domain response is evolved by the auxiliary pole state.
+            if getattr(self.material, "poles", 0) > 0:
                 self.dispersive = True
-                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * np.real(self.material.calculate_er(self.waveform.freq))))  # Impedance in the material
-                self.speed = config.c / math.sqrt(np.real(self.material.calculate_er(self.waveform.freq)) * self.material.mr)  # Speed in the material
+                material_er = np.real(self.material.calculate_er(self.waveform.freq))
+                self.materialZ = math.sqrt(
+                    config.m0 * self.material.mr / (config.e0 * material_er)
+                )
+                self.speed = config.c / math.sqrt(material_er * self.material.mr)
                 self.max_poles = self.material.poles
-                # Allocate memory for the polarization terms for dispersive materials
-                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-              
             else:
-                self.dispersive = False
                 self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
              
@@ -1028,9 +1035,6 @@ class DiscretePlaneWave(Source):
             # (they need the grid-sampled background material) - it runs
             # this same validation there instead.
             self._validate_2d_projections()
-
-        # Get the waveform object with the matching ID and add it to the PlaneWave object
-        self.waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
         if self.axial == 0:
             self._get_pml_parameters(G)
@@ -1122,6 +1126,14 @@ class DiscretePlaneWave(Source):
                 for idx in range(n_prop + self.origin_axial, self.length):
                     self.ID[c, idx] = _gid(c, n_prop - 1)
 
+            sampled_material_ids = set(np.unique(self.ID))
+            sampled_dispersive_materials = [
+                material
+                for material in G.materials
+                if material.numID in sampled_material_ids
+                and getattr(material, "poles", 0) > 0
+            ]
+
             # Get the background material near the origin (used for the
             # speed and impedance of the DPW) and near the far PML (used
             # for the PML parameters). Sampled from G.solid - the
@@ -1147,13 +1159,16 @@ class DiscretePlaneWave(Source):
                 (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
             )
 
-            # Find if the source material is dispersive
-            if self.material.type == "debye":
-                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * np.real(self.material.calculate_er(self.waveform.freq))))  # Impedance in the material
-                self.speed = config.c / math.sqrt(np.real(self.material.calculate_er(self.waveform.freq)) * self.material.mr)  # Speed in the material
-               
+            # Reference material properties for the source-side auxiliary
+            # grid. All Debye, Lorentz, and Drude pole dynamics are handled
+            # by the same recurrence as the main grid below.
+            if getattr(self.material, "poles", 0) > 0:
+                material_er = np.real(self.material.calculate_er(self.waveform.freq))
+                self.materialZ = math.sqrt(
+                    config.m0 * self.material.mr / (config.e0 * material_er)
+                )
+                self.speed = config.c / math.sqrt(material_er * self.material.mr)
             else:
-                self.dispersive = False
                 self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
 
@@ -1162,38 +1177,26 @@ class DiscretePlaneWave(Source):
             self.materialPML0Z = self.materialZ
             self.PML0speed = self.speed        
 
-            # Find if the PML material is dispersive
-            if self.materialPML.type == "debye":
-                self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * np.real(self.materialPML.calculate_er(self.waveform.freq))))  # Impedance in the material
-                self.PMLspeed = config.c / math.sqrt(np.real(self.materialPML.calculate_er(self.waveform.freq)) * self.materialPML.mr)  # Speed in the material
-
+            # Reference properties at the far-side DPW PML.
+            if getattr(self.materialPML, "poles", 0) > 0:
+                material_pml_er = np.real(
+                    self.materialPML.calculate_er(self.waveform.freq)
+                )
+                self.materialPMLZ = math.sqrt(
+                    config.m0 * self.materialPML.mr / (config.e0 * material_pml_er)
+                )
+                self.PMLspeed = config.c / math.sqrt(
+                    material_pml_er * self.materialPML.mr
+                )
             else:
-                self.dispersive = False
                 self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * self.materialPML.er)) # Impedance in the material
                 self.PMLspeed = config.c / math.sqrt(self.materialPML.er * self.materialPML.mr)  # Speed in the material
-               
 
-            #find if the grid has any debye materials which can determine if we need dispersive updates even if the source material is non-dispersive
-            has_debye = any(getattr(x, "type", None) == "debye" for x in G.materials)
-
-            # If axial propagation and has any debye materials in the grid then need to use dispersive updates for all materials in the main grid        
-            if has_debye:
-                self.dispersive = True
-                print("Axial DPW propagation: will use dispersive updates for all materials in the main grid")
-                self.max_poles = 0
-                for material in G.materials:
-                    poles = getattr(material, "poles", 0)  # Default to 0 if 'poles' doesn't exist
-                    if poles is not None:
-                        self.max_poles = max(self.max_poles, poles)
-
-            # Allocate memory for the polarization arrays for the DPW updates if dispersive materials are present in the grid
-            if self.dispersive:
-                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Px_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.dispersive = bool(sampled_dispersive_materials)
+            self.max_poles = max(
+                (material.poles for material in sampled_dispersive_materials),
+                default=0,
+            )
 
         
             # Calculate the projections for sourcing the electric and magnetic fields
@@ -1233,8 +1236,19 @@ class DiscretePlaneWave(Source):
             + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
             + f" and 1D vector length = {self.length} cells.")
 
-        else:
-            pass
+        # Allocate the DPW auxiliary state after the model-wide dispersive
+        # dtype has been resolved. Debye-only models use real storage;
+        # Lorentz/Drude models use complex storage, exactly as the main grid.
+        if self.dispersive:
+            dispersive_dtype = config.get_model_config().materials["dispersivedtype"]
+            state_shape = (self.max_poles, self.length)
+            self.Px = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+            self.Py = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+            self.Pz = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+            if self.axial != 0:
+                self.Px_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+                self.Py_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+                self.Pz_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
 
 
     def calculate_waveform_values(self, G, cythonize=True):

@@ -264,6 +264,13 @@ class DispersiveMaterial(Material):
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
 
+        # The Drude susceptibility contains a constant causal term whose
+        # time derivative is equivalent to an electric conductivity. Keep
+        # that numerical conductivity local: ``self.se`` is the physical
+        # conductivity supplied by the user and must neither be overwritten
+        # nor accumulated if coefficients are calculated more than once.
+        effective_se = self.se
+
         for x in range(self.poles):
             if "debye" in self.type:
                 self.w[x] = self.deltaer[x] / self.tau[x]
@@ -278,7 +285,9 @@ class DispersiveMaterial(Material):
                 # tau for Drude materials are pole frequencies
                 # alpha for Drude materials are the inverse of relaxation times
                 wp2 = (2 * np.pi * self.tau[x]) ** 2
-                self.se += wp2 / self.alpha[x]
+                effective_se += (
+                    config.sim_config.em_consts["e0"] * wp2 / self.alpha[x]
+                )
                 self.w[x] = -(wp2 / self.alpha[x])
                 self.q[x] = -self.alpha[x]
 
@@ -289,12 +298,12 @@ class DispersiveMaterial(Material):
 
         EA = (
             (config.sim_config.em_consts["e0"] * self.er / G.dt)
-            + 0.5 * self.se
+            + 0.5 * effective_se
             - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
         EB = (
             (config.sim_config.em_consts["e0"] * self.er / G.dt)
-            - 0.5 * self.se
+            - 0.5 * effective_se
             - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
 
@@ -333,20 +342,20 @@ class DispersiveMaterial(Material):
         er = self.er
 
         w = 2 * np.pi * freq
-        er += self.se / (1j * w * config.sim_config.em_consts["e0"])
+        er += self.se / (1j * w * config.e0)
         if "debye" in self.type:
             for pole in range(self.poles):
                 er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
         elif "lorentz" in self.type:
             for pole in range(self.poles):
-                er += (self.deltaer[pole] * self.tau[pole] ** 2) / (
-                    self.tau[pole] ** 2 + 2j * w * self.alpha[pole] - w**2
+                pole_omega = 2 * np.pi * self.tau[pole]
+                er += (self.deltaer[pole] * pole_omega**2) / (
+                    pole_omega**2 + 2j * w * self.alpha[pole] - w**2
                 )
         elif "drude" in self.type:
-            ersum = 0
             for pole in range(self.poles):
-                ersum += self.tau[pole] ** 2 / (w**2 - 1j * w * self.alpha[pole])
-                er -= ersum
+                pole_omega = 2 * np.pi * self.tau[pole]
+                er -= pole_omega**2 / (w**2 - 1j * w * self.alpha[pole])
 
         return er
 

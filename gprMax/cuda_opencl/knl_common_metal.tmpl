@@ -35,6 +35,18 @@ inline gprMaxComplex operator*(gprMaxComplex a, gprMaxComplex b) {
 inline gprMaxComplex operator*(gprMaxComplex a, float b) {
     return gprMaxComplex{a.re * b, a.im * b};
 }
+
+// Uniform dispersive arithmetic used by the shared CUDA/OpenCL/Metal
+// field-update kernel. Metal's custom complex type provides these operators.
+#define GPRMAX_CMUL(a, b) ((a) * (b))
+#define GPRMAX_CRMUL(a, b) ((a) * (b))
+#define GPRMAX_CADD(a, b) ((a) + (b))
+#define GPRMAX_CSUB(a, b) ((a) - (b))
+{% if DRUDELORENTZ %}
+#define GPRMAX_CREAL(a) ((a).real())
+{% else %}
+#define GPRMAX_CREAL(a) (a)
+{% endif %}
 {% endblock header %}
 
 

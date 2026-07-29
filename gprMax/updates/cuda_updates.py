@@ -153,6 +153,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self.knl_common = self.env.get_template("knl_common_cuda.tmpl").render(
             REAL=config.sim_config.dtypes["C_float_or_double"],
+            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],

@@ -28,7 +28,21 @@ from libc.string cimport strcmp
 from cython.parallel import prange
 
 from gprMax.config cimport float_or_double
-from gprMax.config cimport float_or_double_complex
+
+
+# The plane-wave electric and magnetic fields remain real, while auxiliary
+# dispersive state is real for Debye-only models and complex when any Lorentz
+# or Drude material is present. This mirrors the main-grid dispersive solver.
+# For complex poles the apparent current is Re(a*T), including the imaginary
+# cross term; Re(a)*Re(T) does not implement the requested Lorentz response.
+ctypedef float complex complex_float
+ctypedef double complex complex_double
+
+ctypedef fused dispersive_float_or_double:
+    float
+    double
+    complex_float
+    complex_double
 
 
 @cython.wraparound(False)
@@ -1671,9 +1685,9 @@ cdef void updateElectricFields_dispersive(
     int p,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
@@ -1684,7 +1698,7 @@ cdef void updateElectricFields_dispersive(
     float_or_double dy,
     float_or_double dz,
     float_or_double[:] updatecoeffsE,
-    float_or_double[:] updatecoeffsdispersive,
+    dispersive_float_or_double[:] updatecoeffsdispersive,
     int num_poles,
     int[:] m
 ):
@@ -1717,7 +1731,7 @@ cdef void updateElectricFields_dispersive(
             max(m_x, m_y, m_z).
     """
 
-    cdef Py_ssize_t j, i = 0
+    cdef Py_ssize_t j, i, pole = 0
 
     cdef float_or_double[:] E_x = E_fields[0, :]
     cdef float_or_double[:] E_y = E_fields[1, :]
@@ -1725,9 +1739,9 @@ cdef void updateElectricFields_dispersive(
     cdef float_or_double[:] H_x = H_fields[0, :]
     cdef float_or_double[:] H_y = H_fields[1, :]
     cdef float_or_double[:] H_z = H_fields[2, :]
-    cdef float_or_double[:, ::1] T_x = Px
-    cdef float_or_double[:, ::1] T_y = Py
-    cdef float_or_double[:, ::1] T_z = Pz
+    cdef dispersive_float_or_double[:, ::1] T_x = Px
+    cdef dispersive_float_or_double[:, ::1] T_y = Py
+    cdef dispersive_float_or_double[:, ::1] T_z = Pz
 
 
     cdef float_or_double coef_E_xt = updatecoeffsE[0]
@@ -1744,7 +1758,7 @@ cdef void updateElectricFields_dispersive(
 
     cdef float_or_double coef_E_D = updatecoeffsE[4]  
     
-    cdef float_or_double[:] coef_D = updatecoeffsdispersive
+    cdef dispersive_float_or_double[:] coef_D = updatecoeffsdispersive
 
     cdef float_or_double[:] Ixjyz = Ix[0, :]
     cdef float_or_double[:] Ixjzy = Ix[1, :]
@@ -1784,7 +1798,11 @@ cdef void updateElectricFields_dispersive(
 
         phi = 0
         for pole in range(num_poles):
-            phi = phi + coef_D[pole * 3] * T_x[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = phi + (coef_D[pole * 3] * T_x[pole, j]).real
+            else:
+                phi = phi + coef_D[pole * 3] * T_x[pole, j]
 
             T_x[pole, j] = coef_D[1 + (pole * 3)] * T_x[pole, j] + coef_D[2 + (pole * 3)] * E_x[j]
             
@@ -1795,7 +1813,11 @@ cdef void updateElectricFields_dispersive(
         
         phi = 0
         for pole in range(num_poles):
-            phi = phi + coef_D[pole * 3] * T_y[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = phi + (coef_D[pole * 3] * T_y[pole, j]).real
+            else:
+                phi = phi + coef_D[pole * 3] * T_y[pole, j]
 
             T_y[pole, j] = coef_D[1 + (pole * 3)] * T_y[pole, j] + coef_D[2 + (pole * 3)]* E_y[j]
             
@@ -1807,7 +1829,11 @@ cdef void updateElectricFields_dispersive(
         
         phi = 0
         for pole in range(num_poles):
-            phi = phi + coef_D[pole * 3] * T_z[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = phi + (coef_D[pole * 3] * T_z[pole, j]).real
+            else:
+                phi = phi + coef_D[pole * 3] * T_z[pole, j]
 
             T_z[pole,j] = coef_D[1 + (pole * 3)] * T_z[pole, j] + coef_D[2 + (pole * 3)]* E_z[j]
             
@@ -1883,12 +1909,12 @@ cdef void updateElectricFields_dispersive_axial(
     float_or_double[:, ::1] E_fields,
     float_or_double[:, ::1] H_fields_s,
     float_or_double[:, ::1] E_fields_s,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
-    float_or_double[:, ::1] Px_s,
-    float_or_double[:, ::1] Py_s,
-    float_or_double[:, ::1] Pz_s,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px_s,
+    dispersive_float_or_double[:, ::1] Py_s,
+    dispersive_float_or_double[:, ::1] Pz_s,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
@@ -1908,7 +1934,7 @@ cdef void updateElectricFields_dispersive_axial(
     float_or_double dy,
     float_or_double dz,
     float_or_double[:, ::1] updatecoeffsE,
-    float_or_double[:, ::1] updatecoeffsdispersive,
+    dispersive_float_or_double[:, ::1] updatecoeffsdispersive,
     np.uint32_t[:, ::1] GID,
     int num_poles,
     int[:] m
@@ -1942,7 +1968,7 @@ cdef void updateElectricFields_dispersive_axial(
             max(m_x, m_y, m_z).
     """
 
-    cdef Py_ssize_t j, i = 0
+    cdef Py_ssize_t j, i, pole = 0
 
     cdef float_or_double[:] E_x = E_fields[0, :]
     cdef float_or_double[:] E_y = E_fields[1, :]
@@ -1958,12 +1984,12 @@ cdef void updateElectricFields_dispersive_axial(
     cdef float_or_double[:] E_y_s = E_fields_s[1, :]
     cdef float_or_double[:] E_z_s = E_fields_s[2, :]
 
-    cdef float_or_double[:, ::1] T_x = Px
-    cdef float_or_double[:, ::1] T_y = Py
-    cdef float_or_double[:, ::1] T_z = Pz
-    cdef float_or_double[:, ::1] T_x_s = Px_s
-    cdef float_or_double[:, ::1] T_y_s = Py_s
-    cdef float_or_double[:, ::1] T_z_s = Pz_s
+    cdef dispersive_float_or_double[:, ::1] T_x = Px
+    cdef dispersive_float_or_double[:, ::1] T_y = Py
+    cdef dispersive_float_or_double[:, ::1] T_z = Pz
+    cdef dispersive_float_or_double[:, ::1] T_x_s = Px_s
+    cdef dispersive_float_or_double[:, ::1] T_y_s = Py_s
+    cdef dispersive_float_or_double[:, ::1] T_z_s = Pz_s
 
     cdef float_or_double[:] Ixjyz = Ix[0, :]
     cdef float_or_double[:] Ixjzy = Ix[1, :]
@@ -2037,7 +2063,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat = GID[0,2]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_x_s[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_x_s[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_x_s[pole, j]
             T_x_s[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_x_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)] * E_x_s[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2046,7 +2077,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[1,2]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_y_s[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_y_s[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_y_s[pole, j]
             T_y_s[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_y_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_y_s[j]
 
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2055,7 +2091,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[2,2]       
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_z_s[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_z_s[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_z_s[pole, j]
             T_z_s[pole,j] = updatecoeffsdispersive[mat, 1 + (pole * 3)] * T_z_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_z_s[j]
 
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2130,7 +2171,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat = GID[0,j]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_x[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_x[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_x[pole, j]
             T_x[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_x[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)] * E_x[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2139,7 +2185,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[1,j]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_y[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_y[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_y[pole, j]
             T_y[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_y[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_y[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2148,7 +2199,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[2,j]       
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_z[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_z[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_z[pole, j]
             T_z[pole,j] = updatecoeffsdispersive[mat, 1 + (pole * 3)] * T_z[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_z[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2653,15 +2709,15 @@ cpdef void updatePlaneWave_electric_dispersive(
     int skip_axis,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
     float_or_double[:] updatecoeffsE,
     float_or_double[:] updatecoeffsH,
-    float_or_double[:] updatecoeffsdispersive,
+    dispersive_float_or_double[:] updatecoeffsdispersive,
     int num_poles,
     float_or_double[:, ::1] rcEx,
     float_or_double[:, ::1] rcEy,
@@ -2709,12 +2765,12 @@ cpdef void updatePlaneWave_electric_dispersive_axial(
     float_or_double[:, ::1] E_fields,
     float_or_double[:, ::1] H_fields_s,
     float_or_double[:, ::1] E_fields_s,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
-    float_or_double[:, ::1] Px_s,
-    float_or_double[:, ::1] Py_s,
-    float_or_double[:, ::1] Pz_s,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px_s,
+    dispersive_float_or_double[:, ::1] Py_s,
+    dispersive_float_or_double[:, ::1] Pz_s,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
@@ -2726,7 +2782,7 @@ cpdef void updatePlaneWave_electric_dispersive_axial(
     float_or_double[:, ::1] Iz_s,
     float_or_double[:, ::1] updatecoeffsE,
     float_or_double[:, ::1] updatecoeffsH,
-    float_or_double[:, ::1] updatecoeffsdispersive,
+    dispersive_float_or_double[:, ::1] updatecoeffsdispersive,
     np.uint32_t[:, ::1] ID,
     np.uint32_t[:, :, :, ::1] GID,
     int num_poles,

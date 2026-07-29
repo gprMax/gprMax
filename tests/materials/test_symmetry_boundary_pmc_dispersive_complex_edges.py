@@ -9,9 +9,8 @@ Same design decision under test as the real-pole edge file (see
 gprMax/cython/symmetry_boundaries_dispersive_complex.pyx's module
 docstring): phi/T bookkeeping runs unconditionally regardless of the
 a_pmc/b_pmc flags; only phi's accumulation formula differs from the
-real-pole case (Real(coeff)*Real(T) per pole, not the full complex
-product's real part - matching the bulk dispersive kernel's own complex
-branch exactly).
+real-pole case: it is the real part of the complete complex product
+Real(coeff*T) per pole, matching the bulk dispersive update.
 """
 import numpy as np
 import pytest
@@ -58,7 +57,7 @@ def _phi_and_new_t(t_old_poles, e_old):
     phi = 0.0
     t_new = []
     for p in range(maxpoles):
-        phi += alpha[p].real * t_old_poles[p].real
+        phi += (alpha[p] * t_old_poles[p]).real
         t_new.append(beta[p] * t_old_poles[p] + gamma[p] * e_old)
     return phi, t_new
 
