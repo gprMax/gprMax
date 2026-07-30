@@ -1199,10 +1199,10 @@ class DiscretePlaneWaveAngles(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+                + "with the OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1377,10 +1377,10 @@ class DiscretePlaneWaveVector(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+                + "with the OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1542,10 +1542,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+                + "with the OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
