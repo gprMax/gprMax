@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -216,6 +216,8 @@ def check_cmd_names(processedlines, checkessential=True):
     singlecmds = dict.fromkeys(
         [
             "#domain",
+            "#domain_mode",
+            "#magnetic_averaging",
             "#dx_dy_dz",
             "#time_window",
             "#title",
@@ -252,11 +254,25 @@ def check_cmd_names(processedlines, checkessential=True):
             "#plane_wave_angles",
             "#plane_wave_axial",
             "#plane_wave_vector",
+            "#eigenmode_source",
             "#excitation_file",
             "#rx",
             "#rx_array",
+            "#rx_port",
             "#snapshot",
+            "#ksir_surface",
+            "#ksir_frequency",
+            "#ksir_time_rx",
+            "#ksir_time_rx_spherical",
+            "#ksir_time_rx_array",
+            "#ksir_frequency_rx",
+            "#ksir_frequency_rx_spherical",
+            "#ksir_frequency_rx_array",
+            "#ksir_far_field",
+            "#ksir_far_field_array",
+            "#ksir_antenna_ports",
             "#pml_cfs",
+            "#symmetry_boundary",
             "#include_file",
         ]
     }
@@ -266,6 +282,8 @@ def check_cmd_names(processedlines, checkessential=True):
     geometrycmds = [
         "#geometry_objects_read",
         "#edge",
+        "#magnetic_edge",
+        "#thin_wire",
         "#plate",
         "#triangle",
         "#box",

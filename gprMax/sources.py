@@ -17,25 +17,30 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+import math
 from copy import deepcopy
-
 import numpy as np
 import numpy.typing as npt
-import math
-import logging
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
+from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
     calculate1DWaveformValues,
     getSource,
-    updatePlaneWave_magnetic,
-    updatePlaneWave_magnetic_axial,
     updatePlaneWave_electric,
     updatePlaneWave_electric_axial,
     updatePlaneWave_electric_dispersive,
     updatePlaneWave_electric_dispersive_axial,
+    updatePlaneWave_magnetic,
+    updatePlaneWave_magnetic_axial,
+)
+from .cython.eigenmode_source import (
+    update_eigenmode_magnetic as updateEigenmode_magnetic,
+    update_eigenmode_electric as updateEigenmode_electric,
 )
 from .utilities.utilities import round_value
 
@@ -107,6 +112,1243 @@ class Source:
         self.coordorigin[2] = value
 
 
+class EigenmodeSource(Source):
+    """Holds data for an eigenmode source and prepares material slices.
+
+    `grid_init()` runs after geometry has been converted to Yee component
+    material IDs, so it is the right place to extract material data from
+    `G.ID`, solve the transverse mode, and prepare modal fields for TF/SF
+    injection.
+    """
+
+    FDFD_PEC_PROPERTY = np.inf + 0j
+    FDFD_PMC_PROPERTY = np.inf + 0j
+
+    def __init__(self, G):
+        super().__init__()
+        self.normal = None
+        self.direction = None
+        self.normal_axis = None
+        self.transverse_axes = None
+        self.invariant_axis = None
+        self.physical_transverse_axis = None
+        self.domain_polarization = None
+        self.transverse_start = None
+        self.transverse_stop = None
+        self.mode_index = None
+        self.frequency = None
+        self.frequencies = None
+        self.mode_overlap_threshold = 0.9
+        self.spectral_threshold = 1e-3
+        self.plane_index = None
+        self.complex_eps_r_uu = None
+        self.complex_eps_r_vv = None
+        self.complex_eps_r_ww = None
+        self.complex_mu_r_uu = None
+        self.complex_mu_r_vv = None
+        self.complex_mu_r_ww = None
+        self.modal_e = None
+        self.modal_h = None
+        self.modal_e_real = None
+        self.modal_h_real = None
+        self.neff = None
+        self.complex_neff = None
+        self.mode_solver = None
+        self.mode_solvers = None
+        self.anchor_modal_e = None
+        self.anchor_modal_h = None
+        self.anchor_complex_neff = None
+        self.anchor_overlaps = None
+        self.broadband_e_envelopes = None
+        self.broadband_h_envelopes = None
+        self.broadband_modal_e_real = None
+        self.broadband_modal_e_imag = None
+        self.broadband_modal_h_real = None
+        self.broadband_modal_h_imag = None
+        self.broadband_input_waveform = None
+        self.broadband_reconstructed_waveform = None
+        self.broadband_waveform_error = None
+
+    def grid_init(self, G):
+        """Prepare source data that depends on the final built Yee grid."""
+        if self.plane_index is None:
+            self.plane_index = self._select_plane_index(G)
+        frequencies = tuple(self.frequencies or (self.frequency,))
+        if len(frequencies) > 1:
+            self._solve_broadband_eigenmode(G, frequencies)
+            return
+
+        self.frequency = frequencies[0]
+        self._extract_frequency_dependent_materials(G)
+        self._solve_eigenmode(G)
+
+    def _extract_frequency_dependent_materials(self, G):
+        """Extract source-plane constitutive properties at the active frequency."""
+        (
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=True)
+        (
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=False)
+
+    def _solve_broadband_eigenmode(self, G, frequencies):
+        """Solve, align, validate, and synthesize a multi-frequency mode."""
+        anchor_e = []
+        anchor_h = []
+        anchor_neff = []
+        solvers = []
+
+        for frequency in frequencies:
+            self.frequency = frequency
+            self._extract_frequency_dependent_materials(G)
+            self._solve_eigenmode(G)
+            anchor_e.append(
+                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
+            )
+            anchor_h.append(
+                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
+            )
+            anchor_neff.append(complex(self.complex_neff))
+            solvers.append(self.mode_solver)
+
+        overlaps = self._align_and_validate_anchors(anchor_e, anchor_h, frequencies)
+        self.anchor_modal_e = anchor_e
+        self.anchor_modal_h = anchor_h
+        self.anchor_complex_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        self.anchor_overlaps = np.asarray(overlaps, dtype=np.float64)
+        self.mode_solvers = solvers
+        self._prepare_broadband_time_traces(G, frequencies)
+
+        # Keep representative modal data available to diagnostics and callers.
+        representative = min(
+            range(len(frequencies)),
+            key=lambda index: abs(frequencies[index] - self.waveform.freq),
+        )
+        self.frequency = frequencies[representative]
+        self.modal_e = self.anchor_modal_e[representative]
+        self.modal_h = self.anchor_modal_h[representative]
+        self.mode_solver = self.mode_solvers[representative]
+        self.complex_neff = self.anchor_complex_neff[representative]
+        self.neff = float(np.real(self.complex_neff))
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
+
+    def _solve_eigenmode(self, G):
+        if self.invariant_axis is not None:
+            return self._solve_eigenmode_2d(G)
+        return self._solve_eigenmode_3d(G)
+
+    def _solve_eigenmode_3d(self, G):
+        """Solve the local 2D eigenmode and map fields onto global components."""
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
+        pmc_u_mask, pmc_v_mask, pmc_w_mask = self._cell_pmc_magnetic_component_masks(G)
+        solver = FDFD_2D_mode_solver(
+            frequency=self.frequency,
+            du=G.dl[self.transverse_axes[0]],
+            dv=G.dl[self.transverse_axes[1]],
+            mode_index=self.mode_index,
+            eps_r_uu=self.complex_eps_r_uu,
+            eps_r_vv=self.complex_eps_r_vv,
+            eps_r_ww=self.complex_eps_r_ww,
+            mu_r_uu=self.complex_mu_r_uu,
+            mu_r_vv=self.complex_mu_r_vv,
+            mu_r_ww=self.complex_mu_r_ww,
+            pec_u_mask=pec_u_mask,
+            pec_v_mask=pec_v_mask,
+            pec_w_mask=pec_w_mask,
+            pmc_u_mask=pmc_u_mask,
+            pmc_v_mask=pmc_v_mask,
+            pmc_w_mask=pmc_w_mask,
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        self.complex_neff = getattr(
+            solver, "modal_complex_neff", complex(solver.modal_real_neff)
+        )
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+
+        self.modal_e[local_to_global[0]] = solver.modal_Eu
+        self.modal_e[local_to_global[1]] = solver.modal_Ev
+        self.modal_e[local_to_global[2]] = solver.modal_Ew
+        self.modal_h[local_to_global[0]] = solver.modal_Hu
+        self.modal_h[local_to_global[1]] = solver.modal_Hv
+        self.modal_h[local_to_global[2]] = solver.modal_Hw
+        if self._modal_basis_handedness() < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
+        self._validate_modal_field_shapes()
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_h
+        ]
+
+    def _solve_eigenmode_2d(self, G):
+        """Solve a true 1D mode for a 2D TM/TE FDTD model."""
+        solver_inputs = self._one_dimensional_solver_inputs(G)
+        solver = FDFD_1D_mode_solver(
+            frequency=self.frequency,
+            dt=G.dl[self.physical_transverse_axis],
+            mode_index=self.mode_index,
+            polarization=self.domain_polarization,
+            **solver_inputs,
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        self.complex_neff = getattr(
+            solver, "modal_complex_neff", complex(solver.modal_real_neff)
+        )
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        t_local = self.transverse_axes.index(self.physical_transverse_axis)
+        a_local = self.transverse_axes.index(self.invariant_axis)
+        e_local = [
+            np.zeros(shape, dtype=np.complex128)
+            for shape in self._expected_local_field_shapes("E")
+        ]
+        h_local = [
+            np.zeros(shape, dtype=np.complex128)
+            for shape in self._expected_local_field_shapes("H")
+        ]
+
+        if self.domain_polarization == "TM":
+            e_local[a_local] = self._embed_1d_profile(
+                solver.modal_Ea, a_local, "E"
+            )
+            h_local[t_local] = self._embed_1d_profile(
+                solver.modal_Ht, t_local, "H"
+            )
+            h_local[2] = self._embed_1d_profile(solver.modal_Hw, 2, "H")
+        else:
+            e_local[t_local] = self._embed_1d_profile(
+                solver.modal_Et, t_local, "E"
+            )
+            e_local[2] = self._embed_1d_profile(solver.modal_Ew, 2, "E")
+            h_local[a_local] = self._embed_1d_profile(
+                solver.modal_Ha, a_local, "H"
+            )
+
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+        for local_axis, global_axis in enumerate(local_to_global):
+            self.modal_e[global_axis] = e_local[local_axis]
+            self.modal_h[global_axis] = h_local[local_axis]
+        basis = np.eye(3, dtype=np.int32)
+        solver_handedness = int(
+            np.dot(
+                np.cross(
+                    basis[self.physical_transverse_axis],
+                    basis[self.invariant_axis],
+                ),
+                basis[self.normal_axis],
+            )
+        )
+        if solver_handedness < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode 1D local basis is left-handed; modal H fields were flipped.")
+
+        self._validate_modal_field_shapes()
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
+
+    def _expected_local_field_shapes(self, field_kind):
+        nu, nv = self._transverse_cell_shape()
+        if field_kind == "E":
+            return ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        return ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+
+    def _sample_1d_component(self, values):
+        """Collapse a local 2D Yee component onto the live invariant layer."""
+        invariant_local = self.transverse_axes.index(self.invariant_axis)
+        live_layer = 1 if self.domain_polarization == "TE" else 0
+        # TE fields propagate on the shared interior plane at index 1. Some
+        # inactive components are cell-sampled on the invariant axis and may
+        # have no index 1 in TM, so clamp those unused samples to index 0.
+        sample_index = min(live_layer, values.shape[invariant_local] - 1)
+        return np.take(values, sample_index, axis=invariant_local).copy()
+
+    def _one_dimensional_solver_inputs(self, G):
+        """Return staggered 1D material arrays and constraint masks."""
+        t_local = self.transverse_axes.index(self.physical_transverse_axis)
+        a_local = self.transverse_axes.index(self.invariant_axis)
+        eps = (
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        )
+        mu = (
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        )
+        pec = self._cell_pec_electric_component_masks(G)
+        pmc = self._cell_pmc_magnetic_component_masks(G)
+        return {
+            "eps_r_t": self._sample_1d_component(eps[t_local]),
+            "eps_r_a": self._sample_1d_component(eps[a_local]),
+            "eps_r_w": self._sample_1d_component(eps[2]),
+            "mu_r_t": self._sample_1d_component(mu[t_local]),
+            "mu_r_a": self._sample_1d_component(mu[a_local]),
+            "mu_r_w": self._sample_1d_component(mu[2]),
+            "pec_t_mask": self._sample_1d_component(pec[t_local]),
+            "pec_a_mask": self._sample_1d_component(pec[a_local]),
+            "pec_w_mask": self._sample_1d_component(pec[2]),
+            "pmc_t_mask": self._sample_1d_component(pmc[t_local]),
+            "pmc_a_mask": self._sample_1d_component(pmc[a_local]),
+            "pmc_w_mask": self._sample_1d_component(pmc[2]),
+        }
+
+    def _embed_1d_profile(self, profile, local_component, field_kind):
+        """Expand one physical line profile into a thin 2D Yee component."""
+        shape = self._expected_local_field_shapes(field_kind)[local_component]
+        result = np.zeros(shape, dtype=np.complex128)
+        invariant_local = self.transverse_axes.index(self.invariant_axis)
+        layer = 1 if self.domain_polarization == "TE" else 0
+        if invariant_local == 0:
+            result[layer, :] = profile
+        else:
+            result[:, layer] = profile
+        return result
+
+    def _validate_modal_field_shapes(self):
+        nu, nv = self._transverse_cell_shape()
+        expected_e = ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        expected_h = ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            actual = self.modal_e[global_axis].shape
+            if actual != expected_e[local_axis]:
+                raise ValueError(
+                    f"Eigenmode E local component {local_axis} shape {actual} does not match {expected_e[local_axis]}."
+                )
+            actual = self.modal_h[global_axis].shape
+            if actual != expected_h[local_axis]:
+                raise ValueError(
+                    f"Eigenmode H local component {local_axis} shape {actual} does not match {expected_h[local_axis]}."
+                )
+
+    def _modal_basis_handedness(self):
+        basis = np.eye(3, dtype=np.int32)
+        transverse_u = basis[self.transverse_axes[0]]
+        transverse_v = basis[self.transverse_axes[1]]
+        normal = basis[self.normal_axis]
+        return int(np.dot(np.cross(transverse_u, transverse_v), normal))
+
+    def _modal_overlap(self, first_e, first_h, second_e, second_h):
+        """Return the normalized complex overlap of two modal field sets."""
+        numerator = 0.0j
+        first_norm = 0.0
+        second_norm = 0.0
+        impedance = float(config.sim_config.em_consts["z0"])
+        for first, second in zip(first_e, second_e):
+            numerator += np.vdot(first, second)
+            first_norm += float(np.vdot(first, first).real)
+            second_norm += float(np.vdot(second, second).real)
+        for first, second in zip(first_h, second_h):
+            first_scaled = impedance * first
+            second_scaled = impedance * second
+            numerator += np.vdot(first_scaled, second_scaled)
+            first_norm += float(np.vdot(first_scaled, first_scaled).real)
+            second_norm += float(np.vdot(second_scaled, second_scaled).real)
+        denominator = np.sqrt(first_norm * second_norm)
+        if not np.isfinite(denominator) or denominator <= 1e-300:
+            logger.warning(
+                "Cannot compare broadband eigenmode anchors with zero or invalid "
+                "field norm. Treating their overlap as zero and continuing."
+            )
+            return 0.0j
+        return numerator / denominator
+
+    def _align_and_validate_anchors(self, anchor_e, anchor_h, frequencies):
+        """Phase-align consecutive anchors and warn about a likely mode switch."""
+        overlaps = []
+        for index in range(1, len(frequencies)):
+            overlap = self._modal_overlap(
+                anchor_e[index - 1],
+                anchor_h[index - 1],
+                anchor_e[index],
+                anchor_h[index],
+            )
+            magnitude = float(abs(overlap))
+            if not np.isfinite(magnitude) or magnitude < self.mode_overlap_threshold:
+                logger.warning(
+                    "Broadband eigenmode source mode-overlap check failed between "
+                    f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz "
+                    f"for mode index {self.mode_index}: overlap {magnitude:.6f} is below "
+                    f"the required {self.mode_overlap_threshold:.6f}. The eigenvalue ordering "
+                    "may have changed, the anchors may straddle a cutoff or degeneracy, or the "
+                    "frequency spacing may be too large. Add intermediate frequencies, narrow "
+                    "the source bandwidth, or use the single-frequency eigenmode source. "
+                    "Continuing with the supplied anchor modes."
+                )
+
+            phase_aligned = np.isfinite(magnitude) and magnitude > 1e-300
+            phase_factor = (
+                np.exp(-1j * np.angle(overlap))
+                if phase_aligned
+                else 1.0 + 0.0j
+            )
+            anchor_e[index] = [field * phase_factor for field in anchor_e[index]]
+            anchor_h[index] = [field * phase_factor for field in anchor_h[index]]
+            overlaps.append(magnitude)
+            logger.info(
+                f"Eigenmode anchor overlap {magnitude:.6f} between "
+                f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
+                + (
+                    "the latter anchor was phase-aligned."
+                    if phase_aligned
+                    else "its phase was left unchanged."
+                )
+            )
+        return overlaps
+
+    @staticmethod
+    def _average_to_transverse_cells(field, component):
+        if component in ("eu", "hv"):
+            return 0.5 * (field[:, :-1] + field[:, 1:])
+        if component in ("ev", "hu"):
+            return 0.5 * (field[:-1, :] + field[1:, :])
+        raise ValueError(f"Unknown transverse component {component!r}.")
+
+    def _modal_cross_power(self, electric, magnetic, G):
+        """Return complex power pairing for two global modal field sets."""
+        if self.invariant_axis is not None:
+            return self._modal_cross_power_2d(electric, magnetic, G)
+
+        u_axis, v_axis = self.transverse_axes
+        eu = self._average_to_transverse_cells(electric[u_axis], "eu")
+        ev = self._average_to_transverse_cells(electric[v_axis], "ev")
+        hu = self._average_to_transverse_cells(magnetic[u_axis], "hu")
+        hv = self._average_to_transverse_cells(magnetic[v_axis], "hv")
+        flux = eu * np.conj(hv) - ev * np.conj(hu)
+        if self.invariant_axis is None:
+            measure = G.dl[u_axis] * G.dl[v_axis]
+        else:
+            measure = G.dl[self.physical_transverse_axis]
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return (
+            0.5
+            * direction_scale
+            * self._modal_basis_handedness()
+            * np.sum(flux)
+            * measure
+        )
+
+    def _modal_cross_power_2d(self, electric, magnetic, G):
+        """Return modal power per metre from the live 2D field profiles.
+
+        The invariant direction in a 2D grid is represented by a small
+        synthetic Yee dimension. Its inactive layers must not be averaged
+        into the physical profiles, particularly for TE where both power
+        carrying components occupy the shared interior layer.
+        """
+        transverse_axis = self.physical_transverse_axis
+        invariant_axis = self.invariant_axis
+        invariant_local = self.transverse_axes.index(invariant_axis)
+        layer = 1 if self.domain_polarization == "TE" else 0
+
+        def live_profile(field):
+            return np.take(field, layer, axis=invariant_local)
+
+        if self.domain_polarization == "TE":
+            electric_profile = live_profile(electric[transverse_axis])
+            magnetic_profile = live_profile(magnetic[invariant_axis])
+        else:
+            electric_profile = live_profile(electric[invariant_axis])
+            magnetic_profile = live_profile(magnetic[transverse_axis])
+            electric_profile = 0.5 * (
+                electric_profile[:-1] + electric_profile[1:]
+            )
+            magnetic_profile = 0.5 * (
+                magnetic_profile[:-1] + magnetic_profile[1:]
+            )
+
+        basis = np.eye(3, dtype=np.int32)
+        flux_sign = int(
+            np.dot(
+                np.cross(basis[transverse_axis], basis[invariant_axis]),
+                basis[self.normal_axis],
+            )
+        )
+        if self.domain_polarization == "TM":
+            flux_sign *= -1
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return (
+            0.5
+            * direction_scale
+            * flux_sign
+            * np.sum(electric_profile * np.conj(magnetic_profile))
+            * G.dl[transverse_axis]
+        )
+
+    @staticmethod
+    def _linear_anchor_weights(bin_frequencies, anchor_frequencies):
+        """Return partition-of-unity weights with endpoint extrapolation.
+
+        Frequencies between anchors use ordinary piecewise-linear weights.
+        Bins below or above the anchor range retain the nearest endpoint mode.
+        The spectrum-coverage check warns when those extrapolated bins are
+        significant; retaining them avoids a hard spectral truncation and its
+        associated time-domain ringing.
+        """
+        anchor_frequencies = np.asarray(anchor_frequencies, dtype=np.float64)
+        weights = np.zeros((anchor_frequencies.size, bin_frequencies.size), dtype=np.float64)
+        weights[0, bin_frequencies < anchor_frequencies[0]] = 1.0
+        weights[-1, bin_frequencies > anchor_frequencies[-1]] = 1.0
+        inside = (bin_frequencies >= anchor_frequencies[0]) & (
+            bin_frequencies <= anchor_frequencies[-1]
+        )
+        for bin_index in np.flatnonzero(inside):
+            frequency = bin_frequencies[bin_index]
+            if frequency == anchor_frequencies[-1]:
+                weights[-1, bin_index] = 1.0
+                continue
+            lower = int(np.searchsorted(anchor_frequencies, frequency, side="right") - 1)
+            lower = max(0, min(lower, anchor_frequencies.size - 2))
+            span = anchor_frequencies[lower + 1] - anchor_frequencies[lower]
+            upper_weight = (frequency - anchor_frequencies[lower]) / span
+            weights[lower, bin_index] = 1.0 - upper_weight
+            weights[lower + 1, bin_index] = upper_weight
+        return weights
+
+    @staticmethod
+    def _magnetic_stagger_factor(omega, beta, dt, normal_spacing):
+        """Return each frequency bin's own E/H time-and-space staggering."""
+        return np.exp(1j * (0.5 * omega * dt + 0.5 * beta * normal_spacing))
+
+    def _prepare_broadband_time_traces(self, G, frequencies):
+        """Build real temporal bases for complex, linearly interpolated modes."""
+        sample_count = int(G.iterations)
+        times = np.arange(sample_count, dtype=np.float64) * G.dt
+        waveform = np.asarray(
+            [self.waveform.calculate_value(time - self.start, G.dt) for time in times],
+            dtype=np.float64,
+        )
+        if not np.all(np.isfinite(waveform)):
+            logger.warning(
+                "The broadband eigenmode source waveform contains non-finite samples. "
+                "Replacing them with zero and continuing."
+            )
+            waveform = np.nan_to_num(waveform, nan=0.0, posinf=0.0, neginf=0.0)
+        padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
+        spectrum = np.fft.rfft(waveform, n=padded_count)
+        bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
+        spectrum_magnitude = np.abs(spectrum)
+        peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            logger.warning(
+                "The broadband eigenmode source waveform has no finite spectral "
+                "energy. Continuing with a zero-valued source."
+            )
+
+        significant = (
+            spectrum_magnitude >= self.spectral_threshold * peak
+            if np.isfinite(peak) and peak > 0
+            else np.zeros_like(spectrum_magnitude, dtype=bool)
+        )
+        significant_indices = np.flatnonzero(significant)
+        if significant_indices.size == 0:
+            logger.warning(
+                "The broadband eigenmode source waveform has no significant FFT "
+                "bins. Continuing with endpoint mode extrapolation."
+            )
+            significant_low = float("nan")
+            significant_high = float("nan")
+        else:
+            significant_low = float(bin_frequencies[significant_indices[0]])
+            significant_high = float(bin_frequencies[significant_indices[-1]])
+        if significant_indices.size and (
+            significant_low < frequencies[0] or significant_high > frequencies[-1]
+        ):
+            logger.warning(
+                "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
+                f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
+                f"{self.spectral_threshold:g} of the peak span {significant_low:g} to "
+                f"{significant_high:g} Hz. Add wider frequency anchors, narrow the waveform "
+                "bandwidth, or use the single-frequency eigenmode source. Continuing by "
+                "using the nearest endpoint mode outside the anchor range."
+            )
+        if significant[0] or (padded_count % 2 == 0 and significant[-1]):
+            logger.warning(
+                "The broadband eigenmode source has significant DC or Nyquist content, where a "
+                "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
+                "band-limited zero-mean waveform or the single-frequency eigenmode source. "
+                "Continuing after discarding the DC and Nyquist bins."
+            )
+
+        weights = self._linear_anchor_weights(bin_frequencies, frequencies)
+        partition = np.sum(weights, axis=0)
+        if not np.allclose(partition, 1.0, rtol=0.0, atol=1e-14):
+            logger.warning(
+                "Internal broadband eigenmode interpolation error: anchor weights "
+                "do not form a partition of unity. Repairing the weights and continuing."
+            )
+            usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
+            weights[:, usable] /= partition[usable]
+            for bin_index in np.flatnonzero(~usable):
+                nearest = int(
+                    np.argmin(
+                        np.abs(
+                            np.asarray(frequencies, dtype=np.float64)
+                            - bin_frequencies[bin_index]
+                        )
+                    )
+                )
+                weights[:, bin_index] = 0.0
+                weights[nearest, bin_index] = 1.0
+            partition = np.sum(weights, axis=0)
+        anchor_count = len(frequencies)
+        power_matrix = np.empty((anchor_count, anchor_count), dtype=np.complex128)
+        for e_index in range(anchor_count):
+            for h_index in range(anchor_count):
+                power_matrix[e_index, h_index] = self._modal_cross_power(
+                    self.anchor_modal_e[e_index],
+                    self.anchor_modal_h[h_index],
+                    G,
+                )
+        interpolated_power = np.real(
+            np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
+        )
+        active_bins = np.sum(weights, axis=0) > 0
+        invalid_power = active_bins & (
+            ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
+        )
+        if np.any(invalid_power):
+            invalid_indices = np.flatnonzero(invalid_power)
+            bad_frequency = float(bin_frequencies[invalid_indices[0]])
+            bad_power = float(interpolated_power[invalid_indices[0]])
+            logger.warning(
+                "Cannot normalize the interpolated broadband eigenmode at "
+                f"{bad_frequency:g} Hz: modal power is {bad_power:g}. Add an anchor near this "
+                "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
+                f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
+            )
+            finite_nonzero = invalid_power & np.isfinite(interpolated_power) & (
+                np.abs(interpolated_power) > 1e-12
+            )
+            interpolated_power[finite_nonzero] = np.abs(
+                interpolated_power[finite_nonzero]
+            )
+            unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
+            if unresolved.size:
+                nearest = np.argmax(weights[:, unresolved], axis=0)
+                anchor_power = np.real(np.diag(power_matrix))[nearest]
+                interpolated_power[unresolved] = np.where(
+                    np.isfinite(anchor_power) & (np.abs(anchor_power) > 1e-12),
+                    np.abs(anchor_power),
+                    1.0,
+                )
+
+        normalization = np.zeros_like(interpolated_power)
+        normalization[active_bins] = 1.0 / np.sqrt(interpolated_power[active_bins])
+        omega = 2 * np.pi * bin_frequencies
+        interpolated_neff = np.einsum(
+            "kn,k->n", weights, self.anchor_complex_neff, optimize=True
+        )
+        beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
+        normal_spacing = G.dl[self.normal_axis]
+        magnetic_phase = self._magnetic_stagger_factor(
+            omega, beta, G.dt, normal_spacing
+        )
+
+        electric_weights = (
+            weights * (spectrum * normalization)[np.newaxis, :]
+        )
+        magnetic_weights = (
+            weights * (spectrum * normalization * magnetic_phase)[np.newaxis, :]
+        )
+        # DC and Nyquist are self-conjugate FFT bins and cannot carry a
+        # general complex modal coefficient.
+        electric_weights[:, 0] = 0
+        magnetic_weights[:, 0] = 0
+        if padded_count % 2 == 0:
+            electric_weights[:, -1] = 0
+            magnetic_weights[:, -1] = 0
+
+        scalar_spectrum = spectrum * partition
+        scalar_spectrum[0] = 0
+        if padded_count % 2 == 0:
+            scalar_spectrum[-1] = 0
+        reconstructed_waveform = np.fft.irfft(
+            scalar_spectrum, n=padded_count
+        )[:sample_count]
+        waveform_peak = float(np.max(np.abs(waveform)))
+        reconstruction_error = (
+            float(np.max(np.abs(reconstructed_waveform - waveform)) / waveform_peak)
+            if waveform_peak > 0
+            else float(np.max(np.abs(reconstructed_waveform - waveform)))
+        )
+        self.broadband_input_waveform = waveform
+        self.broadband_reconstructed_waveform = reconstructed_waveform
+        self.broadband_waveform_error = reconstruction_error
+
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.broadband_e_envelopes = np.empty(
+            (anchor_count, 2, sample_count), dtype=dtype
+        )
+        self.broadband_h_envelopes = np.empty(
+            (anchor_count, 2, sample_count), dtype=dtype
+        )
+        for anchor in range(anchor_count):
+            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(
+                electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(
+                1j * electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(
+                magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(
+                1j * magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+
+        def split_fields(anchor_fields):
+            real_fields = []
+            imag_fields = []
+            for fields in anchor_fields:
+                real_fields.append(
+                    [np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields]
+                )
+                imag_fields.append(
+                    [np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields]
+                )
+            return real_fields, imag_fields
+
+        (
+            self.broadband_modal_e_real,
+            self.broadband_modal_e_imag,
+        ) = split_fields(self.anchor_modal_e)
+        (
+            self.broadband_modal_h_real,
+            self.broadband_modal_h_imag,
+        ) = split_fields(self.anchor_modal_h)
+        logger.info(
+            f"Prepared broadband eigenmode source with {anchor_count} anchors, "
+            f"{sample_count} time samples, and significant waveform coverage from "
+            f"{significant_low:g} to {significant_high:g} Hz. Scalar waveform "
+            f"reconstruction relative peak error is {reconstruction_error:.3e}."
+        )
+
+    def _plot_eigenmode_fields(self, solver):
+        input_path = config.sim_config.input_file_path
+        output_dir = input_path.parent
+        filename_base = (
+            f"{input_path.stem}_eigenmode_{self.normal}{self.direction}"
+            f"_w{self.plane_index}_u{self.transverse_start[0]}-{self.transverse_stop[0]}"
+            f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
+            f"_mode{self.mode_index}"
+        )
+        if self.frequencies is not None and len(self.frequencies) > 1:
+            filename_base += f"_f{self.frequency:.12g}Hz"
+        if isinstance(solver, FDFD_1D_mode_solver):
+            field_path = output_dir / f"{filename_base}_{self.domain_polarization}_fields.png"
+            solver.plot_fields(field_path)
+            logger.info(f"Eigenmode 1D field profiles written to {field_path}")
+        else:
+            e_path = output_dir / f"{filename_base}_Eu_Ev.png"
+            h_path = output_dir / f"{filename_base}_Hu_Hv.png"
+            solver.plot_e_fields(e_path)
+            solver.plot_h_fields(h_path)
+            logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
+            logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
+
+    def _select_plane_index(self, G):
+        """Choose the normal-axis plane from the propagation direction."""
+        axis_names = ("x", "y", "z")
+        axis_name = axis_names[self.normal_axis]
+        if self.direction == "+":
+            return G.pmls["thickness"][f"{axis_name}0"]
+        return G.size[self.normal_axis] - G.pmls["thickness"][f"{axis_name}max"]
+
+    def _extract_local_complex_property_tensors(self, G, electric):
+        """Return local uu, vv, ww complex er or mu_r arrays on the Yee slice."""
+        field_kind = "E" if electric else "H"
+        component_ids = []
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            ids = self._slice_local_component_ids(G, component, local_axis, field_kind)
+            component_ids.append(ids)
+
+        used_ids = np.unique(np.concatenate([ids.ravel() for ids in component_ids]))
+        material_values = np.zeros(len(G.materials), dtype=np.complex128)
+        materials_by_id = {material.numID: material for material in G.materials}
+        for material_id in used_ids:
+            material = materials_by_id[int(material_id)]
+            material_values[material_id] = (
+                self._complex_er(material) if electric else self._complex_mur(material)
+            )
+
+        return tuple(material_values[ids].copy() for ids in component_ids)
+
+    def _transverse_cell_shape(self):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        return u1 - u0, v1 - v0
+
+    def _local_component_ranges(self, local_axis, field_kind):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        if field_kind == "E":
+            if local_axis == 0:
+                return slice(u0, u1), slice(v0, v1 + 1)
+            if local_axis == 1:
+                return slice(u0, u1 + 1), slice(v0, v1)
+            return slice(u0, u1 + 1), slice(v0, v1 + 1)
+
+        if local_axis == 0:
+            return slice(u0, u1 + 1), slice(v0, v1)
+        if local_axis == 1:
+            return slice(u0, u1), slice(v0, v1 + 1)
+        return slice(u0, u1), slice(v0, v1)
+
+    def _slice_local_component_ids(self, G, component, local_axis, field_kind):
+        u_slice, v_slice = self._local_component_ranges(local_axis, field_kind)
+        grid_slices = [slice(None), slice(None), slice(None)]
+        grid_slices[self.normal_axis] = self.plane_index
+        grid_slices[self.transverse_axes[0]] = u_slice
+        grid_slices[self.transverse_axes[1]] = v_slice
+        return G.ID[(component, *grid_slices)]
+
+    def _cell_pec_electric_component_masks(self, G):
+        """Build local Yee electric PEC masks from cell-centred PEC geometry.
+
+        Component IDs on non-averaged PEC boxes are one-sided at Yee faces.
+        These masks supplement the component-sampled material IDs so opposite
+        PEC faces produce symmetric constraints in the transverse mode solve.
+        """
+        cell_pec_mask = self._slice_cell_pec_mask(G)
+        nu, nv = self._transverse_cell_shape()
+        pec_u_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pec_v_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pec_w_mask = np.zeros((nu + 1, nv + 1), dtype=bool)
+        if cell_pec_mask.size == 0:
+            return pec_u_mask, pec_v_mask, pec_w_mask
+
+        cu, cv = cell_pec_mask.shape
+        pec_u_mask[:cu, :cv] |= cell_pec_mask
+        pec_u_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+
+        pec_v_mask[:cu, :cv] |= cell_pec_mask
+        pec_v_mask[1 : cu + 1, :cv] |= cell_pec_mask
+
+        pec_w_mask[:cu, :cv] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, :cv] |= cell_pec_mask
+        pec_w_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
+        return pec_u_mask, pec_v_mask, pec_w_mask
+
+    def _slice_cell_pec_mask(self, G):
+        return self._slice_cell_constraint_mask(G, electric=True)
+
+    def _cell_pmc_magnetic_component_masks(self, G):
+        """Build local Yee magnetic PMC masks from cell-centred PMC geometry.
+
+        Component-sampled PMC material IDs constrain their exact H positions
+        through the non-finite permeability tensors. These masks supplement
+        those IDs so both own-axis H faces of every PMC cell are constrained.
+        """
+        cell_pmc_mask = self._slice_cell_pmc_mask(G)
+        nu, nv = self._transverse_cell_shape()
+        pmc_u_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pmc_v_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pmc_w_mask = np.zeros((nu, nv), dtype=bool)
+        if cell_pmc_mask.size == 0:
+            return pmc_u_mask, pmc_v_mask, pmc_w_mask
+
+        cu, cv = cell_pmc_mask.shape
+        pmc_u_mask[:cu, :cv] |= cell_pmc_mask
+        pmc_u_mask[1 : cu + 1, :cv] |= cell_pmc_mask
+
+        pmc_v_mask[:cu, :cv] |= cell_pmc_mask
+        pmc_v_mask[:cu, 1 : cv + 1] |= cell_pmc_mask
+
+        pmc_w_mask[:cu, :cv] |= cell_pmc_mask
+        return pmc_u_mask, pmc_v_mask, pmc_w_mask
+
+    def _slice_cell_pmc_mask(self, G):
+        return self._slice_cell_constraint_mask(G, electric=False)
+
+    def _slice_cell_constraint_mask(self, G, electric):
+        """Return source-cross-section cells occupied by PEC or PMC."""
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        normal_indices = [
+            index
+            for index in (self.plane_index - 1, self.plane_index)
+            if 0 <= index < G.solid.shape[self.normal_axis]
+        ]
+        if not normal_indices:
+            return np.zeros((u1 - u0, v1 - v0), dtype=bool)
+
+        material_is_constrained = np.zeros(len(G.materials), dtype=bool)
+        for material in G.materials:
+            property_value = self._complex_er(material) if electric else self._complex_mur(material)
+            material_is_constrained[material.numID] = not np.isfinite(property_value)
+
+        cell_constraint_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
+        for n in normal_indices:
+            if self.normal_axis == 0:
+                ids = G.solid[n, u0:u1, v0:v1]
+            elif self.normal_axis == 1:
+                ids = G.solid[u0:u1, n, v0:v1]
+            else:
+                ids = G.solid[u0:u1, v0:v1, n]
+            cell_constraint_mask |= material_is_constrained[ids]
+        return cell_constraint_mask
+
+    def _complex_er(self, material):
+        omega = 2 * np.pi * self.frequency
+        if hasattr(material, "calculate_er") and material.__class__.__name__ != "Material":
+            er = material.calculate_er(self.frequency)
+        else:
+            er = material.er
+            if getattr(material, "se", 0) not in [0, float("inf")]:
+                er = er - 1j * material.se / (omega * config.e0)
+        if getattr(material, "se", 0) == float("inf"):
+            er = self.FDFD_PEC_PROPERTY
+        return er
+
+    def _complex_mur(self, material):
+        omega = 2 * np.pi * self.frequency
+        mur = material.mr
+        if getattr(material, "sm", 0) not in [0, float("inf")]:
+            mur = mur - 1j * material.sm / (omega * config.m0)
+        if getattr(material, "sm", 0) == float("inf"):
+            mur = self.FDFD_PMC_PROPERTY
+        return mur
+
+    def update_eigenmode_magnetic(self, iteration, G):
+        """Apply magnetic-field TF/SF corrections using incident modal E."""
+        time = iteration * G.dt
+        if not self._source_is_active(time):
+            return
+        if self.broadband_e_envelopes is not None:
+            self._update_broadband_magnetic(iteration, G)
+            return
+
+        updateEigenmode_magnetic(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_e_real[0],
+            self.modal_e_real[1],
+            self.modal_e_real[2],
+            G.updatecoeffsH,
+            G.ID,
+            G.Hx,
+            G.Hy,
+            G.Hz,
+        )
+
+    def update_eigenmode_electric(self, iteration, G):
+        """Apply electric-field TF/SF corrections using incident modal H."""
+        if self.broadband_h_envelopes is not None:
+            time = iteration * G.dt
+            if self._source_is_active(time):
+                self._update_broadband_electric(iteration, G)
+            return
+
+        time = iteration * G.dt + self._magnetic_modal_time_offset(G)
+        if not self._source_is_active(time):
+            return
+
+        updateEigenmode_electric(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_h_real[0],
+            self.modal_h_real[1],
+            self.modal_h_real[2],
+            G.updatecoeffsE,
+            G.ID,
+            G.Ex,
+            G.Ey,
+            G.Ez,
+        )
+
+    def _update_broadband_magnetic(self, iteration, G):
+        """Apply the broadband incident-E temporal/modal basis expansion."""
+        if iteration >= self.broadband_e_envelopes.shape[2]:
+            return
+        dtype = config.sim_config.dtypes["float_or_double"]
+        field_bases = (
+            self.broadband_modal_e_real,
+            self.broadband_modal_e_imag,
+        )
+        for anchor in range(self.broadband_e_envelopes.shape[0]):
+            for quadrature, fields in enumerate(field_bases):
+                envelope = self.broadband_e_envelopes[anchor, quadrature, iteration]
+                if envelope == 0:
+                    continue
+                modal_fields = fields[anchor]
+                updateEigenmode_magnetic(
+                    config.get_model_config().ompthreads,
+                    self.normal_axis,
+                    1 if self.direction == "+" else -1,
+                    self.transverse_start[0],
+                    self.transverse_start[1],
+                    self.transverse_stop[0],
+                    self.transverse_stop[1],
+                    self.plane_index,
+                    dtype(envelope),
+                    modal_fields[0],
+                    modal_fields[1],
+                    modal_fields[2],
+                    G.updatecoeffsH,
+                    G.ID,
+                    G.Hx,
+                    G.Hy,
+                    G.Hz,
+                )
+
+    def _update_broadband_electric(self, iteration, G):
+        """Apply the broadband incident-H temporal/modal basis expansion."""
+        if iteration >= self.broadband_h_envelopes.shape[2]:
+            return
+        dtype = config.sim_config.dtypes["float_or_double"]
+        field_bases = (
+            self.broadband_modal_h_real,
+            self.broadband_modal_h_imag,
+        )
+        for anchor in range(self.broadband_h_envelopes.shape[0]):
+            for quadrature, fields in enumerate(field_bases):
+                envelope = self.broadband_h_envelopes[anchor, quadrature, iteration]
+                if envelope == 0:
+                    continue
+                modal_fields = fields[anchor]
+                updateEigenmode_electric(
+                    config.get_model_config().ompthreads,
+                    self.normal_axis,
+                    1 if self.direction == "+" else -1,
+                    self.transverse_start[0],
+                    self.transverse_start[1],
+                    self.transverse_stop[0],
+                    self.transverse_stop[1],
+                    self.plane_index,
+                    dtype(envelope),
+                    modal_fields[0],
+                    modal_fields[1],
+                    modal_fields[2],
+                    G.updatecoeffsE,
+                    G.ID,
+                    G.Ex,
+                    G.Ey,
+                    G.Ez,
+                )
+
+    def _source_is_active(self, time):
+        return self.start <= time <= self.stop
+
+    def _magnetic_modal_time_offset(self, G):
+        """Half-step plus half-cell propagation delay for modal H sampling."""
+        neff = abs(float(np.real(self.neff)))
+        return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.c)
+
+    def _waveform_value(self, time, G):
+        return self.waveform.calculate_value(time - self.start, G.dt)
+
+    def _modal_value(self, field, u, v, time, G):
+        if field is None:
+            return 0.0
+        local_time = time - self.start
+        envelope = self.waveform.calculate_value(local_time, G.dt)
+        value = field[u - self.transverse_start[0], v - self.transverse_start[1]]
+        return float(envelope * np.real(value))
+
+    def _e_incident(self, component, u, v, time, G):
+        return self._modal_value(self.modal_e[component], u, v, time, G)
+
+    def _h_incident(self, component, u, v, time, G):
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return direction_scale * self._modal_value(self.modal_h[component], u, v, time, G)
+
+    def _add_h(self, G, component, i, j, k, value):
+        fields = (G.Hx, G.Hy, G.Hz)
+        material = G.ID[3 + component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsH[material, self.normal_axis + 1] * value
+
+    def _add_e(self, G, component, i, j, k, value):
+        fields = (G.Ex, G.Ey, G.Ez)
+        material = G.ID[component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsE[material, self.normal_axis + 1] * value
+
+    def _update_magnetic_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            target_i = i - 1
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, -self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, self._e_incident(1, j, k, time, G))
+        else:
+            target_i = i
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, -self._e_incident(1, j, k, time, G))
+
+    def _update_electric_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(2, j, k, time, G))
+        else:
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(2, j, k, time, G))
+
+    def _update_magnetic_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            target_j = j - 1
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, -self._e_incident(0, i, k, time, G))
+        else:
+            target_j = j
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, -self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, self._e_incident(0, i, k, time, G))
+
+    def _update_electric_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(2, i, k, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(2, i, k, time, G))
+
+    def _update_magnetic_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            target_k = k - 1
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, -self._e_incident(1, i, j, time, G))
+        else:
+            target_k = k
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, -self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, self._e_incident(1, i, j, time, G))
+
+    def _update_electric_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(1, i, j, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(1, i, j, time, G))
+
+
 class VoltageSource(Source):
     """A voltage source can be a hard source if it's resistance is zero,
     i.e. the time variation of the specified electric field component
@@ -117,6 +1359,23 @@ class VoltageSource(Source):
     def __init__(self):
         super().__init__()
         self.resistance = None
+        # Wave-reference impedance used by a coincident RxPort. For a
+        # finite-resistance source it is the Thevenin resistance; for a hard
+        # source it defaults to 50 Ohms unless explicitly overridden.
+        self.reference_impedance = None
+        # Preserved when create_material() replaces the selected electric-edge
+        # material with a copy carrying the source resistance. Port outputs
+        # need the pre-source values to remove the numerical Yee-gap
+        # capacitance/conductance without accidentally including 1/R.
+        self.background_material_numID = None
+        self.background_material_ID = None
+        self.background_material_type = None
+        self.background_er = None
+        self.background_se = None
+        self.background_mr = None
+        self.background_sm = None
+        self.background_is_dispersive = False
+        self.source_material_numID = None
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -223,6 +1482,14 @@ class VoltageSource(Source):
         componentID = f"E{self.polarisation}"
         requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
         material = next(x for x in G.materials if x.numID == requirednumID)
+        self.background_material_numID = int(material.numID)
+        self.background_material_ID = str(material.ID)
+        self.background_material_type = str(material.type)
+        self.background_er = float(material.er)
+        self.background_se = float(material.se)
+        self.background_mr = float(material.mr)
+        self.background_sm = float(material.sm)
+        self.background_is_dispersive = hasattr(material, "poles")
         newmaterial = deepcopy(material)
         newmaterial.ID = f"{material.ID}+{self.ID}"
         newmaterial.numID = len(G.materials)
@@ -239,6 +1506,7 @@ class VoltageSource(Source):
 
         G.ID[G.IDlookup[componentID], i, j, k] = newmaterial.numID
         G.materials.append(newmaterial)
+        self.source_material_numID = int(newmaterial.numID)
 
 
 class HertzianDipole(Source):
@@ -444,9 +1712,7 @@ def htod_src_arrays(sources, G, queue=None):
                 srcwaves[i, :] = src.waveformvalues_halfdt
             else:
                 srcinfo2[i] = 0
-                srcwaves[i, :] = src.waveformvalues_wholedt 
-            srcinfo2[i] = src.resistance
-            srcwaves[i, :] = src.waveformvalues_halfdt
+                srcwaves[i, :] = src.waveformvalues_wholedt
         elif src.__class__.__name__ == "MagneticDipole":
             srcwaves[i, :] = src.waveformvalues_wholedt
 
@@ -471,6 +1737,156 @@ def htod_src_arrays(sources, G, queue=None):
         srcwaves_dev = dev.newBufferWithBytes_length_options_(srcwaves.tobytes(), srcwaves.nbytes, 0)
 
     return srcinfo1_dev, srcinfo2_dev, srcwaves_dev
+
+
+def transmission_line_host_arrays(transmissionlines, G):
+    """Pack transmission-line state into backend-neutral contiguous arrays.
+
+    The coupled part of every transmission line is normally very short, but
+    each line owns mutable voltage, current, and ABC state. Keeping this state
+    in flat arrays lets one device work-item advance one complete line without
+    any host interaction during the FDTD time loop.
+
+    Args:
+        transmissionlines: transmission-line sources attached to a grid.
+        G: FDTDGrid containing the sources.
+
+    Returns:
+        Dictionary of NumPy arrays ready to copy to a compute device.
+    """
+
+    real = config.sim_config.dtypes["float_or_double"]
+    ntl = len(transmissionlines)
+    niterations = G.iterations + 1
+    int32_max = np.iinfo(np.int32).max
+
+    # Columns are x, y, z, polarisation, state offset, number of active line
+    # cells, source position, antenna position, first active iteration, and
+    # last active iteration. Keep this layout in sync with knl_transmission_line.py.
+    info = np.zeros((ntl, 10), dtype=np.int32)
+    resistance = np.zeros(ntl, dtype=real)
+    abcv0 = np.zeros(ntl, dtype=real)
+    abcv1 = np.zeros(ntl, dtype=real)
+    waveform_whole = np.zeros((ntl, niterations), dtype=real)
+    waveform_half = np.zeros((ntl, niterations), dtype=real)
+    Vtotal = np.zeros((ntl, niterations), dtype=real)
+    Itotal = np.zeros((ntl, niterations), dtype=real)
+
+    nstate = sum(int(tl.nl) for tl in transmissionlines)
+    if nstate > int32_max or ntl * niterations > int32_max:
+        raise ValueError(
+            "Transmission-line device arrays exceed the signed 32-bit index range."
+        )
+
+    voltage = np.zeros(nstate, dtype=real)
+    current = np.zeros(nstate, dtype=real)
+    times = G.dt * np.arange(G.iterations, dtype=np.float64)
+    used_ports = set()
+    offset = 0
+
+    for i, tl in enumerate(transmissionlines):
+        port = (int(tl.xcoord), int(tl.ycoord), int(tl.zcoord), tl.polarisation)
+        if port in used_ports:
+            raise ValueError(
+                "More than one transmission line is attached to the same Yee "
+                f"electric-field edge at {port[:3]} with {port[3]} polarisation."
+            )
+        used_ports.add(port)
+
+        if tl.nl <= tl.antpos or tl.srcpos <= 0 or tl.srcpos >= tl.nl:
+            raise ValueError(f"Invalid internal transmission-line layout for {tl.ID}.")
+
+        if tl.polarisation == "x":
+            polarisation = 0
+        elif tl.polarisation == "y":
+            polarisation = 1
+        elif tl.polarisation == "z":
+            polarisation = 2
+        else:
+            raise ValueError(f"Invalid transmission-line polarisation {tl.polarisation!r}.")
+
+        active = np.flatnonzero((times >= tl.start) & (times <= tl.stop))
+        if active.size:
+            first_active = int(active[0])
+            last_active = int(active[-1])
+        else:
+            first_active = 1
+            last_active = 0
+
+        info[i, :] = (
+            tl.xcoord,
+            tl.ycoord,
+            tl.zcoord,
+            polarisation,
+            offset,
+            tl.nl,
+            tl.srcpos,
+            tl.antpos,
+            first_active,
+            last_active,
+        )
+        resistance[i] = tl.resistance
+        abcv0[i] = tl.abcv0
+        abcv1[i] = tl.abcv1
+        voltage[offset : offset + tl.nl] = tl.voltage[: tl.nl]
+        current[offset : offset + tl.nl] = tl.current[: tl.nl]
+        waveform_whole[i, :] = tl.waveformvalues_wholedt
+        waveform_half[i, :] = tl.waveformvalues_halfdt
+        Vtotal[i, :] = tl.Vtotal
+        Itotal[i, :] = tl.Itotal
+        offset += tl.nl
+
+    return {
+        "info": info,
+        "resistance": resistance,
+        "abcv0": abcv0,
+        "abcv1": abcv1,
+        "voltage": voltage,
+        "current": current,
+        "waveform_whole": waveform_whole,
+        "waveform_half": waveform_half,
+        "Vtotal": Vtotal,
+        "Itotal": Itotal,
+    }
+
+
+def htod_transmission_line_arrays(transmissionlines, G, queue=None):
+    """Copy packed transmission-line arrays to the active compute device."""
+
+    arrays = transmission_line_host_arrays(transmissionlines, G)
+    solver = config.sim_config.general["solver"]
+
+    if solver == "cuda":
+        import pycuda.gpuarray as gpuarray
+
+        return {name: gpuarray.to_gpu(array) for name, array in arrays.items()}
+    if solver == "opencl":
+        import pyopencl.array as clarray
+
+        return {name: clarray.to_device(queue, array) for name, array in arrays.items()}
+    if solver == "metal":
+        dev = config.get_model_config().device["dev"]
+        return {
+            name: dev.newBufferWithBytes_length_options_(array.tobytes(), array.nbytes, 0)
+            for name, array in arrays.items()
+        }
+
+    raise ValueError(f"Unknown device solver {solver!r} for transmission-line arrays.")
+
+
+def dtoh_transmission_line_outputs(Vtotal, Itotal, G):
+    """Copy device terminal histories into their transmission-line objects."""
+
+    expected = (len(G.transmissionlines), G.iterations + 1)
+    if Vtotal.shape != expected or Itotal.shape != expected:
+        raise ValueError(
+            "Transmission-line device output shape does not match the grid: "
+            f"expected {expected}, got {Vtotal.shape} and {Itotal.shape}."
+        )
+
+    for i, tl in enumerate(G.transmissionlines):
+        np.copyto(tl.Vtotal, Vtotal[i, :], casting="same_kind")
+        np.copyto(tl.Itotal, Itotal[i, :], casting="same_kind")
 
 
 class TransmissionLine(Source):
@@ -513,6 +1929,10 @@ class TransmissionLine(Source):
         self.Iinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
         self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
         self.Itotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        # Bound after the grid materials and time axis have been finalised.
+        # Kept here rather than in the update loop because all spectral port
+        # processing is post-solve.
+        self.port_output = None
 
     def calculate_waveform_values(self, G):
         """Calculates all waveform values for source for duration of simulation.
@@ -562,6 +1982,14 @@ class TransmissionLine(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
+        # The preliminary incident-wave calculation and the coupled FDTD run
+        # use separate output histories, but they advance the same internal
+        # line voltage/current vectors and ABC memories. Always start the
+        # preliminary line from rest and clear any old incident histories.
+        self._reset_update_state()
+        self.Vinc.fill(0)
+        self.Iinc.fill(0)
+
         for iteration in range(self.iterations):
             self.Iinc[iteration] = self.current[self.antpos]
             self.Vinc[iteration] = self.voltage[self.antpos]
@@ -570,6 +1998,18 @@ class TransmissionLine(Source):
 
         # Shorten number of cells in the transmission line before use with main grid
         self.nl = self.antpos + 1
+
+        # Vinc/Iinc retain the completed incident histories, but the actual
+        # coupled source must begin with zero line fields and zero ABC memory.
+        self._reset_update_state()
+
+    def _reset_update_state(self):
+        """Reset mutable line and absorbing-boundary state to rest."""
+
+        self.voltage.fill(0)
+        self.current.fill(0)
+        self.abcv0 = 0
+        self.abcv1 = 0
 
     def update_abc(self, G):
         """Updates absorbing boundary condition at end of the transmission line.
@@ -691,6 +2131,522 @@ class TransmissionLine(Source):
             self.update_current(iteration, G)
 
 
+MAGNETIC_FRILL_MAX_TERMS = 4
+
+
+def magnetic_frill_source_host_arrays(magneticfrillsources, G):
+    """Pack the corrected Hyun feed recurrence into contiguous arrays.
+
+    ``MagneticFrillSource.finalise_setup()`` has already validated the attached
+    thin wire and reduced its Cartesian feed stencil to at most four terms.
+    Pack those terms directly instead of reconstructing geometry in a device
+    kernel. This preserves the CPU path's Mäkinen ``k_H`` projection, Hyun
+    ``F`` factor, anisotropic cell dimensions, and PMC image completion.
+
+    Args:
+        magneticfrillsources: magnetic-frill sources attached to a grid.
+        G: FDTDGrid containing the sources.
+
+    Returns:
+        Dictionary of NumPy arrays ready to copy to a compute device.
+    """
+
+    real = config.sim_config.dtypes["float_or_double"]
+    nfrill = len(magneticfrillsources)
+    niterations = G.iterations + 1
+
+    int32_max = np.iinfo(np.int32).max
+    flattened_sizes = (
+        nfrill * niterations,
+        nfrill * MAGNETIC_FRILL_MAX_TERMS * 4,
+        nfrill * MAGNETIC_FRILL_MAX_TERMS * 2,
+        nfrill * 3,
+    )
+    if any(size > int32_max for size in flattened_sizes):
+        raise ValueError(
+            "Magnetic-frill device arrays exceed the signed 32-bit index range."
+        )
+
+    # term_info columns are H component (0=Hx, 1=Hy, 2=Hz), x, y, z.
+    # term_params columns are Ampere-loop current weight and the complete
+    # magnetic-source gain. Keep these layouts in sync with
+    # knl_magnetic_frill_source.py.
+    term_counts = np.zeros(nfrill, dtype=np.int32)
+    term_info = np.zeros((nfrill, MAGNETIC_FRILL_MAX_TERMS, 4), dtype=np.int32)
+    term_params = np.zeros((nfrill, MAGNETIC_FRILL_MAX_TERMS, 2), dtype=real)
+    # Per-source parameters are Z0, feed-cell self-admittance G, and the
+    # current-centering theta. The previous half-step current is mutable state.
+    params = np.zeros((nfrill, 3), dtype=real)
+    state = np.zeros(nfrill, dtype=real)
+    waveform = np.zeros((nfrill, niterations), dtype=real)
+    Vinc = np.zeros((nfrill, niterations), dtype=real)
+    Vtotal = np.zeros((nfrill, niterations), dtype=real)
+    Itot = np.zeros((nfrill, niterations), dtype=real)
+
+    for i, frill in enumerate(magneticfrillsources):
+        nterms = len(frill._drive_terms)
+        if not 1 <= nterms <= MAGNETIC_FRILL_MAX_TERMS:
+            raise ValueError(
+                f"{frill.ID} has {nterms} magnetic feed terms; expected between "
+                f"1 and {MAGNETIC_FRILL_MAX_TERMS}."
+            )
+
+        term_counts[i] = nterms
+        for term_index, term in enumerate(frill._drive_terms):
+            component, x, y, z, current_weight, source_gain = term
+            term_info[i, term_index, :] = (
+                {"Hx": 0, "Hy": 1, "Hz": 2}[component],
+                x,
+                y,
+                z,
+            )
+            term_params[i, term_index, :] = current_weight, source_gain
+
+        params[i, :] = frill.Z0, frill._G_coeff, frill._theta
+        state[i] = frill._previous_half_current
+        waveform[i, :] = frill.waveformvalues_wholedt
+        Vinc[i, :] = frill.Vinc
+        Vtotal[i, :] = frill.Vtotal
+        Itot[i, :] = frill.Itot
+
+    return {
+        "term_counts": term_counts,
+        "term_info": term_info,
+        "term_params": term_params,
+        "params": params,
+        "state": state,
+        "waveform": waveform,
+        "Vinc": Vinc,
+        "Vtotal": Vtotal,
+        "Itot": Itot,
+    }
+
+
+def htod_magnetic_frill_source_arrays(magneticfrillsources, G, queue=None):
+    """Copy packed magnetic-frill-source arrays to the active compute device."""
+
+    arrays = magnetic_frill_source_host_arrays(magneticfrillsources, G)
+    solver = config.sim_config.general["solver"]
+
+    if solver == "cuda":
+        import pycuda.gpuarray as gpuarray
+
+        return {name: gpuarray.to_gpu(array) for name, array in arrays.items()}
+    if solver == "opencl":
+        import pyopencl.array as clarray
+
+        return {name: clarray.to_device(queue, array) for name, array in arrays.items()}
+    if solver == "metal":
+        dev = config.get_model_config().device["dev"]
+        return {
+            name: dev.newBufferWithBytes_length_options_(array.tobytes(), array.nbytes, 0)
+            for name, array in arrays.items()
+        }
+
+    raise ValueError(f"Unknown device solver {solver!r} for magnetic-frill-source arrays.")
+
+
+def dtoh_magnetic_frill_source_outputs(Vinc, Vtotal, Itot, G):
+    """Copy device Vinc/Vtotal/Itot histories into their source objects."""
+
+    expected = (len(G.magneticfrillsources), G.iterations + 1)
+    solver = getattr(config.sim_config, "general", {}).get("solver")
+    if solver == "metal":
+        dtype = config.sim_config.dtypes["float_or_double"]
+        nbytes = int(np.prod(expected)) * np.dtype(dtype).itemsize
+
+        def _metal_to_numpy(buffer):
+            if buffer.length() != nbytes:
+                raise ValueError(
+                    "Magnetic-frill Metal output buffer has the wrong size: "
+                    f"expected {nbytes} bytes, got {buffer.length()}."
+                )
+            return (
+                np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype)
+                .reshape(expected)
+                .copy()
+            )
+
+        Vinc, Vtotal, Itot = map(_metal_to_numpy, (Vinc, Vtotal, Itot))
+
+    if Vinc.shape != expected or Vtotal.shape != expected or Itot.shape != expected:
+        raise ValueError(
+            "Magnetic-frill-source device output shape does not match the "
+            f"grid: expected {expected}, got {Vinc.shape}, {Vtotal.shape}, "
+            f"and {Itot.shape}."
+        )
+
+    for i, frill in enumerate(G.magneticfrillsources):
+        np.copyto(frill.Vinc, Vinc[i, :], casting="same_kind")
+        np.copyto(frill.Vtotal, Vtotal[i, :], casting="same_kind")
+        np.copyto(frill.Itot, Itot[i, :], casting="same_kind")
+
+
+class MagneticFrillSource(Source):
+    """Implements a magnetic-frill (equivalent-feed) source for an antenna
+    fed through a PEC ground plane by a coaxial line, following Hyun, Kim &
+    Kim, "An Equivalent Feed Model for the FDTD Analysis of Antennas Driven
+    Through a Ground Plane by Coaxial Lines," IEEE Trans. Antennas Propag.,
+    vol 57, no 1, pp 161-167, Jan 2009 (building on Maloney, Smith & Scott
+    1990 and King & Harrison's magnetic frill generator).
+
+    Unlike TransmissionLine, this source has no explicit 1D line: the
+    coax's sub-cell aperture is represented by an equivalent magnetic
+    surface current, entering only the magnetic (Faraday's law) update at
+    the four Yee H components immediately surrounding the feed point - the
+    same four samples FDTDGrid.calculate_Ix()/calculate_Iy()/calculate_Iz()
+    already read for their Ampere's-law loop current, written to here
+    rather than read from. Supports x, y, or z polarisation (the antenna
+    axis the source drives current along, following the same electrical
+    sign convention as calculate_Ix/Iy/Iz) - each axis uses the two Yee H
+    components transverse to it, exactly mirroring how
+    TransmissionLine/calculate_I{x,y,z} themselves branch on polarisation.
+
+    The characteristic impedance Z0 is supplied by the user and represents
+    the physical coax dimensions and filler. The inner-conductor radius is
+    inferred from a mandatory co-located ``ThinWire`` because Hyun's discrete
+    feed-cell equation (8)-(9) contains the same logarithmic radius factor as
+    the attached wire. Mäkinen's projected-H representation supplies k_H;
+    the frill adds the corresponding F factor to its own magnetic-current
+    term.
+
+    Hyun's recommended time-average approximation (11) couples the new
+    half-step loop current back into the voltage driving that same update.
+    This is solved analytically each iteration using a precomputed feed-cell
+    self-admittance G. The histories store Vinc, Vab, and the time-centred
+    Itot at the integer electric-field time used by equations (9)-(10).
+    """
+
+    def __init__(self, iterations: int, dt: float):
+        super().__init__()
+        self.iterations = iterations
+        self.dt = dt
+
+        self.Z0 = None
+
+        # Resolved once, after grid.build(), by finalise_setup(): whether
+        # the two faces transverse to this source's polarisation axis (e.g.
+        # x0/y0 for a z-polarised source, y0/z0 for x-polarised, z0/x0 for
+        # y-polarised) are declared PMC symmetry boundaries AND the source
+        # sits exactly on that boundary - in which case the retained H
+        # component's contribution to Itot doubles to include its image. The
+        # field deposit itself is not doubled: the retained edge still obeys
+        # its local update equation. _mirror1/_mirror2 correspond to
+        # the first/second transverse H component in the polarisation-
+        # specific ordering used throughout finalise_setup()/update_magnetic()
+        # (see the per-axis branches there). None of this is set until
+        # finalise_setup() runs.
+        self._mirror1 = None
+        self._mirror2 = None
+        self.inner_radius = None
+        self._drive_terms = []
+        self._G_coeff = None
+        self._theta = 0.5
+        self._previous_half_current = 0.0
+
+        self.Vinc = np.zeros(
+            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Vtotal = np.zeros(
+            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Itot = np.zeros(
+            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+
+        # Bound after materials/update coefficients and time/frequency axes
+        # are finalised - see prepare_magnetic_frill_ports() in ports.py and
+        # finalise_setup() below, both called from the same post-
+        # build_geometry() slot in gprMax/model.py.
+        self.port_output = None
+
+    def calculate_waveform_values(self, G):
+        """Calculates all waveform values for source for duration of simulation.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+        self.waveformvalues_wholedt = np.zeros(
+            (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        for iteration in range(G.iterations + 1):
+            time = G.dt * iteration
+            if time >= self.start and time <= self.stop:
+                time -= self.start
+                self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
+
+    def _validate_geometry(self, G):
+        """Bind the attached thin wire and check the local PEC ground plane."""
+
+        i, j, k = self.xcoord, self.ycoord, self.zcoord
+        component = f"E{self.polarisation}"
+        material_numID = int(G.ID[G.IDlookup[component], i, j, k])
+        material = G.materials[material_numID]
+        is_attached_wire = (
+            material.type == "thin-wire"
+            and getattr(material, "thin_wire_axis", None) == self.polarisation
+            and getattr(material, "thin_wire_role", None) == component
+        )
+        if not is_attached_wire:
+            raise ValueError(
+                f"{self.ID} requires a co-located #thin_wire along the "
+                f"{self.polarisation}-directed feed edge at {(i, j, k)}. "
+                "Hyun's feed-cell equation uses the attached wire radius; "
+                "an ordinary PEC edge has no unambiguous physical radius."
+            )
+        self.inner_radius = float(material.thin_wire_radius)
+
+        tangential_components = {
+            "x": ("Ey", "Ez"),
+            "y": ("Ex", "Ez"),
+            "z": ("Ex", "Ey"),
+        }[self.polarisation]
+        for tangential in tangential_components:
+            tangential_numID = int(G.ID[G.IDlookup[tangential], i, j, k])
+            tangential_material = G.materials[tangential_numID]
+            if not tangential_material.is_pec:
+                raise ValueError(
+                    f"{self.ID} requires a PEC ground plane perpendicular to "
+                    f"the feed at {(i, j, k)}; tangential component "
+                    f"{tangential} has material {tangential_material.ID!r}."
+                )
+
+    def finalise_setup(self, G):
+        """Resolve symmetry adjacency and validate the PEC feed point.
+
+        Must run after grid.build() has finalised materials/update
+        coefficients and grid.symmetry_boundaries - FDTDGrid.build()'s own
+        command-processing pass (where this source's user-object build()
+        already ran, appending it to grid.magneticfrillsources) happens
+        strictly before that, so none of this data is available yet at
+        that point. Called from gprMax/model.py's post-build_geometry()
+        "prepare" pass, in the same slot as prepare_transmission_line_ports().
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+        i, j, k = self.xcoord, self.ycoord, self.zcoord
+        if G.within_pml(np.array([i, j, k], dtype=np.int32)):
+            raise ValueError(
+                f"{self.ID} feed point lies inside a PML - update_magnetic_pml() "
+                "already overwrites this position before this source's own "
+                "drive would run, silently discarding it every iteration. "
+                "Move the source away from the PML region."
+            )
+
+        # The two faces transverse to the polarisation axis, in the fixed
+        # order used by every branch below (matches the H-component order
+        # in calculate_Ix/Iy/Iz: x-pol -> (Hy differenced along z, Hz
+        # differenced along y); y-pol -> (Hx differenced along z, Hz
+        # differenced along x); z-pol -> (Hy differenced along x, Hx
+        # differenced along y)).
+        axis_faces = {
+            "x": ("z0", "y0", "zmax", "ymax", k == 0, j == 0, k == G.nz, j == G.ny),
+            "y": ("z0", "x0", "zmax", "xmax", k == 0, i == 0, k == G.nz, i == G.nx),
+            "z": ("x0", "y0", "xmax", "ymax", i == 0, j == 0, i == G.nx, j == G.ny),
+        }
+        face1, face2, maxface1, maxface2, at1, at2, atmax1, atmax2 = axis_faces[self.polarisation]
+        face1_pmc = G.symmetry_boundaries.get(face1) == "pmc"
+        face2_pmc = G.symmetry_boundaries.get(face2) == "pmc"
+
+        # New required validation: a feed point accidentally placed at a
+        # domain-minimum boundary with no corresponding declared PMC face
+        # would otherwise silently compute zero current (calculate_Ix/Iy/Iz's
+        # own unconditional domain-boundary guard fires regardless of
+        # whether symmetry is declared there) - reject outright rather than
+        # producing a source that silently does nothing.
+        if at1 and not face1_pmc:
+            raise ValueError(
+                f"{self.ID} feed point sits at the domain boundary "
+                f"{face1[0]}={face1[1:] or '0'} without "
+                f"'#symmetry_boundary {face1} pmc' declared there - current "
+                "extraction would silently be zero (a pre-existing "
+                "limitation of the underlying calculate_Ix/Iy/Iz loop, "
+                "which cannot distinguish 'domain edge' from 'symmetry "
+                "plane'). Move the source away from the domain edge or "
+                "declare the symmetry boundary."
+            )
+        if at2 and not face2_pmc:
+            raise ValueError(
+                f"{self.ID} feed point sits at the domain boundary "
+                f"{face2[0]}={face2[1:] or '0'} without "
+                f"'#symmetry_boundary {face2} pmc' declared there - current "
+                "extraction would silently be zero. Move the source away "
+                "from the domain edge or declare the symmetry boundary."
+            )
+
+        # Scope: v1 only supports symmetry-plane placement at the domain's
+        # own origin corner ("0"-type faces) - the ghost-substitution
+        # derivation was worked out specifically for calculate_Ix/Iy/Iz's
+        # own guarded ("0"-type) case. "max"-type symmetry corners would
+        # need the analogous ghost convention (interior-adjacent index,
+        # flipped sign) worked out separately.
+        if atmax1 and G.symmetry_boundaries.get(maxface1) == "pmc":
+            raise ValueError(
+                f"{self.ID} at a {maxface1}-type symmetry corner is not yet "
+                "supported - v1 only supports '0'-type corners."
+            )
+        if atmax2 and G.symmetry_boundaries.get(maxface2) == "pmc":
+            raise ValueError(
+                f"{self.ID} at a {maxface2}-type symmetry corner is not yet "
+                "supported - v1 only supports '0'-type corners."
+            )
+
+        self._validate_geometry(G)
+        self._mirror1 = at1 and face1_pmc
+        self._mirror2 = at2 and face2_pmc
+        self._prepare_drive_terms(G)
+
+    def _prepare_drive_terms(self, G):
+        """Precompute Hyun's Cartesian feed stencil and self-admittance."""
+
+        i, j, k = self.xcoord, self.ycoord, self.zcoord
+        dx, dy, dz = G.dx, G.dy, G.dz
+        axial_step = {"x": dx, "y": dy, "z": dz}[self.polarisation]
+
+        # Each pair is (component, plus edge, minus edge, radial axis,
+        # mirrored). An edge is (coordinates, current-loop weight,
+        # magnetic-current sign). At a PMC minimum face, the missing edge is
+        # its odd image: double the retained edge's loop weight, but do not
+        # double its field update.
+        pairs = {
+            "x": (
+                ("Hy", ((i, j, k), -dy, -1), ((i, j, k - 1), dy, 1), "z", self._mirror1),
+                ("Hz", ((i, j, k), dz, 1), ((i, j - 1, k), -dz, -1), "y", self._mirror2),
+            ),
+            "y": (
+                ("Hx", ((i, j, k), dx, 1), ((i, j, k - 1), -dx, -1), "z", self._mirror1),
+                ("Hz", ((i, j, k), -dz, -1), ((i - 1, j, k), dz, 1), "x", self._mirror2),
+            ),
+            "z": (
+                ("Hy", ((i, j, k), dy, 1), ((i - 1, j, k), -dy, -1), "x", self._mirror1),
+                ("Hx", ((i, j, k), -dx, -1), ((i, j - 1, k), dx, 1), "y", self._mirror2),
+            ),
+        }[self.polarisation]
+
+        radial_steps = {"x": dx, "y": dy, "z": dz}
+        terms = []
+        for component, plus, minus, radial_axis, mirrored in pairs:
+            edges = (plus,) if mirrored else (plus, minus)
+            for edge_index, (coordinates, current_weight, source_sign) in enumerate(edges):
+                if mirrored and edge_index == 0:
+                    current_weight *= 2
+                x, y, z = coordinates
+                material_numID = int(G.ID[G.IDlookup[component], x, y, z])
+                material = G.materials[material_numID]
+                correct_wire_row = (
+                    material.type == "thin-wire"
+                    and getattr(material, "thin_wire_axis", None) == self.polarisation
+                    and getattr(material, "thin_wire_role", None) == component
+                    and np.isclose(
+                        material.thin_wire_radius,
+                        self.inner_radius,
+                        rtol=1e-12,
+                        atol=0.0,
+                    )
+                    and getattr(material, "thin_wire_radial_axis", None) == radial_axis
+                )
+                if not correct_wire_row:
+                    raise ValueError(
+                        f"{self.ID} feed stencil component {component} at "
+                        f"{coordinates} is not part of the attached thin wire."
+                    )
+
+                factor_f = float(material.thin_wire_factors["F"])
+                radial_step = radial_steps[radial_axis]
+                source_gain = (
+                    source_sign
+                    * G.updatecoeffsH[material_numID, 4]
+                    * factor_f
+                    / (axial_step * radial_step)
+                )
+                terms.append(
+                    (component, x, y, z, float(current_weight), float(source_gain))
+                )
+
+        self._drive_terms = terms
+        self._G_coeff = float(sum(term[-2] * term[-1] for term in terms))
+        if not np.isfinite(self._G_coeff) or self._G_coeff <= 0:
+            raise ValueError(
+                f"{self.ID} produced invalid feed-cell self-admittance "
+                f"G={self._G_coeff!r}."
+            )
+
+        # Two independently advanced feedback relations cannot safely write
+        # the same H edge: their result would depend on source order on CPU
+        # and would be a device write race. A coupled multiport feed would
+        # require solving the shared feed-cell system as one operation.
+        registry = getattr(G, "_magnetic_frill_drive_edges", {})
+        drive_edges = {(term[0], term[1], term[2], term[3]) for term in terms}
+        overlap = next(
+            (
+                (edge, registry[edge])
+                for edge in drive_edges
+                if edge in registry and registry[edge] is not self
+            ),
+            None,
+        )
+        if overlap is not None:
+            edge, owner = overlap
+            raise ValueError(
+                f"{self.ID} has an overlapping magnetic feed edge {edge} "
+                f"with {owner.ID}; adjacent or duplicate frill stencils "
+                "require a coupled multiport formulation."
+            )
+        registry.update({edge: self for edge in drive_edges})
+        G._magnetic_frill_drive_edges = registry
+
+        self._previous_half_current = 0.0
+        logger.info(
+            f"{self.ID}: Hyun feed cell uses attached thin-wire radius "
+            f"a={self.inner_radius:g}m, time-average current, and "
+            f"self-admittance G={self._G_coeff:g}S."
+        )
+
+    def _calculate_Itot_frill(self, Hx, Hy, Hz):
+        """Return the image-completed Ampere-loop current from stored H."""
+
+        fields = {"Hx": Hx, "Hy": Hy, "Hz": Hz}
+        return sum(
+            weight * fields[component][x, y, z]
+            for component, x, y, z, weight, _ in self._drive_terms
+        )
+
+    def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
+        """Apply Hyun's time-average implicit feed update in closed form.
+
+        Args:
+            iteration: int of current iteration (timestep).
+            updatecoeffsH: memory view of array of magnetic field update
+                            coefficients.
+            ID: memory view of array of numeric IDs corresponding to
+                materials in the model.
+            Hx, Hy, Hz: memory view of array of magnetic field values.
+            G: FDTDGrid class describing a grid in a model.
+        """
+        self.Vinc[iteration] = 0.5 * self.waveformvalues_wholedt[iteration]
+        current_bulk = self._calculate_Itot_frill(Hx, Hy, Hz)
+        zeta = self._G_coeff * self.Z0
+        current_new = (
+            current_bulk
+            + 2 * self._G_coeff * self.Vinc[iteration]
+            - zeta * (1 - self._theta) * self._previous_half_current
+        ) / (1 + zeta * self._theta)
+        current_centred = (
+            (1 - self._theta) * self._previous_half_current
+            + self._theta * current_new
+        )
+        self.Itot[iteration] = current_centred
+        V_ab = 2 * self.Vinc[iteration] - self.Z0 * current_centred
+        self.Vtotal[iteration] = V_ab
+
+        fields = {"Hx": Hx, "Hy": Hy, "Hz": Hz}
+        for component, x, y, z, _, source_gain in self._drive_terms:
+            fields[component][x, y, z] += source_gain * V_ab
+        self._previous_half_current = current_new
+
+
 class DiscretePlaneWave(Source):
     """Implements the discrete plane wave (DPW) formulation as described in
     Tan, T.; Potter, M. (2010). FDTD Discrete Planewave (FDTD-DPW)
@@ -736,10 +2692,11 @@ class DiscretePlaneWave(Source):
         #self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
         self.projections = np.zeros(6, dtype=np.float64)  # Use float64 for better precision in projections
         self.corners = None
-        self.materialID = 1
+        self.materialID = None
         self.ds = 0
         self.speed = config.c
         self.axial = 0
+        self.dispersive = False
         self.pml_cells = 20
         self.buffercells_axial = 5
         self.psi= 0.0
@@ -749,7 +2706,38 @@ class DiscretePlaneWave(Source):
         self.actual_angles = np.zeros(2, dtype=np.float64)  # [theta, phi]
         self.angle_errors = np.zeros(2, dtype=np.float64)  # [Delta_theta, Delta_phi]
         self.total_error = 0.0
-  
+
+        # 2D-mode state, resolved once here (the mode is final by the time
+        # any DPW user object is built - the same assumption HertzianDipole
+        # relies on). mode2d uses the same encoding as CPUUpdates.__init__:
+        # -1 = 3D, 0/1/2 = 2D TM invariant x/y/z, 3/4/5 = 2D TE invariant
+        # x/y/z. skip_axis is the invariant axis (-1 in 3D) and is passed to
+        # the Cython TFSF kernels so the pair of box faces normal to it is
+        # skipped - a 2D TFSF is a rectangle of 4 edges, not a box of 6
+        # faces; the perpendicular faces would write spurious corrections
+        # into structurally-dead field components (and, at a TM wall,
+        # out-of-bounds at index -1).
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TM"):
+            self.mode2d = "xyz".index(mode[-1])
+        elif mode.startswith("2D TE"):
+            self.mode2d = 3 + "xyz".index(mode[-1])
+        else:
+            self.mode2d = -1
+        self.skip_axis = self.mode2d % 3 if self.mode2d >= 0 else -1
+        self.is_TM = 0 <= self.mode2d < 3
+
+        # Transverse sample position used by axial-mode grid_init() when
+        # copying the layered material profile out of G.ID/G.solid: an
+        # arbitrary interior column in 3D ((1,1,1) - the historic choice),
+        # but in 2D the invariant-axis slot must be the mode's live layer -
+        # 0 for TM (the only cell; index 1 rows there are wall-forced) and
+        # 1 for TE (the live interior layer between the forced walls at 0
+        # and 2, which for TE coincides with the 3D default).
+        self.transverse_pos = [1, 1, 1]
+        if self.mode2d >= 0:
+            self.transverse_pos[self.skip_axis] = 0 if self.is_TM else 1
+
     def initializeDiscretePlaneWave(self, G):
         """Creates a DPW, assigns memory to the grids, and gets field values
             at different time and space indices.
@@ -793,18 +2781,54 @@ class DiscretePlaneWave(Source):
             self.angle_errors[1] = 0.0
             self.total_error = 0.0
 
-        # check for plane wave definition using m vector and in this case angles should be zero and need to be calculated. There is no error in this case. 
+        # check for plane wave definition using m vector and in this case angles should be zero and need to be calculated. There is no error in this case.
         else:
-            self.actual_angles[0] = math.degrees(math.atan2(self.m[1] * G.dx, self.m[0] * G.dy))
-            self.actual_angles[1] = math.degrees(math.acos(self.m[2] * G.dz / (math.sqrt((self.m[0] * G.dy) ** 2 + (self.m[1] * G.dx) ** 2 + (self.m[2] * G.dz) ** 2))))
+            # The physical propagation direction is the wavefront normal
+            # (m_x/dx, m_y/dy, m_z/dz) - the same convention
+            # find_dpw_integers_optimized() uses for its candidate selection
+            # and returned angles (phys_vec = m / delta there), so vector
+            # mode and angles mode report identical angles for the same m,
+            # including for anisotropic cells.
+            phys_vec = self.m[:3] / np.array([G.dx, G.dy, G.dz])
+            phys_vec_norm = phys_vec / np.linalg.norm(phys_vec)
+            self.actual_angles[0] = math.degrees(math.acos(np.clip(phys_vec_norm[2], -1.0, 1.0)))
+            self.actual_angles[1] = math.degrees(math.atan2(phys_vec_norm[1], phys_vec_norm[0]))
             self.angle_errors[0] = 0.0
-            self.angle_errors[1] = 0.0            
+            self.angle_errors[1] = 0.0
             self.total_error = 0.0
+
+        # In a 2D model the plane wave must propagate in-plane: the integer
+        # mapping must have a zero component on the invariant axis. This is a
+        # hard error rather than a warning because it is also a stability
+        # requirement: the 1D DPW scheme is the bulk Yee scheme restricted to
+        # the wavevector family (kappa*m_x, kappa*m_y, kappa*m_z); with
+        # m[invariant] == 0 that family lies inside the 2D Brillouin zone,
+        # for which the (larger) 2D CFL timestep is stable by construction -
+        # but a nonzero invariant-axis m samples 3D wavevectors, for which
+        # the 2D timestep genuinely can be unstable. (Note c*dt <= ds is NOT
+        # the right stability criterion here - 1D neighbour coupling is at
+        # strides m_i, not 1 - so no such runtime check is used.)
+        if self.mode2d >= 0 and self.m[self.skip_axis] != 0:
+            letter = "xyz"[self.skip_axis]
+            logger.exception(
+                f"Discrete plane wave: in {config.get_model_config().mode} mode the plane "
+                f"wave must propagate in-plane: the propagation direction must have a zero "
+                f"{letter}-component, but the integer mapping gave m_{letter} = "
+                f"{self.m[self.skip_axis]}. (E.g. for a mode invariant in z this requires "
+                f"theta = 90 degrees.)"
+            )
+            raise ValueError
 
         # Get angles in radians
         self.phi_est_rad = math.radians(self.actual_angles[1])
         self.theta_est_rad = math.radians(self.actual_angles[0])
         self.psi_rad = math.radians(self.psi)
+
+        # The dispersive background setup below needs the source frequency
+        # to evaluate the material impedance and propagation speed. Resolve
+        # the waveform before that setup, rather than at the end of this
+        # method after its first use.
+        self.waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
         # Calculate the direction cosines
         px = math.sin(self.theta_est_rad)*math.cos(self.phi_est_rad)
@@ -920,19 +2944,19 @@ class DiscretePlaneWave(Source):
             self.material = next((x for x in G.materials if x.ID == self.materialID), None)
         
             
-            # Find if the source material is dispersive
-            if self.material.type == "debye":
+            # A homogeneous DPW can use any electric dispersion supported by
+            # the main grid. The real part of eps_r at the waveform centre
+            # frequency sets the reference speed and impedance; the complete
+            # time-domain response is evolved by the auxiliary pole state.
+            if getattr(self.material, "poles", 0) > 0:
                 self.dispersive = True
-                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * np.real(self.material.calculate_er(self.waveform.freq))))  # Impedance in the material
-                self.speed = config.c / math.sqrt(np.real(self.material.calculate_er(self.waveform.freq)) * self.material.mr)  # Speed in the material
+                material_er = np.real(self.material.calculate_er(self.waveform.freq))
+                self.materialZ = math.sqrt(
+                    config.m0 * self.material.mr / (config.e0 * material_er)
+                )
+                self.speed = config.c / math.sqrt(material_er * self.material.mr)
                 self.max_poles = self.material.poles
-                # Allocate memory for the polarization terms for dispersive materials
-                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-              
             else:
-                self.dispersive = False
                 self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
              
@@ -963,119 +2987,146 @@ class DiscretePlaneWave(Source):
 
             self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
             if abs(self.projections[5]) <= 1e-15:
-                self.projections[5] = 0    
+                self.projections[5] = 0
 
+            # Axial mode computes its projections later, in grid_init()
+            # (they need the grid-sampled background material) - it runs
+            # this same validation there instead.
+            self._validate_2d_projections()
 
-
-        # Get the waveform object with the matching ID and add it to the PlaneWave object
-        self.waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        
         if self.axial == 0:
             self._get_pml_parameters(G)
-         
+
+
+    def _validate_2d_projections(self):
+        """Validates the polarisation of the plane wave against the active 2D
+        mode (no-op in 3D).
+
+        In a 2D model the structurally-dead field components must carry no
+        incident-wave amplitude, or the TFSF corrections would try to excite
+        components the bulk 2D kernels never update. Since the projections
+        are already clamped to exactly 0 below 1e-15, this is an exact-zero
+        operational check on the dead set - covering angles, vector and
+        axial modes with one rule, rather than a closed-form psi condition
+        (which depends on theta/phi for a general invariant axis):
+
+        - TM (E along the invariant axis only): the two in-plane E
+          projections and the invariant-axis H projection must be 0.
+        - TE (E in-plane only): the invariant-axis E projection and the two
+          in-plane H projections must be 0.
+        """
+        if self.mode2d < 0:
+            return
+
+        a = self.skip_axis
+        t1, t2 = [ax for ax in (0, 1, 2) if ax != a]
+        names = ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
+
+        if self.is_TM:
+            dead = [t1, t2, 3 + a]
+            hint = "for a mode invariant in z, TM requires psi = 90 or 270 degrees"
+        else:
+            dead = [a, 3 + t1, 3 + t2]
+            hint = "for a mode invariant in z, TE requires psi = 0 or 180 degrees"
+
+        nonzero = [
+            f"{names[c]} = {self.projections[c]:g}" for c in dead if self.projections[c] != 0
+        ]
+        if nonzero:
+            logger.exception(
+                f"Discrete plane wave: in {config.get_model_config().mode} mode the "
+                f"polarisation must not excite the structurally-dead field components, "
+                f"but the following incident-field projections are nonzero: "
+                f"{', '.join(nonzero)}. Adjust psi ({hint})."
+            )
+            raise ValueError
+
+        live = [c for c in range(6) if c not in dead]
+        if all(self.projections[c] == 0 for c in live):
+            logger.exception(
+                "Discrete plane wave: all live-component field projections are zero - "
+                "the plane wave would inject nothing. Check theta/phi/psi."
+            )
+            raise ValueError
 
     def grid_init(self,G):
         # Initialize the ID array for axial propagation problems only extending accordingly for the two PML regions
         if self.axial != 0:
             self.ID = np.zeros((6,self.length), dtype=np.uint32)  # 6 for the 6 field components
 
-            if self.axial == 1:  # x direction
-                for idx in range(self.origin_axial+1):
-                    self.ID[0,idx]=G.ID[0,1,1,1]
-                    self.ID[1,idx]=G.ID[1,1,1,1]
-                    self.ID[2,idx]=G.ID[2,1,1,1]
-                    self.ID[3,idx]=G.ID[3,1,1,1]
-                    self.ID[4,idx]=G.ID[4,1,1,1]
-                    self.ID[5,idx]=G.ID[5,1,1,1]
-                   
-                for idx in range(self.origin_axial+1, G.nx+self.origin_axial):
-                    self.ID[0,idx]=G.ID[0,idx-self.origin_axial,1,1]
-                    self.ID[1,idx]=G.ID[1,idx-self.origin_axial,1,1]
-                    self.ID[2,idx]=G.ID[2,idx-self.origin_axial,1,1]
-                    self.ID[3,idx]=G.ID[3,idx-self.origin_axial,1,1]
-                    self.ID[4,idx]=G.ID[4,idx-self.origin_axial,1,1]
-                    self.ID[5,idx]=G.ID[5,idx-self.origin_axial,1,1]
-                  
-                for idx in range(G.nx+self.origin_axial,self.length):
-                    self.ID[0,idx]=G.ID[0,G.nx-1,1,1] 
-                    self.ID[1,idx]=G.ID[1,G.nx-1,1,1]
-                    self.ID[2,idx]=G.ID[2,G.nx-1,1,1]
-                    self.ID[3,idx]=G.ID[3,G.nx-1,1,1]
-                    self.ID[4,idx]=G.ID[4,G.nx-1,1,1]
-                    self.ID[5,idx]=G.ID[5,G.nx-1,1,1]
-            
-                #for idx in range(G.nx):
-                #    print("postion DPW ", {idx+self.origin_axial}, " and ID ", {self.ID[1,idx + self.origin_axial]}," and position grid ", {idx}, " and GID ", {G.ID[1,idx, 1,1]})
+            # Copy the layered material profile out of G.ID along the
+            # propagation axis, sampling at self.transverse_pos on the two
+            # transverse axes - an arbitrary interior column in 3D (the
+            # layered-model assumption makes the choice arbitrary), and the
+            # mode's live layer on the invariant axis in 2D (see __init__).
+            # Dead components in 2D sample wall-forced pec/pmc rows, which
+            # is harmless AND desirable: their 1D field arrays are
+            # identically zero (zero projections + m[invariant] == 0), so
+            # those coefficient rows never multiply nonzero data, and a
+            # zero (pec) row additionally pins them at zero against
+            # roundoff.
+            prop = self.axial - 1  # 0/1/2 = x/y/z
+            n_prop = (G.nx, G.ny, G.nz)[prop]
+            pos = list(self.transverse_pos)
 
-            if self.axial == 2:  # y direction
-                for idx in range(self.origin_axial+1):
-                    self.ID[0,idx]=G.ID[0,1,1,1]
-                    self.ID[1,idx]=G.ID[1,1,1,1]
-                    self.ID[2,idx]=G.ID[2,1,1,1]
-                    self.ID[3,idx]=G.ID[3,1,1,1]
-                    self.ID[4,idx]=G.ID[4,1,1,1]
-                    self.ID[5,idx]=G.ID[5,1,1,1]
+            def _gid(component, prop_idx):
+                pos[prop] = prop_idx
+                return G.ID[(component, *pos)]
 
-                for idx in range(self.origin_axial+1,G.ny+self.origin_axial):
-                    self.ID[0,idx]=G.ID[0,1,idx-self.origin_axial,1]
-                    self.ID[1,idx]=G.ID[1,1,idx-self.origin_axial,1]
-                    self.ID[2,idx]=G.ID[2,1,idx-self.origin_axial,1]
-                    self.ID[3,idx]=G.ID[3,1,idx-self.origin_axial,1]
-                    self.ID[4,idx]=G.ID[4,1,idx-self.origin_axial,1]
-                    self.ID[5,idx]=G.ID[5,1,idx-self.origin_axial,1]
+            for c in range(6):
+                # Leading 1D buffer/PML region: extend the first grid cell's profile
+                for idx in range(self.origin_axial + 1):
+                    self.ID[c, idx] = _gid(c, 1)
+                # Main grid profile
+                for idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
+                    self.ID[c, idx] = _gid(c, idx - self.origin_axial)
+                # Trailing 1D PML region: extend the last grid cell's profile
+                for idx in range(n_prop + self.origin_axial, self.length):
+                    self.ID[c, idx] = _gid(c, n_prop - 1)
 
-                for idx in range(G.ny+self.origin_axial,self.length):
-                    self.ID[0,idx]=G.ID[0,1,G.ny-1,1]
-                    self.ID[1,idx]=G.ID[1,1,G.ny-1,1]
-                    self.ID[2,idx]=G.ID[2,1,G.ny-1,1]
-                    self.ID[3,idx]=G.ID[3,1,G.ny-1,1]
-                    self.ID[4,idx]=G.ID[4,1,G.ny-1,1]
-                    self.ID[5,idx]=G.ID[5,1,G.ny-1,1]
+            sampled_material_ids = set(np.unique(self.ID))
+            sampled_dispersive_materials = [
+                material
+                for material in G.materials
+                if material.numID in sampled_material_ids
+                and getattr(material, "poles", 0) > 0
+            ]
 
-            if self.axial == 3:  # z direction
-                for idx in range(self.origin_axial+1):
-                    self.ID[0,idx]=G.ID[0,1,1,1]
-                    self.ID[1,idx]=G.ID[1,1,1,1]
-                    self.ID[2,idx]=G.ID[2,1,1,1]
-                    self.ID[3,idx]=G.ID[3,1,1,1]
-                    self.ID[4,idx]=G.ID[4,1,1,1]
-                    self.ID[5,idx]=G.ID[5,1,1,1]
+            # Get the background material near the origin (used for the
+            # speed and impedance of the DPW) and near the far PML (used
+            # for the PML parameters). Sampled from G.solid - the
+            # cell-centred material array - rather than G.ID: solid is
+            # never wall-forced by the 2D framework (the tm*/te* forcing
+            # touches only ID), needs no field-component-row choice, and is
+            # immune to dielectric-smoothed compound rows at layer
+            # interfaces. The background at these positions is homogeneous
+            # by the plane wave's own assumption, so the cell-centred value
+            # is the right one. transverse_pos is valid for solid's
+            # cell-centred extents too: a TM invariant axis is 1 cell
+            # (index 0) and a TE one is 2 cells (index 1, the live
+            # interior layer).
+            pos_solid = list(self.transverse_pos)
 
-                for idx in range(self.origin_axial+1,G.nz+self.origin_axial):
-                    self.ID[0,idx]=G.ID[0,1,1,idx-self.origin_axial]
-                    self.ID[1,idx]=G.ID[1,1,1,idx-self.origin_axial]
-                    self.ID[2,idx]=G.ID[2,1,1,idx-self.origin_axial]
-                    self.ID[3,idx]=G.ID[3,1,1,idx-self.origin_axial]
-                    self.ID[4,idx]=G.ID[4,1,1,idx-self.origin_axial]
-                    self.ID[5,idx]=G.ID[5,1,1,idx-self.origin_axial]
+            pos_solid[prop] = 2
+            self.material = next(
+                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+            )
 
-                for idx in range(G.nz+self.origin_axial,self.length):
-                    self.ID[0,idx]=G.ID[0,1,1,G.nz-1]
-                    self.ID[1,idx]=G.ID[1,1,1,G.nz-1]
-                    self.ID[2,idx]=G.ID[2,1,1,G.nz-1]
-                    self.ID[3,idx]=G.ID[3,1,1,G.nz-1]
-                    self.ID[4,idx]=G.ID[4,1,1,G.nz-1]
-                    self.ID[5,idx]=G.ID[5,1,1,G.nz-1]   
+            pos_solid[prop] = n_prop - 2
+            self.materialPML = next(
+                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+            )
 
-            
-            # Get material by numeric ID of the right cell next to the origin. This material is used for calculating the speed and impedance of the DPW
-            self.material = next((x for x in G.materials if x.numID == G.ID[0,2, 2, 2]), None)
-            
-            # Get material by numeric ID of the PML cell next to the last cell of the main grid. This material is used for calculating the PML parameters
-            if self.axial == 1:
-                self.materialPML = next((x for x in G.materials if x.numID == G.ID[0,G.nx-2,2,2]), None)
-            elif self.axial == 2:
-                self.materialPML = next((x for x in G.materials if x.numID == G.ID[0,2,G.ny-2,2]), None)
-            elif self.axial == 3:
-                self.materialPML = next((x for x in G.materials if x.numID == G.ID[0,2,2,G.nz-2]), None)    
-
-            # Find if the source material is dispersive
-            if self.material.type == "debye":
-                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * np.real(self.material.calculate_er(self.waveform.freq))))  # Impedance in the material
-                self.speed = config.c / math.sqrt(np.real(self.material.calculate_er(self.waveform.freq)) * self.material.mr)  # Speed in the material
-               
+            # Reference material properties for the source-side auxiliary
+            # grid. All Debye, Lorentz, and Drude pole dynamics are handled
+            # by the same recurrence as the main grid below.
+            if getattr(self.material, "poles", 0) > 0:
+                material_er = np.real(self.material.calculate_er(self.waveform.freq))
+                self.materialZ = math.sqrt(
+                    config.m0 * self.material.mr / (config.e0 * material_er)
+                )
+                self.speed = config.c / math.sqrt(material_er * self.material.mr)
             else:
-                self.dispersive = False
                 self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
 
@@ -1084,38 +3135,26 @@ class DiscretePlaneWave(Source):
             self.materialPML0Z = self.materialZ
             self.PML0speed = self.speed        
 
-            # Find if the PML material is dispersive
-            if self.materialPML.type == "debye":
-                self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * np.real(self.materialPML.calculate_er(self.waveform.freq))))  # Impedance in the material
-                self.PMLspeed = config.c / math.sqrt(np.real(self.materialPML.calculate_er(self.waveform.freq)) * self.materialPML.mr)  # Speed in the material
-
+            # Reference properties at the far-side DPW PML.
+            if getattr(self.materialPML, "poles", 0) > 0:
+                material_pml_er = np.real(
+                    self.materialPML.calculate_er(self.waveform.freq)
+                )
+                self.materialPMLZ = math.sqrt(
+                    config.m0 * self.materialPML.mr / (config.e0 * material_pml_er)
+                )
+                self.PMLspeed = config.c / math.sqrt(
+                    material_pml_er * self.materialPML.mr
+                )
             else:
-                self.dispersive = False
                 self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * self.materialPML.er)) # Impedance in the material
                 self.PMLspeed = config.c / math.sqrt(self.materialPML.er * self.materialPML.mr)  # Speed in the material
-               
 
-            #find if the grid has any debye materials which can determine if we need dispersive updates even if the source material is non-dispersive
-            has_debye = any(getattr(x, "type", None) == "debye" for x in G.materials)
-
-            # If axial propagation and has any debye materials in the grid then need to use dispersive updates for all materials in the main grid        
-            if has_debye:
-                self.dispersive = True
-                print("Axial DPW propagation: will use dispersive updates for all materials in the main grid")
-                self.max_poles = 0
-                for material in G.materials:
-                    poles = getattr(material, "poles", 0)  # Default to 0 if 'poles' doesn't exist
-                    if poles is not None:
-                        self.max_poles = max(self.max_poles, poles)
-
-            # Allocate memory for the polarization arrays for the DPW updates if dispersive materials are present in the grid
-            if self.dispersive:
-                self.Px = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Px_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Py_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-                self.Pz_s = np.zeros((self.max_poles,self.length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.dispersive = bool(sampled_dispersive_materials)
+            self.max_poles = max(
+                (material.poles for material in sampled_dispersive_materials),
+                default=0,
+            )
 
         
             # Calculate the projections for sourcing the electric and magnetic fields
@@ -1143,7 +3182,9 @@ class DiscretePlaneWave(Source):
 
             self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
             if abs(self.projections[5]) <= 1e-15:
-                self.projections[5] = 0    
+                self.projections[5] = 0
+
+            self._validate_2d_projections()
 
             self._get_pml_parameters(G)
 
@@ -1153,8 +3194,19 @@ class DiscretePlaneWave(Source):
             + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
             + f" and 1D vector length = {self.length} cells.")
 
-        else:
-            pass
+        # Allocate the DPW auxiliary state after the model-wide dispersive
+        # dtype has been resolved. Debye-only models use real storage;
+        # Lorentz/Drude models use complex storage, exactly as the main grid.
+        if self.dispersive:
+            dispersive_dtype = config.get_model_config().materials["dispersivedtype"]
+            state_shape = (self.max_poles, self.length)
+            self.Px = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+            self.Py = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+            self.Pz = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+            if self.axial != 0:
+                self.Px_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+                self.Py_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+                self.Pz_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
 
 
     def calculate_waveform_values(self, G, cythonize=True):
@@ -1255,6 +3307,7 @@ class DiscretePlaneWave(Source):
                 self.length,
                 self.pml_length,
                 nthreads,
+                self.skip_axis,
                 self.origin_axial,
                 self.H_fields,
                 self.E_fields,
@@ -1319,6 +3372,7 @@ class DiscretePlaneWave(Source):
                     self.length,
                     self.pml_length,
                     nthreads,
+                    self.skip_axis,
                     self.H_fields,
                     self.E_fields,
                     self.Ix,
@@ -1384,6 +3438,7 @@ class DiscretePlaneWave(Source):
                 self.length,
                 self.pml_length,
                 nthreads,
+                self.skip_axis,
                 self.origin_axial,
                 self.H_fields,
                 self.E_fields,
@@ -1447,6 +3502,7 @@ class DiscretePlaneWave(Source):
                     self.length,
                     self.pml_length,
                     nthreads,
+                    self.skip_axis,
                     self.H_fields,
                     self.E_fields,
                     self.Ix,
@@ -1512,6 +3568,7 @@ class DiscretePlaneWave(Source):
                 self.length,
                 self.pml_length,
                 nthreads,
+                self.skip_axis,
                 self.origin_axial,
                 self.H_fields,
                 self.E_fields,
@@ -1583,6 +3640,7 @@ class DiscretePlaneWave(Source):
                     self.length,
                     self.pml_length,
                     nthreads,
+                    self.skip_axis,
                     self.H_fields,
                     self.E_fields,
                     self.Px,
@@ -1776,193 +3834,199 @@ class DiscretePlaneWave(Source):
         return array[component, np.dot(m[:-1], np.array([i-origin[0], j-origin[1], k-origin[2]]))]
 
     def apply_TFSF_conditions_magnetic(self, G):
-        # **** constant x faces -- scattered-field nodes ****
-        i = self.corners[0]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hy at firstX-1/2 by subtracting Ez_inc
-                G.Hy[i - 1, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at firstX-1/2 by adding Ey_inc
-                G.Hz[i - 1, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
-
-        i = self.corners[3]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hy at lastX+1/2 by adding Ez_inc
-                G.Hy[i, j, k] += G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at lastX+1/2 by subtractinging Ey_inc
-                G.Hz[i, j, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
-
-        # **** constant y faces -- scattered-field nodes ****
-        j = self.corners[1]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hx at firstY-1/2 by adding Ez_inc
-                G.Hx[i, j - 1, k] += G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at firstY-1/2 by subtracting Ex_inc
-                G.Hz[i, j - 1, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
-
-        j = self.corners[4]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Hx at lastY+1/2 by subtracting Ez_inc
-                G.Hx[i, j, k] -= G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 2
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Hz at lastY-1/2 by adding Ex_inc
-                G.Hz[i, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
-
-        # **** constant z faces -- scattered-field nodes ****
-        k = self.corners[2]
-        for i in range(self.corners[0], self.corners[3]):
+        if self.skip_axis != 0:
+            # **** constant x faces -- scattered-field nodes ****
+            i = self.corners[0]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Hy at firstZ-1/2 by adding Ex_inc
-                G.Hy[i, j, k - 1] += G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hy at firstX-1/2 by subtracting Ez_inc
+                    G.Hy[i - 1, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
 
-        for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
-                # correct Hx at firstZ-1/2 by subtracting Ey_inc
-                G.Hx[i, j, k - 1] -= G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at firstX-1/2 by adding Ey_inc
+                    G.Hz[i - 1, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
 
-        k = self.corners[5]
-        for i in range(self.corners[0], self.corners[3]):
+            i = self.corners[3]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Hy at firstZ-1/2 by subtracting Ex_inc
-                G.Hy[i, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 0
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hy at lastX+1/2 by adding Ez_inc
+                    G.Hy[i, j, k] += G.updatecoeffsH[G.ID[4, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
 
-        for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
-                # correct Hx at lastZ+1/2 by adding Ey_inc
-                G.Hx[i, j, k] += G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
-                    i, j, k, self.E_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at lastX+1/2 by subtractinging Ey_inc
+                    G.Hz[i, j, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 1] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
+
+        if self.skip_axis != 1:
+            # **** constant y faces -- scattered-field nodes ****
+            j = self.corners[1]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hx at firstY-1/2 by adding Ez_inc
+                    G.Hx[i, j - 1, k] += G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at firstY-1/2 by subtracting Ex_inc
+                    G.Hz[i, j - 1, k] -= G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+            j = self.corners[4]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Hx at lastY+1/2 by subtracting Ez_inc
+                    G.Hx[i, j, k] -= G.updatecoeffsH[G.ID[3, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 2
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Hz at lastY-1/2 by adding Ex_inc
+                    G.Hz[i, j, k] += G.updatecoeffsH[G.ID[5, i, j, k], 2] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+        if self.skip_axis != 2:
+            # **** constant z faces -- scattered-field nodes ****
+            k = self.corners[2]
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Hy at firstZ-1/2 by adding Ex_inc
+                    G.Hy[i, j, k - 1] += G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Hx at firstZ-1/2 by subtracting Ey_inc
+                    G.Hx[i, j, k - 1] -= G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
+
+            k = self.corners[5]
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Hy at firstZ-1/2 by subtracting Ex_inc
+                    G.Hy[i, j, k] -= G.updatecoeffsH[G.ID[4, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Hx at lastZ+1/2 by adding Ey_inc
+                    G.Hx[i, j, k] += G.updatecoeffsH[G.ID[3, i, j, k], 3] * self.getField(
+                        i, j, k, self.E_fields, self.m, self.origin, 1
+                    )
 
     def apply_TFSF_conditions_electric(self, G):
-        # **** constant x faces -- total-field nodes ****/
-        i = self.corners[0]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at firstX face by subtracting Hy_inc
-                G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
-                    i - 1, j, k, self.H_fields, self.m, self.origin, 1
-                )
-
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ey at firstX face by adding Hz_inc
-                G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
-                    i - 1, j, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        i = self.corners[3]
-        for j in range(self.corners[1], self.corners[4] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at lastX face by adding Hy_inc
-                G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 1
-                )
-
-        i = self.corners[3]
-        for j in range(self.corners[1], self.corners[4]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ey at lastX face by subtracting Hz_inc
-                G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        # **** constant y faces -- total-field nodes ****/
-        j = self.corners[1]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at firstY face by adding Hx_inc
-                G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
-                    i, j - 1, k, self.H_fields, self.m, self.origin, 0
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ex at firstY face by subtracting Hz_inc
-                G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
-                    i, j - 1, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        j = self.corners[4]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for k in range(self.corners[2], self.corners[5]):
-                # correct Ez at lastY face by subtracting Hx_inc
-                G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 0
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
-            for k in range(self.corners[2], self.corners[5] + 1):
-                # correct Ex at lastY face by adding Hz_inc
-                G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 2
-                )
-
-        # **** constant z faces -- total-field nodes ****/
-        k = self.corners[2]
-        for i in range(self.corners[0], self.corners[3] + 1):
-            for j in range(self.corners[1], self.corners[4]):
-                # correct Ey at firstZ face by subtracting Hx_inc
-                G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
-                    i, j, k - 1, self.H_fields, self.m, self.origin, 0
-                )
-
-        for i in range(self.corners[0], self.corners[3]):
+        if self.skip_axis != 0:
+            # **** constant x faces -- total-field nodes ****/
+            i = self.corners[0]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Ex at firstZ face by adding Hy_inc
-                G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
-                    i, j, k - 1, self.H_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at firstX face by subtracting Hy_inc
+                    G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
+                        i - 1, j, k, self.H_fields, self.m, self.origin, 1
+                    )
 
-        k = self.corners[5]
-        for i in range(self.corners[0], self.corners[3] + 1):
             for j in range(self.corners[1], self.corners[4]):
-                # correct Ey at lastZ face by adding Hx_inc
-                G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 0
-                )
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ey at firstX face by adding Hz_inc
+                    G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
+                        i - 1, j, k, self.H_fields, self.m, self.origin, 2
+                    )
 
-        for i in range(self.corners[0], self.corners[3]):
+            i = self.corners[3]
             for j in range(self.corners[1], self.corners[4] + 1):
-                # correct Ex at lastZ face by subtracting Hy_inc
-                G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
-                    i, j, k, self.H_fields, self.m, self.origin, 1
-                )
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at lastX face by adding Hy_inc
+                    G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 1] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 1
+                    )
+
+            i = self.corners[3]
+            for j in range(self.corners[1], self.corners[4]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ey at lastX face by subtracting Hz_inc
+                    G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 1] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 2
+                    )
+
+        if self.skip_axis != 1:
+            # **** constant y faces -- total-field nodes ****/
+            j = self.corners[1]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at firstY face by adding Hx_inc
+                    G.Ez[i, j, k] += G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
+                        i, j - 1, k, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ex at firstY face by subtracting Hz_inc
+                    G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
+                        i, j - 1, k, self.H_fields, self.m, self.origin, 2
+                    )
+
+            j = self.corners[4]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for k in range(self.corners[2], self.corners[5]):
+                    # correct Ez at lastY face by subtracting Hx_inc
+                    G.Ez[i, j, k] -= G.updatecoeffsE[G.ID[2, i, j, k], 2] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for k in range(self.corners[2], self.corners[5] + 1):
+                    # correct Ex at lastY face by adding Hz_inc
+                    G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 2] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 2
+                    )
+
+        if self.skip_axis != 2:
+            # **** constant z faces -- total-field nodes ****/
+            k = self.corners[2]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Ey at firstZ face by subtracting Hx_inc
+                    G.Ey[i, j, k] -= G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
+                        i, j, k - 1, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Ex at firstZ face by adding Hy_inc
+                    G.Ex[i, j, k] += G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
+                        i, j, k - 1, self.H_fields, self.m, self.origin, 1
+                    )
+
+            k = self.corners[5]
+            for i in range(self.corners[0], self.corners[3] + 1):
+                for j in range(self.corners[1], self.corners[4]):
+                    # correct Ey at lastZ face by adding Hx_inc
+                    G.Ey[i, j, k] += G.updatecoeffsE[G.ID[1, i, j, k], 3] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 0
+                    )
+
+            for i in range(self.corners[0], self.corners[3]):
+                for j in range(self.corners[1], self.corners[4] + 1):
+                    # correct Ex at lastZ face by subtracting Hy_inc
+                    G.Ex[i, j, k] -= G.updatecoeffsE[G.ID[0, i, j, k], 3] * self.getField(
+                        i, j, k, self.H_fields, self.m, self.origin, 1
+                    )
 
 
     def find_dpw_integers_optimized(self, theta_deg, phi_deg, delta_xyz, max_total_error_deg):
@@ -2022,6 +4086,15 @@ class DiscretePlaneWave(Source):
             math.cos(theta_rad)
         ])
 
+        #  Snap floating-point residue on components that are analytically
+        #  zero (e.g. cos(90 deg) evaluates to ~6.1e-17, not 0). Without
+        #  this, the continued-fraction search below sees a tiny-but-nonzero
+        #  target ratio and generates astronomically large integer
+        #  candidates chasing it (overflowing on integer conversion). An
+        #  exactly-zero component is also precisely what 2D in-plane
+        #  propagation requires (e.g. theta = 90 for a mode invariant in z).
+        u_vec_target[np.abs(u_vec_target) < 1e-12] = 0.0
+
         #  The algorithm works by dividing by one of the vector's components (x, y, or z).
         #  To avoid dividing by zero and to keep the math stable, we always choose
         #  the component with the LARGEST absolute value as the reference. We
@@ -2059,6 +4132,14 @@ class DiscretePlaneWave(Source):
         for p1, q1 in convergents1:
             for p2, q2 in convergents2:
                 common_denom = math.lcm(q1, q2)
+                # Guard against pathological convergents (from ratios that
+                # are irrational-like or extreme): integers this large can
+                # never be useful DPW mappings (the 1D vector length scales
+                # with max|m|) and would overflow the C long conversion
+                # below. Computed in Python ints, so this check itself
+                # cannot overflow.
+                if max(abs(p1 * (common_denom // q1)), abs(p2 * (common_denom // q2)), common_denom) > 10**6:
+                    continue
                 m_perm = np.array([
                     p1 * (common_denom // q1),
                     p2 * (common_denom // q2),

@@ -21,6 +21,7 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_cone
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
@@ -64,6 +65,14 @@ class Cone(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify two points and two radii")
             raise
 
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(
+                f"{self.__str__()} cannot be used in 2D mode - a cone's circular "
+                "cross-section varies along its axis, so it is not invariant along "
+                "the invariant axis. Use a Cylinder instead if a constant "
+                "cross-section is required."
+            )
+
         # Check averaging
         try:
             # Try user-specified averaging
@@ -85,6 +94,8 @@ class Cone(GeometryUserObject):
                 raise
 
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
@@ -119,6 +130,7 @@ class Cone(GeometryUserObject):
         if len(materials) == 1:
             averaging = materials[0].averagable and averagecone
             numID = numIDx = numIDy = numIDz = materials[0].numID
+            pec_x = pec_y = pec_z = materials[0].is_pec
 
         # Uniaxial anisotropic case
         elif len(materials) == 3:
@@ -126,6 +138,9 @@ class Cone(GeometryUserObject):
             numIDx = materials[0].numID
             numIDy = materials[1].numID
             numIDz = materials[2].numID
+            pec_x = materials[0].is_pec
+            pec_y = materials[1].is_pec
+            pec_z = materials[2].is_pec
             requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
             averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
@@ -160,6 +175,9 @@ class Cone(GeometryUserObject):
             numIDy,
             numIDz,
             averaging,
+            pec_x,
+            pec_y,
+            pec_z,
             grid.solid,
             grid.rigidE,
             grid.rigidH,

@@ -28,13 +28,28 @@ from libc.string cimport strcmp
 from cython.parallel import prange
 
 from gprMax.config cimport float_or_double
-from gprMax.config cimport float_or_double_complex
+
+
+# The plane-wave electric and magnetic fields remain real, while auxiliary
+# dispersive state is real for Debye-only models and complex when any Lorentz
+# or Drude material is present. This mirrors the main-grid dispersive solver.
+# For complex poles the apparent current is Re(a*T), including the imaginary
+# cross term; Re(a)*Re(T) does not implement the requested Lorentz response.
+ctypedef float complex complex_float
+ctypedef double complex complex_double
+
+ctypedef fused dispersive_float_or_double:
+    float
+    double
+    complex_float
+    complex_double
 
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef void applyTFSFMagnetic(
     int nthreads,
+    int skip_axis,
     float_or_double[:, :, ::1] Hx,
     float_or_double[:, :, ::1] Hy,
     float_or_double[:, :, ::1] Hz,
@@ -93,90 +108,94 @@ cdef void applyTFSFMagnetic(
     cdef float_or_double coef_H_zy = updatecoeffsH[2]
 
 
-    #**** constant x faces -- scattered-field nodes ****
-    i = x_start
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hy at firstX-1/2 by subtracting Ez_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i-1, j, k] -= coef_H_yx * E_z[index]
+    if skip_axis != 0:
+        #**** constant x faces -- scattered-field nodes ****
+        i = x_start
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hy at firstX-1/2 by subtracting Ez_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i-1, j, k] -= coef_H_yx * E_z[index]
 
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at firstX-1/2 by adding Ey_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i-1, j, k] += coef_H_zx * E_y[index]
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at firstX-1/2 by adding Ey_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i-1, j, k] += coef_H_zx * E_y[index]
 
-    i = x_stop
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hy at lastX+1/2 by adding Ez_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i, j, k] += coef_H_yx * E_z[index]
+        i = x_stop
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hy at lastX+1/2 by adding Ez_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i, j, k] += coef_H_yx * E_z[index]
 
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at lastX+1/2 by subtractinging Ey_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i, j, k] -= coef_H_zx * E_y[index]
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at lastX+1/2 by subtractinging Ey_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i, j, k] -= coef_H_zx * E_y[index]
 
-    #**** constant y faces -- scattered-field nodes ****
-    j = y_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hx at firstY-1/2 by adding Ez_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j-1, k] += coef_H_xy * E_z[index]
+    if skip_axis != 1:
+        #**** constant y faces -- scattered-field nodes ****
+        j = y_start
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hx at firstY-1/2 by adding Ez_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j-1, k] += coef_H_xy * E_z[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at firstY-1/2 by subtracting Ex_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i, j-1, k] -= coef_H_zy * E_x[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at firstY-1/2 by subtracting Ex_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i, j-1, k] -= coef_H_zy * E_x[index]
 
-    j = y_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hx at lastY+1/2 by subtracting Ez_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j, k] -= coef_H_xy * E_z[index]
+        j = y_stop
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hx at lastY+1/2 by subtracting Ez_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j, k] -= coef_H_xy * E_z[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at lastY-1/2 by adding Ex_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i, j, k] += coef_H_zy * E_x[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at lastY-1/2 by adding Ex_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i, j, k] += coef_H_zy * E_x[index]
 
-    #**** constant z faces -- scattered-field nodes ****
-    k = z_start
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Hy at firstZ-1/2 by adding Ex_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i, j, k-1] += coef_H_yz * E_x[index]
+    if skip_axis != 2:
+        #**** constant z faces -- scattered-field nodes ****
+        k = z_start
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Hy at firstZ-1/2 by adding Ex_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i, j, k-1] += coef_H_yz * E_x[index]
 
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Hx at firstZ-1/2 by subtracting Ey_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j, k-1] -= coef_H_xz * E_y[index]
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Hx at firstZ-1/2 by subtracting Ey_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j, k-1] -= coef_H_xz * E_y[index]
 
-    k = z_stop
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Hy at firstZ-1/2 by subtracting Ex_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i, j, k] -= coef_H_yz * E_x[index]
+        k = z_stop
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Hy at firstZ-1/2 by subtracting Ex_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i, j, k] -= coef_H_yz * E_x[index]
 
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Hx at lastZ+1/2 by adding Ey_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j, k] += coef_H_xz * E_y[index]
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Hx at lastZ+1/2 by adding Ey_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j, k] += coef_H_xz * E_y[index]
 
 
 cdef void applyTFSFMagnetic_axial(
     int nthreads,
+    int skip_axis,
     int origin_axial,
     float_or_double[:, :, ::1] Hx,
     float_or_double[:, :, ::1] Hy,
@@ -232,91 +251,95 @@ cdef void applyTFSFMagnetic_axial(
     cdef float_or_double[:] E_z = E_fields[2, :]
 
 
-    #**** constant x faces -- scattered-field nodes ****
-    i = x_start
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hy at firstX-1/2 by subtracting Ez_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i-1, j, k] -= updatecoeffsH[GID[4,i-1,j,k],1] * E_z[index]
+    if skip_axis != 0:
+        #**** constant x faces -- scattered-field nodes ****
+        i = x_start
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hy at firstX-1/2 by subtracting Ez_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i-1, j, k] -= updatecoeffsH[GID[4,i-1,j,k],1] * E_z[index]
 
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at firstX-1/2 by adding Ey_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i-1, j, k] += updatecoeffsH[GID[5,i-1,j,k],1] * E_y[index]
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at firstX-1/2 by adding Ey_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i-1, j, k] += updatecoeffsH[GID[5,i-1,j,k],1] * E_y[index]
 
-    i = x_stop
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hy at lastX+1/2 by adding Ez_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i, j, k] += updatecoeffsH[GID[4,i,j,k],1] * E_z[index]
+        i = x_stop
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hy at lastX+1/2 by adding Ez_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i, j, k] += updatecoeffsH[GID[4,i,j,k],1] * E_z[index]
 
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at lastX+1/2 by subtractinging Ey_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i, j, k] -= updatecoeffsH[GID[5,i,j,k],1] * E_y[index]
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at lastX+1/2 by subtractinging Ey_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i, j, k] -= updatecoeffsH[GID[5,i,j,k],1] * E_y[index]
 
-    #**** constant y faces -- scattered-field nodes ****
-    j = y_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hx at firstY-1/2 by adding Ez_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j-1, k] += updatecoeffsH[GID[3,i,j-1,k],2] * E_z[index]
+    if skip_axis != 1:
+        #**** constant y faces -- scattered-field nodes ****
+        j = y_start
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hx at firstY-1/2 by adding Ez_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j-1, k] += updatecoeffsH[GID[3,i,j-1,k],2] * E_z[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at firstY-1/2 by subtracting Ex_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i, j-1, k] -= updatecoeffsH[GID[5,i,j-1,k],2] * E_x[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at firstY-1/2 by subtracting Ex_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i, j-1, k] -= updatecoeffsH[GID[5,i,j-1,k],2] * E_x[index]
 
-    j = y_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Hx at lastY+1/2 by subtracting Ez_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j, k] -= updatecoeffsH[GID[3,i,j,k],2] * E_z[index]
+        j = y_stop
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Hx at lastY+1/2 by subtracting Ez_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j, k] -= updatecoeffsH[GID[3,i,j,k],2] * E_z[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Hz at lastY-1/2 by adding Ex_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hz[i, j, k] += updatecoeffsH[GID[5,i,j,k],2] * E_x[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Hz at lastY-1/2 by adding Ex_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hz[i, j, k] += updatecoeffsH[GID[5,i,j,k],2] * E_x[index]
 
-    #**** constant z faces -- scattered-field nodes ****
-    k = z_start
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Hy at firstZ-1/2 by adding Ex_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i, j, k-1] += updatecoeffsH[GID[4,i,j,k-1],3] * E_x[index]
+    if skip_axis != 2:
+        #**** constant z faces -- scattered-field nodes ****
+        k = z_start
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Hy at firstZ-1/2 by adding Ex_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i, j, k-1] += updatecoeffsH[GID[4,i,j,k-1],3] * E_x[index]
 
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Hx at firstZ-1/2 by subtracting Ey_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j, k-1] -= updatecoeffsH[GID[3,i,j,k-1],3] * E_y[index]
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Hx at firstZ-1/2 by subtracting Ey_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j, k-1] -= updatecoeffsH[GID[3,i,j,k-1],3] * E_y[index]
 
-    k = z_stop
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Hy at firstZ-1/2 by subtracting Ex_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hy[i, j, k] -= updatecoeffsH[GID[4,i,j,k],3] * E_x[index]
+        k = z_stop
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Hy at firstZ-1/2 by subtracting Ex_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hy[i, j, k] -= updatecoeffsH[GID[4,i,j,k],3] * E_x[index]
 
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Hx at lastZ+1/2 by adding Ey_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Hx[i, j, k] += updatecoeffsH[GID[3,i,j,k],3] * E_y[index]
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Hx at lastZ+1/2 by adding Ey_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Hx[i, j, k] += updatecoeffsH[GID[3,i,j,k],3] * E_y[index]
 
 
 
 cdef void applyTFSFElectric(
     int nthreads,
+    int skip_axis,
     float_or_double[:, :, ::1] Ex,
     float_or_double[:, :, ::1] Ey,
     float_or_double[:, :, ::1] Ez,
@@ -376,92 +399,96 @@ cdef void applyTFSFElectric(
     cdef float_or_double coef_E_zy = updatecoeffsE[2]
 
 
-    #**** constant x faces -- total-field nodes ****/
-    i = x_start
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at firstX face by subtracting Hy_inc
-            index = m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] -= coef_E_zx * H_y[index]
+    if skip_axis != 0:
+        #**** constant x faces -- total-field nodes ****/
+        i = x_start
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at firstX face by subtracting Hy_inc
+                index = m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] -= coef_E_zx * H_y[index]
 
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ey at firstX face by adding Hz_inc
-            index = m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ey[i, j, k] += coef_E_yx * H_z[index]
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ey at firstX face by adding Hz_inc
+                index = m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ey[i, j, k] += coef_E_yx * H_z[index]
 
-    i = x_stop
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at lastX face by adding Hy_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] += coef_E_zx * H_y[index]
+        i = x_stop
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at lastX face by adding Hy_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] += coef_E_zx * H_y[index]
 
-    i = x_stop
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ey at lastX face by subtracting Hz_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ey[i, j, k] -= coef_E_yx * H_z[index]
+        i = x_stop
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ey at lastX face by subtracting Hz_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ey[i, j, k] -= coef_E_yx * H_z[index]
 
-    #**** constant y faces -- total-field nodes ****/
-    j = y_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at firstY face by adding Hx_inc
-            index = m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] += coef_E_zy * H_x[index]
+    if skip_axis != 1:
+        #**** constant y faces -- total-field nodes ****/
+        j = y_start
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at firstY face by adding Hx_inc
+                index = m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] += coef_E_zy * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ex at firstY face by subtracting Hz_inc
-            index = m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
-            Ex[i, j, k] -= coef_E_xy * H_z[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ex at firstY face by subtracting Hz_inc
+                index = m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
+                Ex[i, j, k] -= coef_E_xy * H_z[index]
 
-    j = y_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at lastY face by subtracting Hx_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] -= coef_E_zy * H_x[index]
+        j = y_stop
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at lastY face by subtracting Hx_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] -= coef_E_zy * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ex at lastY face by adding Hz_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ex[i, j, k] += coef_E_xy * H_z[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ex at lastY face by adding Hz_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ex[i, j, k] += coef_E_xy * H_z[index]
 
-    #**** constant z faces -- total-field nodes ****/
-    k = z_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Ey at firstZ face by subtracting Hx_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
-            Ey[i, j, k] -= coef_E_yz * H_x[index]
+    if skip_axis != 2:
+        #**** constant z faces -- total-field nodes ****/
+        k = z_start
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Ey at firstZ face by subtracting Hx_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
+                Ey[i, j, k] -= coef_E_yz * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Ex at firstZ face by adding Hy_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
-            Ex[i, j, k] += coef_E_xz * H_y[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Ex at firstZ face by adding Hy_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
+                Ex[i, j, k] += coef_E_xz * H_y[index]
 
-    k = z_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Ey at lastZ face by adding Hx_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ey[i, j, k] += coef_E_yz * H_x[index]
+        k = z_stop
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Ey at lastZ face by adding Hx_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ey[i, j, k] += coef_E_yz * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Ex at lastZ face by subtracting Hy_inc
-            index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ex[i, j, k] -= coef_E_xz * H_y[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Ex at lastZ face by subtracting Hy_inc
+                index = m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ex[i, j, k] -= coef_E_xz * H_y[index]
 
 
 
 cdef void applyTFSFElectric_axial(
     int nthreads,
+    int skip_axis,
     int origin_axial,
     float_or_double[:, :, ::1] Ex,
     float_or_double[:, :, ::1] Ey,
@@ -517,87 +544,90 @@ cdef void applyTFSFElectric_axial(
     cdef float_or_double[:] H_y = H_fields[1, :]
     cdef float_or_double[:] H_z = H_fields[2, :]
 
-    #**** constant x faces -- total-field nodes ****/
-    i = x_start
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at firstX face by subtracting Hy_inc
-            index = O_axial + m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] -= updatecoeffsE[GID[2,i,j,k],1] * H_y[index]
+    if skip_axis != 0:
+        #**** constant x faces -- total-field nodes ****/
+        i = x_start
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at firstX face by subtracting Hy_inc
+                index = O_axial + m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] -= updatecoeffsE[GID[2,i,j,k],1] * H_y[index]
 
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ey at firstX face by adding Hz_inc
-            index = O_axial + m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ey[i, j, k] += updatecoeffsE[GID[1,i,j,k],1] * H_z[index]
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ey at firstX face by adding Hz_inc
+                index = O_axial + m_x * (i-1-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ey[i, j, k] += updatecoeffsE[GID[1,i,j,k],1] * H_z[index]
 
-    i = x_stop
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at lastX face by adding Hy_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] += updatecoeffsE[GID[2,i,j,k],1] * H_y[index]
+        i = x_stop
+        for j in prange(y_start, y_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at lastX face by adding Hy_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] += updatecoeffsE[GID[2,i,j,k],1] * H_y[index]
 
-    i = x_stop
-    for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ey at lastX face by subtracting Hz_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ey[i, j, k] -= updatecoeffsE[GID[1,i,j,k],1] * H_z[index]
+        i = x_stop
+        for j in prange(y_start, y_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ey at lastX face by subtracting Hz_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ey[i, j, k] -= updatecoeffsE[GID[1,i,j,k],1] * H_z[index]
 
-    #**** constant y faces -- total-field nodes ****/
-    j = y_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at firstY face by adding Hx_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] += updatecoeffsE[GID[2,i,j,k],2] * H_x[index]
+    if skip_axis != 1:
+        #**** constant y faces -- total-field nodes ****/
+        j = y_start
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at firstY face by adding Hx_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] += updatecoeffsE[GID[2,i,j,k],2] * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ex at firstY face by subtracting Hz_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
-            Ex[i, j, k] -= updatecoeffsE[GID[1,i,j,k],2] * H_z[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ex at firstY face by subtracting Hz_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
+                Ex[i, j, k] -= updatecoeffsE[GID[1,i,j,k],2] * H_z[index]
 
-    j = y_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop):
-            #correct Ez at lastY face by subtracting Hx_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ez[i, j, k] -= updatecoeffsE[GID[2,i,j,k],2] * H_x[index]
+        j = y_stop
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop):
+                #correct Ez at lastY face by subtracting Hx_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ez[i, j, k] -= updatecoeffsE[GID[2,i,j,k],2] * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for k in range(z_start, z_stop+1):
-            #correct Ex at lastY face by adding Hz_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
-            Ex[i, j, k] += updatecoeffsE[GID[1,i,j,k],2] * H_z[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(z_start, z_stop+1):
+                #correct Ex at lastY face by adding Hz_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-1-Oy) + m_z * (k-Oz)
+                Ex[i, j, k] += updatecoeffsE[GID[1,i,j,k],2] * H_z[index]
 
-    #**** constant z faces -- total-field nodes ****/
-    k = z_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Ey at firstZ face by subtracting Hx_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
-            Ey[i, j, k] -= updatecoeffsE[GID[1,i,j,k],3] * H_x[index]
+    if skip_axis != 2:
+        #**** constant z faces -- total-field nodes ****/
+        k = z_start
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Ey at firstZ face by subtracting Hx_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
+                Ey[i, j, k] -= updatecoeffsE[GID[1,i,j,k],3] * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Ex at firstZ face by adding Hy_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
-            Ex[i, j, k] += updatecoeffsE[GID[0,i,j,k],3]* H_y[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Ex at firstZ face by adding Hy_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-1-Oz)
+                Ex[i, j, k] += updatecoeffsE[GID[0,i,j,k],3]* H_y[index]
 
-    k = z_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop):
-            #correct Ey at lastZ face by adding Hx_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ey[i, j, k] += updatecoeffsE[GID[1,i,j,k],3] * H_x[index]
+        k = z_stop
+        for i in prange(x_start, x_stop+1, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop):
+                #correct Ey at lastZ face by adding Hx_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ey[i, j, k] += updatecoeffsE[GID[1,i,j,k],3] * H_x[index]
 
-    for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
-        for j in range(y_start, y_stop+1):
-            #correct Ex at lastZ face by subtracting Hy_inc
-            index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
-            Ex[i, j, k] -= updatecoeffsE[GID[0,i,j,k],3] * H_y[index]
+        for i in prange(x_start, x_stop, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(y_start, y_stop+1):
+                #correct Ex at lastZ face by subtracting Hy_inc
+                index = O_axial + m_x * (i-Ox) + m_y * (j-Oy) + m_z * (k-Oz)
+                Ex[i, j, k] -= updatecoeffsE[GID[0,i,j,k],3] * H_y[index]
 
 
 cdef void initializeMagneticFields(
@@ -1655,9 +1685,9 @@ cdef void updateElectricFields_dispersive(
     int p,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
@@ -1668,7 +1698,7 @@ cdef void updateElectricFields_dispersive(
     float_or_double dy,
     float_or_double dz,
     float_or_double[:] updatecoeffsE,
-    float_or_double[:] updatecoeffsdispersive,
+    dispersive_float_or_double[:] updatecoeffsdispersive,
     int num_poles,
     int[:] m
 ):
@@ -1701,7 +1731,7 @@ cdef void updateElectricFields_dispersive(
             max(m_x, m_y, m_z).
     """
 
-    cdef Py_ssize_t j, i = 0
+    cdef Py_ssize_t j, i, pole = 0
 
     cdef float_or_double[:] E_x = E_fields[0, :]
     cdef float_or_double[:] E_y = E_fields[1, :]
@@ -1709,9 +1739,9 @@ cdef void updateElectricFields_dispersive(
     cdef float_or_double[:] H_x = H_fields[0, :]
     cdef float_or_double[:] H_y = H_fields[1, :]
     cdef float_or_double[:] H_z = H_fields[2, :]
-    cdef float_or_double[:, ::1] T_x = Px
-    cdef float_or_double[:, ::1] T_y = Py
-    cdef float_or_double[:, ::1] T_z = Pz
+    cdef dispersive_float_or_double[:, ::1] T_x = Px
+    cdef dispersive_float_or_double[:, ::1] T_y = Py
+    cdef dispersive_float_or_double[:, ::1] T_z = Pz
 
 
     cdef float_or_double coef_E_xt = updatecoeffsE[0]
@@ -1728,7 +1758,7 @@ cdef void updateElectricFields_dispersive(
 
     cdef float_or_double coef_E_D = updatecoeffsE[4]  
     
-    cdef float_or_double[:] coef_D = updatecoeffsdispersive
+    cdef dispersive_float_or_double[:] coef_D = updatecoeffsdispersive
 
     cdef float_or_double[:] Ixjyz = Ix[0, :]
     cdef float_or_double[:] Ixjzy = Ix[1, :]
@@ -1768,7 +1798,11 @@ cdef void updateElectricFields_dispersive(
 
         phi = 0
         for pole in range(num_poles):
-            phi = phi + coef_D[pole * 3] * T_x[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = phi + (coef_D[pole * 3] * T_x[pole, j]).real
+            else:
+                phi = phi + coef_D[pole * 3] * T_x[pole, j]
 
             T_x[pole, j] = coef_D[1 + (pole * 3)] * T_x[pole, j] + coef_D[2 + (pole * 3)] * E_x[j]
             
@@ -1779,7 +1813,11 @@ cdef void updateElectricFields_dispersive(
         
         phi = 0
         for pole in range(num_poles):
-            phi = phi + coef_D[pole * 3] * T_y[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = phi + (coef_D[pole * 3] * T_y[pole, j]).real
+            else:
+                phi = phi + coef_D[pole * 3] * T_y[pole, j]
 
             T_y[pole, j] = coef_D[1 + (pole * 3)] * T_y[pole, j] + coef_D[2 + (pole * 3)]* E_y[j]
             
@@ -1791,7 +1829,11 @@ cdef void updateElectricFields_dispersive(
         
         phi = 0
         for pole in range(num_poles):
-            phi = phi + coef_D[pole * 3] * T_z[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = phi + (coef_D[pole * 3] * T_z[pole, j]).real
+            else:
+                phi = phi + coef_D[pole * 3] * T_z[pole, j]
 
             T_z[pole,j] = coef_D[1 + (pole * 3)] * T_z[pole, j] + coef_D[2 + (pole * 3)]* E_z[j]
             
@@ -1867,12 +1909,12 @@ cdef void updateElectricFields_dispersive_axial(
     float_or_double[:, ::1] E_fields,
     float_or_double[:, ::1] H_fields_s,
     float_or_double[:, ::1] E_fields_s,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
-    float_or_double[:, ::1] Px_s,
-    float_or_double[:, ::1] Py_s,
-    float_or_double[:, ::1] Pz_s,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px_s,
+    dispersive_float_or_double[:, ::1] Py_s,
+    dispersive_float_or_double[:, ::1] Pz_s,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
@@ -1892,7 +1934,7 @@ cdef void updateElectricFields_dispersive_axial(
     float_or_double dy,
     float_or_double dz,
     float_or_double[:, ::1] updatecoeffsE,
-    float_or_double[:, ::1] updatecoeffsdispersive,
+    dispersive_float_or_double[:, ::1] updatecoeffsdispersive,
     np.uint32_t[:, ::1] GID,
     int num_poles,
     int[:] m
@@ -1926,7 +1968,7 @@ cdef void updateElectricFields_dispersive_axial(
             max(m_x, m_y, m_z).
     """
 
-    cdef Py_ssize_t j, i = 0
+    cdef Py_ssize_t j, i, pole = 0
 
     cdef float_or_double[:] E_x = E_fields[0, :]
     cdef float_or_double[:] E_y = E_fields[1, :]
@@ -1942,12 +1984,12 @@ cdef void updateElectricFields_dispersive_axial(
     cdef float_or_double[:] E_y_s = E_fields_s[1, :]
     cdef float_or_double[:] E_z_s = E_fields_s[2, :]
 
-    cdef float_or_double[:, ::1] T_x = Px
-    cdef float_or_double[:, ::1] T_y = Py
-    cdef float_or_double[:, ::1] T_z = Pz
-    cdef float_or_double[:, ::1] T_x_s = Px_s
-    cdef float_or_double[:, ::1] T_y_s = Py_s
-    cdef float_or_double[:, ::1] T_z_s = Pz_s
+    cdef dispersive_float_or_double[:, ::1] T_x = Px
+    cdef dispersive_float_or_double[:, ::1] T_y = Py
+    cdef dispersive_float_or_double[:, ::1] T_z = Pz
+    cdef dispersive_float_or_double[:, ::1] T_x_s = Px_s
+    cdef dispersive_float_or_double[:, ::1] T_y_s = Py_s
+    cdef dispersive_float_or_double[:, ::1] T_z_s = Pz_s
 
     cdef float_or_double[:] Ixjyz = Ix[0, :]
     cdef float_or_double[:] Ixjzy = Ix[1, :]
@@ -2021,7 +2063,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat = GID[0,2]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_x_s[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_x_s[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_x_s[pole, j]
             T_x_s[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_x_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)] * E_x_s[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2030,7 +2077,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[1,2]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_y_s[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_y_s[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_y_s[pole, j]
             T_y_s[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_y_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_y_s[j]
 
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2039,7 +2091,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[2,2]       
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_z_s[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_z_s[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_z_s[pole, j]
             T_z_s[pole,j] = updatecoeffsdispersive[mat, 1 + (pole * 3)] * T_z_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_z_s[j]
 
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2114,7 +2171,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat = GID[0,j]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_x[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_x[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_x[pole, j]
             T_x[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_x[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)] * E_x[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2123,7 +2185,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[1,j]
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_y[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_y[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_y[pole, j]
             T_y[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_y[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_y[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2132,7 +2199,12 @@ cdef void updateElectricFields_dispersive_axial(
         mat=GID[2,j]       
         phi = 0
         for pole in range(num_poles):
-            phi = phi + updatecoeffsdispersive[mat,pole * 3] * T_z[pole, j]
+            if (dispersive_float_or_double is complex_float or
+                    dispersive_float_or_double is complex_double):
+                phi = (phi + (updatecoeffsdispersive[mat, pole * 3]
+                       * T_z[pole, j]).real)
+            else:
+                phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_z[pole, j]
             T_z[pole,j] = updatecoeffsdispersive[mat, 1 + (pole * 3)] * T_z[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_z[j]
             
         # equation 9 of Tan, Potter paper modified for dispersive materials
@@ -2403,6 +2475,7 @@ cpdef void updatePlaneWave_magnetic(
     int n,
     int p,
     int nthreads,
+    int skip_axis,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
     float_or_double[:, ::1] Ix,
@@ -2443,13 +2516,14 @@ cpdef void updatePlaneWave_magnetic(
 ):
     initializeMagneticFields(m, H_fields, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateMagneticFields(n, p, H_fields, E_fields, Ix, Iy, Iz, rcHx, rcHy, rcHz, dx, dy, dz, updatecoeffsH, m)
-    applyTFSFMagnetic(nthreads, Hx, Hy, Hz, E_fields, updatecoeffsH, m, origin, corners)
+    applyTFSFMagnetic(nthreads, skip_axis, Hx, Hy, Hz, E_fields, updatecoeffsH, m, origin, corners)
     
 
 cpdef void updatePlaneWave_magnetic_axial(
     int n,
     int p,
     int nthreads,
+    int skip_axis,
     int origin_axial,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
@@ -2508,7 +2582,7 @@ cpdef void updatePlaneWave_magnetic_axial(
 
         initializeMagneticFields(m, H_fields_s, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateMagneticFields_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcHx, rcHy, rcHz, rcHx0, rcHy0, rcHz0, dx, dy, dz, updatecoeffsH, ID, m)
-        applyTFSFMagnetic_axial(nthreads, origin_axial, Hx, Hy, Hz, E_fields, updatecoeffsH, GID, m, origin, corners)
+        applyTFSFMagnetic_axial(nthreads, skip_axis, origin_axial, Hx, Hy, Hz, E_fields, updatecoeffsH, GID, m, origin, corners)
     
   
 
@@ -2516,6 +2590,7 @@ cpdef void updatePlaneWave_electric(
     int n,
     int p,
     int nthreads,
+    int skip_axis,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
     float_or_double[:, ::1] Ix,
@@ -2556,13 +2631,14 @@ cpdef void updatePlaneWave_electric(
 ):
     initializeElectricFields(m, E_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields(n, p, H_fields, E_fields, Ix, Iy, Iz, rcEx, rcEy, rcEz, dx, dy, dz, updatecoeffsE, m)
-    applyTFSFElectric(nthreads, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners)
+    applyTFSFElectric(nthreads, skip_axis, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners)
 
 
 cpdef void updatePlaneWave_electric_axial(
     int n,
     int p,
     int nthreads,
+    int skip_axis,
     int origin_axial,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
@@ -2621,7 +2697,7 @@ cpdef void updatePlaneWave_electric_axial(
 
         initializeElectricFields(m, E_fields_s, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateElectricFields_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcEx, rcEy, rcEz, rcEx0, rcEy0, rcEz0, dx, dy, dz, updatecoeffsE, ID, m)
-        applyTFSFElectric_axial(nthreads, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners)
+        applyTFSFElectric_axial(nthreads, skip_axis, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners)
 
 
 
@@ -2630,17 +2706,18 @@ cpdef void updatePlaneWave_electric_dispersive(
     int n,
     int p,
     int nthreads,
+    int skip_axis,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
     float_or_double[:] updatecoeffsE,
     float_or_double[:] updatecoeffsH,
-    float_or_double[:] updatecoeffsdispersive,
+    dispersive_float_or_double[:] updatecoeffsdispersive,
     int num_poles,
     float_or_double[:, ::1] rcEx,
     float_or_double[:, ::1] rcEy,
@@ -2675,24 +2752,25 @@ cpdef void updatePlaneWave_electric_dispersive(
 ):  
     initializeElectricFields(m, E_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields_dispersive(n, p, H_fields, E_fields, Px, Py, Pz, Ix, Iy, Iz, rcEx, rcEy, rcEz, dx, dy, dz, updatecoeffsE, updatecoeffsdispersive, num_poles, m)
-    applyTFSFElectric(nthreads, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners)
+    applyTFSFElectric(nthreads, skip_axis, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners)
 
 
 cpdef void updatePlaneWave_electric_dispersive_axial(
     int n,
     int p,
     int nthreads,
+    int skip_axis,
     int origin_axial,
     float_or_double[:, ::1] H_fields,
     float_or_double[:, ::1] E_fields,
     float_or_double[:, ::1] H_fields_s,
     float_or_double[:, ::1] E_fields_s,
-    float_or_double[:, ::1] Px,
-    float_or_double[:, ::1] Py,
-    float_or_double[:, ::1] Pz,
-    float_or_double[:, ::1] Px_s,
-    float_or_double[:, ::1] Py_s,
-    float_or_double[:, ::1] Pz_s,
+    dispersive_float_or_double[:, ::1] Px,
+    dispersive_float_or_double[:, ::1] Py,
+    dispersive_float_or_double[:, ::1] Pz,
+    dispersive_float_or_double[:, ::1] Px_s,
+    dispersive_float_or_double[:, ::1] Py_s,
+    dispersive_float_or_double[:, ::1] Pz_s,
     float_or_double[:, ::1] Ix,
     float_or_double[:, ::1] Iy,
     float_or_double[:, ::1] Iz,
@@ -2704,7 +2782,7 @@ cpdef void updatePlaneWave_electric_dispersive_axial(
     float_or_double[:, ::1] Iz_s,
     float_or_double[:, ::1] updatecoeffsE,
     float_or_double[:, ::1] updatecoeffsH,
-    float_or_double[:, ::1] updatecoeffsdispersive,
+    dispersive_float_or_double[:, ::1] updatecoeffsdispersive,
     np.uint32_t[:, ::1] ID,
     np.uint32_t[:, :, :, ::1] GID,
     int num_poles,
@@ -2747,7 +2825,7 @@ cpdef void updatePlaneWave_electric_dispersive_axial(
 ):  
     initializeElectricFields(m, E_fields_s, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields_dispersive_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Px, Py, Pz, Px_s, Py_s, Pz_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcEx, rcEy, rcEz, rcEx0, rcEy0, rcEz0, dx, dy, dz, updatecoeffsE, updatecoeffsdispersive, ID, num_poles, m)
-    applyTFSFElectric_axial(nthreads, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners)
+    applyTFSFElectric_axial(nthreads, skip_axis, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners)
 
 
 

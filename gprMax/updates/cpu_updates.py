@@ -25,6 +25,11 @@ from gprMax import config
 from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
 from gprMax.cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
 from gprMax.fields_outputs import store_outputs as store_outputs_cpu
+from gprMax.symmetry_boundaries import (
+    update_symmetry_boundaries_electric_dispersive,
+    update_symmetry_boundaries_electric_dispersive_b,
+    update_symmetry_boundaries_electric_normal,
+)
 from gprMax.updates.updates import GridType, Updates
 from gprMax.utilities.utilities import timer
 
@@ -38,6 +43,20 @@ class CPUUpdates(Updates[GridType]):
             G: FDTDGrid class describing a grid in a model.
         """
         super().__init__(G)
+
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TM"):
+            self.mode2d = "xyz".index(mode[-1])
+        elif mode.startswith("2D TE"):
+            self.mode2d = 3 + "xyz".index(mode[-1])
+        else:
+            self.mode2d = -1
+
+        for monitor in self.grid.ntff_monitors:
+            monitor.validate_materials(self.grid.ID, self.grid.IDlookup)
+            configure_background = getattr(monitor, "configure_background", None)
+            if configure_background is not None:
+                configure_background(self.grid.materials)
 
     def store_outputs(self, iteration):
         """Stores field component values for every receiver and transmission line."""
@@ -53,12 +72,29 @@ class CPUUpdates(Updates[GridType]):
             if snap.time == iteration + 1:
                 snap.store()
 
+    def observe_ntff_electric(self, iteration):
+        """Observe E at physical time ``iteration * dt``."""
+
+        for monitor in self.grid.ntff_monitors:
+            monitor.observe_electric(
+                iteration, self.grid.Ex, self.grid.Ey, self.grid.Ez
+            )
+
+    def observe_ntff_magnetic(self, iteration):
+        """Observe H at physical time ``(iteration + 1/2) * dt``."""
+
+        for monitor in self.grid.ntff_monitors:
+            monitor.observe_magnetic(
+                iteration, self.grid.Hx, self.grid.Hy, self.grid.Hz
+            )
+
     def update_magnetic(self):
         """Updates magnetic field components."""
         update_magnetic_cpu(
             self.grid.nx,
             self.grid.ny,
             self.grid.nz,
+            self.mode2d,
             config.get_model_config().ompthreads,
             self.grid.updatecoeffsH,
             self.grid.ID,
@@ -77,7 +113,11 @@ class CPUUpdates(Updates[GridType]):
 
     def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
-        for source in self.grid.transmissionlines + self.grid.magneticdipoles:
+        for source in (
+            self.grid.transmissionlines
+            + self.grid.magneticdipoles
+            + self.grid.magneticfrillsources
+        ):
             source.update_magnetic(
                 iteration,
                 self.grid.updatecoeffsH,
@@ -126,6 +166,11 @@ class CPUUpdates(Updates[GridType]):
                     precompute=True,
                 )
 
+    def update_eigenmode_sources_electric(self, iteration):
+        """Updates eigenmode source electric fields."""
+        for source in self.grid.eigenmodesources:
+            source.update_eigenmode_electric(iteration, self.grid)
+
      
 
     def update_plane_waves_magnetic(self, iteration):
@@ -147,6 +192,11 @@ class CPUUpdates(Updates[GridType]):
                     cythonize=True,
                     precompute=True,
                 )
+
+    def update_eigenmode_sources_magnetic(self, iteration):
+        """Updates eigenmode source magnetic fields."""
+        for source in self.grid.eigenmodesources:
+            source.update_eigenmode_magnetic(iteration, self.grid)
             
     def update_electric_a(self):
         """Updates electric field components."""
@@ -156,6 +206,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
+                self.mode2d,
                 config.get_model_config().ompthreads,
                 self.grid.updatecoeffsE,
                 self.grid.ID,
@@ -174,6 +225,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
+                self.mode2d,
                 config.get_model_config().ompthreads,
                 config.get_model_config().materials["maxpoles"],
                 self.grid.updatecoeffsE,
@@ -189,6 +241,18 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.Hy,
                 self.grid.Hz,
             )
+
+    def update_symmetry_boundaries_electric(self):
+        """Apply the PMC ghost-node E update on CPU symmetry faces."""
+        if config.get_model_config().materials["maxpoles"] == 0:
+            update_symmetry_boundaries_electric_normal(self.grid)
+        else:
+            update_symmetry_boundaries_electric_dispersive(self.grid)
+
+    def update_symmetry_boundaries_electric_b(self):
+        """Complete the dispersive PMC ghost-node update's second phase."""
+        if config.get_model_config().materials["maxpoles"] > 0:
+            update_symmetry_boundaries_electric_dispersive_b(self.grid)
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
@@ -224,6 +288,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
+                self.mode2d,
                 config.get_model_config().ompthreads,
                 config.get_model_config().materials["maxpoles"],
                 self.grid.updatecoeffsdispersive,
@@ -267,7 +332,8 @@ class CPUUpdates(Updates[GridType]):
         return timer() - self.timestart
 
     def finalise(self):
-        pass
+        for monitor in self.grid.ntff_monitors:
+            monitor.finalise()
 
     def cleanup(self):
         pass

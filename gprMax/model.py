@@ -32,8 +32,8 @@ from gprMax.geometry_outputs.geometry_view_lines import GeometryViewLines
 from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels
 from gprMax.geometry_outputs.geometry_views import GeometryView, save_geometry_views
 from gprMax.grid.cuda_grid import CUDAGrid
-from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.grid.metal_grid import MetalGrid
+from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -349,11 +349,67 @@ class Model:
         else:
             self.build_geometry()
 
+        # TFSF corrections are applied on the main grid. A box may contain a
+        # complete subgrid, but it must not cut through the HSG outer coupling
+        # surface where main- and fine-grid fields are exchanged.
+        if self.subgrids and self.G.discreteplanewaves:
+            from gprMax.ntff.interface import validate_tfsf_subgrid_enclosure
+
+            validate_tfsf_subgrid_enclosure(self)
+
+        # KSIR definitions are registered while the scene is parsed, but the
+        # component surfaces can only be compiled after grid.build() has
+        # finalised the Yee material IDs.
+        if getattr(self.G, "ksir_surface_specs", None):
+            from gprMax.ntff.interface import compile_ksir_outputs
+
+            if not self.G.ntff_output_writers:
+                compile_ksir_outputs(self, self.G)
+
         logger.info(
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
 
-        self.G.update_sources_and_recievers()
+        grids = [self.G] + self.subgrids
+        for grid in grids:
+            grid.update_sources_and_recievers()
+
+        # Magnetic-frill sources bind the attached thin-wire radius, resolve
+        # symmetry, validate the PEC ground plane, and precompute their
+        # feed-cell recurrence here. This needs final material coefficients
+        # and symmetry boundaries, which do not exist during scene parsing.
+        # MPI use is rejected by the source builder; a frill can belong to a
+        # CPU subgrid and is then prepared against that fine grid.
+        for grid in grids:
+            for frill in grid.magneticfrillsources:
+                frill.finalise_setup(grid)
+
+        # Voltage-source ports bind their receiver during scene processing,
+        # but their effective edge material and update coefficient only exist
+        # after grid.build() has completed.
+        for grid in grids:
+            for port in getattr(grid, "port_monitors", ()):
+                port.prepare(grid)
+
+        # Transmission lines already record incident and terminal voltage and
+        # current histories. Prepare their automatic S11/impedance outputs
+        # after materials and the native time/frequency axes are finalised.
+        from gprMax.ports import prepare_magnetic_frill_ports, prepare_transmission_line_ports
+
+        # MPI transmission-line objects are gathered only after solving. Do
+        # not attach cached spectral arrays before that transfer; the
+        # coordinator prepares and finalises them after the gather instead.
+        if not hasattr(self.G, "comm"):
+            for grid in grids:
+                prepare_transmission_line_ports(grid)
+                prepare_magnetic_frill_ports(grid)
+
+        # Source stepping is applied immediately above, so enclosure is
+        # checked against the positions actually used by this model run.
+        if self.G.ntff_monitors:
+            from gprMax.ntff.interface import validate_ksir_source_enclosure
+
+            validate_ksir_source_enclosure(self, self.G)
 
         self._output_geometry()
 
@@ -398,25 +454,114 @@ class Model:
         # Combine available grids
         grids = [self.G] + self.subgrids
 
+        self._check_stateful_sources_with_geometry_fixed(grids)
         self._check_for_dispersive_materials(grids)
+        self._check_accelerator_symmetry_boundaries(grids)
         self._check_memory_requirements(grids)
 
         for grid in grids:
             grid.build()
             grid.dispersion_analysis(self.iterations)
 
+    def _check_stateful_sources_with_geometry_fixed(self, grids: Sequence[FDTDGrid]):
+        # TransmissionLine and DiscretePlaneWave each carry their own
+        # persistent internal state (TL: voltage/current/ABC history;
+        # DPW: its own internal 1D E/H-field and PML-integral arrays) that
+        # is never reset between geometry_fixed reuse runs (only grid
+        # fields/PMLs are). Neither source can even vary between those
+        # runs in the first place - TransmissionLine is explicitly
+        # excluded from #src_steps repositioning
+        # (FDTDGrid.update_simple_source_positions()), and a
+        # DiscretePlaneWave's angle/direction is fixed once at scene-parse
+        # time with no per-run mechanism to change it. So with
+        # geometry_fixed and more than one model requested, every run
+        # after the first would silently reuse the exact same source at
+        # the exact same configuration, contaminated by the previous
+        # run's leftover internal state - not a "reuse the geometry, vary
+        # something else" scenario at all, just a broken repeat of an
+        # identical model. (A stepped receiver/dipole elsewhere in the
+        # same scene doesn't need multiple runs either - use multiple
+        # #rx commands, or #src_steps/#rx_steps, in a single run instead.)
+        if config.sim_config.geometry_fixed and config.sim_config.number_of_models > 1:
+            if any(grid.transmissionlines for grid in grids):
+                raise ValueError(
+                    "#transmission_line cannot be used with geometry_fixed when more "
+                    "than one model is requested (n > 1) - a transmission line's "
+                    "internal state (voltage/current/ABC history) is not reset "
+                    "between reused-geometry runs, and it cannot be repositioned "
+                    "via #src_steps, so every run after the first would silently "
+                    "repeat the identical, contaminated source. Run a single model "
+                    "instead, or use #voltage_source if you need geometry_fixed."
+                )
+            if any(grid.discreteplanewaves for grid in grids):
+                raise ValueError(
+                    "A discrete plane wave command cannot be used with "
+                    "geometry_fixed when more than one model is requested (n > 1) "
+                    "- its internal state (the plane wave's own 1D E/H-field and "
+                    "PML-integral arrays) is not reset between reused-geometry "
+                    "runs, and its angle/direction cannot vary between runs, so "
+                    "every run after the first would silently repeat the "
+                    "identical, contaminated source. Run a single model instead."
+                )
+            if any(grid.magneticfrillsources for grid in grids):
+                raise ValueError(
+                    "#magnetic_frill_source cannot be used with geometry_fixed "
+                    "when more than one model is requested (n > 1) - its "
+                    "internal voltage/current history arrays are not reset "
+                    "between reused-geometry runs, so every run after the "
+                    "first would retain state from the previous run and "
+                    "contaminate "
+                    "Vtotal/S11/Zin output with no error. Run a single model "
+                    "instead."
+                )
+
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
         # Check for dispersive materials (and specific type)
         if config.get_model_config().materials["maxpoles"] != 0:
-            # TODO: This sets materials["drudelorentz"] based only the
-            # last grid/subgrid. Is that correct?
-            for grid in grids:
-                config.get_model_config().materials["drudelorentz"] = any(
-                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
-                )
+            # dispersivedtype/dispersiveCdtype are single, model-wide
+            # settings (not per-grid) - every grid's dispersive arrays are
+            # allocated using them (FDTDGrid.initialise_dispersive_arrays()),
+            # so drudelorentz must be True if ANY grid (main or subgrid)
+            # contains a Drude/Lorentz material, not just the last one
+            # checked. Getting this wrong doesn't just pick the wrong
+            # update kernel - it allocates a real-dtype updatecoeffsdispersive
+            # array for a grid whose materials need complex pole
+            # coefficients, silently truncating them (numpy raises only a
+            # ComplexWarning on such an assignment, not an error).
+            config.get_model_config().materials["drudelorentz"] = any(
+                "drude" in m.type or "lorentz" in m.type
+                for grid in grids
+                for m in grid.materials
+            )
 
             # Set data type if any dispersive materials (must be done before memory checks)
             config.get_model_config().set_dispersive_material_types()
+
+            # TODO: This is the correct, model-wide-safe fix (every grid
+            # gets a dtype capable of any dispersive material present
+            # anywhere), but it's not the ideal one. A Debye-only subgrid
+            # still pays for complex-arithmetic dispersive kernels/arrays
+            # just because the main grid (or another subgrid) has a
+            # Lorentz/Drude material. Doing this properly would mean
+            # making drudelorentz/dispersivedtype/dispersiveCdtype/
+            # crealfunc per-grid attributes instead of singleton
+            # ModelConfig ones, and updating every backend's dispersive
+            # kernel-selection code (e.g. CPUUpdates.set_dispersive_updates(),
+            # the CUDA/OpenCL/Metal equivalents) to read the owning grid's
+            # own flag rather than the global one.
+
+    def _check_accelerator_symmetry_boundaries(self, grids: Sequence[FDTDGrid]):
+        """Reject accelerator PMC after material dispersion is resolved."""
+        solver = config.sim_config.general["solver"]
+        maxpoles = config.get_model_config().materials["maxpoles"]
+        has_pmc = any("pmc" in grid.symmetry_boundaries.values() for grid in grids)
+
+        if solver in ("cuda", "opencl", "metal") and maxpoles > 0 and has_pmc:
+            raise ValueError(
+                "Dispersive PMC symmetry boundaries currently require the CPU "
+                "solver. PEC and nondispersive PMC symmetry are supported by "
+                "CUDA, OpenCL, and Apple Metal."
+            )
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory
@@ -459,10 +604,42 @@ class Model:
         file(s).
         """
 
+        # Device finalisation has already copied receiver histories to the
+        # host. Complete derived port spectra before opening the HDF5 file so
+        # a calculation error cannot leave a partially written port group.
+        grids = [self.G] + self.subgrids
+        for grid in grids:
+            for port in getattr(grid, "port_monitors", ()):
+                port.finalise(grid)
+
+        from gprMax.ports import finalise_magnetic_frill_ports, finalise_transmission_line_ports
+
+        for grid in [self.G] + self.subgrids:
+            finalise_transmission_line_ports(grid)
+            finalise_magnetic_frill_ports(grid)
+
         # Write output data to file if they are any receivers in any grids
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
-        if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
+        sg_frills = [True for sg in self.subgrids if sg.magneticfrillsources]
+        sg_ports = [True for sg in self.subgrids if sg.port_monitors]
+        ntff_outputs = [
+            monitor
+            for monitor in self.G.ntff_monitors
+            if getattr(monitor, "write_hdf5", None) is not None
+        ]
+        ntff_outputs.extend(getattr(self.G, "ntff_output_writers", ()))
+        if (
+            self.G.rxs
+            or sg_rxs
+            or self.G.transmissionlines
+            or sg_tls
+            or self.G.magneticfrillsources
+            or sg_frills
+            or sg_ports
+            or ntff_outputs
+            or self.G.port_monitors
+        ):
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
         # Write any snapshots to file for each grid

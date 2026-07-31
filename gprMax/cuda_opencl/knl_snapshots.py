@@ -24,14 +24,17 @@ store_snapshot = {
         """
                                 __global__ void store_snapshot(int p,
                                                     int xs,
-                                                    int xf,
                                                     int ys,
-                                                    int yf,
                                                     int zs,
-                                                    int zf,
+                                                    int nx,
+                                                    int ny,
+                                                    int nz,
                                                     int dx,
                                                     int dy,
                                                     int dz,
+                                                    int sx,
+                                                    int sy,
+                                                    int sz,
                                                     const $REAL* __restrict__ Ex,
                                                     const $REAL* __restrict__ Ey,
                                                     const $REAL* __restrict__ Ez,
@@ -50,14 +53,17 @@ store_snapshot = {
         """
                                     int p,
                                     int xs,
-                                    int xf,
                                     int ys,
-                                    int yf,
                                     int zs,
-                                    int zf,
+                                    int nx,
+                                    int ny,
+                                    int nz,
                                     int dx,
                                     int dy,
                                     int dz,
+                                    int sx,
+                                    int sy,
+                                    int sz,
                                     __global const $REAL* restrict Ex,
                                     __global const $REAL* restrict Ey,
                                     __global const $REAL* restrict Ez,
@@ -76,15 +82,18 @@ store_snapshot = {
         """
                                         kernel void store_snapshot(device const int& p,
                                                     device const int& xs,
-                                                    device const int& xf,
                                                     device const int& ys,
-                                                    device const int& yf,
                                                     device const int& zs,
-                                                    device const int& zf,
+                                                    device const int& nx,
+                                                    device const int& ny,
+                                                    device const int& nz,
                                                     device const int& dx,
                                                     device const int& dy,
                                                     device const int& dz,
-                                                    device const $REAL* Ex, 
+                                                    device const int& sx,
+                                                    device const int& sy,
+                                                    device const int& sz,
+                                                    device const $REAL* Ex,
                                                     device const $REAL* Ey,
                                                     device const $REAL* Ez,   
                                                     device const $REAL* Hx,   
@@ -105,8 +114,32 @@ store_snapshot = {
     //
     //  Args:
     //      p: Snapshot number.
-    //      xs, xf, ys, yf, xs, xf: Start and finish cell coordinates for snapshot.
+    //      xs, ys, zs: Start cell coordinates for snapshot (in the full
+    //          field-array coordinate space).
+    //      nx, ny, nz: Number of samples for this snapshot (already
+    //          computed on the host as ceil((finish-start)/step), i.e.
+    //          the snapshot's own local, 0-based output size - NOT the
+    //          absolute finish coordinate. The snaps-array thread index
+    //          (x, y, z below) is itself local/0-based (0..NX_SNAPS-1
+    //          etc, where NX_SNAPS is sized to the *largest* requested
+    //          snapshot, since multiple different-sized snapshots can
+    //          share one buffer) - comparing it against nx/ny/nz (this
+    //          snapshot's own local size) is the correct bounds check.
+    //          Comparing it against an *absolute* finish coordinate
+    //          instead (the previous, buggy version of this kernel) only
+    //          happened to work for a snapshot starting exactly at the
+    //          grid origin (xs=ys=zs=0) - any other snapshot position
+    //          silently produced a truncated, wrongly-offset output.
     //      dx, dy, dz: Sampling interval in cell coordinates for snapshot.
+    //      sx, sy, sz: Neighbour-offset strides along x, y, z (1 = genuine
+    //          averaging with the +1 neighbour; 0 = no genuine neighbour
+    //          exists along that axis, so both terms of any pair on that
+    //          axis collapse to the same index - used for a 2D TE-mode
+    //          model's invariant axis, which has only one real field
+    //          value flanked by forced-zero boundary padding, not a
+    //          second genuine value to average against. 1 on every axis
+    //          for 3D mode and 2D TM mode, matching the original formula
+    //          exactly - see gprMax.snapshots._snapshot_axis_strides().
     //      E, H: Access to field component arrays.
     //      snapEx, snapEy, snapEz, snapHx, snapHy, snapHz: Access to arrays to store snapshots.
 
@@ -122,36 +155,37 @@ store_snapshot = {
     // Subscripts for field arrays
     int xx, yy, zz;
 
-    if (x >= xs && x < xf && y >= ys && y < yf && z >= zs && z < zf) {
+    if (x < nx && y < ny && z < nz) {
 
         // Increment subscripts for field array to account for spatial sampling of snapshot
-        xx = (xs + x) * dx;
-        yy = (ys + y) * dy;
-        zz = (zs + z) * dz;
+        xx = xs + x * dx;
+        yy = ys + y * dy;
+        zz = zs + z * dz;
 
         // The electric field component value at a point comes from an average of
         // the 4 electric field component values in that cell
         snapEx[IDX4D_SNAPS(p,x,y,z)] = (Ex[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Ex[IDX3D_FIELDS(xx,yy+1,zz)] +
-                                        Ex[IDX3D_FIELDS(xx,yy,zz+1)] +
-                                        Ex[IDX3D_FIELDS(xx,yy+1,zz+1)]) * ($REAL)0.25;
+                                        Ex[IDX3D_FIELDS(xx,yy+sy,zz)] +
+                                        Ex[IDX3D_FIELDS(xx,yy,zz+sz)] +
+                                        Ex[IDX3D_FIELDS(xx,yy+sy,zz+sz)]) * ($REAL)0.25;
         snapEy[IDX4D_SNAPS(p,x,y,z)] = (Ey[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Ey[IDX3D_FIELDS(xx+1,yy,zz)] +
-                                        Ey[IDX3D_FIELDS(xx,yy,zz+1)] +
-                                        Ey[IDX3D_FIELDS(xx+1,yy,zz+1)]) * ($REAL)0.25;
+                                        Ey[IDX3D_FIELDS(xx+sx,yy,zz)] +
+                                        Ey[IDX3D_FIELDS(xx,yy,zz+sz)] +
+                                        Ey[IDX3D_FIELDS(xx+sx,yy,zz+sz)]) * ($REAL)0.25;
         snapEz[IDX4D_SNAPS(p,x,y,z)] = (Ez[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Ez[IDX3D_FIELDS(xx+1,yy,zz)] +
-                                        Ez[IDX3D_FIELDS(xx,yy+1,zz)] +
-                                        Ez[IDX3D_FIELDS(xx+1,yy+1,zz)]) * ($REAL)0.25;
+                                        Ez[IDX3D_FIELDS(xx+sx,yy,zz)] +
+                                        Ez[IDX3D_FIELDS(xx,yy+sy,zz)] +
+                                        Ez[IDX3D_FIELDS(xx+sx,yy+sy,zz)]) * ($REAL)0.25;
 
         // The magnetic field component value at a point comes from average of
         // 2 magnetic field component values in that cell and the following cell
         snapHx[IDX4D_SNAPS(p,x,y,z)] = (Hx[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hx[IDX3D_FIELDS(xx+1,yy,zz)]) * ($REAL)0.5;
+                                        Hx[IDX3D_FIELDS(xx+sx,yy,zz)]) * ($REAL)0.5;
         snapHy[IDX4D_SNAPS(p,x,y,z)] = (Hy[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hy[IDX3D_FIELDS(xx,yy+1,zz)]) * ($REAL)0.5;
+                                        Hy[IDX3D_FIELDS(xx,yy+sy,zz)]) * ($REAL)0.5;
         snapHz[IDX4D_SNAPS(p,x,y,z)] = (Hz[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hz[IDX3D_FIELDS(xx,yy,zz+1)]) * ($REAL)0.5;
+                                        Hz[IDX3D_FIELDS(xx,yy,zz+sz)]) * ($REAL)0.5;
+
     }
 """
     ),

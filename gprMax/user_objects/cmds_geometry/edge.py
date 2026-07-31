@@ -18,9 +18,11 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import math
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_edge_x, build_edge_y, build_edge_z
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.rotatable import RotatableMixin
@@ -69,6 +71,33 @@ class Edge(RotatableMixin, GeometryUserObject):
             self._do_rotate(grid)
 
         uip = self._create_uip(grid)
+        mode = config.get_model_config().mode
+        invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+
+        orig_p1, orig_p2 = p1, p2
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
+
+        # In TE mode, an edge is only physically meaningful running
+        # along a NON-invariant axis (an edge along the invariant axis
+        # would set the E-component that's forced to pec there, with no
+        # effect) - so the invariant axis must be a flat coordinate,
+        # constant at the interior reference layer, not a 0/axis-extent
+        # span. Override it here regardless of the role-based
+        # resolution above, for either endpoint that was `inf` on that
+        # axis. (TM is the opposite case - the invariant axis is the
+        # only viable run axis there, for which the role-based 0..1-cell
+        # span above is already exactly right, no override needed.)
+        if invariant_axis is not None and "TE" in mode:
+            axis = invariant_axis
+            if math.isinf(orig_p1[axis]) or math.isinf(orig_p2[axis]):
+                reference = grid.dl[axis] * 1
+                p1, p2 = list(p1), list(p2)
+                if math.isinf(orig_p1[axis]):
+                    p1[axis] = reference
+                if math.isinf(orig_p2[axis]):
+                    p2[axis] = reference
+                p1, p2 = tuple(p1), tuple(p2)
 
         edge_within_grid, discretised_p1, discretised_p2 = uip.check_box_points(
             p1, p2, self.__str__()
@@ -94,10 +123,31 @@ class Edge(RotatableMixin, GeometryUserObject):
             (xs != xf and (ys != yf or zs != zf))
             or (ys != yf and (xs != xf or zs != zf))
             or (zs != zf and (xs != xf or ys != yf))
+            or (xs == xf and ys == yf and zs == zf)
         ):
             logger.exception(f"{self.__str__()} the edge is not specified correctly")
             raise ValueError
-        elif xs != xf:
+
+        if invariant_axis is not None:
+            run_axis = 0 if xs != xf else 1 if ys != yf else 2 if zs != zf else None
+            if run_axis is not None:
+                if "TM" in mode and run_axis != invariant_axis:
+                    raise ValueError(
+                        f"{self.__str__()} in 2D TM mode, an edge is only "
+                        f"physically meaningful running along the invariant "
+                        f"axis ('{mode[-1]}') - any other orientation sets an "
+                        "E-component that is forced to zero there, with no "
+                        "effect."
+                    )
+                if "TE" in mode and run_axis == invariant_axis:
+                    raise ValueError(
+                        f"{self.__str__()} in 2D TE mode, an edge running along "
+                        f"the invariant axis ('{mode[-1]}') has no physical "
+                        "effect - that E-component is forced to zero there. Use "
+                        "an edge along one of the other two axes instead."
+                    )
+
+        if xs != xf:
             for i in range(xs, xf):
                 build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 

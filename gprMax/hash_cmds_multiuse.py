@@ -19,6 +19,8 @@
 
 import logging
 
+import gprMax.config as config
+
 from .user_objects.cmds_multiuse import (
     PMLCFS,
     AddDebyeDispersion,
@@ -27,6 +29,7 @@ from .user_objects.cmds_multiuse import (
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
     DiscretePlaneWaveVector,
+    EigenmodeSource,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -36,11 +39,28 @@ from .user_objects.cmds_multiuse import (
     Rx,
     RxArray,
     SoilPeplinski,
+    SymmetryBoundary,
     TransmissionLine,
     VoltageSource,
     Waveform,
 )
-from .user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
+from .user_objects.cmds_output import (
+    GeometryObjectsWrite,
+    GeometryView,
+    KSIRAntennaPorts,
+    KSIRFarField,
+    KSIRFarFieldArray,
+    KSIRFrequencyRx,
+    KSIRFrequencyRxArray,
+    KSIRFrequencyRxSpherical,
+    KSIRFrequencyTransform,
+    KSIRSurface,
+    KSIRTimeRx,
+    KSIRTimeRxArray,
+    KSIRTimeRxSpherical,
+    RxPort,
+    Snapshot,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +102,7 @@ def process_multicmds(multicmds):
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
                 )
-            elif len(tmp) == 8:
+            elif len(tmp) in (8, 9):
                 voltage_source = VoltageSource(
                     polarisation=tmp[0].lower(),
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -90,10 +110,16 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[5],
                     start=float(tmp[6]),
                     stop=float(tmp[7]),
+                    reference_impedance=float(tmp[8]) if len(tmp) == 9 else None,
                 )
             else:
                 logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least six parameters"
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " requires six, eight, or nine parameters"
                 )
                 raise ValueError
 
@@ -282,7 +308,7 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[10],
                     material_id=tmp[11],
                 )
-            elif len(tmp) == 13:
+            elif len(tmp) == 14:
                 plWave = DiscretePlaneWaveVector(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
@@ -339,6 +365,70 @@ def process_multicmds(multicmds):
 
             scene_objects.append(plWave)
 
+
+    cmdname = "#eigenmode_source"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 10:
+                logger.exception(
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " requires at least ten parameters: x0 y0 z0 x1 y1 z1 "
+                    "direction mode_index frequency [frequency ...] waveform_id"
+                )
+                raise ValueError
+
+            p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
+            p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
+            mode = config.get_model_config().mode
+            invariant_axis = (
+                "xyz".index(mode[-1]) if mode.startswith("2D") else None
+            )
+            equal_axes = [
+                axis
+                for axis in range(3)
+                if axis != invariant_axis and p0[axis] == p1[axis]
+            ]
+            if len(equal_axes) != 1:
+                logger.exception(
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " must have exactly one finite matching coordinate pair "
+                    "for the source normal"
+                )
+                raise ValueError
+
+            axis_names = ("x", "y", "z")
+            normal_axis = equal_axes[0]
+            transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+            transverse_p0 = [p0[axis] for axis in transverse_axes]
+            transverse_p1 = [p1[axis] for axis in transverse_axes]
+            transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
+            transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
+
+            frequencies = tuple(float(value) for value in tmp[8:-1])
+            kwargs = {
+                "normal": axis_names[normal_axis],
+                "direction": tmp[6],
+                "p1": transverse_lower,
+                "p2": transverse_upper,
+                "w": p0[normal_axis],
+                "mode_index": int(tmp[7]),
+                "waveform_id": tmp[-1],
+            }
+            if len(frequencies) == 1:
+                kwargs["frequency"] = frequencies[0]
+            else:
+                kwargs["frequencies"] = frequencies
+            eigenmode_source = EigenmodeSource(**kwargs)
+            scene_objects.append(eigenmode_source)
 
 
     cmdname = "#excitation_file"
@@ -398,6 +488,30 @@ def process_multicmds(multicmds):
             rx_array = RxArray(p1=p1, p2=p2, dl=dl)
             scene_objects.append(rx_array)
 
+    cmdname = "#rx_port"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 3 or len(tokens) > 5:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires three coordinates, "
+                    "an optional ID and spectrum limit"
+                )
+            kwargs = {}
+            if len(tokens) >= 4:
+                kwargs["id"] = tokens[3]
+            if len(tokens) >= 5:
+                try:
+                    kwargs["spectrum_limit"] = float(tokens[4])
+                except ValueError:
+                    kwargs["spectrum_limit"] = tokens[4].lower()
+            scene_objects.append(
+                RxPort(
+                    p1=tuple(float(value) for value in tokens[:3]),
+                    **kwargs,
+                )
+            )
+
     cmdname = "#snapshot"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -435,6 +549,183 @@ def process_multicmds(multicmds):
                 )
 
             scene_objects.append(snapshot)
+
+    cmdname = "#ksir_surface"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) != 7:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires exactly six coordinates and a surface ID"
+                )
+            scene_objects.append(
+                KSIRSurface(
+                    p1=tuple(float(value) for value in tokens[:3]),
+                    p2=tuple(float(value) for value in tokens[3:6]),
+                    id=tokens[6],
+                )
+            )
+
+    cmdname = "#ksir_frequency"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 3:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a surface ID, transform ID, and one or more frequencies"
+                )
+            window = "rectangular"
+            if tokens[-1].lower() in ("rectangular", "hann"):
+                window = tokens.pop().lower()
+            if len(tokens) < 3:
+                raise ValueError(f"{cmdname} requires at least one frequency")
+            scene_objects.append(
+                KSIRFrequencyTransform(
+                    surface_id=tokens[0],
+                    id=tokens[1],
+                    frequencies=tuple(float(value) for value in tokens[2:]),
+                    window=window,
+                )
+            )
+
+    cmdname = "#ksir_antenna_ports"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 2:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs"
+                )
+            scene_objects.append(
+                KSIRAntennaPorts(
+                    transform_id=tokens[0],
+                    port_ids=tuple(tokens[1:]),
+                )
+            )
+
+    def parse_point_options(cmdname, cmdinstance, tokens, required, has_time=False):
+        if len(tokens) < required:
+            raise ValueError(f"'{cmdname}: {cmdinstance}' requires at least {required} parameters")
+        extras = tokens[required:]
+        time_origin = "simulation"
+        if has_time and extras and extras[-1] in ("simulation", "first_arrival"):
+            if len(extras) < 2:
+                raise ValueError(f"{cmdname} requires the optional output ID before time_origin")
+            time_origin = extras.pop()
+        output_id = extras[0] if extras else None
+        outputs = tuple(extras[1:]) if len(extras) > 1 else None
+        kwargs = dict(id=output_id, outputs=outputs)
+        if has_time:
+            kwargs["time_origin"] = time_origin
+        return kwargs
+
+    cmdname = "#ksir_time_rx"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 4, True)
+            scene_objects.append(
+                KSIRTimeRx(
+                    position=tuple(float(value) for value in tokens[:3]),
+                    surface_id=tokens[3],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ksir_time_rx_spherical"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 4, True)
+            scene_objects.append(
+                KSIRTimeRxSpherical(
+                    float(tokens[0]),
+                    float(tokens[1]),
+                    float(tokens[2]),
+                    tokens[3],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ksir_time_rx_array"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 10, True)
+            scene_objects.append(
+                KSIRTimeRxArray(
+                    tuple(float(value) for value in tokens[:3]),
+                    tuple(float(value) for value in tokens[3:6]),
+                    tuple(float(value) for value in tokens[6:9]),
+                    tokens[9],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ksir_frequency_rx"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 4)
+            scene_objects.append(
+                KSIRFrequencyRx(
+                    position=tuple(float(value) for value in tokens[:3]),
+                    transform_id=tokens[3],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ksir_frequency_rx_spherical"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 4)
+            scene_objects.append(
+                KSIRFrequencyRxSpherical(
+                    float(tokens[0]),
+                    float(tokens[1]),
+                    float(tokens[2]),
+                    tokens[3],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ksir_frequency_rx_array"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 10)
+            scene_objects.append(
+                KSIRFrequencyRxArray(
+                    tuple(float(value) for value in tokens[:3]),
+                    tuple(float(value) for value in tokens[3:6]),
+                    tuple(float(value) for value in tokens[6:9]),
+                    tokens[9],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ksir_far_field"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
+            scene_objects.append(
+                KSIRFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs)
+            )
+
+    cmdname = "#ksir_far_field_array"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 7)
+            scene_objects.append(
+                KSIRFarFieldArray(
+                    *(float(value) for value in tokens[:6]),
+                    transform_id=tokens[6],
+                    **kwargs,
+                )
+            )
 
     cmdname = "#material"
     if multicmds[cmdname] is not None:
@@ -694,5 +985,19 @@ def process_multicmds(multicmds):
             )
 
             scene_objects.append(pml_cfs)
+
+    cmdname = "#symmetry_boundary"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 2:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly two parameters"
+                )
+                raise ValueError
+
+            symmetry_boundary = SymmetryBoundary(face=tmp[0].lower(), type=tmp[1].lower())
+            scene_objects.append(symmetry_boundary)
 
     return scene_objects

@@ -15,6 +15,121 @@ There is now a **Python API**, which includes all the functionality of the input
 2. gprMax objects can be used directly within functions, classes, modules and packages. In this way, collections of components can be defined, reused, and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
 3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
 
+Two-dimensional TM and TE modes
+===============================
+
+Models that are invariant in one Cartesian direction can use either a
+transverse-magnetic (TM) or transverse-electric (TE) field reduction. The
+invariant axis is declared with ``inf`` in ``#domain`` and the polarisation is
+selected with ``#domain_mode``. The same modes are available through the
+Python API. Sources, receivers, snapshots, material construction, fractal
+geometry, and imported geometry objects observe the reduced component set.
+See :ref:`input-hash-cmds` and :ref:`guidance` for the command syntax and field
+equations.
+
+Symmetry boundaries
+===================
+
+PEC and PMC symmetry planes can replace the PML on selected model faces. PMC
+planes use an image-theory ghost-node update, while PEC planes constrain the
+tangential electric field through the Yee material construction. Multiple
+planes may be combined, and KSIR integration surfaces can use a symmetry plane
+as an omitted face that is completed by image theory. See
+``#symmetry_boundary`` in :ref:`input-hash-cmds` for supported solvers and
+current restrictions.
+
+Excitation options
+==================
+
+Models can be excited using the range of local sources available in gprMax:
+Hertzian electric and magnetic dipoles, hard or resistive voltage sources, and
+one-dimensional transmission-line feeds. The dipoles provide idealised local
+radiators, while voltage and transmission-line sources can feed explicit
+antenna geometries.
+
+Plane-wave excitation is available through a total-field/scattered-field
+(TFSF) surface. gprMax uses the finite-difference time-domain discrete plane
+wave (FDTD-DPW) formulation of Tan and Potter [TAN2010]_. Its auxiliary
+one-dimensional FDTD grid reproduces the numerical propagation of the main
+grid, forming a nearly perfectly matched TFSF source with very low numerical
+leakage into the scattered-field region. Plane waves can be specified by
+propagation angles or an integer direction vector in a homogeneous background;
+an axial form is available for normally incident layered-media models.
+
+The source and plane-wave commands are described in
+:ref:`input-hash-cmds`.
+
+KSIR field transformations
+==========================
+
+The Kirchhoff surface-integral representation (KSIR) in gprMax is based on the
+formulation introduced by Ramahi [RAM1997]_. For any Cartesian electric- or
+magnetic-field component :math:`\psi`, the time-domain field outside a closed
+surface :math:`S` is
+
+.. math::
+
+    \psi(\mathbf r,t) = \frac{1}{4\pi}\oint_S
+    \left[
+    -\frac{1}{R}\frac{\partial\psi(\mathbf r',t_R)}{\partial n'}
+    + \frac{\hat{\mathbf n}'\mathbin{\cdot}\hat{\mathbf R}}{R^2}
+      \psi(\mathbf r',t_R)
+    + \frac{\hat{\mathbf n}'\mathbin{\cdot}\hat{\mathbf R}}{c_b R}
+      \frac{\partial\psi(\mathbf r',t_R)}{\partial t}
+    \right] \mathrm{d}S',
+
+where :math:`\mathbf R=\mathbf r-\mathbf r'`, :math:`R=|\mathbf R|`,
+:math:`\hat{\mathbf R}=\mathbf R/R`, :math:`\hat{\mathbf n}'` is the outward
+surface normal, :math:`t_R=t-R/c_b` is the retarded time, and :math:`c_b` is
+the wave speed in the homogeneous background medium. Each requested field
+component is reconstructed independently from that component and its
+outward-normal derivative; KSIR does not require equivalent electric and
+magnetic surface currents.
+
+gprMax extends the original time-domain presentation by directly accumulating
+frequency-domain surface phasors. With the electrical-engineering convention
+:math:`\psi(t)=\Re\{\widetilde{\psi}(\omega)e^{+j\omega t}\}` and forward
+transform kernel :math:`e^{-j\omega t}`, the exact finite-distance form used
+by gprMax is
+
+.. math::
+
+    \widetilde{\psi}(\mathbf r,\omega) = \frac{1}{4\pi}\oint_S
+    e^{-j k R}
+    \left[
+    -\frac{1}{R}\frac{\partial\widetilde{\psi}(\mathbf r',\omega)}
+      {\partial n'}
+    + (\hat{\mathbf n}'\mathbin{\cdot}\hat{\mathbf R})
+      \left(\frac{1}{R^2}+\frac{j k}{R}\right)
+      \widetilde{\psi}(\mathbf r',\omega)
+    \right] \mathrm{d}S',
+
+where :math:`k=\omega/c_b`. Its far-zone limit supplies the range-normalized
+radiation and scattering fields.
+
+The implementation also uses an improved, Yee-aware interpolation approach.
+For each surface patch, the two samples of the *same* Cartesian component that
+straddle the mathematical surface are centred and differenced as
+
+.. math::
+
+    \psi_S = \frac{\psi_{\mathrm{out}}+\psi_{\mathrm{in}}}{2},
+    \qquad
+    \frac{\partial\psi_S}{\partial n'} =
+    \frac{\psi_{\mathrm{out}}-\psi_{\mathrm{in}}}{\Delta n}.
+
+This avoids interpolating electric and magnetic components onto a common
+Huygens surface while retaining centred spatial accuracy. Time-domain
+fractional propagation delays are deposited between their two neighbouring
+output samples.
+
+A reusable integration surface can feed multiple Cartesian or spherical
+observation points and frequency transforms. CPU collection is implemented
+with Cython/OpenMP; CUDA, OpenCL, and Metal keep collection state and
+time-domain storage on the device during the FDTD iterations. See the KSIR
+command reference in :ref:`input-hash-cmds` and the HDF5 schema in
+:ref:`output`.
+
 Subgridding
 ===========
 
@@ -54,12 +169,34 @@ At the boundaries between different materials in a model there is the question o
 * Should the last object to be defined at that location dictate the electric and magnetic properties?
 * Should an average set of electric and magnetic properties of the materials of the objects that share that location be used?
 
-This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_ [WHI2009]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. When dielectric smoothing is on gprMax calculates the arithmetic mean of the electric and magnetic properties of the surrounding Yee cells, to use for the single Yee cell edge (boundary) of interest.
+This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_ [WHI2009]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. When dielectric smoothing is on, gprMax uses an arithmetic mean for the four cells surrounding each electric-field edge and, by default, a harmonic mean for the two cells normal to each magnetic-field edge. The harmonic magnetic average follows continuity of the normal magnetic flux density. The earlier arithmetic magnetic behaviour remains available for reproducing results from older versions; see ``#magnetic_averaging`` in :ref:`input-hash-cmds`.
 
 Perfectly Matched Layer (PML) absorbing boundary conditions
 ===========================================================
 
-With increased research into quantitative information from GPR, it has become necessary for models to be able to have more efficient and better-performing Perfectly Matched Layer (PML) absorbing boundary conditions. Since 2005 gprMax has featured PML absorbing boundary conditions based on the uniaxial PML (UPML) [GED1998]_ formulation. A PML based on a recursive integration approach to the complex frequency shifted (CFS) PML [GIA2012]_ has been adopted in the new version of gprMax. A general formulation of this RIPML, which can be used to develop any order of PML, has been used to implement first and second order CFS stretching functions. One of the attractions of the RIPML is that it is easily applied as a correction to the field quantities after the complete FDTD grid has been updated using the standard FDTD update equations. gprMax now offers the ability (for advanced users) to customise the parameters of the PML which allows its performance to be better optimised for specific applications. Additionally, since the RIPML is media agnostic it can be used without change to problems involving dispersive and anisotropic materials.
+With increased research into quantitative information from GPR, it has become
+necessary for models to have more efficient and better-performing Perfectly
+Matched Layer (PML) absorbing boundary conditions. Since 2005 gprMax has
+featured PML absorbing boundary conditions based on the uniaxial PML (UPML)
+[GED1998]_ formulation. A PML based on a recursive integration approach to the
+complex frequency shifted (CFS) PML has been adopted since the major
+redevelopment of gprMax (v3), and it is used exclusively.
+
+Both Higher-Order Recursive Integration PML (HORIPML) [GIA2012]_ and Multipole
+Recursive Integration PML (MRIPML) [GIA2018]_ formulations are available. The
+higher-order formulation combines CFS stretching functions as a product,
+whereas the multipole formulation combines constituent CFS poles as a sum and
+can provide advanced broadband and late-time boundary absorption. First- and
+second-order configurations are currently supported.
+
+The formulation, thickness on each model boundary, and the parameters of every
+CFS term are fully customisable. Advanced users can set the minimum and maximum
+values, polynomial grading profile, and grading direction independently for
+:math:`\alpha`, :math:`\kappa`, and :math:`\sigma`. This allows the PML to be
+optimised for a particular application. RIPML corrections are applied after
+the standard FDTD field updates and are agnostic to the underlying medium, so
+the same formulation can be used with dispersive and anisotropic materials.
+See the PML command reference in :ref:`input-hash-cmds`.
 
 Open source, robust, file formats
 =================================

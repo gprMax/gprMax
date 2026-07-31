@@ -18,6 +18,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import math
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -86,7 +87,7 @@ class Discretisation(ModelUserObject):
         self.discretisation = p1
 
     def build(self, model: Model):
-        if any(self.discretisation) <= 0:
+        if any(d <= 0 for d in self.discretisation):
             raise ValueError(
                 f"{self} discretisation requires the spatial step to be"
                 " greater than zero in all dimensions"
@@ -94,6 +95,96 @@ class Discretisation(ModelUserObject):
 
         model.dl = np.array(self.discretisation, dtype=np.float64)
         logger.info(f"Spatial discretisation: {model.dl[0]:g} x {model.dl[1]:g} x {model.dl[2]:g}m")
+
+
+class DomainMode(ModelUserObject):
+    """Declares the domain mode for the model: 2D TM, 2D TE, or 3D.
+
+    Optional. Only required when the model uses `inf` on the invariant
+    axis of `#domain` (and consequently on that axis in position-taking
+    commands) to build a 2D model without the user having to compute the
+    axis extent by hand. "3D" is accepted explicitly, even though it is
+    also the default with no `#domain_mode` command present, so that a
+    model can be switched between 2D and 3D by changing this command's
+    argument alone, without having to remove the command.
+
+    Attributes:
+        requested_mode (str): Requested domain mode, "TM", "TE" or "3D".
+    """
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#domain_mode"
+
+    def __init__(self, mode: str):
+        """Create a DomainMode user object.
+
+        Args:
+            mode: Requested domain mode, "TM", "TE" or "3D"
+                (case-insensitive).
+        """
+        super().__init__(mode=mode)
+        self.requested_mode = mode.upper()
+
+    def build(self, model: Model):
+        if self.requested_mode not in ("TM", "TE", "3D"):
+            raise ValueError(f"{self} requires the mode to be 'TM', 'TE' or '3D'")
+
+        config.get_model_config().requested_2d_mode = self.requested_mode
+        logger.info(f"Requested domain mode: {self.requested_mode}")
+
+
+class MagneticAveraging(ModelUserObject):
+    """Sets the mixing rule used to combine the relative magnetic
+    permeability (mu_r) and magnetic loss (sigma*) of two different
+    materials when a magnetic (H) field component's Yee-cell smoothing
+    needs to average across a material boundary.
+
+    Optional. Defaults to 'harmonic'. Each H component (Hx, Hy, Hz) is
+    averaged from the two neighbouring cells stacked along the component's
+    own axis, i.e. normal to any interface between them. The normal
+    component of B is continuous across a material interface, so the
+    harmonic mean of mu_r (and, for consistency, sigma*) is the physically
+    correct mixing rule for this direction - unlike the tangential 4-cell
+    average used for E-field smoothing, where the arithmetic mean already
+    used remains correct and is unaffected by this command.
+
+    Versions of gprMax prior to the introduction of this command always
+    used a simple arithmetic mean here instead. Set this command to
+    'arithmetic' to reproduce that older behaviour exactly, e.g. to
+    reproduce results generated with an older version of gprMax.
+
+    Attributes:
+        mode (str): 'harmonic' (default) or 'arithmetic'.
+    """
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#magnetic_averaging"
+
+    def __init__(self, mode: str = "harmonic"):
+        """Create a MagneticAveraging user object.
+
+        Args:
+            mode: 'harmonic' (default) or 'arithmetic' (case-insensitive).
+        """
+        super().__init__(mode=mode)
+        self.mode = mode.lower()
+
+    def build(self, model: Model):
+        if self.mode not in ("harmonic", "arithmetic"):
+            raise ValueError(f"{self} requires the mode to be 'harmonic' or 'arithmetic'")
+
+        config.get_model_config().magnetic_averaging_mode = self.mode
+        logger.info(f"Magnetic (H-field) averaging mixing rule: {self.mode}")
 
 
 class Domain(ModelUserObject):
@@ -120,38 +211,157 @@ class Domain(ModelUserObject):
         super().__init__(p1=p1)
         self.domain_size = p1
 
+    _AXIS_NAMES = ("x", "y", "z")
+    _CELLS_FOR_MODE = {"TM": 1, "TE": 2}
+
+    def _resolve_inf_axis(
+        self, requested_mode: Optional[str], dl: np.ndarray
+    ) -> Tuple[Tuple[float, float, float], Optional[int]]:
+        """Resolve at most one `inf` axis in domain_size against the
+        requested 2D mode, cross-validating the two against each other.
+
+        Returns:
+            domain_size: domain_size with any `inf` axis replaced by its
+                resolved physical length.
+            inf_axis: index of the resolved axis, or None if domain_size
+                had no `inf` axis.
+        """
+        inf_axes = [i for i, v in enumerate(self.domain_size) if math.isinf(v)]
+
+        if len(inf_axes) > 1:
+            raise ValueError(
+                f"{self} allows 'inf' on at most one axis of the domain size, but "
+                f"found it on: {', '.join(self._AXIS_NAMES[i] for i in inf_axes)}"
+            )
+
+        if inf_axes and requested_mode not in self._CELLS_FOR_MODE:
+            raise ValueError(
+                f"{self} uses 'inf' on the {self._AXIS_NAMES[inf_axes[0]]} axis, "
+                "which requires '#domain_mode' to be set to 'TM' or 'TE' first"
+            )
+
+        if not inf_axes and requested_mode in self._CELLS_FOR_MODE:
+            raise ValueError(
+                f"{self} requires 'inf' on exactly one axis of the domain size "
+                f"when '#domain_mode' is set to '{requested_mode}'"
+            )
+
+        if not inf_axes:
+            return self.domain_size, None
+
+        axis = inf_axes[0]
+        domain_size = list(self.domain_size)
+        domain_size[axis] = self._CELLS_FOR_MODE[requested_mode] * dl[axis]
+        return tuple(domain_size), axis
+
     def build(self, model: Model):
+        requested_mode = config.get_model_config().requested_2d_mode
+
+        # `inf` with no `#domain_mode` declared at all defaults to TM (the
+        # more common case for GPR models) rather than erroring - purely
+        # additive: this only changes a combination that previously always
+        # raised, so no working input file's behaviour changes. An explicit
+        # `#domain_mode: 3D` combined with `inf` still errors below (in
+        # _resolve_inf_axis) - that combination is a genuine contradiction,
+        # not a case to silently paper over.
+        if requested_mode is None and any(math.isinf(v) for v in self.domain_size):
+            requested_mode = "TM"
+            config.get_model_config().requested_2d_mode = "TM"
+            logger.info(
+                f"{self} uses 'inf' with no '#domain_mode' command - defaulting to TM. "
+                "Add '#domain_mode: TE' explicitly if you want TE mode instead."
+            )
+
+        domain_size, inf_axis = self._resolve_inf_axis(requested_mode, model.dl)
+
         uip = self._create_uip(model.G)
 
-        discretised_domain_size = uip.discretise_static_point(self.domain_size)
+        discretised_domain_size = uip.discretise_static_point(domain_size)
 
         model.set_size(discretised_domain_size)
 
-        if model.nx == 0 or model.ny == 0 or model.nz == 0:
+        # `> 0` (not `!= 0`) also rejects negative cell counts (from a
+        # negative raw domain dimension, e.g. p1=(-0.04, 0.04, 0.04) -
+        # discretise_static_point() does no sign/bound checking of its
+        # own) and NaN (comparisons with NaN are always False, so
+        # `not (x > 0)` is True for NaN, unlike `x == 0`).
+        if not (model.nx > 0 and model.ny > 0 and model.nz > 0):
             raise ValueError(f"{self} requires at least one cell in every dimension")
 
         logger.info(
-            f"Domain size: {self.domain_size[0]:g} x {self.domain_size[1]:g} x "
-            + f"{self.domain_size[2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
+            f"Domain size: {domain_size[0]:g} x {domain_size[1]:g} x "
+            + f"{domain_size[2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
             + f"{(model.cells):g} cells)"
         )
 
         # Set mode and switch off appropriate PMLs for 2D models
         grid = model.G
-        if model.nx == 1:
-            config.get_model_config().mode = "2D TMx"
-            grid.pmls["thickness"]["x0"] = 0
-            grid.pmls["thickness"]["xmax"] = 0
-        elif model.ny == 1:
-            config.get_model_config().mode = "2D TMy"
-            grid.pmls["thickness"]["y0"] = 0
-            grid.pmls["thickness"]["ymax"] = 0
-        elif model.nz == 1:
-            config.get_model_config().mode = "2D TMz"
-            grid.pmls["thickness"]["z0"] = 0
-            grid.pmls["thickness"]["zmax"] = 0
+        cells = (model.nx, model.ny, model.nz)
+        singleton_axes = [i for i, c in enumerate(cells) if c == 1]
+
+        if inf_axis is not None:
+            expected_cells = self._CELLS_FOR_MODE[requested_mode]
+            if cells[inf_axis] != expected_cells:
+                raise ValueError(
+                    f"{self} resolved the {self._AXIS_NAMES[inf_axis]} axis to "
+                    f"{cells[inf_axis]} cells, expected {expected_cells} for "
+                    f"{requested_mode} mode - check the spatial discretisation on "
+                    "that axis"
+                )
+
+            # A 2D model must have exactly one invariant axis. If some
+            # OTHER axis also resolved to a single cell, the mode is
+            # ambiguous - the 2D kernels only support one invariant axis.
+            other_singletons = [i for i in singleton_axes if i != inf_axis]
+            if other_singletons:
+                raise ValueError(
+                    f"{self} resolved '{requested_mode}' mode on the "
+                    f"{self._AXIS_NAMES[inf_axis]} axis, but the "
+                    f"{', '.join(self._AXIS_NAMES[i] for i in other_singletons)} axis "
+                    "also has only 1 cell - 2D mode requires exactly one invariant "
+                    "axis; check the domain size and spatial discretisation"
+                )
+
+            axis_letter = self._AXIS_NAMES[inf_axis]
+            config.get_model_config().mode = f"2D {requested_mode}{axis_letter}"
+            grid.pmls["thickness"][f"{axis_letter}0"] = 0
+            grid.pmls["thickness"][f"{axis_letter}max"] = 0
+        elif len(singleton_axes) > 1:
+            # Implicit (no '#domain_mode', no 'inf') style: picking the
+            # first single-cell axis via an elif chain would silently
+            # ignore that a SECOND axis is also 1 cell - ambiguous, since
+            # the 2D kernels assume exactly one invariant axis.
+            raise ValueError(
+                f"{self} domain has more than one axis with only 1 cell "
+                f"({', '.join(self._AXIS_NAMES[i] for i in singleton_axes)}) - 2D mode "
+                "requires exactly one invariant axis; check the domain size and "
+                "spatial discretisation, or declare '#domain_mode' with 'inf' on the "
+                "intended axis"
+            )
+        elif len(singleton_axes) == 1:
+            axis = singleton_axes[0]
+            axis_letter = self._AXIS_NAMES[axis]
+            config.get_model_config().mode = f"2D TM{axis_letter}"
+            grid.pmls["thickness"][f"{axis_letter}0"] = 0
+            grid.pmls["thickness"][f"{axis_letter}max"] = 0
         else:
             config.get_model_config().mode = "3D"
+
+        # Purely informational nudge, zero behaviour change: a model using
+        # the old-style implicit 1-cell-thick-axis convention (no
+        # `#domain_mode`, no `inf`) still works exactly as before, but
+        # `#domain_mode` + `inf` is the more explicit, forward-compatible
+        # style (and the only one that can express TE or future
+        # non-implicit-size 2D-like reductions) - only fires when
+        # `#domain_mode` was never declared
+        # at all, not for a model that explicitly chose "3D" and happens to
+        # have a 1-cell axis by coincidence.
+        if requested_mode is None and inf_axis is None and config.get_model_config().mode.startswith("2D"):
+            logger.info(
+                f"{self} detected a 2D model from a 1-cell-thick axis (legacy, implicit "
+                "style) - consider declaring '#domain_mode: TM' explicitly with 'inf' on "
+                "that axis in '#domain' instead, which also supports TE mode."
+            )
 
         logger.info(f"Mode: {config.get_model_config().mode}")
 
@@ -241,6 +451,9 @@ class TimeWindow(ModelUserObject):
             else:
                 raise ValueError(f"{self} must have a value greater than zero")
         elif self.iterations is not None:
+            if self.iterations <= 0:
+                raise ValueError(f"{self} must have a value greater than zero")
+
             # The +/- 1 used in calculating the number of iterations is
             # to account for the fact that the solver (iterations) loop
             # runs from 0 to < G.iterations
@@ -369,6 +582,17 @@ class PMLThickness(ModelUserObject):
             isinstance(self.thickness, int) or len(self.thickness) == 1 or len(self.thickness) == 6
         ):
             raise ValueError(f"{self} requires either one or six parameter(s)")
+
+        # A negative thickness isn't rejected here without this check -
+        # FDTDGrid._build_pmls() only constructs a slab when
+        # `thickness > 0`, so a negative value would silently behave
+        # like 0 (no PML on that face) instead of raising an error for a
+        # nonsensical request.
+        thickness_values = (
+            (self.thickness,) if isinstance(self.thickness, int) else tuple(self.thickness)
+        )
+        if any(t < 0 for t in thickness_values):
+            raise ValueError(f"{self} requires the PML thickness to be zero or greater")
 
         model.G.set_pml_thickness(self.thickness)
 
@@ -519,6 +743,13 @@ class SrcSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
+        mode = config.get_model_config().mode
+        if mode.startswith("2D") and self.step_size[("xyz".index(mode[-1]))] != 0:
+            raise ValueError(
+                f"{self.params_str()} cannot step sources along the invariant axis in 2D "
+                f"mode ('{mode}') - only run 1 (step 0) is at the interior reference layer; "
+                "any later run would move sources onto the forced-dead outer wall."
+            )
         model.srcsteps = uip.discretise_static_point(self.step_size)
 
         logger.info(
@@ -556,6 +787,13 @@ class RxSteps(ModelUserObject):
 
     def build(self, model: Model):
         uip = self._create_uip(model.G)
+        mode = config.get_model_config().mode
+        if mode.startswith("2D") and self.step_size[("xyz".index(mode[-1]))] != 0:
+            raise ValueError(
+                f"{self.params_str()} cannot step receivers along the invariant axis in 2D "
+                f"mode ('{mode}') - only run 1 (step 0) is at the interior reference layer; "
+                "any later run would move receivers onto the forced-dead outer wall."
+            )
         model.rxsteps = uip.discretise_static_point(self.step_size)
 
         logger.info(

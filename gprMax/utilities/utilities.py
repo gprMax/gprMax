@@ -163,7 +163,7 @@ def round_int(value: float) -> int:
     Returns:
         rounded: Rounded value.
     """
-    return int(d.Decimal(value).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
+    return int(d.Decimal(float(value)).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
 
 
 def round_float(value: float, decimalplaces: int) -> float:

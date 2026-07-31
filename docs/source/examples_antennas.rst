@@ -19,7 +19,11 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
 
 The wire is modelled using an edge which specifies the properties of the edge of the Yee cell. The antenna is fed using a transmission line The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the transmissions, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable resolution (17MHz) for calculating antenna parameters that involve taking an FFT (:math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window).
 
-Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`output` section. These parameters are useful for calculating characteristics of the antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``toolboxes\Plotting`` package) to help you view the input impedance and admittance and s11 parameter from an antenna model fed using a transmission line. Details of how to use this module are given in the README.rst for that package.
+Time histories of voltage and current values in the transmission line are
+saved to the output file together with automatically calculated S11, input
+impedance, and input admittance spectra. These are documented in the
+:ref:`output` section. The modules in the ``toolboxes\Plotting`` package can
+also be used to plot the histories and derived antenna parameters.
 
 Results
 -------

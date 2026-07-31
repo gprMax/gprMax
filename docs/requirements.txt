@@ -9,3 +9,4 @@ typing_extensions
 docutils==0.17.1
 sphinx>=4.3.0
 sphinx-rtd-theme>=0.5.1
+standard-imghdr>=3.13.0; python_version >= "3.13"

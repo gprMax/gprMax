@@ -89,4 +89,80 @@ store_outputs = {
 """
     ),
 }
- 
+
+store_current_outputs = {
+    "args_cuda": Template(
+        """
+                                __global__ void store_current_outputs(int NCURRENT,
+                                                    int iteration,
+                                                    const int* __restrict__ rxcurrentinfo,
+                                                    $REAL *rxcurrents,
+                                                    $REAL dx,
+                                                    $REAL dy,
+                                                    $REAL dz,
+                                                    const $REAL* __restrict__ Hx,
+                                                    const $REAL* __restrict__ Hy,
+                                                    const $REAL* __restrict__ Hz)
+                                """
+    ),
+    "args_opencl": Template(
+        """
+                                    int NCURRENT,
+                                    int iteration,
+                                    __global const int* restrict rxcurrentinfo,
+                                    __global $REAL *rxcurrents,
+                                    $REAL dx,
+                                    $REAL dy,
+                                    $REAL dz,
+                                    __global const $REAL* restrict Hx,
+                                    __global const $REAL* restrict Hy,
+                                    __global const $REAL* restrict Hz
+                                    """
+    ),
+    "args_metal": Template(
+        """
+                               kernel void store_current_outputs(device const int& NCURRENT,
+                                                    device const int& iteration,
+                                                    device const int* rxcurrentinfo,
+                                                    device $REAL* rxcurrents,
+                                                    device const $REAL& dx,
+                                                    device const $REAL& dy,
+                                                    device const $REAL& dz,
+                                                    device const $REAL* Hx,
+                                                    device const $REAL* Hy,
+                                                    device const $REAL* Hz,
+                                                    uint i [[thread_position_in_grid]])
+                                """
+    ),
+    "func": Template(
+        """
+    // Stores only explicitly requested Ampere-loop current components. Each
+    // row of rxcurrentinfo is x, y, z, component (0=Ix, 1=Iy, 2=Iz).
+
+    $CUDA_IDX
+
+    if (i < NCURRENT) {
+        int x = rxcurrentinfo[4 * i];
+        int y = rxcurrentinfo[4 * i + 1];
+        int z = rxcurrentinfo[4 * i + 2];
+        int component = rxcurrentinfo[4 * i + 3];
+        $REAL current = 0;
+
+        if (component == 0 && y != 0 && z != 0) {
+            current = dy * (Hy[IDX3D_FIELDS(x,y,z-1)] - Hy[IDX3D_FIELDS(x,y,z)])
+                    + dz * (Hz[IDX3D_FIELDS(x,y,z)] - Hz[IDX3D_FIELDS(x,y-1,z)]);
+        }
+        else if (component == 1 && x != 0 && z != 0) {
+            current = dx * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y,z-1)])
+                    + dz * (Hz[IDX3D_FIELDS(x-1,y,z)] - Hz[IDX3D_FIELDS(x,y,z)]);
+        }
+        else if (component == 2 && x != 0 && y != 0) {
+            current = dx * (Hx[IDX3D_FIELDS(x,y-1,z)] - Hx[IDX3D_FIELDS(x,y,z)])
+                    + dy * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]);
+        }
+        rxcurrents[iteration * NCURRENT + i] = current;
+    }
+"""
+    ),
+}
+
