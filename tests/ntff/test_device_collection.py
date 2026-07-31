@@ -170,6 +170,81 @@ def test_device_contract_matches_cpu_flat_index_collection(real_dtype, complex_d
 
 
 @pytest.mark.parametrize(
+    "real_dtype,complex_dtype,rtol",
+    [(np.dtype("f4"), np.dtype("c8"), 2e-6), (np.dtype("f8"), np.dtype("c16"), 2e-13)],
+)
+def test_device_incident_plane_wave_dft_matches_cpu(real_dtype, complex_dtype, rtol):
+    shape = (8, 8, 8)
+    surface = build_component_surface("Ex", (2, 2, 2), (5, 5, 5), (0.01,) * 3, shape)
+    iterations = 16
+    dt = 1e-11
+    cpu = _monitor("cpu", {"Ex": surface}, real_dtype, complex_dtype, iterations, dt)
+    device = _monitor("device", {"Ex": surface}, real_dtype, complex_dtype, iterations, dt)
+
+    def plane_wave():
+        fields = np.zeros((3, 1), dtype=real_dtype)
+        return SimpleNamespace(
+            m=np.zeros(3, dtype=np.int32),
+            origin=np.zeros(3, dtype=np.int32),
+            axial=0,
+            E_fields=fields,
+            E_fields_dev=fields.copy(),
+            corners=np.asarray((1, 1, 1, 6, 6, 6), dtype=np.int32),
+            waveformID="pulse",
+            materialID="free_space",
+            actual_angles=np.asarray((90.0, 0.0), dtype=real_dtype),
+            psi=0.0,
+            start=0.0,
+            stop=1.0,
+        )
+
+    cpu_plane_wave = plane_wave()
+    device_plane_wave = plane_wave()
+    cpu.associate_plane_wave(cpu_plane_wave, (0.01,) * 3, 0)
+    device.associate_plane_wave(device_plane_wave, (0.01,) * 3, 0)
+
+    ids = np.ones((6,) + shape, dtype=np.uint32)
+    lookup = {"Ex": 0}
+    cpu.validate_materials(ids, lookup)
+    cpu.configure_background([_material()])
+    grid = SimpleNamespace(
+        ntff_monitors=[device],
+        ID=ids,
+        IDlookup=lookup,
+        materials=[_material()],
+        Ex_dev=np.zeros(shape, dtype=real_dtype),
+    )
+    collector = _HostEmulatedDeviceCollector(SimpleNamespace(grid=grid))
+    zeros = np.zeros(shape, dtype=real_dtype)
+
+    for iteration in range(iterations):
+        time = iteration * dt
+        sample = np.asarray(
+            (
+                np.sin(2 * np.pi * cpu.frequencies[0] * time),
+                0.25 * np.cos(2 * np.pi * cpu.frequencies[1] * time),
+                0.1 * (iteration + 1),
+            ),
+            dtype=real_dtype,
+        )
+        cpu_plane_wave.E_fields[:, 0] = sample
+        device_plane_wave.E_fields_dev[:, 0] = sample
+        cpu.observe_electric(iteration, zeros, zeros, zeros)
+        collector.observe_electric(iteration)
+
+    cpu.finalise()
+    collector.finalise()
+
+    assert device._incident_next_iteration == iterations
+    assert_allclose(
+        device.result.incident_electric,
+        cpu.result.incident_electric,
+        rtol=rtol,
+        atol=rtol * np.max(np.abs(cpu.result.incident_electric)),
+    )
+
+
+@pytest.mark.parametrize(
     "backend,c_real,marker",
     [
         ("cuda", "float", "blockIdx.x"),

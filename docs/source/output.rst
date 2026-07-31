@@ -265,6 +265,11 @@ every ``#magnetic_frill_source``, exactly as for a transmission line; no
 ``#rx_port`` command or additional receiver is required (the electric field
 component along the polarisation axis is identically zero at the feed point
 by construction, so no field sample is possible there in the first place).
+Main-grid results are stored at ``/frills/frillN``. A Python API frill inside
+a subgrid is stored at ``/subgrids/<subgrid ID>/frills/frillN``; its
+``Position`` is reported in global physical coordinates, while its histories,
+frequency axis, and validity limits use the owning subgrid's finer ``dt`` and
+``dl``.
 With the frill's user-supplied characteristic impedance :math:`Z_0` as the
 reference impedance,
 
@@ -299,10 +304,13 @@ output.
 Voltage-source S11 and impedance output
 ---------------------------------------
 
-The ``#rx_port`` command and ``RxPort`` Python object write one group per port
-at ``/ports/<port ID>``. For a finite-resistance source, its resistance is the
-reference impedance :math:`Z_0`; the source-plane reflection coefficient is
-calculated from the known generator voltage and sampled total gap voltage.
+The ``#rx_port`` command and ``RxPort`` Python object write one group per
+main-grid port at ``/ports/<port ID>``. A port added to a Python API subgrid is
+stored at ``/subgrids/<subgrid ID>/ports/<port ID>`` and uses the owning
+subgrid's spatial step, time step, iteration count, material edge, and field
+histories. For a finite-resistance source, its resistance is the reference
+impedance :math:`Z_0`; the source-plane reflection coefficient is calculated
+from the known generator voltage and sampled total gap voltage.
 For a zero-resistance hard source, :math:`Z_0` is supplied by the voltage
 source (50 Ohms by default) and
 the terminal quantities are calculated from the prescribed voltage and
@@ -329,6 +337,11 @@ Important attributes include:
   ``IndependentFrequencyResolution``;
 * ``phasor_time_sign=exp(+j*omega*t)`` and
   ``forward_transform_sign=exp(-j*omega*t)``.
+
+``Position`` is always expressed in the global physical coordinate frame,
+including for a subgrid port, and therefore matches the associated source's
+``Position`` attribute. ``GridPosition`` is the integer index in the owning
+grid and can include the subgrid's internal boundary padding.
 
 The principal datasets are:
 
@@ -496,6 +509,10 @@ exact complex terminal and incident spectra are retained so that every
 derived power can be checked independently. A zero-amplitude source remains
 a terminated port with zero incident voltage; its terminal voltage/current
 and signed accepted power can still be non-zero through mutual coupling.
+The ``port_ids`` dataset stores main-grid IDs unchanged and qualifies subgrid
+ports as ``<subgrid ID>/<local port ID>``. Although the grouped antenna result
+is written below the main-grid NTFF group, each port spectrum is calculated
+with the spatial step, time step, and trace length of the grid that owns it.
 
 The validity datasets should always be applied before plotting. The default
 gain bandwidth includes frequencies whose total incident spectrum is within
@@ -565,6 +582,10 @@ scattering models, the associated total-field/scattered-field box must be
 strictly enclosed by the KSIR surface. The integration surface then samples
 the scattered-field region outside the TFSF box, while the associated
 numerical plane wave supplies the incident-field normalization used for RCS.
+Sources and scatterers may reside on an HSG subgrid enclosed by these
+main-grid surfaces. Neither a KSIR surface nor a TFSF correction surface may
+touch or cut the HSG outer coupling surface; an overlapping surface must
+strictly enclose the complete subgrid coupling region.
 
 
 .. _outputs-snaps:

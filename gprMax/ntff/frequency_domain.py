@@ -873,16 +873,32 @@ class KSIRFrequencyDomainMonitor:
 
         if self.associated_plane_wave is None:
             return
+        multiplier = self.device_incident_sampling_multiplier(iteration)
+        incident = self.associated_plane_wave.E_fields[
+            :, self._incident_reference_index
+        ]
+        self._incident_electric += multiplier[:, np.newaxis] * incident[np.newaxis, :]
+
+    def device_incident_sampling_multiplier(
+        self, iteration: int
+    ) -> npt.NDArray[np.complexfloating]:
+        """Advance and return the incident-plane-wave DFT multiplier.
+
+        Device collectors use this independently of the surface-component
+        accumulators so the auxiliary one-dimensional plane wave remains on
+        the accelerator throughout timestepping.
+        """
+
+        if self.associated_plane_wave is None:
+            raise RuntimeError(
+                f"KSIR monitor {self.name!r} has no associated incident plane wave"
+            )
         if iteration != self._incident_next_iteration:
             raise ValueError(
                 f"expected incident iteration {self._incident_next_iteration}, "
                 f"received {iteration}"
             )
-        incident = self.associated_plane_wave.E_fields[
-            :, self._incident_reference_index
-        ]
         multiplier = self.dt * self.window_values[iteration] * self._incident_phase
-        self._incident_electric += multiplier[:, np.newaxis] * incident[np.newaxis, :]
         self._incident_next_iteration += 1
         if self._incident_next_iteration % DFT_PHASE_REANCHOR_INTERVAL == 0:
             physical_time = self._incident_next_iteration * self.dt
@@ -891,6 +907,22 @@ class KSIRFrequencyDomainMonitor:
             )
         else:
             self._incident_phase *= self._incident_step
+        return multiplier
+
+    def load_device_incident_electric(self, values: npt.ArrayLike) -> None:
+        """Load an incident electric-field DFT downloaded at finalisation."""
+
+        if self.associated_plane_wave is None or self._incident_electric is None:
+            raise RuntimeError(
+                f"KSIR monitor {self.name!r} has no associated incident plane wave"
+            )
+        incident = np.asarray(values, dtype=self.complex_dtype)
+        if incident.shape != self._incident_electric.shape:
+            raise ValueError(
+                f"incident electric DFT has shape {incident.shape}, expected "
+                f"{self._incident_electric.shape}"
+            )
+        self._incident_electric[...] = incident
 
     def observe_magnetic(
         self,
