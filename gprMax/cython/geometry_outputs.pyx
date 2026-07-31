@@ -31,6 +31,10 @@ cpdef get_line_properties(
 ):
     """Generate connectivity array and get material ID for each line.
 
+    Each edge direction spans the full point lattice on both perpendicular
+    axes. For example, x-directed edges exist for every j in ``0..ny`` and
+    k in ``0..nz``, including edges on the far boundary planes.
+
     Args:
         number_of_lines: Number of lines.
         nx: Number of points in the x dimension.
@@ -49,7 +53,7 @@ cpdef get_line_properties(
     cdef np.ndarray connectivity = np.zeros(2 * number_of_lines, dtype=np.int32)
     cdef int line_index = 0
     cdef int connectivity_index = 0
-    cdef int point_id = 0
+    cdef int point_id
 
     cdef int z_step = 1
     cdef int y_step = nz + 1
@@ -57,39 +61,38 @@ cpdef get_line_properties(
 
     cdef int i, j, k
 
+    # x-direction cell edges
     for i in range(nx):
-        for j in range(ny):
-            for k in range(nz):
-
-                # x-direction cell edge
+        for j in range(ny + 1):
+            for k in range(nz + 1):
+                point_id = i * x_step + j * y_step + k * z_step
                 material_data[line_index] = ID[0, i, j, k]
                 connectivity[connectivity_index] = point_id
                 connectivity[connectivity_index + 1] = point_id + x_step
                 line_index += 1
                 connectivity_index += 2
 
-                # y-direction cell edge
+    # y-direction cell edges
+    for i in range(nx + 1):
+        for j in range(ny):
+            for k in range(nz + 1):
+                point_id = i * x_step + j * y_step + k * z_step
                 material_data[line_index] = ID[1, i, j, k]
                 connectivity[connectivity_index] = point_id
                 connectivity[connectivity_index + 1] = point_id + y_step
                 line_index += 1
                 connectivity_index += 2
 
-                # z-direction cell edge
+    # z-direction cell edges
+    for i in range(nx + 1):
+        for j in range(ny + 1):
+            for k in range(nz):
+                point_id = i * x_step + j * y_step + k * z_step
                 material_data[line_index] = ID[2, i, j, k]
                 connectivity[connectivity_index] = point_id
                 connectivity[connectivity_index + 1] = point_id + z_step
                 line_index += 1
                 connectivity_index += 2
-
-                # Next point
-                point_id += 1
-
-            # Skip point at (i, j, nz)
-            point_id += 1
-
-        # Skip points in line (i, ny, t) where 0 <= t <= nz
-        point_id += nz + 1
 
     return connectivity, material_data
 

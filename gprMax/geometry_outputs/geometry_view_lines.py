@@ -70,10 +70,12 @@ class GeometryViewLines(GeometryView[GridType]):
             offset = [self.grid.i0, self.grid.j0, self.grid.k0]
             self.points += offset * self.grid.dl * self.grid.ratio
 
-        # Each point is the 'source' for 3 lines.
-        # NB: Excluding points at the far edge of the geometry as those
-        # are the 'source' for no lines
-        n_lines = 3 * np.prod(self.grid_view.size)
+        nx, ny, nz = self.grid_view.size
+        n_lines = (
+            nx * (ny + 1) * (nz + 1)
+            + ny * (nx + 1) * (nz + 1)
+            + nz * (nx + 1) * (ny + 1)
+        )
 
         self.cell_types = np.full(n_lines, VtkCellType.LINE)
         self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
@@ -139,10 +141,12 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
         self.points += self.grid_view.global_start + self.grid_view.offset
         self.points *= self.grid_view.step * self.grid.dl
 
-        # Each point is the 'source' for 3 lines.
-        # NB: Excluding points at the far edge of the geometry as those
-        # are the 'source' for no lines
-        n_lines = 3 * np.prod(self.grid_view.size)
+        nx, ny, nz = self.grid_view.size
+        n_lines = (
+            nx * (ny + 1) * (nz + 1)
+            + ny * (nx + 1) * (nz + 1)
+            + nz * (nx + 1) * (ny + 1)
+        )
 
         self.cell_types = np.full(n_lines, VtkCellType.LINE)
         self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)

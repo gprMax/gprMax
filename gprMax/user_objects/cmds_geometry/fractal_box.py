@@ -133,7 +133,7 @@ class FractalBox(RotatableMixin, GeometryUserObject):
             raise ValueError(
                 f"{self.__str__()} requires a positive value for the fractal weighting in the z direction"
             )
-        if n_materials < 0:
+        if n_materials <= 0:
             raise ValueError(f"{self.__str__()} requires a positive value for the number of bins")
 
         # Find materials to use to build fractal volume, either from mixing
