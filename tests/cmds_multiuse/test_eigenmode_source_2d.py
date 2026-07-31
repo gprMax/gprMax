@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import gprMax
+import gprMax.config as config
 
 INF = float("inf")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -145,6 +146,27 @@ def test_2d_pmc_mode_enforces_magnetic_wall_and_injects(tmp_path):
 
     with h5py.File(output.with_suffix(".h5"), "r") as handle:
         assert np.max(np.abs(handle["rxs/rx1/Hz"][...])) > 0
+
+
+def test_eigenmode_source_rejected_with_mpi(monkeypatch):
+    # build() checks MPI before touching grid at all, so a bare object
+    # stands in for the grid here - mirrors the fast, direct-build style
+    # used for #magnetic_frill_source's own MPI-rejection test.
+    monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
+    config.sim_config.general = {"solver": "cpu"}
+    config.sim_config.mpi = True
+    source = gprMax.EigenmodeSource(
+        normal="x",
+        direction="+",
+        p1=(0.005, 0),
+        p2=(0.045, INF),
+        w=0.015,
+        mode_index=0,
+        frequency=5e9,
+        waveform_id="eig_pulse",
+    )
+    with pytest.raises(ValueError, match="MPI"):
+        source.build(grid=None)
 
 
 def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):

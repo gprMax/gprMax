@@ -1419,6 +1419,7 @@ solves for the invariant magnetic component.
 .. note::
 
     * The ``#eigenmode_source`` command currently cannot be used with the CUDA, OpenCL, or Apple Metal solvers.
+    * The ``#eigenmode_source`` command currently cannot be used with MPI.
 
 
 #rx:

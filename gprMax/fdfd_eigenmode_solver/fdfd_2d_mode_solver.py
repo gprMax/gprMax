@@ -1,12 +1,10 @@
 import math
 
-import matplotlib
 import numpy as np
 
 import gprMax.config as config
-
-matplotlib.use("Agg")
-from matplotlib import pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 from scipy.sparse import bmat, coo_matrix, diags
 from scipy.sparse.linalg import eigs
 
@@ -392,9 +390,21 @@ class FDFD_2D_mode_solver:
         for field in (self.Eu, self.Ev, self.Ew, self.Hu, self.Hv, self.Hw):
             field[:, :, mode] *= phase_factor
 
+    @staticmethod
+    def _new_figure(figsize):
+        """Build a Figure with its own Agg canvas, bypassing pyplot entirely.
+
+        This keeps plot generation headless-safe without ever touching the
+        process-wide matplotlib backend, so importing or using this solver
+        cannot override a backend the host application already selected.
+        """
+        fig = Figure(figsize=figsize, constrained_layout=True)
+        FigureCanvasAgg(fig)
+        return fig
+
     def plot_e_fields(self, output_path="fdfd_modes_eu_ev.png"):
-        fig, axes = plt.subplots(self.num_modes, 2, figsize=(8, 3 * self.num_modes), constrained_layout=True)
-        axes = np.atleast_2d(axes)
+        fig = self._new_figure((8, 3 * self.num_modes))
+        axes = np.atleast_2d(fig.subplots(self.num_modes, 2))
         for mode in range(self.num_modes):
             for ax, field, component in (
                     (axes[mode, 0], np.real(self.Eu[:, :, mode]), "E_u"),
@@ -406,12 +416,11 @@ class FDFD_2D_mode_solver:
                 ax.set_ylabel("v index")
                 fig.colorbar(image, ax=ax)
         fig.savefig(output_path, dpi=200)
-        plt.close(fig)
         return output_path
 
     def plot_h_fields(self, output_path="fdfd_modes_hu_hv.png"):
-        fig, axes = plt.subplots(self.num_modes, 2, figsize=(8, 3 * self.num_modes), constrained_layout=True)
-        axes = np.atleast_2d(axes)
+        fig = self._new_figure((8, 3 * self.num_modes))
+        axes = np.atleast_2d(fig.subplots(self.num_modes, 2))
         for mode in range(self.num_modes):
             for ax, field, component in (
                     (axes[mode, 0], np.real(self.Hu[:, :, mode]), "H_u"),
@@ -423,11 +432,11 @@ class FDFD_2D_mode_solver:
                 ax.set_ylabel("v index")
                 fig.colorbar(image, ax=ax)
         fig.savefig(output_path, dpi=200)
-        plt.close(fig)
         return output_path
 
     def plot_pec_component_masks(self, output_path="fdfd_yee_uvw_pec_masks.png"):
-        fig, axes = plt.subplots(1, 3, figsize=(11, 3), constrained_layout=True)
+        fig = self._new_figure((11, 3))
+        axes = fig.subplots(1, 3)
         masks = [
             (self.pec_u_mask.astype(float), "PEC E_u"),
             (self.pec_v_mask.astype(float), "PEC E_v"),
@@ -440,7 +449,6 @@ class FDFD_2D_mode_solver:
             ax.set_ylabel("v index")
             fig.colorbar(image, ax=ax)
         fig.savefig(output_path, dpi=200)
-        plt.close(fig)
         return output_path
 
     def _passive_positive_neff(self, neff_squared):
