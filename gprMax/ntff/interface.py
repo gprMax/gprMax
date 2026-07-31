@@ -52,7 +52,7 @@ from gprMax.ntff.frequency_domain import (
 )
 from gprMax.ntff.surfaces import COMPONENT_OFFSETS, COMPONENTS, build_component_surface
 from gprMax.ntff.time_domain import KSIRTimeDomainMonitor
-from gprMax.ports import evaluate_port_power_spectrum, port_output_registry
+from gprMax.ports import evaluate_port_power_spectrum, model_port_ids, model_port_output_registry
 
 logger = logging.getLogger(__name__)
 
@@ -260,9 +260,7 @@ def _refine_radiation_maximum(
     )
     local_directivity = local_directivity[:, 0]
     local_directivity_dbi = local_directivity_dbi[:, 0]
-    update = np.isfinite(local_directivity) & (
-        local_directivity > metrics.maximum_directivity
-    )
+    update = np.isfinite(local_directivity) & (local_directivity > metrics.maximum_directivity)
     if not np.any(update):
         return metrics
 
@@ -478,7 +476,68 @@ def _completed_logical_bounds(surface, closure):
     return _completed_bounds(lower, upper, closure)
 
 
-def validate_ksir_source_enclosure(grid) -> None:
+def _subgrid_outer_bounds(subgrid, main_grid, *, physical=False):
+    """Return the HSG outer-surface bounds in the main-grid frame."""
+
+    lower = np.asarray((subgrid.i0, subgrid.j0, subgrid.k0), dtype=np.float64)
+    upper = np.asarray((subgrid.i1, subgrid.j1, subgrid.k1), dtype=np.float64)
+    lower -= subgrid.is_os_sep
+    upper += subgrid.is_os_sep
+    if physical:
+        spacing = np.asarray(main_grid.dl, dtype=np.float64)
+        lower *= spacing
+        upper *= spacing
+    return lower, upper
+
+
+def _boxes_overlap(lower_a, upper_a, lower_b, upper_b):
+    """Return whether two closed axis-aligned boxes touch or overlap."""
+
+    return bool(np.all(lower_a <= upper_b) and np.all(upper_a >= lower_b))
+
+
+def validate_tfsf_subgrid_enclosure(model) -> None:
+    """Prevent a main-grid TFSF correction surface cutting an HSG region.
+
+    A subgrid may be wholly inside or wholly outside a TFSF box. If their
+    extents touch or overlap, the TFSF box must strictly enclose the HSG
+    outer surface, leaving its correction stencil on the main grid.
+    """
+
+    for index, plane_wave in enumerate(getattr(model.G, "discreteplanewaves", ())):
+        corners = np.asarray(plane_wave.corners, dtype=np.float64)
+        box_lower, box_upper = corners[:3], corners[3:]
+        for subgrid in model.subgrids:
+            outer_lower, outer_upper = _subgrid_outer_bounds(subgrid, model.G)
+            if not _boxes_overlap(box_lower, box_upper, outer_lower, outer_upper):
+                continue
+            if not (np.all(box_lower < outer_lower) and np.all(box_upper > outer_upper)):
+                raise ValueError(
+                    f"DiscretePlaneWave[{index}] TFSF box must strictly enclose "
+                    f"the complete outer coupling surface of subgrid {subgrid.name!r}, "
+                    "or be disjoint from it."
+                )
+
+
+def _validate_ksir_subgrid_enclosure(model, compiled_surfaces) -> None:
+    """Prevent a main-grid KSIR surface cutting an HSG coupling region."""
+
+    for surface_id, compiled in compiled_surfaces.items():
+        sample_surface = next(iter(compiled.surfaces.values()))
+        lower, upper = _completed_logical_bounds(sample_surface, compiled.closure)
+        for subgrid in model.subgrids:
+            outer_lower, outer_upper = _subgrid_outer_bounds(subgrid, model.G, physical=True)
+            if not _boxes_overlap(lower, upper, outer_lower, outer_upper):
+                continue
+            if not (np.all(lower < outer_lower) and np.all(upper > outer_upper)):
+                raise ValueError(
+                    f"KSIR surface {surface_id!r} must strictly enclose the "
+                    f"complete outer coupling surface of subgrid {subgrid.name!r}, "
+                    "or be disjoint from it."
+                )
+
+
+def validate_ksir_source_enclosure(model, grid) -> None:
     """Require every active KSIR monitor to enclose impressed sources.
 
     This is called after ``#src_steps`` has moved simple sources for the
@@ -503,30 +562,41 @@ def validate_ksir_source_enclosure(grid) -> None:
         closure = monitor.closure
         lower, upper = _completed_logical_bounds(surface, closure)
         offenders = []
-        for collection_name, field_prefix in source_groups:
-            for source in getattr(grid, collection_name, ()):
-                component = f"{field_prefix}{source.polarisation}"
-                position = (
-                    np.asarray(source.coord, dtype=np.float64)
-                    + np.asarray(COMPONENT_OFFSETS[component], dtype=np.float64)
-                ) * np.asarray(grid.dl, dtype=np.float64)
-                if not np.all((position > lower) & (position < upper)):
-                    source_id = getattr(source, "ID", source.__class__.__name__)
-                    offenders.append(
-                        f"{source.__class__.__name__} {source_id!r} at "
-                        f"({position[0]:g}, {position[1]:g}, {position[2]:g}) m"
+        for source_grid in (model.G, *model.subgrids):
+            grid_name = "main grid" if source_grid is model.G else f"subgrid {source_grid.name!r}"
+            for collection_name, field_prefix in source_groups:
+                for source in getattr(source_grid, collection_name, ()):
+                    component = f"{field_prefix}{source.polarisation}"
+                    local_position = np.asarray(source.coord, dtype=np.float64) + np.asarray(
+                        COMPONENT_OFFSETS[component], dtype=np.float64
                     )
+                    if source_grid is model.G:
+                        position = local_position * np.asarray(source_grid.dl, dtype=np.float64)
+                    else:
+                        position = np.asarray(
+                            source_grid.local_to_global(local_position), dtype=np.float64
+                        )
+                    if not np.all((position > lower) & (position < upper)):
+                        source_id = getattr(source, "ID", source.__class__.__name__)
+                        offenders.append(
+                            f"{source.__class__.__name__} {source_id!r} on {grid_name} at "
+                            f"({position[0]:g}, {position[1]:g}, {position[2]:g}) m"
+                        )
 
-        spacing = np.asarray(grid.dl, dtype=np.float64)
-        for index, plane_wave in enumerate(getattr(grid, "discreteplanewaves", ())):
-            corners = np.asarray(plane_wave.corners, dtype=np.float64)
-            box_lower = corners[:3] * spacing
-            box_upper = corners[3:] * spacing
-            if not (np.all(lower < box_lower) and np.all(upper > box_upper)):
-                offenders.append(
-                    f"DiscretePlaneWave[{index}] TFSF box from "
-                    f"{tuple(box_lower)} m to {tuple(box_upper)} m"
-                )
+            spacing = np.asarray(source_grid.dl, dtype=np.float64)
+            for index, plane_wave in enumerate(getattr(source_grid, "discreteplanewaves", ())):
+                corners = np.asarray(plane_wave.corners, dtype=np.float64)
+                if source_grid is model.G:
+                    box_lower = corners[:3] * spacing
+                    box_upper = corners[3:] * spacing
+                else:
+                    box_lower = source_grid.local_to_global(corners[:3])
+                    box_upper = source_grid.local_to_global(corners[3:])
+                if not (np.all(lower < box_lower) and np.all(upper > box_upper)):
+                    offenders.append(
+                        f"DiscretePlaneWave[{index}] on {grid_name} TFSF box from "
+                        f"{tuple(box_lower)} m to {tuple(box_upper)} m"
+                    )
 
         if offenders:
             details = "; ".join(offenders)
@@ -585,6 +655,7 @@ class KSIRCompiledOutputs:
 
     def __init__(
         self,
+        model,
         grid,
         surfaces,
         transforms,
@@ -593,6 +664,7 @@ class KSIRCompiledOutputs:
         far_requests,
         antenna_port_specs,
     ):
+        self.model = model
         self.grid = grid
         self.surfaces = surfaces
         self.transforms = transforms
@@ -748,16 +820,20 @@ class KSIRCompiledOutputs:
             raise RuntimeError(f"KSIR transform {transform_id!r} has no antenna-port association")
         spec = self.antenna_port_specs[transform_id]
         monitor = self.frequency_monitors[transform_id]
-        registry = port_output_registry(self.grid)
-        spectra = [
-            evaluate_port_power_spectrum(
-                registry[port_id],
-                self.grid,
+        registry = model_port_output_registry(self.model)
+        missing = set(spec.port_ids) - set(registry)
+        if missing:
+            raise RuntimeError(f"KSIR antenna ports were not finalised: {sorted(missing)}")
+        spectra = []
+        for port_id in spec.port_ids:
+            binding = registry[port_id]
+            spectrum = evaluate_port_power_spectrum(
+                binding.output,
+                binding.grid,
                 monitor.frequencies,
                 window=self.transforms[transform_id].window,
             )
-            for port_id in spec.port_ids
-        ]
+            spectra.append(replace(spectrum, port_id=port_id))
         incident_voltage_per_port = np.stack([item.incident_voltage for item in spectra])
         terminal_voltage_per_port = np.stack([item.terminal_voltage for item in spectra])
         terminal_current_per_port = np.stack([item.terminal_current for item in spectra])
@@ -1311,6 +1387,15 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
         for request in far_requests
         if any(output in PORT_METRICS for output in request.outputs)
     }
+    available_port_ids = model_port_ids(model) if antenna_port_specs else ()
+    for transform_id, antenna_spec in antenna_port_specs.items():
+        unknown = set(antenna_spec.port_ids) - set(available_port_ids)
+        if unknown:
+            raise ValueError(
+                f"KSIR antenna-port group for transform {transform_id!r} refers "
+                f"to unknown port IDs {sorted(unknown)}; available ports are "
+                f"{list(available_port_ids)}"
+            )
     for transform_id in gain_transforms:
         if transform_id not in antenna_port_specs:
             raise ValueError(
@@ -1324,13 +1409,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
                 f"{transform.window!r}; antenna gain currently requires rectangular"
             )
 
-        expected_ids = [monitor.output_id for monitor in grid.port_monitors]
-        expected_ids.extend(f"tl{index}" for index, _ in enumerate(grid.transmissionlines, start=1))
-        expected_ids.extend(
-            f"frill{index}" for index, _ in enumerate(grid.magneticfrillsources, start=1)
-        )
-        if len(set(expected_ids)) != len(expected_ids):
-            raise ValueError("antenna port IDs are ambiguous across source types")
+        expected_ids = available_port_ids
         requested_ids = set(antenna_port_specs[transform_id].port_ids)
         missing = set(expected_ids) - requested_ids
         if missing:
@@ -1338,11 +1417,19 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
                 f"KSIR antenna-port group for transform {transform_id!r} must "
                 f"include every physical port; missing {sorted(missing)}"
             )
-        monitored_voltage_sources = {
-            monitor.source for monitor in getattr(grid, "port_monitors", ())
-        }
+        monitored_voltage_sources = set()
+        voltage_sources = []
+        nonport_sources = []
+        for source_grid in (model.G, *model.subgrids):
+            monitored_voltage_sources.update(
+                monitor.source for monitor in getattr(source_grid, "port_monitors", ())
+            )
+            voltage_sources.extend(getattr(source_grid, "voltagesources", ()))
+            nonport_sources.extend(getattr(source_grid, "hertziandipoles", ()))
+            nonport_sources.extend(getattr(source_grid, "magneticdipoles", ()))
+            nonport_sources.extend(getattr(source_grid, "discreteplanewaves", ()))
         unmonitored_voltage_sources = [
-            source for source in grid.voltagesources if source not in monitored_voltage_sources
+            source for source in voltage_sources if source not in monitored_voltage_sources
         ]
         if unmonitored_voltage_sources:
             raise ValueError(
@@ -1357,8 +1444,6 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
                     return True
             return False
 
-        nonport_sources = list(grid.hertziandipoles) + list(grid.magneticdipoles)
-        nonport_sources.extend(getattr(grid, "discreteplanewaves", ()))
         active_nonport = [source for source in nonport_sources if source_is_active(source)]
         if active_nonport:
             raise ValueError(
@@ -1401,7 +1486,10 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             pml_limits=limits,
         )
 
+    _validate_ksir_subgrid_enclosure(model, compiled_surfaces)
+
     writer = KSIRCompiledOutputs(
+        model,
         grid,
         compiled_surfaces,
         transform_specs,

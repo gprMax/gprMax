@@ -42,6 +42,7 @@ from gprMax.ntff.conventions import (
 
 if TYPE_CHECKING:
     from gprMax.grid.fdtd_grid import FDTDGrid
+    from gprMax.model import Model
     from gprMax.receivers import Rx
     from gprMax.sources import MagneticFrillSource, TransmissionLine, VoltageSource
 
@@ -75,6 +76,14 @@ class PortPowerSpectrum:
     accepted_power: npt.NDArray[np.floating]
     mesh_valid: npt.NDArray[np.bool_]
     terminal_valid: npt.NDArray[np.bool_]
+
+
+@dataclass(frozen=True)
+class PortOutputBinding:
+    """A finalised port output together with the grid that sampled it."""
+
+    output: object
+    grid: "FDTDGrid"
 
 
 def _port_mesh_valid(output, grid, frequencies):
@@ -316,6 +325,49 @@ def port_output_registry(grid: "FDTDGrid") -> dict[str, object]:
         if output.output_id in registry:
             raise ValueError(f"antenna port ID {output.output_id!r} is ambiguous")
         registry[output.output_id] = output
+    return registry
+
+
+def model_port_ids(model: "Model") -> tuple[str, ...]:
+    """Return physical port references across the main grid and subgrids.
+
+    Main-grid IDs retain their public spelling. Subgrid IDs are qualified as
+    ``<subgrid ID>/<local port ID>`` so per-grid automatic IDs such as ``tl1``
+    and ``frill1`` remain unambiguous.
+    """
+
+    references = []
+    for grid in (model.G, *model.subgrids):
+        local_ids = [monitor.output_id for monitor in getattr(grid, "port_monitors", ())]
+        local_ids.extend(
+            f"tl{index}"
+            for index, _ in enumerate(getattr(grid, "transmissionlines", ()), start=1)
+        )
+        local_ids.extend(
+            f"frill{index}"
+            for index, _ in enumerate(getattr(grid, "magneticfrillsources", ()), start=1)
+        )
+        if len(set(local_ids)) != len(local_ids):
+            location = "main grid" if grid is model.G else f"subgrid {grid.name!r}"
+            raise ValueError(f"antenna port IDs are ambiguous on the {location}")
+        prefix = "" if grid is model.G else f"{grid.name}/"
+        references.extend(f"{prefix}{port_id}" for port_id in local_ids)
+    if len(set(references)) != len(references):
+        raise ValueError("antenna port references are ambiguous across model grids")
+    return tuple(references)
+
+
+def model_port_output_registry(model: "Model") -> dict[str, PortOutputBinding]:
+    """Return finalised, grid-aware port outputs for an entire model."""
+
+    registry = {}
+    for grid in (model.G, *model.subgrids):
+        prefix = "" if grid is model.G else f"{grid.name}/"
+        for local_id, output in port_output_registry(grid).items():
+            port_id = f"{prefix}{local_id}"
+            if port_id in registry:
+                raise ValueError(f"antenna port reference {port_id!r} is ambiguous")
+            registry[port_id] = PortOutputBinding(output=output, grid=grid)
     return registry
 
 
@@ -1030,7 +1082,7 @@ class VoltageSourcePortMonitor:
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
 
         group.attrs["Name"] = self.output_id
-        group.attrs["Position"] = np.asarray(self.source.coord * self.grid_dl, dtype=real_dtype)
+        group.attrs["Position"] = np.asarray(self.source_position, dtype=real_dtype)
         group.attrs["GridPosition"] = np.asarray(self.source.coord, dtype=np.int32)
         group.attrs["SourceType"] = type(self.source).__name__
         group.attrs["PortMode"] = (
@@ -1120,6 +1172,14 @@ class VoltageSourcePortMonitor:
         """Cache immutable HDF5 context after the grid is fully built."""
 
         self.grid_dl = np.asarray((grid.dx, grid.dy, grid.dz), dtype=np.float64)
+        if hasattr(grid, "local_to_global"):
+            self.source_position = np.asarray(
+                grid.local_to_global(self.source.coord), dtype=np.float64
+            )
+        else:
+            self.source_position = np.asarray(
+                self.source.coord * self.grid_dl, dtype=np.float64
+            )
         self.dt = float(grid.dt)
         self.source_index = grid.voltagesources.index(self.source) + 1
 

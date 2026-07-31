@@ -1266,6 +1266,11 @@ ground plane at z = 0 by a 50 Ohm coax is:
     #thin_wire: 0.05 0.05 0 0.05 0.05 0.04 0.0001
     #magnetic_frill_source: z 0.05 0.05 0 50 my_pulse
 
+The hash command creates a main-grid source and remains valid in a model that
+also contains subgrids. To place the frill, its attached thin wire, and its
+ground plane inside a ``SubGridHSG``, use the Python API and add all four
+objects (including the waveform) to the same subgrid object.
+
 .. note::
 
     * This source can be placed at a symmetry-plane corner declared with
@@ -1307,6 +1312,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 .. note::
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
+    * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
     * Internally, theta and phi are approximated by an integer direction vector (Mx, My, Mz) found to within a maximum acceptable angular difference of 3 arc minutes (0.05 degrees) by default. This tolerance can be relaxed or tightened using the ``max_angle_diff`` parameter (in degrees) when using the Python API.
 
@@ -1331,6 +1337,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 .. note::
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
+    * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
@@ -1356,6 +1363,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Plane waves support non-dispersive dielectric layers and multi-pole Debye, Lorentz, and Drude layers. They do not currently support ``user``-defined waveforms.
+    * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
@@ -1647,9 +1655,11 @@ The following conventions apply to every KSIR command:
   stencil. The surface must enclose the radiating source or the complete TFSF
   box and scatterer as appropriate;
 * the implementation currently requires a three-dimensional serial model and
-  does not support MPI, subgrids, or geometry-fixed reuse. Both time- and
-  frequency-domain KSIR collection are available with CPU, CUDA, OpenCL, and
-  Metal;
+  does not support MPI or geometry-fixed reuse. KSIR commands are main-grid
+  objects, but their closed surface may contain complete subgrids. A surface
+  that overlaps a subgrid must strictly enclose its HSG outer coupling surface;
+  it cannot touch or cut the coupling region. Both time- and frequency-domain
+  KSIR collection are available with CPU, CUDA, OpenCL, and Metal;
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
   iterations and are transferred to the host once, after the solve. CUDA is
@@ -1748,6 +1758,12 @@ Transmission-line and magnetic-frill sources provide automatic port IDs
 creation order. The association is not required for electric or magnetic
 far fields, radiation intensity, RCS, or directivity. It is required when a
 far-field command asks for gain or efficiency.
+
+A port on a subgrid is named as ``subgrid_id/port_id``. For example,
+``fine_grid/feed`` identifies an ``#rx_port`` called ``feed`` on subgrid
+``fine_grid``; automatic source ports use forms such as ``fine_grid/tl1`` and
+``fine_grid/frill1``. Main-grid IDs remain unqualified. Each subgrid port is
+post-processed using its owning grid's finer spatial and temporal steps.
 
 The listed set must include **every** physical voltage, transmission-line,
 and magnetic-frill port in the model. Every voltage source must therefore

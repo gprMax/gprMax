@@ -550,8 +550,37 @@ resulting aperture remains sub-cell. For example:
     ))
 
 The corrected formulation is supported by the CPU, CUDA, OpenCL, and Metal
-solvers. It writes its time-domain terminal histories and derived ``S11``,
-``Zin``, and ``Yin`` automatically beneath ``/frills/frillN``. See
+solvers. It is also supported inside a CPU ``SubGridHSG``. Add the waveform,
+PEC ground plane, thin wire, and magnetic frill to the same subgrid object,
+using the same global-coordinate convention as other subgrid sources when
+``autotranslate=True``:
+
+.. code-block:: python
+
+    subgrid.add(gprMax.Waveform(
+        wave_type='ricker', amp=1, freq=5e9, id='fine_feed_wave'
+    ))
+    subgrid.add(gprMax.Plate(
+        p1=(0.08, 0.06, 0.05), p2=(0.10, 0.08, 0.05),
+        material_id='pec',
+    ))
+    subgrid.add(gprMax.ThinWire(
+        p1=(0.09, 0.07, 0.05), p2=(0.09, 0.07, 0.06),
+        radius=0.0001,
+    ))
+    subgrid.add(gprMax.MagneticFrillSource(
+        p1=(0.09, 0.07, 0.05), polarisation='z', zcoax=50,
+        waveform_id='fine_feed_wave',
+    ))
+
+The complete frill stencil and attached wire should remain within the
+subgrid's working region; objects traversing its outer surface produce the
+usual advanced-use warning, while thin-wire or frill placement in its PML is
+rejected. Symmetry boundaries are not supported on a subgrid, so subgrid
+frills cannot use symmetry-plane completion. The source
+writes its time-domain terminal histories and derived ``S11``, ``Zin``, and
+``Yin`` automatically beneath ``/frills/frillN`` on the main grid or
+``/subgrids/<subgrid ID>/frills/frillN`` on a subgrid. See
 :ref:`Simulation Output <output>`.
 
 All local sources refer to the ID of a waveform that has already been added to
@@ -618,7 +647,11 @@ Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
 currently use the CPU solver. Homogeneous angle/vector plane waves and layered
 axial plane waves support non-dispersive materials and multi-pole Debye,
 Lorentz, and Drude materials. Their auxiliary dispersive state uses the same
-real or complex precision selected for the main grid.
+real or complex precision selected for the main grid. A discrete plane wave
+must be added to the main scene, not to a subgrid. Its TFSF box may contain a
+complete subgrid; where the two regions overlap, the box must strictly enclose
+the subgrid's HSG outer coupling surface so that the TFSF correction stencil
+remains on the main grid.
 
 Excitation File
 ---------------
@@ -696,6 +729,32 @@ hard source, gprMax obtains terminal current from the surrounding magnetic-
 field loop and accounts explicitly for the half-step phase difference from
 the integer-time voltage during transformation.
 
+An ``RxPort`` may also be placed inside a ``SubGridHSG``. Add the waveform,
+voltage source, and port to the same subgrid object; the port is then sampled
+using that subgrid's finer spatial and temporal discretisation. With
+``autotranslate=True``, the port and source use the same global physical
+coordinate:
+
+.. code-block:: python
+
+    subgrid.add(gprMax.Waveform(
+        wave_type='ricker', amp=1, freq=5e9, id='feed_wave'
+    ))
+    subgrid.add(gprMax.VoltageSource(
+        p1=(0.090, 0.070, 0.060),
+        polarisation='z', resistance=50,
+        waveform_id='feed_wave',
+    ))
+    fine_port = gprMax.RxPort(
+        p1=(0.090, 0.070, 0.060), id='fine_feed'
+    )
+    subgrid.add(fine_port)
+
+The result is stored at
+``/subgrids/<subgrid ID>/ports/<port ID>``. The source and port must belong to
+the same grid object so that their discretised coordinates, material edge,
+``dl``, and ``dt`` are unambiguous.
+
 Source Steps
 ------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.SrcSteps
@@ -772,6 +831,13 @@ entered positionally in a hash command: ``KSIRSurface.origin``, and
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
+KSIR definitions are main-grid objects, but their notional closed integration
+surface may enclose complete HSG subgrids. A surface must not touch or cut an
+HSG outer coupling surface: overlapping regions require the KSIR surface to
+strictly enclose that outer surface. Sources and scatterers inside the subgrid
+then contribute through the normal HSG field exchange. A disjoint subgrid is
+permitted. KSIR surfaces cannot be defined inside a subgrid.
+
 The following example reuses one surface for an exact time-domain point and a
 frequency-domain radiation pattern. Python keyword arguments replace the
 positional optional parameters used by the equivalent hash commands.
@@ -818,6 +884,10 @@ KSIR antenna-port association
 
 The association is needed only for gain and efficiency. It must name every
 physical port, including a zero-amplitude source that acts as a termination.
+Main-grid port IDs are used directly. A subgrid port is qualified by its
+subgrid ID, for example ``fine_grid/feed``, ``fine_grid/tl1``, or
+``fine_grid/frill1``. Its voltage and current spectra are transformed with the
+owning subgrid's finer time step.
 For voltage sources, use the ID of the coincident :class:`RxPort`; automatic
 transmission-line and magnetic-frill IDs are ``tl1``, ... and ``frill1``, ...
 respectively. For example:

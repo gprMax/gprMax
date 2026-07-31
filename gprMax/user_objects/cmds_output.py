@@ -122,8 +122,6 @@ class RxPort(OutputUserObject):
         raise RuntimeError("RxPort result is not available until the model has solved")
 
     def _validate_context(self, grid):
-        if isinstance(grid, SubGridBaseGrid) or config.sim_config.general["subgrid"]:
-            raise ValueError(f"{self.params_str()} does not support subgrids.")
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} does not yet support MPI.")
         if config.sim_config.args.geometry_fixed:
@@ -196,9 +194,7 @@ class RxPort(OutputUserObject):
         receiver.coord = np.asarray(coord, dtype=np.int32).copy()
         receiver.coordorigin = receiver.coord.copy()
         real_dtype = config.sim_config.dtypes["float_or_double"]
-        receiver.outputs[f"E{source.polarisation}"] = np.zeros(
-            grid.iterations, dtype=real_dtype
-        )
+        receiver.outputs[f"E{source.polarisation}"] = np.zeros(grid.iterations, dtype=real_dtype)
         receiver.internal = True
         receiver.source_bound = True
         receiver.port_id = output_id
@@ -500,8 +496,11 @@ class Snapshot(OutputUserObject):
 
 
 def _check_ksir_interface_context(user_object, grid):
-    if isinstance(grid, SubGridBaseGrid) or config.sim_config.general["subgrid"]:
-        raise ValueError(f"{user_object.params_str()} does not support subgrids.")
+    if isinstance(grid, SubGridBaseGrid):
+        raise ValueError(
+            f"{user_object.params_str()} must be defined on the main grid; "
+            "its closed surface may enclose complete subgrids."
+        )
     if config.sim_config.mpi:
         raise ValueError(f"{user_object.params_str()} does not yet support MPI.")
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
@@ -1163,7 +1162,8 @@ class KSIRAntennaPorts(OutputUserObject):
         port_ids: IDs of every physical antenna port. Voltage-source IDs come
             from coincident :class:`RxPort` objects. Transmission-line and
             magnetic-frill sources use their automatic ``tlN`` and ``frillN``
-            IDs.
+            IDs. A port on a subgrid is referenced as
+            ``<subgrid ID>/<local port ID>``.
 
     The complete set is required for an unambiguous coherent accepted-power
     balance. A source with zero waveform amplitude is still a terminated port
@@ -1194,7 +1194,17 @@ class KSIRAntennaPorts(OutputUserObject):
         if not self.port_ids:
             raise ValueError(f"{self.params_str()} requires at least one port ID")
         for port_id in self.port_ids:
-            validate_identifier("antenna port ID", port_id)
+            if not isinstance(port_id, str):
+                validate_identifier("antenna port reference component", port_id)
+                continue
+            parts = port_id.split("/")
+            if len(parts) not in (1, 2):
+                raise ValueError(
+                    "antenna port reference must be a main-grid port ID or "
+                    "'<subgrid ID>/<local port ID>'"
+                )
+            for part in parts:
+                validate_identifier("antenna port reference component", part)
         if len(set(self.port_ids)) != len(self.port_ids):
             raise ValueError(f"{self.params_str()} port IDs must not contain duplicates")
         if self.transform_id in grid.ksir_antenna_port_specs:
@@ -1202,19 +1212,9 @@ class KSIRAntennaPorts(OutputUserObject):
                 f"KSIR transform {self.transform_id!r} already has an antenna-port group"
             )
 
-        available = [monitor.output_id for monitor in grid.port_monitors]
-        available.extend(f"tl{index}" for index, _ in enumerate(grid.transmissionlines, start=1))
-        available.extend(
-            f"frill{index}" for index, _ in enumerate(grid.magneticfrillsources, start=1)
-        )
-        if len(set(available)) != len(available):
-            raise ValueError("antenna port IDs are ambiguous across source types")
-        unknown = set(self.port_ids) - set(available)
-        if unknown:
-            raise ValueError(
-                f"{self.params_str()} refers to unknown port IDs {sorted(unknown)}; "
-                f"available ports are {available}"
-            )
+        # Subgrid objects are built after main-grid output commands. Resolve
+        # and validate the complete cross-grid namespace during KSIR
+        # compilation, after every subgrid child has been registered.
         grid.ksir_antenna_port_specs[self.transform_id] = KSIRAntennaPortsSpec(
             self.transform_id,
             self.port_ids,

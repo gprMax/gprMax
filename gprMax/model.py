@@ -349,6 +349,14 @@ class Model:
         else:
             self.build_geometry()
 
+        # TFSF corrections are applied on the main grid. A box may contain a
+        # complete subgrid, but it must not cut through the HSG outer coupling
+        # surface where main- and fine-grid fields are exchanged.
+        if self.subgrids and self.G.discreteplanewaves:
+            from gprMax.ntff.interface import validate_tfsf_subgrid_enclosure
+
+            validate_tfsf_subgrid_enclosure(self)
+
         # KSIR definitions are registered while the scene is parsed, but the
         # component surfaces can only be compiled after grid.build() has
         # finalised the Yee material IDs.
@@ -362,22 +370,26 @@ class Model:
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
 
-        self.G.update_sources_and_recievers()
+        grids = [self.G] + self.subgrids
+        for grid in grids:
+            grid.update_sources_and_recievers()
 
         # Magnetic-frill sources bind the attached thin-wire radius, resolve
         # symmetry, validate the PEC ground plane, and precompute their
         # feed-cell recurrence here. This needs final material coefficients
         # and symmetry boundaries, which do not exist during scene parsing.
-        # MPI/subgrid use is rejected by the source builder.
-        for grid in [self.G] + self.subgrids:
+        # MPI use is rejected by the source builder; a frill can belong to a
+        # CPU subgrid and is then prepared against that fine grid.
+        for grid in grids:
             for frill in grid.magneticfrillsources:
                 frill.finalise_setup(grid)
 
         # Voltage-source ports bind their receiver during scene processing,
         # but their effective edge material and update coefficient only exist
         # after grid.build() has completed.
-        for port in getattr(self.G, "port_monitors", ()):
-            port.prepare(self.G)
+        for grid in grids:
+            for port in getattr(grid, "port_monitors", ()):
+                port.prepare(grid)
 
         # Transmission lines already record incident and terminal voltage and
         # current histories. Prepare their automatic S11/impedance outputs
@@ -388,7 +400,7 @@ class Model:
         # not attach cached spectral arrays before that transfer; the
         # coordinator prepares and finalises them after the gather instead.
         if not hasattr(self.G, "comm"):
-            for grid in [self.G] + self.subgrids:
+            for grid in grids:
                 prepare_transmission_line_ports(grid)
                 prepare_magnetic_frill_ports(grid)
 
@@ -397,7 +409,7 @@ class Model:
         if self.G.ntff_monitors:
             from gprMax.ntff.interface import validate_ksir_source_enclosure
 
-            validate_ksir_source_enclosure(self.G)
+            validate_ksir_source_enclosure(self, self.G)
 
         self._output_geometry()
 
@@ -595,8 +607,10 @@ class Model:
         # Device finalisation has already copied receiver histories to the
         # host. Complete derived port spectra before opening the HDF5 file so
         # a calculation error cannot leave a partially written port group.
-        for port in getattr(self.G, "port_monitors", ()):
-            port.finalise(self.G)
+        grids = [self.G] + self.subgrids
+        for grid in grids:
+            for port in getattr(grid, "port_monitors", ()):
+                port.finalise(grid)
 
         from gprMax.ports import finalise_magnetic_frill_ports, finalise_transmission_line_ports
 
@@ -608,6 +622,7 @@ class Model:
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
         sg_frills = [True for sg in self.subgrids if sg.magneticfrillsources]
+        sg_ports = [True for sg in self.subgrids if sg.port_monitors]
         ntff_outputs = [
             monitor
             for monitor in self.G.ntff_monitors
@@ -621,6 +636,7 @@ class Model:
             or sg_tls
             or self.G.magneticfrillsources
             or sg_frills
+            or sg_ports
             or ntff_outputs
             or self.G.port_monitors
         ):

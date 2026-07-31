@@ -63,10 +63,9 @@ def test_rejected_with_mpi(monkeypatch):
         _frill()._validate_parameters(_fake_grid())
 
 
-def test_rejected_with_subgrid(monkeypatch):
+def test_main_grid_frill_is_accepted_when_model_contains_subgrid(monkeypatch):
     _set_solver(monkeypatch, "cpu", subgrid=True)
-    with pytest.raises(ValueError, match="subgrid"):
-        _frill()._validate_parameters(_fake_grid())
+    _frill()._validate_parameters(_fake_grid())
 
 
 def test_rejected_in_2d_mode(monkeypatch):

@@ -1089,7 +1089,8 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         coaxial line. Complements #transmission_line: a different,
         well-established formulation (not a variant of the two-wire line -
         no 1D line, no ABC, no magic timestep). The corrected Hyun feed-cell
-        formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers.
+        formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers,
+        and by the CPU subgrid updater.
 
     Attributes:
         polarisation: string required for polarisation of the source - x, y,
@@ -1165,14 +1166,12 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
             self._log(grid, frill_source, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # MPI and subgrids rejected outright, more strictly than
-        # #transmission_line: a symmetry-plane-adjacent feed point's
-        # build-time resolution has no meaning split across an MPI domain
-        # boundary or a subgrid's own local indexing.
+        # MPI is rejected because a feed stencil cannot be split across rank
+        # boundaries. A subgrid is safe: the frill, attached thin wire,
+        # material rows, field stencil, and time histories all belong to the
+        # same fine grid and are advanced by its CPU updater.
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} does not support MPI.")
-        if isinstance(grid, SubGridBaseGrid) or config.sim_config.general["subgrid"]:
-            raise ValueError(f"{self.params_str()} does not support subgrids.")
 
         # 2D mode rejected outright - the feed point's four surrounding H
         # components have no meaningful reduction to a 2D TM/TE invariant-
@@ -1273,6 +1272,12 @@ def _dpw_tfsf_corners(uip, p1, p2, params_str):
     Returns:
         start, stop: discretised corner index arrays.
     """
+    if isinstance(uip.grid, SubGridBaseGrid):
+        raise ValueError(
+            f"{params_str} must be defined on the main grid; its TFSF box "
+            "may strictly enclose complete subgrids."
+        )
+
     mode = config.get_model_config().mode
     is_2d = mode.startswith("2D")
     if is_2d:
