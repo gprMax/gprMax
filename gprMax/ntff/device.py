@@ -85,6 +85,7 @@ class _DeviceKSIRCollector:
             configure_ntff_monitors(self.grid)
         self.monitors = list(self.grid.ntff_monitors if monitors is None else monitors)
         self.records: List[_ComponentRecord] = []
+        self.incident_records = []
         limits = np.iinfo(np.int32)
         for monitor in self.monitors:
             if not _is_frequency_monitor(monitor):
@@ -123,6 +124,34 @@ class _DeviceKSIRCollector:
                 )
                 self._allocate(record)
                 self.records.append(record)
+            if getattr(monitor, "associated_plane_wave", None) is not None:
+                plane_wave = monitor.associated_plane_wave
+                if not hasattr(plane_wave, "E_fields_dev"):
+                    raise ValueError(
+                        "device KSIR RCS normalisation requires the associated "
+                        "plane wave to have device-resident electric fields"
+                    )
+                reference_index = int(monitor._incident_reference_index)
+                if reference_index < 0 or reference_index > limits.max:
+                    raise ValueError(
+                        "KSIR incident plane-wave reference index exceeds device " "int32 indexing"
+                    )
+                component_records = []
+                indices = np.asarray([reference_index], dtype=np.int32)
+                for axis, component in enumerate(ELECTRIC_COMPONENTS):
+                    record = _ComponentRecord(
+                        monitor=monitor,
+                        component=component,
+                        npatches=1,
+                        nfrequencies=int(monitor.frequencies.size),
+                        inside_index=indices,
+                        outside_index=indices,
+                        device={},
+                    )
+                    self._allocate(record)
+                    record.device["field"] = plane_wave.E_fields_dev[axis]
+                    component_records.append(record)
+                self.incident_records.append((monitor, component_records))
 
     def _allocate(self, record: _ComponentRecord) -> None:
         raise NotImplementedError
@@ -151,6 +180,10 @@ class _DeviceKSIRCollector:
 
     def observe_electric(self, iteration: int) -> None:
         self._observe(iteration, ELECTRIC_COMPONENTS)
+        for monitor, records in self.incident_records:
+            multiplier = monitor.device_incident_sampling_multiplier(iteration)
+            for record in records:
+                self._accumulate(record, record.device["field"], multiplier)
 
     def observe_magnetic(self, iteration: int) -> None:
         self._observe(iteration, MAGNETIC_COMPONENTS)
@@ -166,6 +199,16 @@ class _DeviceKSIRCollector:
             outside.real = np.asarray(outside_real).reshape(record.shape)
             outside.imag = np.asarray(outside_imag).reshape(record.shape)
             record.monitor.load_device_component_dfts(record.component, inside, outside)
+        for monitor, records in self.incident_records:
+            incident = np.empty(
+                (monitor.frequencies.size, len(ELECTRIC_COMPONENTS)),
+                dtype=monitor.complex_dtype,
+            )
+            for axis, record in enumerate(records):
+                inside_real, inside_imag, _, _ = self._download(record)
+                incident[:, axis].real = np.asarray(inside_real).reshape(record.shape)[:, 0]
+                incident[:, axis].imag = np.asarray(inside_imag).reshape(record.shape)[:, 0]
+            monitor.load_device_incident_electric(incident)
         for monitor in self.monitors:
             monitor.finalise()
 
@@ -197,6 +240,12 @@ class CUDAKSIRCollector(_DeviceKSIRCollector):
         imag = np.asarray(multiplier.imag, dtype=self.real_dtype)
         record.device["multiplier_real"].set(real)
         record.device["multiplier_imag"].set(imag)
+        field_pointer = field.gpudata
+        # A row view into the 2-D auxiliary plane-wave array exposes its
+        # offset pointer as an integer. Passing the GPUArray view lets PyCUDA
+        # obtain the correctly offset pointer from its CUDA array interface.
+        if isinstance(field_pointer, (int, np.integer)):
+            field_pointer = field
         self.kernel(
             np.int32(record.total),
             np.int32(record.npatches),
@@ -204,7 +253,7 @@ class CUDAKSIRCollector(_DeviceKSIRCollector):
             record.device["outside_index"].gpudata,
             record.device["multiplier_real"].gpudata,
             record.device["multiplier_imag"].gpudata,
-            field.gpudata,
+            field_pointer,
             record.device["inside_real"].gpudata,
             record.device["inside_imag"].gpudata,
             record.device["outside_real"].gpudata,

@@ -101,6 +101,50 @@ def _antenna_scene():
     return scene, far_field
 
 
+def _plane_wave_rcs_scene():
+    dl = 0.004
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.08, 0.08, 0.08)))
+    scene.add(gprMax.TimeWindow(time=4e-10))
+    scene.add(gprMax.PMLThickness(thickness=3))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
+    scene.add(
+        gprMax.DiscretePlaneWaveAxial(
+            p1=(0.028, 0.028, 0.028),
+            p2=(0.052, 0.052, 0.052),
+            axis="x",
+            psi=90,
+            waveform_id="pulse",
+        )
+    )
+    scene.add(
+        gprMax.KSIRSurface(
+            p1=(0.02, 0.02, 0.02),
+            p2=(0.06, 0.06, 0.06),
+            id="surface",
+            origin=(0.04, 0.04, 0.04),
+        )
+    )
+    transform = gprMax.KSIRFrequencyTransform(
+        "surface",
+        "spectrum",
+        (5e9,),
+        save_surface_dft=False,
+        plane_wave_index=0,
+    )
+    far_field = gprMax.KSIRFarField(
+        (90,),
+        (180,),
+        "spectrum",
+        id="backscatter",
+        outputs=("rcs",),
+    )
+    scene.add(transform)
+    scene.add(far_field)
+    return scene, transform, far_field
+
+
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
 @pytest.mark.parametrize(
     "precision,real_dtype,complex_dtype,rtol",
@@ -225,3 +269,50 @@ def test_cuda_antenna_metrics_match_cpu(tmp_path):
         group = output["ntff/surface/frequency/spectrum/far_field/far"]
         assert group["port_power/port_ids"].asstr()[...].tolist() == ["feed"]
         assert group["port_power/gain_valid"][0] == 1
+
+
+@pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
+@pytest.mark.parametrize(
+    "precision,complex_dtype,rtol",
+    [
+        ("single", np.dtype("complex64"), 2e-4),
+        ("double", np.dtype("complex128"), 2e-10),
+    ],
+)
+def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(
+    tmp_path, precision, complex_dtype, rtol
+):
+    cpu_scene, cpu_transform, _ = _plane_wave_rcs_scene()
+    cuda_scene, cuda_transform, cuda_far = _plane_wave_rcs_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        n=1,
+        outputfile=tmp_path / f"cpu_plane_wave_rcs_{precision}",
+        hide_progress_bars=True,
+        cpu_precision=precision,
+    )
+    gprMax.run(
+        scenes=[cuda_scene],
+        n=1,
+        outputfile=tmp_path / f"cuda_plane_wave_rcs_{precision}",
+        hide_progress_bars=True,
+        gpu=[0],
+        gpu_precision=precision,
+    )
+
+    cpu_monitor = cpu_transform._compiled_outputs.transform_monitor(cpu_transform.ID)
+    cuda_monitor = cuda_transform._compiled_outputs.transform_monitor(cuda_transform.ID)
+    assert cuda_monitor.result.incident_electric.dtype == complex_dtype
+    assert_allclose(
+        cuda_monitor.result.incident_electric,
+        cpu_monitor.result.incident_electric,
+        rtol=rtol,
+        atol=rtol * np.max(np.abs(cpu_monitor.result.incident_electric)),
+    )
+    assert np.all(np.isfinite(cuda_far.result.fields["rcs"]))
+
+    with h5py.File(tmp_path / f"cuda_plane_wave_rcs_{precision}.h5", "r") as output:
+        transform = output["ntff/surface/frequency/spectrum"]
+        assert transform.attrs["solver"] == "cuda"
+        assert transform.attrs["collection_backend"] == "cuda_device"
+        assert np.all(np.isfinite(transform["far_field/backscatter/fields/rcs"][:]))

@@ -1491,14 +1491,6 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Standard face corrections
                 self._launch_std_H_face_kernels(dpw)
 
-                if iteration == 500:
-                    hf = dpw.H_fields_dev.get()
-                    print("GPU 1D H_fields max per row:", abs(hf).max(axis=1))
-                    ef = dpw.E_fields_dev.get()
-                    print("GPU 1D E_fields max per row:", abs(ef).max(axis=1))
-                    print("Projections:", dpw.projections)
-                    print("waveformvalues_halfdt[500] max:", abs(dpw.waveformvalues_halfdt[500]).max())
-
             else:
                 # Axial magnetic 1D update (3 sequential launches)
 
@@ -1647,14 +1639,6 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 # Axial face corrections
                 self._launch_axial_H_face_kernels(dpw)
-
-                if iteration == 500:
-                    hf = dpw.H_fields_s_dev.get()
-                    print("GPU 1D H_fields_s max per row:", abs(hf).max(axis=1))
-                    ef = dpw.E_fields_s_dev.get()
-                    print("GPU 1D E_fields_s max per row:", abs(ef).max(axis=1))
-                    print("Projections:", dpw.projections)
-                    print("waveformvalues_halfdt[500] max:", abs(dpw.waveformvalues_halfdt[500]).max())
 
     def update_plane_waves_electric(self, iteration):
         """Updates 1D DPW auxiliary grid E fields and applies TF/SF
