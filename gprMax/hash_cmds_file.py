@@ -281,6 +281,7 @@ def check_cmd_names(processedlines, checkessential=True):
         "#geometry_objects_read",
         "#edge",
         "#magnetic_edge",
+        "#thin_wire",
         "#plate",
         "#triangle",
         "#box",

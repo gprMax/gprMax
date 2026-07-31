@@ -118,6 +118,47 @@ def test_discrete_plane_wave_allowed_with_geometry_fixed_and_single_model(tmp_pa
     )
 
 
+def test_magnetic_frill_source_rejected_with_geometry_fixed_and_multiple_models(tmp_path):
+    scene = _base_scene()
+    scene.add(gprMax.Box(p1=(0, 0, 0), p2=(0.02, 0.02, 0.001), material_id="pec"))
+    scene.add(
+        gprMax.ThinWire(
+            p1=(0.01, 0.01, 0.0), p2=(0.01, 0.01, 0.01), radius=0.1e-3
+        )
+    )
+    scene.add(
+        gprMax.MagneticFrillSource(
+            p1=(0.01, 0.01, 0.0), polarisation="z", zcoax=50, waveform_id="w"
+        )
+    )
+
+    with pytest.raises(ValueError, match="#magnetic_frill_source"):
+        gprMax.run(
+            scenes=[scene], n=2, geometry_fixed=True, geometry_only=True,
+            outputfile=tmp_path / "frill_geom_fixed", hide_progress_bars=True,
+        )
+
+
+def test_magnetic_frill_source_allowed_with_geometry_fixed_and_single_model(tmp_path):
+    scene = _base_scene()
+    scene.add(gprMax.Box(p1=(0, 0, 0), p2=(0.02, 0.02, 0.001), material_id="pec"))
+    scene.add(
+        gprMax.ThinWire(
+            p1=(0.01, 0.01, 0.0), p2=(0.01, 0.01, 0.01), radius=0.1e-3
+        )
+    )
+    scene.add(
+        gprMax.MagneticFrillSource(
+            p1=(0.01, 0.01, 0.0), polarisation="z", zcoax=50, waveform_id="w"
+        )
+    )
+
+    gprMax.run(
+        scenes=[scene], n=1, geometry_fixed=True, geometry_only=True,
+        outputfile=tmp_path / "frill_single", hide_progress_bars=True,
+    )
+
+
 def test_stepped_dipole_with_geometry_fixed_and_multiple_models_still_works(tmp_path):
     """The guard must not over-reach: an ordinary geometry_fixed sweep
     with no TransmissionLine/DiscretePlaneWave present (just a stepped

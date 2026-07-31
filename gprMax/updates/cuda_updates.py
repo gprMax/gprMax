@@ -27,6 +27,7 @@ from jinja2 import Environment, PackageLoader
 from gprMax import config
 from gprMax.cuda_opencl import (
     knl_fields_updates,
+    knl_magnetic_frill_source,
     knl_planewave_updates,
     knl_snapshots,
     knl_source_updates,
@@ -46,7 +47,10 @@ from gprMax.snapshots import (
     update_snapshot_max_dims,
 )
 from gprMax.sources import (
+    MAGNETIC_FRILL_MAX_TERMS,
+    dtoh_magnetic_frill_source_outputs,
     dtoh_transmission_line_outputs,
+    htod_magnetic_frill_source_arrays,
     htod_src_arrays,
     htod_transmission_line_arrays,
 )
@@ -115,6 +119,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self._set_src_knls()
         if self.grid.transmissionlines:
             self._set_transmission_line_knls()
+        if self.grid.magneticfrillsources:
+            self._set_magnetic_frill_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
         if self.grid.discreteplanewaves:
@@ -407,6 +413,47 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.update_transmission_line_electric_dev = module.get_function(
             "update_transmission_line_electric"
         )
+
+    def _set_magnetic_frill_knls(self):
+        """Initialise device-resident magnetic-frill sources and their kernel.
+
+        A dedicated kernel/module, mirroring _set_transmission_line_knls()
+        rather than folding into _set_src_knls() - like a transmission
+        line, this source has its own HDF5 output group and its own
+        per-iteration history arrays to marshal to/from the device, unlike
+        the point-dipole family _set_src_knls() already handles.
+        """
+
+        arrays = htod_magnetic_frill_source_arrays(self.grid.magneticfrillsources, self.grid)
+        for name, array in arrays.items():
+            setattr(self, f"frill_{name}_dev", array)
+
+        self.frill_tpb = (32, 1, 1)
+        self.frill_bpg = (
+            int(np.ceil(len(self.grid.magneticfrillsources) / self.frill_tpb[0])),
+            1,
+            1,
+        )
+
+        substitutions = dict(self.subs_func)
+        substitutions.update(
+            {
+                "MAX_FRILLTERMS": MAGNETIC_FRILL_MAX_TERMS,
+                "NY_FRILLTERMINFO": 4,
+                "NY_FRILLTERMPARAMS": 2,
+                "NY_FRILLPARAMS": 3,
+                "NY_FRILLWAVES": self.grid.iterations + 1,
+                "NY_FRILLOUT": self.grid.iterations + 1,
+            }
+        )
+
+        source = self._build_knl(
+            knl_magnetic_frill_source.update_magnetic_frill_source,
+            self.subs_name_args,
+            substitutions,
+        )
+        knl = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_magnetic_frill_source_dev = knl.get_function("update_magnetic_frill_source")
 
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on GPU, prepares kernel and gets kernel
@@ -1144,6 +1191,26 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 self.grid.Hz_dev.gpudata,
                 block=(1, 1, 1),
                 grid=(round32(len(self.grid.magneticdipoles)), 1, 1),
+            )
+
+        if self.grid.magneticfrillsources:
+            self.update_magnetic_frill_source_dev(
+                np.int32(len(self.grid.magneticfrillsources)),
+                np.int32(iteration),
+                self.frill_term_counts_dev.gpudata,
+                self.frill_term_info_dev.gpudata,
+                self.frill_term_params_dev.gpudata,
+                self.frill_params_dev.gpudata,
+                self.frill_state_dev.gpudata,
+                self.frill_waveform_dev.gpudata,
+                self.frill_Vinc_dev.gpudata,
+                self.frill_Vtotal_dev.gpudata,
+                self.frill_Itot_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+                block=self.frill_tpb,
+                grid=self.frill_bpg,
             )
 
     def update_electric_a(self):
@@ -2077,6 +2144,14 @@ class CUDAUpdates(Updates[CUDAGrid]):
         if self.grid.transmissionlines:
             dtoh_transmission_line_outputs(
                 self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
+            )
+
+        if self.grid.magneticfrillsources:
+            dtoh_magnetic_frill_source_outputs(
+                self.frill_Vinc_dev.get(),
+                self.frill_Vtotal_dev.get(),
+                self.frill_Itot_dev.get(),
+                self.grid,
             )
 
         # Copy data from any snapshots back to correct snapshot objects

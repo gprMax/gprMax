@@ -364,6 +364,15 @@ class Model:
 
         self.G.update_sources_and_recievers()
 
+        # Magnetic-frill sources bind the attached thin-wire radius, resolve
+        # symmetry, validate the PEC ground plane, and precompute their
+        # feed-cell recurrence here. This needs final material coefficients
+        # and symmetry boundaries, which do not exist during scene parsing.
+        # MPI/subgrid use is rejected by the source builder.
+        for grid in [self.G] + self.subgrids:
+            for frill in grid.magneticfrillsources:
+                frill.finalise_setup(grid)
+
         # Voltage-source ports bind their receiver during scene processing,
         # but their effective edge material and update coefficient only exist
         # after grid.build() has completed.
@@ -373,7 +382,7 @@ class Model:
         # Transmission lines already record incident and terminal voltage and
         # current histories. Prepare their automatic S11/impedance outputs
         # after materials and the native time/frequency axes are finalised.
-        from gprMax.ports import prepare_transmission_line_ports
+        from gprMax.ports import prepare_magnetic_frill_ports, prepare_transmission_line_ports
 
         # MPI transmission-line objects are gathered only after solving. Do
         # not attach cached spectral arrays before that transfer; the
@@ -381,6 +390,7 @@ class Model:
         if not hasattr(self.G, "comm"):
             for grid in [self.G] + self.subgrids:
                 prepare_transmission_line_ports(grid)
+                prepare_magnetic_frill_ports(grid)
 
         # Source stepping is applied immediately above, so enclosure is
         # checked against the positions actually used by this model run.
@@ -481,6 +491,17 @@ class Model:
                     "every run after the first would silently repeat the "
                     "identical, contaminated source. Run a single model instead."
                 )
+            if any(grid.magneticfrillsources for grid in grids):
+                raise ValueError(
+                    "#magnetic_frill_source cannot be used with geometry_fixed "
+                    "when more than one model is requested (n > 1) - its "
+                    "internal voltage/current history arrays are not reset "
+                    "between reused-geometry runs, so every run after the "
+                    "first would retain state from the previous run and "
+                    "contaminate "
+                    "Vtotal/S11/Zin output with no error. Run a single model "
+                    "instead."
+                )
 
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
         # Check for dispersive materials (and specific type)
@@ -577,14 +598,16 @@ class Model:
         for port in getattr(self.G, "port_monitors", ()):
             port.finalise(self.G)
 
-        from gprMax.ports import finalise_transmission_line_ports
+        from gprMax.ports import finalise_magnetic_frill_ports, finalise_transmission_line_ports
 
         for grid in [self.G] + self.subgrids:
             finalise_transmission_line_ports(grid)
+            finalise_magnetic_frill_ports(grid)
 
         # Write output data to file if they are any receivers in any grids
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
+        sg_frills = [True for sg in self.subgrids if sg.magneticfrillsources]
         ntff_outputs = [
             monitor
             for monitor in self.G.ntff_monitors
@@ -596,6 +619,8 @@ class Model:
             or sg_rxs
             or self.G.transmissionlines
             or sg_tls
+            or self.G.magneticfrillsources
+            or sg_frills
             or ntff_outputs
             or self.G.port_monitors
         ):

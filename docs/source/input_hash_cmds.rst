@@ -538,6 +538,83 @@ Allows you to introduce a wire with specific properties into the model. A wire i
 For example to specify a x-directed wire that is a perfect electric conductor, use: ``#edge: 0.5 0.5 0.5 0.7 0.5 0.5 pec``. Note that the y and z coordinates are identical.
 
 
+#thin_wire:
+-----------
+
+Allows a conducting wire whose physical radius is smaller than the Yee cell to
+be represented by an axis-aligned thin-wire model. The logarithmic radius
+correction is based on Umashankar, Taflove, and Beker [UMA1987]_, with the
+improved electric/magnetic contour factors proposed by Mäkinen, Juntunen, and
+Kivikoski [MAK2002]_. The wire occupies electric edges like a PEC ``#edge``,
+while the magnetic updates on the four surrounding Yee edges are corrected to
+represent the specified sub-cell radius. The syntax is:
+
+.. code-block:: none
+
+    #thin_wire: f1 f2 f3 f4 f5 f6 f7
+
+* ``f1 f2 f3`` and ``f4 f5 f6`` are the start and end coordinates of one
+  non-zero, axis-aligned wire in metres.
+* ``f7`` is the physical wire radius :math:`a` in metres. It must be positive
+  and smaller than half the minimum transverse cell size.
+
+For a wire along :math:`w`, consider a surrounding :math:`H_v` edge whose
+radial direction is :math:`u` (so :math:`u`, :math:`v`, and :math:`w` are the
+three Cartesian axes). The Umashankar radius factor is
+
+.. math::
+
+    F_u = \frac{2}{\ln(\Delta u/a)},
+
+and the Mäkinen contour factors are
+
+.. math::
+
+    k_{H_v} = \frac{\Delta u}{\Delta v}
+              \tan^{-1}\!\left(\frac{\Delta v}{\Delta u}\right),
+    \qquad
+    k_{E_u} = \frac{1}{k_{H_v}}.
+
+gprMax stores the projected Yee-edge value
+:math:`\widetilde{H}_v=k_{H_v}H_v`. In that representation, Mäkinen's
+magnetic update is implemented by multiplying the radial curl coefficient by
+:math:`F_u k_{H_v}`. The coefficient for the derivative along the wire remains
+the background value because :math:`k_{H_v}k_{E_u}=1`. The ordinary electric
+update then consumes :math:`\widetilde{H}_v` directly, thereby applying the
+required :math:`k_H` correction to the radial electric field without a special
+runtime kernel. On a square transverse mesh,
+:math:`k_H=\pi/4` and :math:`k_E=4/\pi`.
+
+The magnetic permeability and magnetic conductivity at each affected H
+component are inherited from its already-resolved background material,
+including magnetic material averaging. The magnetic-source coefficient is
+also multiplied by :math:`k_H`; therefore a co-located
+``#magnetic_frill_source`` must not apply :math:`k_H` a second time. It does,
+however, apply the feed-cell factor :math:`F_u`, as required by Hyun's
+discrete magnetic-current equation.
+
+.. important::
+
+    Receiver samples on the four H edges immediately surrounding the wire are
+    the stored projected values :math:`\widetilde{H}`. Divide such a sample by
+    its orientation-specific :math:`k_H` if the unprojected point value is
+    required. Current loops and ordinary electric updates should use the
+    stored values directly.
+
+For example, a z-directed wire of radius 0.1 mm is specified by:
+``#thin_wire: 0.05 0.05 0.02 0.05 0.05 0.12 0.0001``.
+
+The wire may lie on a transverse domain face only when that face is a PMC
+symmetry boundary. A wire and its surrounding magnetic stencil must not touch
+a PML region. Thin wires in 2D models, MPI models, and overlapping sub-cell
+wire junctions are not currently supported. The charge-based end-cap treatment
+from [MAK2002]_ is not implemented, so an isolated open end retains the usual
+staircasing/electrically-long end error; the improved straight-section update
+is used up to the final wire edge. No special runtime solver is used: the
+corrected material coefficients are consumed by the normal CPU, CUDA, OpenCL,
+and Metal field-update kernels.
+
+
 #magnetic_edge:
 ----------------
 
@@ -1015,6 +1092,197 @@ source. The complete schema and equations are documented in the
 For example, to specify a z directed transmission line source with a resistance of 75 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#transmission_line: z 0.05 0.05 0.05 75 my_gauss_pulse``.
 
 An example antenna model using a transmission line can be found in the :ref:`examples <example-wire-dipole>` section.
+
+#magnetic_frill_source:
+------------------------
+
+Allows you to introduce a magnetic-frill (equivalent-feed) source [HYU2009]_ at an
+electric field location, for an antenna driven through a PEC ground plane by a
+coaxial line - the antenna's own inner conductor passes continuously through the
+plane, unlike ``#voltage_source``/``#transmission_line``'s gap-feed model.
+Complements ``#transmission_line``: it is a different, well-established
+formulation (not a variant of the two-wire line, and not a general-purpose
+alternative to ``#voltage_source``), building on the magnetic frill generator of
+King and Harrison and on Maloney, Smith, & Scott's FDTD implementation of it.
+There is no explicit one-dimensional line, no absorbing boundary, and no
+"magic time step". The coax's sub-cell aperture is represented by an
+equivalent magnetic surface current entering Faraday's law at the four Yee
+magnetic-field components immediately surrounding the feed point. The
+corrected Hyun feed-cell formulation is supported by the CPU, CUDA, OpenCL,
+and Metal solvers. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_frill_source: c1 f1 f2 f3 f4 str1 [f5 f6]
+
+* ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``
+  - the antenna axis the source drives current along, following the same
+  electrical sign convention already used by gprMax's
+  ``Ix``/``Iy``/``Iz`` current output.
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the feed point in the model - the
+  position of the antenna's own inner conductor where it passes through the
+  ground plane.
+* ``f4`` is the coax's characteristic impedance ``Zcoax`` (Ohms), and must be
+  finite and greater than zero.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+* ``f5 f6`` are optional parameters specifying a delay before the incident
+  waveform starts and a time at which that waveform stops. They gate only the
+  incident wave; the coaxial terminal relation remains connected for the rest
+  of the simulation so that late antenna reflections are treated correctly.
+
+The source must be co-located with a Yee edge of a ``#thin_wire`` of the same
+orientation. gprMax obtains the inner-conductor radius :math:`a`
+from that wire. This is necessary because the radius occurs explicitly in
+Hyun's discrete feed-cell equation. An ordinary PEC edge has no unambiguous
+physical radius and is therefore rejected. In particular, :math:`a` cannot be
+assumed to equal the cell size: that would make the logarithmic correction
+singular. The normal ``#thin_wire`` condition
+:math:`a < \min(\Delta u,\Delta v)/2` applies in the two transverse directions.
+
+The physical outer-conductor/aperture radius :math:`b` and the coax filler are
+represented through ``Zcoax`` and are not separate numerical inputs. For a
+lossless TEM coax with inner-conductor radius :math:`a`, outer-conductor inner
+radius :math:`b`, and filler relative permittivity and permeability
+:math:`\varepsilon_{r,c}` and :math:`\mu_{r,c}`, respectively,
+
+.. math::
+
+    Z_\mathrm{coax}
+    = \frac{1}{2\pi}
+      \sqrt{\frac{\mu_0\mu_{r,c}}{\varepsilon_0\varepsilon_{r,c}}}
+      \ln\!\left(\frac{b}{a}\right)
+    = \frac{\eta_0}{2\pi}
+      \sqrt{\frac{\mu_{r,c}}{\varepsilon_{r,c}}}
+      \ln\!\left(\frac{b}{a}\right).
+
+For the usual nonmagnetic filler (:math:`\mu_{r,c}=1`), this is commonly
+written
+
+.. math::
+
+    Z_\mathrm{coax} \simeq
+    \frac{60}{\sqrt{\varepsilon_{r,c}}}
+    \ln\!\left(\frac{b}{a}\right)\ \Omega,
+    \qquad
+    b = a\exp\!\left(
+        \frac{Z_\mathrm{coax}\sqrt{\varepsilon_{r,c}}}{60}
+    \right).
+
+Here :math:`\eta_0=\sqrt{\mu_0/\varepsilon_0}` is the impedance of free space.
+The permittivity in these equations is that of the **coax filler**, not
+necessarily the material above the ground plane surrounding the antenna.
+Thus a measured or datasheet value of ``Zcoax`` may be supplied directly;
+otherwise it can be calculated from :math:`a`, :math:`b`, and the filler.
+gprMax obtains :math:`a` from the attached ``#thin_wire`` but does not infer or
+check :math:`b`.
+
+.. warning::
+
+    This formulation is only strictly valid while the coax's aperture radius
+    ``b`` is sub-cell: smaller than the discretisation (:math:`\Delta`) in the
+    plane perpendicular to the polarisation axis -
+    :math:`b<\min(\Delta y,\Delta z)` for ``x`` polarisation,
+    :math:`b<\min(\Delta z,\Delta x)` for ``y``, or
+    :math:`b<\min(\Delta x,\Delta y)` for ``z``. This is a model-validity
+    boundary, not a refinement axis: a physical aperture that is not sub-cell
+    does not converge toward the true coax-fed antenna by refining the mesh,
+    it converges toward a different problem (a continuous PEC plane carrying a
+    fictitious current sheet) - mesh the coax explicitly with
+    ``#cylinder``/``#box`` commands instead in that case. Because gprMax is
+    never given ``b`` (only ``Zcoax``), **this is not checked automatically -
+    it is the user's responsibility to confirm it holds** for their coax and
+    mesh before trusting the result.
+
+The tangential electric edges of the ground plane at the feed must already be
+PEC (for example via ``#plate`` or ``#box``). The axial edge is supplied by the
+attached ``#thin_wire``. The sub-cell aperture is invisible to the grid and is
+represented by the frill term; no gap is cut in the PEC plane.
+
+In Hyun's notation, the equivalent magnetic current and coax load relation are
+
+.. math::
+
+    M_\phi^n =
+    \frac{-2V_\mathrm{inc}^n + Z_0 I_\mathrm{tot}^n}
+         {(\Delta\rho/2)\ln(\Delta\rho/a)},
+    \qquad
+    V_\mathrm{ab}^n = 2V_\mathrm{inc}^n-Z_0 I_\mathrm{tot}^n.
+
+gprMax generalises the cylindrical feed cell to a rectangular Cartesian Yee
+cell. For each transverse radial direction :math:`u`, the frill applies
+
+.. math::
+
+    F_u = \frac{2}{\ln(\Delta u/a)}
+
+to the magnetic-source coefficient. The attached improved thin-wire material
+already supplies Mäkinen's orientation-specific :math:`k_H` projection, so the
+complete source coefficient contains :math:`F_u k_H`. The frill must supply
+:math:`F_u`; omitting it would model the wrong inner-conductor radius.
+
+The leapfrog current is evaluated using the time-average approximation
+recommended in [HYU2009]_,
+
+.. math::
+
+    I_\mathrm{tot}^n = \frac{1}{2}
+    \left(I^{n-1/2}+I^{n+1/2}\right).
+
+Because :math:`I^{n+1/2}` depends on the frill voltage applied during the same
+update, gprMax solves this small implicit relation in closed form. If
+:math:`G_f` is the precomputed feed-cell self-admittance and
+:math:`I_\mathrm{bulk}^{n+1/2}` is the current after the ordinary magnetic
+update but before the new frill deposit, then
+
+.. math::
+
+    I^{n+1/2} =
+    \frac{I_\mathrm{bulk}^{n+1/2} + 2G_f V_\mathrm{inc}^n
+          - (G_f Z_0/2) I^{n-1/2}}
+         {1+G_f Z_0/2}.
+
+This avoids a forward-time predictor iteration and implements equations
+(8)--(11) of [HYU2009]_ directly. The command waveform follows gprMax's
+Thevenin-generator convention, so the stored incident wave is one half of the
+specified waveform amplitude.
+
+Time histories of incident and total voltage (:math:`V_\mathrm{inc}`,
+:math:`V_\mathrm{ab}`) and total current (:math:`I_\mathrm{tot}`) are saved to
+the output file, along with automatically-calculated S11, input impedance, and
+input admittance, following the same conventions as ``#transmission_line``. No
+separate ``#rx_port`` command is required. If ``#rx_port`` is placed at the
+same position it does not create a second, independent measurement - it can
+only override the automatic output's spectrum limit. The complete schema and
+equations are documented in the :ref:`Simulation Output <output>` section.
+
+For example, a z-directed, 0.1 mm radius inner conductor driven through a
+ground plane at z = 0 by a 50 Ohm coax is:
+
+.. code-block:: none
+
+    #waveform: ricker 1 10e9 my_pulse
+    #plate: 0 0 0 0.1 0.1 0 pec
+    #thin_wire: 0.05 0.05 0 0.05 0.05 0.04 0.0001
+    #magnetic_frill_source: z 0.05 0.05 0 50 my_pulse
+
+.. note::
+
+    * This source can be placed at a symmetry-plane corner declared with
+      ``#symmetry_boundary`` (for example a monopole fed at the domain origin,
+      to simulate only a quarter of the structure) - but only at the '0'-type
+      faces transverse to ``c1`` (``y0``/``z0`` for ``x`` polarisation,
+      ``z0``/``x0`` for ``y``, or ``x0``/``y0`` for ``z``); the corresponding
+      'max'-type symmetry corners are not yet supported.
+    * A feed point placed exactly at a domain-minimum boundary without the
+      matching ``#symmetry_boundary`` declared there is rejected outright,
+      since gprMax's underlying current-loop calculation cannot otherwise
+      distinguish "domain edge" from "symmetry plane".
+    * Two frill sources may not share a surrounding H edge. Such adjacent or
+      duplicate feeds form a coupled feed-cell system and cannot be advanced
+      as independent scalar terminal relations.
+    * This source is a "Path A" (through-ground-plane, continuous-conductor)
+      feed model. It is not intended for a dipole/bow-tie style gap feed
+      (:math:`E_z \neq 0` at the feed) - use ``#voltage_source`` for that case.
 
 #plane_wave_angles:
 ---------------------

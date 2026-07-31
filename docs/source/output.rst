@@ -27,9 +27,9 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``nports`` is the number of voltage-source S11/impedance outputs.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
-(``tls``), receivers (``rxs``), voltage-source ports (``ports``), and KSIR
-outputs (``ntff``) when requested. Within these are further groups for each
-named or numbered output.
+(``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
+voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
+Within these are further groups for each named or numbered output.
 
 .. code-block:: none
 
@@ -73,6 +73,25 @@ named or numbered output.
                 Zin_current
                 ...
             tl2/
+                ...
+        frills/ [optional]
+            frill1/
+                Position
+                Polarisation
+                Z0
+                Mirror1Face
+                Mirror2Face
+                Mirror1
+                Mirror2
+                Vinc
+                Vtotal
+                Itot
+                frequency
+                S11
+                Zin
+                Yin
+                ...
+            frill2/
                 ...
         ntff/ [optional]
             <monitor name>/
@@ -147,6 +166,47 @@ Within each individual ``tl`` group are the following datasets:
   ``mesh_valid``, ``line_propagation_valid``, ``incident_relative_dB``, and
   ``cells_per_minimum_wavelength`` provide the corresponding diagnostics.
 
+Within each individual ``frill`` group are the following attributes:
+
+* ``Position`` is the x, y, z position (in metres) of the feed point in the model.
+* ``Polarisation`` is the antenna axis the source drives current along
+  (``x``, ``y``, or ``z``).
+* ``Z0`` is the user-supplied characteristic impedance (``Zcoax``), and is
+  also the reference impedance used for S11.
+* ``InnerConductorRadius`` is the radius :math:`a` obtained from the mandatory
+  co-located ``#thin_wire``.
+* ``CurrentTimeApproximation`` is ``average`` for Hyun's recommended average
+  of the adjacent magnetic half-step currents.
+* ``FeedSelfAdmittance`` is the precomputed Cartesian feed-cell coefficient
+  :math:`G_f` (Siemens) used to solve the current feedback in closed form.
+* ``TimeOffset`` is zero: ``Vinc``, ``Vtotal``, and the averaged ``Itot`` are
+  all centred at integer electric-field times.
+* ``Mirror1Face`` and ``Mirror2Face`` name the two domain faces transverse to
+  ``Polarisation`` (for example ``x0``/``y0`` for a z-polarised source).
+  ``Mirror1`` and ``Mirror2`` record whether the feed point actually sits on
+  a symmetry-plane corner declared with ``#symmetry_boundary`` at that face.
+* ``SpectrumLimitMode``, ``MinimumWavelengthCells``,
+  ``MeshFrequencyLimit``, ``NyquistFrequency``, and ``LimitingMaterial``
+  describe the automatically selected frequency band, as for ``tl`` groups.
+* ``ZinPrimaryMethod`` identifies the voltage-wave S11 result as the primary
+  impedance calculation - there is no separate current-based cross-check
+  here, unlike a transmission line, since the frill's voltage and current
+  histories are solved together at the same instant, not staggered.
+
+Within each individual ``frill`` group are the following datasets:
+
+* ``Vinc`` is an array containing the time history of the incident voltage
+  (half the generator waveform).
+* ``Vtotal`` is an array containing the time history of the total terminal
+  voltage :math:`V_\mathrm{ab}`.
+* ``Itot`` is an array containing the time history of the total current at
+  the feed point, averaged from the adjacent magnetic half steps and
+  generalised for a symmetry-mirrored feed point.
+* ``frequency``, ``S11``, ``Zin``, ``Yin``, and their associated
+  ``valid_S11``/``valid_Zin``/``valid_Yin``/``source_valid``/``mesh_valid``/
+  ``incident_relative_dB``/``cells_per_minimum_wavelength`` diagnostics have
+  the same meaning as the corresponding ``tl`` datasets.
+
 Transmission-line S11 and impedance output
 -------------------------------------------
 
@@ -196,6 +256,45 @@ For example, the valid S11 and impedance bins can be read directly:
     s11_db = 20 * np.log10(np.abs(s11[valid]))
     resistance = zin.real[valid]
     reactance = zin.imag[valid]
+
+Magnetic-frill-source S11 and impedance output
+-----------------------------------------------
+
+S11, input impedance, and input admittance are generated automatically for
+every ``#magnetic_frill_source``, exactly as for a transmission line; no
+``#rx_port`` command or additional receiver is required (the electric field
+component along the polarisation axis is identically zero at the feed point
+by construction, so no field sample is possible there in the first place).
+With the frill's user-supplied characteristic impedance :math:`Z_0` as the
+reference impedance,
+
+.. math::
+
+    S_{11}=\frac{V_\mathrm{ab}-V_\mathrm{inc}}{V_\mathrm{inc}},
+    \qquad
+    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}},
+    \qquad
+    Y_\mathrm{in}=\frac{1-S_{11}}{Z_0(1+S_{11})}.
+
+Unlike a transmission line, there is no independent current-based
+cross-check: :math:`V_\mathrm{inc}`, :math:`V_\mathrm{ab}`, and
+:math:`I_\mathrm{tot}` are centred at the same integer time. The current is
+Hyun's average of the preceding and following magnetic half-step values; the
+following value depends on the voltage applied in that update, so gprMax
+solves the resulting feed-cell relation analytically. There is therefore no
+remaining leapfrog phase shift to de-embed. :math:`I_\mathrm{tot}` is formed
+directly from the mandatory thin wire's stored Mäkinen-projected H edges,
+consistent with the :math:`F k_H` source deposit. At every sample the stored
+histories satisfy
+
+.. math::
+
+    V_\mathrm{ab}=2V_\mathrm{inc}-Z_0 I_\mathrm{tot}.
+
+If ``#rx_port`` is placed at the same feed point, it does not create a
+second, independent measurement (unlike its role with ``#voltage_source``);
+it can only override the ``spectrum_limit`` of this always-on automatic
+output.
 
 Voltage-source S11 and impedance output
 ---------------------------------------
