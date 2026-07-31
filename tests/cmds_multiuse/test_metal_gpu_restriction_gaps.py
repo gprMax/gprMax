@@ -6,14 +6,10 @@ feature they gate:
 1. TransmissionLine._validate_parameters() rejects transmission lines on
    OpenCL and Metal until their host-side lifecycle is enabled. CUDA has a
    device-resident implementation.
-2. Rx.build()'s allowable-outputs check restricts CUDA/OpenCL receivers to
-   the 6 field components the shared GPU kernel
-   (gprMax/cuda_opencl/knl_store_outputs.py) actually writes, but Metal
-   (which uses that exact same shared kernel/args_metal template) fell
-   through to the full CPU list including Ix/Iy/Iz - accepted at parse
-   time, then raised a late, confusing ValueError from
-   Rx.allowableoutputs_dev.index() during output finalisation instead of
-   a clean upfront rejection.
+2. Rx.build() applies the same allowable-output list to CUDA, OpenCL, and
+   Metal. Device solvers now support packed, requested-only Ix/Iy/Iz output,
+   so the current components must be accepted consistently on all four
+   solvers.
 
 Both are fixed by adding "metal" to the respective solver-name lists.
 Follows the established pattern (see tests/test_receivers_dtoh.py) of
@@ -63,23 +59,15 @@ def test_transmission_line_is_allowed_on_cuda(monkeypatch):
     tl._validate_parameters(grid)
 
 
-@pytest.mark.parametrize("solver", ["cuda", "opencl", "metal"])
-def test_current_output_rejected_on_every_gpu_solver(monkeypatch, solver):
+@pytest.mark.parametrize("solver", ["cuda", "opencl", "metal", "cpu"])
+def test_current_output_allowed_on_every_solver(monkeypatch, solver):
     _set_solver(monkeypatch, solver)
 
     rx = Rx(p1=(0.01, 0.01, 0.01), id="r1", outputs=["Ix"])
 
-    with pytest.raises(ValueError, match="not allowable"):
-        rx._create_receiver(grid=None, coord=np.array([1, 1, 1], dtype=np.int32))
-
-
-def test_current_output_still_allowed_on_cpu(monkeypatch):
-    _set_solver(monkeypatch, "cpu")
-
     class _Grid:
         iterations = 5
 
-    rx = Rx(p1=(0.01, 0.01, 0.01), id="r1", outputs=["Ix"])
     r = rx._create_receiver(grid=_Grid(), coord=np.array([1, 1, 1], dtype=np.int32))
 
     assert "Ix" in r.outputs

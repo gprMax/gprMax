@@ -47,6 +47,7 @@ from .user_objects.cmds_multiuse import (
 from .user_objects.cmds_output import (
     GeometryObjectsWrite,
     GeometryView,
+    KSIRAntennaPorts,
     KSIRFarField,
     KSIRFarFieldArray,
     KSIRFrequencyRx,
@@ -101,7 +102,7 @@ def process_multicmds(multicmds):
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
                 )
-            elif len(tmp) == 8:
+            elif len(tmp) in (8, 9):
                 voltage_source = VoltageSource(
                     polarisation=tmp[0].lower(),
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -109,10 +110,16 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[5],
                     start=float(tmp[6]),
                     stop=float(tmp[7]),
+                    reference_impedance=float(tmp[8]) if len(tmp) == 9 else None,
                 )
             else:
                 logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least six parameters"
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " requires six, eight, or nine parameters"
                 )
                 raise ValueError
 
@@ -488,12 +495,12 @@ def process_multicmds(multicmds):
             if len(tokens) < 3 or len(tokens) > 5:
                 raise ValueError(
                     f"'{cmdname}: {cmdinstance}' requires three coordinates, "
-                    "an optional ID, and one optional spectrum limit"
+                    "an optional ID and spectrum limit"
                 )
             kwargs = {}
             if len(tokens) >= 4:
                 kwargs["id"] = tokens[3]
-            if len(tokens) == 5:
+            if len(tokens) >= 5:
                 try:
                     kwargs["spectrum_limit"] = float(tokens[4])
                 except ValueError:
@@ -578,6 +585,21 @@ def process_multicmds(multicmds):
                     id=tokens[1],
                     frequencies=tuple(float(value) for value in tokens[2:]),
                     window=window,
+                )
+            )
+
+    cmdname = "#ksir_antenna_ports"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 2:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs"
+                )
+            scene_objects.append(
+                KSIRAntennaPorts(
+                    transform_id=tokens[0],
+                    port_ids=tuple(tokens[1:]),
                 )
             )
 

@@ -352,6 +352,9 @@ class VoltageSource(RotatableMixin, GridUserObject):
         waveform_id: string required for identifier of waveform used with source.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
+        reference_impedance: float optional wave-reference impedance (Ohms)
+            for a hard source. The default is 50 Ohms. For a finite-
+            resistance source it must equal the source resistance.
     """
 
     @property
@@ -370,6 +373,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
         waveform_id: str,
         start: Optional[float] = None,
         stop: Optional[float] = None,
+        reference_impedance: Optional[float] = None,
     ):
         super().__init__(
             polarisation=polarisation,
@@ -378,6 +382,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
             waveform_id=waveform_id,
             start=start,
             stop=stop,
+            reference_impedance=reference_impedance,
         )
 
         self.point = p1
@@ -386,6 +391,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
         self.waveform_id = waveform_id
         self.start = start
         self.stop = stop
+        self.reference_impedance = reference_impedance
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
@@ -455,6 +461,19 @@ class VoltageSource(RotatableMixin, GridUserObject):
             raise ValueError(
                 f"{self.params_str()} requires a source resistance of zero or greater."
             )
+        if self.reference_impedance is not None:
+            self.reference_impedance = float(self.reference_impedance)
+            if not np.isfinite(self.reference_impedance) or self.reference_impedance <= 0:
+                raise ValueError(
+                    f"{self.params_str()} reference impedance must be finite and positive."
+                )
+            if self.resistance > 0 and not np.isclose(
+                self.reference_impedance, self.resistance
+            ):
+                raise ValueError(
+                    f"{self.params_str()} reference impedance must equal the finite "
+                    "source resistance."
+                )
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
@@ -488,6 +507,11 @@ class VoltageSource(RotatableMixin, GridUserObject):
         x, y, z = uip.discretise_static_point(self.point)
         voltage_source.ID = f"{voltage_source.__class__.__name__}({x},{y},{z})"
         voltage_source.resistance = self.resistance
+        voltage_source.reference_impedance = (
+            float(self.reference_impedance)
+            if self.reference_impedance is not None
+            else (50.0 if self.resistance == 0 else float(self.resistance))
+        )
         voltage_source.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:

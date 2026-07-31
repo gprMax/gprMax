@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -270,6 +270,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#ksir_frequency_rx_array",
             "#ksir_far_field",
             "#ksir_far_field_array",
+            "#ksir_antenna_ports",
             "#pml_cfs",
             "#symmetry_boundary",
             "#include_file",

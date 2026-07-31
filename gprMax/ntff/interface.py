@@ -19,7 +19,8 @@
 
 """Compiled reusable-surface interface for KSIR field transformations."""
 
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Mapping, Optional, Sequence
 
@@ -28,6 +29,11 @@ import numpy.typing as npt
 from scipy.constants import c, epsilon_0, mu_0
 
 import gprMax.config as config
+from gprMax.ntff.antenna import (
+    directivity_from_intensity,
+    radiation_intensity,
+    spherical_quadrature,
+)
 from gprMax.ntff.closures import SymmetryCompletion, resolve_closure
 from gprMax.ntff.conventions import (
     FORWARD_TRANSFORM_KERNEL,
@@ -46,6 +52,9 @@ from gprMax.ntff.frequency_domain import (
 )
 from gprMax.ntff.surfaces import COMPONENT_OFFSETS, COMPONENTS, build_component_surface
 from gprMax.ntff.time_domain import KSIRTimeDomainMonitor
+from gprMax.ports import evaluate_port_power_spectrum, port_output_registry
+
+logger = logging.getLogger(__name__)
 
 ELECTRIC_COMPONENTS = ("Ex", "Ey", "Ez")
 MAGNETIC_COMPONENTS = ("Hx", "Hy", "Hz")
@@ -58,9 +67,19 @@ SPHERICAL_OUTPUTS = (
     "Htheta",
     "Hphi",
 )
-FAR_METRICS = ("radiation_intensity", "rcs")
+DIRECTIVITY_OUTPUTS = ("directivity", "directivity_dbi")
+GAIN_OUTPUTS = ("gain", "gain_dbi", "realized_gain", "realized_gain_dbi")
+EFFICIENCY_OUTPUTS = ("radiation_efficiency", "total_efficiency")
+PORT_METRICS = GAIN_OUTPUTS + EFFICIENCY_OUTPUTS
+FAR_METRICS = (
+    ("radiation_intensity", "rcs") + DIRECTIVITY_OUTPUTS + GAIN_OUTPUTS + EFFICIENCY_OUTPUTS
+)
 TIME_ORIGINS = ("simulation", "first_arrival")
 WINDOWS = ("rectangular", "hann")
+# Post-processing block sizes are derived per transform from this cache-sized
+# working-set target. It is a performance bound, not a model-size limit.
+FAR_ZONE_TARGET_WORKING_SET_BYTES = 32 * 1024 * 1024
+MAX_FAR_ZONE_DIRECTION_BLOCK = 1024
 
 
 def _readonly(values: npt.ArrayLike, dtype=None) -> npt.NDArray:
@@ -118,6 +137,12 @@ class KSIRFrequencyTransformSpec:
     window: str = "rectangular"
     save_surface_dft: bool = True
     plane_wave_index: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class KSIRAntennaPortsSpec:
+    transform_id: str
+    port_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -200,7 +225,84 @@ class KSIRFarFieldResult:
     directions: npt.NDArray[np.floating]
     fields: Mapping[str, npt.NDArray]
     origin: npt.NDArray[np.floating]
+    radiation_metrics: Optional["KSIRRadiationMetrics"]
+    port_metrics: Optional["KSIRPortMetrics"]
     range_normalized: bool = True
+
+
+@dataclass(frozen=True)
+class KSIRRadiationMetrics:
+    """Full-sphere quantities shared by far-field cuts and points."""
+
+    radiated_power: npt.NDArray[np.floating]
+    maximum_directivity: npt.NDArray[np.floating]
+    maximum_directivity_dbi: npt.NDArray[np.floating]
+    maximum_theta: npt.NDArray[np.floating]
+    maximum_phi: npt.NDArray[np.floating]
+    theta_order: int
+    phi_order: int
+    enclosure_radius: float
+
+
+def _refine_radiation_maximum(
+    metrics: KSIRRadiationMetrics,
+    intensity: npt.NDArray[np.floating],
+    theta: npt.NDArray[np.floating],
+    phi: npt.NDArray[np.floating],
+) -> KSIRRadiationMetrics:
+    """Include any more accurately sampled requested peak in the summary."""
+
+    local_index = np.argmax(intensity, axis=1)
+    local_intensity = intensity[np.arange(intensity.shape[0]), local_index]
+    local_directivity, local_directivity_dbi = directivity_from_intensity(
+        local_intensity[:, np.newaxis],
+        metrics.radiated_power,
+    )
+    local_directivity = local_directivity[:, 0]
+    local_directivity_dbi = local_directivity_dbi[:, 0]
+    update = np.isfinite(local_directivity) & (
+        local_directivity > metrics.maximum_directivity
+    )
+    if not np.any(update):
+        return metrics
+
+    maximum_directivity = np.array(metrics.maximum_directivity, copy=True)
+    maximum_directivity_dbi = np.array(metrics.maximum_directivity_dbi, copy=True)
+    maximum_theta = np.array(metrics.maximum_theta, copy=True)
+    maximum_phi = np.array(metrics.maximum_phi, copy=True)
+    maximum_directivity[update] = local_directivity[update]
+    maximum_directivity_dbi[update] = local_directivity_dbi[update]
+    maximum_theta[update] = theta[local_index[update]]
+    maximum_phi[update] = phi[local_index[update]]
+    return replace(
+        metrics,
+        maximum_directivity=_readonly(maximum_directivity),
+        maximum_directivity_dbi=_readonly(maximum_directivity_dbi),
+        maximum_theta=_readonly(maximum_theta),
+        maximum_phi=_readonly(maximum_phi),
+    )
+
+
+@dataclass(frozen=True)
+class KSIRPortMetrics:
+    """Exact-frequency powers for one coherently excited antenna port set."""
+
+    port_ids: tuple[str, ...]
+    source_types: tuple[str, ...]
+    reference_impedances: npt.NDArray[np.floating]
+    incident_voltage_per_port: npt.NDArray[np.complexfloating]
+    terminal_voltage_per_port: npt.NDArray[np.complexfloating]
+    terminal_current_per_port: npt.NDArray[np.complexfloating]
+    incident_power_per_port: npt.NDArray[np.floating]
+    accepted_power_per_port: npt.NDArray[np.floating]
+    incident_power: npt.NDArray[np.floating]
+    accepted_power: npt.NDArray[np.floating]
+    reflected_power: npt.NDArray[np.floating]
+    incident_relative_db: npt.NDArray[np.floating]
+    mesh_valid: npt.NDArray[np.bool_]
+    terminal_valid: npt.NDArray[np.bool_]
+    gain_valid: npt.NDArray[np.bool_]
+    realized_gain_valid: npt.NDArray[np.bool_]
 
 
 @dataclass(frozen=True)
@@ -389,6 +491,7 @@ def validate_ksir_source_enclosure(grid) -> None:
         ("hertziandipoles", "E"),
         ("magneticdipoles", "H"),
         ("transmissionlines", "E"),
+        ("magneticfrillsources", "E"),
     )
     for monitor in grid.ntff_monitors:
         if getattr(monitor, "allow_external_sources", False):
@@ -480,16 +583,28 @@ def _project_frequency_fields(
 class KSIRCompiledOutputs:
     """Own grouped monitors and expose per-command results/HDF5 output."""
 
-    def __init__(self, grid, surfaces, transforms, time_requests, frequency_requests, far_requests):
+    def __init__(
+        self,
+        grid,
+        surfaces,
+        transforms,
+        time_requests,
+        frequency_requests,
+        far_requests,
+        antenna_port_specs,
+    ):
         self.grid = grid
         self.surfaces = surfaces
         self.transforms = transforms
         self.time_requests = {item.key: item for item in time_requests}
         self.frequency_requests = {item.key: item for item in frequency_requests}
         self.far_requests = {item.key: item for item in far_requests}
+        self.antenna_port_specs = dict(antenna_port_specs)
         self.time_bindings = {}
         self.frequency_monitors = {}
         self._results = {}
+        self._radiation_cache = {}
+        self._port_cache = {}
 
     def result_for(self, key: str):
         if key not in self._results:
@@ -505,6 +620,211 @@ class KSIRCompiledOutputs:
 
     def transform_monitor(self, transform_id: str):
         return self.frequency_monitors[transform_id]
+
+    @staticmethod
+    def _enclosure_radius(compiled: _CompiledSurface) -> float:
+        radius = 0.0
+        for component, surface in compiled.surfaces.items():
+            for image in compiled.closure.component_images(component):
+                positions, _ = image.transform(
+                    surface.patch_positions,
+                    surface.normals,
+                )
+                radius = max(
+                    radius,
+                    float(
+                        np.max(
+                            np.linalg.norm(
+                                positions - compiled.origin[np.newaxis, :],
+                                axis=1,
+                            )
+                        )
+                    ),
+                )
+        if radius <= 0:
+            raise RuntimeError("KSIR surface has no finite angular extent")
+        return radius
+
+    def _radiation_metrics(self, transform_id: str) -> KSIRRadiationMetrics:
+        """Integrate a temporary full sphere without retaining its fields."""
+
+        if transform_id in self._radiation_cache:
+            return self._radiation_cache[transform_id]
+        monitor = self.frequency_monitors[transform_id]
+        transform = self.transforms[transform_id]
+        compiled = self.surfaces[transform.surface_id]
+        radius = self._enclosure_radius(compiled)
+        maximum_wavenumber = (
+            2 * np.pi * float(np.max(monitor.frequencies, initial=0)) / monitor.wave_speed
+        )
+        quadrature = spherical_quadrature(
+            radius,
+            maximum_wavenumber,
+            monitor.real_dtype,
+        )
+        logger.info(
+            f"KSIR transform {transform_id!r}: evaluating {quadrature.theta.size} "
+            f"temporary full-sphere directions ({quadrature.theta_order} x "
+            f"{quadrature.phi_order}) for radiation normalisation"
+        )
+        nfrequencies = monitor.frequencies.size
+        radiated_power = np.zeros(nfrequencies, dtype=monitor.real_dtype)
+        maximum_intensity = np.full(nfrequencies, -np.inf, dtype=monitor.real_dtype)
+        maximum_theta = np.full(nfrequencies, np.nan, dtype=monitor.real_dtype)
+        maximum_phi = np.full(nfrequencies, np.nan, dtype=monitor.real_dtype)
+
+        complex_bytes = np.dtype(monitor.complex_dtype).itemsize
+        real_bytes = np.dtype(monitor.real_dtype).itemsize
+        bytes_per_direction = max(1, nfrequencies) * (8 * complex_bytes + 2 * real_bytes)
+        direction_block_size = max(
+            1,
+            min(
+                MAX_FAR_ZONE_DIRECTION_BLOCK,
+                FAR_ZONE_TARGET_WORKING_SET_BYTES // bytes_per_direction,
+            ),
+        )
+        for start in range(0, quadrature.theta.size, direction_block_size):
+            stop = min(start + direction_block_size, quadrature.theta.size)
+            theta = quadrature.theta[start:stop]
+            phi = quadrature.phi[start:stop]
+            directions = spherical_directions(theta, phi, degrees=True)
+            cartesian = []
+            for component in ELECTRIC_COMPONENTS:
+                data = monitor.surface_data[component]
+                values, _ = _evaluate_component_with_closure(
+                    data.surface,
+                    data.field,
+                    data.normal_derivative,
+                    compiled.closure,
+                    monitor.frequencies,
+                    directions,
+                    monitor.wave_speed,
+                    compiled.origin,
+                    monitor.nthreads,
+                    retain_face_contributions=False,
+                )
+                cartesian.append(values)
+            intensity = radiation_intensity(
+                np.stack(cartesian, axis=-1),
+                theta,
+                phi,
+                monitor.impedance,
+            )
+            radiated_power += np.sum(
+                intensity * quadrature.weights[np.newaxis, start:stop],
+                axis=1,
+            )
+            local_index = np.argmax(intensity, axis=1)
+            local_maximum = intensity[np.arange(nfrequencies), local_index]
+            update = local_maximum > maximum_intensity
+            maximum_intensity[update] = local_maximum[update]
+            maximum_theta[update] = theta[local_index[update]]
+            maximum_phi[update] = phi[local_index[update]]
+
+        maximum_directivity, maximum_directivity_dbi = directivity_from_intensity(
+            maximum_intensity[:, np.newaxis],
+            radiated_power,
+        )
+        valid_pattern = np.isfinite(radiated_power) & (radiated_power > 0)
+        maximum_theta[~valid_pattern] = np.nan
+        maximum_phi[~valid_pattern] = np.nan
+        result = KSIRRadiationMetrics(
+            radiated_power=_readonly(radiated_power),
+            maximum_directivity=_readonly(maximum_directivity[:, 0]),
+            maximum_directivity_dbi=_readonly(maximum_directivity_dbi[:, 0]),
+            maximum_theta=_readonly(maximum_theta),
+            maximum_phi=_readonly(maximum_phi),
+            theta_order=quadrature.theta_order,
+            phi_order=quadrature.phi_order,
+            enclosure_radius=quadrature.enclosure_radius,
+        )
+        self._radiation_cache[transform_id] = result
+        return result
+
+    def _port_metrics(self, transform_id: str) -> KSIRPortMetrics:
+        if transform_id in self._port_cache:
+            return self._port_cache[transform_id]
+        if transform_id not in self.antenna_port_specs:
+            raise RuntimeError(f"KSIR transform {transform_id!r} has no antenna-port association")
+        spec = self.antenna_port_specs[transform_id]
+        monitor = self.frequency_monitors[transform_id]
+        registry = port_output_registry(self.grid)
+        spectra = [
+            evaluate_port_power_spectrum(
+                registry[port_id],
+                self.grid,
+                monitor.frequencies,
+                window=self.transforms[transform_id].window,
+            )
+            for port_id in spec.port_ids
+        ]
+        incident_voltage_per_port = np.stack([item.incident_voltage for item in spectra])
+        terminal_voltage_per_port = np.stack([item.terminal_voltage for item in spectra])
+        terminal_current_per_port = np.stack([item.terminal_current for item in spectra])
+        incident_per_port = np.stack([item.incident_power for item in spectra])
+        accepted_per_port = np.stack([item.accepted_power for item in spectra])
+        incident_power = np.sum(incident_per_port, axis=0, dtype=monitor.real_dtype)
+        accepted_power = np.sum(accepted_per_port, axis=0, dtype=monitor.real_dtype)
+        reflected_power = np.asarray(
+            incident_power - accepted_power,
+            dtype=monitor.real_dtype,
+        )
+        mesh_valid = np.logical_and.reduce([item.mesh_valid for item in spectra])
+        terminal_valid = np.logical_and.reduce([item.terminal_valid for item in spectra])
+
+        incident_relative_db = np.full(
+            incident_power.shape,
+            -np.inf,
+            dtype=monitor.real_dtype,
+        )
+        incident_peak = float(np.max(incident_power, initial=0.0))
+        if incident_peak > 0:
+            nonzero = incident_power > 0
+            incident_relative_db[nonzero] = np.asarray(
+                10 * np.log10(incident_power[nonzero] / incident_peak),
+                dtype=monitor.real_dtype,
+            )
+        source_valid = incident_relative_db >= -40
+        scale = max(
+            incident_peak,
+            float(np.max(np.abs(accepted_power), initial=0.0)),
+        )
+        threshold = 64 * np.finfo(monitor.real_dtype).eps * scale
+        common_valid = mesh_valid & terminal_valid & source_valid
+        gain_valid = common_valid & (accepted_power > threshold)
+        realized_gain_valid = common_valid & (incident_power > threshold)
+        result = KSIRPortMetrics(
+            port_ids=spec.port_ids,
+            source_types=tuple(item.source_type for item in spectra),
+            reference_impedances=_readonly(
+                [item.reference_impedance for item in spectra],
+                monitor.real_dtype,
+            ),
+            incident_voltage_per_port=_readonly(
+                incident_voltage_per_port,
+                monitor.complex_dtype,
+            ),
+            terminal_voltage_per_port=_readonly(
+                terminal_voltage_per_port,
+                monitor.complex_dtype,
+            ),
+            terminal_current_per_port=_readonly(
+                terminal_current_per_port,
+                monitor.complex_dtype,
+            ),
+            incident_power_per_port=_readonly(incident_per_port, monitor.real_dtype),
+            accepted_power_per_port=_readonly(accepted_per_port, monitor.real_dtype),
+            incident_power=_readonly(incident_power, monitor.real_dtype),
+            accepted_power=_readonly(accepted_power, monitor.real_dtype),
+            reflected_power=_readonly(reflected_power, monitor.real_dtype),
+            incident_relative_db=_readonly(incident_relative_db, monitor.real_dtype),
+            mesh_valid=_readonly(mesh_valid, bool),
+            terminal_valid=_readonly(terminal_valid, bool),
+            gain_valid=_readonly(gain_valid, bool),
+            realized_gain_valid=_readonly(realized_gain_valid, bool),
+        )
+        self._port_cache[transform_id] = result
+        return result
 
     def _time_result(self, spec: KSIRTimeRequestSpec) -> KSIRTimeReceiverResult:
         monitor, point_slice = self.time_bindings[spec.key]
@@ -615,18 +935,100 @@ class KSIRCompiledOutputs:
                 directions,
                 monitor.wave_speed,
                 compiled_surface.origin,
+                monitor.nthreads,
             )
             cartesian[component] = values
         ordinary_outputs = [item for item in spec.outputs if item not in FAR_METRICS]
         fields = _project_frequency_fields(cartesian, ordinary_outputs, spec.theta, spec.phi)
+        radiation_metrics = None
+        port_metrics = None
         if any(item in spec.outputs for item in FAR_METRICS):
             electric = np.stack([cartesian[item] for item in ELECTRIC_COMPONENTS], axis=-1)
-            spherical = project_cartesian_to_spherical(electric, spec.theta, spec.phi, degrees=True)
-            tangential_squared = np.abs(spherical[:, :, 1]) ** 2 + np.abs(spherical[:, :, 2]) ** 2
+            intensity = radiation_intensity(
+                electric,
+                spec.theta,
+                spec.phi,
+                monitor.impedance,
+            )
             if "radiation_intensity" in spec.outputs:
-                fields["radiation_intensity"] = _readonly(
-                    0.5 * tangential_squared / monitor.impedance,
-                    monitor.real_dtype,
+                fields["radiation_intensity"] = _readonly(intensity, monitor.real_dtype)
+            if any(item in spec.outputs for item in DIRECTIVITY_OUTPUTS):
+                radiation_metrics = self._radiation_metrics(spec.transform_id)
+                directivity, directivity_dbi = directivity_from_intensity(
+                    intensity,
+                    radiation_metrics.radiated_power,
+                )
+                if "directivity" in spec.outputs:
+                    fields["directivity"] = _readonly(directivity, monitor.real_dtype)
+                if "directivity_dbi" in spec.outputs:
+                    fields["directivity_dbi"] = _readonly(
+                        directivity_dbi,
+                        monitor.real_dtype,
+                    )
+            if any(item in spec.outputs for item in PORT_METRICS):
+                port_metrics = self._port_metrics(spec.transform_id)
+                if any(item in spec.outputs for item in GAIN_OUTPUTS):
+                    gain, gain_dbi = directivity_from_intensity(
+                        intensity,
+                        port_metrics.accepted_power,
+                    )
+                    gain[~port_metrics.gain_valid] = np.nan
+                    gain_dbi[~port_metrics.gain_valid] = np.nan
+                    realized_gain, realized_gain_dbi = directivity_from_intensity(
+                        intensity,
+                        port_metrics.incident_power,
+                    )
+                    realized_gain[~port_metrics.realized_gain_valid] = np.nan
+                    realized_gain_dbi[~port_metrics.realized_gain_valid] = np.nan
+                    for name, values in (
+                        ("gain", gain),
+                        ("gain_dbi", gain_dbi),
+                        ("realized_gain", realized_gain),
+                        ("realized_gain_dbi", realized_gain_dbi),
+                    ):
+                        if name in spec.outputs:
+                            fields[name] = _readonly(values, monitor.real_dtype)
+                if any(item in spec.outputs for item in EFFICIENCY_OUTPUTS):
+                    if radiation_metrics is None:
+                        radiation_metrics = self._radiation_metrics(spec.transform_id)
+                    radiation_efficiency = np.full(
+                        monitor.frequencies.shape,
+                        np.nan,
+                        dtype=monitor.real_dtype,
+                    )
+                    total_efficiency = np.full_like(radiation_efficiency, np.nan)
+                    radiation_efficiency[port_metrics.gain_valid] = (
+                        radiation_metrics.radiated_power[port_metrics.gain_valid]
+                        / port_metrics.accepted_power[port_metrics.gain_valid]
+                    )
+                    total_efficiency[port_metrics.realized_gain_valid] = (
+                        radiation_metrics.radiated_power[port_metrics.realized_gain_valid]
+                        / port_metrics.incident_power[port_metrics.realized_gain_valid]
+                    )
+                    efficiency_tolerance = max(
+                        0.02,
+                        512 * np.finfo(monitor.real_dtype).eps,
+                    )
+                    if np.any(
+                        radiation_efficiency[np.isfinite(radiation_efficiency)]
+                        > 1 + efficiency_tolerance
+                    ):
+                        logger.warning(
+                            "KSIR radiation efficiency exceeds unity for output %s; "
+                            "check the integration surface, time window, mesh, and "
+                            "port definitions",
+                            spec.output_id,
+                        )
+                    if "radiation_efficiency" in spec.outputs:
+                        fields["radiation_efficiency"] = _readonly(radiation_efficiency)
+                    if "total_efficiency" in spec.outputs:
+                        fields["total_efficiency"] = _readonly(total_efficiency)
+            if radiation_metrics is not None:
+                radiation_metrics = _refine_radiation_maximum(
+                    radiation_metrics,
+                    intensity,
+                    spec.theta,
+                    spec.phi,
                 )
             if "rcs" in spec.outputs:
                 incident = monitor.result.incident_electric
@@ -635,6 +1037,7 @@ class KSIRCompiledOutputs:
                         "RCS output requires a KSIR surface enclosing one TFSF plane wave"
                     )
                 incident_power = np.sum(np.abs(incident) ** 2, axis=1)
+                tangential_squared = 2 * monitor.impedance * intensity
                 rcs = np.full(tangential_squared.shape, np.nan, dtype=monitor.real_dtype)
                 valid = incident_power > 0
                 rcs[valid] = (
@@ -649,6 +1052,8 @@ class KSIRCompiledOutputs:
             directions=directions,
             fields=MappingProxyType(fields),
             origin=compiled_surface.origin,
+            radiation_metrics=radiation_metrics,
+            port_metrics=port_metrics,
         )
 
     def _write_surface_metadata(self, group, compiled: _CompiledSurface):
@@ -765,6 +1170,49 @@ class KSIRCompiledOutputs:
             group["theta"] = result.theta
             group["phi"] = result.phi
             group["directions"] = result.directions
+            if result.radiation_metrics is not None:
+                metrics = result.radiation_metrics
+                group.attrs["radiation_quadrature"] = "Gauss-Legendre theta, periodic phi"
+                group.attrs["radiation_spectral_power_units"] = "W s^2"
+                group.attrs["radiation_quadrature_theta_order"] = metrics.theta_order
+                group.attrs["radiation_quadrature_phi_order"] = metrics.phi_order
+                group.attrs[
+                    "maximum_directivity_sampling"
+                ] = "full-sphere quadrature plus requested directions"
+                group.attrs["radiation_enclosure_radius"] = metrics.enclosure_radius
+                group.attrs["radiation_enclosure_radius_units"] = "m"
+                group["radiated_power"] = metrics.radiated_power
+                group["maximum_directivity"] = metrics.maximum_directivity
+                group["maximum_directivity_dbi"] = metrics.maximum_directivity_dbi
+                group["maximum_directivity_theta"] = metrics.maximum_theta
+                group["maximum_directivity_phi"] = metrics.maximum_phi
+            if result.port_metrics is not None:
+                metrics = result.port_metrics
+                power_group = group.create_group("port_power")
+                power_group.attrs[
+                    "accepted_power_definition"
+                ] = "sum(0.5*Re(Vterminal*conj(Iterminal)))"
+                power_group.attrs["incident_power_definition"] = "sum(abs(Vincident)**2/(2*Z0))"
+                power_group.attrs["incident_floor_db"] = -40.0
+                power_group.attrs["voltage_spectrum_units"] = "V s"
+                power_group.attrs["current_spectrum_units"] = "A s"
+                power_group.attrs["spectral_power_units"] = "W s^2"
+                power_group["port_ids"] = np.asarray(metrics.port_ids, dtype="S64")
+                power_group["source_types"] = np.asarray(metrics.source_types, dtype="S40")
+                power_group["reference_impedances"] = metrics.reference_impedances
+                power_group["incident_voltage_per_port"] = metrics.incident_voltage_per_port
+                power_group["terminal_voltage_per_port"] = metrics.terminal_voltage_per_port
+                power_group["terminal_current_per_port"] = metrics.terminal_current_per_port
+                power_group["incident_power_per_port"] = metrics.incident_power_per_port
+                power_group["accepted_power_per_port"] = metrics.accepted_power_per_port
+                power_group["incident_power"] = metrics.incident_power
+                power_group["accepted_power"] = metrics.accepted_power
+                power_group["reflected_power"] = metrics.reflected_power
+                power_group["incident_relative_db"] = metrics.incident_relative_db
+                power_group["mesh_valid"] = metrics.mesh_valid.astype(np.uint8)
+                power_group["terminal_valid"] = metrics.terminal_valid.astype(np.uint8)
+                power_group["gain_valid"] = metrics.gain_valid.astype(np.uint8)
+                power_group["realized_gain_valid"] = metrics.realized_gain_valid.astype(np.uint8)
             self._write_fields(group, result)
 
 
@@ -822,6 +1270,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
     time_requests = list(getattr(grid, "ksir_time_requests", ()))
     frequency_requests = list(getattr(grid, "ksir_frequency_requests", ()))
     far_requests = list(getattr(grid, "ksir_far_field_requests", ()))
+    antenna_port_specs = dict(getattr(grid, "ksir_antenna_port_specs", {}))
     if not (
         surface_specs or transform_specs or time_requests or frequency_requests or far_requests
     ):
@@ -855,6 +1304,66 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             raise ValueError(
                 f"KSIR output {request.output_id!r} refers to unknown transform "
                 f"{request.transform_id!r}"
+            )
+
+    gain_transforms = {
+        request.transform_id
+        for request in far_requests
+        if any(output in PORT_METRICS for output in request.outputs)
+    }
+    for transform_id in gain_transforms:
+        if transform_id not in antenna_port_specs:
+            raise ValueError(
+                f"KSIR transform {transform_id!r} requests gain or efficiency "
+                "without a #ksir_antenna_ports association"
+            )
+        transform = transform_specs[transform_id]
+        if transform.window != "rectangular":
+            raise ValueError(
+                f"KSIR transform {transform_id!r} requests gain with window "
+                f"{transform.window!r}; antenna gain currently requires rectangular"
+            )
+
+        expected_ids = [monitor.output_id for monitor in grid.port_monitors]
+        expected_ids.extend(f"tl{index}" for index, _ in enumerate(grid.transmissionlines, start=1))
+        expected_ids.extend(
+            f"frill{index}" for index, _ in enumerate(grid.magneticfrillsources, start=1)
+        )
+        if len(set(expected_ids)) != len(expected_ids):
+            raise ValueError("antenna port IDs are ambiguous across source types")
+        requested_ids = set(antenna_port_specs[transform_id].port_ids)
+        missing = set(expected_ids) - requested_ids
+        if missing:
+            raise ValueError(
+                f"KSIR antenna-port group for transform {transform_id!r} must "
+                f"include every physical port; missing {sorted(missing)}"
+            )
+        monitored_voltage_sources = {
+            monitor.source for monitor in getattr(grid, "port_monitors", ())
+        }
+        unmonitored_voltage_sources = [
+            source for source in grid.voltagesources if source not in monitored_voltage_sources
+        ]
+        if unmonitored_voltage_sources:
+            raise ValueError(
+                "antenna gain requires an #rx_port for every voltage source; "
+                f"found {len(unmonitored_voltage_sources)} unmonitored source(s)"
+            )
+
+        def source_is_active(source):
+            for name in ("waveformvalues_wholedt", "waveformvalues_halfdt"):
+                values = getattr(source, name, None)
+                if values is not None and np.any(np.asarray(values) != 0):
+                    return True
+            return False
+
+        nonport_sources = list(grid.hertziandipoles) + list(grid.magneticdipoles)
+        nonport_sources.extend(getattr(grid, "discreteplanewaves", ()))
+        active_nonport = [source for source in nonport_sources if source_is_active(source)]
+        if active_nonport:
+            raise ValueError(
+                "antenna gain cannot be normalised while active non-port sources "
+                f"contribute to the field; found {len(active_nonport)} source(s)"
             )
 
     needed_surface_ids = {item.surface_id for item in transform_specs.values()}
@@ -899,6 +1408,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
         time_requests,
         frequency_requests,
         far_requests,
+        antenna_port_specs,
     )
 
     groups = {}

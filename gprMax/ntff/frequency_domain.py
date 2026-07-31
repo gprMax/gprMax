@@ -255,7 +255,12 @@ def _evaluate_component_with_closure(
     directions: npt.ArrayLike,
     wave_speed: float,
     origin: npt.ArrayLike,
-) -> tuple[npt.NDArray[np.complexfloating], npt.NDArray[np.complexfloating]]:
+    nthreads: int = 1,
+    retain_face_contributions: bool = True,
+) -> tuple[
+    npt.NDArray[np.complexfloating],
+    Optional[npt.NDArray[np.complexfloating]],
+]:
     """Evaluate one component and retain contributions by physical face."""
 
     field_values = np.asarray(field)
@@ -268,9 +273,13 @@ def _evaluate_component_with_closure(
     total = np.zeros(
         (frequency_values.size, direction_values.shape[0]), dtype=result_dtype
     )
-    face_contributions = np.zeros(
-        (frequency_values.size, direction_values.shape[0], len(FACES)),
-        dtype=result_dtype,
+    face_contributions = (
+        np.zeros(
+            (frequency_values.size, direction_values.shape[0], len(FACES)),
+            dtype=result_dtype,
+        )
+        if retain_face_contributions
+        else None
     )
     for (
         face_id,
@@ -294,10 +303,14 @@ def _evaluate_component_with_closure(
             image_derivative,
             wave_speed=wave_speed,
             origin=origin,
+            nthreads=nthreads,
         )
         total += contribution
-        face_contributions[:, :, FACES.index(face_id)] += contribution
-    return _readonly(total), _readonly(face_contributions)
+        if face_contributions is not None:
+            face_contributions[:, :, FACES.index(face_id)] += contribution
+    return _readonly(total), (
+        None if face_contributions is None else _readonly(face_contributions)
+    )
 
 
 class _ComponentDFTAccumulator:
@@ -1071,6 +1084,7 @@ class KSIRFrequencyDomainMonitor:
                 self.directions,
                 self.wave_speed,
                 self.origin,
+                self.nthreads,
             )
             fields[component] = values
             face_contributions[component] = contributions

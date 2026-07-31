@@ -201,3 +201,65 @@ def test_exact_receiver_validation_uses_full_patch_support():
 
     with pytest.raises(ValueError, match="strictly outside"):
         _validate_external_points(np.asarray(((0.046, 0.1, 0.1),)), {"Ez": surface}, closure)
+
+
+def _antenna_gain_input(*, window="rectangular", association=None, extra_source=""):
+    association_command = (
+        "" if association is None else f"#ksir_antenna_ports: band {association}\n"
+    )
+    return (
+        "#domain: 0.04 0.04 0.04\n"
+        "#dx_dy_dz: 0.002 0.002 0.002\n"
+        "#time_window: 1e-10\n"
+        "#pml_cells: 2\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#voltage_source: z 0.018 0.02 0.02 50 pulse\n"
+        "#voltage_source: z 0.022 0.02 0.02 50 pulse\n"
+        "#rx_port: 0.018 0.02 0.02 feed1\n"
+        "#rx_port: 0.022 0.02 0.02 feed2\n"
+        f"{extra_source}"
+        "#ksir_surface: 0.012 0.012 0.012 0.028 0.028 0.028 surface\n"
+        f"#ksir_frequency: surface band 5e9 {window}\n"
+        f"{association_command}"
+        "#ksir_far_field: 90 0 band broadside gain\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("window", "association", "extra_source", "message"),
+    [
+        ("rectangular", None, "", "without a #ksir_antenna_ports"),
+        ("hann", "feed1 feed2", "", "requires rectangular"),
+        ("rectangular", "feed1", "", "include every physical port"),
+        (
+            "rectangular",
+            "feed1 feed2",
+            "#hertzian_dipole: z 0.02 0.02 0.02 pulse\n",
+            "active non-port sources",
+        ),
+    ],
+)
+def test_antenna_gain_rejects_ambiguous_normalisation(
+    tmp_path,
+    window,
+    association,
+    extra_source,
+    message,
+):
+    inputfile = tmp_path / "invalid_antenna_gain.in"
+    inputfile.write_text(
+        _antenna_gain_input(
+            window=window,
+            association=association,
+            extra_source=extra_source,
+        )
+    )
+
+    with pytest.raises(ValueError, match=message):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "invalid_antenna_gain",
+            hide_progress_bars=True,
+        )

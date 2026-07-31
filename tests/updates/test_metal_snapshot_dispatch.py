@@ -147,6 +147,7 @@ def _make_updates(snapshots, snapsgpu2cpu, monkeypatch):
 
     grid = _Grid()
     grid.snapshots = snapshots
+    grid.magneticfrillsources = []
     grid.Ex_dev = _FakeBuffer()
     grid.Ey_dev = _FakeBuffer()
     grid.Ez_dev = _FakeBuffer()

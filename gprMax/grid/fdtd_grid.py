@@ -161,6 +161,7 @@ class FDTDGrid:
         self.ksir_time_requests = []
         self.ksir_frequency_requests = []
         self.ksir_far_field_requests = []
+        self.ksir_antenna_port_specs = {}
         self.ksir_request_owners = {}
         self.ksir_transform_owners = {}
         self.ntff_output_writers = []

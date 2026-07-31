@@ -299,12 +299,16 @@ output.
 Voltage-source S11 and impedance output
 ---------------------------------------
 
-The ``#rx_port`` command and ``RxPort`` Python object write one group per port at
-``/ports/<port ID>``. The source resistance is the reference impedance
-:math:`Z_0`. The source-plane reflection coefficient is calculated directly
-from the known generator voltage and sampled total gap voltage; the reported
-``S11`` then removes the effective Yee-edge background capacitance and
-conductance. ``Zin`` and ``Yin`` are derived from that corrected result:
+The ``#rx_port`` command and ``RxPort`` Python object write one group per port
+at ``/ports/<port ID>``. For a finite-resistance source, its resistance is the
+reference impedance :math:`Z_0`; the source-plane reflection coefficient is
+calculated from the known generator voltage and sampled total gap voltage.
+For a zero-resistance hard source, :math:`Z_0` is supplied by the voltage
+source (50 Ohms by default) and
+the terminal quantities are calculated from the prescribed voltage and
+time-centred Ampere-loop current. Both paths remove the effective Yee-edge
+background capacitance and conductance before reporting ``S11``, ``Zin``, and
+``Yin``:
 
 .. math::
 
@@ -314,7 +318,8 @@ conductance. ``Zin`` and ``Yin`` are derived from that corrected result:
 
 Important attributes include:
 
-* ``ReferenceImpedance``, ``Polarisation``, ``Position``, and ``GridPosition``;
+* ``PortMode``, ``ReferenceImpedance``, ``ReferenceImpedanceSource``,
+  ``Polarisation``, ``Position``, and ``GridPosition``;
 * ``BackgroundMaterial``, ``GapCapacitance``, and
   ``BackgroundConductance``;
 * ``SpectrumLimitMode``, ``MinimumWavelengthCells``,
@@ -332,8 +337,11 @@ The principal datasets are:
 * ``S11_source`` and ``Zin_source``: uncorrected source-plane quantities;
 * ``Vincident_spectrum``, ``Vreflected_source_spectrum``, and
   ``Vtotal_spectrum``: complex voltage spectra;
-* ``time``, ``Vgenerator``, and ``Vtotal``: half-time-step-aligned audit
-  histories;
+* ``time``, ``Vgenerator``, and ``Vtotal``: aligned voltage audit histories;
+* ``time_current``, ``Iloop``, ``Iloop_spectrum``, and
+  ``Iterminal_spectrum``: additional hard-source current data. ``Iloop`` is
+  sampled at magnetic half-step times; its spectrum includes the Yee-gap
+  admittance, while the terminal spectrum has that admittance removed;
 * ``valid_S11``, ``valid_Zin``, ``valid_Yin``, ``source_valid``,
   ``mesh_valid``, and ``gap_correction_valid``: per-bin integer masks;
 * ``incident_relative_dB`` and ``cells_per_minimum_wavelength``: diagnostics
@@ -396,6 +404,28 @@ and transform IDs:
                 theta
                 phi
                 directions
+                radiated_power [directivity/efficiency requests]
+                maximum_directivity
+                maximum_directivity_dbi
+                maximum_directivity_theta
+                maximum_directivity_phi
+                port_power/ [gain/efficiency requests]
+                    port_ids
+                    source_types
+                    reference_impedances
+                    incident_voltage_per_port
+                    terminal_voltage_per_port
+                    terminal_current_per_port
+                    incident_power_per_port
+                    accepted_power_per_port
+                    incident_power
+                    accepted_power
+                    reflected_power
+                    incident_relative_db
+                    mesh_valid
+                    terminal_valid
+                    gain_valid
+                    realized_gain_valid
                 fields/<output>
 
 The surface group records logical bounds, physical reference origin, closure
@@ -411,6 +441,106 @@ Far-field groups have ``range_normalized=True`` and a ``normalization``
 attribute specifying ``r * exp(+j*k*r) * field``. Their radius is intentionally
 absent. Complex datasets use the complex type paired with the configured
 gprMax real precision.
+
+Far-field derived antenna quantities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``radiation_intensity`` has shape ``(nfrequencies, ndirections)``. If
+``directivity`` or an efficiency is requested, the five full-sphere summary
+datasets shown above have shape ``(nfrequencies,)``. The far-field group also
+records the Gauss--Legendre/periodic quadrature orders and the completed
+surface's bounding radius in metres. These summaries come from an internal
+full-sphere calculation even if the stored user directions form only a cut;
+the internal directional fields are not written to the output file. The
+maximum is refined using the directions in that particular output whenever
+they sample a larger value than the internal quadrature.
+
+The linear definitions are
+
+.. math::
+
+    U=\frac{|F_\theta|^2+|F_\phi|^2}{2\eta},\qquad
+    D=\frac{4\pi U}{P_\mathrm{rad}},\qquad
+    P_\mathrm{rad}=\int_{4\pi}U\,\mathrm{d}\Omega.
+
+``directivity_dbi``, ``gain_dbi``, and ``realized_gain_dbi`` are
+``10*log10`` of their corresponding linear datasets. The linear gain and
+efficiency definitions are
+
+.. math::
+
+    G=\frac{4\pi U}{P_\mathrm{acc}},\qquad
+    G_\mathrm{realized}=\frac{4\pi U}{P_\mathrm{inc}},\qquad
+    \eta_\mathrm{rad}=\frac{P_\mathrm{rad}}{P_\mathrm{acc}},\qquad
+    \eta_\mathrm{total}=\frac{P_\mathrm{rad}}{P_\mathrm{inc}}.
+
+The two efficiencies are frequency-only quantities and therefore have shape
+``(nfrequencies,)`` even though they are stored in ``fields`` with the other
+requested outputs.
+
+For a ``#ksir_antenna_ports`` association, complex port spectra and per-port
+powers have shape ``(nports, nfrequencies)``. Total powers and all validity
+masks have shape ``(nfrequencies,)``. They use
+
+.. math::
+
+    P_\mathrm{acc}=\sum_p\frac{1}{2}\Re\{V_p I_p^*\},\qquad
+    P_\mathrm{inc}=\sum_p\frac{|V_p^+|^2}{2Z_{0p}},\qquad
+    P_\mathrm{refl}=P_\mathrm{inc}-P_\mathrm{acc}.
+
+These are spectral power-normalisation quantities: the voltage and field
+Fourier transforms carry a common time scale, which cancels in gain and
+efficiency. Their HDF5 attributes consequently give voltage spectra in
+``V s``, current spectra in ``A s``, and spectral powers in ``W s**2``. The
+exact complex terminal and incident spectra are retained so that every
+derived power can be checked independently. A zero-amplitude source remains
+a terminated port with zero incident voltage; its terminal voltage/current
+and signed accepted power can still be non-zero through mutual coupling.
+
+The validity datasets should always be applied before plotting. The default
+gain bandwidth includes frequencies whose total incident spectrum is within
+``40 dB`` of its peak and for which the mesh and port reconstruction are
+valid. Invalid derived results are stored as ``NaN`` rather than a plausible
+but ill-conditioned value.
+
+When requested, ``far_field/<output_id>/fields/rcs`` contains real, linear
+bistatic radar cross section in square metres. It is not stored in dBsm. For
+the range-normalized scattered electric field
+:math:`F_\mathrm{s}=r\exp(+jkr)E_\mathrm{s}`, gprMax calculates
+
+.. math::
+
+    \sigma(\theta,\phi,f)
+    = 4\pi
+      \frac{|F_{\mathrm{s},\theta}|^2+|F_{\mathrm{s},\phi}|^2}
+      {|E_{\mathrm{inc},x}|^2+|E_{\mathrm{inc},y}|^2
+       +|E_{\mathrm{inc},z}|^2}.
+
+The denominator is obtained from the actual field history in the associated
+discrete-plane-wave grid, accumulated at the transform frequencies with the
+same time window as the surface data. It therefore includes the numerical
+plane-wave amplitude and its configured start and stop times. A zero incident
+spectrum produces ``NaN`` RCS. Very small incident values are mathematically
+non-zero but can give unreliable results, so the requested frequencies should
+remain within the useful excitation bandwidth.
+
+For plotting in dBsm, convert the stored values explicitly:
+
+.. code-block:: python
+
+    import h5py
+    import numpy as np
+
+    with h5py.File('model.h5', 'r') as output:
+        far = output['ntff/surface/frequency/transform/far_field/backscatter']
+        rcs = far['fields/rcs'][...]  # linear RCS in m**2
+        rcs_dbsm = 10 * np.log10(rcs)
+
+Here ``theta`` and ``phi`` in the same group define the observation direction.
+Monostatic RCS is the value in the direction opposite to plane-wave
+propagation; all other directions are bistatic RCS. Use separate simulations
+for different incident plane waves because selecting an association does not
+separate simultaneously accumulated scattered fields.
 
 Time-domain fields have shape ``(npoints, max(valid_lengths))``. For point
 ``q``, the physical time vector and valid trace are:
@@ -432,8 +562,9 @@ transmission lines.
 
 KSIR surfaces must strictly enclose every impressed source. For plane-wave
 scattering models, the associated total-field/scattered-field box must be
-strictly enclosed by the KSIR surface so that incident-field subtraction can
-be applied consistently.
+strictly enclosed by the KSIR surface. The integration surface then samples
+the scattered-field region outside the TFSF box, while the associated
+numerical plane wave supplies the incident-field normalization used for RCS.
 
 
 .. _outputs-snaps:

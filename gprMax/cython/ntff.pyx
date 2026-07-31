@@ -23,8 +23,80 @@ import numpy as np
 
 cimport numpy as np
 from cython.parallel import prange
+from libc.math cimport cos, sin
 
 from gprMax.config cimport float_or_double, float_or_double_complex
+
+
+cpdef void evaluate_far_zone_patches(
+    int nthreads,
+    const float_or_double[:, ::1] patch_positions,
+    const float_or_double[:, ::1] patch_normals,
+    const float_or_double[::1] area_weights,
+    const float_or_double[::1] wavenumbers,
+    const float_or_double[:, ::1] directions,
+    const float_or_double_complex[:, ::1] surface_field,
+    const float_or_double_complex[:, ::1] normal_derivative,
+    float_or_double_complex[:, ::1] output,
+):
+    """Evaluate the frequency-domain far-zone KSIR surface integral.
+
+    OpenMP distributes complete frequency/direction pairs. Each worker
+    therefore owns one output element and can accumulate without atomics. The
+    combined loop also uses all threads when either the number of frequencies
+    or the number of directions is small. Position and normal projections are
+    intentionally calculated inside the patch loop so the kernel does not
+    allocate a potentially very large ``ndirections x npatches`` temporary
+    array.
+
+    Geometry is relative to the requested phase origin and all arrays are
+    validated and made contiguous by :mod:`gprMax.ntff.evaluator` before this
+    low-level kernel is called.
+    """
+
+    cdef Py_ssize_t task, direction, frequency, patch
+    cdef Py_ssize_t ndirections = directions.shape[0]
+    cdef Py_ssize_t nfrequencies = wavenumbers.shape[0]
+    cdef Py_ssize_t npatches = patch_positions.shape[0]
+    cdef Py_ssize_t ntasks = ndirections * nfrequencies
+    cdef float_or_double k, position_projection, normal_projection, angle
+    cdef float_or_double_complex phase, integrand
+    cdef float_or_double four_pi = 12.566370614359172953850573533118
+
+    for task in prange(
+        ntasks,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        frequency = task // ndirections
+        direction = task - frequency * ndirections
+        k = wavenumbers[frequency]
+        output[frequency, direction] = 0
+        for patch in range(npatches):
+            position_projection = (
+                directions[direction, 0] * patch_positions[patch, 0]
+                + directions[direction, 1] * patch_positions[patch, 1]
+                + directions[direction, 2] * patch_positions[patch, 2]
+            )
+            normal_projection = (
+                directions[direction, 0] * patch_normals[patch, 0]
+                + directions[direction, 1] * patch_normals[patch, 1]
+                + directions[direction, 2] * patch_normals[patch, 2]
+            )
+            angle = k * position_projection
+            phase = cos(angle) + 1j * sin(angle)
+            integrand = -normal_derivative[frequency, patch] + (
+                1j
+                * k
+                * normal_projection
+                * surface_field[frequency, patch]
+            )
+            output[frequency, direction] = (
+                output[frequency, direction]
+                + integrand * phase * area_weights[patch]
+            )
+        output[frequency, direction] = output[frequency, direction] / four_pi
 
 
 cpdef void accumulate_surface_dft(

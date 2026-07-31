@@ -25,6 +25,11 @@ from scipy.constants import c
 
 from .surfaces import KSIRComponentSurface
 
+try:
+    from gprMax.cython.ntff import evaluate_far_zone_patches as _evaluate_far_zone_patches_cython
+except ImportError:  # pragma: no cover - source-tree fallback before compilation
+    _evaluate_far_zone_patches_cython = None
+
 
 def _floating_input_dtype(*values) -> np.dtype:
     dtype = np.result_type(*(np.asarray(value).dtype for value in values))
@@ -128,8 +133,15 @@ def evaluate_far_zone_patches(
     origin: npt.ArrayLike = (0.0, 0.0, 0.0),
     direction_block_size: int = 256,
     patch_block_size: int = 8192,
+    nthreads: int = 1,
 ) -> npt.NDArray[np.complexfloating]:
-    """Evaluate KSIR from explicit patch geometry and phasors."""
+    """Evaluate KSIR from explicit patch geometry and phasors.
+
+    A Cython/OpenMP implementation is used when the extension is available.
+    The blocked NumPy implementation remains the source-tree fallback and
+    executable reference. ``direction_block_size`` and ``patch_block_size``
+    control only that fallback.
+    """
 
     raw_field = np.asarray(surface_field)
     raw_derivative = np.asarray(normal_derivative)
@@ -157,6 +169,8 @@ def evaluate_far_zone_patches(
         or patch_block_size <= 0
     ):
         raise ValueError("patch_block_size must be a positive integer")
+    if not isinstance(nthreads, (int, np.integer)) or nthreads <= 0:
+        raise ValueError("nthreads must be a positive integer")
 
     direction_vectors = np.asarray(directions, dtype=real_dtype)
     if direction_vectors.ndim != 2 or direction_vectors.shape[1] != 3:
@@ -196,11 +210,30 @@ def evaluate_far_zone_patches(
     derivative = _phasors(
         "normal_derivative", raw_derivative, freqs.size, npatches
     ).astype(complex_dtype, copy=False)
-    positions = positions - reference_origin
-    wavenumbers = 2 * np.pi * freqs / wave_speed
+    positions = np.ascontiguousarray(positions - reference_origin, dtype=real_dtype)
+    normals = np.ascontiguousarray(normals, dtype=real_dtype)
+    areas = np.ascontiguousarray(areas, dtype=real_dtype)
+    direction_vectors = np.ascontiguousarray(direction_vectors, dtype=real_dtype)
+    field = np.ascontiguousarray(field, dtype=complex_dtype)
+    derivative = np.ascontiguousarray(derivative, dtype=complex_dtype)
+    wavenumbers = np.ascontiguousarray(2 * np.pi * freqs / wave_speed, dtype=real_dtype)
     result = np.zeros(
         (freqs.size, direction_vectors.shape[0]), dtype=complex_dtype
     )
+
+    if _evaluate_far_zone_patches_cython is not None:
+        _evaluate_far_zone_patches_cython(
+            int(nthreads),
+            positions,
+            normals,
+            areas,
+            wavenumbers,
+            direction_vectors,
+            field,
+            derivative,
+            result,
+        )
+        return result
 
     for direction_start in range(0, direction_vectors.shape[0], direction_block_size):
         direction_stop = min(
@@ -377,6 +410,7 @@ def evaluate_far_zone(
     origin: npt.ArrayLike = (0.0, 0.0, 0.0),
     direction_block_size: int = 256,
     patch_block_size: int = 8192,
+    nthreads: int = 1,
 ) -> npt.NDArray[np.complexfloating]:
     """Evaluate the range-normalized scalar far-zone KSIR integral.
 
@@ -394,90 +428,26 @@ def evaluate_far_zone(
         origin: Phase-reference origin in metres.
         direction_block_size: Maximum directions in one temporary block.
         patch_block_size: Maximum patches in one temporary block.
+        nthreads: OpenMP threads used by the compiled evaluator.
 
     Returns:
         Range-normalized component phasors with shape ``(nf, nd)``.
     """
 
-    raw_field = np.asarray(surface_field)
-    raw_derivative = np.asarray(normal_derivative)
-    complex_dtype = np.result_type(raw_field.dtype, raw_derivative.dtype)
-    if complex_dtype.kind != "c":
-        raise ValueError("surface phasors must use a complex dtype")
-    real_dtype = np.empty((), dtype=complex_dtype).real.dtype
-    freqs = np.asarray(frequencies, dtype=real_dtype)
-    if freqs.ndim != 1 or freqs.size == 0:
-        raise ValueError("frequencies must be a non-empty one-dimensional array")
-    if not np.all(np.isfinite(freqs)) or np.any(freqs < 0):
-        raise ValueError("frequencies must contain finite, non-negative values")
-    if not np.isfinite(wave_speed) or wave_speed <= 0:
-        raise ValueError("wave_speed must be finite and greater than zero")
-    reference_origin = np.asarray(origin, dtype=real_dtype)
-    if reference_origin.shape != (3,) or not np.all(np.isfinite(reference_origin)):
-        raise ValueError("origin must contain exactly three finite values")
-    if not isinstance(direction_block_size, (int, np.integer)) or direction_block_size <= 0:
-        raise ValueError("direction_block_size must be a positive integer")
-    if not isinstance(patch_block_size, (int, np.integer)) or patch_block_size <= 0:
-        raise ValueError("patch_block_size must be a positive integer")
-
-    direction_vectors = np.asarray(directions, dtype=real_dtype)
-    if direction_vectors.ndim != 2 or direction_vectors.shape[1] != 3:
-        raise ValueError("directions must have shape (ndirections, 3)")
-    if direction_vectors.shape[0] == 0 or not np.all(np.isfinite(direction_vectors)):
-        raise ValueError("directions must contain finite unit vectors")
-    direction_norms = np.linalg.norm(direction_vectors, axis=1)
-    unit_tolerance = max(1e-12, 64 * np.finfo(real_dtype).eps)
-    if not np.allclose(
-        direction_norms, 1.0, rtol=unit_tolerance, atol=unit_tolerance
-    ):
-        raise ValueError("directions must be unit vectors")
-
-    npatches = surface.npatches
-    field = _phasors("surface_field", raw_field, freqs.size, npatches).astype(
-        complex_dtype, copy=False
+    return evaluate_far_zone_patches(
+        surface.patch_positions,
+        surface.normals,
+        surface.area_weights,
+        frequencies,
+        directions,
+        surface_field,
+        normal_derivative,
+        wave_speed=wave_speed,
+        origin=origin,
+        direction_block_size=direction_block_size,
+        patch_block_size=patch_block_size,
+        nthreads=nthreads,
     )
-    derivative = _phasors(
-        "normal_derivative", raw_derivative, freqs.size, npatches
-    ).astype(complex_dtype, copy=False)
-
-    positions = np.asarray(surface.patch_positions, dtype=real_dtype) - reference_origin
-    normals = np.asarray(surface.normals, dtype=real_dtype)
-    areas = np.asarray(surface.area_weights, dtype=real_dtype)
-    wavenumbers = 2 * np.pi * freqs / wave_speed
-    result = np.zeros(
-        (freqs.size, direction_vectors.shape[0]), dtype=complex_dtype
-    )
-
-    for direction_start in range(0, direction_vectors.shape[0], direction_block_size):
-        direction_stop = min(
-            direction_start + direction_block_size, direction_vectors.shape[0]
-        )
-        direction_block = direction_vectors[direction_start:direction_stop]
-        block_result = result[:, direction_start:direction_stop]
-
-        for patch_start in range(0, npatches, patch_block_size):
-            patch_stop = min(patch_start + patch_block_size, npatches)
-            direction_dot_position = direction_block @ positions[patch_start:patch_stop].T
-            normal_dot_direction = direction_block @ normals[patch_start:patch_stop].T
-            phase = np.exp(
-                1j
-                * wavenumbers[:, np.newaxis, np.newaxis]
-                * direction_dot_position[np.newaxis, :, :]
-            ).astype(complex_dtype, copy=False)
-            integrand = -derivative[:, np.newaxis, patch_start:patch_stop] + (
-                1j
-                * wavenumbers[:, np.newaxis, np.newaxis]
-                * normal_dot_direction[np.newaxis, :, :]
-                * field[:, np.newaxis, patch_start:patch_stop]
-            )
-            block_result += np.sum(
-                integrand
-                * phase
-                * areas[np.newaxis, np.newaxis, patch_start:patch_stop],
-                axis=2,
-            )
-
-    return result / np.asarray(4 * np.pi, dtype=real_dtype)
 
 
 def spherical_basis(

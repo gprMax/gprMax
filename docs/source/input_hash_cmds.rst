@@ -1050,12 +1050,13 @@ Allows you to introduce a voltage source at an electric field location. It can b
 
 .. code-block:: none
 
-    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6]
+    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6 [f7]]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the source in the model.
 * ``f4`` is the internal resistance of the voltage source in Ohms. If ``f4`` is set to zero then the voltage source is a hard source. That means it prescribes the value of the electric field component. If the waveform becomes zero then the source is perfectly reflecting.
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the source. ``f6`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f5 f6`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
+* ``f7`` is the optional positive wave-reference impedance in Ohms used by a coincident ``#rx_port``. A hard source defaults to 50 Ohms. For a finite-resistance source, ``f7`` must equal ``f4``. In the positional hash syntax, ``f5`` and ``f6`` must be supplied before ``f7``; the Python API does not have this restriction.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
 For example, to specify a y directed voltage source with an internal resistance of 50 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#voltage_source: y 0.05 0.05 0.05 50 my_gauss_pulse``.
@@ -1428,6 +1429,9 @@ Allows you to introduce output points into the model. These are locations where 
 .. note::
 
     * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components will be output with the receiver point.
+    * On CUDA, OpenCL, and Metal, ``Ix``, ``Iy``, and ``Iz`` use the same
+      single-cell Ampere loops as the CPU solver. Their device histories are
+      allocated only for explicitly requested current components.
 
 #rx_array:
 ----------
@@ -1445,7 +1449,7 @@ Provides a simple method of defining multiple output points in the model. The sy
 ---------
 
 Calculates the complex reflection coefficient and input impedance of a
-single-cell resistive voltage-source port. The output point must coincide
+single-cell voltage-source port. The output point must coincide
 exactly with one ``#voltage_source`` after both positions have been resolved to
 the Yee grid. A separate ``#rx`` command is not required. The syntax is:
 
@@ -1461,27 +1465,32 @@ the Yee grid. A separate ``#rx`` command is not required. The syntax is:
   ``nyquist`` requests every native non-negative FFT bin for research and
   diagnostic use.
 
-Because optional hash-command arguments are positional, ``str1`` must be
-given before ``str2``. For example:
+The voltage source supplies the reference impedance :math:`Z_0`. For example:
 
 .. code-block:: none
 
     #voltage_source: z 0.050 0.050 0.020 50 source_wave
     #rx_port: 0.050 0.050 0.020 feed
     #rx_port: 0.050 0.050 0.020 feed nyquist
+    #voltage_source: z 0.060 0.050 0.020 0 source_wave
+    #rx_port: 0.060 0.050 0.020 ideal_feed
+    # Custom 75 Ohm hard-source reference; start/stop precede it positionally
+    #voltage_source: z 0.070 0.050 0.020 0 source_wave 0 10e-9 75
+    #rx_port: 0.070 0.050 0.020 ideal_feed_75
 
-The voltage-source resistance is the reference impedance :math:`Z_0`. At the
-source plane, the known generator spectrum :math:`V_g` and sampled total gap
-voltage :math:`V` give
+For a finite-resistance source, the voltage-source resistance is the
+reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless
+``f7`` is supplied. At the source plane, the known generator
+spectrum :math:`V_g` and sampled total gap voltage :math:`V` give
 
 .. math::
 
     S_{11,\mathrm{source}} = \frac{2V-V_g}{V_g}.
 
-No current calculation is required. gprMax removes the parallel capacitance
-and background conductance of the source Yee edge before reporting the
-antenna-terminal result. With :math:`c=Z_0Y_\mathrm{gap}`, this correction and
-the input impedance are
+No current calculation is required in this finite-resistance case. gprMax
+removes the parallel capacitance and background conductance of the source Yee
+edge before reporting the antenna-terminal result. With
+:math:`c=Z_0Y_\mathrm{gap}`, this correction and the input impedance are
 
 .. math::
 
@@ -1491,10 +1500,51 @@ the input impedance are
     \qquad
     Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}}.
 
+For a zero-resistance source, the gap voltage is prescribed at integer
+electric-field times. gprMax calculates the Ampere-loop current from the four
+surrounding magnetic components. The voltage and current samples retain their
+exact Yee times,
+
+.. math::
+
+    V=V^{n+1}, \qquad I_\mathrm{loop}=I_\mathrm{loop}^{n+1/2},
+
+and the engineering-convention transforms apply the corresponding
+:math:`\Delta t` and :math:`\Delta t/2` time offsets. This corrects their
+relative phase without attenuating current by interpolation. The terminal
+current is then
+
+.. math::
+
+    I_\mathrm{terminal}=I_\mathrm{loop}-Y_\mathrm{gap}V.
+
+For this integer-voltage/half-step-current pairing, the discrete parallel-gap
+admittance is
+
+.. math::
+
+    Y_\mathrm{gap} = G_\mathrm{bg}\cos\left(\frac{\omega\Delta t}{2}\right)
+    +j\frac{2C_\mathrm{gap}}{\Delta t}
+    \sin\left(\frac{\omega\Delta t}{2}\right).
+
+This is the FDTD analogue of an ideal delta-gap MoM excitation: voltage is
+imposed and the antenna current is a solved response. The user-supplied
+:math:`Z_0` (or its 50 Ohm default) defines the travelling-wave normalisation
+only. The reported
+quantities are calculated directly as
+
+.. math::
+
+    Z_\mathrm{in}=\frac{V}{I_\mathrm{terminal}},
+    \qquad
+    V^\pm=\frac{V\pm Z_0 I_\mathrm{terminal}}{2},
+    \qquad
+    S_{11}=\frac{V^-}{V^+}.
+
 The gap capacitance and conductance use the effective electric-edge material
-before the artificial source resistance is added. The discrete capacitive
-admittance is used so the correction is consistent with the trapezoidal Yee
-update.
+before any artificial source resistance is added. The appropriate discrete
+admittance is used in each source mode so the correction is consistent with
+the trapezoidal Yee update and the mode's voltage/current sampling times.
 
 By default, output stops at the first native FFT bin that does not have at
 least 10 cells per shortest wavelength in the model. For nonmagnetic,
@@ -1508,12 +1558,15 @@ material are reported when the model is built.
 
 .. note::
 
-    * The initial implementation supports one finite, non-zero-resistance
+    * The implementation supports one finite-resistance or zero-resistance
       voltage source on the main 3D grid with the CPU, CUDA, OpenCL, or Metal
-      solver.
+      solver. A hard-source port uses a 50 Ohm default :math:`Z_0`, which can
+      be overridden on ``#voltage_source``.
     * MPI, subgrids, 2D modes, geometry-fixed runs, grouped sources, sources
       inside a PML, and dispersive material on the source edge are currently
       rejected. Dispersive materials elsewhere in the model are supported.
+      A hard-source current loop cannot lie on a domain-minimum transverse
+      boundary.
     * ``S11`` remains the primary result. ``Zin`` is singular near an open
       circuit (:math:`S_{11}=1`), so gprMax also stores ``Yin`` and separate
       validity masks.
@@ -1583,7 +1636,8 @@ The following conventions apply to every KSIR command:
 * a spherical coordinate is relative to the centre of its integration
   surface. The Python API can instead give a custom surface origin;
 * Cartesian outputs are ``Ex Ey Ez Hx Hy Hz``. Spherical outputs are
-  ``Er Etheta Ephi Hr Htheta Hphi``;
+  ``Er Etheta Ephi Hr Htheta Hphi``. Far-field derived outputs are described
+  under ``#ksir_far_field`` below;
 * every exact time- or frequency-domain point must be strictly outside the
   completed integration surface. A point may be outside the FDTD model domain;
 * the sampled surface and exterior must be one homogeneous, lossless,
@@ -1602,6 +1656,12 @@ The following conventions apply to every KSIR command:
   hardware-qualified on the development server. OpenCL and Metal have source-
   generation and dispatch coverage, but still require execution tests on
   suitable hardware.
+
+Directivity, gain, efficiency, and port normalisation are post-processing
+operations after the FDTD solve. The angular KSIR evaluation uses a
+Cython/OpenMP kernel on the host for CPU and accelerator simulations alike;
+it does not add a new per-iteration GPU operation or transfer fields back to
+the CPU during time stepping.
 
 A minimal dipole workflow can reuse one surface for an exact time-domain point
 and a frequency-domain radiation pattern:
@@ -1670,6 +1730,58 @@ the outgoing Green function contains ``exp(-j*k*R)``.
 .. code-block:: none
 
     #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+
+#ksir_antenna_ports:
+--------------------
+
+Associates a complete set of physical antenna ports with a frequency
+transform so that accepted power, gain, realized gain, and efficiency can be
+calculated:
+
+.. code-block:: none
+
+    #ksir_antenna_ports: transform_id port_id1 [port_id2 ...]
+
+For a voltage source, ``port_id`` is the ID of the coincident ``#rx_port``.
+Transmission-line and magnetic-frill sources provide automatic port IDs
+``tl1``, ``tl2``, ... and ``frill1``, ``frill2``, ... respectively, in source
+creation order. The association is not required for electric or magnetic
+far fields, radiation intensity, RCS, or directivity. It is required when a
+far-field command asks for gain or efficiency.
+
+The listed set must include **every** physical voltage, transmission-line,
+and magnetic-frill port in the model. Every voltage source must therefore
+have a coincident ``#rx_port``. This requirement makes the net accepted power
+unambiguous in coupled multiport antennas. A source whose waveform amplitude
+is zero is still a terminated physical port: list it normally. It has zero
+incident power, but coupling from driven ports can make its accepted power
+negative because it delivers coupled energy into its termination. gprMax
+sums that signed terminal power when normalising antenna gain.
+
+Gain normalisation currently requires the transform to use the
+``rectangular`` window. Active Hertzian electric or magnetic dipoles and
+plane-wave sources cannot be mixed with a port-normalised antenna result,
+because their input power is not represented by this port set.
+The normal per-port wavelength-sampling limit also applies to gain validity.
+For a voltage-source port, an explicit ``nyquist`` research override on its
+``#rx_port`` retains the full temporal band, including spatially
+under-resolved values, as it does for S11 and impedance. A coincident
+``#rx_port`` can apply the same override to a magnetic-frill output.
+
+For example, a two-element array with one driven and one terminated element
+uses:
+
+.. code-block:: none
+
+    #waveform: ricker 1 1e9 driven
+    #waveform: ricker 0 1e9 terminated
+    #voltage_source: z 0.045 0.050 0.050 50 driven
+    #voltage_source: z 0.055 0.050 0.050 50 terminated
+    #rx_port: 0.045 0.050 0.050 element1
+    #rx_port: 0.055 0.050 0.050 element2
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 rectangular
+    #ksir_antenna_ports: antenna_band element1 element2
+    #ksir_far_field_array: 0 180 2 0 360 2 antenna_band pattern gain realized_gain
 
 #ksir_time_rx: and #ksir_time_rx_spherical:
 --------------------------------------------
@@ -1761,20 +1873,120 @@ Requests a range-normalized far field in one spherical direction:
     #ksir_far_field: theta phi transform_id [output_id [output1 output2 ...]]
 
 The default outputs are ``Etheta Ephi``. Cartesian and spherical electric or
-magnetic components may be requested. ``radiation_intensity`` may also be
-requested. ``rcs`` requests bistatic radar cross section and requires the
-surface to enclose exactly one existing TFSF plane-wave source; that plane
-wave is associated automatically.
+magnetic components may be requested. The derived outputs are
+``radiation_intensity``, ``directivity``, ``directivity_dbi``, ``gain``,
+``gain_dbi``, ``realized_gain``, ``realized_gain_dbi``,
+``radiation_efficiency``, ``total_efficiency``, and ``rcs``. Linear and dBi
+forms are separate outputs; gprMax does not silently convert one into the
+other.
+
+For the range-normalized electric field, radiation intensity is
+
+.. math::
+
+    U(\theta,\phi,f)
+    = \frac{|F_\theta|^2+|F_\phi|^2}{2\eta},
+
+where :math:`\eta` is the wave impedance of the homogeneous material around
+the KSIR surface. When directivity or either efficiency is requested, gprMax
+also evaluates a temporary full sphere using Gauss--Legendre quadrature in
+:math:`\cos\theta` and periodic quadrature in :math:`\phi`:
+
+.. math::
+
+    P_\mathrm{rad}(f) = \int_{4\pi}U(\theta,\phi,f)\,\mathrm{d}\Omega,
+    \qquad
+    D(\theta,\phi,f) = \frac{4\pi U(\theta,\phi,f)}{P_\mathrm{rad}(f)}.
+
+The quadrature order is selected from the largest requested value of
+:math:`ka`, where :math:`a` is the bounding radius of the completed
+integration surface. The temporary
+full-sphere fields are processed in blocks and are not stored; only the
+radiated power, estimated pattern maximum and its direction, and quadrature
+metadata are retained. The maximum estimate is additionally refined with the
+directions explicitly requested for that output, so a fine user grid cannot
+report a larger directivity than the stored maximum. Therefore a user may request only a principal-plane
+cut and still obtain correctly full-sphere-normalised directivity.
+
+For an associated antenna port set, the exact-frequency terminal spectra give
+
+.. math::
+
+    P_\mathrm{acc}(f)
+    = \sum_p \frac{1}{2}\Re\{V_p I_p^*\},
+    \qquad
+    P_\mathrm{inc}(f)
+    = \sum_p \frac{|V_p^+|^2}{2Z_{0p}}.
+
+The requested gain quantities are
+
+.. math::
+
+    G = \frac{4\pi U}{P_\mathrm{acc}}, \qquad
+    G_\mathrm{realized} = \frac{4\pi U}{P_\mathrm{inc}},
+
+and the scalar efficiencies stored for each frequency are
+
+.. math::
+
+    \eta_\mathrm{rad}=\frac{P_\mathrm{rad}}{P_\mathrm{acc}}, \qquad
+    \eta_\mathrm{total}=\frac{P_\mathrm{rad}}{P_\mathrm{inc}}.
+
+All surface and terminal spectra use the same engineering DFT and transform
+scale, which cancels in these dimensionless ratios. Frequencies below
+``-40 dB`` of the peak total incident spectrum, invalid terminal samples, or
+non-positive normalising powers are written as ``NaN`` and marked invalid in
+the HDF5 port metadata. A radiation efficiency materially above unity emits a
+warning and normally indicates an insufficient time window, mesh error,
+integration-surface error, or inconsistent port definition.
+
+``rcs`` requests bistatic radar cross section and requires a TFSF plane-wave
+source. The KSIR surface must strictly enclose the TFSF box and be clear of
+its field-correction stencil. With hash commands, exactly one plane wave must
+be present and it is associated automatically. Use one plane wave per
+simulation for an unambiguous RCS result. RCS and port-normalised gain belong
+to different excitation workflows and cannot be combined in one result.
 
 Unlike the exact spherical receiver commands, ``#ksir_far_field`` has no
 radius. Each field component is the range-normalized quantity
 
 .. math::
 
-    F(\theta,\phi,f) = r\,\exp(+jkr)\,E(r,\theta,\phi,f),
+    F_\mathrm{s}(\theta,\phi,f)
+    = r\,\exp(+jkr)\,E_\mathrm{s}(r,\theta,\phi,f),
 
-in the far-zone limit. The normalization and engineering phase convention are
-also written as HDF5 attributes.
+in the far-zone limit, where the subscript ``s`` denotes the scattered field.
+The RCS is
+
+.. math::
+
+    \sigma(\theta,\phi,f)
+    = 4\pi
+      \frac{|F_{\mathrm{s},\theta}|^2+|F_{\mathrm{s},\phi}|^2}
+      {|E_{\mathrm{inc},x}|^2+|E_{\mathrm{inc},y}|^2
+       +|E_{\mathrm{inc},z}|^2}.
+
+The incident spectrum is not inferred from the nominal waveform amplitude.
+gprMax samples the actual numerically propagated field of the associated
+discrete plane wave and transforms it using the same frequencies and time
+window as the KSIR surface data. Plane-wave start and stop times are therefore
+included automatically. Frequencies at which the incident spectrum is zero
+produce ``NaN``; results where it is very small can be poorly conditioned and
+should not be used.
+
+``rcs`` is stored as a real, linear quantity in square metres, not in dBsm. It
+can be converted using
+
+.. math::
+
+    \sigma_\mathrm{dBsm}
+    = 10\log_{10}\!\left(\frac{\sigma}{1\,\mathrm{m}^2}\right).
+
+The requested :math:`(\theta,\phi)` specifies the observation direction. For
+monostatic RCS it must be opposite to the incident propagation direction. For
+example, a plane wave propagating along ``+x`` is observed in backscatter at
+``theta=90`` and ``phi=180`` degrees. The far-field normalization and
+engineering phase convention are also written as HDF5 attributes.
 
 .. code-block:: none
 
