@@ -1921,6 +1921,14 @@ class EigenmodeSource(GridUserObject):
             )
             raise ValueError
 
+        # MPI decomposes the grid across ranks, but the source plane's
+        # bounds/plane-index validation below and the FDFD cross-section
+        # extraction in EigenmodeSource.grid_init() both assume a single,
+        # whole grid with globally-valid coordinates. Neither is currently
+        # rank-aware, so reject MPI outright until that support is added.
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
+
         if normal not in ["x", "y", "z"]:
             logger.exception(f"{self.params_str()} normal must be x, y, or z.")
             raise ValueError

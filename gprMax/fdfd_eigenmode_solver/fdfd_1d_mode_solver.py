@@ -1,7 +1,8 @@
 import math
 
-import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
 from scipy.linalg import eig
 from scipy.sparse import coo_matrix, diags
 from scipy.sparse.linalg import eigs
@@ -319,13 +320,9 @@ class FDFD_1D_mode_solver:
         else:
             fields = ((self.Et, "E_t", "cell"), (self.Ha, "H_a", "cell"), (self.Ew, "E_w", "node"))
 
-        fig, axes = plt.subplots(
-            self.num_modes,
-            3,
-            figsize=(12, 3 * self.num_modes),
-            squeeze=False,
-            constrained_layout=True,
-        )
+        fig = Figure(figsize=(12, 3 * self.num_modes), constrained_layout=True)
+        FigureCanvasAgg(fig)
+        axes = fig.subplots(self.num_modes, 3, squeeze=False)
         node_coordinate = np.arange(self.N + 1) * self.dt
         cell_coordinate = (np.arange(self.N) + 0.5) * self.dt
         for mode in range(self.num_modes):
@@ -354,7 +351,6 @@ class FDFD_1D_mode_solver:
                 ax.grid(True)
                 ax.legend(fontsize=8)
         fig.savefig(output_path, dpi=200)
-        plt.close(fig)
         return output_path
 
     def _passive_positive_neff(self, neff_squared):
