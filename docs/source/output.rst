@@ -24,9 +24,11 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``rxsteps`` is the spatial increment used to move all receivers between model runs.
 - ``nsrc`` is the total number of sources in the model.
 - ``nrx`` is the total number of receievers in the model.
+- ``nports`` is the number of voltage-source S11/impedance outputs.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
-(``tls``), receivers (``rxs``), and KSIR outputs (``ntff``) when requested.
+(``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
+voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
 Within these are further groups for each named or numbered output.
 
 .. code-block:: none
@@ -63,10 +65,43 @@ Within these are further groups for each named or numbered output.
                 Iinc
                 Vtotal
                 Itotal
+                frequency
+                S11
+                Zin
+                Yin
+                S11_current
+                Zin_current
+                ...
             tl2/
+                ...
+        frills/ [optional]
+            frill1/
+                Position
+                Polarisation
+                Z0
+                Mirror1Face
+                Mirror2Face
+                Mirror1
+                Mirror2
+                Vinc
+                Vtotal
+                Itot
+                frequency
+                S11
+                Zin
+                Yin
+                ...
+            frill2/
                 ...
         ntff/ [optional]
             <monitor name>/
+                ...
+        ports/ [optional]
+            <port ID>/
+                frequency
+                S11
+                Zin
+                Yin
                 ...
 
 Within each individual ``rx`` group are the following attributes:
@@ -96,6 +131,14 @@ Within each individual ``tl`` group are the following attributes:
 * ``Position`` is the x, y, z position (in metres) of the source in the model.
 * ``Resistance`` is the resistance of the transmission line.
 * ``dl`` is the spatial discretisation of the transmission line.
+* ``ReferenceImpedance`` is the real reference impedance used for S11 and is
+  equal to ``Resistance``.
+* ``SpectrumLimitMode``, ``MinimumWavelengthCells``,
+  ``MeshFrequencyLimit``, ``NyquistFrequency``, and ``LimitingMaterial``
+  describe the automatically selected frequency band.
+* ``ZinPrimaryMethod`` identifies the voltage-wave S11 result as the primary
+  impedance calculation. ``CurrentCheckMethod`` identifies the independent
+  discrete-line current-wave calculation.
 
 Within each individual ``tl`` group are the following datasets:
 
@@ -103,6 +146,223 @@ Within each individual ``tl`` group are the following datasets:
 * ``Iinc`` is an array containing the time history (for the model time window) of the values of the incident current in the transmission line.
 * ``Vtotal`` is an array containing the time history (for the model time window) of the values of the total (field) voltage in the transmission line.
 * ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
+* ``frequency`` is the authoritative non-negative frequency axis in Hz.
+* ``Vincident_spectrum``, ``Vreflected_spectrum``, and ``Vtotal_spectrum``
+  are the complex voltage spectra.
+* ``Iincident_spectrum`` and ``Itotal_spectrum`` are the complex current
+  spectra after accounting for the current's half-time-step staggering.
+* ``S11`` is the voltage-wave reflection coefficient
+  :math:`(V_\mathrm{total}-V_\mathrm{inc})/V_\mathrm{inc}`.
+* ``Zin`` and ``Yin`` are the input impedance and admittance derived from
+  ``S11`` and the line resistance.
+* ``S11_current`` and ``Zin_current`` are independent checks calculated from
+  the line current. The current is displaced from the voltage node by both
+  half a time step and half a line cell; gprMax removes both offsets using the
+  discrete 1D transmission-line dispersion relation. A simple phase shift of
+  the total current alone is not sufficient because incident and reflected
+  current waves require opposite spatial corrections.
+* ``valid_S11``, ``valid_Zin``, ``valid_Yin``, ``valid_S11_current``, and
+  ``valid_Zin_current`` are per-bin integer masks. ``source_valid``,
+  ``mesh_valid``, ``line_propagation_valid``, ``incident_relative_dB``, and
+  ``cells_per_minimum_wavelength`` provide the corresponding diagnostics.
+
+Within each individual ``frill`` group are the following attributes:
+
+* ``Position`` is the x, y, z position (in metres) of the feed point in the model.
+* ``Polarisation`` is the antenna axis the source drives current along
+  (``x``, ``y``, or ``z``).
+* ``Z0`` is the user-supplied characteristic impedance (``Zcoax``), and is
+  also the reference impedance used for S11.
+* ``InnerConductorRadius`` is the radius :math:`a` obtained from the mandatory
+  co-located ``#thin_wire``.
+* ``CurrentTimeApproximation`` is ``average`` for Hyun's recommended average
+  of the adjacent magnetic half-step currents.
+* ``FeedSelfAdmittance`` is the precomputed Cartesian feed-cell coefficient
+  :math:`G_f` (Siemens) used to solve the current feedback in closed form.
+* ``TimeOffset`` is zero: ``Vinc``, ``Vtotal``, and the averaged ``Itot`` are
+  all centred at integer electric-field times.
+* ``Mirror1Face`` and ``Mirror2Face`` name the two domain faces transverse to
+  ``Polarisation`` (for example ``x0``/``y0`` for a z-polarised source).
+  ``Mirror1`` and ``Mirror2`` record whether the feed point actually sits on
+  a symmetry-plane corner declared with ``#symmetry_boundary`` at that face.
+* ``SpectrumLimitMode``, ``MinimumWavelengthCells``,
+  ``MeshFrequencyLimit``, ``NyquistFrequency``, and ``LimitingMaterial``
+  describe the automatically selected frequency band, as for ``tl`` groups.
+* ``ZinPrimaryMethod`` identifies the voltage-wave S11 result as the primary
+  impedance calculation - there is no separate current-based cross-check
+  here, unlike a transmission line, since the frill's voltage and current
+  histories are solved together at the same instant, not staggered.
+
+Within each individual ``frill`` group are the following datasets:
+
+* ``Vinc`` is an array containing the time history of the incident voltage
+  (half the generator waveform).
+* ``Vtotal`` is an array containing the time history of the total terminal
+  voltage :math:`V_\mathrm{ab}`.
+* ``Itot`` is an array containing the time history of the total current at
+  the feed point, averaged from the adjacent magnetic half steps and
+  generalised for a symmetry-mirrored feed point.
+* ``frequency``, ``S11``, ``Zin``, ``Yin``, and their associated
+  ``valid_S11``/``valid_Zin``/``valid_Yin``/``source_valid``/``mesh_valid``/
+  ``incident_relative_dB``/``cells_per_minimum_wavelength`` diagnostics have
+  the same meaning as the corresponding ``tl`` datasets.
+
+Transmission-line S11 and impedance output
+-------------------------------------------
+
+S11, input impedance, and input admittance are generated automatically for
+every transmission-line source; no ``#rx_port`` command or additional
+receiver is required. With the real line resistance :math:`Z_0` as the
+reference impedance, the primary results are
+
+.. math::
+
+    S_{11}=\frac{V_\mathrm{total}-V_\mathrm{inc}}{V_\mathrm{inc}},
+    \qquad
+    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}},
+    \qquad
+    Y_\mathrm{in}=\frac{1-S_{11}}{Z_0(1+S_{11})}.
+
+This S11-based ``Zin`` is the primary result because direct division by the
+terminal current becomes ill-conditioned at frequencies where that current
+approaches zero. The independently de-embedded current result remains in
+``Zin_current`` so that the line coupling and the voltage-wave result can be
+checked. Algebraically undefined open- or short-circuit quantities are stored
+as complex NaNs and identified by their validity masks.
+
+The stored spectrum uses the native resolution :math:`\Delta f=1/T` and is
+capped automatically at the lambda/10 mesh limit of the most restrictive
+material in the model. The original ``Vinc``, ``Iinc``, ``Vtotal``, and
+``Itotal`` histories remain available for users who need to reprocess a wider
+research band.
+
+For example, the valid S11 and impedance bins can be read directly:
+
+.. code-block:: python
+
+    import h5py
+    import numpy as np
+
+    with h5py.File('model.h5', 'r') as output:
+        line = output['tls/tl1']
+        frequency = line['frequency'][...]
+        s11 = line['S11'][...]
+        zin = line['Zin'][...]
+        valid = (
+            line['valid_S11'][...].astype(bool)
+            & line['valid_Zin'][...].astype(bool)
+        )
+
+    s11_db = 20 * np.log10(np.abs(s11[valid]))
+    resistance = zin.real[valid]
+    reactance = zin.imag[valid]
+
+Magnetic-frill-source S11 and impedance output
+-----------------------------------------------
+
+S11, input impedance, and input admittance are generated automatically for
+every ``#magnetic_frill_source``, exactly as for a transmission line; no
+``#rx_port`` command or additional receiver is required (the electric field
+component along the polarisation axis is identically zero at the feed point
+by construction, so no field sample is possible there in the first place).
+With the frill's user-supplied characteristic impedance :math:`Z_0` as the
+reference impedance,
+
+.. math::
+
+    S_{11}=\frac{V_\mathrm{ab}-V_\mathrm{inc}}{V_\mathrm{inc}},
+    \qquad
+    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}},
+    \qquad
+    Y_\mathrm{in}=\frac{1-S_{11}}{Z_0(1+S_{11})}.
+
+Unlike a transmission line, there is no independent current-based
+cross-check: :math:`V_\mathrm{inc}`, :math:`V_\mathrm{ab}`, and
+:math:`I_\mathrm{tot}` are centred at the same integer time. The current is
+Hyun's average of the preceding and following magnetic half-step values; the
+following value depends on the voltage applied in that update, so gprMax
+solves the resulting feed-cell relation analytically. There is therefore no
+remaining leapfrog phase shift to de-embed. :math:`I_\mathrm{tot}` is formed
+directly from the mandatory thin wire's stored Mäkinen-projected H edges,
+consistent with the :math:`F k_H` source deposit. At every sample the stored
+histories satisfy
+
+.. math::
+
+    V_\mathrm{ab}=2V_\mathrm{inc}-Z_0 I_\mathrm{tot}.
+
+If ``#rx_port`` is placed at the same feed point, it does not create a
+second, independent measurement (unlike its role with ``#voltage_source``);
+it can only override the ``spectrum_limit`` of this always-on automatic
+output.
+
+Voltage-source S11 and impedance output
+---------------------------------------
+
+The ``#rx_port`` command and ``RxPort`` Python object write one group per port at
+``/ports/<port ID>``. The source resistance is the reference impedance
+:math:`Z_0`. The source-plane reflection coefficient is calculated directly
+from the known generator voltage and sampled total gap voltage; the reported
+``S11`` then removes the effective Yee-edge background capacitance and
+conductance. ``Zin`` and ``Yin`` are derived from that corrected result:
+
+.. math::
+
+    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}},
+    \qquad
+    Y_\mathrm{in}=\frac{1-S_{11}}{Z_0(1+S_{11})}.
+
+Important attributes include:
+
+* ``ReferenceImpedance``, ``Polarisation``, ``Position``, and ``GridPosition``;
+* ``BackgroundMaterial``, ``GapCapacitance``, and
+  ``BackgroundConductance``;
+* ``SpectrumLimitMode``, ``MinimumWavelengthCells``,
+  ``MeshFrequencyLimit``, ``NyquistFrequency``, and ``LimitingMaterial``;
+* ``FrequencyRange`` (the first and last stored bins),
+  ``ValidFrequencyRange`` (a convenience summary), and
+  ``IndependentFrequencyResolution``;
+* ``phasor_time_sign=exp(+j*omega*t)`` and
+  ``forward_transform_sign=exp(-j*omega*t)``.
+
+The principal datasets are:
+
+* ``frequency``: the authoritative plotting axis in Hz;
+* ``S11``, ``Zin``, and ``Yin``: corrected complex terminal quantities;
+* ``S11_source`` and ``Zin_source``: uncorrected source-plane quantities;
+* ``Vincident_spectrum``, ``Vreflected_source_spectrum``, and
+  ``Vtotal_spectrum``: complex voltage spectra;
+* ``time``, ``Vgenerator``, and ``Vtotal``: half-time-step-aligned audit
+  histories;
+* ``valid_S11``, ``valid_Zin``, ``valid_Yin``, ``source_valid``,
+  ``mesh_valid``, and ``gap_correction_valid``: per-bin integer masks;
+* ``incident_relative_dB`` and ``cells_per_minimum_wavelength``: diagnostics
+  behind the masks.
+
+The normal output is capped by the requested cells-per-wavelength criterion.
+With ``spectrum_limit='nyquist'``, all native non-negative bins are retained
+for research, including finite values outside the recommended band, while the
+validity masks and lambda/10 advisory ceiling remain present. Algebraically
+undefined values are stored as complex NaNs; finite invalid values are not
+silently clipped.
+
+The frequency dataset and validity mask can be plotted directly:
+
+.. code-block:: python
+
+    import h5py
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    with h5py.File('model.h5', 'r') as output:
+        port = output['ports/feed']
+        frequency = port['frequency'][...]
+        s11 = port['S11'][...]
+        valid = port['valid_S11'][...].astype(bool)
+
+    plt.plot(frequency[valid], 20 * np.log10(np.abs(s11[valid])))
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel(r'$|S_{11}|$ [dB]')
 
 KSIR field-transformation output
 --------------------------------

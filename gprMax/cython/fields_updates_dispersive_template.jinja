@@ -33,6 +33,10 @@ cdef extern from "complex.h" nogil:
     float crealf(float complex z)
 {% endif %}
 
+# For complex Lorentz/Drude pole state the physical apparent current is the
+# real part of the complete coefficient-state product. The imaginary cross
+# term must not be discarded by multiplying the real parts separately.
+
 
 ###############################################################
 # Electric field updates - dispersive materials - multipole A #
@@ -89,11 +93,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tx[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
@@ -115,11 +119,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Ty[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
@@ -141,11 +145,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tz[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
@@ -167,11 +171,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Ty[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
@@ -190,11 +194,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tz[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
@@ -216,11 +220,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tx[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
@@ -239,11 +243,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tz[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
@@ -265,11 +269,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tx[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
@@ -288,11 +292,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Ty[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
@@ -314,11 +318,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tx[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tx[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tx[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
@@ -337,11 +341,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Ty[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Ty[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Ty[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
@@ -360,11 +364,11 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
-                               * Tz[pole, i, j, k].real)
+                        phi = (phi + (updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]).real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
-                               * {{ item.real_part }}(Tz[pole, i, j, k]))
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]
+                               * Tz[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
@@ -590,11 +594,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[0, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tx[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
@@ -613,11 +617,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[1, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Ty[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
@@ -636,11 +640,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[2, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tz[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
@@ -659,11 +663,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[1, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Ty[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
@@ -679,11 +683,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[2, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tz[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
@@ -702,11 +706,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[0, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tx[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
@@ -722,11 +726,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[2, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tz[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
@@ -745,11 +749,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[0, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tx[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
@@ -765,11 +769,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[1, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Ty[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
@@ -788,11 +792,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[0, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tx[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tx[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tx[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
@@ -808,11 +812,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[1, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Ty[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Ty[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Ty[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
@@ -828,11 +832,11 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[2, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real
-                           * Tz[0, i, j, k].real)
+                    phi = ((updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]).real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
-                           * {{ item.real_part }}(Tz[0, i, j, k]))
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]
+                           * Tz[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]

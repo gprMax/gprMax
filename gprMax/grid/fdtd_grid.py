@@ -31,20 +31,19 @@ from tqdm import tqdm
 from typing_extensions import TypeVar
 
 from gprMax import config
-from gprMax.cython.pml_build import pml_average_er_mr
-from gprMax.cython.yee_cell_build import (
-    build_electric_components,
-    build_magnetic_components,
+from gprMax.cython.geometry_primitives import (
+    build_edge_x,
+    build_edge_y,
+    build_edge_z,
+    build_magnetic_edge_x,
+    build_magnetic_edge_y,
+    build_magnetic_edge_z,
 )
+from gprMax.cython.pml_build import pml_average_er_mr
+from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.fractal_volume import FractalVolume
-from gprMax.materials import (
-    ListMaterial,
-    Material,
-    PeplinskiSoil,
-    RangeMaterial,
-    process_materials,
-)
+from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
@@ -52,6 +51,7 @@ from gprMax.sources import (
     EigenmodeSource,
     HertzianDipole,
     MagneticDipole,
+    MagneticFrillSource,
     Source,
     TransmissionLine,
     VoltageSource,
@@ -136,6 +136,10 @@ class FDTDGrid:
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
         self.fractalvolumes: List[FractalVolume] = []
+        # Thin-wire geometry is registered while parsing the scene, then
+        # applied after normal Yee-component averaging has resolved the
+        # actual background material of every affected H component.
+        self.thinwires: list = []
 
         # Sources and receivers contained inside this grid
         self.waveforms: List[Waveform] = []
@@ -143,9 +147,11 @@ class FDTDGrid:
         self.hertziandipoles: List[HertzianDipole] = []
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines: List[TransmissionLine] = []
+        self.magneticfrillsources: List[MagneticFrillSource] = []
         self.discreteplanewaves: List[DiscretePlaneWave] = []
         self.eigenmodesources: List[EigenmodeSource] = []
         self.rxs: List[Rx] = []
+        self.port_monitors = []  # Source-bound S-parameter/impedance outputs
         self.snapshots = []  # List[Snapshot]
         self.ntff_monitors = []  # Time- and frequency-domain KSIR monitors
         # Reusable KSIR definitions are registered by user objects, then
@@ -260,6 +266,8 @@ class FDTDGrid:
             self.magneticdipoles.append(source)
         elif isinstance(source, TransmissionLine):
             self.transmissionlines.append(source)
+        elif isinstance(source, MagneticFrillSource):
+            self.magneticfrillsources.append(source)
         elif isinstance(source, DiscretePlaneWave):
             self.discreteplanewaves.append(source)
         elif isinstance(source, EigenmodeSource):
@@ -284,6 +292,7 @@ class FDTDGrid:
             snapshot.initialise_snapfields()
         if self.averagevolumeobjects:
             self._build_components()
+        self._build_thin_wires()
         self._2d_mode_grid_update()
         self._terminate_pmls_with_pec()
         self._build_symmetry_boundaries()
@@ -293,7 +302,9 @@ class FDTDGrid:
         if config.get_model_config().materials["maxpoles"] > 0:
             self.initialise_dispersive_arrays()
             self.initialise_dispersive_update_coeff_array()
+            
         self._build_materials()
+        self._apply_thin_wire_update_coefficients()
         self._DPW__source_grid_init()
         self._eigenmode_source_grid_init()
 
@@ -493,6 +504,264 @@ class FDTDGrid:
         build_magnetic_components(self.solid, self.rigidH, self.ID, self, harmonic)
         pbar.update()
         pbar.close()
+
+    def _thin_wire_material(
+        self,
+        wire,
+        background: Material,
+        *,
+        role: str,
+        radial_axis: Optional[str] = None,
+    ) -> Material:
+        """Return a reusable wire material for one Yee-component role.
+
+        ``se = inf`` makes the material a PEC when assigned to the wire's E
+        edge. A separate material row is used for each of the two surrounding
+        H-component orientations because the Mäkinen projection factor is
+        orientation dependent on a rectangular mesh. Magnetic properties are
+        copied from the already-resolved H background.
+        """
+
+        if getattr(background, "thin_wire_axis", None) is not None:
+            same_wire = (
+                background.thin_wire_axis == wire.wire_axis
+                and background.thin_wire_radius == wire.radius
+                and background.thin_wire_role == role
+                and background.thin_wire_radial_axis == radial_axis
+            )
+            if same_wire:
+                return background
+            raise ValueError(
+                "Thin-wire magnetic stencils overlap with different axes or radii; "
+                "sub-cell wire junctions are not yet supported."
+            )
+
+        cache = getattr(self, "_thin_wire_material_cache", None)
+        if cache is None:
+            cache = {}
+            self._thin_wire_material_cache = cache
+
+        key = (
+            wire.wire_axis,
+            float(wire.radius),
+            role,
+            radial_axis,
+            int(background.numID),
+        )
+        material = cache.get(key)
+        if material is not None:
+            return material
+
+        material_id = (
+            f"thin_wire_{wire.wire_axis}_{wire.radius:.12g}_{role}_bg"
+            f"{background.numID}"
+        )
+        material = Material(len(self.materials), material_id)
+        material.type = "thin-wire"
+        material.averagable = False
+        material.er = background.er
+        material.se = float("inf")
+        material.mr = background.mr
+        material.sm = background.sm
+        material.thin_wire_axis = wire.wire_axis
+        material.thin_wire_radius = float(wire.radius)
+        material.thin_wire_role = role
+        material.thin_wire_radial_axis = radial_axis
+        material.thin_wire_background_numID = int(background.numID)
+        material.thin_wire_background_ID = background.ID
+        self.materials.append(material)
+        cache[key] = material
+        return material
+
+    @staticmethod
+    def _thin_wire_h_radial_axis(wire_axis: str, component_h: str) -> str:
+        """Return the radial derivative direction represented by an H edge."""
+
+        h_axis = component_h[1].lower()
+        return next(axis for axis in "xyz" if axis not in (wire_axis, h_axis))
+
+    def _thin_wire_h_targets(self, axis: str, i: int, j: int, k: int):
+        """Yield active H components surrounding one thin-wire E edge."""
+
+        targets = {
+            "x": (
+                ("Hy", i, j, k - 1),
+                ("Hy", i, j, k),
+                ("Hz", i, j - 1, k),
+                ("Hz", i, j, k),
+            ),
+            "y": (
+                ("Hx", i, j, k - 1),
+                ("Hx", i, j, k),
+                ("Hz", i - 1, j, k),
+                ("Hz", i, j, k),
+            ),
+            "z": (
+                ("Hy", i - 1, j, k),
+                ("Hy", i, j, k),
+                ("Hx", i, j - 1, k),
+                ("Hx", i, j, k),
+            ),
+        }[axis]
+        active_ranges = {
+            "Hx": ((0, self.nx + 1), (0, self.ny), (0, self.nz)),
+            "Hy": ((0, self.nx), (0, self.ny + 1), (0, self.nz)),
+            "Hz": ((0, self.nx), (0, self.ny), (0, self.nz + 1)),
+        }
+
+        for component, x, y, z in targets:
+            ranges = active_ranges[component]
+            if all(low <= value < high for value, (low, high) in zip((x, y, z), ranges)):
+                yield component, x, y, z
+
+    def _validate_thin_wire_transverse_boundaries(self, wire) -> None:
+        """Require PMC symmetry when a wire lies on a transverse wall."""
+
+        axis_index = "xyz".index(wire.wire_axis)
+        for index, axis in enumerate("xyz"):
+            if index == axis_index:
+                continue
+            coordinate = int(wire.start[index])
+            if coordinate == 0:
+                face = f"{axis}0"
+            elif coordinate == int(self.size[index]):
+                face = f"{axis}max"
+            else:
+                continue
+            if self.symmetry_boundaries.get(face) != "pmc":
+                raise ValueError(
+                    f"{wire} lies on transverse domain face {face}; a thin wire "
+                    "can lie on a transverse wall only when that face is declared "
+                    "as a PMC symmetry boundary."
+                )
+
+    def _build_thin_wires(self) -> None:
+        """Apply registered thin wires after ordinary component averaging."""
+
+        if not self.thinwires:
+            return
+
+        electric_builders = {"x": build_edge_x, "y": build_edge_y, "z": build_edge_z}
+        magnetic_builders = {
+            "Hx": build_magnetic_edge_x,
+            "Hy": build_magnetic_edge_y,
+            "Hz": build_magnetic_edge_z,
+        }
+        electric_components = {"x": "Ex", "y": "Ey", "z": "Ez"}
+        occupied_e = {}
+        occupied_h = {}
+
+        for wire in self.thinwires:
+            self._validate_thin_wire_transverse_boundaries(wire)
+            component_e = electric_components[wire.wire_axis]
+            component_e_index = self.IDlookup[component_e]
+
+            for i, j, k in wire.cells():
+                if self.within_pml(np.array((i, j, k), dtype=np.int32)):
+                    raise ValueError(
+                        f"{wire} enters a PML at grid position {(i, j, k)}; "
+                        "thin wires inside PML regions are not supported."
+                    )
+
+                e_key = (component_e, i, j, k)
+                previous_e = occupied_e.get(e_key)
+                signature = (wire.wire_axis, wire.radius)
+                if previous_e is not None and previous_e != signature:
+                    raise ValueError(
+                        "Thin-wire electric edges overlap with different axes or radii."
+                    )
+                occupied_e[e_key] = signature
+
+                h_targets = list(
+                    self._thin_wire_h_targets(wire.wire_axis, i, j, k)
+                )
+                if any(
+                    self.within_pml(np.array((x, y, z), dtype=np.int32))
+                    for _, x, y, z in h_targets
+                ):
+                    raise ValueError(
+                        f"{wire} has a surrounding magnetic component inside a PML "
+                        f"at grid position {(i, j, k)}; thin-wire stencils cannot "
+                        "touch PML regions."
+                    )
+
+                background_e = self.materials[int(self.ID[component_e_index, i, j, k])]
+                material_e = self._thin_wire_material(
+                    wire, background_e, role=component_e
+                )
+                electric_builders[wire.wire_axis](
+                    i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID
+                )
+
+                for component_h, x, y, z in h_targets:
+                    h_key = (component_h, x, y, z)
+                    previous_h = occupied_h.get(h_key)
+                    if previous_h is not None and previous_h != signature:
+                        raise ValueError(
+                            "Thin-wire magnetic stencils overlap with different "
+                            "axes or radii; sub-cell wire junctions are not yet supported."
+                        )
+                    occupied_h[h_key] = signature
+
+                    component_h_index = self.IDlookup[component_h]
+                    background_h = self.materials[int(self.ID[component_h_index, x, y, z])]
+                    if background_h.ID == "pmc" or background_h.sm == float("inf"):
+                        raise ValueError(
+                            f"{wire} has a PMC magnetic component in its surrounding "
+                            f"stencil at {(x, y, z)}."
+                        )
+                    radial_axis = self._thin_wire_h_radial_axis(
+                        wire.wire_axis, component_h
+                    )
+                    material_h = self._thin_wire_material(
+                        wire,
+                        background_h,
+                        role=component_h,
+                        radial_axis=radial_axis,
+                    )
+                    magnetic_builders[component_h](
+                        x, y, z, material_h.numID, self.rigidH, self.ID
+                    )
+
+    def _apply_thin_wire_update_coefficients(self) -> None:
+        """Apply the Mäkinen thin-wire projection to magnetic material rows.
+
+        Following equations (8)-(14) of Mäkinen et al. (2002), the stored
+        field is the projected Yee-edge average
+        ``H_tilde = k_H H``. Multiplying Mäkinen's H update by ``k_H`` and
+        using ``k_E = 1 / k_H`` leaves the wire-axis curl coefficient
+        unchanged, while the radial coefficient becomes ``F * k_H``. The
+        magnetic-source coefficient is also multiplied by ``k_H`` so sources
+        such as a co-located magnetic frill deposit the projected field.
+        """
+
+        coefficient_columns = {"x": 1, "y": 2, "z": 3}
+        for material in self.materials:
+            wire_axis = getattr(material, "thin_wire_axis", None)
+            radial_axis = getattr(material, "thin_wire_radial_axis", None)
+            if wire_axis is None or radial_axis is None:
+                continue
+
+            h_axis = material.thin_wire_role[1].lower()
+            radial_step = float(self.dl["xyz".index(radial_axis)])
+            h_step = float(self.dl["xyz".index(h_axis)])
+            factor_f = 2.0 / np.log(radial_step / material.thin_wire_radius)
+            factor_kh = (radial_step / h_step) * np.arctan(h_step / radial_step)
+            factor_ke = 1.0 / factor_kh
+            combined = factor_f * factor_kh
+
+            self.updatecoeffsH[
+                material.numID, coefficient_columns[radial_axis]
+            ] *= combined
+            self.updatecoeffsH[material.numID, 4] *= factor_kh
+
+            material.thin_wire_h_is_projected = True
+            material.thin_wire_factors = {
+                "F": float(factor_f),
+                "kH": float(factor_kh),
+                "kE": float(factor_ke),
+                "F_kH": float(combined),
+            }
 
     def _2d_mode_grid_update(self) -> None:
         """Set the invariant-axis boundary materials for a 2D mode."""
@@ -704,7 +973,12 @@ class FDTDGrid:
                 outside of the grid.
         """
         try:
-            self._update_positions(self.rxs, self.rxsteps, step)
+            # Internal port receivers must remain on their fixed voltage
+            # source; #rx_steps applies only to public receiver commands.
+            public_receivers = (
+                rx for rx in self.rxs if not getattr(rx, "source_bound", False)
+            )
+            self._update_positions(public_receivers, self.rxsteps, step)
         except ValueError as e:
             logger.exception(
                 "Receiver(s) will be stepped to a position outside the domain."
@@ -975,7 +1249,7 @@ class FDTDGrid:
         mem_use = 0
 
         for vol in self.fractalvolumes:
-            mem_use += np.prod(vol.start) * vol.dtype.itemsize
+            mem_use += np.prod(vol.size) * vol.dtype.itemsize
             for surface in vol.fractalsurfaces:
                 surfacedims = surface.get_surface_dims()
                 mem_use += surfacedims[0] * surfacedims[1] * surface.dtype.itemsize

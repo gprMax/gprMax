@@ -68,7 +68,9 @@ def _fake_model_config(monkeypatch):
     monkeypatch.setattr(
         config,
         "get_model_config",
-        lambda: type("_MC", (), {"materials": {"maxpoles": 0}})(),
+        lambda: type(
+            "_MC", (), {"materials": {"maxpoles": 0, "drudelorentz": False}}
+        )(),
     )
     monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
     config.sim_config.dtypes = {"C_float_or_double": "float"}

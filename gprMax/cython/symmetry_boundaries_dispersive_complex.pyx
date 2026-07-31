@@ -32,14 +32,11 @@ from gprMax.config cimport float_or_double_complex
 # the real-pole file is the phi accumulation: Tx/Ty/Tz and
 # updatecoeffsdispersive are complex (float_or_double_complex) here, so phi
 # (which must stay real - it feeds directly into a real E-field update)
-# accumulates Real(updatecoeffsdispersive[...]) * Real(T[...]) per pole,
-# exactly matching fields_updates_dispersive_template.jinja's own complex
-# branch (`{{ item.real_part }}(updatecoeffsdispersive[...]) *
-# {{ item.real_part }}(Tx[...])`) - the real part of each factor
-# individually, not the real part of their complex product. This is the
-# same formula the bulk kernel already uses; replicating it exactly here
-# (rather than "fixing" it to Re(a*b)) is what keeps the boundary correction
-# consistent with the bulk kernel's own (already-established) numerics.
+# accumulates Real(updatecoeffsdispersive[...] * T[...]) per pole, exactly
+# matching fields_updates_dispersive_template.jinja's complex branch. The
+# imaginary cross term is essential for Lorentz poles: taking the real part
+# of each factor separately changes the implemented susceptibility and gives
+# the wrong phase and loss around a resonance.
 # The T-array recursion itself (Tx[pole,i,j,k] = beta*Tx_old + gamma*E_old)
 # and Phase B's correction are unchanged in form from the real-pole file -
 # ordinary complex arithmetic (complex*complex, complex*real, complex-complex)
@@ -113,7 +110,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_x0(
             materialEy = ID[1, 0, j, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEy, pole * 3].real * Ty[pole, 0, j, k].real
+                phi = phi + (updatecoeffsdispersive[materialEy, pole * 3] * Ty[pole, 0, j, k]).real
                 Ty[pole, 0, j, k] = (updatecoeffsdispersive[materialEy, 1 + (pole * 3)] * Ty[pole, 0, j, k]
                                      + updatecoeffsdispersive[materialEy, 2 + (pole * 3)] * Ey[0, j, k])
             Ey[0, j, k] = (updatecoeffsE[materialEy, 0] * Ey[0, j, k] +
@@ -126,7 +123,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_x0(
             materialEz = ID[2, 0, j, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEz, pole * 3].real * Tz[pole, 0, j, k].real
+                phi = phi + (updatecoeffsdispersive[materialEz, pole * 3] * Tz[pole, 0, j, k]).real
                 Tz[pole, 0, j, k] = (updatecoeffsdispersive[materialEz, 1 + (pole * 3)] * Tz[pole, 0, j, k]
                                      + updatecoeffsdispersive[materialEz, 2 + (pole * 3)] * Ez[0, j, k])
             Ez[0, j, k] = (updatecoeffsE[materialEz, 0] * Ez[0, j, k] -
@@ -164,7 +161,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_xmax(
             materialEy = ID[1, nx, j, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEy, pole * 3].real * Ty[pole, nx, j, k].real
+                phi = phi + (updatecoeffsdispersive[materialEy, pole * 3] * Ty[pole, nx, j, k]).real
                 Ty[pole, nx, j, k] = (updatecoeffsdispersive[materialEy, 1 + (pole * 3)] * Ty[pole, nx, j, k]
                                       + updatecoeffsdispersive[materialEy, 2 + (pole * 3)] * Ey[nx, j, k])
             Ey[nx, j, k] = (updatecoeffsE[materialEy, 0] * Ey[nx, j, k] +
@@ -177,7 +174,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_xmax(
             materialEz = ID[2, nx, j, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEz, pole * 3].real * Tz[pole, nx, j, k].real
+                phi = phi + (updatecoeffsdispersive[materialEz, pole * 3] * Tz[pole, nx, j, k]).real
                 Tz[pole, nx, j, k] = (updatecoeffsdispersive[materialEz, 1 + (pole * 3)] * Tz[pole, nx, j, k]
                                       + updatecoeffsdispersive[materialEz, 2 + (pole * 3)] * Ez[nx, j, k])
             Ez[nx, j, k] = (updatecoeffsE[materialEz, 0] * Ez[nx, j, k] -
@@ -215,7 +212,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_y0(
             materialEx = ID[0, i, 0, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEx, pole * 3].real * Tx[pole, i, 0, k].real
+                phi = phi + (updatecoeffsdispersive[materialEx, pole * 3] * Tx[pole, i, 0, k]).real
                 Tx[pole, i, 0, k] = (updatecoeffsdispersive[materialEx, 1 + (pole * 3)] * Tx[pole, i, 0, k]
                                      + updatecoeffsdispersive[materialEx, 2 + (pole * 3)] * Ex[i, 0, k])
             Ex[i, 0, k] = (updatecoeffsE[materialEx, 0] * Ex[i, 0, k] -
@@ -228,7 +225,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_y0(
             materialEz = ID[2, i, 0, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEz, pole * 3].real * Tz[pole, i, 0, k].real
+                phi = phi + (updatecoeffsdispersive[materialEz, pole * 3] * Tz[pole, i, 0, k]).real
                 Tz[pole, i, 0, k] = (updatecoeffsdispersive[materialEz, 1 + (pole * 3)] * Tz[pole, i, 0, k]
                                      + updatecoeffsdispersive[materialEz, 2 + (pole * 3)] * Ez[i, 0, k])
             Ez[i, 0, k] = (updatecoeffsE[materialEz, 0] * Ez[i, 0, k] +
@@ -266,7 +263,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_ymax(
             materialEx = ID[0, i, ny, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEx, pole * 3].real * Tx[pole, i, ny, k].real
+                phi = phi + (updatecoeffsdispersive[materialEx, pole * 3] * Tx[pole, i, ny, k]).real
                 Tx[pole, i, ny, k] = (updatecoeffsdispersive[materialEx, 1 + (pole * 3)] * Tx[pole, i, ny, k]
                                       + updatecoeffsdispersive[materialEx, 2 + (pole * 3)] * Ex[i, ny, k])
             Ex[i, ny, k] = (updatecoeffsE[materialEx, 0] * Ex[i, ny, k] -
@@ -279,7 +276,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_ymax(
             materialEz = ID[2, i, ny, k]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEz, pole * 3].real * Tz[pole, i, ny, k].real
+                phi = phi + (updatecoeffsdispersive[materialEz, pole * 3] * Tz[pole, i, ny, k]).real
                 Tz[pole, i, ny, k] = (updatecoeffsdispersive[materialEz, 1 + (pole * 3)] * Tz[pole, i, ny, k]
                                       + updatecoeffsdispersive[materialEz, 2 + (pole * 3)] * Ez[i, ny, k])
             Ez[i, ny, k] = (updatecoeffsE[materialEz, 0] * Ez[i, ny, k] +
@@ -317,7 +314,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_z0(
             materialEx = ID[0, i, j, 0]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEx, pole * 3].real * Tx[pole, i, j, 0].real
+                phi = phi + (updatecoeffsdispersive[materialEx, pole * 3] * Tx[pole, i, j, 0]).real
                 Tx[pole, i, j, 0] = (updatecoeffsdispersive[materialEx, 1 + (pole * 3)] * Tx[pole, i, j, 0]
                                      + updatecoeffsdispersive[materialEx, 2 + (pole * 3)] * Ex[i, j, 0])
             Ex[i, j, 0] = (updatecoeffsE[materialEx, 0] * Ex[i, j, 0] +
@@ -330,7 +327,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_z0(
             materialEy = ID[1, i, j, 0]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEy, pole * 3].real * Ty[pole, i, j, 0].real
+                phi = phi + (updatecoeffsdispersive[materialEy, pole * 3] * Ty[pole, i, j, 0]).real
                 Ty[pole, i, j, 0] = (updatecoeffsdispersive[materialEy, 1 + (pole * 3)] * Ty[pole, i, j, 0]
                                      + updatecoeffsdispersive[materialEy, 2 + (pole * 3)] * Ey[i, j, 0])
             Ey[i, j, 0] = (updatecoeffsE[materialEy, 0] * Ey[i, j, 0] -
@@ -368,7 +365,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_zmax(
             materialEx = ID[0, i, j, nz]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEx, pole * 3].real * Tx[pole, i, j, nz].real
+                phi = phi + (updatecoeffsdispersive[materialEx, pole * 3] * Tx[pole, i, j, nz]).real
                 Tx[pole, i, j, nz] = (updatecoeffsdispersive[materialEx, 1 + (pole * 3)] * Tx[pole, i, j, nz]
                                       + updatecoeffsdispersive[materialEx, 2 + (pole * 3)] * Ex[i, j, nz])
             Ex[i, j, nz] = (updatecoeffsE[materialEx, 0] * Ex[i, j, nz] +
@@ -381,7 +378,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_zmax(
             materialEy = ID[1, i, j, nz]
             phi = 0
             for pole in range(maxpoles):
-                phi = phi + updatecoeffsdispersive[materialEy, pole * 3].real * Ty[pole, i, j, nz].real
+                phi = phi + (updatecoeffsdispersive[materialEy, pole * 3] * Ty[pole, i, j, nz]).real
                 Ty[pole, i, j, nz] = (updatecoeffsdispersive[materialEy, 1 + (pole * 3)] * Ty[pole, i, j, nz]
                                       + updatecoeffsdispersive[materialEy, 2 + (pole * 3)] * Ey[i, j, nz])
             Ey[i, j, nz] = (updatecoeffsE[materialEy, 0] * Ey[i, j, nz] -
@@ -420,7 +417,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ez_X0_Y0(
         mat = ID[2, 0, 0, k]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tz[pole, 0, 0, k].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tz[pole, 0, 0, k]).real
             Tz[pole, 0, 0, k] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tz[pole, 0, 0, k]
                                  + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ez[0, 0, k])
         if x0_pmc or y0_pmc:
@@ -456,7 +453,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ez_X0_YMax(
         mat = ID[2, 0, ny, k]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tz[pole, 0, ny, k].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tz[pole, 0, ny, k]).real
             Tz[pole, 0, ny, k] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tz[pole, 0, ny, k]
                                   + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ez[0, ny, k])
         if x0_pmc or ymax_pmc:
@@ -492,7 +489,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ez_XMax_Y0(
         mat = ID[2, nx, 0, k]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tz[pole, nx, 0, k].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tz[pole, nx, 0, k]).real
             Tz[pole, nx, 0, k] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tz[pole, nx, 0, k]
                                   + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ez[nx, 0, k])
         if xmax_pmc or y0_pmc:
@@ -528,7 +525,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ez_XMax_YMax(
         mat = ID[2, nx, ny, k]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tz[pole, nx, ny, k].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tz[pole, nx, ny, k]).real
             Tz[pole, nx, ny, k] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tz[pole, nx, ny, k]
                                    + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ez[nx, ny, k])
         if xmax_pmc or ymax_pmc:
@@ -564,7 +561,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ey_X0_Z0(
         mat = ID[1, 0, j, 0]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Ty[pole, 0, j, 0].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Ty[pole, 0, j, 0]).real
             Ty[pole, 0, j, 0] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Ty[pole, 0, j, 0]
                                  + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ey[0, j, 0])
         if x0_pmc or z0_pmc:
@@ -600,7 +597,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ey_X0_ZMax(
         mat = ID[1, 0, j, nz]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Ty[pole, 0, j, nz].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Ty[pole, 0, j, nz]).real
             Ty[pole, 0, j, nz] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Ty[pole, 0, j, nz]
                                   + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ey[0, j, nz])
         if x0_pmc or zmax_pmc:
@@ -636,7 +633,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ey_XMax_Z0(
         mat = ID[1, nx, j, 0]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Ty[pole, nx, j, 0].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Ty[pole, nx, j, 0]).real
             Ty[pole, nx, j, 0] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Ty[pole, nx, j, 0]
                                   + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ey[nx, j, 0])
         if xmax_pmc or z0_pmc:
@@ -672,7 +669,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ey_XMax_ZMax(
         mat = ID[1, nx, j, nz]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Ty[pole, nx, j, nz].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Ty[pole, nx, j, nz]).real
             Ty[pole, nx, j, nz] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Ty[pole, nx, j, nz]
                                    + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ey[nx, j, nz])
         if xmax_pmc or zmax_pmc:
@@ -708,7 +705,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ex_Y0_Z0(
         mat = ID[0, i, 0, 0]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tx[pole, i, 0, 0].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tx[pole, i, 0, 0]).real
             Tx[pole, i, 0, 0] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tx[pole, i, 0, 0]
                                  + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ex[i, 0, 0])
         if y0_pmc or z0_pmc:
@@ -744,7 +741,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ex_Y0_ZMax(
         mat = ID[0, i, 0, nz]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tx[pole, i, 0, nz].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tx[pole, i, 0, nz]).real
             Tx[pole, i, 0, nz] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tx[pole, i, 0, nz]
                                   + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ex[i, 0, nz])
         if y0_pmc or zmax_pmc:
@@ -780,7 +777,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ex_YMax_Z0(
         mat = ID[0, i, ny, 0]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tx[pole, i, ny, 0].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tx[pole, i, ny, 0]).real
             Tx[pole, i, ny, 0] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tx[pole, i, ny, 0]
                                   + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ex[i, ny, 0])
         if ymax_pmc or z0_pmc:
@@ -816,7 +813,7 @@ cpdef void update_symmetry_boundary_electric_dispersive_Ex_YMax_ZMax(
         mat = ID[0, i, ny, nz]
         phi = 0
         for pole in range(maxpoles):
-            phi = phi + updatecoeffsdispersive[mat, pole * 3].real * Tx[pole, i, ny, nz].real
+            phi = phi + (updatecoeffsdispersive[mat, pole * 3] * Tx[pole, i, ny, nz]).real
             Tx[pole, i, ny, nz] = (updatecoeffsdispersive[mat, 1 + (pole * 3)] * Tx[pole, i, ny, nz]
                                    + updatecoeffsdispersive[mat, 2 + (pole * 3)] * Ex[i, ny, nz])
         if ymax_pmc or zmax_pmc:

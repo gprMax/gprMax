@@ -499,7 +499,7 @@ class SimulationConfig:
             if self.general["solver"] == "cuda":
                 self.dtypes["C_complex"] = "pycuda::complex<float>"
             elif self.general["solver"] == "opencl":
-                self.dtypes["C_complex"] = "cfloat"
+                self.dtypes["C_complex"] = "cfloat_t"
             elif self.general["solver"] == "metal":
                 # Metal Shading Language has no native complex type - a
                 # small custom struct (gprMaxComplex, with the needed
@@ -519,7 +519,7 @@ class SimulationConfig:
             if self.general["solver"] == "cuda":
                 self.dtypes["C_complex"] = "pycuda::complex<double>"
             elif self.general["solver"] == "opencl":
-                self.dtypes["C_complex"] = "cdouble"
+                self.dtypes["C_complex"] = "cdouble_t"
             elif self.general["solver"] == "metal":
                 # Unreachable in practice - the Metal branch above already
                 # raises ValueError for double precision - kept consistent

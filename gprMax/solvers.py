@@ -74,10 +74,12 @@ class Solver:
             self.updates.update_magnetic_sources(iteration)
             if isinstance(self.updates, CPUUpdates):
                 self.updates.update_eigenmode_sources_magnetic(iteration)
+            if isinstance(self.updates, (CPUUpdates, CUDAUpdates)):
                 self.updates.update_plane_waves_magnetic(iteration)
           
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
+
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()
 
@@ -89,11 +91,13 @@ class Solver:
             # backend. MPI symmetry is deliberately unsupported.
             if not isinstance(self.updates, MPIUpdates):
                 self.updates.update_symmetry_boundaries_electric()
+
             self.updates.update_electric_pml()
             self.updates.update_electric_sources(iteration)
             if isinstance(self.updates, CPUUpdates):
                 self.updates.update_eigenmode_sources_electric(iteration)
-                self.updates.update_plane_waves_electric(iteration)
+            if isinstance(self.updates, (CPUUpdates, CUDAUpdates)):
+                self.updates.update_plane_waves_electric(iteration)    
 
            # TODO: Increment iteration here if add Model to Solver
             if isinstance(self.updates, SubgridUpdates):
@@ -122,7 +126,7 @@ def create_solver(model: Model) -> Solver:
     N.B. A large range of different functions exist to advance the time
     step for dispersive materials. The correct function is set by the
     set_dispersive_updates method, based on the required numerical
-    precision and dispersive material type. This is done for solvers
+    precision and dispersive material type.This is done for solvers
     running on CPU, i.e. where Cython is used. CUDA and OpenCL
     dispersive material functions are handled through templating and
     substitution at runtime.

@@ -241,6 +241,18 @@ Edge
 ----
 .. autoclass:: gprMax.user_objects.cmds_geometry.edge.Edge
 
+Thin Wire
+---------
+.. autoclass:: gprMax.user_objects.cmds_geometry.thin_wire.ThinWire
+
+.. code-block:: python
+
+    scene.add(gprMax.ThinWire(
+        p1=(0.10, 0.10, 0.02),
+        p2=(0.10, 0.10, 0.12),
+        radius=0.0001,
+    ))
+
 Magnetic Edge
 -------------
 .. autoclass:: gprMax.user_objects.cmds_geometry.magnetic_edge.MagneticEdge
@@ -293,6 +305,10 @@ referenced material IDs must already exist; ``pec`` and ``pmc`` are built in.
     scene.add(gprMax.Edge(
         p1=(0.10, 0.10, 0.02), p2=(0.10, 0.10, 0.12),
         material_id='pec',
+    ))
+    scene.add(gprMax.ThinWire(
+        p1=(0.12, 0.10, 0.02), p2=(0.12, 0.10, 0.12),
+        radius=0.0001,
     ))
     scene.add(gprMax.Ellipsoid(
         p1=(0.20, 0.10, 0.08), xr=0.03, yr=0.02, zr=0.01,
@@ -454,9 +470,9 @@ Exactly one of ``user_func`` and ``user_values`` must be supplied. When
 ``user_values`` is used without ``user_time``, gprMax associates the samples
 with its simulation time vector. ``kind`` and ``fill_value`` are passed to
 ``scipy.interpolate.interp1d`` and apply only to sampled waveforms. User-defined
-waveforms can drive local Hertzian or magnetic dipoles, voltage sources, and
-transmission lines. The discrete-plane-wave formulation currently requires a
-built-in analytic waveform.
+waveforms can drive local Hertzian or magnetic dipoles, voltage sources,
+transmission lines, and magnetic-frill sources. The discrete-plane-wave
+formulation currently requires a built-in analytic waveform.
 
 Voltage Source
 --------------
@@ -473,6 +489,70 @@ Magnetic Dipole Source
 Transmission Line
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.TransmissionLine
+
+Every transmission-line source automatically writes its incident and terminal
+voltage/current histories together with ``frequency``, ``S11``, ``Zin``, and
+``Yin`` beneath ``/tls/tlN`` in the model HDF5 output. ``Zin`` is derived from
+the voltage-wave S11 result; ``Zin_current`` is an independent, stagger-aware
+current-wave check. An additional :class:`RxPort` is only needed for a
+resistive voltage source, not for a transmission line. See
+:ref:`Simulation Output <output>` for the equations and validity masks.
+
+Magnetic Frill Source
+---------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MagneticFrillSource
+
+A magnetic frill represents a sub-cell coaxial aperture through a PEC ground
+plane. It must share an axial Yee edge with a ``ThinWire``; the source uses
+that object's physical radius :math:`a` in Hyun's feed-cell equation. The
+``zcoax`` argument is the characteristic impedance of the physical coax. For
+a lossless TEM coax with outer-conductor inner radius :math:`b` and filler
+properties :math:`\varepsilon_{r,c}` and :math:`\mu_{r,c}`,
+
+.. math::
+
+    Z_\mathrm{coax}
+    = \frac{\eta_0}{2\pi}
+      \sqrt{\frac{\mu_{r,c}}{\varepsilon_{r,c}}}
+      \ln\!\left(\frac{b}{a}\right).
+
+For the usual nonmagnetic filler,
+
+.. math::
+
+    Z_\mathrm{coax} \simeq
+    \frac{60}{\sqrt{\varepsilon_{r,c}}}
+    \ln\!\left(\frac{b}{a}\right)\ \Omega,
+    \qquad
+    b = a\exp\!\left(
+        \frac{Z_\mathrm{coax}\sqrt{\varepsilon_{r,c}}}{60}
+    \right).
+
+The filler permittivity is the value inside the coax, which need not equal the
+antenna-side material above the ground plane. gprMax obtains :math:`a` from
+``ThinWire``; :math:`b` is not an input and the user must confirm that the
+resulting aperture remains sub-cell. For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.Waveform(
+        wave_type='ricker', amp=1, freq=1e9, id='pulse'
+    ))
+    scene.add(gprMax.Plate(
+        p1=(0, 0, 0.02), p2=(0.10, 0.10, 0.02), material_id='pec'
+    ))
+    scene.add(gprMax.ThinWire(
+        p1=(0.05, 0.05, 0.02), p2=(0.05, 0.05, 0.08), radius=0.0001
+    ))
+    scene.add(gprMax.MagneticFrillSource(
+        p1=(0.05, 0.05, 0.02), polarisation='z', zcoax=50,
+        waveform_id='pulse',
+    ))
+
+The corrected formulation is supported by the CPU, CUDA, OpenCL, and Metal
+solvers. It writes its time-domain terminal histories and derived ``S11``,
+``Zin``, and ``Yin`` automatically beneath ``/frills/frillN``. See
+:ref:`Simulation Output <output>`.
 
 All local sources refer to the ID of a waveform that has already been added to
 the scene. The following illustrates their required arguments; a model would
@@ -535,7 +615,10 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-currently use the CPU solver.
+currently use the CPU solver. Homogeneous angle/vector plane waves and layered
+axial plane waves support non-dispersive materials and multi-pole Debye,
+Lorentz, and Drude materials. Their auxiliary dispersive state uses the same
+real or complex precision selected for the main grid.
 
 Excitation File
 ---------------
@@ -554,6 +637,43 @@ Receiver
 Receiver Array
 --------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.RxArray
+
+Voltage-source S11 and input impedance
+--------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.RxPort
+
+``RxPort`` binds to one resistive, single-Yee-edge ``VoltageSource`` at the
+same discretised coordinate. It creates its electric-field monitor
+automatically and calculates corrected complex ``S11``, ``Zin``, and ``Yin``
+after the solve:
+
+.. code-block:: python
+
+    port = gprMax.RxPort(
+        p1=(0.050, 0.050, 0.020),
+        id='feed',
+        spectrum_limit=10,
+    )
+    scene.add(port)
+
+The default ``spectrum_limit=10`` retains frequencies having at least ten
+cells per shortest material wavelength. Because optional hash-command
+arguments are positional, an ``id`` is required when the Python object uses a
+non-default spectrum limit. A research run can explicitly request all native
+non-negative FFT bins while retaining the normal validity metadata:
+
+.. code-block:: python
+
+    scene.add(gprMax.RxPort(
+        p1=(0.050, 0.050, 0.020),
+        id='feed_full',
+        spectrum_limit='nyquist',
+    ))
+
+After ``gprMax.run`` completes, ``port.result`` provides the same numerical
+arrays that are stored under ``/ports/feed`` in the model HDF5 file. No current
+receiver is required; input impedance is calculated from the corrected S11
+and the voltage-source resistance.
 
 Source Steps
 ------------

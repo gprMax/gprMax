@@ -6,14 +6,10 @@ materials with complex ADE poles.
 
 The only difference from the real-pole file: Tx/Ty/Tz and
 updatecoeffsdispersive are complex here, so phi (which must stay real - it
-feeds directly into a real E-field update) accumulates
-Real(updatecoeffsdispersive[...]) * Real(T[...]) per pole - the real part of
-each factor individually, matching
-fields_updates_dispersive_template.jinja's own complex branch exactly (not
-"fixed" to Real(a*b), which would be a different, not-implemented, formula -
-see gprMax/cython/symmetry_boundaries_dispersive_complex.pyx's module
-docstring). The T-array recursion itself and Phase B are unchanged in form
-from the real-pole case - ordinary complex arithmetic handles them directly.
+feeds directly into a real E-field update) accumulates the real part of the
+complete complex product Real(updatecoeffsdispersive[...] * T[...]) per pole.
+The T-array recursion itself and Phase B are unchanged in form from the
+real-pole case - ordinary complex arithmetic handles them directly.
 
 maxpoles=2 with genuinely complex (non-zero imaginary part) per-pole
 coefficients is used throughout, specifically to exercise that the .real
@@ -113,13 +109,11 @@ def _make_grid():
 
 
 def _phi_and_new_t(t_old_poles, e_old):
-    """Independently re-derives phi (real: Re(alpha)*Re(T) per pole, NOT
-    Re(alpha*T)) and the new per-pole complex T values for a single grid
-    position - matches the Cython pole loop exactly."""
+    """Independently derive phi and the new complex T values at one point."""
     phi = 0.0
     t_new = []
     for p in range(maxpoles):
-        phi += alpha[p].real * t_old_poles[p].real
+        phi += (alpha[p] * t_old_poles[p]).real
         t_new.append(beta[p] * t_old_poles[p] + gamma[p] * e_old)
     return phi, t_new
 

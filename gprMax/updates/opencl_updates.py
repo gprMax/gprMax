@@ -26,6 +26,7 @@ from jinja2 import Environment, PackageLoader
 from gprMax import config
 from gprMax.cuda_opencl import (
     knl_fields_updates,
+    knl_magnetic_frill_source,
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
@@ -41,7 +42,12 @@ from gprMax.snapshots import (
     htod_snapshot_array,
     update_snapshot_max_dims,
 )
-from gprMax.sources import htod_src_arrays
+from gprMax.sources import (
+    MAGNETIC_FRILL_MAX_TERMS,
+    dtoh_magnetic_frill_source_outputs,
+    htod_magnetic_frill_source_arrays,
+    htod_src_arrays,
+)
 from gprMax.updates.updates import Updates
 
 logger = logging.getLogger(__name__)
@@ -88,6 +94,8 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self._set_rx_knl()
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
             self._set_src_knls()
+        if self.grid.magneticfrillsources:
+            self._set_magnetic_frill_knl()
         if self.grid.snapshots:
             self._set_snapshot_knl()
         self.ntff_collector = None
@@ -115,6 +123,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             updatecoeffsE=self.grid.updatecoeffsE.ravel(),
             updatecoeffsH=self.grid.updatecoeffsH.ravel(),
             REAL=config.sim_config.dtypes["C_float_or_double"],
+            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -387,6 +396,38 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 options=config.sim_config.devices["compiler_opts"],
             )
 
+    def _set_magnetic_frill_knl(self):
+        """Initialise corrected device-resident magnetic-frill sources."""
+
+        arrays = htod_magnetic_frill_source_arrays(
+            self.grid.magneticfrillsources, self.grid, self.queue
+        )
+        for name, array in arrays.items():
+            setattr(self, f"frill_{name}_dev", array)
+
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "MAX_FRILLTERMS": MAGNETIC_FRILL_MAX_TERMS,
+            "NY_FRILLTERMINFO": 4,
+            "NY_FRILLTERMPARAMS": 2,
+            "NY_FRILLPARAMS": 3,
+            "NY_FRILLWAVES": self.grid.iterations + 1,
+            "NY_FRILLOUT": self.grid.iterations + 1,
+        }
+        self.update_magnetic_frill_source_dev = self.elwiseknl(
+            self.ctx,
+            knl_magnetic_frill_source.update_magnetic_frill_source[
+                "args_opencl"
+            ].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+            knl_magnetic_frill_source.update_magnetic_frill_source[
+                "func"
+            ].substitute(substitutions),
+            "update_magnetic_frill_source",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on compute device, prepares kernel and
         gets kernel function.
@@ -531,6 +572,24 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.srcinfo2_magnetic_dev,
                 self.srcwaves_magnetic_dev,
                 self.grid.ID_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+            )
+
+        if self.grid.magneticfrillsources:
+            self.update_magnetic_frill_source_dev(
+                np.int32(len(self.grid.magneticfrillsources)),
+                np.int32(iteration),
+                self.frill_term_counts_dev,
+                self.frill_term_info_dev,
+                self.frill_term_params_dev,
+                self.frill_params_dev,
+                self.frill_state_dev,
+                self.frill_waveform_dev,
+                self.frill_Vinc_dev,
+                self.frill_Vtotal_dev,
+                self.frill_Itot_dev,
                 self.grid.Hx_dev,
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
@@ -690,6 +749,14 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
+
+        if self.grid.magneticfrillsources:
+            dtoh_magnetic_frill_source_outputs(
+                self.frill_Vinc_dev.get(),
+                self.frill_Vtotal_dev.get(),
+                self.frill_Itot_dev.get(),
+                self.grid,
+            )
 
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:

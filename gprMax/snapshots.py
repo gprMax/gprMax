@@ -54,7 +54,15 @@ def save_snapshots(snapshots: List["Snapshot"]):
     logger.info(f"Snapshot directory: {snapshotdir.resolve()}")
 
     for i, snap in enumerate(snapshots):
-        snap.filename = snapshotdir / snap.filename
+        # Re-derive from just the basename, not the previous value of
+        # snap.filename directly: under geometry_fixed reuse this function
+        # runs again on the same Snapshot object, whose filename is already
+        # an absolute path from the prior run. Path.__truediv__ discards the
+        # left side entirely when the right side is already absolute, so
+        # naively joining would silently collapse back to the previous
+        # run's directory, overwriting its file instead of writing this
+        # run's own.
+        snap.filename = snapshotdir / Path(snap.filename).name
         pbar = tqdm(
             total=snap.nbytes,
             leave=True,
@@ -67,6 +75,12 @@ def save_snapshots(snapshots: List["Snapshot"]):
         )
         snap.write_file(pbar)
         pbar.close()
+        # Free the full-size field buffers once written. Safe except under
+        # geometry_fixed reuse (build(), and so initialise_snapfields(),
+        # only runs once - a later reused run's store() needs these arrays
+        # to still exist) - see #389.
+        if not (config.sim_config.geometry_fixed and config.sim_config.number_of_models > 1):
+            snap.snapfields = {}
     logger.info("")
 
 

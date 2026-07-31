@@ -43,12 +43,218 @@ from gprMax.ntff.interface import (
     surface_reference_origin,
     validate_identifier,
 )
+from gprMax.ports import (
+    DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+    RxPortOverride,
+    VoltageSourcePortMonitor,
+    validate_spectrum_limit,
+)
+from gprMax.receivers import Rx as RxUser
+from gprMax.sources import MagneticFrillSource
 from gprMax.snapshots import Snapshot as SnapshotUser
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_objects.user_objects import OutputUserObject
 from gprMax.utilities.utilities import round_int
 
 logger = logging.getLogger(__name__)
+
+
+class RxPort(OutputUserObject):
+    """Calculate S11 and input impedance at a one-edge voltage source.
+
+    Attributes:
+        p1: Position of the voltage source in metres.
+        id: Optional HDF5 port identifier.
+        spectrum_limit: Minimum cells per shortest material wavelength
+            (default 10), or ``"nyquist"`` for the full research spectrum.
+    """
+
+    @property
+    def order(self):
+        return 16
+
+    @property
+    def hash(self):
+        return "#rx_port"
+
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        id: Optional[str] = None,
+        spectrum_limit=DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+    ):
+        spectrum_limit = validate_spectrum_limit(spectrum_limit)
+        if id is None and spectrum_limit != DEFAULT_MINIMUM_WAVELENGTH_CELLS:
+            raise ValueError(
+                "RxPort requires an ID before a non-default spectrum_limit so "
+                "the object has an unambiguous positional hash representation"
+            )
+        kwargs = dict(p1=p1, id=id)
+        if spectrum_limit != DEFAULT_MINIMUM_WAVELENGTH_CELLS:
+            kwargs["spectrum_limit"] = spectrum_limit
+        super().__init__(**kwargs)
+        self.point = p1
+        self.ID = id
+        self.spectrum_limit = spectrum_limit
+        self._monitor = None
+        # Set instead of _monitor when this RxPort ends up paired with a
+        # MagneticFrillSource - its port_output object does not exist yet at
+        # build() time (see build() below), so `result` must resolve it
+        # lazily rather than caching a reference that doesn't exist yet.
+        self._frill_source = None
+
+    @property
+    def result(self):
+        if self._monitor is not None:
+            if self._monitor.result is None:
+                raise RuntimeError("RxPort result is not available until the model has solved")
+            return self._monitor.result
+        if self._frill_source is not None:
+            port_output = getattr(self._frill_source, "port_output", None)
+            if port_output is None or port_output.result is None:
+                raise RuntimeError("RxPort result is not available until the model has solved")
+            return port_output.result
+        raise RuntimeError("RxPort result is not available until the model has solved")
+
+    def _validate_context(self, grid):
+        if isinstance(grid, SubGridBaseGrid) or config.sim_config.general["subgrid"]:
+            raise ValueError(f"{self.params_str()} does not support subgrids.")
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} does not yet support MPI.")
+        if config.sim_config.args.geometry_fixed:
+            raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
+        if config.get_model_config().mode != "3D":
+            raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
+        if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
+            raise ValueError(
+                f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
+            )
+
+    def build(self, model: Model, grid: FDTDGrid):
+        self._validate_context(grid)
+        uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
+        point_within_grid, coord = uip.check_src_rx_point(self.point, self.params_str())
+        if not point_within_grid:
+            return
+
+        voltage_candidates = [
+            source for source in grid.voltagesources if np.array_equal(source.coord, coord)
+        ]
+        frill_candidates = [
+            source
+            for source in grid.magneticfrillsources
+            if np.array_equal(source.coord, coord)
+        ]
+        candidates = voltage_candidates + frill_candidates
+        if len(candidates) != 1:
+            raise ValueError(
+                f"{self.params_str()} requires exactly one voltage source or "
+                "magnetic frill source at grid position "
+                f"{tuple(int(value) for value in coord)}; found {len(candidates)}"
+            )
+        source = candidates[0]
+        if grid.within_pml(coord):
+            raise ValueError(f"{self.params_str()} cannot be placed inside a PML.")
+
+        if isinstance(source, MagneticFrillSource):
+            self._build_for_frill_source(grid, source, coord, uip)
+            return
+
+        if not np.isfinite(source.resistance) or source.resistance <= 0:
+            raise ValueError(
+                f"{self.params_str()} requires a finite, non-zero voltage-source resistance"
+            )
+        if any(monitor.source is source for monitor in grid.port_monitors):
+            raise ValueError(f"{self.params_str()} source already has an RxPort output.")
+
+        if self.ID is None:
+            used = {monitor.output_id for monitor in grid.port_monitors}
+            index = 1
+            while f"port{index}" in used:
+                index += 1
+            output_id = f"port{index}"
+        else:
+            validate_identifier("RxPort ID", self.ID)
+            output_id = self.ID
+        if any(monitor.output_id == output_id for monitor in grid.port_monitors):
+            raise ValueError(f"{self.params_str()} output ID is already in use.")
+
+        if (
+            self.spectrum_limit != "nyquist"
+            and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS
+        ):
+            logger.warning(
+                f"{self.params_str()} requests only {self.spectrum_limit:g} cells "
+                "per shortest material wavelength; values below 10 may have "
+                "significant spatial-dispersion error."
+            )
+
+        receiver = RxUser()
+        receiver.ID = f"_rx_port_{output_id}"
+        receiver.coord = np.asarray(coord, dtype=np.int32).copy()
+        receiver.coordorigin = receiver.coord.copy()
+        receiver.outputs[f"E{source.polarisation}"] = np.zeros(
+            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        receiver.internal = True
+        receiver.source_bound = True
+        receiver.port_id = output_id
+        grid.add_receiver(receiver)
+
+        monitor = VoltageSourcePortMonitor(
+            output_id,
+            source,
+            receiver,
+            self.spectrum_limit,
+            owner=self,
+        )
+        grid.port_monitors.append(monitor)
+        self._monitor = monitor
+        position = uip.round_to_grid_static_point(self.point)
+        logger.info(
+            f"RxPort {output_id!r} bound to the "
+            f"{source.polarisation}-polarised voltage source at "
+            f"{position[0]:g}m, {position[1]:g}m, {position[2]:g}m."
+        )
+
+    def _build_for_frill_source(self, grid: FDTDGrid, source, coord, uip):
+        """Bind to a MagneticFrillSource's always-on automatic port output.
+
+        Unlike a voltage source, a magnetic frill source's S11/Zin/Yin output
+        is calculated automatically regardless of #rx_port (see
+        prepare_magnetic_frill_ports() in gprMax/ports.py) - so this does not
+        create a second, independent monitor. It can only override that
+        output's spectrum_limit, via a deferred marker consumed once the
+        real port_output object is constructed (it does not exist yet at
+        this point in the build sequence - see gprMax/model.py).
+
+        RxPort.__init__ requires an id whenever spectrum_limit is
+        non-default (for an unambiguous positional hash representation) -
+        that id is accepted here but not used to name anything: the
+        automatic output already has a fixed 'frillN' identifier regardless
+        of what #rx_port is called.
+        """
+        if getattr(source, "_rx_port_override", None) is not None:
+            raise ValueError(f"{self.params_str()} source already has an RxPort output.")
+
+        if (
+            self.spectrum_limit != "nyquist"
+            and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS
+        ):
+            logger.warning(
+                f"{self.params_str()} requests only {self.spectrum_limit:g} cells "
+                "per shortest material wavelength; values below 10 may have "
+                "significant spatial-dispersion error."
+            )
+
+        source._rx_port_override = RxPortOverride(spectrum_limit=self.spectrum_limit, owner=self)
+        self._frill_source = source
+        position = uip.round_to_grid_static_point(self.point)
+        logger.info(
+            f"RxPort spectrum_limit override bound to the magnetic frill "
+            f"source at {position[0]:g}m, {position[1]:g}m, {position[2]:g}m."
+        )
 
 
 class Snapshot(OutputUserObject):

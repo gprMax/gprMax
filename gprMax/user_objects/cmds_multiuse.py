@@ -41,6 +41,7 @@ from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
 from gprMax.sources import EigenmodeSource as EigenmodeSourceUser
 from gprMax.sources import HertzianDipole as HertzianDipoleUser
 from gprMax.sources import MagneticDipole as MagneticDipoleUser
+from gprMax.sources import MagneticFrillSource as MagneticFrillSourceUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -890,7 +891,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
 class TransmissionLine(RotatableMixin, GridUserObject):
     """Specifies a one-dimensional transmission line model at an electric
-        field location.
+        field location. The source is supported by the CPU and CUDA solvers.
 
     Attributes:
         polarisation: string required for polarisation of the source x, y, z.
@@ -960,11 +961,13 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             self._log(grid, transmission_line, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # Warn about using a transmission line on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        # CUDA has a device-resident transmission-line update. OpenCL and
+        # Metal use the same kernel template but do not yet have their host
+        # buffer/launch lifecycle enabled and verified.
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             raise ValueError(
                 f"{self.params_str()} cannot currently be used "
-                "with the CUDA, OpenCL, or Metal-based solver. Consider "
+                "with the OpenCL or Metal-based solver. Consider "
                 "using a #voltage_source instead."
             )
 
@@ -1056,6 +1059,174 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         )
 
 
+class MagneticFrillSource(RotatableMixin, GridUserObject):
+    """Specifies a magnetic-frill (equivalent-feed) source at an electric
+        field location, for an antenna fed through a PEC ground plane by a
+        coaxial line. Complements #transmission_line: a different,
+        well-established formulation (not a variant of the two-wire line -
+        no 1D line, no ABC, no magic timestep). The corrected Hyun feed-cell
+        formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers.
+
+    Attributes:
+        polarisation: string required for polarisation of the source - x, y,
+                        or z (the antenna axis the source drives current
+                        along, following the same electrical sign convention
+                        as gprMax's Ix/Iy/Iz current output).
+        p1: tuple required for position of source x, y, z.
+        zcoax: float required for the coax's characteristic impedance
+            (Ohms), calculated from its physical radii and filler. The inner
+            radius used by the discrete feed cell is inferred from a
+            co-located ThinWire with the same polarisation.
+        waveform_id: string required for identifier of waveform used with
+                        source.
+        start: float optional delay before the incident waveform starts (secs).
+        stop: float optional time at which the incident waveform stops (secs).
+            The coaxial terminal relation remains active afterwards.
+    """
+
+    @property
+    def order(self):
+        return 7
+
+    @property
+    def hash(self):
+        return "#magnetic_frill_source"
+
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        polarisation: str,
+        zcoax: float,
+        waveform_id: str,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
+    ):
+        super().__init__(
+            polarisation=polarisation,
+            p1=p1,
+            zcoax=zcoax,
+            waveform_id=waveform_id,
+            start=start,
+            stop=stop,
+        )
+
+        self.point = p1
+        self.polarisation = polarisation
+        self.zcoax = zcoax
+        self.waveform_id = waveform_id
+        self.start = start
+        self.stop = stop
+
+    def _do_rotate(self, grid: FDTDGrid):
+        """Performs rotation."""
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
+        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
+        self.point = tuple(rot_pts[0, :])
+
+    def build(self, grid: FDTDGrid):
+        if self.do_rotate:
+            self._do_rotate(grid)
+
+        uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
+
+        if point_within_grid:
+            self._validate_parameters(grid)
+            frill_source = self._create_magnetic_frill_source(grid, discretised_point)
+            grid.add_source(frill_source)
+            position = uip.round_to_grid_static_point(self.point)
+            self._log(grid, frill_source, *position)
+
+    def _validate_parameters(self, grid: FDTDGrid):
+        # MPI and subgrids rejected outright, more strictly than
+        # #transmission_line: a symmetry-plane-adjacent feed point's
+        # build-time resolution has no meaning split across an MPI domain
+        # boundary or a subgrid's own local indexing.
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} does not support MPI.")
+        if isinstance(grid, SubGridBaseGrid) or config.sim_config.general["subgrid"]:
+            raise ValueError(f"{self.params_str()} does not support subgrids.")
+
+        # 2D mode rejected outright - the feed point's four surrounding H
+        # components have no meaningful reduction to a 2D TM/TE invariant-
+        # axis model at all.
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(f"{self.params_str()} cannot be used in 2D mode.")
+
+        # Check polarity - x, y, or z, matching #transmission_line/
+        # calculate_Ix/Iy/Iz's own axis convention.
+        self.polarisation = self.polarisation.lower()
+        if self.polarisation not in ("x", "y", "z"):
+            raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
+
+        # Check the user-supplied characteristic impedance used by the
+        # terminal load relation and automatic port output. A zero or
+        # negative value is not a physical passive coax reference impedance.
+        if not np.isfinite(self.zcoax) or self.zcoax <= 0:
+            raise ValueError(f"{self.params_str()} requires a finite zcoax > 0.")
+
+        # Check if there is a waveformID in the waveforms list
+        if not any(x.ID == self.waveform_id for x in grid.waveforms):
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
+
+        # Check start and stop
+        if self.start is not None and self.stop is not None:
+            if self.start < 0:
+                raise ValueError(
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
+                )
+            if self.stop < 0:
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
+            if self.stop - self.start <= 0:
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
+
+    def _create_magnetic_frill_source(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> MagneticFrillSourceUser:
+        f = MagneticFrillSourceUser(grid.iterations, grid.dt)
+        f.polarisation = self.polarisation
+        f.coord = coord
+        uip = self._create_uip(grid)
+        x, y, z = uip.discretise_static_point(self.point)
+        f.ID = f"{f.__class__.__name__}({x},{y},{z})"
+        f.Z0 = self.zcoax
+        f.waveformID = self.waveform_id
+
+        if self.start is None or self.stop is None:
+            f.start = 0
+            f.stop = grid.timewindow
+        else:
+            f.start = self.start
+            f.stop = min(self.stop, grid.timewindow)
+
+        f.calculate_waveform_values(grid)
+
+        return f
+
+    def _log(self, grid: FDTDGrid, f: MagneticFrillSourceUser, x: float, y: float, z: float):
+        if self.start is None or self.stop is None:
+            startstop = " "
+        else:
+            startstop = f" start time {f.start:g} secs, finish time {f.stop:g} secs "
+
+        logger.info(
+            f"{self.grid_name(grid)}Magnetic frill source with polarity"
+            f" {f.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
+            f" Z0 {f.Z0:.1f} Ohms,{startstop} using"
+            f" waveform {f.waveformID} created."
+        )
+
+
 def _dpw_tfsf_corners(uip, p1, p2, params_str):
     """Discretises and validates the TFSF box corners for a discrete plane
     wave, shared by all three #plane_wave_* builders.
@@ -1132,7 +1303,8 @@ class DiscretePlaneWaveAngles(GridUserObject):
         phi: float required for propagation angle (degrees) of wave.
         psi: float required for polarisation of wave.
         max_angle_diff: float optional for tolerance of maximum acceptable angular difference between the
-                        desired direction of the wavevector and the estimated direction of it (degrees)
+                        desired direction of the wavevector and the estimated direction of it (degrees).
+                        Default is 3 arc minutes (0.05 degrees).
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
@@ -1169,8 +1341,21 @@ class DiscretePlaneWaveAngles(GridUserObject):
         try:
             max_angle_diff = self.kwargs["max_angle_diff"]
         except KeyError:
-            # Set default to 1 minute of arc
-            max_angle_diff = 0.017
+            # 1 arcminute (0.017) is tighter than the rounding error already
+            # introduced by writing theta/phi to just 1 decimal place - the
+            # normal way angles are specified - so a "nice" direction like
+            # (1, 2, 3) (theta=36.699.., phi=63.435..) rounds to 36.7/63.4,
+            # whose true angular error (~0.021 deg) then falls just outside
+            # a 0.017 deg tolerance. That silently rejects the small,
+            # obviously-intended integer vector and falls through to a far
+            # larger, far more expensive one satisfying the tolerance by
+            # chance, with no indication a much simpler solution existed.
+            # Default to 3 arc minutes (0.05 deg), which comfortably
+            # recovers 1-decimal-place "nice" vectors (verified against
+            # several, up to size 8) while still being a small fraction of
+            # a degree - well beyond what matters for practical FDTD
+            # propagation-direction accuracy.
+            max_angle_diff = 0.05
 
         try:
             material_id = self.kwargs["material_id"]
@@ -1184,10 +1369,10 @@ class DiscretePlaneWaveAngles(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+                + "with the OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1362,10 +1547,10 @@ class DiscretePlaneWaveVector(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+                + "with the OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1527,10 +1712,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+        if config.sim_config.general["solver"] in ["opencl", "metal"]:
             logger.exception(
                 f"{self.params_str()} cannot currently be used "
-                + "with the CUDA or OpenCL or Apple Metal-based solver. "
+                + "with the OpenCL or Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1636,15 +1821,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
             + startstop
             + f"using waveform {DPW.waveformID} created."
         )
-             
-
-        
-
 
         grid.discreteplanewaves.append(DPW)
 
-
-
+        
 class EigenmodeSource(GridUserObject):
     """
     Specifies an eigenmode source plane. The command form is:
@@ -1859,8 +2039,6 @@ class EigenmodeSource(GridUserObject):
         )
 
         grid.eigenmodesources.append(source)
-
-
 
 
 
@@ -2610,7 +2788,7 @@ class MaterialRange(GridUserObject):
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
-
+        
         s = RangeMaterialUser(
             ID,
             (er_lower, er_upper),
