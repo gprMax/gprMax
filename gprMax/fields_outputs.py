@@ -112,7 +112,11 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
     nsrc = len(
-        grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles + grid.transmissionlines
+        grid.voltagesources
+        + grid.hertziandipoles
+        + grid.magneticdipoles
+        + grid.transmissionlines
+        + grid.magneticfrillsources
     )
     basegrp.attrs["nsrc"] = nsrc
     public_rxs = [rx for rx in grid.rxs if not getattr(rx, "internal", False)]
@@ -156,6 +160,40 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         basegrp["tls/tl" + str(tlindex + 1) + "/Vtotal"] = tl.Vtotal
         basegrp["tls/tl" + str(tlindex + 1) + "/Itotal"] = tl.Itotal
         port_output = getattr(tl, "port_output", None)
+        if port_output is not None:
+            port_output.write_hdf5(grp)
+
+    # Create group for magnetic frill sources; add positional data, Z0, and
+    # resolved symmetry-plane adjacency attributes; write arrays for the
+    # incident/total voltage and total current histories. Unlike
+    # transmission lines, Vtotal/Itot are written directly by
+    # MagneticFrillSource.update_magnetic() every iteration, so no separate
+    # store_outputs() copy step is needed here.
+    for frillindex, frill in enumerate(grid.magneticfrillsources):
+        grp = basegrp.create_group("frills/frill" + str(frillindex + 1))
+        grp.attrs["Position"] = _global_position(
+            grid, frill.xcoord, frill.ycoord, frill.zcoord, is_subgrid
+        )
+        grp.attrs["Polarisation"] = frill.polarisation
+        grp.attrs["Z0"] = frill.Z0
+        grp.attrs["InnerConductorRadius"] = frill.inner_radius
+        grp.attrs["CurrentTimeApproximation"] = "average"
+        grp.attrs["FeedSelfAdmittance"] = frill._G_coeff
+        # The two faces transverse to Polarisation, in the fixed order used
+        # throughout MagneticFrillSource.finalise_setup()/update_magnetic()
+        # (see that method's docstring): x -> (z0, y0); y -> (z0, x0);
+        # z -> (x0, y0).
+        mirror_faces = {"x": ("z0", "y0"), "y": ("z0", "x0"), "z": ("x0", "y0")}
+        face1, face2 = mirror_faces[frill.polarisation]
+        grp.attrs["Mirror1Face"] = face1
+        grp.attrs["Mirror2Face"] = face2
+        grp.attrs["Mirror1"] = bool(frill._mirror1)
+        grp.attrs["Mirror2"] = bool(frill._mirror2)
+        # Save incident and total voltage, and total current
+        grp["Vinc"] = frill.Vinc
+        grp["Vtotal"] = frill.Vtotal
+        grp["Itot"] = frill.Itot
+        port_output = getattr(frill, "port_output", None)
         if port_output is not None:
             port_output.write_hdf5(grp)
 

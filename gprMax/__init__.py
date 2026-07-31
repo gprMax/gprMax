@@ -33,6 +33,7 @@ from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRea
 from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
 from .user_objects.cmds_geometry.sphere import Sphere
+from .user_objects.cmds_geometry.thin_wire import ThinWire
 from .user_objects.cmds_geometry.triangle import Triangle
 from .user_objects.cmds_multiuse import (
     PMLCFS,
@@ -45,6 +46,7 @@ from .user_objects.cmds_multiuse import (
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
+    MagneticFrillSource,
     Material,
     MaterialList,
     MaterialRange,

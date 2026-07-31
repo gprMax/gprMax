@@ -40,6 +40,7 @@ from gprMax.receivers import Rx as RxUser
 from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
 from gprMax.sources import HertzianDipole as HertzianDipoleUser
 from gprMax.sources import MagneticDipole as MagneticDipoleUser
+from gprMax.sources import MagneticFrillSource as MagneticFrillSourceUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -1054,6 +1055,174 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             f" {t.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
             f" resistance {t.resistance:.1f} Ohms,{startstop} using"
             f" waveform {t.waveformID} created."
+        )
+
+
+class MagneticFrillSource(RotatableMixin, GridUserObject):
+    """Specifies a magnetic-frill (equivalent-feed) source at an electric
+        field location, for an antenna fed through a PEC ground plane by a
+        coaxial line. Complements #transmission_line: a different,
+        well-established formulation (not a variant of the two-wire line -
+        no 1D line, no ABC, no magic timestep). The corrected Hyun feed-cell
+        formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers.
+
+    Attributes:
+        polarisation: string required for polarisation of the source - x, y,
+                        or z (the antenna axis the source drives current
+                        along, following the same electrical sign convention
+                        as gprMax's Ix/Iy/Iz current output).
+        p1: tuple required for position of source x, y, z.
+        zcoax: float required for the coax's characteristic impedance
+            (Ohms), calculated from its physical radii and filler. The inner
+            radius used by the discrete feed cell is inferred from a
+            co-located ThinWire with the same polarisation.
+        waveform_id: string required for identifier of waveform used with
+                        source.
+        start: float optional delay before the incident waveform starts (secs).
+        stop: float optional time at which the incident waveform stops (secs).
+            The coaxial terminal relation remains active afterwards.
+    """
+
+    @property
+    def order(self):
+        return 7
+
+    @property
+    def hash(self):
+        return "#magnetic_frill_source"
+
+    def __init__(
+        self,
+        p1: Tuple[float, float, float],
+        polarisation: str,
+        zcoax: float,
+        waveform_id: str,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
+    ):
+        super().__init__(
+            polarisation=polarisation,
+            p1=p1,
+            zcoax=zcoax,
+            waveform_id=waveform_id,
+            start=start,
+            stop=stop,
+        )
+
+        self.point = p1
+        self.polarisation = polarisation
+        self.zcoax = zcoax
+        self.waveform_id = waveform_id
+        self.start = start
+        self.stop = stop
+
+    def _do_rotate(self, grid: FDTDGrid):
+        """Performs rotation."""
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
+        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
+        self.point = tuple(rot_pts[0, :])
+
+    def build(self, grid: FDTDGrid):
+        if self.do_rotate:
+            self._do_rotate(grid)
+
+        uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
+        point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
+
+        if point_within_grid:
+            self._validate_parameters(grid)
+            frill_source = self._create_magnetic_frill_source(grid, discretised_point)
+            grid.add_source(frill_source)
+            position = uip.round_to_grid_static_point(self.point)
+            self._log(grid, frill_source, *position)
+
+    def _validate_parameters(self, grid: FDTDGrid):
+        # MPI and subgrids rejected outright, more strictly than
+        # #transmission_line: a symmetry-plane-adjacent feed point's
+        # build-time resolution has no meaning split across an MPI domain
+        # boundary or a subgrid's own local indexing.
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} does not support MPI.")
+        if isinstance(grid, SubGridBaseGrid) or config.sim_config.general["subgrid"]:
+            raise ValueError(f"{self.params_str()} does not support subgrids.")
+
+        # 2D mode rejected outright - the feed point's four surrounding H
+        # components have no meaningful reduction to a 2D TM/TE invariant-
+        # axis model at all.
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(f"{self.params_str()} cannot be used in 2D mode.")
+
+        # Check polarity - x, y, or z, matching #transmission_line/
+        # calculate_Ix/Iy/Iz's own axis convention.
+        self.polarisation = self.polarisation.lower()
+        if self.polarisation not in ("x", "y", "z"):
+            raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
+
+        # Check the user-supplied characteristic impedance used by the
+        # terminal load relation and automatic port output. A zero or
+        # negative value is not a physical passive coax reference impedance.
+        if not np.isfinite(self.zcoax) or self.zcoax <= 0:
+            raise ValueError(f"{self.params_str()} requires a finite zcoax > 0.")
+
+        # Check if there is a waveformID in the waveforms list
+        if not any(x.ID == self.waveform_id for x in grid.waveforms):
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
+
+        # Check start and stop
+        if self.start is not None and self.stop is not None:
+            if self.start < 0:
+                raise ValueError(
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
+                )
+            if self.stop < 0:
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
+            if self.stop - self.start <= 0:
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
+
+    def _create_magnetic_frill_source(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> MagneticFrillSourceUser:
+        f = MagneticFrillSourceUser(grid.iterations, grid.dt)
+        f.polarisation = self.polarisation
+        f.coord = coord
+        uip = self._create_uip(grid)
+        x, y, z = uip.discretise_static_point(self.point)
+        f.ID = f"{f.__class__.__name__}({x},{y},{z})"
+        f.Z0 = self.zcoax
+        f.waveformID = self.waveform_id
+
+        if self.start is None or self.stop is None:
+            f.start = 0
+            f.stop = grid.timewindow
+        else:
+            f.start = self.start
+            f.stop = min(self.stop, grid.timewindow)
+
+        f.calculate_waveform_values(grid)
+
+        return f
+
+    def _log(self, grid: FDTDGrid, f: MagneticFrillSourceUser, x: float, y: float, z: float):
+        if self.start is None or self.stop is None:
+            startstop = " "
+        else:
+            startstop = f" start time {f.start:g} secs, finish time {f.stop:g} secs "
+
+        logger.info(
+            f"{self.grid_name(grid)}Magnetic frill source with polarity"
+            f" {f.polarisation} at {x:g}m, {y:g}m, {z:g}m,"
+            f" Z0 {f.Z0:.1f} Ohms,{startstop} using"
+            f" waveform {f.waveformID} created."
         )
 
 
