@@ -34,6 +34,7 @@ from gprMax.ntff.interface import (
     SPHERICAL_OUTPUTS,
     TIME_ORIGINS,
     WINDOWS,
+    KSIRAntennaPortsSpec,
     KSIRFarFieldRequestSpec,
     KSIRFrequencyRequestSpec,
     KSIRFrequencyTransformSpec,
@@ -50,8 +51,8 @@ from gprMax.ports import (
     validate_spectrum_limit,
 )
 from gprMax.receivers import Rx as RxUser
-from gprMax.sources import MagneticFrillSource
 from gprMax.snapshots import Snapshot as SnapshotUser
+from gprMax.sources import MagneticFrillSource
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_objects.user_objects import OutputUserObject
 from gprMax.utilities.utilities import round_int
@@ -61,6 +62,10 @@ logger = logging.getLogger(__name__)
 
 class RxPort(OutputUserObject):
     """Calculate S11 and input impedance at a one-edge voltage source.
+
+    A finite-resistance source uses its Thevenin wave separation. A zero-
+    resistance hard source uses the sampled gap voltage and an Ampere-loop
+    terminal current. The voltage source owns the wave-reference impedance.
 
     Attributes:
         p1: Position of the voltage source in metres.
@@ -126,9 +131,7 @@ class RxPort(OutputUserObject):
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
         if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
-            raise ValueError(
-                f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
-            )
+            raise ValueError(f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers.")
 
     def build(self, model: Model, grid: FDTDGrid):
         self._validate_context(grid)
@@ -142,9 +145,7 @@ class RxPort(OutputUserObject):
             source for source in grid.voltagesources if np.array_equal(source.coord, coord)
         ]
         frill_candidates = [
-            source
-            for source in grid.magneticfrillsources
-            if np.array_equal(source.coord, coord)
+            source for source in grid.magneticfrillsources if np.array_equal(source.coord, coord)
         ]
         candidates = voltage_candidates + frill_candidates
         if len(candidates) != 1:
@@ -161,9 +162,9 @@ class RxPort(OutputUserObject):
             self._build_for_frill_source(grid, source, coord, uip)
             return
 
-        if not np.isfinite(source.resistance) or source.resistance <= 0:
+        if not np.isfinite(source.resistance) or source.resistance < 0:
             raise ValueError(
-                f"{self.params_str()} requires a finite, non-zero voltage-source resistance"
+                f"{self.params_str()} requires a finite, non-negative voltage-source resistance"
             )
         if any(monitor.source is source for monitor in grid.port_monitors):
             raise ValueError(f"{self.params_str()} source already has an RxPort output.")
@@ -194,13 +195,31 @@ class RxPort(OutputUserObject):
         receiver.ID = f"_rx_port_{output_id}"
         receiver.coord = np.asarray(coord, dtype=np.int32).copy()
         receiver.coordorigin = receiver.coord.copy()
+        real_dtype = config.sim_config.dtypes["float_or_double"]
         receiver.outputs[f"E{source.polarisation}"] = np.zeros(
-            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+            grid.iterations, dtype=real_dtype
         )
         receiver.internal = True
         receiver.source_bound = True
         receiver.port_id = output_id
         grid.add_receiver(receiver)
+
+        if source.resistance == 0:
+            transverse_axes = {
+                "x": (1, 2),
+                "y": (0, 2),
+                "z": (0, 1),
+            }[source.polarisation]
+            if any(coord[axis] == 0 for axis in transverse_axes):
+                raise ValueError(
+                    f"{self.params_str()} cannot calculate a hard-source current "
+                    "loop on a domain-minimum transverse boundary"
+                )
+            # CPU and device solvers store the identical requested-only
+            # Ampere-loop component at the magnetic half step.
+            receiver.outputs[f"I{source.polarisation}"] = np.zeros(
+                grid.iterations, dtype=real_dtype
+            )
 
         monitor = VoltageSourcePortMonitor(
             output_id,
@@ -215,7 +234,8 @@ class RxPort(OutputUserObject):
         logger.info(
             f"RxPort {output_id!r} bound to the "
             f"{source.polarisation}-polarised voltage source at "
-            f"{position[0]:g}m, {position[1]:g}m, {position[2]:g}m."
+            f"{position[0]:g}m, {position[1]:g}m, {position[2]:g}m, "
+            f"reference impedance {source.reference_impedance:g} Ohms."
         )
 
     def _build_for_frill_source(self, grid: FDTDGrid, source, coord, uip):
@@ -1019,7 +1039,14 @@ class KSIRFrequencyRxSpherical(KSIRFrequencyRx):
 
 
 class KSIRFarField(_KSIRRequest):
-    """Request range-normalized far fields in paired spherical directions."""
+    """Request range-normalized far fields in paired spherical directions.
+
+    In addition to Cartesian and spherical field components, ``outputs`` may
+    contain radiation intensity, directivity, gain, realized gain, radiation
+    or total efficiency, and RCS. Directivity and efficiency use an internal
+    full-sphere quadrature even when only a cut is requested. Gain and
+    efficiency require a :class:`KSIRAntennaPorts` association.
+    """
 
     @property
     def order(self):
@@ -1125,6 +1152,73 @@ class KSIRFarFieldArray(KSIRFarField):
         theta_grid, phi_grid = np.meshgrid(theta, phi, indexing="ij")
         self.theta, self.phi = theta_grid.ravel(), phi_grid.ravel()
         return super()._angles(dtype)
+
+
+class KSIRAntennaPorts(OutputUserObject):
+    """Associate all physical antenna ports with one KSIR transform.
+
+    Args:
+        transform_id: ID of a rectangular-window
+            :class:`KSIRFrequencyTransform`.
+        port_ids: IDs of every physical antenna port. Voltage-source IDs come
+            from coincident :class:`RxPort` objects. Transmission-line and
+            magnetic-frill sources use their automatic ``tlN`` and ``frillN``
+            IDs.
+
+    The complete set is required for an unambiguous coherent accepted-power
+    balance. A source with zero waveform amplitude is still a terminated port
+    and must be included.
+    """
+
+    @property
+    def order(self):
+        # RxPort objects use order 16. Building afterwards makes their public
+        # IDs available irrespective of input-file or Scene insertion order.
+        return 17
+
+    @property
+    def hash(self):
+        return "#ksir_antenna_ports"
+
+    def __init__(self, transform_id, port_ids):
+        super().__init__(transform_id=transform_id, port_ids=port_ids)
+        self.transform_id = transform_id
+        self.port_ids = tuple(port_ids)
+
+    def build(self, model: Model, grid: FDTDGrid):
+        _check_ksir_interface_context(self, grid)
+        if self.transform_id not in grid.ksir_transform_specs:
+            raise ValueError(
+                f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
+            )
+        if not self.port_ids:
+            raise ValueError(f"{self.params_str()} requires at least one port ID")
+        for port_id in self.port_ids:
+            validate_identifier("antenna port ID", port_id)
+        if len(set(self.port_ids)) != len(self.port_ids):
+            raise ValueError(f"{self.params_str()} port IDs must not contain duplicates")
+        if self.transform_id in grid.ksir_antenna_port_specs:
+            raise ValueError(
+                f"KSIR transform {self.transform_id!r} already has an antenna-port group"
+            )
+
+        available = [monitor.output_id for monitor in grid.port_monitors]
+        available.extend(f"tl{index}" for index, _ in enumerate(grid.transmissionlines, start=1))
+        available.extend(
+            f"frill{index}" for index, _ in enumerate(grid.magneticfrillsources, start=1)
+        )
+        if len(set(available)) != len(available):
+            raise ValueError("antenna port IDs are ambiguous across source types")
+        unknown = set(self.port_ids) - set(available)
+        if unknown:
+            raise ValueError(
+                f"{self.params_str()} refers to unknown port IDs {sorted(unknown)}; "
+                f"available ports are {available}"
+            )
+        grid.ksir_antenna_port_specs[self.transform_id] = KSIRAntennaPortsSpec(
+            self.transform_id,
+            self.port_ids,
+        )
 
 
 class GeometryView(OutputUserObject):

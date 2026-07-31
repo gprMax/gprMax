@@ -56,6 +56,7 @@ class _FakeDevice:
 
 class _FakeRx:
     xcoord = ycoord = zcoord = 0
+    outputs = {}
 
 
 class _FakeGrid:

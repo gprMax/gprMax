@@ -38,7 +38,7 @@ from gprMax.cuda_opencl import (
 )
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.ntff.device import CUDACombinedKSIRCollector
-from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
+from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
 from gprMax.snapshots import (
     Snapshot,
     _snapshot_axis_strides,
@@ -307,7 +307,13 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Receivers - initialises arrays on GPU, prepares kernel and gets kernel
         function.
         """
-        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid)
+        (
+            self.rxcoords_dev,
+            self.rxs_dev,
+            self.rxcurrentinfo_dev,
+            self.rxcurrents_dev,
+        ) = htod_rx_arrays(self.grid)
+        self.nrxcurrent = len(requested_current_outputs(self.grid))
 
         self.subs_func.update(
             {
@@ -322,6 +328,14 @@ class CUDAUpdates(Updates[CUDAGrid]):
         bld = self._build_knl(knl_store_outputs.store_outputs, self.subs_name_args, self.subs_func)
         knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.store_outputs_dev = knl.get_function("store_outputs")
+        if self.nrxcurrent:
+            bld = self._build_knl(
+                knl_store_outputs.store_current_outputs,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            self.store_current_outputs_dev = knl.get_function("store_current_outputs")
 
     def _set_src_knls(self):
         """Sources - initialises arrays on GPU, prepares kernel and gets kernel
@@ -1062,6 +1076,21 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=(1, 1, 1),
                 grid=(round32(len(self.grid.rxs)), 1, 1),
             )
+            if self.nrxcurrent:
+                self.store_current_outputs_dev(
+                    np.int32(self.nrxcurrent),
+                    np.int32(iteration),
+                    self.rxcurrentinfo_dev.gpudata,
+                    self.rxcurrents_dev.gpudata,
+                    config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                    config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                    config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                    self.grid.Hx_dev.gpudata,
+                    self.grid.Hy_dev.gpudata,
+                    self.grid.Hz_dev.gpudata,
+                    block=(1, 1, 1),
+                    grid=(round32(self.nrxcurrent), 1, 1),
+                )
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -2139,7 +2168,10 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
+            currents = self.rxcurrents_dev.get() if self.nrxcurrent else None
+            dtoh_rx_array(
+                self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents
+            )
 
         if self.grid.transmissionlines:
             dtoh_transmission_line_outputs(

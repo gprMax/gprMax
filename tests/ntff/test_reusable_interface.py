@@ -85,7 +85,7 @@ def test_python_api_groups_requests_and_exposes_results(tmp_path):
         phi=(0, 0, 0),
         transform_id="spectrum",
         id="far_field",
-        outputs=("Etheta", "Ephi"),
+        outputs=("Etheta", "Ephi", "directivity", "directivity_dbi"),
     )
     for item in (time_cartesian, time_spherical, frequency_receiver, far_field):
         scene.add(item)
@@ -106,6 +106,8 @@ def test_python_api_groups_requests_and_exposes_results(tmp_path):
     assert far_field.result.range_normalized
     assert np.isfinite(frequency_receiver.result.fields["Ez"]).all()
     assert np.isfinite(far_field.result.fields["Etheta"]).all()
+    assert np.isfinite(far_field.result.fields["directivity"]).all()
+    assert far_field.result.radiation_metrics is not None
     assert transform.surface_data["Ez"].field.dtype == np.complex128
 
     writer = time_cartesian._compiled_outputs

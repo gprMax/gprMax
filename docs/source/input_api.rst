@@ -642,10 +642,11 @@ Voltage-source S11 and input impedance
 --------------------------------------
 .. autoclass:: gprMax.user_objects.cmds_output.RxPort
 
-``RxPort`` binds to one resistive, single-Yee-edge ``VoltageSource`` at the
-same discretised coordinate. It creates its electric-field monitor
-automatically and calculates corrected complex ``S11``, ``Zin``, and ``Yin``
-after the solve:
+``RxPort`` binds to one single-Yee-edge ``VoltageSource`` at the same
+discretised coordinate. It creates the necessary field monitors automatically
+and calculates corrected complex ``S11``, ``Zin``, and ``Yin`` after the
+solve. A finite-resistance source uses its resistance as the reference
+impedance:
 
 .. code-block:: python
 
@@ -670,10 +671,30 @@ non-negative FFT bins while retaining the normal validity metadata:
         spectrum_limit='nyquist',
     ))
 
+A hard voltage source can instead emulate an ideal MoM delta-gap excitation.
+Set the source resistance to zero. Its travelling-wave reference impedance
+defaults to 50 Ohms and can be changed on the source:
+
+.. code-block:: python
+
+    scene.add(gprMax.VoltageSource(
+        p1=(0.050, 0.050, 0.020),
+        polarisation='z',
+        resistance=0,
+        waveform_id='source_wave',
+        reference_impedance=50,
+    ))
+    hard_port = gprMax.RxPort(
+        p1=(0.050, 0.050, 0.020),
+        id='ideal_feed',
+    )
+    scene.add(hard_port)
+
 After ``gprMax.run`` completes, ``port.result`` provides the same numerical
-arrays that are stored under ``/ports/feed`` in the model HDF5 file. No current
-receiver is required; input impedance is calculated from the corrected S11
-and the voltage-source resistance.
+arrays that are stored under ``/ports/feed`` in the model HDF5 file. For a
+hard source, gprMax obtains terminal current from the surrounding magnetic-
+field loop and accounts explicitly for the half-step phase difference from
+the integer-time voltage during transformation.
 
 Source Steps
 ------------
@@ -725,6 +746,8 @@ hash commands:
       - ``#ksir_surface``
     * - ``KSIRFrequencyTransform``
       - ``#ksir_frequency``
+    * - ``KSIRAntennaPorts``
+      - ``#ksir_antenna_ports``
     * - ``KSIRTimeRx``
       - ``#ksir_time_rx``
     * - ``KSIRTimeRxSpherical``
@@ -788,6 +811,53 @@ positional optional parameters used by the equivalent hash commands.
 KSIR frequency transform
 ------------------------
 .. autoclass:: gprMax.user_objects.cmds_output.KSIRFrequencyTransform
+
+KSIR antenna-port association
+-----------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.KSIRAntennaPorts
+
+The association is needed only for gain and efficiency. It must name every
+physical port, including a zero-amplitude source that acts as a termination.
+For voltage sources, use the ID of the coincident :class:`RxPort`; automatic
+transmission-line and magnetic-frill IDs are ``tl1``, ... and ``frill1``, ...
+respectively. For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.KSIRFrequencyTransform(
+        surface_id='radiation_surface',
+        id='antenna_band',
+        frequencies=(0.8e9, 1.0e9, 1.2e9),
+        window='rectangular',
+    ))
+    scene.add(gprMax.KSIRAntennaPorts(
+        transform_id='antenna_band',
+        port_ids=('element1', 'element2'),
+    ))
+    scene.add(gprMax.KSIRFarFieldArray(
+        theta_start=0,
+        theta_stop=180,
+        theta_step=2,
+        phi_start=0,
+        phi_stop=360,
+        phi_step=2,
+        transform_id='antenna_band',
+        id='array_pattern',
+        outputs=(
+            'directivity_dbi',
+            'gain_dbi',
+            'realized_gain_dbi',
+            'radiation_efficiency',
+            'total_efficiency',
+        ),
+    ))
+
+The full sphere needed to normalise directivity and efficiency is generated
+internally. The directions stored for ``array_pattern`` remain exactly those
+requested above. Gain uses the coherent net accepted power of the complete
+port set, so amplitudes and delays applied to the source waveforms can model
+array steering. For broadband pulses, a time delay represents true-time-delay
+steering; a fixed phase shift is frequency-specific.
 
 KSIR exact time-domain receivers
 --------------------------------

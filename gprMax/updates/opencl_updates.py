@@ -34,7 +34,7 @@ from gprMax.cuda_opencl import (
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.ntff.device import OpenCLCombinedKSIRCollector
-from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
+from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
 from gprMax.snapshots import (
     Snapshot,
     _snapshot_axis_strides,
@@ -325,7 +325,13 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Receivers - initialises arrays on compute device, prepares kernel and
         gets kernel function.
         """
-        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, self.queue)
+        (
+            self.rxcoords_dev,
+            self.rxs_dev,
+            self.rxcurrentinfo_dev,
+            self.rxcurrents_dev,
+        ) = htod_rx_arrays(self.grid, self.queue)
+        self.nrxcurrent = len(requested_current_outputs(self.grid))
         self.store_outputs_dev = self.elwiseknl(
             self.ctx,
             knl_store_outputs.store_outputs["args_opencl"].substitute(
@@ -427,6 +433,19 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
+        if self.nrxcurrent:
+            self.store_current_outputs_dev = self.elwiseknl(
+                self.ctx,
+                knl_store_outputs.store_current_outputs["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
+                knl_store_outputs.store_current_outputs["func"].substitute(
+                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
+                "store_current_outputs",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
 
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on compute device, prepares kernel and
@@ -594,6 +613,19 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
+            if self.nrxcurrent:
+                self.store_current_outputs_dev(
+                    np.int32(self.nrxcurrent),
+                    np.int32(iteration),
+                    self.rxcurrentinfo_dev,
+                    self.rxcurrents_dev,
+                    config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                    config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                    config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                )
 
     def update_electric_a(self):
         """Updates electric field components."""
@@ -748,7 +780,10 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
+            currents = self.rxcurrents_dev.get() if self.nrxcurrent else None
+            dtoh_rx_array(
+                self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents
+            )
 
         if self.grid.magneticfrillsources:
             dtoh_magnetic_frill_source_outputs(

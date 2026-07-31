@@ -31,7 +31,7 @@ class Rx:
 
     allowableoutputs = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"]
     defaultoutputs = allowableoutputs[:-3]
-    allowableoutputs_dev = allowableoutputs[:-3]
+    allowableoutputs_dev = allowableoutputs
 
     def __init__(self):
         self.ID: str
@@ -88,6 +88,18 @@ class Rx:
         self.coordorigin[2] = value
 
 
+def requested_current_outputs(G):
+    """Return requested device-current channels in a stable packed order."""
+
+    components = ("Ix", "Iy", "Iz")
+    return [
+        (receiver_index, component)
+        for receiver_index, rx in enumerate(G.rxs)
+        for component in components
+        if component in rx.outputs
+    ]
+
+
 def htod_rx_arrays(G, queue=None, dev=None):
     """Initialise arrays on compute device for receiver coordinates and to store field
         components for receivers.
@@ -99,7 +111,10 @@ def htod_rx_arrays(G, queue=None, dev=None):
 
     Returns:
         rxcoords_dev: MTLBuffer for receiver coordinates on compute device.
-        rxs_dev: MTLBuffer for receiver data on compute device.
+        rxs_dev: MTLBuffer for receiver field data on compute device.
+        rxcurrentinfo_dev: MTLBuffer containing packed current-channel metadata,
+            or ``None`` if no current outputs were requested.
+        rxcurrents_dev: MTLBuffer for packed current data, or ``None``.
     """
 
     # Array to store receiver coordinates on compute device
@@ -112,7 +127,26 @@ def htod_rx_arrays(G, queue=None, dev=None):
     # Array to store field components for receivers on compute device -
     #   rows are field components; columns are iterations; pages are receivers
     rxs = np.zeros(
-        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)),
+        (len(Rx.defaultoutputs), G.iterations, len(G.rxs)),
+        dtype=config.sim_config.dtypes["float_or_double"],
+    )
+
+    # Current channels are relatively uncommon and each requires an Ampere
+    # contour rather than one field lookup. Pack only explicitly requested
+    # channels so adding Ix/Iy/Iz support does not increase every receiver's
+    # device storage from six histories to nine.
+    current_outputs = requested_current_outputs(G)
+    rxcurrentinfo = np.zeros((len(current_outputs), 4), dtype=np.int32)
+    for channel, (receiver_index, component) in enumerate(current_outputs):
+        rx = G.rxs[receiver_index]
+        rxcurrentinfo[channel] = (
+            rx.xcoord,
+            rx.ycoord,
+            rx.zcoord,
+            ("Ix", "Iy", "Iz").index(component),
+        )
+    rxcurrents = np.zeros(
+        (G.iterations, len(current_outputs)),
         dtype=config.sim_config.dtypes["float_or_double"],
     )
 
@@ -122,12 +156,18 @@ def htod_rx_arrays(G, queue=None, dev=None):
 
         rxcoords_dev = gpuarray.to_gpu(rxcoords)
         rxs_dev = gpuarray.to_gpu(rxs)
+        rxcurrentinfo_dev = gpuarray.to_gpu(rxcurrentinfo) if current_outputs else None
+        rxcurrents_dev = gpuarray.to_gpu(rxcurrents) if current_outputs else None
 
     elif config.sim_config.general["solver"] == "opencl":
         import pyopencl.array as clarray
 
         rxcoords_dev = clarray.to_device(queue, rxcoords)
         rxs_dev = clarray.to_device(queue, rxs)
+        rxcurrentinfo_dev = (
+            clarray.to_device(queue, rxcurrentinfo) if current_outputs else None
+        )
+        rxcurrents_dev = clarray.to_device(queue, rxcurrents) if current_outputs else None
 
     elif config.sim_config.general["solver"] == "metal":
         # Create Metal buffers for receiver coordinates and field components
@@ -137,24 +177,36 @@ def htod_rx_arrays(G, queue=None, dev=None):
         rxs_dev = dev.newBufferWithBytes_length_options_(
             rxs, rxs.nbytes, 0
         )  # 0 for default options
+        if current_outputs:
+            rxcurrentinfo_dev = dev.newBufferWithBytes_length_options_(
+                rxcurrentinfo, rxcurrentinfo.nbytes, 0
+            )
+            rxcurrents_dev = dev.newBufferWithBytes_length_options_(
+                rxcurrents, rxcurrents.nbytes, 0
+            )
+        else:
+            rxcurrentinfo_dev = None
+            rxcurrents_dev = None
 
-    return rxcoords_dev, rxs_dev
+    return rxcoords_dev, rxs_dev, rxcurrentinfo_dev, rxcurrents_dev
 
 
-def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
+def dtoh_rx_array(rxs_dev, rxcoords_dev, G, rxcurrents_dev=None):
     """Copy output from receivers array used on compute device back to receiver objects.
 
     Args:
         rxs_dev: MTLBuffer for receiver data on compute device.
         rxcoords_dev: MTLBuffer for receiver coordinates on compute device.
         G: FDTDGrid class describing a grid in a model.
+        rxcurrents_dev: Packed current histories. For CUDA/OpenCL this is
+            already a NumPy array; for Metal it is an MTLBuffer.
     """
 
     if config.sim_config.general["solver"] == "metal":
         # For Metal, we need to read the data back from the GPU buffers
         # Create NumPy arrays to hold the data
         rxcoords_shape = (len(G.rxs), 3)
-        rxs_shape = (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs))
+        rxs_shape = (len(Rx.defaultoutputs), G.iterations, len(G.rxs))
 
         # Initialize arrays
         rxcoords_np = np.zeros(rxcoords_shape, dtype=np.int32)
@@ -198,6 +250,32 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         rxcoords_dev = rxcoords_np
         rxs_dev = rxs_np
 
+        current_outputs = requested_current_outputs(G)
+        if current_outputs:
+            current_shape = (G.iterations, len(current_outputs))
+            current_np = np.zeros(
+                current_shape, dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            try:
+                expected_bytes = current_np.nbytes
+                if rxcurrents_dev is not None and rxcurrents_dev.length() == expected_bytes:
+                    buffer = rxcurrents_dev.contents().as_buffer(expected_bytes)
+                    current_np = (
+                        np.frombuffer(
+                            buffer, dtype=config.sim_config.dtypes["float_or_double"]
+                        )
+                        .reshape(current_shape)
+                        .copy()
+                    )
+                else:
+                    raise RuntimeError("Metal current-output buffer size mismatch")
+            except Exception as e:
+                logger.exception(
+                    f"Error copying Metal current-output data: {e}, "
+                    "using zero-filled arrays as fallback"
+                )
+            rxcurrents_dev = current_np
+
     # For CUDA/OpenCL, rxs_dev/rxcoords_dev are already host numpy arrays by
     # the time this function is called (the caller does .get() beforehand);
     # for Metal, the branch above has just produced the host numpy
@@ -212,6 +290,13 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
                 "device receiver order/coordinates do not match the grid receiver list"
             )
         for output in rx.outputs:
-            rx.outputs[output] = rxs_dev[
-                Rx.allowableoutputs_dev.index(output), :, rxd
-            ]
+            if output in Rx.defaultoutputs:
+                rx.outputs[output] = rxs_dev[Rx.defaultoutputs.index(output), :, rxd]
+
+    current_outputs = requested_current_outputs(G)
+    if current_outputs:
+        expected_shape = (G.iterations, len(current_outputs))
+        if rxcurrents_dev is None or rxcurrents_dev.shape != expected_shape:
+            raise RuntimeError("device current-output array does not match requested channels")
+        for channel, (receiver_index, component) in enumerate(current_outputs):
+            G.rxs[receiver_index].outputs[component] = rxcurrents_dev[:, channel]

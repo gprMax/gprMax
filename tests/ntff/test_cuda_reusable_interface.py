@@ -58,6 +58,49 @@ def _scene():
     return scene, transform, time_receiver, frequency_receiver, far_field
 
 
+def _antenna_scene():
+    dl = 0.004
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.08, 0.08, 0.08)))
+    scene.add(gprMax.TimeWindow(time=4e-10))
+    scene.add(gprMax.PMLThickness(thickness=3))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
+    scene.add(
+        gprMax.VoltageSource(
+            polarisation="z",
+            p1=(0.04, 0.04, 0.04),
+            resistance=50,
+            waveform_id="pulse",
+        )
+    )
+    scene.add(gprMax.RxPort(p1=(0.04, 0.04, 0.04), id="feed"))
+    scene.add(
+        gprMax.KSIRSurface(
+            p1=(0.028, 0.028, 0.028),
+            p2=(0.052, 0.052, 0.052),
+            id="surface",
+        )
+    )
+    scene.add(gprMax.KSIRFrequencyTransform("surface", "spectrum", (5e9,)))
+    scene.add(gprMax.KSIRAntennaPorts("spectrum", ("feed",)))
+    far_field = gprMax.KSIRFarField(
+        (30, 90, 150),
+        (0, 0, 0),
+        "spectrum",
+        id="far",
+        outputs=(
+            "directivity",
+            "gain",
+            "realized_gain",
+            "radiation_efficiency",
+            "total_efficiency",
+        ),
+    )
+    scene.add(far_field)
+    return scene, far_field
+
+
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
 @pytest.mark.parametrize(
     "precision,real_dtype,complex_dtype,rtol",
@@ -133,3 +176,52 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, comple
         assert frequency_group.attrs["solver"] == "cuda"
         assert frequency_group.attrs["collection_backend"] == "cuda_device"
         assert frequency_group["surface_dft/Ez/field"].dtype == complex_dtype
+
+
+@pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
+def test_cuda_antenna_metrics_match_cpu(tmp_path):
+    cpu_scene, cpu_far = _antenna_scene()
+    cuda_scene, cuda_far = _antenna_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        n=1,
+        outputfile=tmp_path / "cpu_antenna",
+        hide_progress_bars=True,
+        cpu_precision="single",
+    )
+    gprMax.run(
+        scenes=[cuda_scene],
+        n=1,
+        outputfile=tmp_path / "cuda_antenna",
+        hide_progress_bars=True,
+        gpu=[0],
+        gpu_precision="single",
+    )
+
+    for output in cpu_far.result.fields:
+        assert_allclose(
+            cuda_far.result.fields[output],
+            cpu_far.result.fields[output],
+            rtol=2e-3,
+            atol=2e-3 * np.nanmax(np.abs(cpu_far.result.fields[output])),
+        )
+    assert_allclose(
+        cuda_far.result.radiation_metrics.radiated_power,
+        cpu_far.result.radiation_metrics.radiated_power,
+        rtol=2e-3,
+    )
+    assert_allclose(
+        cuda_far.result.port_metrics.accepted_power,
+        cpu_far.result.port_metrics.accepted_power,
+        rtol=2e-3,
+    )
+    assert_allclose(
+        cuda_far.result.port_metrics.incident_power,
+        cpu_far.result.port_metrics.incident_power,
+        rtol=2e-3,
+    )
+
+    with h5py.File(tmp_path / "cuda_antenna.h5", "r") as output:
+        group = output["ntff/surface/frequency/spectrum/far_field/far"]
+        assert group["port_power/port_ids"].asstr()[...].tolist() == ["feed"]
+        assert group["port_power/gain_valid"][0] == 1

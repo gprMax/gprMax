@@ -8,6 +8,7 @@ import gprMax
 from gprMax.hash_cmds_file import get_user_objects
 from gprMax.ntff.interface import validate_identifier
 from gprMax.user_objects.cmds_output import (
+    KSIRAntennaPorts,
     KSIRFarField,
     KSIRFarFieldArray,
     KSIRFrequencyRx,
@@ -39,11 +40,13 @@ def test_positional_hash_commands_create_public_objects():
         "#ksir_frequency_rx_array: 0.12 0.05 0.05 0.14 0.05 0.05 0.01 0.01 0.01 spectrum1 freq3 Ez",
         "#ksir_far_field: 90 30 spectrum1 far1 Etheta Ephi radiation_intensity",
         "#ksir_far_field_array: 0 180 90 0 360 180 spectrum1 far2 Etheta Ephi",
+        "#ksir_antenna_ports: spectrum1 feed1 feed2",
     )
 
     assert [type(item) for item in objects] == [
         KSIRSurface,
         KSIRFrequencyTransform,
+        KSIRAntennaPorts,
         KSIRTimeRx,
         KSIRTimeRxSpherical,
         KSIRTimeRxArray,
@@ -56,7 +59,8 @@ def test_positional_hash_commands_create_public_objects():
     transform = objects[1]
     assert transform.frequencies == (1e8, 2e8)
     assert transform.window == "hann"
-    time_receiver = objects[2]
+    assert objects[2].port_ids == ("feed1", "feed2")
+    time_receiver = objects[3]
     assert time_receiver.ID == "time1"
     assert time_receiver.outputs == ("Ez", "Hy")
     assert time_receiver.time_origin == "first_arrival"
@@ -119,6 +123,7 @@ def test_hdf5_identifiers_reject_invalid_path_components(identifier):
         "#ksir_frequency_rx: 1 2 3",
         "#ksir_far_field: 90 0",
         "#ksir_far_field_array: 0 180 5 0 360 transform",
+        "#ksir_antenna_ports: transform",
         "#ksir_field_extension: 0 0 0 1 1 1 2 2 2 components=Ez",
         "#ksir_near_to_far: 0 0 0 1 1 1",
     ],
@@ -143,7 +148,8 @@ def test_reusable_commands_run_and_write_grouped_hdf5(tmp_path):
         "#ksir_time_rx_spherical: 0.03 90 0 surf1 time2 Etheta simulation\n"
         "#ksir_frequency_rx: 0.064 0.04 0.042 spec1 freq1 Ez\n"
         "#ksir_frequency_rx_spherical: 0.03 90 0 spec1 freq2 Etheta\n"
-        "#ksir_far_field: 90 0 spec1 far1 Etheta Ephi radiation_intensity\n"
+        "#ksir_far_field: 90 0 spec1 far1 Etheta Ephi radiation_intensity "
+        "directivity directivity_dbi\n"
     )
     outputfile = tmp_path / "reusable_ksir"
 
@@ -168,9 +174,142 @@ def test_reusable_commands_run_and_write_grouped_hdf5(tmp_path):
         assert np.isfinite(transform["receivers/freq2/fields/Etheta"][...]).all()
         assert np.isfinite(transform["far_field/far1/fields/Etheta"][...]).all()
         assert np.isfinite(transform["far_field/far1/fields/radiation_intensity"][...]).all()
+        assert np.isfinite(transform["far_field/far1/fields/directivity"][...]).all()
+        assert np.isfinite(transform["far_field/far1/radiated_power"][...]).all()
         assert surface["time/time1"].attrs["time_origin"] == "first_arrival"
         assert surface["time/time2"].attrs["coordinate_system"] == "spherical"
         assert surface["time/time1/fields/Ez"].dtype == np.float32
+
+
+def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
+    inputfile = tmp_path / "antenna_metrics.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 4e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#voltage_source: z 0.04 0.04 0.04 50 pulse\n"
+        "#rx_port: 0.04 0.04 0.04 feed\n"
+        "#ksir_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ksir_frequency: surf band 5e9 rectangular\n"
+        "#ksir_antenna_ports: band feed\n"
+        "#ksir_far_field: 90 0 band broadside Etheta Ephi directivity "
+        "directivity_dbi gain gain_dbi realized_gain realized_gain_dbi "
+        "radiation_efficiency total_efficiency\n"
+    )
+    outputfile = tmp_path / "antenna_metrics"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        group = output["ntff/surf/frequency/band/far_field/broadside"]
+        assert group.attrs["radiation_quadrature_theta_order"] >= 12
+        assert group.attrs["radiation_quadrature_phi_order"] >= 24
+        assert (
+            group.attrs["maximum_directivity_sampling"]
+            == "full-sphere quadrature plus requested directions"
+        )
+        assert group["port_power/port_ids"].asstr()[...].tolist() == ["feed"]
+        assert group["port_power/incident_voltage_per_port"].shape == (1, 1)
+        assert group["port_power/terminal_voltage_per_port"].shape == (1, 1)
+        assert group["port_power/terminal_current_per_port"].shape == (1, 1)
+        assert group["port_power"].attrs["spectral_power_units"] == "W s^2"
+        assert group["port_power/gain_valid"][0] == 1
+        assert group["port_power/realized_gain_valid"][0] == 1
+        for name in (
+            "directivity",
+            "directivity_dbi",
+            "gain",
+            "gain_dbi",
+            "realized_gain",
+            "realized_gain_dbi",
+            "radiation_efficiency",
+            "total_efficiency",
+        ):
+            assert np.isfinite(group[f"fields/{name}"][...]).all()
+
+
+def test_multiport_gain_keeps_zero_amplitude_port_in_power_balance(tmp_path):
+    inputfile = tmp_path / "multiport_metrics.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 4e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 driven\n"
+        "#waveform: ricker 0 5e9 terminated\n"
+        "#voltage_source: z 0.036 0.04 0.04 50 driven\n"
+        "#voltage_source: z 0.044 0.04 0.04 50 terminated\n"
+        "#rx_port: 0.036 0.04 0.04 element1\n"
+        "#rx_port: 0.044 0.04 0.04 element2\n"
+        "#ksir_surface: 0.024 0.028 0.028 0.056 0.052 0.052 surf\n"
+        "#ksir_frequency: surf band 5e9 rectangular\n"
+        "#ksir_antenna_ports: band element1 element2\n"
+        "#ksir_far_field: 90 0 band broadside gain realized_gain\n"
+    )
+    outputfile = tmp_path / "multiport_metrics"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        group = output["ntff/surf/frequency/band/far_field/broadside"]
+        port_power = group["port_power"]
+        assert port_power["port_ids"].asstr()[...].tolist() == ["element1", "element2"]
+        assert port_power["incident_power_per_port"][0, 0] > 0
+        assert port_power["incident_power_per_port"][1, 0] == 0
+        assert port_power["incident_voltage_per_port"].shape == (2, 1)
+        assert port_power["terminal_voltage_per_port"].shape == (2, 1)
+        assert port_power["terminal_current_per_port"].shape == (2, 1)
+        assert port_power["terminal_valid"][0] == 1
+        assert np.isfinite(port_power["accepted_power_per_port"][:, 0]).all()
+        assert np.isfinite(group["fields/gain"][...]).all()
+        assert np.isfinite(group["fields/realized_gain"][...]).all()
+
+
+def test_automatic_transmission_line_port_can_normalise_gain(tmp_path):
+    inputfile = tmp_path / "transmission_line_gain.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 4e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#transmission_line: z 0.04 0.04 0.04 50 pulse\n"
+        "#ksir_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ksir_frequency: surf band 5e9 rectangular\n"
+        "#ksir_antenna_ports: band tl1\n"
+        "#ksir_far_field: 90 0 band broadside gain realized_gain\n"
+    )
+    outputfile = tmp_path / "transmission_line_gain"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        group = output["ntff/surf/frequency/band/far_field/broadside"]
+        assert group["port_power/port_ids"].asstr()[...].tolist() == ["tl1"]
+        assert group["port_power/source_types"].asstr()[...].tolist() == ["TransmissionLine"]
+        assert group["port_power/gain_valid"][0] == 1
+        assert np.isfinite(group["fields/gain"][...]).all()
+        assert np.isfinite(group["fields/realized_gain"][...]).all()
 
 
 def test_surface_on_symmetry_plane_is_completed_automatically(tmp_path):

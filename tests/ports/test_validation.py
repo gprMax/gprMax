@@ -34,13 +34,29 @@ def test_port_requires_exactly_one_colocated_voltage_source(tmp_path):
         _run_geometry(scene, tmp_path, "no_source")
 
 
-def test_port_rejects_hard_voltage_source(tmp_path):
+def test_hard_voltage_source_defaults_to_50_ohm_reference_impedance(tmp_path):
     scene = _base_scene()
     scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 0, "pulse"))
     scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
 
-    with pytest.raises(ValueError, match="non-zero voltage-source resistance"):
-        _run_geometry(scene, tmp_path, "hard_source")
+    _run_geometry(scene, tmp_path, "hard_source")
+
+
+def test_port_rejects_reference_impedance_different_from_finite_resistance(tmp_path):
+    scene = _base_scene()
+    scene.add(
+        gprMax.VoltageSource(
+            (0.01, 0.01, 0.01),
+            "z",
+            50,
+            "pulse",
+            reference_impedance=75,
+        )
+    )
+    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
+
+    with pytest.raises(ValueError, match="must equal the finite source resistance"):
+        _run_geometry(scene, tmp_path, "finite_reference_mismatch")
 
 
 def test_port_rejects_ambiguous_colocated_sources(tmp_path):

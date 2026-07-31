@@ -33,7 +33,7 @@ from gprMax.cuda_opencl import (
     knl_symmetry_boundaries,
 )
 from gprMax.ntff.device import MetalCombinedKSIRCollector
-from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
+from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
 from gprMax.snapshots import (
     Snapshot,
     _snapshot_axis_strides,
@@ -367,7 +367,13 @@ class MetalUpdates:
         """Receivers - initialises arrays on compute device, prepares kernel and
         gets kernel function.
         """
-        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, None, self.dev)
+        (
+            self.rxcoords_dev,
+            self.rxs_dev,
+            self.rxcurrentinfo_dev,
+            self.rxcurrents_dev,
+        ) = htod_rx_arrays(self.grid, None, self.dev)
+        self.nrxcurrent = len(requested_current_outputs(self.grid))
 
         self.subs_func.update(
             {
@@ -387,6 +393,21 @@ class MetalUpdates:
         self.pso_store_outputs = self.dev.newComputePipelineStateWithFunction_error_(
             self.store_outputs_dev, None
         )[0]
+        if self.nrxcurrent:
+            bld = self._build_knl(
+                knl_store_outputs.store_current_outputs,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            lib, _ = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
+            self.store_current_outputs_dev = lib.newFunctionWithName_(
+                "store_current_outputs"
+            )
+            self.pso_store_current_outputs = (
+                self.dev.newComputePipelineStateWithFunction_error_(
+                    self.store_current_outputs_dev, None
+                )[0]
+            )
 
         # No self.grid.set_thread_group_size() call here - store_outputs()'s
         # own dispatch always computes its thread-group size directly from
@@ -628,6 +649,46 @@ class MetalUpdates:
                 ),
             )
             self.cmpencoder_store_outputs.endEncoding()
+            if self.nrxcurrent:
+                encoder = self.cmdbuffer_store_outputs.computeCommandEncoder()
+                encoder.setComputePipelineState_(self.pso_store_current_outputs)
+                ncurrent_buffer = self.dev.newBufferWithBytes_length_options_(
+                    np.int32(self.nrxcurrent).tobytes(), 4, 0
+                )
+                real_dtype = config.sim_config.dtypes["float_or_double"]
+                dx_buffer = self.dev.newBufferWithBytes_length_options_(
+                    real_dtype(self.grid.dx).tobytes(), np.dtype(real_dtype).itemsize, 0
+                )
+                dy_buffer = self.dev.newBufferWithBytes_length_options_(
+                    real_dtype(self.grid.dy).tobytes(), np.dtype(real_dtype).itemsize, 0
+                )
+                dz_buffer = self.dev.newBufferWithBytes_length_options_(
+                    real_dtype(self.grid.dz).tobytes(), np.dtype(real_dtype).itemsize, 0
+                )
+                for index, buffer in enumerate(
+                    (
+                        ncurrent_buffer,
+                        iteration_buffer,
+                        self.rxcurrentinfo_dev,
+                        self.rxcurrents_dev,
+                        dx_buffer,
+                        dy_buffer,
+                        dz_buffer,
+                        self.grid.Hx_dev,
+                        self.grid.Hy_dev,
+                        self.grid.Hz_dev,
+                    )
+                ):
+                    encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+                encoder.dispatchThreads_threadsPerThreadgroup_(
+                    self.metal.MTLSizeMake(round32(self.nrxcurrent), 1, 1),
+                    self.metal.MTLSizeMake(
+                        self.pso_store_current_outputs.maxTotalThreadsPerThreadgroup(),
+                        1,
+                        1,
+                    ),
+                )
+                encoder.endEncoding()
             self.cmdbuffer_store_outputs.commit()
             self.cmdbuffer_store_outputs.waitUntilCompleted()
 
@@ -1242,7 +1303,12 @@ class MetalUpdates:
 
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            dtoh_rx_array(self.rxs_dev, self.rxcoords_dev, self.grid)
+            dtoh_rx_array(
+                self.rxs_dev,
+                self.rxcoords_dev,
+                self.grid,
+                self.rxcurrents_dev if self.nrxcurrent else None,
+            )
 
         if self.grid.magneticfrillsources:
             dtoh_magnetic_frill_source_outputs(

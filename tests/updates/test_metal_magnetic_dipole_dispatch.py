@@ -112,6 +112,7 @@ def _make_updates(magnetic_dipole_list):
 
     class _Grid:
         magneticdipoles = magnetic_dipole_list
+        magneticfrillsources = []
         dx = dy = dz = 1e-3
         ID_dev = _FakeBuffer(b"id")
         Hx_dev = _FakeBuffer(b"hx")

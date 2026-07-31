@@ -12,6 +12,8 @@ def _scene(
     background=None,
     dispersive_elsewhere=False,
     polarisation="z",
+    resistance=50,
+    reference_impedance=None,
 ):
     dl = 0.002
     scene = gprMax.Scene()
@@ -60,8 +62,9 @@ def _scene(
         gprMax.VoltageSource(
             p1=(0.01, 0.01, 0.01),
             polarisation=polarisation,
-            resistance=50,
+            resistance=resistance,
             waveform_id="pulse",
+            reference_impedance=reference_impedance,
         )
     )
     port = gprMax.RxPort(
@@ -81,6 +84,8 @@ def _run(
     cpu_precision="single",
     dispersive_elsewhere=False,
     polarisation="z",
+    resistance=50,
+    reference_impedance=None,
 ):
     output = tmp_path / name
     scene, port = _scene(
@@ -88,6 +93,8 @@ def _run(
         background,
         dispersive_elsewhere,
         polarisation,
+        resistance,
+        reference_impedance,
     )
     gprMax.run(
         scenes=[scene],
@@ -214,3 +221,76 @@ def test_other_voltage_source_polarisations_produce_valid_ports(tmp_path, polari
 
         assert port.attrs["Polarisation"] == polarisation
         assert port["valid_S11"][...].astype(bool).any()
+
+
+@pytest.mark.parametrize("polarisation", ("x", "y", "z"))
+def test_hard_source_port_uses_phase_aligned_ampere_current(tmp_path, polarisation):
+    filename, api_port = _run(
+        tmp_path,
+        f"hard_{polarisation}_port",
+        polarisation=polarisation,
+        resistance=0,
+        reference_impedance=50,
+    )
+
+    with h5py.File(filename, "r") as output:
+        port = output["ports/feed"]
+        frequency = port["frequency"][...]
+        valid = port["valid_Zin"][...].astype(bool)
+
+        assert port.attrs["PortMode"] == "hard_delta_gap"
+        assert port.attrs["ReferenceImpedance"] == 50
+        assert port.attrs["ReferenceImpedanceSource"] == "voltage_source"
+        assert port.attrs["TimeSampleOffset"] == pytest.approx(
+            output.attrs["dt"]
+        )
+        assert port.attrs["CurrentTimeSampleOffset"] == pytest.approx(
+            0.5 * output.attrs["dt"]
+        )
+        assert port.attrs["CurrentTimeAlignment"] == "explicit_fft_half_step_phase"
+        assert port["Iloop"].shape == port["time"].shape
+        assert port["time_current"].shape == port["time"].shape
+        assert port["Iloop_spectrum"].shape == frequency.shape
+        assert port["Iterminal_spectrum"].shape == frequency.shape
+        assert valid.any()
+        np.testing.assert_allclose(
+            port["Zin"][...][valid],
+            port["Vtotal_spectrum"][...][valid]
+            / port["Iterminal_spectrum"][...][valid],
+            rtol=2e-5,
+            atol=2e-5,
+        )
+        np.testing.assert_allclose(
+            api_port.result.total_voltage,
+            api_port.result.generator_voltage,
+        )
+
+
+def test_hard_source_port_defaults_to_50_ohm_reference(tmp_path):
+    filename, _ = _run(
+        tmp_path,
+        "hard_default_reference",
+        resistance=0,
+    )
+
+    with h5py.File(filename, "r") as output:
+        port = output["ports/feed"]
+        assert port.attrs["ReferenceImpedance"] == 50
+        assert port.attrs["ReferenceImpedanceSource"] == "voltage_source"
+
+
+def test_hard_source_nyquist_gap_admittance_remains_finite(tmp_path):
+    filename, _ = _run(
+        tmp_path,
+        "hard_nyquist_port",
+        spectrum_limit="nyquist",
+        resistance=0,
+        reference_impedance=50,
+    )
+
+    with h5py.File(filename, "r") as output:
+        port = output["ports/feed"]
+
+        assert port["gap_correction_valid"][...].astype(bool)[-1]
+        assert np.isfinite(port["gap_correction_c"][...][-1])
+        assert np.isfinite(port["Iterminal_spectrum"][...][-1])

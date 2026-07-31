@@ -22,12 +22,14 @@ def test_solver_calls_ntff_observers_at_completed_e_and_h_time_levels():
         "update_magnetic",
         "update_magnetic_pml",
         "update_magnetic_sources",
+        "update_eigenmode_sources_magnetic",
         "update_plane_waves_magnetic",
         "observe_ntff_magnetic",
         "update_electric_a",
         "update_symmetry_boundaries_electric",
         "update_electric_pml",
         "update_electric_sources",
+        "update_eigenmode_sources_electric",
         "update_plane_waves_electric",
         "update_symmetry_boundaries_electric_b",
         "update_electric_b",
@@ -42,8 +44,20 @@ def test_solver_calls_ntff_observers_at_completed_e_and_h_time_levels():
 
     assert calls.index("observe_ntff_electric") > calls.index("store_snapshots")
     assert calls.index("observe_ntff_electric") < calls.index("update_magnetic")
+    assert calls.index("update_magnetic_sources") < calls.index(
+        "update_eigenmode_sources_magnetic"
+    )
+    assert calls.index("update_eigenmode_sources_magnetic") < calls.index(
+        "update_plane_waves_magnetic"
+    )
     assert calls.index("observe_ntff_magnetic") > calls.index("update_plane_waves_magnetic")
     assert calls.index("observe_ntff_magnetic") < calls.index("update_electric_a")
+    assert calls.index("update_electric_sources") < calls.index(
+        "update_eigenmode_sources_electric"
+    )
+    assert calls.index("update_eigenmode_sources_electric") < calls.index(
+        "update_plane_waves_electric"
+    )
     assert calls.index("finalise") > calls.index("update_electric_b")
 
 

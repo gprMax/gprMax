@@ -62,6 +62,7 @@ from .user_objects.cmds_multiuse import (
 from .user_objects.cmds_output import (
     GeometryObjectsWrite,
     GeometryView,
+    KSIRAntennaPorts,
     KSIRFarField,
     KSIRFarFieldArray,
     KSIRFrequencyRx,
