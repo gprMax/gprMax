@@ -38,6 +38,7 @@ from gprMax.materials import RangeMaterial as RangeMaterialUser
 from gprMax.pml import CFS, CFSParameter
 from gprMax.receivers import Rx as RxUser
 from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
+from gprMax.sources import EigenmodeSource as EigenmodeSourceUser
 from gprMax.sources import HertzianDipole as HertzianDipoleUser
 from gprMax.sources import MagneticDipole as MagneticDipoleUser
 from gprMax.sources import MagneticFrillSource as MagneticFrillSourceUser
@@ -1820,14 +1821,224 @@ class DiscretePlaneWaveAxial(GridUserObject):
             + startstop
             + f"using waveform {DPW.waveformID} created."
         )
-             
-
-        
-
 
         grid.discreteplanewaves.append(DPW)
 
+        
+class EigenmodeSource(GridUserObject):
+    """
+    Specifies an eigenmode source plane. The command form is:
 
+        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> mode_index frequency [frequency ...] waveform_id
+
+    Exactly one coordinate pair must match between the two points. If x0=x1
+    the source lies in the yz plane with normal x; if y0=y1 the source lies in
+    the xz plane with normal y; if z0=z1 the source lies in the xy plane with
+    normal z.
+    """
+
+    @property
+    def order(self):
+        return 21
+
+    @property
+    def hash(self):
+        return "#eigenmode_source"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            normal = self.kwargs["normal"]
+            direction = self.kwargs["direction"]
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            w = self.kwargs["w"]
+            mode_index = self.kwargs["mode_index"]
+            waveform_id = self.kwargs["waveform_id"]
+        except KeyError:
+            logger.exception(
+                f"{self.params_str()} requires normal, direction, p1, p2, w, mode_index, "
+                "frequency or frequencies, and waveform_id."
+            )
+            raise
+
+        frequency = self.kwargs.get("frequency")
+        frequencies_arg = self.kwargs.get("frequencies")
+        if frequency is not None and frequencies_arg is not None:
+            raise ValueError(
+                f"{self.params_str()} accepts either frequency or frequencies, not both."
+            )
+        if frequencies_arg is None:
+            if frequency is None:
+                raise ValueError(
+                    f"{self.params_str()} requires frequency or frequencies."
+                )
+            if np.isscalar(frequency):
+                frequencies = (float(frequency),)
+            else:
+                frequencies = tuple(float(value) for value in frequency)
+        else:
+            frequencies = tuple(float(value) for value in frequencies_arg)
+        mode_overlap_threshold = float(
+            self.kwargs.get("mode_overlap_threshold", 0.9)
+        )
+        spectral_threshold = float(self.kwargs.get("spectral_threshold", 1e-3))
+
+        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
+            logger.exception(
+                f"{self.params_str()} cannot currently be used with the CUDA, OpenCL, or Apple Metal solver."
+            )
+            raise ValueError
+
+        if normal not in ["x", "y", "z"]:
+            logger.exception(f"{self.params_str()} normal must be x, y, or z.")
+            raise ValueError
+
+        if direction not in ["+", "-"]:
+            logger.exception(f"{self.params_str()} direction must be + or -.")
+            raise ValueError
+
+        if mode_index < 0:
+            logger.exception(f"{self.params_str()} mode_index must be zero or greater.")
+            raise ValueError
+
+        if not frequencies:
+            raise ValueError(f"{self.params_str()} requires at least one frequency.")
+        if any(not np.isfinite(value) or value <= 0 for value in frequencies):
+            raise ValueError(
+                f"{self.params_str()} frequencies must be finite and greater than zero."
+            )
+        if any(
+            frequencies[index] >= frequencies[index + 1]
+            for index in range(len(frequencies) - 1)
+        ):
+            raise ValueError(
+                f"{self.params_str()} frequencies must be unique and strictly increasing."
+            )
+        if not 0 < mode_overlap_threshold <= 1:
+            raise ValueError(
+                f"{self.params_str()} mode_overlap_threshold must be greater than zero and no greater than one."
+            )
+        if not 0 < spectral_threshold < 1:
+            raise ValueError(
+                f"{self.params_str()} spectral_threshold must be between zero and one."
+            )
+
+        if not any(x.ID == waveform_id for x in grid.waveforms):
+            logger.exception(
+                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+            )
+            raise ValueError
+
+        axis_map = {"x": 0, "y": 1, "z": 2}
+        normal_axis = axis_map[normal]
+        transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+        mode = config.get_model_config().mode
+        invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+        if invariant_axis is not None and normal_axis == invariant_axis:
+            logger.exception(
+                f"{self.params_str()} in {mode} mode the source normal must be "
+                "in-plane and cannot equal the invariant axis."
+            )
+            raise ValueError
+
+        full_lower = np.zeros(3, dtype=np.float64)
+        full_upper = np.zeros(3, dtype=np.float64)
+        full_lower[normal_axis] = w
+        full_upper[normal_axis] = w
+        full_lower[transverse_axes] = p1
+        full_upper[transverse_axes] = p2
+        uip = self._create_uip(grid)
+        full_lower = np.asarray(
+            uip.resolve_inf_point(tuple(full_lower), role="lower"),
+            dtype=np.float64,
+        )
+        full_upper = np.asarray(
+            uip.resolve_inf_point(tuple(full_upper), role="upper"),
+            dtype=np.float64,
+        )
+        p1 = tuple(full_lower[transverse_axes])
+        p2 = tuple(full_upper[transverse_axes])
+        w = float(full_lower[normal_axis])
+
+        lower = np.zeros(3, dtype=np.int32)
+        upper = np.zeros(3, dtype=np.int32)
+        plane_index = int(round(w / grid.dl[normal_axis]))
+        lower[transverse_axes[0]] = int(round(p1[0] / grid.dl[transverse_axes[0]]))
+        lower[transverse_axes[1]] = int(round(p1[1] / grid.dl[transverse_axes[1]]))
+        upper[transverse_axes[0]] = int(round(p2[0] / grid.dl[transverse_axes[0]]))
+        upper[transverse_axes[1]] = int(round(p2[1] / grid.dl[transverse_axes[1]]))
+
+        if plane_index < 0 or plane_index > grid.size[normal_axis]:
+            logger.exception(f"{self.params_str()} normal source plane coordinate is outside the grid.")
+            raise ValueError
+
+        if np.any(lower[transverse_axes] < 0) or np.any(
+            upper[transverse_axes] > grid.size[transverse_axes]
+        ):
+            logger.exception(f"{self.params_str()} transverse source bounds are outside the grid.")
+            raise ValueError
+
+        if np.any(lower[transverse_axes] >= upper[transverse_axes]):
+            logger.exception(
+                f"{self.params_str()} lower transverse coordinates must be less than upper transverse coordinates."
+            )
+            raise ValueError
+
+        if invariant_axis is not None and (
+            lower[invariant_axis] != 0
+            or upper[invariant_axis] != grid.size[invariant_axis]
+        ):
+            logger.exception(
+                f"{self.params_str()} in {mode} mode must span the complete "
+                "invariant-axis thickness; use inf for both invariant coordinates."
+            )
+            raise ValueError
+
+        source = EigenmodeSourceUser(grid)
+        source.normal = normal
+        source.direction = direction
+        source.normal_axis = normal_axis
+        source.transverse_axes = tuple(transverse_axes)
+        source.invariant_axis = invariant_axis
+        source.physical_transverse_axis = (
+            next(axis for axis in transverse_axes if axis != invariant_axis)
+            if invariant_axis is not None
+            else None
+        )
+        if mode.startswith("2D TM"):
+            source.domain_polarization = "TM"
+        elif mode.startswith("2D TE"):
+            source.domain_polarization = "TE"
+        source.transverse_start = lower[transverse_axes].copy()
+        source.transverse_stop = upper[transverse_axes].copy()
+        source.plane_index = plane_index
+        source.mode_index = mode_index
+        source.frequency = frequencies[0]
+        source.frequencies = frequencies
+        source.mode_overlap_threshold = mode_overlap_threshold
+        source.spectral_threshold = spectral_threshold
+        source.waveformID = waveform_id
+        source.waveform = next(x for x in grid.waveforms if x.ID == waveform_id)
+        source.start = 0
+        source.stop = grid.timewindow
+
+        frequency_description = (
+            f"frequency {frequencies[0]:g} Hz"
+            if len(frequencies) == 1
+            else "anchor frequencies "
+            + ", ".join(f"{value:g}" for value in frequencies)
+            + " Hz"
+        )
+        logger.info(
+            f"{self.grid_name(grid)}Eigenmode source with normal {normal}{direction}, "
+            f"transverse bounds {p1} m to {p2} m, normal coordinate {w:g} m, mode index {mode_index}, "
+            f"{frequency_description}, using waveform {waveform_id} created."
+        )
+
+        grid.eigenmodesources.append(source)
 
 
 
@@ -2577,7 +2788,7 @@ class MaterialRange(GridUserObject):
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
-
+        
         s = RangeMaterialUser(
             ID,
             (er_lower, er_upper),

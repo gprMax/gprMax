@@ -20,11 +20,12 @@
 import logging
 import math
 from copy import deepcopy
-
 import numpy as np
 import numpy.typing as npt
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
+from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
@@ -36,6 +37,10 @@ from .cython.plane_wave import (
     updatePlaneWave_electric_dispersive_axial,
     updatePlaneWave_magnetic,
     updatePlaneWave_magnetic_axial,
+)
+from .cython.eigenmode_source import (
+    update_eigenmode_magnetic as updateEigenmode_magnetic,
+    update_eigenmode_electric as updateEigenmode_electric,
 )
 from .utilities.utilities import round_value
 
@@ -105,6 +110,1243 @@ class Source:
     @zcoordorigin.setter
     def zcoordorigin(self, value: int):
         self.coordorigin[2] = value
+
+
+class EigenmodeSource(Source):
+    """Holds data for an eigenmode source and prepares material slices.
+
+    `grid_init()` runs after geometry has been converted to Yee component
+    material IDs, so it is the right place to extract material data from
+    `G.ID`, solve the transverse mode, and prepare modal fields for TF/SF
+    injection.
+    """
+
+    FDFD_PEC_PROPERTY = np.inf + 0j
+    FDFD_PMC_PROPERTY = np.inf + 0j
+
+    def __init__(self, G):
+        super().__init__()
+        self.normal = None
+        self.direction = None
+        self.normal_axis = None
+        self.transverse_axes = None
+        self.invariant_axis = None
+        self.physical_transverse_axis = None
+        self.domain_polarization = None
+        self.transverse_start = None
+        self.transverse_stop = None
+        self.mode_index = None
+        self.frequency = None
+        self.frequencies = None
+        self.mode_overlap_threshold = 0.9
+        self.spectral_threshold = 1e-3
+        self.plane_index = None
+        self.complex_eps_r_uu = None
+        self.complex_eps_r_vv = None
+        self.complex_eps_r_ww = None
+        self.complex_mu_r_uu = None
+        self.complex_mu_r_vv = None
+        self.complex_mu_r_ww = None
+        self.modal_e = None
+        self.modal_h = None
+        self.modal_e_real = None
+        self.modal_h_real = None
+        self.neff = None
+        self.complex_neff = None
+        self.mode_solver = None
+        self.mode_solvers = None
+        self.anchor_modal_e = None
+        self.anchor_modal_h = None
+        self.anchor_complex_neff = None
+        self.anchor_overlaps = None
+        self.broadband_e_envelopes = None
+        self.broadband_h_envelopes = None
+        self.broadband_modal_e_real = None
+        self.broadband_modal_e_imag = None
+        self.broadband_modal_h_real = None
+        self.broadband_modal_h_imag = None
+        self.broadband_input_waveform = None
+        self.broadband_reconstructed_waveform = None
+        self.broadband_waveform_error = None
+
+    def grid_init(self, G):
+        """Prepare source data that depends on the final built Yee grid."""
+        if self.plane_index is None:
+            self.plane_index = self._select_plane_index(G)
+        frequencies = tuple(self.frequencies or (self.frequency,))
+        if len(frequencies) > 1:
+            self._solve_broadband_eigenmode(G, frequencies)
+            return
+
+        self.frequency = frequencies[0]
+        self._extract_frequency_dependent_materials(G)
+        self._solve_eigenmode(G)
+
+    def _extract_frequency_dependent_materials(self, G):
+        """Extract source-plane constitutive properties at the active frequency."""
+        (
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=True)
+        (
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        ) = self._extract_local_complex_property_tensors(G, electric=False)
+
+    def _solve_broadband_eigenmode(self, G, frequencies):
+        """Solve, align, validate, and synthesize a multi-frequency mode."""
+        anchor_e = []
+        anchor_h = []
+        anchor_neff = []
+        solvers = []
+
+        for frequency in frequencies:
+            self.frequency = frequency
+            self._extract_frequency_dependent_materials(G)
+            self._solve_eigenmode(G)
+            anchor_e.append(
+                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
+            )
+            anchor_h.append(
+                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
+            )
+            anchor_neff.append(complex(self.complex_neff))
+            solvers.append(self.mode_solver)
+
+        overlaps = self._align_and_validate_anchors(anchor_e, anchor_h, frequencies)
+        self.anchor_modal_e = anchor_e
+        self.anchor_modal_h = anchor_h
+        self.anchor_complex_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        self.anchor_overlaps = np.asarray(overlaps, dtype=np.float64)
+        self.mode_solvers = solvers
+        self._prepare_broadband_time_traces(G, frequencies)
+
+        # Keep representative modal data available to diagnostics and callers.
+        representative = min(
+            range(len(frequencies)),
+            key=lambda index: abs(frequencies[index] - self.waveform.freq),
+        )
+        self.frequency = frequencies[representative]
+        self.modal_e = self.anchor_modal_e[representative]
+        self.modal_h = self.anchor_modal_h[representative]
+        self.mode_solver = self.mode_solvers[representative]
+        self.complex_neff = self.anchor_complex_neff[representative]
+        self.neff = float(np.real(self.complex_neff))
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
+
+    def _solve_eigenmode(self, G):
+        if self.invariant_axis is not None:
+            return self._solve_eigenmode_2d(G)
+        return self._solve_eigenmode_3d(G)
+
+    def _solve_eigenmode_3d(self, G):
+        """Solve the local 2D eigenmode and map fields onto global components."""
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
+        pmc_u_mask, pmc_v_mask, pmc_w_mask = self._cell_pmc_magnetic_component_masks(G)
+        solver = FDFD_2D_mode_solver(
+            frequency=self.frequency,
+            du=G.dl[self.transverse_axes[0]],
+            dv=G.dl[self.transverse_axes[1]],
+            mode_index=self.mode_index,
+            eps_r_uu=self.complex_eps_r_uu,
+            eps_r_vv=self.complex_eps_r_vv,
+            eps_r_ww=self.complex_eps_r_ww,
+            mu_r_uu=self.complex_mu_r_uu,
+            mu_r_vv=self.complex_mu_r_vv,
+            mu_r_ww=self.complex_mu_r_ww,
+            pec_u_mask=pec_u_mask,
+            pec_v_mask=pec_v_mask,
+            pec_w_mask=pec_w_mask,
+            pmc_u_mask=pmc_u_mask,
+            pmc_v_mask=pmc_v_mask,
+            pmc_w_mask=pmc_w_mask,
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        self.complex_neff = getattr(
+            solver, "modal_complex_neff", complex(solver.modal_real_neff)
+        )
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+
+        self.modal_e[local_to_global[0]] = solver.modal_Eu
+        self.modal_e[local_to_global[1]] = solver.modal_Ev
+        self.modal_e[local_to_global[2]] = solver.modal_Ew
+        self.modal_h[local_to_global[0]] = solver.modal_Hu
+        self.modal_h[local_to_global[1]] = solver.modal_Hv
+        self.modal_h[local_to_global[2]] = solver.modal_Hw
+        if self._modal_basis_handedness() < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
+        self._validate_modal_field_shapes()
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
+            for field in self.modal_h
+        ]
+
+    def _solve_eigenmode_2d(self, G):
+        """Solve a true 1D mode for a 2D TM/TE FDTD model."""
+        solver_inputs = self._one_dimensional_solver_inputs(G)
+        solver = FDFD_1D_mode_solver(
+            frequency=self.frequency,
+            dt=G.dl[self.physical_transverse_axis],
+            mode_index=self.mode_index,
+            polarization=self.domain_polarization,
+            **solver_inputs,
+        )
+        solver.solve()
+        self._plot_eigenmode_fields(solver)
+
+        self.mode_solver = solver
+        self.neff = solver.modal_real_neff
+        self.complex_neff = getattr(
+            solver, "modal_complex_neff", complex(solver.modal_real_neff)
+        )
+        local_to_global = (
+            self.transverse_axes[0],
+            self.transverse_axes[1],
+            self.normal_axis,
+        )
+        t_local = self.transverse_axes.index(self.physical_transverse_axis)
+        a_local = self.transverse_axes.index(self.invariant_axis)
+        e_local = [
+            np.zeros(shape, dtype=np.complex128)
+            for shape in self._expected_local_field_shapes("E")
+        ]
+        h_local = [
+            np.zeros(shape, dtype=np.complex128)
+            for shape in self._expected_local_field_shapes("H")
+        ]
+
+        if self.domain_polarization == "TM":
+            e_local[a_local] = self._embed_1d_profile(
+                solver.modal_Ea, a_local, "E"
+            )
+            h_local[t_local] = self._embed_1d_profile(
+                solver.modal_Ht, t_local, "H"
+            )
+            h_local[2] = self._embed_1d_profile(solver.modal_Hw, 2, "H")
+        else:
+            e_local[t_local] = self._embed_1d_profile(
+                solver.modal_Et, t_local, "E"
+            )
+            e_local[2] = self._embed_1d_profile(solver.modal_Ew, 2, "E")
+            h_local[a_local] = self._embed_1d_profile(
+                solver.modal_Ha, a_local, "H"
+            )
+
+        self.modal_e = [None, None, None]
+        self.modal_h = [None, None, None]
+        for local_axis, global_axis in enumerate(local_to_global):
+            self.modal_e[global_axis] = e_local[local_axis]
+            self.modal_h[global_axis] = h_local[local_axis]
+        basis = np.eye(3, dtype=np.int32)
+        solver_handedness = int(
+            np.dot(
+                np.cross(
+                    basis[self.physical_transverse_axis],
+                    basis[self.invariant_axis],
+                ),
+                basis[self.normal_axis],
+            )
+        )
+        if solver_handedness < 0:
+            self.modal_h = [-field for field in self.modal_h]
+            logger.info("Eigenmode 1D local basis is left-handed; modal H fields were flipped.")
+
+        self._validate_modal_field_shapes()
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
+
+    def _expected_local_field_shapes(self, field_kind):
+        nu, nv = self._transverse_cell_shape()
+        if field_kind == "E":
+            return ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        return ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+
+    def _sample_1d_component(self, values):
+        """Collapse a local 2D Yee component onto the live invariant layer."""
+        invariant_local = self.transverse_axes.index(self.invariant_axis)
+        live_layer = 1 if self.domain_polarization == "TE" else 0
+        # TE fields propagate on the shared interior plane at index 1. Some
+        # inactive components are cell-sampled on the invariant axis and may
+        # have no index 1 in TM, so clamp those unused samples to index 0.
+        sample_index = min(live_layer, values.shape[invariant_local] - 1)
+        return np.take(values, sample_index, axis=invariant_local).copy()
+
+    def _one_dimensional_solver_inputs(self, G):
+        """Return staggered 1D material arrays and constraint masks."""
+        t_local = self.transverse_axes.index(self.physical_transverse_axis)
+        a_local = self.transverse_axes.index(self.invariant_axis)
+        eps = (
+            self.complex_eps_r_uu,
+            self.complex_eps_r_vv,
+            self.complex_eps_r_ww,
+        )
+        mu = (
+            self.complex_mu_r_uu,
+            self.complex_mu_r_vv,
+            self.complex_mu_r_ww,
+        )
+        pec = self._cell_pec_electric_component_masks(G)
+        pmc = self._cell_pmc_magnetic_component_masks(G)
+        return {
+            "eps_r_t": self._sample_1d_component(eps[t_local]),
+            "eps_r_a": self._sample_1d_component(eps[a_local]),
+            "eps_r_w": self._sample_1d_component(eps[2]),
+            "mu_r_t": self._sample_1d_component(mu[t_local]),
+            "mu_r_a": self._sample_1d_component(mu[a_local]),
+            "mu_r_w": self._sample_1d_component(mu[2]),
+            "pec_t_mask": self._sample_1d_component(pec[t_local]),
+            "pec_a_mask": self._sample_1d_component(pec[a_local]),
+            "pec_w_mask": self._sample_1d_component(pec[2]),
+            "pmc_t_mask": self._sample_1d_component(pmc[t_local]),
+            "pmc_a_mask": self._sample_1d_component(pmc[a_local]),
+            "pmc_w_mask": self._sample_1d_component(pmc[2]),
+        }
+
+    def _embed_1d_profile(self, profile, local_component, field_kind):
+        """Expand one physical line profile into a thin 2D Yee component."""
+        shape = self._expected_local_field_shapes(field_kind)[local_component]
+        result = np.zeros(shape, dtype=np.complex128)
+        invariant_local = self.transverse_axes.index(self.invariant_axis)
+        layer = 1 if self.domain_polarization == "TE" else 0
+        if invariant_local == 0:
+            result[layer, :] = profile
+        else:
+            result[:, layer] = profile
+        return result
+
+    def _validate_modal_field_shapes(self):
+        nu, nv = self._transverse_cell_shape()
+        expected_e = ((nu, nv + 1), (nu + 1, nv), (nu + 1, nv + 1))
+        expected_h = ((nu + 1, nv), (nu, nv + 1), (nu, nv))
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            actual = self.modal_e[global_axis].shape
+            if actual != expected_e[local_axis]:
+                raise ValueError(
+                    f"Eigenmode E local component {local_axis} shape {actual} does not match {expected_e[local_axis]}."
+                )
+            actual = self.modal_h[global_axis].shape
+            if actual != expected_h[local_axis]:
+                raise ValueError(
+                    f"Eigenmode H local component {local_axis} shape {actual} does not match {expected_h[local_axis]}."
+                )
+
+    def _modal_basis_handedness(self):
+        basis = np.eye(3, dtype=np.int32)
+        transverse_u = basis[self.transverse_axes[0]]
+        transverse_v = basis[self.transverse_axes[1]]
+        normal = basis[self.normal_axis]
+        return int(np.dot(np.cross(transverse_u, transverse_v), normal))
+
+    def _modal_overlap(self, first_e, first_h, second_e, second_h):
+        """Return the normalized complex overlap of two modal field sets."""
+        numerator = 0.0j
+        first_norm = 0.0
+        second_norm = 0.0
+        impedance = float(config.sim_config.em_consts["z0"])
+        for first, second in zip(first_e, second_e):
+            numerator += np.vdot(first, second)
+            first_norm += float(np.vdot(first, first).real)
+            second_norm += float(np.vdot(second, second).real)
+        for first, second in zip(first_h, second_h):
+            first_scaled = impedance * first
+            second_scaled = impedance * second
+            numerator += np.vdot(first_scaled, second_scaled)
+            first_norm += float(np.vdot(first_scaled, first_scaled).real)
+            second_norm += float(np.vdot(second_scaled, second_scaled).real)
+        denominator = np.sqrt(first_norm * second_norm)
+        if not np.isfinite(denominator) or denominator <= 1e-300:
+            logger.warning(
+                "Cannot compare broadband eigenmode anchors with zero or invalid "
+                "field norm. Treating their overlap as zero and continuing."
+            )
+            return 0.0j
+        return numerator / denominator
+
+    def _align_and_validate_anchors(self, anchor_e, anchor_h, frequencies):
+        """Phase-align consecutive anchors and warn about a likely mode switch."""
+        overlaps = []
+        for index in range(1, len(frequencies)):
+            overlap = self._modal_overlap(
+                anchor_e[index - 1],
+                anchor_h[index - 1],
+                anchor_e[index],
+                anchor_h[index],
+            )
+            magnitude = float(abs(overlap))
+            if not np.isfinite(magnitude) or magnitude < self.mode_overlap_threshold:
+                logger.warning(
+                    "Broadband eigenmode source mode-overlap check failed between "
+                    f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz "
+                    f"for mode index {self.mode_index}: overlap {magnitude:.6f} is below "
+                    f"the required {self.mode_overlap_threshold:.6f}. The eigenvalue ordering "
+                    "may have changed, the anchors may straddle a cutoff or degeneracy, or the "
+                    "frequency spacing may be too large. Add intermediate frequencies, narrow "
+                    "the source bandwidth, or use the single-frequency eigenmode source. "
+                    "Continuing with the supplied anchor modes."
+                )
+
+            phase_aligned = np.isfinite(magnitude) and magnitude > 1e-300
+            phase_factor = (
+                np.exp(-1j * np.angle(overlap))
+                if phase_aligned
+                else 1.0 + 0.0j
+            )
+            anchor_e[index] = [field * phase_factor for field in anchor_e[index]]
+            anchor_h[index] = [field * phase_factor for field in anchor_h[index]]
+            overlaps.append(magnitude)
+            logger.info(
+                f"Eigenmode anchor overlap {magnitude:.6f} between "
+                f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
+                + (
+                    "the latter anchor was phase-aligned."
+                    if phase_aligned
+                    else "its phase was left unchanged."
+                )
+            )
+        return overlaps
+
+    @staticmethod
+    def _average_to_transverse_cells(field, component):
+        if component in ("eu", "hv"):
+            return 0.5 * (field[:, :-1] + field[:, 1:])
+        if component in ("ev", "hu"):
+            return 0.5 * (field[:-1, :] + field[1:, :])
+        raise ValueError(f"Unknown transverse component {component!r}.")
+
+    def _modal_cross_power(self, electric, magnetic, G):
+        """Return complex power pairing for two global modal field sets."""
+        if self.invariant_axis is not None:
+            return self._modal_cross_power_2d(electric, magnetic, G)
+
+        u_axis, v_axis = self.transverse_axes
+        eu = self._average_to_transverse_cells(electric[u_axis], "eu")
+        ev = self._average_to_transverse_cells(electric[v_axis], "ev")
+        hu = self._average_to_transverse_cells(magnetic[u_axis], "hu")
+        hv = self._average_to_transverse_cells(magnetic[v_axis], "hv")
+        flux = eu * np.conj(hv) - ev * np.conj(hu)
+        if self.invariant_axis is None:
+            measure = G.dl[u_axis] * G.dl[v_axis]
+        else:
+            measure = G.dl[self.physical_transverse_axis]
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return (
+            0.5
+            * direction_scale
+            * self._modal_basis_handedness()
+            * np.sum(flux)
+            * measure
+        )
+
+    def _modal_cross_power_2d(self, electric, magnetic, G):
+        """Return modal power per metre from the live 2D field profiles.
+
+        The invariant direction in a 2D grid is represented by a small
+        synthetic Yee dimension. Its inactive layers must not be averaged
+        into the physical profiles, particularly for TE where both power
+        carrying components occupy the shared interior layer.
+        """
+        transverse_axis = self.physical_transverse_axis
+        invariant_axis = self.invariant_axis
+        invariant_local = self.transverse_axes.index(invariant_axis)
+        layer = 1 if self.domain_polarization == "TE" else 0
+
+        def live_profile(field):
+            return np.take(field, layer, axis=invariant_local)
+
+        if self.domain_polarization == "TE":
+            electric_profile = live_profile(electric[transverse_axis])
+            magnetic_profile = live_profile(magnetic[invariant_axis])
+        else:
+            electric_profile = live_profile(electric[invariant_axis])
+            magnetic_profile = live_profile(magnetic[transverse_axis])
+            electric_profile = 0.5 * (
+                electric_profile[:-1] + electric_profile[1:]
+            )
+            magnetic_profile = 0.5 * (
+                magnetic_profile[:-1] + magnetic_profile[1:]
+            )
+
+        basis = np.eye(3, dtype=np.int32)
+        flux_sign = int(
+            np.dot(
+                np.cross(basis[transverse_axis], basis[invariant_axis]),
+                basis[self.normal_axis],
+            )
+        )
+        if self.domain_polarization == "TM":
+            flux_sign *= -1
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return (
+            0.5
+            * direction_scale
+            * flux_sign
+            * np.sum(electric_profile * np.conj(magnetic_profile))
+            * G.dl[transverse_axis]
+        )
+
+    @staticmethod
+    def _linear_anchor_weights(bin_frequencies, anchor_frequencies):
+        """Return partition-of-unity weights with endpoint extrapolation.
+
+        Frequencies between anchors use ordinary piecewise-linear weights.
+        Bins below or above the anchor range retain the nearest endpoint mode.
+        The spectrum-coverage check warns when those extrapolated bins are
+        significant; retaining them avoids a hard spectral truncation and its
+        associated time-domain ringing.
+        """
+        anchor_frequencies = np.asarray(anchor_frequencies, dtype=np.float64)
+        weights = np.zeros((anchor_frequencies.size, bin_frequencies.size), dtype=np.float64)
+        weights[0, bin_frequencies < anchor_frequencies[0]] = 1.0
+        weights[-1, bin_frequencies > anchor_frequencies[-1]] = 1.0
+        inside = (bin_frequencies >= anchor_frequencies[0]) & (
+            bin_frequencies <= anchor_frequencies[-1]
+        )
+        for bin_index in np.flatnonzero(inside):
+            frequency = bin_frequencies[bin_index]
+            if frequency == anchor_frequencies[-1]:
+                weights[-1, bin_index] = 1.0
+                continue
+            lower = int(np.searchsorted(anchor_frequencies, frequency, side="right") - 1)
+            lower = max(0, min(lower, anchor_frequencies.size - 2))
+            span = anchor_frequencies[lower + 1] - anchor_frequencies[lower]
+            upper_weight = (frequency - anchor_frequencies[lower]) / span
+            weights[lower, bin_index] = 1.0 - upper_weight
+            weights[lower + 1, bin_index] = upper_weight
+        return weights
+
+    @staticmethod
+    def _magnetic_stagger_factor(omega, beta, dt, normal_spacing):
+        """Return each frequency bin's own E/H time-and-space staggering."""
+        return np.exp(1j * (0.5 * omega * dt + 0.5 * beta * normal_spacing))
+
+    def _prepare_broadband_time_traces(self, G, frequencies):
+        """Build real temporal bases for complex, linearly interpolated modes."""
+        sample_count = int(G.iterations)
+        times = np.arange(sample_count, dtype=np.float64) * G.dt
+        waveform = np.asarray(
+            [self.waveform.calculate_value(time - self.start, G.dt) for time in times],
+            dtype=np.float64,
+        )
+        if not np.all(np.isfinite(waveform)):
+            logger.warning(
+                "The broadband eigenmode source waveform contains non-finite samples. "
+                "Replacing them with zero and continuing."
+            )
+            waveform = np.nan_to_num(waveform, nan=0.0, posinf=0.0, neginf=0.0)
+        padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
+        spectrum = np.fft.rfft(waveform, n=padded_count)
+        bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
+        spectrum_magnitude = np.abs(spectrum)
+        peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            logger.warning(
+                "The broadband eigenmode source waveform has no finite spectral "
+                "energy. Continuing with a zero-valued source."
+            )
+
+        significant = (
+            spectrum_magnitude >= self.spectral_threshold * peak
+            if np.isfinite(peak) and peak > 0
+            else np.zeros_like(spectrum_magnitude, dtype=bool)
+        )
+        significant_indices = np.flatnonzero(significant)
+        if significant_indices.size == 0:
+            logger.warning(
+                "The broadband eigenmode source waveform has no significant FFT "
+                "bins. Continuing with endpoint mode extrapolation."
+            )
+            significant_low = float("nan")
+            significant_high = float("nan")
+        else:
+            significant_low = float(bin_frequencies[significant_indices[0]])
+            significant_high = float(bin_frequencies[significant_indices[-1]])
+        if significant_indices.size and (
+            significant_low < frequencies[0] or significant_high > frequencies[-1]
+        ):
+            logger.warning(
+                "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
+                f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
+                f"{self.spectral_threshold:g} of the peak span {significant_low:g} to "
+                f"{significant_high:g} Hz. Add wider frequency anchors, narrow the waveform "
+                "bandwidth, or use the single-frequency eigenmode source. Continuing by "
+                "using the nearest endpoint mode outside the anchor range."
+            )
+        if significant[0] or (padded_count % 2 == 0 and significant[-1]):
+            logger.warning(
+                "The broadband eigenmode source has significant DC or Nyquist content, where a "
+                "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
+                "band-limited zero-mean waveform or the single-frequency eigenmode source. "
+                "Continuing after discarding the DC and Nyquist bins."
+            )
+
+        weights = self._linear_anchor_weights(bin_frequencies, frequencies)
+        partition = np.sum(weights, axis=0)
+        if not np.allclose(partition, 1.0, rtol=0.0, atol=1e-14):
+            logger.warning(
+                "Internal broadband eigenmode interpolation error: anchor weights "
+                "do not form a partition of unity. Repairing the weights and continuing."
+            )
+            usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
+            weights[:, usable] /= partition[usable]
+            for bin_index in np.flatnonzero(~usable):
+                nearest = int(
+                    np.argmin(
+                        np.abs(
+                            np.asarray(frequencies, dtype=np.float64)
+                            - bin_frequencies[bin_index]
+                        )
+                    )
+                )
+                weights[:, bin_index] = 0.0
+                weights[nearest, bin_index] = 1.0
+            partition = np.sum(weights, axis=0)
+        anchor_count = len(frequencies)
+        power_matrix = np.empty((anchor_count, anchor_count), dtype=np.complex128)
+        for e_index in range(anchor_count):
+            for h_index in range(anchor_count):
+                power_matrix[e_index, h_index] = self._modal_cross_power(
+                    self.anchor_modal_e[e_index],
+                    self.anchor_modal_h[h_index],
+                    G,
+                )
+        interpolated_power = np.real(
+            np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
+        )
+        active_bins = np.sum(weights, axis=0) > 0
+        invalid_power = active_bins & (
+            ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
+        )
+        if np.any(invalid_power):
+            invalid_indices = np.flatnonzero(invalid_power)
+            bad_frequency = float(bin_frequencies[invalid_indices[0]])
+            bad_power = float(interpolated_power[invalid_indices[0]])
+            logger.warning(
+                "Cannot normalize the interpolated broadband eigenmode at "
+                f"{bad_frequency:g} Hz: modal power is {bad_power:g}. Add an anchor near this "
+                "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
+                f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
+            )
+            finite_nonzero = invalid_power & np.isfinite(interpolated_power) & (
+                np.abs(interpolated_power) > 1e-12
+            )
+            interpolated_power[finite_nonzero] = np.abs(
+                interpolated_power[finite_nonzero]
+            )
+            unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
+            if unresolved.size:
+                nearest = np.argmax(weights[:, unresolved], axis=0)
+                anchor_power = np.real(np.diag(power_matrix))[nearest]
+                interpolated_power[unresolved] = np.where(
+                    np.isfinite(anchor_power) & (np.abs(anchor_power) > 1e-12),
+                    np.abs(anchor_power),
+                    1.0,
+                )
+
+        normalization = np.zeros_like(interpolated_power)
+        normalization[active_bins] = 1.0 / np.sqrt(interpolated_power[active_bins])
+        omega = 2 * np.pi * bin_frequencies
+        interpolated_neff = np.einsum(
+            "kn,k->n", weights, self.anchor_complex_neff, optimize=True
+        )
+        beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
+        normal_spacing = G.dl[self.normal_axis]
+        magnetic_phase = self._magnetic_stagger_factor(
+            omega, beta, G.dt, normal_spacing
+        )
+
+        electric_weights = (
+            weights * (spectrum * normalization)[np.newaxis, :]
+        )
+        magnetic_weights = (
+            weights * (spectrum * normalization * magnetic_phase)[np.newaxis, :]
+        )
+        # DC and Nyquist are self-conjugate FFT bins and cannot carry a
+        # general complex modal coefficient.
+        electric_weights[:, 0] = 0
+        magnetic_weights[:, 0] = 0
+        if padded_count % 2 == 0:
+            electric_weights[:, -1] = 0
+            magnetic_weights[:, -1] = 0
+
+        scalar_spectrum = spectrum * partition
+        scalar_spectrum[0] = 0
+        if padded_count % 2 == 0:
+            scalar_spectrum[-1] = 0
+        reconstructed_waveform = np.fft.irfft(
+            scalar_spectrum, n=padded_count
+        )[:sample_count]
+        waveform_peak = float(np.max(np.abs(waveform)))
+        reconstruction_error = (
+            float(np.max(np.abs(reconstructed_waveform - waveform)) / waveform_peak)
+            if waveform_peak > 0
+            else float(np.max(np.abs(reconstructed_waveform - waveform)))
+        )
+        self.broadband_input_waveform = waveform
+        self.broadband_reconstructed_waveform = reconstructed_waveform
+        self.broadband_waveform_error = reconstruction_error
+
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.broadband_e_envelopes = np.empty(
+            (anchor_count, 2, sample_count), dtype=dtype
+        )
+        self.broadband_h_envelopes = np.empty(
+            (anchor_count, 2, sample_count), dtype=dtype
+        )
+        for anchor in range(anchor_count):
+            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(
+                electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(
+                1j * electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(
+                magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(
+                1j * magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+
+        def split_fields(anchor_fields):
+            real_fields = []
+            imag_fields = []
+            for fields in anchor_fields:
+                real_fields.append(
+                    [np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields]
+                )
+                imag_fields.append(
+                    [np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields]
+                )
+            return real_fields, imag_fields
+
+        (
+            self.broadband_modal_e_real,
+            self.broadband_modal_e_imag,
+        ) = split_fields(self.anchor_modal_e)
+        (
+            self.broadband_modal_h_real,
+            self.broadband_modal_h_imag,
+        ) = split_fields(self.anchor_modal_h)
+        logger.info(
+            f"Prepared broadband eigenmode source with {anchor_count} anchors, "
+            f"{sample_count} time samples, and significant waveform coverage from "
+            f"{significant_low:g} to {significant_high:g} Hz. Scalar waveform "
+            f"reconstruction relative peak error is {reconstruction_error:.3e}."
+        )
+
+    def _plot_eigenmode_fields(self, solver):
+        input_path = config.sim_config.input_file_path
+        output_dir = input_path.parent
+        filename_base = (
+            f"{input_path.stem}_eigenmode_{self.normal}{self.direction}"
+            f"_w{self.plane_index}_u{self.transverse_start[0]}-{self.transverse_stop[0]}"
+            f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
+            f"_mode{self.mode_index}"
+        )
+        if self.frequencies is not None and len(self.frequencies) > 1:
+            filename_base += f"_f{self.frequency:.12g}Hz"
+        if isinstance(solver, FDFD_1D_mode_solver):
+            field_path = output_dir / f"{filename_base}_{self.domain_polarization}_fields.png"
+            solver.plot_fields(field_path)
+            logger.info(f"Eigenmode 1D field profiles written to {field_path}")
+        else:
+            e_path = output_dir / f"{filename_base}_Eu_Ev.png"
+            h_path = output_dir / f"{filename_base}_Hu_Hv.png"
+            solver.plot_e_fields(e_path)
+            solver.plot_h_fields(h_path)
+            logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
+            logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
+
+    def _select_plane_index(self, G):
+        """Choose the normal-axis plane from the propagation direction."""
+        axis_names = ("x", "y", "z")
+        axis_name = axis_names[self.normal_axis]
+        if self.direction == "+":
+            return G.pmls["thickness"][f"{axis_name}0"]
+        return G.size[self.normal_axis] - G.pmls["thickness"][f"{axis_name}max"]
+
+    def _extract_local_complex_property_tensors(self, G, electric):
+        """Return local uu, vv, ww complex er or mu_r arrays on the Yee slice."""
+        field_kind = "E" if electric else "H"
+        component_ids = []
+        local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            ids = self._slice_local_component_ids(G, component, local_axis, field_kind)
+            component_ids.append(ids)
+
+        used_ids = np.unique(np.concatenate([ids.ravel() for ids in component_ids]))
+        material_values = np.zeros(len(G.materials), dtype=np.complex128)
+        materials_by_id = {material.numID: material for material in G.materials}
+        for material_id in used_ids:
+            material = materials_by_id[int(material_id)]
+            material_values[material_id] = (
+                self._complex_er(material) if electric else self._complex_mur(material)
+            )
+
+        return tuple(material_values[ids].copy() for ids in component_ids)
+
+    def _transverse_cell_shape(self):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        return u1 - u0, v1 - v0
+
+    def _local_component_ranges(self, local_axis, field_kind):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        if field_kind == "E":
+            if local_axis == 0:
+                return slice(u0, u1), slice(v0, v1 + 1)
+            if local_axis == 1:
+                return slice(u0, u1 + 1), slice(v0, v1)
+            return slice(u0, u1 + 1), slice(v0, v1 + 1)
+
+        if local_axis == 0:
+            return slice(u0, u1 + 1), slice(v0, v1)
+        if local_axis == 1:
+            return slice(u0, u1), slice(v0, v1 + 1)
+        return slice(u0, u1), slice(v0, v1)
+
+    def _slice_local_component_ids(self, G, component, local_axis, field_kind):
+        u_slice, v_slice = self._local_component_ranges(local_axis, field_kind)
+        grid_slices = [slice(None), slice(None), slice(None)]
+        grid_slices[self.normal_axis] = self.plane_index
+        grid_slices[self.transverse_axes[0]] = u_slice
+        grid_slices[self.transverse_axes[1]] = v_slice
+        return G.ID[(component, *grid_slices)]
+
+    def _cell_pec_electric_component_masks(self, G):
+        """Build local Yee electric PEC masks from cell-centred PEC geometry.
+
+        Component IDs on non-averaged PEC boxes are one-sided at Yee faces.
+        These masks supplement the component-sampled material IDs so opposite
+        PEC faces produce symmetric constraints in the transverse mode solve.
+        """
+        cell_pec_mask = self._slice_cell_pec_mask(G)
+        nu, nv = self._transverse_cell_shape()
+        pec_u_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pec_v_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pec_w_mask = np.zeros((nu + 1, nv + 1), dtype=bool)
+        if cell_pec_mask.size == 0:
+            return pec_u_mask, pec_v_mask, pec_w_mask
+
+        cu, cv = cell_pec_mask.shape
+        pec_u_mask[:cu, :cv] |= cell_pec_mask
+        pec_u_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+
+        pec_v_mask[:cu, :cv] |= cell_pec_mask
+        pec_v_mask[1 : cu + 1, :cv] |= cell_pec_mask
+
+        pec_w_mask[:cu, :cv] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, :cv] |= cell_pec_mask
+        pec_w_mask[:cu, 1 : cv + 1] |= cell_pec_mask
+        pec_w_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
+        return pec_u_mask, pec_v_mask, pec_w_mask
+
+    def _slice_cell_pec_mask(self, G):
+        return self._slice_cell_constraint_mask(G, electric=True)
+
+    def _cell_pmc_magnetic_component_masks(self, G):
+        """Build local Yee magnetic PMC masks from cell-centred PMC geometry.
+
+        Component-sampled PMC material IDs constrain their exact H positions
+        through the non-finite permeability tensors. These masks supplement
+        those IDs so both own-axis H faces of every PMC cell are constrained.
+        """
+        cell_pmc_mask = self._slice_cell_pmc_mask(G)
+        nu, nv = self._transverse_cell_shape()
+        pmc_u_mask = np.zeros((nu + 1, nv), dtype=bool)
+        pmc_v_mask = np.zeros((nu, nv + 1), dtype=bool)
+        pmc_w_mask = np.zeros((nu, nv), dtype=bool)
+        if cell_pmc_mask.size == 0:
+            return pmc_u_mask, pmc_v_mask, pmc_w_mask
+
+        cu, cv = cell_pmc_mask.shape
+        pmc_u_mask[:cu, :cv] |= cell_pmc_mask
+        pmc_u_mask[1 : cu + 1, :cv] |= cell_pmc_mask
+
+        pmc_v_mask[:cu, :cv] |= cell_pmc_mask
+        pmc_v_mask[:cu, 1 : cv + 1] |= cell_pmc_mask
+
+        pmc_w_mask[:cu, :cv] |= cell_pmc_mask
+        return pmc_u_mask, pmc_v_mask, pmc_w_mask
+
+    def _slice_cell_pmc_mask(self, G):
+        return self._slice_cell_constraint_mask(G, electric=False)
+
+    def _slice_cell_constraint_mask(self, G, electric):
+        """Return source-cross-section cells occupied by PEC or PMC."""
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        normal_indices = [
+            index
+            for index in (self.plane_index - 1, self.plane_index)
+            if 0 <= index < G.solid.shape[self.normal_axis]
+        ]
+        if not normal_indices:
+            return np.zeros((u1 - u0, v1 - v0), dtype=bool)
+
+        material_is_constrained = np.zeros(len(G.materials), dtype=bool)
+        for material in G.materials:
+            property_value = self._complex_er(material) if electric else self._complex_mur(material)
+            material_is_constrained[material.numID] = not np.isfinite(property_value)
+
+        cell_constraint_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
+        for n in normal_indices:
+            if self.normal_axis == 0:
+                ids = G.solid[n, u0:u1, v0:v1]
+            elif self.normal_axis == 1:
+                ids = G.solid[u0:u1, n, v0:v1]
+            else:
+                ids = G.solid[u0:u1, v0:v1, n]
+            cell_constraint_mask |= material_is_constrained[ids]
+        return cell_constraint_mask
+
+    def _complex_er(self, material):
+        omega = 2 * np.pi * self.frequency
+        if hasattr(material, "calculate_er") and material.__class__.__name__ != "Material":
+            er = material.calculate_er(self.frequency)
+        else:
+            er = material.er
+            if getattr(material, "se", 0) not in [0, float("inf")]:
+                er = er - 1j * material.se / (omega * config.e0)
+        if getattr(material, "se", 0) == float("inf"):
+            er = self.FDFD_PEC_PROPERTY
+        return er
+
+    def _complex_mur(self, material):
+        omega = 2 * np.pi * self.frequency
+        mur = material.mr
+        if getattr(material, "sm", 0) not in [0, float("inf")]:
+            mur = mur - 1j * material.sm / (omega * config.m0)
+        if getattr(material, "sm", 0) == float("inf"):
+            mur = self.FDFD_PMC_PROPERTY
+        return mur
+
+    def update_eigenmode_magnetic(self, iteration, G):
+        """Apply magnetic-field TF/SF corrections using incident modal E."""
+        time = iteration * G.dt
+        if not self._source_is_active(time):
+            return
+        if self.broadband_e_envelopes is not None:
+            self._update_broadband_magnetic(iteration, G)
+            return
+
+        updateEigenmode_magnetic(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_e_real[0],
+            self.modal_e_real[1],
+            self.modal_e_real[2],
+            G.updatecoeffsH,
+            G.ID,
+            G.Hx,
+            G.Hy,
+            G.Hz,
+        )
+
+    def update_eigenmode_electric(self, iteration, G):
+        """Apply electric-field TF/SF corrections using incident modal H."""
+        if self.broadband_h_envelopes is not None:
+            time = iteration * G.dt
+            if self._source_is_active(time):
+                self._update_broadband_electric(iteration, G)
+            return
+
+        time = iteration * G.dt + self._magnetic_modal_time_offset(G)
+        if not self._source_is_active(time):
+            return
+
+        updateEigenmode_electric(
+            config.get_model_config().ompthreads,
+            self.normal_axis,
+            1 if self.direction == "+" else -1,
+            self.transverse_start[0],
+            self.transverse_start[1],
+            self.transverse_stop[0],
+            self.transverse_stop[1],
+            self.plane_index,
+            config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
+            self.modal_h_real[0],
+            self.modal_h_real[1],
+            self.modal_h_real[2],
+            G.updatecoeffsE,
+            G.ID,
+            G.Ex,
+            G.Ey,
+            G.Ez,
+        )
+
+    def _update_broadband_magnetic(self, iteration, G):
+        """Apply the broadband incident-E temporal/modal basis expansion."""
+        if iteration >= self.broadband_e_envelopes.shape[2]:
+            return
+        dtype = config.sim_config.dtypes["float_or_double"]
+        field_bases = (
+            self.broadband_modal_e_real,
+            self.broadband_modal_e_imag,
+        )
+        for anchor in range(self.broadband_e_envelopes.shape[0]):
+            for quadrature, fields in enumerate(field_bases):
+                envelope = self.broadband_e_envelopes[anchor, quadrature, iteration]
+                if envelope == 0:
+                    continue
+                modal_fields = fields[anchor]
+                updateEigenmode_magnetic(
+                    config.get_model_config().ompthreads,
+                    self.normal_axis,
+                    1 if self.direction == "+" else -1,
+                    self.transverse_start[0],
+                    self.transverse_start[1],
+                    self.transverse_stop[0],
+                    self.transverse_stop[1],
+                    self.plane_index,
+                    dtype(envelope),
+                    modal_fields[0],
+                    modal_fields[1],
+                    modal_fields[2],
+                    G.updatecoeffsH,
+                    G.ID,
+                    G.Hx,
+                    G.Hy,
+                    G.Hz,
+                )
+
+    def _update_broadband_electric(self, iteration, G):
+        """Apply the broadband incident-H temporal/modal basis expansion."""
+        if iteration >= self.broadband_h_envelopes.shape[2]:
+            return
+        dtype = config.sim_config.dtypes["float_or_double"]
+        field_bases = (
+            self.broadband_modal_h_real,
+            self.broadband_modal_h_imag,
+        )
+        for anchor in range(self.broadband_h_envelopes.shape[0]):
+            for quadrature, fields in enumerate(field_bases):
+                envelope = self.broadband_h_envelopes[anchor, quadrature, iteration]
+                if envelope == 0:
+                    continue
+                modal_fields = fields[anchor]
+                updateEigenmode_electric(
+                    config.get_model_config().ompthreads,
+                    self.normal_axis,
+                    1 if self.direction == "+" else -1,
+                    self.transverse_start[0],
+                    self.transverse_start[1],
+                    self.transverse_stop[0],
+                    self.transverse_stop[1],
+                    self.plane_index,
+                    dtype(envelope),
+                    modal_fields[0],
+                    modal_fields[1],
+                    modal_fields[2],
+                    G.updatecoeffsE,
+                    G.ID,
+                    G.Ex,
+                    G.Ey,
+                    G.Ez,
+                )
+
+    def _source_is_active(self, time):
+        return self.start <= time <= self.stop
+
+    def _magnetic_modal_time_offset(self, G):
+        """Half-step plus half-cell propagation delay for modal H sampling."""
+        neff = abs(float(np.real(self.neff)))
+        return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.c)
+
+    def _waveform_value(self, time, G):
+        return self.waveform.calculate_value(time - self.start, G.dt)
+
+    def _modal_value(self, field, u, v, time, G):
+        if field is None:
+            return 0.0
+        local_time = time - self.start
+        envelope = self.waveform.calculate_value(local_time, G.dt)
+        value = field[u - self.transverse_start[0], v - self.transverse_start[1]]
+        return float(envelope * np.real(value))
+
+    def _e_incident(self, component, u, v, time, G):
+        return self._modal_value(self.modal_e[component], u, v, time, G)
+
+    def _h_incident(self, component, u, v, time, G):
+        direction_scale = 1.0 if self.direction == "+" else -1.0
+        return direction_scale * self._modal_value(self.modal_h[component], u, v, time, G)
+
+    def _add_h(self, G, component, i, j, k, value):
+        fields = (G.Hx, G.Hy, G.Hz)
+        material = G.ID[3 + component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsH[material, self.normal_axis + 1] * value
+
+    def _add_e(self, G, component, i, j, k, value):
+        fields = (G.Ex, G.Ey, G.Ez)
+        material = G.ID[component, i, j, k]
+        fields[component][i, j, k] += G.updatecoeffsE[material, self.normal_axis + 1] * value
+
+    def _update_magnetic_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            target_i = i - 1
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, -self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, self._e_incident(1, j, k, time, G))
+        else:
+            target_i = i
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 1, target_i, j, k, self._e_incident(2, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, target_i, j, k, -self._e_incident(1, j, k, time, G))
+
+    def _update_electric_normal_x(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        i = self.plane_index
+
+        if self.direction == "+":
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(2, j, k, time, G))
+        else:
+            for j in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(1, j, k, time, G))
+            for j in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(2, j, k, time, G))
+
+    def _update_magnetic_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            target_j = j - 1
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, -self._e_incident(0, i, k, time, G))
+        else:
+            target_j = j
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_h(G, 0, i, target_j, k, -self._e_incident(2, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_h(G, 2, i, target_j, k, self._e_incident(0, i, k, time, G))
+
+    def _update_electric_normal_y(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        j = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(2, i, k, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for k in range(v0, v1):
+                    self._add_e(G, 2, i, j, k, -self._h_incident(0, i, k, time, G))
+            for i in range(u0, u1):
+                for k in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(2, i, k, time, G))
+
+    def _update_magnetic_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            target_k = k - 1
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, -self._e_incident(1, i, j, time, G))
+        else:
+            target_k = k
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_h(G, 1, i, j, target_k, -self._e_incident(0, i, j, time, G))
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_h(G, 0, i, j, target_k, self._e_incident(1, i, j, time, G))
+
+    def _update_electric_normal_z(self, time, G):
+        u0, v0 = self.transverse_start
+        u1, v1 = self.transverse_stop
+        k = self.plane_index
+
+        if self.direction == "+":
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, -self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, self._h_incident(1, i, j, time, G))
+        else:
+            for i in range(u0, u1 + 1):
+                for j in range(v0, v1):
+                    self._add_e(G, 1, i, j, k, self._h_incident(0, i, j, time, G))
+            for i in range(u0, u1):
+                for j in range(v0, v1 + 1):
+                    self._add_e(G, 0, i, j, k, -self._h_incident(1, i, j, time, G))
 
 
 class VoltageSource(Source):

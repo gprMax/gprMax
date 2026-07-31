@@ -19,6 +19,8 @@
 
 import logging
 
+import gprMax.config as config
+
 from .user_objects.cmds_multiuse import (
     PMLCFS,
     AddDebyeDispersion,
@@ -27,6 +29,7 @@ from .user_objects.cmds_multiuse import (
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
     DiscretePlaneWaveVector,
+    EigenmodeSource,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -355,6 +358,70 @@ def process_multicmds(multicmds):
 
             scene_objects.append(plWave)
 
+
+    cmdname = "#eigenmode_source"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 10:
+                logger.exception(
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " requires at least ten parameters: x0 y0 z0 x1 y1 z1 "
+                    "direction mode_index frequency [frequency ...] waveform_id"
+                )
+                raise ValueError
+
+            p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
+            p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
+            mode = config.get_model_config().mode
+            invariant_axis = (
+                "xyz".index(mode[-1]) if mode.startswith("2D") else None
+            )
+            equal_axes = [
+                axis
+                for axis in range(3)
+                if axis != invariant_axis and p0[axis] == p1[axis]
+            ]
+            if len(equal_axes) != 1:
+                logger.exception(
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "'"
+                    + " must have exactly one finite matching coordinate pair "
+                    "for the source normal"
+                )
+                raise ValueError
+
+            axis_names = ("x", "y", "z")
+            normal_axis = equal_axes[0]
+            transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+            transverse_p0 = [p0[axis] for axis in transverse_axes]
+            transverse_p1 = [p1[axis] for axis in transverse_axes]
+            transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
+            transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
+
+            frequencies = tuple(float(value) for value in tmp[8:-1])
+            kwargs = {
+                "normal": axis_names[normal_axis],
+                "direction": tmp[6],
+                "p1": transverse_lower,
+                "p2": transverse_upper,
+                "w": p0[normal_axis],
+                "mode_index": int(tmp[7]),
+                "waveform_id": tmp[-1],
+            }
+            if len(frequencies) == 1:
+                kwargs["frequency"] = frequencies[0]
+            else:
+                kwargs["frequencies"] = frequencies
+            eigenmode_source = EigenmodeSource(**kwargs)
+            scene_objects.append(eigenmode_source)
 
 
     cmdname = "#excitation_file"

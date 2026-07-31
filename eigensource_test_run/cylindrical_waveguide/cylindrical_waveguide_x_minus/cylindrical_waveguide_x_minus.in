@@ -1,0 +1,26 @@
+#title: High-frequency x-minus eigenmode source in air-filled cylindrical PEC waveguide
+
+#domain: 0.018 0.008 0.008
+#dx_dy_dz: 0.0001 0.0001 0.0001
+#time_window: 0.16e-9
+#pml_cells: 10
+
+#waveform: contsine 1 5e+10 eig_pulse
+
+#cylinder: 0 0.004 0.004 0.018 0.004 0.004 0.0032 pec n
+#cylinder: 0 0.004 0.004 0.018 0.004 0.004 0.003 free_space n
+
+#eigenmode_source: 0.015 0.0007 0.0007 0.015 0.0073 0.0073 - 0 5e+10 eig_pulse
+
+#rx: 0.012 0.004 0.004
+#rx: 0.009 0.004 0.004
+#rx: 0.006 0.004 0.004
+
+#snapshot: 0 0.004 0 0.018 0.0041 0.008 0.0001 0.0001 0.0001 4e-11 xz_center_040ps.h5
+#snapshot: 0 0.004 0 0.018 0.0041 0.008 0.0001 0.0001 0.0001 8e-11 xz_center_080ps.h5
+#snapshot: 0 0.004 0 0.018 0.0041 0.008 0.0001 0.0001 0.0001 1.2e-10 xz_center_120ps.h5
+#snapshot: 0 0 0.004 0.018 0.008 0.0041 0.0001 0.0001 0.0001 4e-11 xy_center_040ps.h5
+#snapshot: 0 0 0.004 0.018 0.008 0.0041 0.0001 0.0001 0.0001 8e-11 xy_center_080ps.h5
+#snapshot: 0 0 0.004 0.018 0.008 0.0041 0.0001 0.0001 0.0001 1.2e-10 xy_center_120ps.h5
+
+#geometry_view: 0 0 0 0.018 0.008 0.008 0.0001 0.0001 0.0001 cylindrical_waveguide_x_minus n
