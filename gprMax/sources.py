@@ -123,6 +123,7 @@ class EigenmodeSource(Source):
 
     FDFD_PEC_PROPERTY = np.inf + 0j
     FDFD_PMC_PROPERTY = np.inf + 0j
+    COMPLEX_PROFILE_TOLERANCE = 1e-8
 
     def __init__(self, G):
         super().__init__()
@@ -168,6 +169,10 @@ class EigenmodeSource(Source):
         self.broadband_input_waveform = None
         self.broadband_reconstructed_waveform = None
         self.broadband_waveform_error = None
+        self.representative_frequency = None
+        self.complex_profile_phase = None
+        self.complex_profile_residual = None
+        self.uses_quadrature = False
 
     def grid_init(self, G):
         """Prepare source data that depends on the final built Yee grid."""
@@ -181,6 +186,107 @@ class EigenmodeSource(Source):
         self.frequency = frequencies[0]
         self._extract_frequency_dependent_materials(G)
         self._solve_eigenmode(G)
+        self._prepare_single_frequency_injection(G)
+
+    def _store_real_modal_fields(self):
+        """Store contiguous real modal arrays in the configured CPU precision."""
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype)
+            for field in self.modal_h
+        ]
+
+    def _align_tangential_mode_for_real_injection(self):
+        """Optimally phase-align injected fields and return their imaginary residual.
+
+        Only components tangential to the source plane enter the TF/SF
+        corrections. Normal modal components can be intrinsically in
+        quadrature even when every injected component has a real profile, so
+        they must not decide whether temporal quadrature is required.
+        """
+        impedance = float(config.sim_config.em_consts["z0"])
+        total_energy = 0.0
+        unconjugated_energy = 0.0j
+        for axis in self.transverse_axes:
+            electric = np.asarray(self.modal_e[axis], dtype=np.complex128)
+            magnetic = impedance * np.asarray(
+                self.modal_h[axis], dtype=np.complex128
+            )
+            total_energy += float(np.vdot(electric, electric).real)
+            total_energy += float(np.vdot(magnetic, magnetic).real)
+            unconjugated_energy += np.sum(electric * electric)
+            unconjugated_energy += np.sum(magnetic * magnetic)
+
+        if not np.isfinite(total_energy) or total_energy <= 1e-300:
+            raise ValueError(
+                "Cannot phase-align the eigenmode source because its tangential "
+                "electric and magnetic fields have zero or invalid norm."
+            )
+        if not np.isfinite(unconjugated_energy):
+            raise ValueError(
+                "Cannot phase-align the eigenmode source because its tangential "
+                "electric or magnetic fields contain non-finite values."
+            )
+
+        phase = -0.5 * np.angle(unconjugated_energy)
+        phase_factor = np.exp(1j * phase)
+        self.modal_e = [field * phase_factor for field in self.modal_e]
+        self.modal_h = [field * phase_factor for field in self.modal_h]
+
+        # Computing the residual from the rotated fields avoids cancellation in
+        # 1 - abs(sum(field**2)) / sum(abs(field)**2) for nearly real modes.
+        imaginary_energy = 0.0
+        for axis in self.transverse_axes:
+            imaginary_electric = np.imag(self.modal_e[axis])
+            imaginary_magnetic = impedance * np.imag(self.modal_h[axis])
+            imaginary_energy += float(
+                np.vdot(imaginary_electric, imaginary_electric).real
+            )
+            imaginary_energy += float(
+                np.vdot(imaginary_magnetic, imaginary_magnetic).real
+            )
+        residual = float(np.sqrt(imaginary_energy / total_energy))
+        self.complex_profile_phase = float(phase)
+        self.complex_profile_residual = residual
+        return residual
+
+    def _prepare_single_frequency_injection(self, G):
+        """Choose real-only or in-phase/quadrature single-mode injection."""
+        residual = self._align_tangential_mode_for_real_injection()
+        self._store_real_modal_fields()
+        if residual <= self.COMPLEX_PROFILE_TOLERANCE:
+            logger.info(
+                "Single-frequency eigenmode tangential complex-profile residual "
+                f"is {residual:.3e}; using real-only injection."
+            )
+            return
+
+        self.uses_quadrature = True
+        self.anchor_modal_e = [
+            [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
+        ]
+        self.anchor_modal_h = [
+            [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
+        ]
+        self.anchor_complex_neff = np.asarray(
+            [complex(self.complex_neff)], dtype=np.complex128
+        )
+        self.anchor_overlaps = np.empty(0, dtype=np.float64)
+        self.mode_solvers = [self.mode_solver]
+        logger.info(
+            "Single-frequency eigenmode tangential complex-profile residual "
+            f"is {residual:.3e}, above the {self.COMPLEX_PROFILE_TOLERANCE:.3e} "
+            "tolerance; using in-phase/quadrature injection."
+        )
+        self._prepare_broadband_time_traces(
+            G,
+            (self.frequency,),
+            single_frequency_iq=True,
+        )
 
     def _extract_frequency_dependent_materials(self, G):
         """Extract source-plane constitutive properties at the active frequency."""
@@ -224,9 +330,15 @@ class EigenmodeSource(Source):
         self._prepare_broadband_time_traces(G, frequencies)
 
         # Keep representative modal data available to diagnostics and callers.
-        representative = min(
-            range(len(frequencies)),
-            key=lambda index: abs(frequencies[index] - self.waveform.freq),
+        representative = (
+            len(frequencies) // 2
+            if self.representative_frequency is None
+            else min(
+                range(len(frequencies)),
+                key=lambda index: abs(
+                    frequencies[index] - self.representative_frequency
+                ),
+            )
         )
         self.frequency = frequencies[representative]
         self.modal_e = self.anchor_modal_e[representative]
@@ -297,14 +409,7 @@ class EigenmodeSource(Source):
             self.modal_h = [-field for field in self.modal_h]
             logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
         self._validate_modal_field_shapes()
-        self.modal_e_real = [
-            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
-            for field in self.modal_e
-        ]
-        self.modal_h_real = [
-            np.ascontiguousarray(np.real(field), dtype=config.sim_config.dtypes["float_or_double"])
-            for field in self.modal_h
-        ]
+        self._store_real_modal_fields()
 
     def _solve_eigenmode_2d(self, G):
         """Solve a true 1D mode for a 2D TM/TE FDTD model."""
@@ -377,15 +482,7 @@ class EigenmodeSource(Source):
             logger.info("Eigenmode 1D local basis is left-handed; modal H fields were flipped.")
 
         self._validate_modal_field_shapes()
-        dtype = config.sim_config.dtypes["float_or_double"]
-        self.modal_e_real = [
-            np.ascontiguousarray(np.real(field), dtype=dtype)
-            for field in self.modal_e
-        ]
-        self.modal_h_real = [
-            np.ascontiguousarray(np.real(field), dtype=dtype)
-            for field in self.modal_h
-        ]
+        self._store_real_modal_fields()
 
     def _expected_local_field_shapes(self, field_kind):
         nu, nv = self._transverse_cell_shape()
@@ -561,10 +658,8 @@ class EigenmodeSource(Source):
             measure = G.dl[u_axis] * G.dl[v_axis]
         else:
             measure = G.dl[self.physical_transverse_axis]
-        direction_scale = 1.0 if self.direction == "+" else -1.0
         return (
             0.5
-            * direction_scale
             * self._modal_basis_handedness()
             * np.sum(flux)
             * measure
@@ -608,10 +703,8 @@ class EigenmodeSource(Source):
         )
         if self.domain_polarization == "TM":
             flux_sign *= -1
-        direction_scale = 1.0 if self.direction == "+" else -1.0
         return (
             0.5
-            * direction_scale
             * flux_sign
             * np.sum(electric_profile * np.conj(magnetic_profile))
             * G.dl[transverse_axis]
@@ -652,8 +745,15 @@ class EigenmodeSource(Source):
         """Return each frequency bin's own E/H time-and-space staggering."""
         return np.exp(1j * (0.5 * omega * dt + 0.5 * beta * normal_spacing))
 
-    def _prepare_broadband_time_traces(self, G, frequencies):
+    def _prepare_broadband_time_traces(
+        self,
+        G,
+        frequencies,
+        *,
+        single_frequency_iq=False,
+    ):
         """Build real temporal bases for complex, linearly interpolated modes."""
+        self.uses_quadrature = True
         sample_count = int(G.iterations)
         times = np.arange(sample_count, dtype=np.float64) * G.dt
         waveform = np.asarray(
@@ -671,6 +771,15 @@ class EigenmodeSource(Source):
         bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
         spectrum_magnitude = np.abs(spectrum)
         peak = float(np.max(spectrum_magnitude))
+        positive = bin_frequencies > 0
+        positive_magnitude = spectrum_magnitude[positive]
+        if positive_magnitude.size and np.any(positive_magnitude > 0):
+            peak_index = int(np.argmax(positive_magnitude))
+            self.representative_frequency = float(
+                bin_frequencies[positive][peak_index]
+            )
+        else:
+            self.representative_frequency = None
         if not np.isfinite(peak) or peak <= 0:
             logger.warning(
                 "The broadband eigenmode source waveform has no finite spectral "
@@ -693,7 +802,7 @@ class EigenmodeSource(Source):
         else:
             significant_low = float(bin_frequencies[significant_indices[0]])
             significant_high = float(bin_frequencies[significant_indices[-1]])
-        if significant_indices.size and (
+        if not single_frequency_iq and significant_indices.size and (
             significant_low < frequencies[0] or significant_high > frequencies[-1]
         ):
             logger.warning(
@@ -705,12 +814,20 @@ class EigenmodeSource(Source):
                 "using the nearest endpoint mode outside the anchor range."
             )
         if significant[0] or (padded_count % 2 == 0 and significant[-1]):
-            logger.warning(
-                "The broadband eigenmode source has significant DC or Nyquist content, where a "
-                "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
-                "band-limited zero-mean waveform or the single-frequency eigenmode source. "
-                "Continuing after discarding the DC and Nyquist bins."
-            )
+            if single_frequency_iq:
+                logger.warning(
+                    "The single-frequency eigenmode source is using I/Q injection, but its "
+                    "waveform has significant DC or Nyquist content, where a general complex "
+                    "modal profile cannot be synthesized safely. Use a band-limited zero-mean "
+                    "waveform. Continuing after discarding the DC and Nyquist bins."
+                )
+            else:
+                logger.warning(
+                    "The broadband eigenmode source has significant DC or Nyquist content, where a "
+                    "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
+                    "band-limited zero-mean waveform or the single-frequency eigenmode source. "
+                    "Continuing after discarding the DC and Nyquist bins."
+                )
 
         weights = self._linear_anchor_weights(bin_frequencies, frequencies)
         partition = np.sum(weights, axis=0)
@@ -859,12 +976,21 @@ class EigenmodeSource(Source):
             self.broadband_modal_h_real,
             self.broadband_modal_h_imag,
         ) = split_fields(self.anchor_modal_h)
-        logger.info(
-            f"Prepared broadband eigenmode source with {anchor_count} anchors, "
-            f"{sample_count} time samples, and significant waveform coverage from "
-            f"{significant_low:g} to {significant_high:g} Hz. Scalar waveform "
-            f"reconstruction relative peak error is {reconstruction_error:.3e}."
-        )
+        if single_frequency_iq:
+            logger.info(
+                "Prepared single-frequency I/Q eigenmode source with "
+                f"{sample_count} time samples and significant waveform coverage "
+                f"from {significant_low:g} to {significant_high:g} Hz. Scalar "
+                "waveform reconstruction relative peak error is "
+                f"{reconstruction_error:.3e}."
+            )
+        else:
+            logger.info(
+                f"Prepared broadband eigenmode source with {anchor_count} anchors, "
+                f"{sample_count} time samples, and significant waveform coverage from "
+                f"{significant_low:g} to {significant_high:g} Hz. Scalar waveform "
+                f"reconstruction relative peak error is {reconstruction_error:.3e}."
+            )
 
     def _plot_eigenmode_fields(self, solver):
         input_path = config.sim_config.input_file_path
@@ -1064,7 +1190,7 @@ class EigenmodeSource(Source):
             self._update_broadband_magnetic(iteration, G)
             return
 
-        updateEigenmode_magnetic(
+        updateEigenmode_magnetic[config.sim_config.dtypes["C_float_or_double"]](
             config.get_model_config().ompthreads,
             self.normal_axis,
             1 if self.direction == "+" else -1,
@@ -1096,7 +1222,7 @@ class EigenmodeSource(Source):
         if not self._source_is_active(time):
             return
 
-        updateEigenmode_electric(
+        updateEigenmode_electric[config.sim_config.dtypes["C_float_or_double"]](
             config.get_model_config().ompthreads,
             self.normal_axis,
             1 if self.direction == "+" else -1,
@@ -1131,7 +1257,7 @@ class EigenmodeSource(Source):
                 if envelope == 0:
                     continue
                 modal_fields = fields[anchor]
-                updateEigenmode_magnetic(
+                updateEigenmode_magnetic[config.sim_config.dtypes["C_float_or_double"]](
                     config.get_model_config().ompthreads,
                     self.normal_axis,
                     1 if self.direction == "+" else -1,
@@ -1166,7 +1292,7 @@ class EigenmodeSource(Source):
                 if envelope == 0:
                     continue
                 modal_fields = fields[anchor]
-                updateEigenmode_electric(
+                updateEigenmode_electric[config.sim_config.dtypes["C_float_or_double"]](
                     config.get_model_config().ompthreads,
                     self.normal_axis,
                     1 if self.direction == "+" else -1,

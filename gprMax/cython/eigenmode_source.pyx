@@ -3,6 +3,7 @@ cimport numpy as np
 
 cimport cython
 from cython.parallel import prange
+from gprMax.config cimport float_or_double
 
 
 @cython.wraparound(False)
@@ -16,19 +17,19 @@ cpdef void update_eigenmode_magnetic(
     int u1,
     int v1,
     int plane_index,
-    float envelope,
-    float[:, ::1] modal_Ex,
-    float[:, ::1] modal_Ey,
-    float[:, ::1] modal_Ez,
-    float[:, ::1] updatecoeffsH,
+    float_or_double envelope,
+    float_or_double[:, ::1] modal_Ex,
+    float_or_double[:, ::1] modal_Ey,
+    float_or_double[:, ::1] modal_Ez,
+    float_or_double[:, ::1] updatecoeffsH,
     np.uint32_t[:, :, :, ::1] ID,
-    float[:, :, ::1] Hx,
-    float[:, :, ::1] Hy,
-    float[:, :, ::1] Hz,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
 ):
     cdef Py_ssize_t i, j, k
     cdef int target
-    cdef float coeff
+    cdef float_or_double coeff
 
     if normal_axis == 0:
         i = plane_index
@@ -111,19 +112,19 @@ cpdef void update_eigenmode_electric(
     int u1,
     int v1,
     int plane_index,
-    float envelope,
-    float[:, ::1] modal_Hx,
-    float[:, ::1] modal_Hy,
-    float[:, ::1] modal_Hz,
-    float[:, ::1] updatecoeffsE,
+    float_or_double envelope,
+    float_or_double[:, ::1] modal_Hx,
+    float_or_double[:, ::1] modal_Hy,
+    float_or_double[:, ::1] modal_Hz,
+    float_or_double[:, ::1] updatecoeffsE,
     np.uint32_t[:, :, :, ::1] ID,
-    float[:, :, ::1] Ex,
-    float[:, :, ::1] Ey,
-    float[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
 ):
     cdef Py_ssize_t i, j, k
-    cdef float hsign = 1.0 if direction_sign > 0 else -1.0
-    cdef float coeff
+    cdef float_or_double hsign = 1.0 if direction_sign > 0 else -1.0
+    cdef float_or_double coeff
 
     if normal_axis == 0:
         i = plane_index
