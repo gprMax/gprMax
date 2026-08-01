@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 
 import gprMax
+import gprMax.sources as sources_module
+from gprMax.sources import EigenmodeSource as RuntimeEigenmodeSource
 
 INF = float("inf")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -37,14 +39,66 @@ def _scene(mode):
     return scene
 
 
-def _dielectric_scene():
+def _user_waveform_broadband_scene(direction):
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode="TM"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.06, 0.05, INF)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-9))
+    scene.add(
+        gprMax.Waveform(
+            wave_type="user",
+            user_func=lambda time: np.sin(2 * np.pi * 5e9 * time)
+            * np.exp(-((time - 0.5e-9) / 0.15e-9) ** 2),
+            id="eig_pulse",
+        )
+    )
+    scene.add(
+        gprMax.Box(
+            p1=(0, 0, 0),
+            p2=(0.06, 0.005, INF),
+            material_id="pec",
+        )
+    )
+    scene.add(
+        gprMax.Box(
+            p1=(0, 0.045, 0),
+            p2=(0.06, 0.05, INF),
+            material_id="pec",
+        )
+    )
+    scene.add(
+        gprMax.EigenmodeSource(
+            normal="x",
+            direction=direction,
+            p1=(0.005, 0),
+            p2=(0.045, INF),
+            w=0.015,
+            mode_index=0,
+            frequencies=(4e9, 5e9, 7e9),
+            waveform_id="eig_pulse",
+        )
+    )
+    return scene
+
+
+def _dielectric_scene(conductivity=0):
     scene = gprMax.Scene()
     scene.add(gprMax.DomainMode(mode="TM"))
     scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
     scene.add(gprMax.Domain(p1=(0.08, 0.08, INF)))
     scene.add(gprMax.PMLThickness(thickness=(5, 5, 0, 5, 5, 0)))
     scene.add(gprMax.TimeWindow(time=0.14e-9))
-    scene.add(gprMax.Material(er=9, se=0, mr=1, sm=0, id="slab_core"))
+    scene.add(
+        gprMax.Material(
+            er=9,
+            se=conductivity,
+            mr=1,
+            sm=0,
+            id="slab_core",
+        )
+    )
     scene.add(gprMax.Waveform(wave_type="contsine", amp=1, freq=5e9, id="eig_pulse"))
     scene.add(
         gprMax.Box(
@@ -102,12 +156,20 @@ def _pmc_scene():
         ("TE", ("Ey", "Hz"), ("Ez", "Hx", "Hy")),
     ],
 )
-def test_2d_eigenmode_injection_updates_only_live_system(tmp_path, mode, live_components, dead_components):
-    output = tmp_path / f"eigenmode_{mode.lower()}"
+@pytest.mark.parametrize("cpu_precision", ["single", "double"])
+def test_2d_eigenmode_injection_updates_only_live_system(
+    tmp_path,
+    mode,
+    live_components,
+    dead_components,
+    cpu_precision,
+):
+    output = tmp_path / f"eigenmode_{mode.lower()}_{cpu_precision}"
     gprMax.run(
         scenes=[_scene(mode)],
         n=1,
         outputfile=output,
+        cpu_precision=cpu_precision,
         hide_progress_bars=True,
     )
 
@@ -133,6 +195,48 @@ def test_2d_dielectric_mode_decays_before_source_boundary(tmp_path):
         assert np.max(np.abs(handle["rxs/rx1/Ez"][...])) > 0
 
 
+@pytest.mark.parametrize(
+    ("conductivity", "expected_quadrature"),
+    [(0, False), (2, True)],
+)
+def test_single_frequency_real_solver_selects_complex_profile_path(
+    tmp_path,
+    monkeypatch,
+    conductivity,
+    expected_quadrature,
+):
+    captured = {}
+    original_prepare = RuntimeEigenmodeSource._prepare_single_frequency_injection
+
+    def capture_prepared_source(source, grid):
+        original_prepare(source, grid)
+        captured.update(
+            residual=source.complex_profile_residual,
+            uses_quadrature=source.uses_quadrature,
+        )
+
+    monkeypatch.setattr(
+        RuntimeEigenmodeSource,
+        "_prepare_single_frequency_injection",
+        capture_prepared_source,
+    )
+    output = tmp_path / f"single_frequency_phase_{conductivity:g}"
+    gprMax.run(
+        scenes=[_dielectric_scene(conductivity)],
+        n=1,
+        outputfile=output,
+        hide_progress_bars=True,
+    )
+
+    assert captured["uses_quadrature"] is expected_quadrature
+    if expected_quadrature:
+        assert captured["residual"] > RuntimeEigenmodeSource.COMPLEX_PROFILE_TOLERANCE
+    else:
+        assert captured["residual"] <= RuntimeEigenmodeSource.COMPLEX_PROFILE_TOLERANCE
+    with h5py.File(output.with_suffix(".h5"), "r") as handle:
+        assert np.max(np.abs(handle["rxs/rx1/Ez"][...])) > 0
+
+
 def test_2d_pmc_mode_enforces_magnetic_wall_and_injects(tmp_path):
     output = tmp_path / "eigenmode_pmc"
     scene = _pmc_scene()
@@ -149,7 +253,11 @@ def test_2d_pmc_mode_enforces_magnetic_wall_and_injects(tmp_path):
 
 def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
     scene = _scene("TM")
-    scene.grid_objects = [obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)]
+    scene.grid_objects = [
+        obj
+        for obj in scene.grid_objects
+        if not isinstance(obj, gprMax.EigenmodeSource)
+    ]
     scene.add(
         gprMax.EigenmodeSource(
             normal="z",
@@ -170,6 +278,101 @@ def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
             outputfile=tmp_path / "bad_normal",
             hide_progress_bars=True,
         )
+
+
+def test_positive_direction_eigenmode_rejects_lower_boundary(tmp_path):
+    scene = _scene("TM")
+    scene.grid_objects = [
+        obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)
+    ]
+    scene.add(
+        gprMax.EigenmodeSource(
+            normal="x",
+            direction="+",
+            p1=(0.005, 0),
+            p2=(0.045, INF),
+            w=0,
+            mode_index=0,
+            frequency=5e9,
+            waveform_id="eig_pulse",
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="at least one cell inside the lower domain boundary",
+    ):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "lower_boundary_source",
+            hide_progress_bars=True,
+        )
+
+
+def test_real_solver_negative_broadband_power_and_user_waveform(
+    tmp_path, monkeypatch
+):
+    captured = {}
+    warnings = []
+    active_direction = {"value": None}
+    original_prepare = RuntimeEigenmodeSource._prepare_broadband_time_traces
+
+    def capture_prepared_source(source, grid, frequencies):
+        original_prepare(source, grid, frequencies)
+        direction_sign = 1 if source.direction == "+" else -1
+        requested_power = np.asarray(
+            [
+                np.real(
+                    source._modal_cross_power(
+                        electric,
+                        [direction_sign * field for field in magnetic],
+                        grid,
+                    )
+                )
+                for electric, magnetic in zip(
+                    source.anchor_modal_e, source.anchor_modal_h
+                )
+            ]
+        )
+        captured[source.direction] = {
+            "requested_power": requested_power,
+            "representative_frequency": source.representative_frequency,
+        }
+
+    def capture_warning(message, *args, **kwargs):
+        del kwargs
+        rendered = message % args if args else str(message)
+        warnings.append((active_direction["value"], rendered))
+
+    monkeypatch.setattr(
+        RuntimeEigenmodeSource,
+        "_prepare_broadband_time_traces",
+        capture_prepared_source,
+    )
+    monkeypatch.setattr(sources_module.logger, "warning", capture_warning)
+
+    for direction in ("+", "-"):
+        active_direction["value"] = direction
+        gprMax.run(
+            scenes=[_user_waveform_broadband_scene(direction)],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / f"broadband_{direction}",
+            hide_progress_bars=True,
+        )
+
+    negative_warnings = [message for direction, message in warnings if direction == "-"]
+    assert not any("fallback normalization" in message for message in negative_warnings)
+    assert np.all(captured["+"]["requested_power"] > 0)
+    assert np.all(captured["-"]["requested_power"] < 0)
+    assert np.abs(captured["-"]["requested_power"]) == pytest.approx(
+        np.abs(captured["+"]["requested_power"]),
+        rel=1e-6,
+    )
+    assert captured["+"]["representative_frequency"] == pytest.approx(5e9, rel=0.05)
+    assert captured["-"]["representative_frequency"] == pytest.approx(5e9, rel=0.05)
 
 
 @pytest.mark.parametrize("mode", ["TM", "TE"])
