@@ -523,7 +523,7 @@ def main() -> int:
         nargs="?",
         type=Path,
         default=Path(__file__).resolve().parent,
-        help="broadband_comparison directory; defaults to the script directory.",
+        help="2d_tm comparison directory; defaults to the script directory.",
     )
     root = parser.parse_args().root.resolve()
     comparisons = (
@@ -541,7 +541,7 @@ def main() -> int:
             ),
         ),
         (
-            root / "2d_te",
+            root.parent / "2d_te",
             "2D TE dielectric slab",
             lambda path: load_2d_case(
                 path,
@@ -554,7 +554,7 @@ def main() -> int:
             ),
         ),
         (
-            root / "3d",
+            root.parent / "3d",
             "3D dielectric channel",
             lambda path: load_3d_case(
                 path,

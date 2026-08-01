@@ -6,7 +6,7 @@
 #pml_cells: 10
 
 #material: 4 0 1 0 channel_core
-#waveform: gaussiandot 1 1e9 eig_pulse
+#waveform: gaussiandot 1 0.5e9 eig_pulse
 
 #box: 0 0.28 0.32 2.0 0.52 0.48 channel_core
 
