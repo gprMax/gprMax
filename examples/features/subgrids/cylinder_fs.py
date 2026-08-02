@@ -76,12 +76,20 @@ subgrid.add(cylinder)
 
 # Create some geometry views for both subgrid and main grid
 gvsg = gprMax.GeometryView(
-    p1=sg1, p2=sg2, dl=(dl_sg, dl_sg, dl_sg), filename=fn.with_suffix("").parts[-1] + "_sg", output_type="n"
+    p1=sg1,
+    p2=sg2,
+    dl=(dl_sg, dl_sg, dl_sg),
+    filename=fn.with_suffix("").parts[-1] + "_sg",
+    output_type="n",
 )
 subgrid.add(gvsg)
 
 gv1 = gprMax.GeometryView(
-    p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), filename=fn.with_suffix("").parts[-1], output_type="n"
+    p1=(0, 0, 0),
+    p2=(x, y, z),
+    dl=(dl, dl, dl),
+    filename=fn.with_suffix("").parts[-1],
+    output_type="n",
 )
 scene.add(gv1)
 
@@ -96,4 +104,6 @@ for i in range(5):
     )
     scene.add(s)
 
-gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
+gprMax.run(
+    scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True
+)

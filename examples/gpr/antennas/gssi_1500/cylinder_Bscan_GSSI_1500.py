@@ -58,7 +58,11 @@ for i in range(1, 55):
         scene.add(obj)
 
     gv1 = gprMax.GeometryView(
-        p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), filename=fn.with_suffix("").name, output_type="n"
+        p1=(0, 0, 0),
+        p2=(x, y, z),
+        dl=(dl, dl, dl),
+        filename=fn.with_suffix("").name,
+        output_type="n",
     )
     # scene.add(gv1)
 

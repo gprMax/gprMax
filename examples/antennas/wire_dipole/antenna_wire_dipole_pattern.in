@@ -1,0 +1,23 @@
+#title: Wire dipole full-sphere gain pattern
+#domain: 0.080 0.080 0.220
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 40e-9
+#pml_cells: 10
+
+#waveform: gaussian 1 1e9 dipole_pulse
+
+## A 150 mm z-directed PEC edge with a one-cell feed gap at its centre.
+#edge: 0.040 0.040 0.035 0.040 0.040 0.185 pec
+#edge: 0.040 0.040 0.110 0.040 0.040 0.111 free_space
+
+## The receiver port must coincide with the one-cell voltage source.
+#voltage_source: z 0.040 0.040 0.110 50 dipole_pulse
+#rx_port: 0.040 0.040 0.110 feed
+
+## Closed equivalent-current surface and 950 MHz full-sphere output.
+#ntff_surface: 0.018 0.018 0.020 0.062 0.062 0.200 dipole_surface
+#ntff_frequency: dipole_surface dipole_pattern 0.95e9 rectangular
+#ntff_antenna_ports: dipole_pattern feed
+#ntff_far_field_array: 0 180 5 0 355 5 dipole_pattern full_sphere Etheta Ephi radiation_intensity directivity_dbi gain_dbi realized_gain_dbi radiation_efficiency total_efficiency
+
+#geometry_view: 0.035 0.035 0.030 0.045 0.045 0.190 0.001 0.001 0.001 antenna_wire_dipole_pattern f

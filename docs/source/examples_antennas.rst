@@ -9,62 +9,149 @@ This section provides some example models of antennas. Each example comes with a
 Wire dipole antenna model
 =========================
 
-:download:`antenna_wire_dipole_fs.py <../../examples/antenna_wire_dipole_fs.py>`
+:download:`antenna_wire_dipole_fs.in <../../examples/antennas/wire_dipole/antenna_wire_dipole_fs.in>`
+and
+:download:`antenna_wire_dipole_fs.py <../../examples/antennas/wire_dipole/antenna_wire_dipole_fs.py>`
+are equivalent hash-command and Python API models of a half-wavelength wire
+dipole in free space. The balanced antenna is 150 mm long and has a one-cell,
+1 mm gap between its PEC arms.
 
-This example demonstrates a model of a half-wavelength wire dipole antenna in free space. It is a balanced antenna and it's characteristics are well known from theory [BAL2005]_. The length of the dipole is 150mm with a 1mm gap between the arms.
-
-.. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
-    :language: python
+.. literalinclude:: ../../examples/antennas/wire_dipole/antenna_wire_dipole_fs.in
+    :language: none
     :linenos:
 
-The wire is modelled using an edge which specifies the properties of the edge of the Yee cell. The antenna is fed using a transmission line The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the transmissions, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable resolution (17MHz) for calculating antenna parameters that involve taking an FFT (:math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window).
+The antenna is excited by a one-cell, 50 Ohm resistive voltage source. The
+coincident ``#rx_port`` associates the feed with an output port called
+``feed``. gprMax samples the total gap voltage during the solve and, after the
+time loop, directly calculates the complex reflection coefficient, input
+impedance, and input admittance. The effective Yee-edge gap capacitance and
+background conductance are removed from the reported terminal quantities.
+Users do not need to reconstruct S11 from voltage and current histories.
 
-Time histories of voltage and current values in the transmission line are
-saved to the output file together with automatically calculated S11, input
-impedance, and input admittance spectra. These are documented in the
-:ref:`output` section. The modules in the ``toolboxes\Plotting`` package can
-also be used to plot the histories and derived antenna parameters.
+The Gaussian waveform has a nominal frequency of 1 GHz. The 60 ns time window
+provides a native FFT-bin spacing of approximately 16.7 MHz. The default
+``#rx_port`` spectrum is limited by the model's lambda/10 mesh criterion and
+also carries per-frequency validity masks based on source bandwidth and the
+terminal reconstruction. These masks should be applied when plotting.
 
 Results
 -------
 
-You can view the results (see :ref:`output` section and README.rst for the ``toolboxes\Plotting`` package) using the command:
+The model HDF5 file contains the authoritative arrays directly under
+``/ports/feed``. They can be plotted without recalculating them:
 
-.. code-block:: none
+.. code-block:: console
 
-    python -m toolboxes.Plotting.plot_antenna_params examples/antenna_wire_dipole_fs.h5
+    python -m toolboxes.Plotting.plot_antenna_params \
+        examples/antennas/wire_dipole/antenna_wire_dipole_fs.h5 \
+        --port feed --fmin 0.5e9 --fmax 1.5e9 --tmax 10e-9
 
-.. _antenna_wire_dipole_fs_tl_params:
+The ``--port`` option may be omitted when the file contains exactly one port.
+For direct access:
 
-.. figure:: ../../images_shared/antenna_wire_dipole_fs_tl_params.png
-    :width: 600px
+.. code-block:: python
 
-    Time and frequency domain plots of the incident and total (incident + reflected) voltages and currents in the transmission line (:math:`\Delta f = 17~MHz`).
+    import h5py
+    import numpy as np
 
-.. _antenna_wire_dipole_fs_ant_params:
+    with h5py.File("antenna_wire_dipole_fs.h5", "r") as output:
+        port = output["ports/feed"]
+        frequency = port["frequency"][...]
+        s11 = port["S11"][...]
+        zin = port["Zin"][...]
+        valid = port["valid_S11"][...].astype(bool)
 
-.. figure:: ../../images_shared/antenna_wire_dipole_fs_ant_params.png
-    :width: 600px
+    s11_db = 20 * np.log10(np.abs(s11[valid]))
 
-    Input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 17~MHz`).
+.. _antenna_wire_dipole_fs_port_signals:
 
-.. _antenna_wire_dipole_fs_ant_params_detail:
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_port_signals.png
+    :width: 700px
 
-.. figure:: ../../images_shared/antenna_wire_dipole_fs_ant_params_detail.png
-    :width: 600px
+    Available voltage histories and spectra. No current panel is created because a resistive voltage-source port does not require or store a current history.
 
-    Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 17~MHz`).
+.. _antenna_wire_dipole_fs_port_params:
 
-:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. :numref:`antenna_wire_dipole_fs_ant_params_detail` shows a more detailed view of these parameters. The s11 parameter shows that the first resonance of the antenna is at 950MHz. Depending on the radius of the wire, the length of the dipole for first resonance is about :math:`l=0.47\lambda` to :math:`0.48\lambda`. The thinner the wire the closer the resonance is to :math:`0.48\lambda` [BAL2005]_. In this case, with a first resonance of 950MHz and a length of 150mm, :math:`l/\lambda=0.475`. The input impedance is :math:`Z_{in} = 72.8 + j1~\Omega`. If :math:`l/\lambda=0.5` then the theoretical input impedance would be :math:`Z_{in} = 73 + j42.5~\Omega`. The reactive (imaginary) part associated with the input impedance of a dipole is a function of its length.
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_port_params.png
+    :width: 700px
 
-:numref:`antenna_wire_dipole_fs_ant_params_detail_1p4MHz` demonstrates the increased frequency resolution (:math:`\Delta f = 1.4~MHz`) when an even longer time window (700ns) is used.
+    Stored S11, input impedance, and input admittance for the voltage-source port.
 
-.. _antenna_wire_dipole_fs_ant_params_detail_1p4MHz:
+For a thin centre-fed dipole, first resonance normally occurs when its length
+is approximately :math:`0.47\lambda` to :math:`0.48\lambda`, depending on wire
+radius [BAL2005]_. A half-wave dipole has a theoretical impedance near
+:math:`73+j42.5~\Omega`; shortening it to resonance removes most of that input
+reactance. This model gives its first resonance at approximately 950 MHz, with
+:math:`Z_\mathrm{in}\approx72.8+j1.8~\Omega`. The numerical resonance and
+impedance should be interpreted with a grid-convergence study because an FDTD
+edge has a mesh-dependent effective radius.
 
-.. figure:: ../../images_shared/antenna_wire_dipole_fs_ant_params_detail_1p4MHz.png
-    :width: 600px
+Radiation pattern, directivity, and gain
+----------------------------------------
 
-    Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 1.4~MHz`)
+:download:`antenna_wire_dipole_pattern.in <../../examples/antennas/wire_dipole/antenna_wire_dipole_pattern.in>`
+extends the same one-cell voltage-port feed to a complete antenna-pattern
+calculation using the traditional hash-command input. An equivalent
+:download:`Python API model <../../examples/antennas/wire_dipole/antenna_wire_dipole_pattern.py>`
+is provided for users who want to generate or modify the angular requests
+programmatically. The domain is enlarged to give the integration surface more
+clearance from the PML. The companion
+:download:`plot_wire_dipole_pattern.py <../../examples/antennas/wire_dipole/plot_wire_dipole_pattern.py>`
+reads the persisted antenna quantities without repeating the NTFF
+calculation.
+
+.. literalinclude:: ../../examples/antennas/wire_dipole/antenna_wire_dipole_pattern.in
+    :language: none
+    :linenos:
+
+The ``NTFFSurface`` encloses the complete dipole and feed. The rectangular-
+window ``NTFFFrequencyTransform`` accumulates conventional equivalent-current
+surface phasors at 950 MHz. ``NTFFAntennaPorts`` associates the transform with
+the physical ``feed`` port; this association supplies accepted and incident
+power for gain, realized gain, and efficiency. Every physical port in a
+multiport antenna must be listed, including ports whose source amplitude is
+zero.
+
+``NTFFFarFieldArray`` stores a full-sphere grid with a five-degree angular
+step. Directivity is normalised by total radiated power, gain additionally
+includes radiation efficiency, and realized gain additionally includes port
+mismatch. The definitions and HDF5 datasets are given in
+:ref:`output-ntff`.
+
+Run and plot the example using:
+
+.. code-block:: console
+
+    python -m gprMax examples/antennas/wire_dipole/antenna_wire_dipole_pattern.in -gpu 0
+    python examples/antennas/wire_dipole/plot_wire_dipole_pattern.py
+
+Omit ``-gpu 0`` for a CPU simulation. The plot combines a principal-plane
+cut with a 3-D realized-gain surface. Its radial coordinate is clipped to a
+30 dB dynamic range while colour retains the absolute realized gain in dBi.
+
+.. _antenna-wire-dipole-pattern:
+
+.. figure:: ../../images_shared/antenna_wire_dipole_pattern.png
+    :width: 760px
+
+    Directivity, gain, and realized gain of the PEC wire dipole at 950 MHz,
+    with the corresponding three-dimensional realized-gain pattern.
+
+The calculated peak directivity is 2.14 dBi, close to the theoretical 2.15
+dBi of a thin half-wave dipole. Because the antenna materials are lossless,
+the radiation efficiency is approximately 100%. The 50 Ohm feed has a 96.6%
+mismatch efficiency at 950 MHz, giving a peak realized gain of 1.99 dBi and a
+total efficiency of 96.6%. These values are frequency-specific and should be
+checked for mesh, domain, surface-position, and time-window convergence.
+
+Transmission-line alternative
+-----------------------------
+
+:download:`antenna_wire_dipole_transmission_line.py <../../examples/antennas/wire_dipole/antenna_wire_dipole_transmission_line.py>`
+retains the one-dimensional transmission-line feed for studies that need its
+explicit incident and total voltage/current histories or the independent
+current-wave terminal checks. The transmission line also stores its own
+authoritative S11, Zin, and Yin datasets for direct HDF5 access.
 
 
 .. _example-bowtie:
@@ -72,11 +159,11 @@ You can view the results (see :ref:`output` section and README.rst for the ``too
 Bowtie antenna model
 ====================
 
-:download:`antenna_like_MALA_1200_fs.in <../../examples/antenna_like_MALA_1200_fs.py>`
+:download:`antenna_like_MALA_1200_fs.py <../../examples/gpr/antennas/antenna_like_MALA_1200_fs.py>`
 
 This example demonstrates how to use one of the built-in antenna models in a simulation. Using a model of an antenna rather than a simple source, such as a Hertzian dipole, can improve the accuracy of the results of a simulation for many situations. It is especially important when the target is in the near-field of the antenna and there are complex interactions between the antenna and the environment. The simulation uses the model of an antenna similar to a MALA 1.2GHz antenna.
 
-.. literalinclude:: ../../examples/antenna_like_MALA_1200_fs.py
+.. literalinclude:: ../../examples/gpr/antennas/antenna_like_MALA_1200_fs.py
     :language: python
     :linenos:
 
@@ -94,7 +181,7 @@ When the simulation is run two geometry files for the antenna are produced along
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_Ascan examples/antenna_like_MALA_1200_fs.h5 --outputs Ey
+    python -m toolboxes.Plotting.plot_Ascan examples/gpr/antennas/antenna_like_MALA_1200_fs.h5 --outputs Ey
 
 :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y-axis).
 
@@ -109,11 +196,11 @@ When the simulation is run two geometry files for the antenna are produced along
 B-scan with a bowtie antenna model
 ==================================
 
-:download:`cylinder_Bscan_GSSI_1500.py <../../examples/cylinder_Bscan_GSSI_1500.py>`
+:download:`cylinder_Bscan_GSSI_1500.py <../../examples/gpr/antennas/gssi_1500/cylinder_Bscan_GSSI_1500.py>`
 
 This example demonstrates how to create a B-scan with an antenna model. The scenario is purposely simple to illustrate the method. A metal cylinder of diameter 20mm is buried in a dielectric half-space which has a relative permittivity of six. The simulation uses the model of an antenna similar to a GSSI 1.5GHz antenna.
 
-.. literalinclude:: ../../examples/cylinder_Bscan_GSSI_1500.py
+.. literalinclude:: ../../examples/gpr/antennas/gssi_1500/cylinder_Bscan_GSSI_1500.py
     :language: python
     :linenos:
 
@@ -139,7 +226,7 @@ After merging the A-scans into a single file you can now view an image of the B-
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_Bscan examples/cylinder_Bscan_GSSI_1500_merged.h5 Ey
+    python -m toolboxes.Plotting.plot_Bscan examples/gpr/antennas/gssi_1500/cylinder_Bscan_GSSI_1500_merged.h5 Ey
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 

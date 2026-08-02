@@ -1,11 +1,8 @@
-"""An half-wavelength wire dipole antenna in freespace
+"""Half-wavelength wire dipole using the legacy transmission-line feed.
 
-This example model demonstrates how to a the transmission line source, which
-allows s-parameters and input impedances to be calculated after the simulation
-has run.
-
-Both API and hash commands are given next to each other as a comparison of the
-two different methods that can be used to build a model.
+The canonical ``antenna_wire_dipole_fs`` example uses a voltage source with an
+``RxPort``. This alternative is retained for users who specifically need the
+one-dimensional line histories or its independent current-wave checks.
 """
 
 from pathlib import Path
@@ -15,7 +12,7 @@ import gprMax
 fn = Path(__file__)
 
 title = gprMax.Title(name=fn.with_suffix("").name)
-# title: antenna_wire_dipole_fs
+# title: antenna_wire_dipole_transmission_line
 
 domain = gprMax.Domain(p1=(0.050, 0.050, 0.200))
 # domain: 0.050 0.050 0.200
@@ -49,7 +46,7 @@ gv = gprMax.GeometryView(
     filename=fn.with_suffix("").name,
     output_type="n",
 )
-# geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_fs f
+# geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_transmission_line n
 
 # Create a scene
 scene = gprMax.Scene()
