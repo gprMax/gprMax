@@ -54,10 +54,16 @@ from .user_objects.cmds_output import (
     KSIRFrequencyRxArray,
     KSIRFrequencyRxSpherical,
     KSIRFrequencyTransform,
-    KSIRSurface,
     KSIRTimeRx,
     KSIRTimeRxArray,
     KSIRTimeRxSpherical,
+    NTFFAntennaPorts,
+    NTFFFarField,
+    NTFFFarFieldArray,
+    NTFFFrequencyTransform,
+    NTFFSurface,
+    NTFFTimeFarField,
+    NTFFTimeFarFieldArray,
     RxPort,
     Snapshot,
 )
@@ -550,7 +556,7 @@ def process_multicmds(multicmds):
 
             scene_objects.append(snapshot)
 
-    cmdname = "#ksir_surface"
+    cmdname = "#ntff_surface"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
@@ -559,7 +565,7 @@ def process_multicmds(multicmds):
                     f"'{cmdname}: {cmdinstance}' requires exactly six coordinates and a surface ID"
                 )
             scene_objects.append(
-                KSIRSurface(
+                NTFFSurface(
                     p1=tuple(float(value) for value in tokens[:3]),
                     p2=tuple(float(value) for value in tokens[3:6]),
                     id=tokens[6],
@@ -588,6 +594,28 @@ def process_multicmds(multicmds):
                 )
             )
 
+    cmdname = "#ntff_frequency"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 3:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a surface ID, transform ID, and one or more frequencies"
+                )
+            window = "rectangular"
+            if tokens[-1].lower() in ("rectangular", "hann"):
+                window = tokens.pop().lower()
+            if len(tokens) < 3:
+                raise ValueError(f"{cmdname} requires at least one frequency")
+            scene_objects.append(
+                NTFFFrequencyTransform(
+                    surface_id=tokens[0],
+                    id=tokens[1],
+                    frequencies=tuple(float(value) for value in tokens[2:]),
+                    window=window,
+                )
+            )
+
     cmdname = "#ksir_antenna_ports"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -598,6 +626,21 @@ def process_multicmds(multicmds):
                 )
             scene_objects.append(
                 KSIRAntennaPorts(
+                    transform_id=tokens[0],
+                    port_ids=tuple(tokens[1:]),
+                )
+            )
+
+    cmdname = "#ntff_antenna_ports"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 2:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs"
+                )
+            scene_objects.append(
+                NTFFAntennaPorts(
                     transform_id=tokens[0],
                     port_ids=tuple(tokens[1:]),
                 )
@@ -723,6 +766,50 @@ def process_multicmds(multicmds):
                 KSIRFarFieldArray(
                     *(float(value) for value in tokens[:6]),
                     transform_id=tokens[6],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ntff_far_field"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
+            scene_objects.append(
+                NTFFFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs)
+            )
+
+    cmdname = "#ntff_far_field_array"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 7)
+            scene_objects.append(
+                NTFFFarFieldArray(
+                    *(float(value) for value in tokens[:6]),
+                    transform_id=tokens[6],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ntff_time_far_field"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
+            scene_objects.append(
+                NTFFTimeFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs)
+            )
+
+    cmdname = "#ntff_time_far_field_array"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 7)
+            scene_objects.append(
+                NTFFTimeFarFieldArray(
+                    *(float(value) for value in tokens[:6]),
+                    surface_id=tokens[6],
                     **kwargs,
                 )
             )

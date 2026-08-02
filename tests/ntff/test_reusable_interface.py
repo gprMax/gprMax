@@ -1,4 +1,4 @@
-"""Python API coverage for reusable KSIR surfaces and grouped monitors."""
+"""Python API coverage for reusable NTFF surfaces and grouped KSIR monitors."""
 
 from types import SimpleNamespace
 
@@ -23,7 +23,7 @@ def test_time_receiver_registration_accepts_accelerator_backends(monkeypatch, so
     )
     monkeypatch.setattr(config, "get_model_config", lambda: SimpleNamespace(mode="3D"))
     grid = SimpleNamespace(
-        ksir_surface_specs={"surface": object()},
+        ntff_surface_specs={"surface": object()},
         ksir_time_requests=[],
         ksir_request_owners={},
     )
@@ -50,7 +50,7 @@ def test_python_api_groups_requests_and_exposes_results(tmp_path):
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
     scene.add(gprMax.HertzianDipole(polarisation="z", p1=(0.04, 0.04, 0.04), waveform_id="pulse"))
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.028, 0.028, 0.028),
             p2=(0.052, 0.052, 0.052),
             id="surface",

@@ -385,11 +385,13 @@ The frequency dataset and validity mask can be plotted directly:
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'$|S_{11}|$ [dB]')
 
-KSIR field-transformation output
+.. _output-ntff:
+
+NTFF field-transformation output
 --------------------------------
 
-Reusable KSIR outputs are stored in the normal model file under their surface
-and transform IDs:
+Reusable KSIR and equivalent-current outputs are stored in the normal model
+file under their surface and transform IDs:
 
 .. code-block:: none
 
@@ -403,6 +405,14 @@ and transform IDs:
             terminal_field_ratios
             terminal_decay_ok
             spherical_coordinates [spherical commands only]
+            fields/<output>
+        time_far_field/<output_id>/
+            times
+            theta
+            phi
+            directions
+            terminal_field_ratios
+            terminal_decay_ok
             fields/<output>
         frequency/<transform_id>/
             frequencies
@@ -446,8 +456,9 @@ and transform IDs:
 
 The surface group records logical bounds, physical reference origin, closure
 status, omitted symmetry faces, boundary types/coordinates, and image count.
-The frequency transform group records the window, inferred wave speed and impedance,
-configured precision and collection backend, plus the engineering convention:
+The frequency transform group records its ``ksir`` or ``equivalent_current``
+formulation, window, inferred wave speed and impedance, configured precision
+and collection backend, plus the engineering convention:
 ``exp(+j*omega*t)`` phasors, ``exp(-j*omega*t)`` forward transform, and
 ``exp(-j*k*R)`` outgoing Green function.
 
@@ -457,6 +468,17 @@ Far-field groups have ``range_normalized=True`` and a ``normalization``
 attribute specifying ``r * exp(+j*k*r) * field``. Their radius is intentionally
 absent. Complex datasets use the complex type paired with the configured
 gprMax real precision.
+
+The ``time_far_field`` group is produced by ``#ntff_time_far_field`` or its
+array form. It records ``formulation=equivalent_current_1997``, linear
+fractional-delay interpolation, CPU/Cython collection, and the normalization
+``r * field at reduced time t - r/c``. Its real field arrays have shape
+``(ndirections, ntimes)``. ``Er`` and ``Hr`` are identically zero in the
+far-zone model; magnetic components are derived from
+:math:`\mathbf H=(\hat{\mathbf r}\times\mathbf E)/\eta`.
+The complete definitions and the distinction between the retained Yee-time
+staggering and fractional-delay interpolation are given in
+:ref:`ntff-formulations`.
 
 Far-field derived antenna quantities
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -494,9 +516,9 @@ The two efficiencies are frequency-only quantities and therefore have shape
 ``(nfrequencies,)`` even though they are stored in ``fields`` with the other
 requested outputs.
 
-For a ``#ksir_antenna_ports`` association, complex port spectra and per-port
-powers have shape ``(nports, nfrequencies)``. Total powers and all validity
-masks have shape ``(nfrequencies,)``. They use
+For a ``#ksir_antenna_ports`` or ``#ntff_antenna_ports`` association, complex
+port spectra and per-port powers have shape ``(nports, nfrequencies)``. Total
+powers and all validity masks have shape ``(nfrequencies,)``. They use
 
 .. math::
 
@@ -562,8 +584,8 @@ propagation; all other directions are bistatic RCS. Use separate simulations
 for different incident plane waves because selecting an association does not
 separate simultaneously accumulated scattered fields.
 
-Time-domain fields retain the complete raw retarded buffer and have shape
-``(npoints, max(valid_lengths))``. Its final bins may contain only part of the
+Exact finite-distance KSIR time-domain fields retain the complete raw retarded
+buffer and have shape ``(npoints, max(valid_lengths))``. Its final bins may contain only part of the
 closed-surface history because different surface patches have different
 propagation delays. For normal use, point ``q`` must therefore be sliced with
 ``fully_supported_lengths``:
@@ -590,19 +612,28 @@ time without storing the potentially large guaranteed leading-zero prefix.
 For this origin policy, ``fully_supported_lengths`` normally equals the number
 of FDTD iterations.
 
+Equivalent-current transient far fields use a stricter output policy. Their
+``times`` dataset already contains only the common interval for which every
+surface patch has an available retarded-time sample; no partially supported
+tail is written. The time coordinate is reduced time
+:math:`\tau=t-r/c_b`, referenced to the surface origin, so increasing a
+hypothetical observation radius would not prepend zeros. The
+``terminal_field_ratios`` and ``terminal_decay_ok`` datasets are per direction.
+A false value means the FDTD time window should be increased.
+
 The surface DFT datasets are present by default and allow later angular or
 point evaluation without rerunning FDTD. They can be large: their leading
-dimensions are frequency and surface patch. A KSIR output creates the normal
+dimensions are frequency and surface patch. An NTFF output creates the normal
 model output file even when there are no conventional receivers or
 transmission lines.
 
-KSIR surfaces must strictly enclose every impressed source. For plane-wave
+NTFF surfaces must strictly enclose every impressed source. For plane-wave
 scattering models, the associated total-field/scattered-field box must be
-strictly enclosed by the KSIR surface. The integration surface then samples
+strictly enclosed by the NTFF surface. The integration surface then samples
 the scattered-field region outside the TFSF box, while the associated
 numerical plane wave supplies the incident-field normalization used for RCS.
 Sources and scatterers may reside on an HSG subgrid enclosed by these
-main-grid surfaces. Neither a KSIR surface nor a TFSF correction surface may
+main-grid surfaces. Neither an NTFF surface nor a TFSF correction surface may
 touch or cut the HSG outer coupling surface; an overlapping surface must
 strictly enclose the complete subgrid coupling region.
 

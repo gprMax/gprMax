@@ -120,7 +120,7 @@ def _scene(args, surface_cells=None, frequency_count=0):
     if surface_cells is not None:
         lower, upper = _monitor_bounds(args.cells, surface_cells, args.pml_cells, args.dl)
         scene.add(
-            gprMax.KSIRSurface(
+            gprMax.NTFFSurface(
                 p1=lower,
                 p2=upper,
                 id="benchmark_surface",

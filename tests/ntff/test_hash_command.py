@@ -1,4 +1,4 @@
-"""Text-input coverage for the reusable positional KSIR interface."""
+"""Text-input coverage for the reusable positional NTFF interface."""
 
 import h5py
 import numpy as np
@@ -15,10 +15,16 @@ from gprMax.user_objects.cmds_output import (
     KSIRFrequencyRxArray,
     KSIRFrequencyRxSpherical,
     KSIRFrequencyTransform,
-    KSIRSurface,
     KSIRTimeRx,
     KSIRTimeRxArray,
     KSIRTimeRxSpherical,
+    NTFFAntennaPorts,
+    NTFFFarField,
+    NTFFFarFieldArray,
+    NTFFFrequencyTransform,
+    NTFFSurface,
+    NTFFTimeFarField,
+    NTFFTimeFarFieldArray,
     _ksir_array_points,
     _ksir_spherical_coordinates,
 )
@@ -30,7 +36,7 @@ def _parse(*commands):
 
 def test_positional_hash_commands_create_public_objects():
     objects = _parse(
-        "#ksir_surface: 0.02 0.03 0.04 0.08 0.09 0.10 surface1",
+        "#ntff_surface: 0.02 0.03 0.04 0.08 0.09 0.10 surface1",
         "#ksir_frequency: surface1 spectrum1 1e8 2e8 hann",
         "#ksir_time_rx: 0.12 0.06 0.07 surface1 time1 Ez Hy first_arrival",
         "#ksir_time_rx_spherical: 0.4 90 30 surface1 time2 Etheta Ephi simulation",
@@ -41,12 +47,20 @@ def test_positional_hash_commands_create_public_objects():
         "#ksir_far_field: 90 30 spectrum1 far1 Etheta Ephi radiation_intensity",
         "#ksir_far_field_array: 0 180 90 0 360 180 spectrum1 far2 Etheta Ephi",
         "#ksir_antenna_ports: spectrum1 feed1 feed2",
+        "#ntff_frequency: surface1 spectrum2 1e8 2e8 rectangular",
+        "#ntff_far_field: 90 30 spectrum2 ecfar1 Etheta Ephi",
+        "#ntff_far_field_array: 0 180 90 0 360 180 spectrum2 ecfar2 Etheta Ephi",
+        "#ntff_antenna_ports: spectrum2 feed1 feed2",
+        "#ntff_time_far_field: 90 30 surface1 ectime1 Etheta Ephi",
+        "#ntff_time_far_field_array: 0 180 90 0 360 180 surface1 ectime2 Etheta Ephi",
     )
 
     assert [type(item) for item in objects] == [
-        KSIRSurface,
+        NTFFSurface,
         KSIRFrequencyTransform,
+        NTFFFrequencyTransform,
         KSIRAntennaPorts,
+        NTFFAntennaPorts,
         KSIRTimeRx,
         KSIRTimeRxSpherical,
         KSIRTimeRxArray,
@@ -55,20 +69,25 @@ def test_positional_hash_commands_create_public_objects():
         KSIRFrequencyRxArray,
         KSIRFarField,
         KSIRFarFieldArray,
+        NTFFFarField,
+        NTFFFarFieldArray,
+        NTFFTimeFarField,
+        NTFFTimeFarFieldArray,
     ]
     transform = objects[1]
     assert transform.frequencies == (1e8, 2e8)
     assert transform.window == "hann"
-    assert objects[2].port_ids == ("feed1", "feed2")
-    time_receiver = objects[3]
+    assert objects[3].port_ids == ("feed1", "feed2")
+    time_receiver = objects[5]
     assert time_receiver.ID == "time1"
     assert time_receiver.outputs == ("Ez", "Hy")
     assert time_receiver.time_origin == "first_arrival"
+    assert objects[2].frequencies == (1e8, 2e8)
 
 
 def test_defaults_and_optional_parameter_positions_are_unambiguous():
     objects = _parse(
-        "#ksir_surface: 0.02 0.02 0.02 0.08 0.08 0.08 s",
+        "#ntff_surface: 0.02 0.02 0.02 0.08 0.08 0.08 s",
         "#ksir_frequency: s f 1e8",
         "#ksir_time_rx: 0.1 0.05 0.05 s",
         "#ksir_far_field: 90 0 f",
@@ -115,7 +134,7 @@ def test_hdf5_identifiers_reject_invalid_path_components(identifier):
 @pytest.mark.parametrize(
     "command",
     [
-        "#ksir_surface: 0 0 0 1 1 1",
+        "#ntff_surface: 0 0 0 1 1 1",
         "#ksir_frequency: surface transform",
         "#ksir_time_rx: 1 2 3",
         "#ksir_time_rx: 1 2 3 surface first_arrival",
@@ -124,6 +143,12 @@ def test_hdf5_identifiers_reject_invalid_path_components(identifier):
         "#ksir_far_field: 90 0",
         "#ksir_far_field_array: 0 180 5 0 360 transform",
         "#ksir_antenna_ports: transform",
+        "#ntff_frequency: surface transform",
+        "#ntff_far_field: 90 0",
+        "#ntff_far_field_array: 0 180 5 0 360 transform",
+        "#ntff_antenna_ports: transform",
+        "#ntff_time_far_field: 90 0",
+        "#ntff_time_far_field_array: 0 180 5 0 360 surface",
         "#ksir_field_extension: 0 0 0 1 1 1 2 2 2 components=Ez",
         "#ksir_near_to_far: 0 0 0 1 1 1",
     ],
@@ -138,11 +163,11 @@ def test_reusable_commands_run_and_write_grouped_hdf5(tmp_path):
     inputfile.write_text(
         "#domain: 0.08 0.08 0.08\n"
         "#dx_dy_dz: 0.004 0.004 0.004\n"
-        "#time_window: 2e-10\n"
+        "#time_window: 1e-9\n"
         "#pml_cells: 3\n"
         "#waveform: ricker 1 5e9 pulse\n"
         "#hertzian_dipole: z 0.04 0.04 0.04 pulse\n"
-        "#ksir_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf1\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf1\n"
         "#ksir_frequency: surf1 spec1 5e9 rectangular\n"
         "#ksir_time_rx: 0.064 0.04 0.042 surf1 time1 Ez first_arrival\n"
         "#ksir_time_rx_spherical: 0.03 90 0 surf1 time2 Etheta simulation\n"
@@ -181,6 +206,84 @@ def test_reusable_commands_run_and_write_grouped_hdf5(tmp_path):
         assert surface["time/time1/fields/Ez"].dtype == np.float32
 
 
+def test_equivalent_current_commands_run_from_shared_surface(tmp_path):
+    inputfile = tmp_path / "equivalent_current.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.04 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_frequency: surf ec 5e9 rectangular\n"
+        "#ntff_far_field_array: 0 180 45 0 0 1 ec pattern Etheta Ephi\n"
+        "#ksir_frequency: surf ksir 5e9 rectangular\n"
+        "#ksir_far_field_array: 0 180 45 0 0 1 ksir pattern Etheta Ephi\n"
+    )
+    outputfile = tmp_path / "equivalent_current"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        surface = output["ntff/surf"]
+        transform = surface["frequency/ec"]
+        far_field = transform["far_field/pattern"]
+        assert surface.attrs["formulation"] == "shared_ntff_surface"
+        assert transform.attrs["formulation"] == "equivalent_current"
+        assert transform.attrs["collection_backend"] == "cython_openmp"
+        assert np.isfinite(far_field["fields/Etheta"][...]).all()
+        assert np.isfinite(far_field["fields/Ephi"][...]).all()
+        equivalent = np.abs(far_field["fields/Etheta"][0])
+        ksir = np.abs(surface["frequency/ksir/far_field/pattern/fields/Etheta"][0])
+        equivalent /= np.max(equivalent)
+        expected = np.sin(np.deg2rad(np.arange(0, 181, 45)))
+        np.testing.assert_allclose(equivalent, expected, rtol=0, atol=0.08)
+        assert np.isfinite(ksir).all()
+
+
+def test_1997_time_far_field_stores_only_complete_retarded_window(tmp_path):
+    inputfile = tmp_path / "equivalent_current_time.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 3e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.04 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_time_far_field_array: 0 180 45 0 0 1 surf transient "
+        "Etheta Ephi Ex Hphi\n"
+    )
+    outputfile = tmp_path / "equivalent_current_time"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        group = output["ntff/surf/time_far_field/transient"]
+        assert group.attrs["formulation"] == "equivalent_current_1997"
+        assert group.attrs["interpolation"] == "linear"
+        assert group.attrs["range_normalized"] == 1
+        assert group["times"].size < 3e-10 / output.attrs["dt"]
+        assert np.all(np.diff(group["times"][...]) > 0)
+        for name in ("Etheta", "Ephi", "Ex", "Hphi"):
+            values = group[f"fields/{name}"][...]
+            assert values.shape[0] == 5
+            assert np.isfinite(values).all()
+
+
 def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
     inputfile = tmp_path / "antenna_metrics.in"
     inputfile.write_text(
@@ -191,7 +294,7 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
         "#waveform: ricker 1 5e9 pulse\n"
         "#voltage_source: z 0.04 0.04 0.04 50 pulse\n"
         "#rx_port: 0.04 0.04 0.04 feed\n"
-        "#ksir_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
         "#ksir_frequency: surf band 5e9 rectangular\n"
         "#ksir_antenna_ports: band feed\n"
         "#ksir_far_field: 90 0 band broadside Etheta Ephi directivity "
@@ -249,7 +352,7 @@ def test_multiport_gain_keeps_zero_amplitude_port_in_power_balance(tmp_path):
         "#voltage_source: z 0.044 0.04 0.04 50 terminated\n"
         "#rx_port: 0.036 0.04 0.04 element1\n"
         "#rx_port: 0.044 0.04 0.04 element2\n"
-        "#ksir_surface: 0.024 0.028 0.028 0.056 0.052 0.052 surf\n"
+        "#ntff_surface: 0.024 0.028 0.028 0.056 0.052 0.052 surf\n"
         "#ksir_frequency: surf band 5e9 rectangular\n"
         "#ksir_antenna_ports: band element1 element2\n"
         "#ksir_far_field: 90 0 band broadside gain realized_gain\n"
@@ -288,7 +391,7 @@ def test_automatic_transmission_line_port_can_normalise_gain(tmp_path):
         "#pml_cells: 3\n"
         "#waveform: ricker 1 5e9 pulse\n"
         "#transmission_line: z 0.04 0.04 0.04 50 pulse\n"
-        "#ksir_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
         "#ksir_frequency: surf band 5e9 rectangular\n"
         "#ksir_antenna_ports: band tl1\n"
         "#ksir_far_field: 90 0 band broadside gain realized_gain\n"
@@ -322,7 +425,7 @@ def test_surface_on_symmetry_plane_is_completed_automatically(tmp_path):
         "#symmetry_boundary: x0 pmc\n"
         "#waveform: ricker 1 5e9 pulse\n"
         "#hertzian_dipole: z 0.008 0.04 0.04 pulse\n"
-        "#ksir_surface: 0 0.028 0.028 0.016 0.052 0.052 half\n"
+        "#ntff_surface: 0 0.028 0.028 0.016 0.052 0.052 half\n"
         "#ksir_time_rx: 0.024 0.04 0.042 half fields Ez\n"
     )
     outputfile = tmp_path / "symmetric_ksir"

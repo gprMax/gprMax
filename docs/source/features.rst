@@ -33,8 +33,8 @@ Symmetry boundaries
 PEC and PMC symmetry planes can replace the PML on selected model faces. PMC
 planes use an image-theory ghost-node update, while PEC planes constrain the
 tangential electric field through the Yee material construction. Multiple
-planes may be combined, and KSIR integration surfaces can use a symmetry plane
-as an omitted face that is completed by image theory. See
+planes may be combined. KSIR transforms using an NTFF integration surface can
+use a symmetry plane as an omitted face that is completed by image theory. See
 ``#symmetry_boundary`` in :ref:`input-hash-cmds` for supported solvers and
 current restrictions.
 
@@ -59,8 +59,90 @@ an axial form is available for normally incident layered-media models.
 The source and plane-wave commands are described in
 :ref:`input-hash-cmds`.
 
-KSIR field transformations
-==========================
+.. _ntff-formulations:
+
+Near-to-far-field transformations
+==================================
+
+gprMax provides two complementary closed-surface formulations. The Kirchhoff
+surface-integral representation (KSIR) reconstructs finite-distance fields as
+well as far fields in the time and frequency domains. The conventional
+Love-equivalent-current formulation provides an independent far-zone result,
+using a direct frequency-domain transform or the modified time-domain method
+of Giannopoulos *et al.* [GIAFF1997]_. A single ``NTFFSurface`` can be reused
+by both formulations, so their results can be compared without changing the
+FDTD model or integration surface.
+
+The available formulations are summarised below.
+
+.. list-table:: NTFF formulations
+   :header-rows: 1
+   :widths: 22 22 16 18 22
+
+   * - Formulation
+     - Result
+     - Domain
+     - Finite distance
+     - Implementation notes
+   * - KSIR
+     - Electric and magnetic fields
+     - Time or frequency
+     - Yes
+     - Symmetry completion is supported
+   * - Love currents
+     - Far-zone fields
+     - Frequency
+     - No
+     - Six physical faces are required
+   * - Modified Love currents [GIAFF1997]_
+     - Far-zone fields
+     - Time
+     - No
+     - CPU and six physical faces are required
+
+Definitions and conventions
+---------------------------
+
+The integration surface :math:`S` must enclose all radiating sources, or the
+complete TFSF box and scatterer for a scattering calculation. It lies in a
+homogeneous, linear, lossless and non-dispersive background with
+
+.. math::
+
+    c_b=\frac{1}{\sqrt{\mu_b\epsilon_b}},\qquad
+    \eta_b=\sqrt{\frac{\mu_b}{\epsilon_b}},\qquad
+    k=\frac{\omega}{c_b}.
+
+The unit normal :math:`\hat{\mathbf n}` points out of the enclosed volume,
+:math:`\mathbf r'` denotes a source point on :math:`S`, and
+:math:`\mathbf r_0` is the phase origin (the surface centre for hash-command
+inputs). Spherical angles use :math:`\theta` from ``+z`` and :math:`\phi`
+from ``+x`` towards ``+y``.
+
+Frequency-domain results use the electrical-engineering convention
+
+.. math::
+
+    \mathbf E(t)=\Re\{\widetilde{\mathbf E}(\omega)e^{+j\omega t}\},
+    \qquad
+    \widetilde{\mathbf E}(\omega)=
+    \int \mathbf E(t)e^{-j\omega t}\,\mathrm dt,
+
+so an outward wave contains :math:`e^{-jkr}`. Far-zone datasets store the
+range-normalised quantities
+
+.. math::
+
+    \mathbf F_E(\hat{\mathbf r},\omega)
+    =\lim_{r\rightarrow\infty}r e^{+jkr}
+      \widetilde{\mathbf E}(\mathbf r,\omega),\qquad
+    \mathbf F_H=\frac{1}{\eta_b}\hat{\mathbf r}\times\mathbf F_E.
+
+They therefore have no observation-radius parameter. KSIR finite-distance
+receivers instead retain the physical ``1/R`` and ``1/R**2`` dependence.
+
+KSIR
+----
 
 The Kirchhoff surface-integral representation (KSIR) in gprMax is based on the
 formulation introduced by Ramahi [RAM1997]_. For any Cartesian electric- or
@@ -107,9 +189,12 @@ by gprMax is
 where :math:`k=\omega/c_b`. Its far-zone limit supplies the range-normalized
 radiation and scattering fields.
 
-The implementation also uses an improved, Yee-aware interpolation approach.
-For each surface patch, the two samples of the *same* Cartesian component that
-straddle the mathematical surface are centred and differenced as
+The implementation also uses a Yee-aware interpolation approach. The common
+logical box defines six closed faces, but each Cartesian component is sampled
+on its own correctly offset Yee surface; the six components are not first
+forced onto one Huygens surface. For each component and face, two samples of
+that *same* component straddle the mathematical component surface and are
+centred and differenced as
 
 .. math::
 
@@ -118,10 +203,11 @@ straddle the mathematical surface are centred and differenced as
     \frac{\partial\psi_S}{\partial n'} =
     \frac{\psi_{\mathrm{out}}-\psi_{\mathrm{in}}}{\Delta n}.
 
-This avoids interpolating electric and magnetic components onto a common
-Huygens surface while retaining centred spatial accuracy. Time-domain
-fractional propagation delays are deposited between their two neighbouring
-output samples.
+This retains a centred normal derivative without introducing cross-component
+spatial interpolation. Electric samples remain at integer Yee time levels
+and magnetic samples at half-integer levels; the frequency transform includes
+those actual sample times. Time-domain fractional propagation delays are
+deposited between their two neighbouring output samples.
 
 A reusable integration surface can feed multiple Cartesian or spherical
 observation points and frequency transforms. CPU collection is implemented
@@ -129,6 +215,103 @@ with Cython/OpenMP; CUDA, OpenCL, and Metal keep collection state and
 time-domain storage on the device during the FDTD iterations. See the KSIR
 command reference in :ref:`input-hash-cmds` and the HDF5 schema in
 :ref:`output`.
+
+Equivalent electric and magnetic currents
+------------------------------------------
+
+Unlike KSIR, the equivalent-current formulation first collocates the
+tangential Yee fields at common cell-face centres. Arithmetic interpolation
+is used only in the directions required by the Yee staggering. The outward
+Love currents are then
+
+.. math::
+
+    \mathbf J_s=\hat{\mathbf n}\times\mathbf H,
+    \qquad
+    \mathbf M_s=-\hat{\mathbf n}\times\mathbf E.
+
+Frequency-domain far field
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The frequency-domain transform follows the conventional closed-surface FDTD
+construction of Luebbers *et al.* [LUE1991]_. Define
+
+.. math::
+
+    \mathbf N(\hat{\mathbf r},\omega)=
+    \oint_S\mathbf J_s(\mathbf r',\omega)
+    e^{+jk\hat{\mathbf r}\cdot(\mathbf r'-\mathbf r_0)}\,\mathrm dS',
+    \qquad
+    \mathbf L(\hat{\mathbf r},\omega)=
+    \oint_S\mathbf M_s(\mathbf r',\omega)
+    e^{+jk\hat{\mathbf r}\cdot(\mathbf r'-\mathbf r_0)}\,\mathrm dS'.
+
+For the engineering convention stated above, the stored electric far field is
+
+.. math::
+
+    \mathbf F_E=-\frac{jk}{4\pi}
+    \left[
+    \eta_b\left(\mathbf N-
+    \hat{\mathbf r}(\hat{\mathbf r}\cdot\mathbf N)\right)
+    -\hat{\mathbf r}\times\mathbf L
+    \right].
+
+This supplies radiation patterns, antenna quantities, and RCS independently
+of the scalar KSIR construction. Direct frequency accumulation avoids storing
+the complete surface-field history.
+
+Modified 1997 time-domain far field
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Let :math:`\tau=t-r/c_b` be reduced time and let a dot denote a time
+derivative. The range-normalised transient electric field implemented by
+gprMax is
+
+.. math::
+
+    \mathbf F_E(\hat{\mathbf r},\tau)
+    =-\frac{1}{4\pi c_b}\oint_S
+    \left[
+    \eta_b\dot{\mathbf J}_{s,t}
+    -\hat{\mathbf r}\times\dot{\mathbf M}_s
+    \right]
+    \left(\tau+\frac{\hat{\mathbf r}\cdot
+    (\mathbf r'-\mathbf r_0)}{c_b}\right)\,\mathrm dS',
+
+where
+
+.. math::
+
+    \mathbf J_{s,t}=\mathbf J_s-
+    \hat{\mathbf r}(\hat{\mathbf r}\cdot\mathbf J_s)
+
+is transverse to the observation direction. The magnetic far field follows
+from :math:`\mathbf F_H=(\hat{\mathbf r}\times\mathbf F_E)/\eta_b`.
+
+The original Luebbers time-domain construction [LUE1991]_ interpolates the
+electric and magnetic equivalent-current contributions onto a common time
+level. The modification of Giannopoulos *et al.* [GIAFF1997]_ instead retains
+their natural Yee staggering. In gprMax,
+:math:`\mathbf M_s^n=-\hat{\mathbf n}\times\mathbf E^n` is differenced at
+:math:`(n-1/2)\Delta t`, whereas
+:math:`\mathbf J_s^{n+1/2}=\hat{\mathbf n}\times\mathbf H^{n+1/2}` is
+differenced at :math:`n\Delta t`. The two contributions are deposited
+independently; linear interpolation is used only for the generally fractional
+propagation delay to the reduced-time grid. Thus the extra Yee-time
+interpolation removed by the 1997 method is not reintroduced by the
+implementation.
+
+Only the interval supported by every integration patch is returned. This
+removes the range-dependent zero prefix and prevents an incomplete
+retarded-time tail from being presented as a physical late-time response.
+
+Equivalent-current outputs are far-zone quantities and therefore have no
+radius parameter. KSIR remains the appropriate choice when finite-distance or
+near-field reconstruction is required. The frequency-domain
+equivalent-current collector supports CPU, CUDA, OpenCL, and Metal; its
+angular evaluation is Cython/OpenMP post-processing. The one-step transient
+implementation currently uses the CPU solver.
 
 Subgridding
 ===========

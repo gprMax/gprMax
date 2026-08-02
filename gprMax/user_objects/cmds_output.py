@@ -38,8 +38,10 @@ from gprMax.ntff.interface import (
     KSIRFarFieldRequestSpec,
     KSIRFrequencyRequestSpec,
     KSIRFrequencyTransformSpec,
-    KSIRSurfaceSpec,
     KSIRTimeRequestSpec,
+    NTFFFrequencyTransformSpec,
+    NTFFSurfaceSpec,
+    NTFFTimeFarFieldRequestSpec,
     component_dependencies,
     surface_reference_origin,
     validate_identifier,
@@ -609,8 +611,8 @@ def _ksir_array_points(p1, p2, dl, real_dtype):
     return _ksir_points(np.stack(mesh, axis=-1).reshape(-1, 3), real_dtype)
 
 
-class KSIRSurface(OutputUserObject):
-    """Define a reusable Yee-aligned KSIR integration surface."""
+class NTFFSurface(OutputUserObject):
+    """Define a reusable Yee-aligned field-transformation surface."""
 
     @property
     def order(self):
@@ -618,7 +620,7 @@ class KSIRSurface(OutputUserObject):
 
     @property
     def hash(self):
-        return "#ksir_surface"
+        return "#ntff_surface"
 
     def __init__(self, p1, p2, id: str, origin=None):
         super().__init__(p1=p1, p2=p2, id=id, origin=origin)
@@ -629,8 +631,8 @@ class KSIRSurface(OutputUserObject):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        validate_identifier("KSIR surface ID", self.ID)
-        if self.ID in grid.ksir_surface_specs:
+        validate_identifier("NTFF surface ID", self.ID)
+        if self.ID in grid.ntff_surface_specs:
             raise ValueError(f"{self.params_str()} surface ID is already in use")
         uip = self._create_uip(grid)
         self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
@@ -644,20 +646,20 @@ class KSIRSurface(OutputUserObject):
             if values.shape != (3,) or not np.all(np.isfinite(values)):
                 raise ValueError(f"{self.params_str()} origin must contain 3 finite values")
             origin = tuple(float(value) for value in values)
-        grid.ksir_surface_specs[self.ID] = KSIRSurfaceSpec(
+        grid.ntff_surface_specs[self.ID] = NTFFSurfaceSpec(
             self.ID,
             tuple(int(value) for value in lower),
             tuple(int(value) for value in upper),
             origin,
         )
         logger.info(
-            f"{self.grid_name(grid)}KSIR integration surface {self.ID!r} from "
+            f"{self.grid_name(grid)}NTFF integration surface {self.ID!r} from "
             f"{tuple(self.lower_bound)}m to {tuple(self.upper_bound)}m registered."
         )
 
 
 class KSIRFrequencyTransform(OutputUserObject):
-    """Declare frequencies and a window for one reusable KSIR surface."""
+    """Declare frequencies and a window for one reusable NTFF surface."""
 
     @property
     def order(self):
@@ -666,6 +668,11 @@ class KSIRFrequencyTransform(OutputUserObject):
     @property
     def hash(self):
         return "#ksir_frequency"
+
+    transform_specs_attr = "ksir_transform_specs"
+    transform_owners_attr = "ksir_transform_owners"
+    formulation_label = "KSIR"
+    spec_class = KSIRFrequencyTransformSpec
 
     def __init__(
         self,
@@ -695,16 +702,16 @@ class KSIRFrequencyTransform(OutputUserObject):
     @property
     def surface_data(self):
         if self._compiled_outputs is None:
-            raise RuntimeError("KSIR frequency transform has not been compiled")
+            raise RuntimeError("NTFF frequency transform has not been compiled")
         return self._compiled_outputs.transform_monitor(self.ID).surface_data
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        validate_identifier("KSIR surface ID", self.surface_id)
-        validate_identifier("KSIR transform ID", self.ID)
-        if self.surface_id not in grid.ksir_surface_specs:
+        validate_identifier("NTFF surface ID", self.surface_id)
+        validate_identifier("NTFF transform ID", self.ID)
+        if self.surface_id not in grid.ntff_surface_specs:
             raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
-        if self.ID in grid.ksir_transform_specs:
+        if self.ID in grid.ksir_transform_specs or self.ID in grid.ntff_transform_specs:
             raise ValueError(f"{self.params_str()} transform ID is already in use")
         if self.plane_wave_index is not None and (
             not isinstance(self.plane_wave_index, (int, np.integer)) or self.plane_wave_index < 0
@@ -729,7 +736,7 @@ class KSIRFrequencyTransform(OutputUserObject):
         window = self.window.lower()
         if window not in WINDOWS:
             raise ValueError(f"{self.params_str()} window must be {' or '.join(WINDOWS)}")
-        spec = KSIRFrequencyTransformSpec(
+        spec = self.spec_class(
             self.surface_id,
             self.ID,
             tuple(float(value) for value in values),
@@ -737,16 +744,31 @@ class KSIRFrequencyTransform(OutputUserObject):
             bool(self.save_surface_dft),
             self.plane_wave_index,
         )
-        grid.ksir_transform_specs[self.ID] = spec
-        grid.ksir_transform_owners[self.ID] = self
+        getattr(grid, self.transform_specs_attr)[self.ID] = spec
+        getattr(grid, self.transform_owners_attr)[self.ID] = self
         logger.info(
-            f"{self.grid_name(grid)}KSIR frequency transform {self.ID!r} on "
+            f"{self.grid_name(grid)}{self.formulation_label} frequency transform {self.ID!r} on "
             f"surface {self.surface_id!r}, {values.size} frequency/frequencies, "
             f"{window} window registered."
         )
 
 
-class _KSIRRequest(OutputUserObject):
+class NTFFFrequencyTransform(KSIRFrequencyTransform):
+    """Declare a conventional equivalent-current frequency transform."""
+
+    @property
+    def hash(self):
+        return "#ntff_frequency"
+
+    transform_specs_attr = "ntff_transform_specs"
+    transform_owners_attr = "ntff_transform_owners"
+    formulation_label = "Equivalent-current NTFF"
+    spec_class = NTFFFrequencyTransformSpec
+
+
+class _NTFFRequest(OutputUserObject):
+    request_owners_attr = "ksir_request_owners"
+
     def __init__(self):
         self._compiled_outputs = None
         self._request_key = None
@@ -754,15 +776,15 @@ class _KSIRRequest(OutputUserObject):
     @property
     def result(self):
         if self._compiled_outputs is None or self._request_key is None:
-            raise RuntimeError("KSIR output has not been compiled")
+            raise RuntimeError("NTFF output has not been compiled")
         return self._compiled_outputs.result_for(self._request_key)
 
     def _register_owner(self, grid, key):
         self._request_key = key
-        grid.ksir_request_owners[key] = self
+        getattr(grid, self.request_owners_attr)[key] = self
 
 
-class KSIRTimeRx(_KSIRRequest):
+class KSIRTimeRx(_NTFFRequest):
     """Request exact advanced-time KSIR fields at Cartesian point(s)."""
 
     @property
@@ -800,7 +822,7 @@ class KSIRTimeRx(_KSIRRequest):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        if self.surface_id not in grid.ksir_surface_specs:
+        if self.surface_id not in grid.ntff_surface_specs:
             raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
         if self.time_origin not in TIME_ORIGINS:
             raise ValueError(f"{self.params_str()} time origin must be {' or '.join(TIME_ORIGINS)}")
@@ -876,7 +898,7 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        if self.surface_id not in grid.ksir_surface_specs:
+        if self.surface_id not in grid.ntff_surface_specs:
             raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
         if self.time_origin not in TIME_ORIGINS:
             raise ValueError(f"{self.params_str()} time origin must be {' or '.join(TIME_ORIGINS)}")
@@ -885,7 +907,7 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
         )
         dtype = config.sim_config.dtypes["float_or_double"]
         spherical = _ksir_spherical_coordinates(self.r, self.theta, self.phi, dtype)
-        surface = grid.ksir_surface_specs[self.surface_id]
+        surface = grid.ntff_surface_specs[self.surface_id]
         origin = surface_reference_origin(surface, grid, dtype)
         points = _ksir_points(
             spherical_observation_points(
@@ -913,7 +935,7 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
         self._register_owner(grid, key)
 
 
-class KSIRFrequencyRx(_KSIRRequest):
+class KSIRFrequencyRx(_NTFFRequest):
     """Request exact finite-distance frequency-domain Cartesian fields."""
 
     @property
@@ -1008,7 +1030,7 @@ class KSIRFrequencyRxSpherical(KSIRFrequencyRx):
         dtype = config.sim_config.dtypes["float_or_double"]
         spherical = _ksir_spherical_coordinates(self.r, self.theta, self.phi, dtype)
         transform = grid.ksir_transform_specs[self.transform_id]
-        surface = grid.ksir_surface_specs[transform.surface_id]
+        surface = grid.ntff_surface_specs[transform.surface_id]
         origin = surface_reference_origin(surface, grid, dtype)
         points = _ksir_points(
             spherical_observation_points(
@@ -1037,7 +1059,7 @@ class KSIRFrequencyRxSpherical(KSIRFrequencyRx):
         self._register_owner(grid, key)
 
 
-class KSIRFarField(_KSIRRequest):
+class KSIRFarField(_NTFFRequest):
     """Request range-normalized far fields in paired spherical directions.
 
     In addition to Cartesian and spherical field components, ``outputs`` may
@@ -1054,6 +1076,9 @@ class KSIRFarField(_KSIRRequest):
     @property
     def hash(self):
         return "#ksir_far_field"
+
+    transform_specs_attr = "ksir_transform_specs"
+    far_requests_attr = "ksir_far_field_requests"
 
     def __init__(self, theta, phi, transform_id, id=None, outputs=None):
         super().__init__()
@@ -1076,7 +1101,8 @@ class KSIRFarField(_KSIRRequest):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        if self.transform_id not in grid.ksir_transform_specs:
+        transform_specs = getattr(grid, self.transform_specs_attr)
+        if self.transform_id not in transform_specs:
             raise ValueError(
                 f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
             )
@@ -1086,13 +1112,15 @@ class KSIRFarField(_KSIRRequest):
         theta.setflags(write=False)
         phi.setflags(write=False)
         related = [
-            item for item in grid.ksir_far_field_requests if item.transform_id == self.transform_id
+            item
+            for item in getattr(grid, self.far_requests_attr)
+            if item.transform_id == self.transform_id
         ]
         output_id = _ksir_output_id(related, self.ID, "ff")
         if any(item.output_id == output_id for item in related):
             raise ValueError(f"{self.params_str()} output ID {output_id!r} is already in use")
         key = f"far:{self.transform_id}:{output_id}"
-        grid.ksir_far_field_requests.append(
+        getattr(grid, self.far_requests_attr).append(
             KSIRFarFieldRequestSpec(key, self.transform_id, output_id, theta, phi, outputs)
         )
         self.ID = output_id
@@ -1153,6 +1181,119 @@ class KSIRFarFieldArray(KSIRFarField):
         return super()._angles(dtype)
 
 
+class NTFFFarField(KSIRFarField):
+    """Request conventional equivalent-current range-normalized far fields."""
+
+    @property
+    def hash(self):
+        return "#ntff_far_field"
+
+    transform_specs_attr = "ntff_transform_specs"
+    far_requests_attr = "ntff_far_field_requests"
+    request_owners_attr = "ntff_request_owners"
+
+
+class NTFFFarFieldArray(KSIRFarFieldArray):
+    """Request an equivalent-current theta/phi far-field product grid."""
+
+    @property
+    def hash(self):
+        return "#ntff_far_field_array"
+
+    transform_specs_attr = "ntff_transform_specs"
+    far_requests_attr = "ntff_far_field_requests"
+    request_owners_attr = "ntff_request_owners"
+
+
+class NTFFTimeFarField(KSIRFarField):
+    """Request 1997 equivalent-current time-domain far fields."""
+
+    @property
+    def hash(self):
+        return "#ntff_time_far_field"
+
+    request_owners_attr = "ntff_request_owners"
+
+    def __init__(self, theta, phi, surface_id, id=None, outputs=None):
+        super().__init__(theta, phi, surface_id, id=id, outputs=outputs)
+        self.surface_id = surface_id
+        self.kwargs = dict(
+            theta=theta,
+            phi=phi,
+            surface_id=surface_id,
+            id=id,
+            outputs=outputs,
+        )
+
+    def build(self, model: Model, grid: FDTDGrid):
+        _check_ksir_interface_context(self, grid)
+        if self.surface_id not in grid.ntff_surface_specs:
+            raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
+        outputs = _ksir_outputs(
+            self.outputs,
+            ("Etheta", "Ephi"),
+            CARTESIAN_OUTPUTS + SPHERICAL_OUTPUTS,
+            self.params_str(),
+        )
+        theta, phi = self._angles(config.sim_config.dtypes["float_or_double"])
+        theta.setflags(write=False)
+        phi.setflags(write=False)
+        related = [
+            item for item in grid.ntff_time_far_field_requests if item.surface_id == self.surface_id
+        ]
+        output_id = _ksir_output_id(related, self.ID, "ff")
+        if any(item.output_id == output_id for item in related):
+            raise ValueError(f"{self.params_str()} output ID {output_id!r} is already in use")
+        key = f"time_far:{self.surface_id}:{output_id}"
+        grid.ntff_time_far_field_requests.append(
+            NTFFTimeFarFieldRequestSpec(key, self.surface_id, output_id, theta, phi, outputs)
+        )
+        self.ID = output_id
+        self._register_owner(grid, key)
+
+
+class NTFFTimeFarFieldArray(NTFFTimeFarField):
+    """Request a theta/phi grid of 1997 time-domain far fields."""
+
+    @property
+    def hash(self):
+        return "#ntff_time_far_field_array"
+
+    def __init__(
+        self,
+        theta_start,
+        theta_stop,
+        theta_step,
+        phi_start,
+        phi_stop,
+        phi_step,
+        surface_id,
+        id=None,
+        outputs=None,
+    ):
+        self.theta_range = (theta_start, theta_stop, theta_step)
+        self.phi_range = (phi_start, phi_stop, phi_step)
+        super().__init__(theta_start, phi_start, surface_id, id=id, outputs=outputs)
+        self.kwargs = dict(
+            theta_start=theta_start,
+            theta_stop=theta_stop,
+            theta_step=theta_step,
+            phi_start=phi_start,
+            phi_stop=phi_stop,
+            phi_step=phi_step,
+            surface_id=surface_id,
+            id=id,
+            outputs=outputs,
+        )
+
+    def _angles(self, dtype):
+        theta = KSIRFarFieldArray._axis(self.theta_range, dtype)
+        phi = KSIRFarFieldArray._axis(self.phi_range, dtype)
+        theta_grid, phi_grid = np.meshgrid(theta, phi, indexing="ij")
+        self.theta, self.phi = theta_grid.ravel(), phi_grid.ravel()
+        return KSIRFarField._angles(self, dtype)
+
+
 class KSIRAntennaPorts(OutputUserObject):
     """Associate all physical antenna ports with one KSIR transform.
 
@@ -1180,6 +1321,10 @@ class KSIRAntennaPorts(OutputUserObject):
     def hash(self):
         return "#ksir_antenna_ports"
 
+    transform_specs_attr = "ksir_transform_specs"
+    antenna_specs_attr = "ksir_antenna_port_specs"
+    formulation_label = "KSIR"
+
     def __init__(self, transform_id, port_ids):
         super().__init__(transform_id=transform_id, port_ids=port_ids)
         self.transform_id = transform_id
@@ -1187,7 +1332,7 @@ class KSIRAntennaPorts(OutputUserObject):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        if self.transform_id not in grid.ksir_transform_specs:
+        if self.transform_id not in getattr(grid, self.transform_specs_attr):
             raise ValueError(
                 f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
             )
@@ -1207,18 +1352,32 @@ class KSIRAntennaPorts(OutputUserObject):
                 validate_identifier("antenna port reference component", part)
         if len(set(self.port_ids)) != len(self.port_ids):
             raise ValueError(f"{self.params_str()} port IDs must not contain duplicates")
-        if self.transform_id in grid.ksir_antenna_port_specs:
+        antenna_specs = getattr(grid, self.antenna_specs_attr)
+        if self.transform_id in antenna_specs:
             raise ValueError(
-                f"KSIR transform {self.transform_id!r} already has an antenna-port group"
+                f"{self.formulation_label} transform {self.transform_id!r} already has "
+                "an antenna-port group"
             )
 
         # Subgrid objects are built after main-grid output commands. Resolve
-        # and validate the complete cross-grid namespace during KSIR
+        # and validate the complete cross-grid namespace during NTFF
         # compilation, after every subgrid child has been registered.
-        grid.ksir_antenna_port_specs[self.transform_id] = KSIRAntennaPortsSpec(
+        antenna_specs[self.transform_id] = KSIRAntennaPortsSpec(
             self.transform_id,
             self.port_ids,
         )
+
+
+class NTFFAntennaPorts(KSIRAntennaPorts):
+    """Associate all physical antenna ports with an equivalent-current transform."""
+
+    @property
+    def hash(self):
+        return "#ntff_antenna_ports"
+
+    transform_specs_attr = "ntff_transform_specs"
+    antenna_specs_attr = "ntff_antenna_port_specs"
+    formulation_label = "Equivalent-current NTFF"
 
 
 class GeometryView(OutputUserObject):

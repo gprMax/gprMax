@@ -122,7 +122,7 @@ def dipole_scene(threads=4):
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=frequency, id="pulse"))
     scene.add(gprMax.HertzianDipole(polarisation="z", p1=centre, waveform_id="pulse"))
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.034,) * 3,
             p2=(0.066,) * 3,
             id="dipole_surface",
@@ -218,7 +218,7 @@ def mie_scene(threads=4):
     )
     scene.add(gprMax.Sphere(p1=MIE_CENTRE, r=MIE_RADIUS, material_id="pec"))
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.024,) * 3,
             p2=(0.072,) * 3,
             id="mie_surface",
@@ -310,7 +310,7 @@ def mie_sweep_scene(threads=4):
     )
     scene.add(gprMax.Sphere(p1=MIE_CENTRE, r=MIE_RADIUS, material_id="pec"))
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.024,) * 3,
             p2=(0.072,) * 3,
             id="mie_sweep_surface",
@@ -448,7 +448,7 @@ def near_field_scene(threads=4, *, time_origin="simulation"):
         )
 
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.042,) * 3,
             p2=(0.058,) * 3,
             id="near_surface",

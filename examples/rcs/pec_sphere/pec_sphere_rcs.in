@@ -1,0 +1,17 @@
+#title: PEC-sphere monostatic backscatter RCS
+#domain: 0.160 0.160 0.160
+#dx_dy_dz: 0.0005 0.0005 0.0005
+#time_window: 12e-9
+
+#waveform: ricker 1 4.5e9 incident_pulse
+#sphere: 0.080 0.080 0.080 0.016 pec
+
+## +x propagation with E parallel to +z.
+#plane_wave_vector: 0.040 0.040 0.040 0.120 0.120 0.120 1 0 0 90 incident_pulse
+
+## The transform surface encloses the complete TFSF box.
+#ntff_surface: 0.028 0.028 0.028 0.132 0.132 0.132 rcs_surface
+#ntff_frequency: rcs_surface rcs_spectrum 0.75e9 1e9 1.25e9 1.5e9 1.75e9 2e9 2.25e9 2.5e9 2.75e9 3e9 3.25e9 3.5e9 3.75e9 4e9 4.25e9 4.5e9 4.75e9 5e9 5.25e9 5.5e9 5.75e9 6e9 6.25e9 6.5e9 6.75e9 7e9 7.25e9 7.5e9 7.75e9 8e9 8.25e9 8.5e9 8.75e9 9e9 rectangular
+#ntff_far_field: 90 180 rcs_spectrum backscatter Etheta Ephi rcs
+
+#geometry_view: 0 0 0 0.160 0.160 0.160 0.0005 0.0005 0.0005 pec_sphere_rcs n
