@@ -23,7 +23,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from gprMax.utilities.utilities import fft_power, round_value
+from gprMax.utilities.utilities import fft_power, handle_plot_output, round_value
 from gprMax.waveforms import Waveform
 
 logging.basicConfig(format="%(message)s", level=logging.INFO)
@@ -60,7 +60,7 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
+def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     """Plots waveform and prints useful information about its properties.
 
     Args:
@@ -69,7 +69,9 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
         dt: float of time discretisation.
         iterations: int of number of iterations.
         fft: boolean flag to plot FFT.
-        save: boolean flag to save plot to file.
+        show: boolean flag to display the plot interactively; if False, or
+            if the current matplotlib backend is not interactive, the plot
+            is saved to file instead.
 
     Returns:
         plt: matplotlib plot object.
@@ -148,24 +150,8 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
     # Turn on grid
     [ax.grid(which="both", axis="both", linestyle="-.") for ax in fig.axes]
 
-    if save:
-        savefile = Path(__file__).parent / w.type
-        # Save a PDF of the figure
-        fig.savefig(
-            savefile.with_suffix(".pdf"),
-            dpi=None,
-            format="pdf",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
-        # Save a PNG of the figure
-        # fig.savefig(
-        #     savefile.with_suffix(".png"),
-        #     dpi=150,
-        #     format="png",
-        #     bbox_inches="tight",
-        #     pad_inches=0.1,
-        # )
+    savefile = Path(__file__).parent / w.type
+    handle_plot_output(plt, fig, str(savefile), show=show)
 
     return plt
 
@@ -209,5 +195,4 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plthandle = mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, save=args.save)
-    plthandle.show()
+    mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, show=not args.save)

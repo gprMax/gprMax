@@ -24,6 +24,8 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
+from gprMax.utilities.utilities import handle_plot_output
+
 logger = logging.getLogger(__name__)
 
 
@@ -189,7 +191,7 @@ def mpl_plot(
     zin,
     yin,
     s21=None,
-    save=False,
+    show=True,
 ):
     """Plots antenna parameters - incident, reflected and total voltages and
         currents; s11, (s21) and input impedance.
@@ -209,7 +211,9 @@ def mpl_plot(
                                             current.
         s11, s21: array(s) of s11 and, optionally, s21 parameters.
         zin, yin: arrays of input impedance and input admittance parameters.
-        save: boolean flag to save plot to file.
+        show: boolean flag to display the plots interactively; if False, or
+            if the current matplotlib backend is not interactive, the plots
+            are saved to file instead.
 
     Returns:
         plt: matplotlib plot object.
@@ -438,32 +442,8 @@ def mpl_plot(
     # axs[2, 1].set_ylabel('Phase [degrees]')
     # axs[2, 1].grid(which='both', axis='both', linestyle='-.')
 
-    if save:
-        filepath = Path(filename)
-        savename1 = filepath.stem + "_tl_params"
-        savename1 = filepath.parent / savename1
-        savename2 = filepath.stem + "_ant_params"
-        savename2 = filepath.parent / savename2
-        # Save a PDF of the figure
-        fig1.savefig(
-            savename1.with_suffix(".pdf"),
-            dpi=None,
-            format="pdf",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
-        fig2.savefig(
-            savename2.with_suffix(".pdf"),
-            dpi=None,
-            format="pdf",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
-        # Save a PNG of the figure
-        # fig1.savefig(savename1.with_suffix('.png'), dpi=150, format='png',
-        #             bbox_inches='tight', pad_inches=0.1)
-        # fig2.savefig(savename2.with_suffix('.png'), dpi=150, format='png',
-        #             bbox_inches='tight', pad_inches=0.1)
+    handle_plot_output(plt, fig1, filename, suffix="_tl_params", show=show)
+    handle_plot_output(plt, fig2, filename, suffix="_ant_params", show=show)
 
     return plt
 
@@ -501,5 +481,4 @@ if __name__ == "__main__":
     antennaparams = calculate_antenna_params(
         args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component
     )
-    plthandle = mpl_plot(args.outputfile, **antennaparams, save=args.save)
-    plthandle.show()
+    mpl_plot(args.outputfile, **antennaparams, show=not args.save)

@@ -25,11 +25,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ..Utilities.outputfiles_merge import get_output_data
+from gprMax.utilities.utilities import handle_plot_output
 
 logger = logging.getLogger(__name__)
 
 
-def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
+def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
     """Creates a plot of the B-scan.
 
     Args:
@@ -38,7 +39,9 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
         dt: float of temporal resolution of the model.
         rxnumber: int of receiver output number.
         rxcomponent: string of receiver output field/current component.
-        save: boolean flag to save plot to file.
+        show: boolean flag to display the plot interactively; if False, or
+            if the current matplotlib backend is not interactive, the plot
+            is saved to file instead.
 
     Returns:
         plt: matplotlib plot object.
@@ -76,18 +79,8 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
     elif "I" in rxcomponent:
         cb.set_label("Current [A]")
 
-    if save:
-        # Save a PDF of the figure
-        fig.savefig(
-            filename[:-3] + ".pdf",
-            dpi=None,
-            format="pdf",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
-        # Save a PNG of the figure
-        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
-        #             bbox_inches='tight', pad_inches=0.1)
+    suffix = "_rx" + str(rxnumber)
+    handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
 
     return plt
 
@@ -135,12 +128,10 @@ if __name__ == "__main__":
                 rxsgather = outputdata
             rxsgather = np.column_stack((rxsgather, outputdata))
         else:
-            plthandle = mpl_plot(
-                args.outputfile, outputdata, dt, rx, args.rx_component, save=args.save
+            mpl_plot(
+                args.outputfile, outputdata, dt, rx, args.rx_component, show=not args.save
             )
 
     # Plot all receivers from single output file together if required
     if args.gather:
-        plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, args.rx_component, save=args.save)
-
-    plthandle.show()
+        mpl_plot(args.outputfile, rxsgather, dt, rx, args.rx_component, show=not args.save)

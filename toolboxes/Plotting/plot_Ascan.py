@@ -26,12 +26,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from gprMax.receivers import Rx
-from gprMax.utilities.utilities import fft_power
+from gprMax.utilities.utilities import fft_power, handle_plot_output
 
 logger = logging.getLogger(__name__)
 
 
-def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, show=True):
     """Plots electric and magnetic fields and currents from all receiver points
         in the given output file. Each receiver point is plotted in a new figure
         window.
@@ -40,7 +40,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
         filename: string of filename (including path) of output file.
         outputs: list of field/current components to plot.
         fft: boolean flag to plot FFT.
-        save: boolean flag to save plot to file.
+        show: boolean flag to display each plot interactively; if False, or
+            if the current matplotlib backend is not interactive, each plot
+            is saved to file instead.
 
     Returns:
         plt: matplotlib plot object.
@@ -168,8 +170,6 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(stemlines, "color", "b")
                         plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
 
-                    plt.show()
-
                 # Plotting if no FFT required
                 else:
                     fig, ax = plt.subplots(
@@ -263,20 +263,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                     ax.set_xlim([0, np.amax(time)])
                     ax.grid(which="both", axis="both", linestyle="-.")
 
-    f.close()
+            # Show or save this receiver's figure now, rather than after the
+            # loop over all receivers/paths - otherwise only the last
+            # receiver's figure would ever be shown/saved.
+            suffix = "_" + rxpath.strip("/").replace("/", "_")
+            handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
 
-    if save:
-        # Save a PDF of the figure
-        fig.savefig(
-            filename[:-3] + ".pdf",
-            dpi=None,
-            format="pdf",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
-        # Save a PNG of the figure
-        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
-        #             bbox_inches='tight', pad_inches=0.1)
+    f.close()
 
     return plt
 
@@ -330,6 +323,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save=args.save)
-
-    plthandle.show()
+    mpl_plot(args.outputfile, args.outputs, fft=args.fft, show=not args.save)

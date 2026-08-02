@@ -20,6 +20,7 @@
 import datetime
 import decimal as d
 import logging
+import os
 import re
 import textwrap
 from shutil import get_terminal_size
@@ -244,3 +245,38 @@ def fft_power(waveform, dt):
 def timer():
     """Time in fractional seconds."""
     return timer_fn()
+
+
+def handle_plot_output(plt, fig, base_filename, suffix="", show=True):
+    """Shows a figure interactively, or saves it to disk when that is not
+        possible (e.g. a headless/non-interactive matplotlib backend), so
+        plotting tools do not crash under a headless backend and do not
+        silently produce nothing when running non-interactively.
+
+    Args:
+        plt: matplotlib.pyplot module (passed in so this can be used from
+            tools that manage their own pyplot import).
+        fig: matplotlib Figure to show or save.
+        base_filename: string/path used to derive the saved PNG's filename.
+        suffix: string appended to the base filename before the extension,
+            e.g. to distinguish multiple figures from the same run.
+        show: bool, whether the caller wants the figure displayed
+            interactively. Ignored (falls back to saving) when the current
+            matplotlib backend is not interactive.
+    """
+
+    is_interactive = plt.get_backend().lower() not in ["agg", "pdf", "svg", "ps", "template"]
+    save_path = os.path.splitext(os.path.abspath(base_filename))[0] + suffix + ".png"
+
+    if not show or not is_interactive:
+        fig.savefig(save_path, dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
+        logger.info(Fore.GREEN + f"Plot saved to: {save_path}" + Style.RESET_ALL)
+        if show and not is_interactive:
+            logger.warning(
+                Fore.YELLOW
+                + "Non-interactive backend detected. Plot was automatically "
+                + "saved instead of shown."
+                + Style.RESET_ALL
+            )
+    else:
+        plt.show()
