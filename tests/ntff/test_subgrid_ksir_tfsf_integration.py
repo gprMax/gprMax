@@ -45,7 +45,7 @@ def test_antenna_metrics_use_subgrid_port_and_time_step(tmp_path):
     )
 
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.015, 0.015, 0.015),
             p2=(0.075, 0.075, 0.075),
             id="surface",
@@ -107,7 +107,7 @@ def test_tfsf_and_rcs_include_scatterer_inside_subgrid(tmp_path):
         )
     )
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.012, 0.012, 0.012),
             p2=(0.078, 0.078, 0.078),
             id="surface",
@@ -147,10 +147,10 @@ def test_tfsf_and_rcs_include_scatterer_inside_subgrid(tmp_path):
     assert np.max(rcs) > 0
 
 
-def test_ksir_surface_cannot_cut_subgrid_coupling_region(tmp_path):
+def test_ntff_surface_cannot_cut_subgrid_coupling_region(tmp_path):
     scene, _ = _base_scene()
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.024, 0.024, 0.024),
             p2=(0.066, 0.066, 0.066),
             id="cutting_surface",

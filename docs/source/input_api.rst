@@ -788,25 +788,29 @@ steps are applied between repeated model runs:
         filename='fields_2ns', fileext='.h5', outputs=['Ez', 'Hy'],
     ))
 
-KSIR reusable integration surface
+Reusable NTFF integration surface
 ---------------------------------
-.. autoclass:: gprMax.user_objects.cmds_output.KSIRSurface
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFSurface
 
-The reusable Python interface has a one-to-one mapping to the supported KSIR
+The reusable Python interface has a one-to-one mapping to the supported NTFF
 hash commands:
 
-.. list-table:: Reusable KSIR interfaces
+.. list-table:: Reusable NTFF interfaces
     :header-rows: 1
     :widths: 42 38
 
     * - Python class
       - Hash command
-    * - ``KSIRSurface``
-      - ``#ksir_surface``
+    * - ``NTFFSurface``
+      - ``#ntff_surface``
     * - ``KSIRFrequencyTransform``
       - ``#ksir_frequency``
+    * - ``NTFFFrequencyTransform``
+      - ``#ntff_frequency``
     * - ``KSIRAntennaPorts``
       - ``#ksir_antenna_ports``
+    * - ``NTFFAntennaPorts``
+      - ``#ntff_antenna_ports``
     * - ``KSIRTimeRx``
       - ``#ksir_time_rx``
     * - ``KSIRTimeRxSpherical``
@@ -823,20 +827,29 @@ hash commands:
       - ``#ksir_far_field``
     * - ``KSIRFarFieldArray``
       - ``#ksir_far_field_array``
+    * - ``NTFFFarField``
+      - ``#ntff_far_field``
+    * - ``NTFFFarFieldArray``
+      - ``#ntff_far_field_array``
+    * - ``NTFFTimeFarField``
+      - ``#ntff_time_far_field``
+    * - ``NTFFTimeFarFieldArray``
+      - ``#ntff_time_far_field_array``
 
 The mapping covers the reusable operations and their normal options. The
-Python API also exposes three advanced keyword arguments that cannot be
-entered positionally in a hash command: ``KSIRSurface.origin``, and
-``KSIRFrequencyTransform.save_surface_dft`` and ``plane_wave_index``. Hash
+Python API also exposes advanced keyword arguments that cannot be entered
+positionally in a hash command: ``NTFFSurface.origin``, and
+``save_surface_dft`` and ``plane_wave_index`` on either frequency-transform
+class. Hash
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
-KSIR definitions are main-grid objects, but their notional closed integration
+NTFF definitions are main-grid objects, but their notional closed integration
 surface may enclose complete HSG subgrids. A surface must not touch or cut an
-HSG outer coupling surface: overlapping regions require the KSIR surface to
+HSG outer coupling surface: overlapping regions require the NTFF surface to
 strictly enclose that outer surface. Sources and scatterers inside the subgrid
 then contribute through the normal HSG field exchange. A disjoint subgrid is
-permitted. KSIR surfaces cannot be defined inside a subgrid.
+permitted. NTFF surfaces cannot be defined inside a subgrid.
 
 The following example reuses one surface for an exact time-domain point and a
 frequency-domain radiation pattern. Python keyword arguments replace the
@@ -844,7 +857,7 @@ positional optional parameters used by the equivalent hash commands.
 
 .. code-block:: python
 
-    scene.add(gprMax.KSIRSurface(
+    scene.add(gprMax.NTFFSurface(
         p1=(0.03, 0.03, 0.03),
         p2=(0.07, 0.07, 0.07),
         id='radiation_surface',
@@ -929,6 +942,36 @@ respectively. For example:
         ),
     ))
 
+The same surface may independently supply conventional equivalent-current
+far fields. For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFFrequencyTransform(
+        surface_id='radiation_surface',
+        id='current_band',
+        frequencies=(0.8e9, 1.0e9, 1.2e9),
+        window='hann',
+    ))
+    scene.add(gprMax.NTFFFarFieldArray(
+        theta_start=0,
+        theta_stop=180,
+        theta_step=5,
+        phi_start=0,
+        phi_stop=360,
+        phi_step=5,
+        transform_id='current_band',
+        id='current_pattern',
+        outputs=('Etheta', 'Ephi', 'directivity_dbi'),
+    ))
+    scene.add(gprMax.NTFFTimeFarField(
+        theta=90,
+        phi=0,
+        surface_id='radiation_surface',
+        id='current_transient',
+        outputs=('Etheta', 'Ephi'),
+    ))
+
 The full sphere needed to normalise directivity and efficiency is generated
 internally. The directions stored for ``array_pattern`` remain exactly those
 requested above. Gain uses the coherent net accepted power of the complete
@@ -964,6 +1007,33 @@ returns ``r * exp(+j*k*r) * field``. All spherical angles use theta from
 ``+z`` and phi from ``+x`` towards ``+y``. A surface face that coincides with
 a declared PEC or PMC symmetry boundary is completed automatically by image
 theory.
+
+Equivalent-current far fields
+-----------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFFrequencyTransform
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFFarField
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFFarFieldArray
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFAntennaPorts
+
+These classes provide the conventional Love-current frequency transform and
+share the KSIR far-field output and antenna-metric definitions. They do not
+provide finite-distance receivers. See :ref:`ntff-formulations` for the
+surface-current equations and engineering phasor convention.
+
+Modified one-step transient far fields
+---------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFTimeFarField
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFTimeFarFieldArray
+
+These CPU-only classes implement the modified time-domain equivalent-current
+method of Giannopoulos *et al.* [GIAFF1997]_. Their ``times`` are reduced
+times for range-normalized far fields, and only samples supported by every
+surface patch are returned. The time placement of both current derivatives is
+defined in :ref:`ntff-formulations`.
 
 Subgrid
 -------

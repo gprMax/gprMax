@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <http://www.gnu.org/licenses/>.
 
-"""Compiled reusable-surface interface for KSIR field transformations."""
+"""Compiled reusable-surface interface for NTFF field transformations."""
 
 import logging
 from dataclasses import dataclass, replace
@@ -40,6 +40,8 @@ from gprMax.ntff.conventions import (
     OUTGOING_GREEN_RADIAL_FACTOR,
     PHASOR_TIME_DEPENDENCE,
 )
+from gprMax.ntff.equivalent_current_time import EquivalentCurrentTimeMonitor
+from gprMax.ntff.equivalent_currents import evaluate_equivalent_current_far_zone
 from gprMax.ntff.evaluator import (
     evaluate_exact_points_patches,
     project_cartesian_to_spherical,
@@ -114,7 +116,7 @@ def component_dependencies(outputs: Sequence[str]) -> tuple[str, ...]:
         elif output in FAR_METRICS:
             requested = ELECTRIC_COMPONENTS
         else:
-            raise ValueError(f"unknown KSIR output {output!r}")
+            raise ValueError(f"unknown NTFF output {output!r}")
         for component in requested:
             if component not in dependencies:
                 dependencies.append(component)
@@ -122,7 +124,7 @@ def component_dependencies(outputs: Sequence[str]) -> tuple[str, ...]:
 
 
 @dataclass(frozen=True)
-class KSIRSurfaceSpec:
+class NTFFSurfaceSpec:
     surface_id: str
     lower: tuple[int, int, int]
     upper: tuple[int, int, int]
@@ -137,6 +139,26 @@ class KSIRFrequencyTransformSpec:
     window: str = "rectangular"
     save_surface_dft: bool = True
     plane_wave_index: Optional[int] = None
+
+    @property
+    def formulation(self) -> str:
+        return "ksir"
+
+
+@dataclass(frozen=True)
+class NTFFFrequencyTransformSpec:
+    """Conventional equivalent-current frequency transform."""
+
+    surface_id: str
+    transform_id: str
+    frequencies: tuple[float, ...]
+    window: str = "rectangular"
+    save_surface_dft: bool = True
+    plane_wave_index: Optional[int] = None
+
+    @property
+    def formulation(self) -> str:
+        return "equivalent_current"
 
 
 @dataclass(frozen=True)
@@ -172,6 +194,16 @@ class KSIRFrequencyRequestSpec:
 class KSIRFarFieldRequestSpec:
     key: str
     transform_id: str
+    output_id: str
+    theta: npt.NDArray[np.floating]
+    phi: npt.NDArray[np.floating]
+    outputs: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class NTFFTimeFarFieldRequestSpec:
+    key: str
+    surface_id: str
     output_id: str
     theta: npt.NDArray[np.floating]
     phi: npt.NDArray[np.floating]
@@ -252,6 +284,23 @@ class KSIRFarFieldResult:
 
 
 @dataclass(frozen=True)
+class NTFFTimeFarFieldResult:
+    """Range-normalized 1997 equivalent-current time-domain far fields."""
+
+    output_id: str
+    times: npt.NDArray[np.floating]
+    theta: npt.NDArray[np.floating]
+    phi: npt.NDArray[np.floating]
+    directions: npt.NDArray[np.floating]
+    fields: Mapping[str, npt.NDArray[np.floating]]
+    terminal_field_ratios: npt.NDArray[np.floating]
+    terminal_decay_ok: npt.NDArray[np.bool_]
+    terminal_decay_threshold: float
+    terminal_decay_window_samples: int
+    range_normalized: bool = True
+
+
+@dataclass(frozen=True)
 class KSIRRadiationMetrics:
     """Full-sphere quantities shared by far-field cuts and points."""
 
@@ -326,14 +375,14 @@ class KSIRPortMetrics:
 
 @dataclass(frozen=True)
 class _CompiledSurface:
-    spec: KSIRSurfaceSpec
+    spec: NTFFSurfaceSpec
     closure: object
     surfaces: Mapping[str, object]
     origin: npt.NDArray[np.floating]
     pml_limits: tuple[tuple[int, int], ...]
 
 
-def _resolve_surface_closure(spec: KSIRSurfaceSpec, grid, real_dtype):
+def _resolve_surface_closure(spec: NTFFSurfaceSpec, grid, real_dtype):
     lower = np.asarray(spec.lower)
     upper = np.asarray(spec.upper)
     touches_symmetry = any(
@@ -363,7 +412,7 @@ def _completed_bounds(lower, upper, closure):
     return lower, upper
 
 
-def surface_reference_origin(spec: KSIRSurfaceSpec, grid, real_dtype) -> npt.NDArray:
+def surface_reference_origin(spec: NTFFSurfaceSpec, grid, real_dtype) -> npt.NDArray:
     """Return the configured origin or centre of the completed surface."""
 
     if spec.origin is not None:
@@ -394,7 +443,7 @@ def _validate_pml_samples(surface_id: str, surfaces: Mapping, limits) -> None:
             for axis, (minimum, maximum) in enumerate(limits):
                 if np.any(samples[:, axis] < minimum) or np.any(samples[:, axis] > maximum):
                     raise ValueError(
-                        f"KSIR surface {surface_id!r} {surface.component} samples "
+                        f"NTFF surface {surface_id!r} {surface.component} samples "
                         f"enter the PML on the {'xyz'[axis]}-axis"
                     )
 
@@ -422,10 +471,10 @@ def _surface_material_id(surfaces: Mapping, closure, grid) -> int:
                 sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
                 sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
     if not sampled_ids:
-        raise ValueError("KSIR surface has no off-symmetry samples for material validation")
+        raise ValueError("NTFF surface has no off-symmetry samples for material validation")
     unique = np.unique(np.concatenate(sampled_ids))
     if unique.size != 1:
-        raise ValueError(f"KSIR surface straddles multiple material IDs: {unique.tolist()}")
+        raise ValueError(f"NTFF surface straddles multiple material IDs: {unique.tolist()}")
     return int(unique[0])
 
 
@@ -433,7 +482,7 @@ def _background_properties(surfaces: Mapping, closure, grid):
     material_id = _surface_material_id(surfaces, closure, grid)
     material = next((item for item in grid.materials if item.numID == material_id), None)
     if material is None:
-        raise ValueError(f"cannot resolve KSIR background material ID {material_id}")
+        raise ValueError(f"cannot resolve NTFF background material ID {material_id}")
     if (
         not np.isfinite(material.er)
         or not np.isfinite(material.mr)
@@ -444,7 +493,7 @@ def _background_properties(surfaces: Mapping, closure, grid):
         or getattr(material, "poles", 0) != 0
     ):
         raise ValueError(
-            "KSIR requires a homogeneous, lossless, non-dispersive background; "
+            "NTFF requires a homogeneous, lossless, non-dispersive background; "
             f"got {material.ID!r}"
         )
     wave_speed = c / np.sqrt(float(material.er) * float(material.mr))
@@ -540,8 +589,8 @@ def validate_tfsf_subgrid_enclosure(model) -> None:
                 )
 
 
-def _validate_ksir_subgrid_enclosure(model, compiled_surfaces) -> None:
-    """Prevent a main-grid KSIR surface cutting an HSG coupling region."""
+def _validate_ntff_subgrid_enclosure(model, compiled_surfaces) -> None:
+    """Prevent a main-grid NTFF surface cutting an HSG coupling region."""
 
     for surface_id, compiled in compiled_surfaces.items():
         sample_surface = next(iter(compiled.surfaces.values()))
@@ -552,14 +601,14 @@ def _validate_ksir_subgrid_enclosure(model, compiled_surfaces) -> None:
                 continue
             if not (np.all(lower < outer_lower) and np.all(upper > outer_upper)):
                 raise ValueError(
-                    f"KSIR surface {surface_id!r} must strictly enclose the "
+                    f"NTFF surface {surface_id!r} must strictly enclose the "
                     f"complete outer coupling surface of subgrid {subgrid.name!r}, "
                     "or be disjoint from it."
                 )
 
 
-def validate_ksir_source_enclosure(model, grid) -> None:
-    """Require every active KSIR monitor to enclose impressed sources.
+def validate_ntff_source_enclosure(model, grid) -> None:
+    """Require every active NTFF monitor to enclose impressed sources.
 
     This is called after ``#src_steps`` has moved simple sources for the
     current model, so the check covers the actual source positions used by
@@ -619,10 +668,34 @@ def validate_ksir_source_enclosure(model, grid) -> None:
                         f"{tuple(box_lower)} m to {tuple(box_upper)} m"
                     )
 
+            for index, source in enumerate(getattr(source_grid, "eigenmodesources", ())):
+                transverse_axes = np.asarray(source.transverse_axes, dtype=np.intp)
+                local_lower = np.zeros(3, dtype=np.float64)
+                local_upper = np.zeros(3, dtype=np.float64)
+                local_lower[source.normal_axis] = source.plane_index
+                local_upper[source.normal_axis] = source.plane_index
+                local_lower[transverse_axes] = source.transverse_start
+                local_upper[transverse_axes] = source.transverse_stop
+                if source_grid is model.G:
+                    box_lower = local_lower * spacing
+                    box_upper = local_upper * spacing
+                else:
+                    box_lower = np.asarray(
+                        source_grid.local_to_global(local_lower), dtype=np.float64
+                    )
+                    box_upper = np.asarray(
+                        source_grid.local_to_global(local_upper), dtype=np.float64
+                    )
+                if not (np.all(lower < box_lower) and np.all(upper > box_upper)):
+                    offenders.append(
+                        f"EigenmodeSource[{index}] on {grid_name} injection plane from "
+                        f"{tuple(box_lower)} m to {tuple(box_upper)} m"
+                    )
+
         if offenders:
             details = "; ".join(offenders)
             raise ValueError(
-                f"KSIR monitor {monitor.name!r} integration surface must "
+                f"NTFF monitor {monitor.name!r} integration surface must "
                 f"strictly enclose every impressed source; outside or "
                 f"boundary source(s): {details}."
             )
@@ -671,7 +744,7 @@ def _project_frequency_fields(
     return result
 
 
-class KSIRCompiledOutputs:
+class NTFFCompiledOutputs:
     """Own grouped monitors and expose per-command results/HDF5 output."""
 
     def __init__(
@@ -684,6 +757,7 @@ class KSIRCompiledOutputs:
         frequency_requests,
         far_requests,
         antenna_port_specs,
+        time_far_requests=(),
     ):
         self.model = model
         self.grid = grid
@@ -692,8 +766,10 @@ class KSIRCompiledOutputs:
         self.time_requests = {item.key: item for item in time_requests}
         self.frequency_requests = {item.key: item for item in frequency_requests}
         self.far_requests = {item.key: item for item in far_requests}
+        self.time_far_requests = {item.key: item for item in time_far_requests}
         self.antenna_port_specs = dict(antenna_port_specs)
         self.time_bindings = {}
+        self.time_far_bindings = {}
         self.frequency_monitors = {}
         self._results = {}
         self._radiation_cache = {}
@@ -707,6 +783,8 @@ class KSIRCompiledOutputs:
                 self._results[key] = self._frequency_result(self.frequency_requests[key])
             elif key in self.far_requests:
                 self._results[key] = self._far_result(self.far_requests[key])
+            elif key in self.time_far_requests:
+                self._results[key] = self._time_far_result(self.time_far_requests[key])
             else:
                 raise KeyError(key)
         return self._results[key]
@@ -735,7 +813,7 @@ class KSIRCompiledOutputs:
                     ),
                 )
         if radius <= 0:
-            raise RuntimeError("KSIR surface has no finite angular extent")
+            raise RuntimeError("NTFF surface has no finite angular extent")
         return radius
 
     def _radiation_metrics(self, transform_id: str) -> KSIRRadiationMetrics:
@@ -756,7 +834,7 @@ class KSIRCompiledOutputs:
             monitor.real_dtype,
         )
         logger.info(
-            f"KSIR transform {transform_id!r}: evaluating {quadrature.theta.size} "
+            f"NTFF transform {transform_id!r}: evaluating {quadrature.theta.size} "
             f"temporary full-sphere directions ({quadrature.theta_order} x "
             f"{quadrature.phi_order}) for radiation normalisation"
         )
@@ -781,24 +859,12 @@ class KSIRCompiledOutputs:
             theta = quadrature.theta[start:stop]
             phi = quadrature.phi[start:stop]
             directions = spherical_directions(theta, phi, degrees=True)
-            cartesian = []
-            for component in ELECTRIC_COMPONENTS:
-                data = monitor.surface_data[component]
-                values, _ = _evaluate_component_with_closure(
-                    data.surface,
-                    data.field,
-                    data.normal_derivative,
-                    compiled.closure,
-                    monitor.frequencies,
-                    directions,
-                    monitor.wave_speed,
-                    compiled.origin,
-                    monitor.nthreads,
-                    retain_face_contributions=False,
-                )
-                cartesian.append(values)
+            cartesian = self._far_cartesian(transform_id, directions, ELECTRIC_COMPONENTS)
             intensity = radiation_intensity(
-                np.stack(cartesian, axis=-1),
+                np.stack(
+                    [cartesian[component] for component in ELECTRIC_COMPONENTS],
+                    axis=-1,
+                ),
                 theta,
                 phi,
                 monitor.impedance,
@@ -838,13 +904,13 @@ class KSIRCompiledOutputs:
         if transform_id in self._port_cache:
             return self._port_cache[transform_id]
         if transform_id not in self.antenna_port_specs:
-            raise RuntimeError(f"KSIR transform {transform_id!r} has no antenna-port association")
+            raise RuntimeError(f"NTFF transform {transform_id!r} has no antenna-port association")
         spec = self.antenna_port_specs[transform_id]
         monitor = self.frequency_monitors[transform_id]
         registry = model_port_output_registry(self.model)
         missing = set(spec.port_ids) - set(registry)
         if missing:
-            raise RuntimeError(f"KSIR antenna ports were not finalised: {sorted(missing)}")
+            raise RuntimeError(f"NTFF antenna ports were not finalised: {sorted(missing)}")
         spectra = []
         for port_id in spec.port_ids:
             binding = registry[port_id]
@@ -1018,17 +1084,34 @@ class KSIRCompiledOutputs:
             spherical_coordinates=spec.spherical_coordinates,
         )
 
-    def _far_result(self, spec: KSIRFarFieldRequestSpec):
-        monitor = self.frequency_monitors[spec.transform_id]
-        transform = self.transforms[spec.transform_id]
+    def _far_cartesian(self, transform_id, directions, components):
+        """Evaluate requested far-zone Cartesian components by formulation."""
+
+        monitor = self.frequency_monitors[transform_id]
+        transform = self.transforms[transform_id]
         compiled_surface = self.surfaces[transform.surface_id]
-        directions = _readonly(
-            spherical_directions(spec.theta, spec.phi, degrees=True),
-            monitor.real_dtype,
-        )
-        dependencies = component_dependencies(spec.outputs)
-        cartesian = {}
-        for component in dependencies:
+        if transform.formulation == "equivalent_current":
+            electric = evaluate_equivalent_current_far_zone(
+                monitor.surface_data,
+                monitor.frequencies,
+                directions,
+                origin=compiled_surface.origin,
+                wave_speed=monitor.wave_speed,
+                impedance=monitor.impedance,
+                nthreads=monitor.nthreads,
+            )
+            magnetic = np.asarray(
+                np.cross(directions[np.newaxis, :, :], electric) / monitor.impedance,
+                dtype=monitor.complex_dtype,
+            )
+            vectors = {"E": electric, "H": magnetic}
+            return {
+                component: _readonly(vectors[component[0]][:, :, "xyz".index(component[1].lower())])
+                for component in components
+            }
+
+        result = {}
+        for component in components:
             data = monitor.surface_data[component]
             values, _ = _evaluate_component_with_closure(
                 data.surface,
@@ -1041,7 +1124,67 @@ class KSIRCompiledOutputs:
                 compiled_surface.origin,
                 monitor.nthreads,
             )
-            cartesian[component] = values
+            result[component] = values
+        return result
+
+    def _time_far_result(self, spec: NTFFTimeFarFieldRequestSpec):
+        monitor, direction_slice = self.time_far_bindings[spec.key]
+        source = monitor.result
+        electric_theta = source.fields["Etheta"][direction_slice]
+        electric_phi = source.fields["Ephi"][direction_slice]
+        theta_basis = monitor.theta_basis[direction_slice]
+        phi_basis = monitor.phi_basis[direction_slice]
+        electric = (
+            electric_theta[:, :, np.newaxis] * theta_basis[:, np.newaxis, :]
+            + electric_phi[:, :, np.newaxis] * phi_basis[:, np.newaxis, :]
+        )
+        magnetic_theta = -electric_phi / monitor.impedance
+        magnetic_phi = electric_theta / monitor.impedance
+        magnetic = (
+            magnetic_theta[:, :, np.newaxis] * theta_basis[:, np.newaxis, :]
+            + magnetic_phi[:, :, np.newaxis] * phi_basis[:, np.newaxis, :]
+        )
+        fields = {}
+        for output in spec.outputs:
+            if output == "Etheta":
+                values = electric_theta
+            elif output == "Ephi":
+                values = electric_phi
+            elif output == "Htheta":
+                values = magnetic_theta
+            elif output == "Hphi":
+                values = magnetic_phi
+            elif output in ("Er", "Hr"):
+                values = np.zeros_like(electric_theta)
+            else:
+                vector = electric if output.startswith("E") else magnetic
+                values = vector[:, :, "xyz".index(output[1].lower())]
+            fields[output] = _readonly(values, monitor.real_dtype)
+        return NTFFTimeFarFieldResult(
+            output_id=spec.output_id,
+            times=source.times,
+            theta=spec.theta,
+            phi=spec.phi,
+            directions=source.directions[direction_slice],
+            fields=MappingProxyType(fields),
+            terminal_field_ratios=_readonly(
+                source.terminal_field_ratios[direction_slice], monitor.real_dtype
+            ),
+            terminal_decay_ok=_readonly(source.terminal_decay_ok[direction_slice], bool),
+            terminal_decay_threshold=source.terminal_decay_threshold,
+            terminal_decay_window_samples=source.terminal_decay_window_samples,
+        )
+
+    def _far_result(self, spec: KSIRFarFieldRequestSpec):
+        monitor = self.frequency_monitors[spec.transform_id]
+        transform = self.transforms[spec.transform_id]
+        compiled_surface = self.surfaces[transform.surface_id]
+        directions = _readonly(
+            spherical_directions(spec.theta, spec.phi, degrees=True),
+            monitor.real_dtype,
+        )
+        dependencies = component_dependencies(spec.outputs)
+        cartesian = self._far_cartesian(spec.transform_id, directions, dependencies)
         ordinary_outputs = [item for item in spec.outputs if item not in FAR_METRICS]
         fields = _project_frequency_fields(cartesian, ordinary_outputs, spec.theta, spec.phi)
         radiation_metrics = None
@@ -1118,7 +1261,7 @@ class KSIRCompiledOutputs:
                         > 1 + efficiency_tolerance
                     ):
                         logger.warning(
-                            "KSIR radiation efficiency exceeds unity for output %s; "
+                            "NTFF radiation efficiency exceeds unity for output %s; "
                             "check the integration surface, time window, mesh, and "
                             "port definitions",
                             spec.output_id,
@@ -1138,7 +1281,7 @@ class KSIRCompiledOutputs:
                 incident = monitor.result.incident_electric
                 if incident is None:
                     raise RuntimeError(
-                        "RCS output requires a KSIR surface enclosing one TFSF plane wave"
+                        "RCS output requires an NTFF surface enclosing one TFSF plane wave"
                     )
                 incident_power = np.sum(np.abs(incident) ** 2, axis=1)
                 tangential_squared = 2 * monitor.impedance * intensity
@@ -1162,7 +1305,7 @@ class KSIRCompiledOutputs:
 
     def _write_surface_metadata(self, group, compiled: _CompiledSurface):
         first = next(iter(compiled.surfaces.values()))
-        group.attrs["formulation"] = "KSIR"
+        group.attrs["formulation"] = "shared_ntff_surface"
         group.attrs["logical_bounds"] = (*first.lower, *first.upper)
         group.attrs["physical_origin"] = compiled.origin
         group.attrs["closure"] = compiled.closure.name
@@ -1225,6 +1368,35 @@ class KSIRCompiledOutputs:
                 group["spherical_coordinates"] = result.spherical_coordinates
             self._write_fields(group, result)
 
+        for key, spec in self.time_far_requests.items():
+            result = self.result_for(key)
+            monitor, _ = self.time_far_bindings[key]
+            group = (
+                base_group[f"ntff/{spec.surface_id}"]
+                .require_group("time_far_field")
+                .create_group(spec.output_id)
+            )
+            group.attrs["formulation"] = "equivalent_current_1997"
+            group.attrs["coordinate_system"] = "spherical"
+            group.attrs["range_normalized"] = True
+            group.attrs["normalization"] = "r * field at reduced time t - r/c"
+            group.attrs["interpolation"] = "linear"
+            group.attrs["solver"] = "cpu"
+            group.attrs["collection_backend"] = monitor.collection_backend
+            group.attrs["outputs"] = np.asarray(spec.outputs, dtype="S20")
+            group.attrs["terminal_decay_threshold"] = result.terminal_decay_threshold
+            group.attrs["terminal_decay_window_samples"] = result.terminal_decay_window_samples
+            group.attrs[
+                "retarded_window_policy"
+            ] = "only bins supported by every integration-surface patch are stored"
+            group["times"] = result.times
+            group["theta"] = result.theta
+            group["phi"] = result.phi
+            group["directions"] = result.directions
+            group["terminal_field_ratios"] = result.terminal_field_ratios
+            group["terminal_decay_ok"] = result.terminal_decay_ok
+            self._write_fields(group, result)
+
         for transform_id, transform in self.transforms.items():
             monitor = self.frequency_monitors[transform_id]
             group = (
@@ -1233,6 +1405,7 @@ class KSIRCompiledOutputs:
                 .create_group(transform_id)
             )
             group.attrs["window"] = transform.window
+            group.attrs["formulation"] = transform.formulation
             group.attrs["phasor_time_sign"] = PHASOR_TIME_DEPENDENCE
             group.attrs["forward_transform_sign"] = FORWARD_TRANSFORM_KERNEL
             group.attrs["green_radial_sign"] = OUTGOING_GREEN_RADIAL_FACTOR
@@ -1331,9 +1504,9 @@ class KSIRCompiledOutputs:
 def _associate_plane_wave(monitor, surfaces, lower, upper, grid, requested_index):
     if requested_index is not None:
         if not isinstance(requested_index, (int, np.integer)):
-            raise ValueError("KSIR plane_wave_index must be an integer")
+            raise ValueError("NTFF plane_wave_index must be an integer")
         if requested_index < 0 or requested_index >= len(grid.discreteplanewaves):
-            raise ValueError("KSIR plane_wave_index is not valid")
+            raise ValueError("NTFF plane_wave_index is not valid")
         candidates = [(requested_index, grid.discreteplanewaves[requested_index])]
     else:
         candidates = []
@@ -1343,19 +1516,19 @@ def _associate_plane_wave(monitor, surfaces, lower, upper, grid, requested_index
                 candidates.append((index, plane_wave))
         if len(candidates) > 1:
             raise ValueError(
-                "KSIR surface encloses multiple plane waves; select plane_wave_index "
+                "NTFF surface encloses multiple plane waves; select plane_wave_index "
                 "through the Python API"
             )
     if not candidates:
         if grid.discreteplanewaves:
             raise ValueError(
-                "KSIR surface must enclose the TFSF box of every discrete plane-wave source"
+                "NTFF surface must enclose the TFSF box of every discrete plane-wave source"
             )
         return
     index, plane_wave = candidates[0]
     corners = np.asarray(plane_wave.corners)
     if not (np.all(lower < corners[:3]) and np.all(upper > corners[3:])):
-        raise ValueError("KSIR surface must enclose the selected TFSF box")
+        raise ValueError("NTFF surface must enclose the selected TFSF box")
     correction_lower = corners[:3] - 1
     correction_upper = corners[3:]
     for surface in surfaces.values():
@@ -1368,41 +1541,68 @@ def _associate_plane_wave(monitor, surfaces, lower, upper, grid, requested_index
                 clear = np.all(coordinates > correction_upper[face.normal_axis])
             if not clear:
                 raise ValueError(
-                    f"KSIR {surface.component} {face.face_id} samples touch the "
+                    f"NTFF {surface.component} {face.face_id} samples touch the "
                     "TFSF correction stencil; move the surface at least one cell away"
                 )
     monitor.associate_plane_wave(plane_wave, grid.dl, index)
 
 
-def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
-    """Compile declarative KSIR commands after Yee material construction."""
+def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
+    """Compile declarative NTFF commands after Yee material construction."""
 
-    surface_specs = getattr(grid, "ksir_surface_specs", {})
-    transform_specs = getattr(grid, "ksir_transform_specs", {})
+    surface_specs = getattr(grid, "ntff_surface_specs", {})
+    ksir_transform_specs = dict(getattr(grid, "ksir_transform_specs", {}))
+    equivalent_transform_specs = dict(getattr(grid, "ntff_transform_specs", {}))
+    duplicate_transform_ids = set(ksir_transform_specs) & set(equivalent_transform_specs)
+    if duplicate_transform_ids:
+        raise ValueError(
+            f"NTFF transform IDs must be globally unique: {sorted(duplicate_transform_ids)}"
+        )
+    transform_specs = {**ksir_transform_specs, **equivalent_transform_specs}
     time_requests = list(getattr(grid, "ksir_time_requests", ()))
     frequency_requests = list(getattr(grid, "ksir_frequency_requests", ()))
     far_requests = list(getattr(grid, "ksir_far_field_requests", ()))
+    far_requests.extend(getattr(grid, "ntff_far_field_requests", ()))
+    time_far_requests = list(getattr(grid, "ntff_time_far_field_requests", ()))
     antenna_port_specs = dict(getattr(grid, "ksir_antenna_port_specs", {}))
+    for transform_id, spec in getattr(grid, "ntff_antenna_port_specs", {}).items():
+        if transform_id in antenna_port_specs:
+            raise ValueError(
+                f"NTFF transform {transform_id!r} has duplicate antenna-port associations"
+            )
+        antenna_port_specs[transform_id] = spec
     if not (
-        surface_specs or transform_specs or time_requests or frequency_requests or far_requests
+        surface_specs
+        or transform_specs
+        or time_requests
+        or frequency_requests
+        or far_requests
+        or time_far_requests
     ):
         return None
     # A surface is a reusable definition, not by itself an output request.
-    if not (transform_specs or time_requests or frequency_requests or far_requests):
+    if not (
+        transform_specs or time_requests or frequency_requests or far_requests or time_far_requests
+    ):
         return None
     if config.sim_config.mpi:
-        raise ValueError("the reusable KSIR interface does not yet support MPI")
+        raise ValueError("the reusable NTFF interface does not yet support MPI")
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
         raise ValueError(
-            "the reusable KSIR interface supports CPU, CUDA, OpenCL, and Metal solvers"
+            "the reusable NTFF interface supports CPU, CUDA, OpenCL, and Metal solvers"
         )
     if config.get_model_config().mode != "3D":
-        raise ValueError("the reusable KSIR interface currently supports only 3-D models")
+        raise ValueError("the reusable NTFF interface currently supports only 3-D models")
+    if time_far_requests and config.sim_config.general["solver"] != "cpu":
+        raise ValueError(
+            "the 1997 equivalent-current time-domain transform currently supports "
+            "the CPU solver; device-resident kernels are the next implementation stage"
+        )
 
     for transform in transform_specs.values():
         if transform.surface_id not in surface_specs:
             raise ValueError(
-                f"KSIR transform {transform.transform_id!r} refers to unknown surface "
+                f"NTFF transform {transform.transform_id!r} refers to unknown surface "
                 f"{transform.surface_id!r}"
             )
     for request in time_requests:
@@ -1411,10 +1611,16 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
                 f"KSIR time receiver {request.output_id!r} refers to unknown surface "
                 f"{request.surface_id!r}"
             )
+    for request in time_far_requests:
+        if request.surface_id not in surface_specs:
+            raise ValueError(
+                f"NTFF time far field {request.output_id!r} refers to unknown surface "
+                f"{request.surface_id!r}"
+            )
     for request in frequency_requests + far_requests:
         if request.transform_id not in transform_specs:
             raise ValueError(
-                f"KSIR output {request.output_id!r} refers to unknown transform "
+                f"NTFF output {request.output_id!r} refers to unknown transform "
                 f"{request.transform_id!r}"
             )
 
@@ -1428,20 +1634,20 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
         unknown = set(antenna_spec.port_ids) - set(available_port_ids)
         if unknown:
             raise ValueError(
-                f"KSIR antenna-port group for transform {transform_id!r} refers "
+                f"NTFF antenna-port group for transform {transform_id!r} refers "
                 f"to unknown port IDs {sorted(unknown)}; available ports are "
                 f"{list(available_port_ids)}"
             )
     for transform_id in gain_transforms:
         if transform_id not in antenna_port_specs:
             raise ValueError(
-                f"KSIR transform {transform_id!r} requests gain or efficiency "
-                "without a #ksir_antenna_ports association"
+                f"NTFF transform {transform_id!r} requests gain or efficiency "
+                "without an antenna-port association"
             )
         transform = transform_specs[transform_id]
         if transform.window != "rectangular":
             raise ValueError(
-                f"KSIR transform {transform_id!r} requests gain with window "
+                f"NTFF transform {transform_id!r} requests gain with window "
                 f"{transform.window!r}; antenna gain currently requires rectangular"
             )
 
@@ -1450,7 +1656,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
         missing = set(expected_ids) - requested_ids
         if missing:
             raise ValueError(
-                f"KSIR antenna-port group for transform {transform_id!r} must "
+                f"NTFF antenna-port group for transform {transform_id!r} must "
                 f"include every physical port; missing {sorted(missing)}"
             )
         monitored_voltage_sources = set()
@@ -1464,6 +1670,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             nonport_sources.extend(getattr(source_grid, "hertziandipoles", ()))
             nonport_sources.extend(getattr(source_grid, "magneticdipoles", ()))
             nonport_sources.extend(getattr(source_grid, "discreteplanewaves", ()))
+            nonport_sources.extend(getattr(source_grid, "eigenmodesources", ()))
         unmonitored_voltage_sources = [
             source for source in voltage_sources if source not in monitored_voltage_sources
         ]
@@ -1478,7 +1685,8 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
                 values = getattr(source, name, None)
                 if values is not None and np.any(np.asarray(values) != 0):
                     return True
-            return False
+            waveform = getattr(source, "waveform", None)
+            return waveform is not None and getattr(waveform, "amp", 0) != 0
 
         active_nonport = [source for source in nonport_sources if source_is_active(source)]
         if active_nonport:
@@ -1489,6 +1697,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
 
     needed_surface_ids = {item.surface_id for item in transform_specs.values()}
     needed_surface_ids.update(item.surface_id for item in time_requests)
+    needed_surface_ids.update(item.surface_id for item in time_far_requests)
     real_dtype = config.sim_config.dtypes["float_or_double"]
     field_shape = tuple(int(value + 1) for value in grid.size)
     compiled_surfaces = {}
@@ -1522,9 +1731,24 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             pml_limits=limits,
         )
 
-    _validate_ksir_subgrid_enclosure(model, compiled_surfaces)
+    for transform in equivalent_transform_specs.values():
+        closure = compiled_surfaces[transform.surface_id].closure
+        if closure.image_count != 1 or closure.omitted_faces:
+            raise ValueError(
+                "equivalent-current NTFF currently requires all six physical faces; "
+                "symmetry-completed surfaces will be enabled after primitive E/H "
+                "image-parity validation"
+            )
+    for request in time_far_requests:
+        closure = compiled_surfaces[request.surface_id].closure
+        if closure.image_count != 1 or closure.omitted_faces:
+            raise ValueError(
+                "equivalent-current time-domain NTFF currently requires all six physical faces"
+            )
 
-    writer = KSIRCompiledOutputs(
+    _validate_ntff_subgrid_enclosure(model, compiled_surfaces)
+
+    writer = NTFFCompiledOutputs(
         model,
         grid,
         compiled_surfaces,
@@ -1533,6 +1757,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
         frequency_requests,
         far_requests,
         antenna_port_specs,
+        time_far_requests,
     )
 
     groups = {}
@@ -1577,13 +1802,51 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
             _, point_slice = writer.time_bindings[request.key]
             writer.time_bindings[request.key] = (monitor, point_slice)
 
+    time_far_groups = {}
+    for request in time_far_requests:
+        time_far_groups.setdefault(request.surface_id, []).append(request)
+    for group_index, (surface_id, requests) in enumerate(time_far_groups.items()):
+        compiled = compiled_surfaces[surface_id]
+        theta = []
+        phi = []
+        offset = 0
+        for request in requests:
+            theta.append(request.theta)
+            phi.append(request.phi)
+            stop = offset + request.theta.size
+            writer.time_far_bindings[request.key] = (None, slice(offset, stop))
+            offset = stop
+        _, wave_speed, impedance = _background_properties(compiled.surfaces, compiled.closure, grid)
+        monitor = EquivalentCurrentTimeMonitor(
+            f"_ntff_time_far_{surface_id}_{group_index}",
+            compiled.spec.lower,
+            compiled.spec.upper,
+            grid.dl,
+            field_shape,
+            grid.dt,
+            grid.iterations,
+            np.concatenate(theta),
+            np.concatenate(phi),
+            compiled.origin,
+            real_dtype=real_dtype,
+            wave_speed=wave_speed,
+            impedance=impedance,
+            nthreads=config.get_model_config().ompthreads,
+        )
+        monitor.surfaces = compiled.surfaces
+        monitor.closure = compiled.closure
+        grid.ntff_monitors.append(monitor)
+        for request in requests:
+            _, direction_slice = writer.time_far_bindings[request.key]
+            writer.time_far_bindings[request.key] = (monitor, direction_slice)
+
     for transform_id, transform in transform_specs.items():
         compiled = compiled_surfaces[transform.surface_id]
         dependencies = []
         related = [item for item in frequency_requests if item.transform_id == transform_id] + [
             item for item in far_requests if item.transform_id == transform_id
         ]
-        if not related:
+        if transform.formulation == "equivalent_current" or not related:
             dependencies = list(COMPONENTS)
         else:
             for request in related:
@@ -1592,7 +1855,7 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
                         dependencies.append(component)
         selected_surfaces = {item: compiled.surfaces[item] for item in dependencies}
         monitor = KSIRFrequencyDomainMonitor(
-            f"_ksir_frequency_{transform_id}",
+            f"_ntff_frequency_{transform_id}",
             selected_surfaces,
             transform.frequencies,
             (0.0,),
@@ -1624,6 +1887,10 @@ def compile_ksir_outputs(model, grid) -> Optional[KSIRCompiledOutputs]:
     for owner in getattr(grid, "ksir_request_owners", {}).values():
         owner._compiled_outputs = writer
     for transform_id, owner in getattr(grid, "ksir_transform_owners", {}).items():
+        owner._compiled_outputs = writer
+    for owner in getattr(grid, "ntff_request_owners", {}).values():
+        owner._compiled_outputs = writer
+    for transform_id, owner in getattr(grid, "ntff_transform_owners", {}).items():
         owner._compiled_outputs = writer
     grid.ntff_output_writers.append(writer)
     return writer

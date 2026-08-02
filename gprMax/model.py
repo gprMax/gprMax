@@ -357,14 +357,14 @@ class Model:
 
             validate_tfsf_subgrid_enclosure(self)
 
-        # KSIR definitions are registered while the scene is parsed, but the
-        # component surfaces can only be compiled after grid.build() has
-        # finalised the Yee material IDs.
-        if getattr(self.G, "ksir_surface_specs", None):
-            from gprMax.ntff.interface import compile_ksir_outputs
+        # NTFF surface definitions are registered while the scene is parsed,
+        # but formulation-specific component surfaces can only be compiled
+        # after grid.build() has finalised the Yee material IDs.
+        if getattr(self.G, "ntff_surface_specs", None):
+            from gprMax.ntff.interface import compile_ntff_outputs
 
             if not self.G.ntff_output_writers:
-                compile_ksir_outputs(self, self.G)
+                compile_ntff_outputs(self, self.G)
 
         logger.info(
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
@@ -407,9 +407,9 @@ class Model:
         # Source stepping is applied immediately above, so enclosure is
         # checked against the positions actually used by this model run.
         if self.G.ntff_monitors:
-            from gprMax.ntff.interface import validate_ksir_source_enclosure
+            from gprMax.ntff.interface import validate_ntff_source_enclosure
 
-            validate_ksir_source_enclosure(self, self.G)
+            validate_ntff_source_enclosure(self, self.G)
 
         self._output_geometry()
 

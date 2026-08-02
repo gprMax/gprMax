@@ -153,17 +153,24 @@ class FDTDGrid:
         self.rxs: List[Rx] = []
         self.port_monitors = []  # Source-bound S-parameter/impedance outputs
         self.snapshots = []  # List[Snapshot]
-        self.ntff_monitors = []  # Time- and frequency-domain KSIR monitors
-        # Reusable KSIR definitions are registered by user objects, then
-        # compiled after Yee material IDs have been constructed.
-        self.ksir_surface_specs = {}
+        self.ntff_monitors = []  # Time- and frequency-domain NTFF monitors
+        # Reusable NTFF surface definitions are registered by user objects,
+        # then compiled for the requested formulations after Yee material IDs
+        # have been constructed.
+        self.ntff_surface_specs = {}
         self.ksir_transform_specs = {}
+        self.ntff_transform_specs = {}
         self.ksir_time_requests = []
         self.ksir_frequency_requests = []
         self.ksir_far_field_requests = []
+        self.ntff_far_field_requests = []
+        self.ntff_time_far_field_requests = []
         self.ksir_antenna_port_specs = {}
+        self.ntff_antenna_port_specs = {}
         self.ksir_request_owners = {}
         self.ksir_transform_owners = {}
+        self.ntff_request_owners = {}
+        self.ntff_transform_owners = {}
         self.ntff_output_writers = []
 
         self.averagevolumeobjects = True

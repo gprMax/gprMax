@@ -1628,16 +1628,18 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
 
-KSIR field transformation commands
-==================================
+Near-to-far-field transformation commands
+==========================================
 
-The KSIR commands separate the integration surface from its output points.
-One surface can therefore be reused by many time-domain receivers, frequency-
-domain receivers, and far-field directions without repeating the six surface
-coordinates. All optional parameters use the traditional positional gprMax
-syntax; ``name=value`` tokens are not used.
+The NTFF commands separate the integration surface from the formulation and
+its output points. One surface can therefore be reused by KSIR and
+equivalent-current transforms, and by many output directions, without
+repeating the six surface coordinates. All optional parameters use the
+traditional positional gprMax syntax; ``name=value`` tokens are not used.
+The derivations, field normalisation, Yee placement, and comparison of the
+three implemented transforms are given in :ref:`ntff-formulations`.
 
-The following conventions apply to every KSIR command:
+The following conventions apply to every NTFF command:
 
 * coordinates and radii are in metres, frequencies are in Hz, and angles are
   in degrees;
@@ -1659,11 +1661,13 @@ The following conventions apply to every KSIR command:
   stencil. The surface must enclose the radiating source or the complete TFSF
   box and scatterer as appropriate;
 * the implementation currently requires a three-dimensional serial model and
-  does not support MPI or geometry-fixed reuse. KSIR commands are main-grid
+  does not support MPI or geometry-fixed reuse. NTFF commands are main-grid
   objects, but their closed surface may contain complete subgrids. A surface
   that overlaps a subgrid must strictly enclose its HSG outer coupling surface;
   it cannot touch or cut the coupling region. Both time- and frequency-domain
-  KSIR collection are available with CPU, CUDA, OpenCL, and Metal;
+  KSIR collection and frequency-domain equivalent-current collection are
+  available with CPU, CUDA, OpenCL, and Metal. Equivalent-current transient
+  far fields currently require the CPU solver;
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
   iterations and are transferred to the host once, after the solve. CUDA is
@@ -1672,13 +1676,14 @@ The following conventions apply to every KSIR command:
   suitable hardware.
 
 Directivity, gain, efficiency, and port normalisation are post-processing
-operations after the FDTD solve. The angular KSIR evaluation uses a
-Cython/OpenMP kernel on the host for CPU and accelerator simulations alike;
+operations after the FDTD solve. Angular KSIR and equivalent-current
+evaluation uses Cython/OpenMP kernels on the host for CPU and accelerator
+simulations alike;
 it does not add a new per-iteration GPU operation or transfer fields back to
 the CPU during time stepping.
 
-A minimal dipole workflow can reuse one surface for an exact time-domain point
-and a frequency-domain radiation pattern:
+A minimal dipole workflow can reuse one surface for an exact KSIR time-domain
+point and an equivalent-current frequency-domain radiation pattern:
 
 .. code-block:: none
 
@@ -1689,23 +1694,30 @@ and a frequency-domain radiation pattern:
     #waveform: gaussiandot 1 1e9 pulse
     #hertzian_dipole: z 0.05 0.05 0.05 pulse
 
-    #ksir_surface: 0.03 0.03 0.03 0.07 0.07 0.07 radiation_surface
+    #ntff_surface: 0.03 0.03 0.03 0.07 0.07 0.07 radiation_surface
     #ksir_time_rx: 0.12 0.05 0.05 radiation_surface transient Ez first_arrival
-    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
-    #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+    #ntff_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+    #ntff_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
 
 The observation point may lie outside the FDTD domain because KSIR evaluates
 the homogeneous exterior analytically. The integration surface itself must be
 inside the non-PML FDTD region and enclose the source.
 
-#ksir_surface:
+KSIR independently reconstructs each Cartesian field component and is the
+only formulation that provides finite-distance fields. The conventional
+equivalent-current formulation combines tangential electric and magnetic
+fields and provides far-zone fields only. Its commands use the ``ntff``
+prefix. Both frequency-domain formulations support the same far-field,
+antenna, and RCS outputs, so they can be requested together for comparison.
+
+#ntff_surface:
 --------------
 
 Defines a reusable Yee-aligned cuboidal integration surface:
 
 .. code-block:: none
 
-    #ksir_surface: x1 y1 z1 x2 y2 z2 surface_id
+    #ntff_surface: x1 y1 z1 x2 y2 z2 surface_id
 
 ``x1 y1 z1`` and ``x2 y2 z2`` are the lower and upper logical corners.
 ``surface_id`` must be unique and must not contain ``/``. The surface is
@@ -1718,7 +1730,7 @@ For example:
 
 .. code-block:: none
 
-    #ksir_surface: 0.034 0.034 0.034 0.066 0.066 0.066 radiation_surface
+    #ntff_surface: 0.034 0.034 0.034 0.066 0.066 0.066 radiation_surface
 
 #ksir_frequency:
 ----------------
@@ -1751,6 +1763,57 @@ truncation.
 .. code-block:: none
 
     #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+
+#ntff_frequency:
+----------------
+
+Declares a streaming frequency transform using the conventional
+closed-surface equivalent-current method of Luebbers *et al.* [LUE1991]_:
+
+.. code-block:: none
+
+    #ntff_frequency: surface_id transform_id f1 [f2 ...] [window]
+
+The frequency, window, engineering convention, Nyquist check, and globally
+unique transform-ID rules are identical to ``#ksir_frequency``. The
+tangential Yee fields are arithmetically collocated on common cell-face
+centres and form
+
+.. math::
+
+    \mathbf J_s=\hat{\mathbf n}\times\mathbf H,
+    \qquad
+    \mathbf M_s=-\hat{\mathbf n}\times\mathbf E.
+
+If
+
+.. math::
+
+    \mathbf N=\oint_S\mathbf J_s
+      e^{+jk\hat{\mathbf r}\cdot(\mathbf r'-\mathbf r_0)}\,\mathrm dS',
+    \qquad
+    \mathbf L=\oint_S\mathbf M_s
+      e^{+jk\hat{\mathbf r}\cdot(\mathbf r'-\mathbf r_0)}\,\mathrm dS',
+
+the stored range-normalized electric far field is
+
+.. math::
+
+    \mathbf F_E
+    =-\frac{jk}{4\pi}
+      \left[\eta\left(\mathbf N-
+      \hat{\mathbf r}(\hat{\mathbf r}\cdot\mathbf N)\right)
+      -\hat{\mathbf r}\times\mathbf L\right].
+
+Here :math:`\mathbf r_0` is the surface phase origin. This transform cannot be
+used by the finite-distance ``#ksir_frequency_rx`` commands. It is consumed by
+``#ntff_far_field``, ``#ntff_far_field_array``, and optionally
+``#ntff_antenna_ports``. It currently requires all six physical integration
+faces; symmetry-completed equivalent-current surfaces are not yet enabled.
+
+.. code-block:: none
+
+    #ntff_frequency: radiation_surface current_band 0.8e9 1.0e9 1.2e9 hann
 
 #ksir_antenna_ports:
 --------------------
@@ -1810,6 +1873,20 @@ uses:
     #ksir_antenna_ports: antenna_band element1 element2
     #ksir_far_field_array: 0 180 2 0 360 2 antenna_band pattern gain realized_gain
 
+#ntff_antenna_ports:
+--------------------
+
+Associates antenna ports with an equivalent-current frequency transform:
+
+.. code-block:: none
+
+    #ntff_antenna_ports: transform_id port_id1 [port_id2 ...]
+
+Its port-set, rectangular-window, multiport-power, subgrid, and validity rules
+are the same as for ``#ksir_antenna_ports``. The separate command name prevents
+accidentally associating a port set with a transform from the other
+formulation.
+
 #ksir_time_rx: and #ksir_time_rx_spherical:
 --------------------------------------------
 
@@ -1864,6 +1941,59 @@ The bounds are inclusive and must contain an integer number of increments.
 An increment can be zero only on an axis whose lower and upper coordinates are
 equal. All points share one output ID and are stored as the first dimension of
 each field dataset.
+
+#ntff_time_far_field: and #ntff_time_far_field_array:
+-----------------------------------------------------
+
+Request transient far-zone fields using the modified one-step
+equivalent-current construction of Giannopoulos *et al.* [GIAFF1997]_:
+
+.. code-block:: none
+
+    #ntff_time_far_field: theta phi surface_id [output_id [output1 output2 ...]]
+    #ntff_time_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi surface_id [output_id [output1 output2 ...]]
+
+The default outputs are ``Etheta Ephi``. Any Cartesian or spherical electric
+or magnetic component may be requested. These are range-normalized far-zone
+waveforms, not finite-distance receivers, so the commands deliberately have no
+radius. If :math:`\tau=t-r/c_b`, the electric result is
+
+.. math::
+
+    \mathbf F_E(\hat{\mathbf r},\tau)
+    =-\frac{1}{4\pi c_b}\oint_S
+      \left[\eta\,\dot{\mathbf J}_{s,t}
+      -\hat{\mathbf r}\times\dot{\mathbf M}_s\right]
+      \left(\tau+\frac{\hat{\mathbf r}\cdot
+      (\mathbf r'-\mathbf r_0)}{c_b}\right)\,\mathrm dS'.
+
+Here :math:`\mathbf J_{s,t}` is the component of
+:math:`\mathbf J_s=\hat{\mathbf n}\times\mathbf H` transverse to the
+observation direction and
+:math:`\mathbf M_s=-\hat{\mathbf n}\times\mathbf E`. The electric and
+magnetic current differences retain their natural half-step offset: the
+derivative of :math:`\mathbf M_s^n` is placed at
+:math:`(n-1/2)\Delta t`, and the derivative of
+:math:`\mathbf J_s^{n+1/2}` at :math:`n\Delta t`. No extra interpolation is
+used to force them onto one FDTD time level. This is the modification to the
+original Luebbers method [LUE1991]_ introduced by Giannopoulos *et al.*
+[GIAFF1997]_. Linear interpolation is used only for fractional propagation
+delays.
+
+The stored reduced-time axis excludes both the range-dependent leading-zero
+delay and all final bins that are not supported by every integration patch.
+This prevents an incomplete retarded-time tail being mistaken for a physical
+late-time response. Increase ``#time_window`` if the stored terminal-decay
+test fails.
+
+The current implementation is CPU-only, requires a homogeneous lossless
+background and all six physical faces, and supports 3-D serial models. KSIR
+remains available for finite-distance time-domain points and for
+symmetry-completed surfaces.
+
+.. code-block:: none
+
+    #ntff_time_far_field_array: 0 180 2 0 360 2 radiation_surface transient Etheta Ephi
 
 #ksir_frequency_rx: and #ksir_frequency_rx_spherical:
 ------------------------------------------------------
@@ -1923,7 +2053,7 @@ For the range-normalized electric field, radiation intensity is
     = \frac{|F_\theta|^2+|F_\phi|^2}{2\eta},
 
 where :math:`\eta` is the wave impedance of the homogeneous material around
-the KSIR surface. When directivity or either efficiency is requested, gprMax
+the NTFF surface. When directivity or either efficiency is requested, gprMax
 also evaluates a temporary full sphere using Gauss--Legendre quadrature in
 :math:`\cos\theta` and periodic quadrature in :math:`\phi`:
 
@@ -1976,7 +2106,7 @@ warning and normally indicates an insufficient time window, mesh error,
 integration-surface error, or inconsistent port definition.
 
 ``rcs`` requests bistatic radar cross section and requires a TFSF plane-wave
-source. The KSIR surface must strictly enclose the TFSF box and be clear of
+source. The NTFF surface must strictly enclose the TFSF box and be clear of
 its field-correction stencil. With hash commands, exactly one plane wave must
 be present and it is associated automatically. Use one plane wave per
 simulation for an unambiguous RCS result. RCS and port-normalised gain belong
@@ -2004,7 +2134,7 @@ The RCS is
 The incident spectrum is not inferred from the nominal waveform amplitude.
 gprMax samples the actual numerically propagated field of the associated
 discrete plane wave and transforms it using the same frequencies and time
-window as the KSIR surface data. Plane-wave start and stop times are therefore
+window as the NTFF surface data. Plane-wave start and stop times are therefore
 included automatically. Frequencies at which the incident spectrum is zero
 produce ``NaN``; results where it is very small can be poorly conditioned and
 should not be used.
@@ -2043,6 +2173,27 @@ the following requests a five-degree full-sphere pattern:
 
     #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
 
+#ntff_far_field: and #ntff_far_field_array:
+------------------------------------------------
+
+Request conventional equivalent-current frequency-domain far fields:
+
+.. code-block:: none
+
+    #ntff_far_field: theta phi transform_id [output_id [output1 output2 ...]]
+    #ntff_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
+
+``transform_id`` must refer to ``#ntff_frequency``. Angles, default field
+components, range and increment rules, range normalization, derived radiation
+quantities, RCS, and antenna-port normalization are identical to the
+corresponding ``#ksir_far_field`` commands. Because the underlying surface
+integral is independent, requesting both formulations on the same
+``#ntff_surface`` provides a useful numerical cross-check.
+
+.. code-block:: none
+
+    #ntff_far_field_array: 0 180 5 0 360 5 current_band current_pattern Etheta Ephi directivity_dbi
+
 Symmetry-completed surface example
 ----------------------------------
 
@@ -2052,15 +2203,16 @@ option is entered on the KSIR command:
 .. code-block:: none
 
     #symmetry_boundary: x0 pmc
-    #ksir_surface: 0 0.034 0.034 0.026 0.066 0.066 half_surface
+    #ntff_surface: 0 0.034 0.034 0.026 0.066 0.066 half_surface
     #ksir_time_rx: 0.04 0.05 0.051 half_surface half_fields Ez
 
 The physical ``x0`` face is not sampled. The other five faces and their
 reflected images form the completed closed surface. Observation points must be
 outside this completed physical-plus-image surface, not merely outside the
-simulated half. This workflow is supported by the local CPU, CUDA, OpenCL, and
-Metal solvers for nondispersive models. OpenCL and Metal still require
-end-to-end qualification on suitable hardware.
+simulated half. This KSIR workflow is supported by the local CPU, CUDA,
+OpenCL, and Metal solvers for nondispersive models. Equivalent-current
+transforms currently require all six physical faces. OpenCL and Metal still
+require end-to-end qualification on suitable hardware.
 
 
 PML commands

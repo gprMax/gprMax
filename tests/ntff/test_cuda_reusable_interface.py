@@ -26,7 +26,7 @@ def _scene():
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
     scene.add(gprMax.HertzianDipole(polarisation="z", p1=(0.04, 0.04, 0.04), waveform_id="pulse"))
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.028, 0.028, 0.028),
             p2=(0.052, 0.052, 0.052),
             id="surface",
@@ -76,7 +76,7 @@ def _antenna_scene():
     )
     scene.add(gprMax.RxPort(p1=(0.04, 0.04, 0.04), id="feed"))
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.028, 0.028, 0.028),
             p2=(0.052, 0.052, 0.052),
             id="surface",
@@ -101,6 +101,35 @@ def _antenna_scene():
     return scene, far_field
 
 
+def _equivalent_current_scene():
+    dl = 0.004
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.08, 0.08, 0.08)))
+    scene.add(gprMax.TimeWindow(time=1e-9))
+    scene.add(gprMax.PMLThickness(thickness=3))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
+    scene.add(gprMax.HertzianDipole(polarisation="z", p1=(0.04, 0.04, 0.04), waveform_id="pulse"))
+    scene.add(
+        gprMax.NTFFSurface(
+            p1=(0.028, 0.028, 0.028),
+            p2=(0.052, 0.052, 0.052),
+            id="surface",
+        )
+    )
+    transform = gprMax.NTFFFrequencyTransform("surface", "current", (5e9,))
+    far_field = gprMax.NTFFFarField(
+        (30, 90, 150),
+        (0, 0, 0),
+        "current",
+        id="far",
+        outputs=("Etheta", "Ephi"),
+    )
+    scene.add(transform)
+    scene.add(far_field)
+    return scene, transform, far_field
+
+
 def _plane_wave_rcs_scene():
     dl = 0.004
     scene = gprMax.Scene()
@@ -119,7 +148,7 @@ def _plane_wave_rcs_scene():
         )
     )
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=(0.02, 0.02, 0.02),
             p2=(0.06, 0.06, 0.06),
             id="surface",
@@ -236,6 +265,54 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, comple
         assert frequency_group.attrs["solver"] == "cuda"
         assert frequency_group.attrs["collection_backend"] == "cuda_device"
         assert frequency_group["surface_dft/Ez/field"].dtype == complex_dtype
+
+
+@pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
+@pytest.mark.parametrize(
+    "precision,complex_dtype,rtol",
+    [
+        ("single", np.dtype("complex64"), 2e-3),
+        ("double", np.dtype("complex128"), 2e-10),
+    ],
+)
+def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, precision, complex_dtype, rtol):
+    cpu_scene, _, cpu_far = _equivalent_current_scene()
+    cuda_scene, cuda_transform, cuda_far = _equivalent_current_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        n=1,
+        outputfile=tmp_path / f"cpu_current_{precision}",
+        hide_progress_bars=True,
+        cpu_precision=precision,
+    )
+    gprMax.run(
+        scenes=[cuda_scene],
+        n=1,
+        outputfile=tmp_path / f"cuda_current_{precision}",
+        hide_progress_bars=True,
+        gpu=[0],
+        gpu_precision=precision,
+    )
+
+    pattern_scale = np.max(np.abs(cpu_far.result.fields["Etheta"]))
+    assert pattern_scale > 0
+    for component in ("Etheta", "Ephi"):
+        expected = cpu_far.result.fields[component]
+        assert_allclose(
+            cuda_far.result.fields[component],
+            expected,
+            rtol=rtol,
+            # Ephi is a symmetry null for this dipole and is therefore
+            # dominated by round-off. Scale the absolute tolerance by the
+            # non-zero physical pattern rather than by the null itself.
+            atol=rtol * pattern_scale,
+        )
+    assert cuda_far.result.fields["Etheta"].dtype == complex_dtype
+    assert set(cuda_transform.surface_data) == {"Ex", "Ey", "Ez", "Hx", "Hy", "Hz"}
+    with h5py.File(tmp_path / f"cuda_current_{precision}.h5", "r") as output:
+        group = output["ntff/surface/frequency/current"]
+        assert group.attrs["formulation"] == "equivalent_current"
+        assert group.attrs["collection_backend"] == "cuda_device"
 
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")

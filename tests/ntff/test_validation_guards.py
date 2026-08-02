@@ -8,7 +8,11 @@ import pytest
 import gprMax
 from gprMax.ntff.closures import ResolvedKSIRClosure
 from gprMax.ntff.frequency_domain import validate_nyquist_frequencies
-from gprMax.ntff.interface import _associate_plane_wave, _validate_external_points
+from gprMax.ntff.interface import (
+    _associate_plane_wave,
+    _validate_external_points,
+    validate_ntff_source_enclosure,
+)
 from gprMax.ntff.surfaces import COMPONENTS, build_component_surface
 
 DL = 0.002
@@ -30,7 +34,7 @@ def _base_scene():
 def test_reusable_interface_rejects_geometry_fixed_up_front(tmp_path):
     scene = _base_scene()
     scene.add(
-        gprMax.KSIRSurface(
+        gprMax.NTFFSurface(
             p1=SURFACE_LOWER,
             p2=SURFACE_UPPER,
             id="surface",
@@ -72,7 +76,7 @@ def test_reusable_surface_rejects_localised_source_outside(tmp_path, source_type
         )
         expected = "VoltageSource"
     scene.add(source)
-    scene.add(gprMax.KSIRSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
+    scene.add(gprMax.NTFFSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
     scene.add(
         gprMax.KSIRTimeRx(
             position=(0.032, 0.02, 0.021),
@@ -102,7 +106,7 @@ def test_enclosure_check_uses_source_position_after_src_steps(tmp_path):
             )
         )
         scene.add(gprMax.SrcSteps(p1=(0.012, 0, 0)))
-        scene.add(gprMax.KSIRSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
+        scene.add(gprMax.NTFFSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
         scene.add(
             gprMax.KSIRTimeRx(
                 position=(0.032, 0.02, 0.021),
@@ -122,9 +126,39 @@ def test_enclosure_check_uses_source_position_after_src_steps(tmp_path):
         )
 
 
+def test_reusable_surface_rejects_eigenmode_injection_plane_outside():
+    closure = ResolvedKSIRClosure("closed", (), (), True, True)
+    surface = closure.apply_quadrature(
+        build_component_surface("Ez", (5, 5, 5), (15, 15, 15), (0.01, 0.01, 0.01), (25, 25, 25))
+    )
+    source = SimpleNamespace(
+        normal_axis=0,
+        transverse_axes=(1, 2),
+        transverse_start=np.asarray((8, 8)),
+        transverse_stop=np.asarray((12, 12)),
+        plane_index=18,
+    )
+    main_grid = SimpleNamespace(
+        dl=np.asarray((0.01, 0.01, 0.01)),
+        eigenmodesources=[source],
+        discreteplanewaves=[],
+    )
+    monitor = SimpleNamespace(
+        name="field-transform",
+        allow_external_sources=False,
+        surfaces={"Ez": surface},
+        closure=closure,
+    )
+    model = SimpleNamespace(G=main_grid, subgrids=[])
+    output_grid = SimpleNamespace(ntff_monitors=[monitor])
+
+    with pytest.raises(ValueError, match="EigenmodeSource"):
+        validate_ntff_source_enclosure(model, output_grid)
+
+
 def test_reusable_frequency_rejects_above_nyquist(tmp_path):
     scene = _base_scene()
-    scene.add(gprMax.KSIRSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
+    scene.add(gprMax.NTFFSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
     scene.add(
         gprMax.KSIRFrequencyTransform(surface_id="surface", id="spectrum", frequencies=(1e15,))
     )
@@ -218,7 +252,7 @@ def _antenna_gain_input(*, window="rectangular", association=None, extra_source=
         "#rx_port: 0.018 0.02 0.02 feed1\n"
         "#rx_port: 0.022 0.02 0.02 feed2\n"
         f"{extra_source}"
-        "#ksir_surface: 0.012 0.012 0.012 0.028 0.028 0.028 surface\n"
+        "#ntff_surface: 0.012 0.012 0.012 0.028 0.028 0.028 surface\n"
         f"#ksir_frequency: surface band 5e9 {window}\n"
         f"{association_command}"
         "#ksir_far_field: 90 0 band broadside gain\n"
@@ -228,7 +262,7 @@ def _antenna_gain_input(*, window="rectangular", association=None, extra_source=
 @pytest.mark.parametrize(
     ("window", "association", "extra_source", "message"),
     [
-        ("rectangular", None, "", "without a #ksir_antenna_ports"),
+        ("rectangular", None, "", "without an antenna-port association"),
         ("hann", "feed1 feed2", "", "requires rectangular"),
         ("rectangular", "feed1", "", "include every physical port"),
         (

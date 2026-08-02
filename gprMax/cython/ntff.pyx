@@ -100,6 +100,79 @@ cpdef void evaluate_far_zone_patches(
         output[frequency, direction] = output[frequency, direction] / four_pi
 
 
+cpdef void evaluate_equivalent_current_far_zone(
+    int nthreads,
+    const float_or_double[:, ::1] patch_positions,
+    const float_or_double[::1] area_weights,
+    const float_or_double[::1] wavenumbers,
+    const float_or_double[:, ::1] directions,
+    const float_or_double_complex[:, :, ::1] electric_current,
+    const float_or_double_complex[:, :, ::1] magnetic_current,
+    float_or_double impedance,
+    float_or_double_complex[:, :, ::1] output,
+):
+    """Evaluate range-normalised E from collocated Love currents."""
+
+    cdef Py_ssize_t task, direction, frequency, patch
+    cdef Py_ssize_t ndirections = directions.shape[0]
+    cdef Py_ssize_t nfrequencies = wavenumbers.shape[0]
+    cdef Py_ssize_t npatches = patch_positions.shape[0]
+    cdef Py_ssize_t ntasks = ndirections * nfrequencies
+    cdef float_or_double k, projection, angle, rx, ry, rz
+    cdef float_or_double_complex phase, prefactor
+    cdef float_or_double_complex nx, ny, nz, lx, ly, lz
+    cdef float_or_double_complex ndot, cx, cy, cz
+    cdef float_or_double four_pi = 12.566370614359172953850573533118
+
+    for task in prange(
+        ntasks,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        frequency = task // ndirections
+        direction = task - frequency * ndirections
+        k = wavenumbers[frequency]
+        rx = directions[direction, 0]
+        ry = directions[direction, 1]
+        rz = directions[direction, 2]
+        nx = 0
+        ny = 0
+        nz = 0
+        lx = 0
+        ly = 0
+        lz = 0
+        for patch in range(npatches):
+            projection = (
+                rx * patch_positions[patch, 0]
+                + ry * patch_positions[patch, 1]
+                + rz * patch_positions[patch, 2]
+            )
+            angle = k * projection
+            phase = (cos(angle) + 1j * sin(angle)) * area_weights[patch]
+            nx = nx + phase * electric_current[frequency, patch, 0]
+            ny = ny + phase * electric_current[frequency, patch, 1]
+            nz = nz + phase * electric_current[frequency, patch, 2]
+            lx = lx + phase * magnetic_current[frequency, patch, 0]
+            ly = ly + phase * magnetic_current[frequency, patch, 1]
+            lz = lz + phase * magnetic_current[frequency, patch, 2]
+
+        ndot = rx * nx + ry * ny + rz * nz
+        cx = ry * lz - rz * ly
+        cy = rz * lx - rx * lz
+        cz = rx * ly - ry * lx
+        prefactor = -1j * k / four_pi
+        output[frequency, direction, 0] = prefactor * (
+            impedance * (nx - rx * ndot) - cx
+        )
+        output[frequency, direction, 1] = prefactor * (
+            impedance * (ny - ry * ndot) - cy
+        )
+        output[frequency, direction, 2] = prefactor * (
+            impedance * (nz - rz * ndot) - cz
+        )
+
+
 cpdef void accumulate_surface_dft(
     int nthreads,
     const np.int64_t[::1] inside_indices,
@@ -167,6 +240,89 @@ cpdef void gather_time_domain_surface(
         normal_derivative[patch] = (
             outside_value - inside_value
         ) / normal_spacing[patch]
+
+
+cpdef void gather_equivalent_current_component(
+    int nthreads,
+    const np.int64_t[:, ::1] stencil_indices,
+    const float_or_double[::1] field,
+    float_or_double[::1] output,
+):
+    """Arithmetic-average one Yee stencil for every common-surface patch."""
+
+    cdef Py_ssize_t patch, sample
+    cdef Py_ssize_t npatches = stencil_indices.shape[1]
+    cdef Py_ssize_t nsamples = stencil_indices.shape[0]
+    cdef float_or_double value
+
+    for patch in prange(
+        npatches,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        value = 0
+        for sample in range(nsamples):
+            value = value + field[stencil_indices[sample, patch]]
+        output[patch] = value / nsamples
+
+
+cpdef void deposit_equivalent_current_time(
+    int nthreads,
+    Py_ssize_t sample_index,
+    const float_or_double[:, ::1] current,
+    const float_or_double[:, ::1] theta_basis,
+    const float_or_double[:, ::1] phi_basis,
+    const np.int64_t[:, ::1] integer_delay,
+    const float_or_double[:, ::1] fractional_delay,
+    const float_or_double[::1] area_weights,
+    Py_ssize_t time_origin_step,
+    float_or_double[:, ::1] output_theta,
+    float_or_double[:, ::1] output_phi,
+):
+    """Deposit one differentiated Love-current level with linear delay."""
+
+    cdef Py_ssize_t direction, patch, destination
+    cdef Py_ssize_t ndirections = output_theta.shape[0]
+    cdef Py_ssize_t npatches = current.shape[0]
+    cdef float_or_double theta_value, phi_value, fraction, area
+
+    for direction in prange(
+        ndirections,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        for patch in range(npatches):
+            theta_value = (
+                current[patch, 0] * theta_basis[direction, 0]
+                + current[patch, 1] * theta_basis[direction, 1]
+                + current[patch, 2] * theta_basis[direction, 2]
+            )
+            phi_value = (
+                current[patch, 0] * phi_basis[direction, 0]
+                + current[patch, 1] * phi_basis[direction, 1]
+                + current[patch, 2] * phi_basis[direction, 2]
+            )
+            fraction = fractional_delay[direction, patch]
+            area = area_weights[patch]
+            destination = (
+                sample_index
+                + integer_delay[direction, patch]
+                - time_origin_step
+            )
+            output_theta[direction, destination] += (
+                (1 - fraction) * area * theta_value
+            )
+            output_theta[direction, destination + 1] += (
+                fraction * area * theta_value
+            )
+            output_phi[direction, destination] += (
+                (1 - fraction) * area * phi_value
+            )
+            output_phi[direction, destination + 1] += (
+                fraction * area * phi_value
+            )
 
 
 cpdef void deposit_time_domain_surface(
