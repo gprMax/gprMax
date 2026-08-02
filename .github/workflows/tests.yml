@@ -49,5 +49,14 @@ jobs:
       - name: Install test dependencies
         run: pip install pytest
 
+      - name: Import smoke test
+        run: python -u -c "import gprMax; from gprMax.fractals.fractal_surface import FractalSurface; print('imports ok')"
+
       - name: Run unit tests
-        run: python -m pytest tests/unit/ -v
+        run: python -u -m pytest tests/unit/ -v
+        env:
+          PYTHONUNBUFFERED: "1"
+          PYTHONFAULTHANDLER: "1"
+          OMP_NUM_THREADS: "1"
+          MPI4PY_RC_INITIALIZE: "0"
+          MPI4PY_RC_FINALIZE: "0"
