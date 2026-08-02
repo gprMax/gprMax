@@ -267,19 +267,19 @@ For example to run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in
 
 To use Apple Metal GPU acceleration on macOS:
 
 .. code-block:: bash
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -metal
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
 
 When the simulation is complete you can plot the A-scan using:
 
 .. code-block:: console
 
-    (gprMax)$ python -m toolboxes.Plotting.plot_Ascan examples/cylinder_Ascan_2D.h5
+    (gprMax)$ python -m toolboxes.Plotting.plot_Ascan examples/gpr/basic/cylinder_Ascan_2D.h5
 
 Your results should be like those from the A-scan from the metal cylinder example in `introductory/basic 2D models section <http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results>`_
 
@@ -304,13 +304,13 @@ Optional command line arguments
       - File path to save the output data.
     * - ``-n``
       - integer
-      - Number of required simulation runs. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60``
+      - Number of required simulation runs. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60``
     * - ``-i``
       - integer
       - Model number to start/restart the simulation from. It would typically be used to restart a series of models from a specific model number, with the n argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces.
     * - ``-t`` or ``--taskfarm``
       - flag
-      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
+      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
         `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
     * - ``--mpi``
       - list
@@ -333,7 +333,7 @@ Optional command line arguments
     * - ``--geometry-only``
       - flag
       - Build a model and produce any geometry views but do not run the simulation, e.g. to check
-        the geometry of a model is correct: ``(gprMax)$ python -m gprMax examples/heterogeneous_soil.in --geometry-only``
+        the geometry of a model is correct: ``(gprMax)$ python -m gprMax examples/gpr/materials/heterogeneous_soil.in --geometry-only``
     * - ``--geometry-fixed``
       - flag
       - Run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.

@@ -80,7 +80,7 @@ Run one of the 2D test models:
 
 .. code-block:: console
 
-    (gprMax)$ mpirun -n 4 python -m gprMax examples/cylinder_Ascan_2D.in --mpi 2 2 1
+    (gprMax)$ mpirun -n 4 python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in --mpi 2 2 1
 
 The ``--mpi`` argument passed to gprMax takes three integers to define the number of MPI processes in the x, y, and z dimensions to form a cartesian grid. The product of these three numbers shoud equal the number of MPI ranks. In this case ``2 x 2 x 1 = 4``.
 
@@ -137,7 +137,7 @@ By default, the MPI task farm functionality is turned off. It can be used with t
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 --taskfarm
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm
 
 
 CUDA
@@ -161,7 +161,7 @@ Run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -gpu
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -gpu
 
 .. note::
 
@@ -188,7 +188,7 @@ Run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -opencl
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -opencl
 
 .. note::
 
@@ -230,7 +230,7 @@ Run one of the test models with Metal acceleration:
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -metal
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
 
 .. note::
 
@@ -251,7 +251,7 @@ For example, to run a B-scan that contains 60 A-scans (traces) on a system with 
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 --taskfarm -gpu 0 1 2 3
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm -gpu 0 1 2 3
 
 .. note::
 

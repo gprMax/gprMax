@@ -100,21 +100,15 @@ The script will automatically:
 Visualization Tools
 ===================
 
-Additional plotting utilities are available for advanced benchmarking analysis:
-
-.. literalinclude:: ../../testing/benchmarking/plot_gpu_benchmark.py
-    :language: python
-    :linenos:
-    :lines: 1-25
-
-This plotting script enables:
+The ``benchmark_metal.py`` script includes plotting support for:
 
 * **Multi-platform comparison**: Compare results across different hardware configurations
 * **Custom data visualization**: Load and plot benchmark data from various sources
 * **Performance trend analysis**: Visualize performance scaling with domain size
 * **Publication-ready plots**: Generate high-quality figures for reports and papers
 
-The script can load data from the Metal benchmarking results and create comparative plots showing the performance characteristics of Apple Metal against other accelerators.
+The generated plots compare the performance characteristics of Apple Metal and
+the CPU solver across the requested domain sizes.
 
 .. figure:: ../../images_shared/GPU_NVIDIA.png
     :width: 600px

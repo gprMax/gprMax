@@ -22,21 +22,24 @@ The syntax of the API is generally more verbose than the input file (hash) comma
 
 .. note::
 
-    In prior versions of gprMax (<4) the input file could be scripted using Python inserted between two commands (`#python:` and `#end_python:`). This feature is now deprecated and will be removed entirely in later versions. Users are encouraged to move to the new Python API. Antenna models can still be inserted between `#python:` and `#end_python:` commands but will need to make a small change to their input file. An example of this is provided in `examples/antenna_like_GSSI_1500_fs.in`. Alternatively a switch to the Python API can be made using the example in `examples/antenna_like_GSSI_1500_fs.py`.
+    In prior versions of gprMax (<4) the input file could be scripted using Python inserted between two commands (`#python:` and `#end_python:`). This feature is now deprecated and will be removed entirely in later versions. Users are encouraged to move to the new Python API. Antenna models can still be inserted between `#python:` and `#end_python:` commands but will need to make a small change to their input file. An example of this is provided in `examples/gpr/antennas/gssi_1500/antenna_like_GSSI_1500_fs.in`. Alternatively a switch to the Python API can be made using the adjacent `examples/gpr/antennas/gssi_1500/antenna_like_GSSI_1500_fs.py` example.
 
 Example
 =======
 
-:download:`antenna_wire_dipole_fs.py <../../examples/antenna_wire_dipole_fs.py>`
+:download:`antenna_wire_dipole_fs.py <../../examples/antennas/wire_dipole/antenna_wire_dipole_fs.py>`
+
+The equivalent hash-command model is
+:download:`antenna_wire_dipole_fs.in <../../examples/antennas/wire_dipole/antenna_wire_dipole_fs.in>`.
 
 This example is used to give an introduction to the gprMax Python API.
 
-.. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
+.. literalinclude:: ../../examples/antennas/wire_dipole/antenna_wire_dipole_fs.py
     :language: python
     :linenos:
 
 1. Import the gprMax module.
-2. Objects for the model are created from the gprMax module by passing object parameters as key=value arguments. The example shows the creation of objects and also their equivalent input file (hash) command for clarity.
+2. Objects for the model are created from the gprMax module by passing object parameters as key=value arguments. The adjacent ``.in`` model shows their equivalent positional hash commands.
 3. Create a :class:`gprMax.scene.Scene` object. The scene is a container for all the objects required in a simulation. Simulations with multiple models, e.g. A-scans, should have a separate scene for each model (A-scan). Each scene must contain the essential functions and objects required for that particular model.
 4. Add objects are to the scene.
 5. Run the simulation.
@@ -644,7 +647,7 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-currently use the CPU solver. Homogeneous angle/vector plane waves and layered
+use the CPU and CUDA solvers. Homogeneous angle/vector plane waves and layered
 axial plane waves support non-dispersive materials and multi-pole Debye,
 Lorentz, and Drude materials. Their auxiliary dispersive state uses the same
 real or complex precision selected for the main grid. A discrete plane wave

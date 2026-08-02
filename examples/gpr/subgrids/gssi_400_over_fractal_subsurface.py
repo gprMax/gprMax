@@ -126,7 +126,13 @@ fb = gprMax.FractalBox(
 scene.add(fb)
 
 rough_surf = gprMax.AddSurfaceRoughness(
-    p1=(0, 0, 1), p2=(3, 1, 1), frac_dim=1.5, weighting=(1, 1), limits=(0.4, 1.2), fractal_box_id="fbox", seed=1
+    p1=(0, 0, 1),
+    p2=(3, 1, 1),
+    frac_dim=1.5,
+    weighting=(1, 1),
+    limits=(0.4, 1.2),
+    fractal_box_id="fbox",
+    seed=1,
 )
 scene.add(rough_surf)
 
@@ -155,4 +161,6 @@ gv1 = gprMax.GeometryView(
 )
 scene.add(gv1)
 
-gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
+gprMax.run(
+    scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True
+)
