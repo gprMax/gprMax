@@ -1741,6 +1741,13 @@ The engineering convention is used throughout: phasors have time dependence
 ``exp(+j*omega*t)``, the forward transform kernel is ``exp(-j*omega*t)``, and
 the outgoing Green function contains ``exp(-j*k*R)``.
 
+A frequency transform still requires a sufficiently long FDTD time window.
+The ``hann`` window reduces leakage from a truncated non-zero tail, but it is
+not a replacement for allowing the physical surface fields to decay. A
+``rectangular`` window retains the unmodified engineering phasor and is
+required by gain normalisation, but is more sensitive to end-of-record
+truncation.
+
 .. code-block:: none
 
     #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
@@ -1835,6 +1842,14 @@ component names, and both the ID and any desired components must precede
 The spherical radius is explicit because these commands return the actual
 finite-distance field, including all ``1/R`` and ``1/R^2`` terms. It is not a
 normalization constant.
+
+The output file stores both ``fully_supported_lengths`` and ``valid_lengths``.
+Use the former by default: it stops before retarded propagation causes any
+surface patch to run beyond the available FDTD history. The latter exposes the
+longer partial tail for research use. gprMax also records a terminal decay
+ratio and warns when the field has not decayed adequately within the fully
+supported interval; in that case the simulation time window should be
+increased.
 
 #ksir_time_rx_array:
 --------------------

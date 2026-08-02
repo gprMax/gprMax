@@ -35,11 +35,7 @@ def _reference_polynomial_deposition(
     normal_projection = np.sum(normals[np.newaxis, :, :] * direction, axis=2)
     weight_a = -areas[np.newaxis, :] / (4 * np.pi * distance)
     weight_b = areas[np.newaxis, :] * normal_projection / (4 * np.pi * distance**2)
-    weight_c = (
-        areas[np.newaxis, :]
-        * normal_projection
-        / (4 * np.pi * wave_speed * distance)
-    )
+    weight_c = areas[np.newaxis, :] * normal_projection / (4 * np.pi * wave_speed * distance)
     delay = sample_offset_steps + distance / (wave_speed * dt)
     integer_delay = np.floor(delay).astype(np.int64)
     fractional_delay = delay - integer_delay
@@ -129,9 +125,7 @@ def test_advanced_time_monitor_matches_independent_polynomial_deposition(
 def test_advanced_time_monitor_reconstructs_direct_outgoing_scalar_pulse():
     spacing = 0.04
     shape = (25, 25, 25)
-    surface = build_component_surface(
-        "Ex", (5, 5, 5), (20, 20, 20), (spacing,) * 3, shape
-    )
+    surface = build_component_surface("Ex", (5, 5, 5), (20, 20, 20), (spacing,) * 3, shape)
     source_position = np.array((0.5, 0.5, 0.5))
     point = np.array((1.05, 0.5, 0.5))
     dt = 0.01
@@ -155,7 +149,7 @@ def test_advanced_time_monitor_reconstructs_direct_outgoing_scalar_pulse():
 
     for iteration in range(iterations):
         retarded_time = iteration * dt - radius / wave_speed
-        pulse = np.exp(-((retarded_time - pulse_centre) / pulse_width) ** 2)
+        pulse = np.exp(-(((retarded_time - pulse_centre) / pulse_width) ** 2))
         field = np.divide(
             pulse,
             4 * np.pi * radius,
@@ -169,17 +163,15 @@ def test_advanced_time_monitor_reconstructs_direct_outgoing_scalar_pulse():
     result = monitor.result.fields["Ex"][0]
     direct_radius = np.linalg.norm(point - source_position)
     direct = np.exp(
-        -(
-            (monitor.result.times - direct_radius / wave_speed - pulse_centre)
-            / pulse_width
-        )
-        ** 2
+        -(((monitor.result.times - direct_radius / wave_speed - pulse_centre) / pulse_width) ** 2)
     ) / (4 * np.pi * direct_radius)
     significant = direct > 0.02 * np.max(direct)
-    relative_error = np.linalg.norm(
-        result[significant] - direct[significant]
-    ) / np.linalg.norm(direct[significant])
+    relative_error = np.linalg.norm(result[significant] - direct[significant]) / np.linalg.norm(
+        direct[significant]
+    )
 
+    assert monitor.result.terminal_decay_ok[0]
+    assert monitor.result.terminal_field_ratios[0] <= 1e-2
     # Fifteen cells per side is intentionally a modest reference mesh; the
     # combined midpoint-surface and fractional-delay error should remain well
     # below ten percent without tuning the test to a very large surface.
@@ -187,9 +179,7 @@ def test_advanced_time_monitor_reconstructs_direct_outgoing_scalar_pulse():
 
 
 def test_monitor_rejects_points_on_or_inside_any_component_surface():
-    surface = build_component_surface(
-        "Ez", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), (10, 10, 10)
-    )
+    surface = build_component_surface("Ez", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), (10, 10, 10))
 
     with pytest.raises(ValueError, match="strictly outside"):
         KSIRTimeDomainMonitor(
@@ -204,9 +194,7 @@ def test_monitor_rejects_points_on_or_inside_any_component_surface():
 
 
 def test_monitor_uses_patch_support_not_only_patch_centres_for_point_validation():
-    surface = build_component_surface(
-        "Ez", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), (10, 10, 10)
-    )
+    surface = build_component_surface("Ez", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), (10, 10, 10))
     # Ez patches on a y-normal face are centred from y=0.2, but their
     # quadrature support starts at y=0.15.  This point is therefore inside the
     # closed component surface even though it lies below every patch centre.
@@ -223,9 +211,7 @@ def test_monitor_uses_patch_support_not_only_patch_centres_for_point_validation(
 
 
 def test_monitor_requires_every_expected_sample_before_finalising():
-    surface = build_component_surface(
-        "Ex", (2, 2, 2), (5, 5, 5), (0.1, 0.1, 0.1), (9, 9, 9)
-    )
+    surface = build_component_surface("Ex", (2, 2, 2), (5, 5, 5), (0.1, 0.1, 0.1), (9, 9, 9))
     monitor = KSIRTimeDomainMonitor(
         "incomplete",
         {"Ex": surface},
@@ -244,9 +230,7 @@ def test_monitor_requires_every_expected_sample_before_finalising():
 
 def test_monitor_requires_one_material_id_across_all_straddling_samples():
     shape = (9, 9, 9)
-    surface = build_component_surface(
-        "Ex", (2, 2, 2), (5, 5, 5), (0.1, 0.1, 0.1), shape
-    )
+    surface = build_component_surface("Ex", (2, 2, 2), (5, 5, 5), (0.1, 0.1, 0.1), shape)
     monitor = KSIRTimeDomainMonitor(
         "materials",
         {"Ex": surface},
@@ -267,11 +251,9 @@ def test_monitor_requires_one_material_id_across_all_straddling_samples():
         monitor.validate_materials(material_ids, {"Ex": 0})
 
 
-def test_first_arrival_time_origin_removes_range_dependent_zero_prefix():
+def test_first_arrival_time_origin_removes_range_dependent_zero_prefix(caplog):
     shape = (9, 9, 9)
-    surface = build_component_surface(
-        "Ex", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), shape
-    )
+    surface = build_component_surface("Ex", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), shape)
     points = ((20.0, 0.4, 0.4), (35.0, 0.5, 0.4))
     kwargs = dict(
         surfaces={"Ex": surface},
@@ -283,9 +265,7 @@ def test_first_arrival_time_origin_removes_range_dependent_zero_prefix():
         nthreads=2,
     )
     absolute = KSIRTimeDomainMonitor("absolute", **kwargs)
-    shifted = KSIRTimeDomainMonitor(
-        "shifted", **kwargs, time_origin="first_arrival"
-    )
+    shifted = KSIRTimeDomainMonitor("shifted", **kwargs, time_origin="first_arrival")
     indices = np.indices(shape)
     zeros = np.zeros(shape)
     for iteration in range(6):
@@ -295,30 +275,40 @@ def test_first_arrival_time_origin_removes_range_dependent_zero_prefix():
     absolute.finalise()
     shifted.finalise()
 
+    assert "has not decayed" in caplog.text
+    assert not np.all(shifted.result.terminal_decay_ok)
+    assert np.max(shifted.result.terminal_field_ratios) > 1e-2
     assert shifted.output_length < absolute.output_length / 50
     assert shifted.output_length < 2 * absolute.iterations + 50
     assert shifted.result.time_origin == "first_arrival"
     assert np.all(shifted.result.time_origins > 0)
     assert shifted.result.times[0] == 0
     for point_index, origin in enumerate(shifted.time_origin_steps):
-        length = int(shifted.result.valid_lengths[point_index])
+        supported_length = int(shifted.result.fully_supported_lengths[point_index])
+        raw_length = int(shifted.result.valid_lengths[point_index])
+        assert supported_length == shifted.iterations
+        assert raw_length > supported_length
         assert_allclose(
             shifted.result.point_field("Ex", point_index),
-            absolute.result.fields["Ex"][
-                point_index, origin : origin + length
-            ],
+            absolute.result.fields["Ex"][point_index, origin : origin + supported_length],
         )
         assert_allclose(
             shifted.result.point_times(point_index),
-            absolute.result.times[origin : origin + length],
+            absolute.result.times[origin : origin + supported_length],
+        )
+        assert_allclose(
+            shifted.result.point_raw_field("Ex", point_index),
+            absolute.result.fields["Ex"][point_index, origin : origin + raw_length],
+        )
+        assert_allclose(
+            shifted.result.point_raw_times(point_index),
+            absolute.result.times[origin : origin + raw_length],
         )
 
 
 @pytest.mark.parametrize("time_origin", [None, "arrival", 3])
 def test_monitor_rejects_unknown_time_origin(time_origin):
-    surface = build_component_surface(
-        "Ex", (2, 2, 2), (5, 5, 5), (0.1, 0.1, 0.1), (9, 9, 9)
-    )
+    surface = build_component_surface("Ex", (2, 2, 2), (5, 5, 5), (0.1, 0.1, 0.1), (9, 9, 9))
     with pytest.raises(ValueError, match="time_origin"):
         KSIRTimeDomainMonitor(
             "invalid",
@@ -361,11 +351,10 @@ def test_monitor_rejects_surface_faces_inconsistent_with_closure():
             closure=closure,
         )
 
+
 def test_compact_time_histories_and_metadata_are_written_to_hdf5(tmp_path):
     shape = (9, 9, 9)
-    surface = build_component_surface(
-        "Ex", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), shape
-    )
+    surface = build_component_surface("Ex", (2, 2, 2), (6, 6, 6), (0.1, 0.1, 0.1), shape)
     monitor = KSIRTimeDomainMonitor(
         "compact",
         {"Ex": surface},
@@ -401,6 +390,17 @@ def test_compact_time_histories_and_metadata_are_written_to_hdf5(tmp_path):
         assert_allclose(group["times"][:], monitor.result.times)
         assert_allclose(group["time_origins"][:], monitor.result.time_origins)
         assert_allclose(group["valid_lengths"][:], monitor.result.valid_lengths)
+        assert_allclose(
+            group["fully_supported_lengths"][:],
+            monitor.result.fully_supported_lengths,
+        )
+        assert_allclose(
+            group["terminal_field_ratios"][:],
+            monitor.result.terminal_field_ratios,
+        )
+        assert_allclose(group["terminal_decay_ok"][:], monitor.result.terminal_decay_ok)
+        assert group.attrs["terminal_decay_threshold"] == 1e-2
+        assert group.attrs["terminal_decay_window_samples"] == 32
         assert_allclose(group["fields/Ex"][:], monitor.result.fields["Ex"])
 
 

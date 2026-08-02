@@ -176,6 +176,10 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, comple
     assert cuda_frequency.result.fields["Ez"].dtype == complex_dtype
     assert cuda_far.result.fields["Etheta"].dtype == complex_dtype
     assert_array_equal(cuda_time.result.valid_lengths, cpu_time.result.valid_lengths)
+    assert_array_equal(
+        cuda_time.result.fully_supported_lengths,
+        cpu_time.result.fully_supported_lengths,
+    )
     assert_allclose(cuda_time.result.time_origins, cpu_time.result.time_origins, rtol=0, atol=0)
 
     for component in ("Ez", "Hy"):
@@ -217,6 +221,18 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, comple
         frequency_group = output["ntff/surface/frequency/spectrum"]
         assert time_group.attrs["solver"] == "cuda"
         assert time_group.attrs["collection_backend"] == "cuda_device"
+        assert_array_equal(
+            time_group["fully_supported_lengths"][:],
+            cuda_time.result.fully_supported_lengths,
+        )
+        assert_allclose(
+            time_group["terminal_field_ratios"][:],
+            cuda_time.result.terminal_field_ratios,
+        )
+        assert_array_equal(
+            time_group["terminal_decay_ok"][:],
+            cuda_time.result.terminal_decay_ok,
+        )
         assert frequency_group.attrs["solver"] == "cuda"
         assert frequency_group.attrs["collection_backend"] == "cuda_device"
         assert frequency_group["surface_dft/Ez/field"].dtype == complex_dtype

@@ -187,16 +187,37 @@ class KSIRTimeReceiverResult:
     times: npt.NDArray[np.floating]
     time_origins: npt.NDArray[np.floating]
     valid_lengths: npt.NDArray[np.int64]
+    fully_supported_lengths: npt.NDArray[np.int64]
+    terminal_field_ratios: npt.NDArray[np.floating]
+    terminal_decay_ok: npt.NDArray[np.bool_]
+    terminal_decay_threshold: float
+    terminal_decay_window_samples: int
     fields: Mapping[str, npt.NDArray[np.floating]]
     coordinate_system: str
     time_origin: str
     spherical_coordinates: Optional[npt.NDArray[np.floating]]
 
     def point_times(self, point_index: int) -> npt.NDArray[np.floating]:
-        length = int(self.valid_lengths[point_index])
+        """Return physical times for the fully supported field trace."""
+
+        length = int(self.fully_supported_lengths[point_index])
         return self.time_origins[point_index] + self.times[:length]
 
     def point_field(self, output: str, point_index: int) -> npt.NDArray:
+        """Return the fully supported field trace for one point."""
+
+        length = int(self.fully_supported_lengths[point_index])
+        return self.fields[output][point_index, :length]
+
+    def point_raw_times(self, point_index: int) -> npt.NDArray[np.floating]:
+        """Return all stored times, including the partial retarded tail."""
+
+        length = int(self.valid_lengths[point_index])
+        return self.time_origins[point_index] + self.times[:length]
+
+    def point_raw_field(self, output: str, point_index: int) -> npt.NDArray:
+        """Return all stored bins, including the partial retarded tail."""
+
         length = int(self.valid_lengths[point_index])
         return self.fields[output][point_index, :length]
 
@@ -921,6 +942,13 @@ class KSIRCompiledOutputs:
             times=source.times,
             time_origins=_readonly(source.time_origins[point_slice]),
             valid_lengths=_readonly(source.valid_lengths[point_slice], np.int64),
+            fully_supported_lengths=_readonly(
+                source.fully_supported_lengths[point_slice], np.int64
+            ),
+            terminal_field_ratios=_readonly(source.terminal_field_ratios[point_slice]),
+            terminal_decay_ok=_readonly(source.terminal_decay_ok[point_slice], bool),
+            terminal_decay_threshold=source.terminal_decay_threshold,
+            terminal_decay_window_samples=source.terminal_decay_window_samples,
             fields=fields,
             coordinate_system=spec.coordinate_system,
             time_origin=spec.time_origin,
@@ -1181,10 +1209,18 @@ class KSIRCompiledOutputs:
             group.attrs["outputs"] = np.asarray(spec.outputs, dtype="S20")
             group.attrs["solver"] = monitor.device_backend or "cpu"
             group.attrs["collection_backend"] = monitor.collection_backend
+            group.attrs["terminal_decay_threshold"] = result.terminal_decay_threshold
+            group.attrs["terminal_decay_window_samples"] = result.terminal_decay_window_samples
+            group.attrs[
+                "raw_tail_policy"
+            ] = "stored_for_research_use; use fully_supported_lengths by default"
             group["points"] = result.points
             group["times"] = result.times
             group["time_origins"] = result.time_origins
             group["valid_lengths"] = result.valid_lengths
+            group["fully_supported_lengths"] = result.fully_supported_lengths
+            group["terminal_field_ratios"] = result.terminal_field_ratios
+            group["terminal_decay_ok"] = result.terminal_decay_ok
             if result.spherical_coordinates is not None:
                 group["spherical_coordinates"] = result.spherical_coordinates
             self._write_fields(group, result)

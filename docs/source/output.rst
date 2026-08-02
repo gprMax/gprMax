@@ -399,6 +399,9 @@ and transform IDs:
             times
             time_origins
             valid_lengths
+            fully_supported_lengths
+            terminal_field_ratios
+            terminal_decay_ok
             spherical_coordinates [spherical commands only]
             fields/<output>
         frequency/<transform_id>/
@@ -559,17 +562,33 @@ propagation; all other directions are bistatic RCS. Use separate simulations
 for different incident plane waves because selecting an association does not
 separate simultaneously accumulated scattered fields.
 
-Time-domain fields have shape ``(npoints, max(valid_lengths))``. For point
-``q``, the physical time vector and valid trace are:
+Time-domain fields retain the complete raw retarded buffer and have shape
+``(npoints, max(valid_lengths))``. Its final bins may contain only part of the
+closed-surface history because different surface patches have different
+propagation delays. For normal use, point ``q`` must therefore be sliced with
+``fully_supported_lengths``:
 
 .. code-block:: python
 
-    physical_time = time_origins[q] + times[:valid_lengths[q]]
-    trace = fields[output][q, :valid_lengths[q]]
+    length = fully_supported_lengths[q]
+    physical_time = time_origins[q] + times[:length]
+    trace = fields[output][q, :length]
+
+``valid_lengths`` remains available for research access to every stored bin.
+Those additional bins are not a complete field reconstruction unless the
+surface fields had already decayed to zero. ``terminal_field_ratios`` gives,
+for each point, the largest ratio between the final 32 fully supported samples
+and the trace peak, evaluated independently for each underlying Cartesian
+component. ``terminal_decay_ok`` is true when this is no greater than
+``terminal_decay_threshold`` (stored as a group attribute). gprMax emits a
+warning when the test fails; increasing the model time window is the correct
+remedy.
 
 With ``time_origin=simulation`` every origin is zero. With
 ``time_origin=first_arrival`` each origin retains its absolute propagation
 time without storing the potentially large guaranteed leading-zero prefix.
+For this origin policy, ``fully_supported_lengths`` normally equals the number
+of FDTD iterations.
 
 The surface DFT datasets are present by default and allow later angular or
 point evaluation without rerunning FDTD. They can be large: their leading

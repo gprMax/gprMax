@@ -874,6 +874,13 @@ positional optional parameters used by the equivalent hash commands.
         outputs=('Etheta', 'Ephi', 'radiation_intensity'),
     ))
 
+For a completed time receiver, ``result.point_times(q)`` and
+``result.point_field(output, q)`` return only the interval supported by every
+surface patch. ``point_raw_times`` and ``point_raw_field`` deliberately expose
+the additional partial retarded tail for research use. Check
+``result.terminal_decay_ok[q]``; a false value means that the FDTD time window
+should be increased.
+
 KSIR frequency transform
 ------------------------
 .. autoclass:: gprMax.user_objects.cmds_output.KSIRFrequencyTransform
