@@ -26,7 +26,7 @@ import numpy as np
 from gprMax.utilities.utilities import fft_power, handle_plot_output, round_value
 from gprMax.waveforms import Waveform
 
-logging.basicConfig(format="%(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def check_timewindow(timewindow, dt):
@@ -46,16 +46,17 @@ def check_timewindow(timewindow, dt):
 
     try:
         timewindow = int(timewindow)
+        if timewindow < 1:
+            raise ValueError("Number of iterations must be greater than zero")
         iterations = timewindow
         timewindow = (timewindow - 1) * dt
 
-    except:
+    except ValueError:
         timewindow = float(timewindow)
         if timewindow > 0:
             iterations = round_value((timewindow / dt)) + 1
         else:
-            logging.exception("Time window must have a value greater than zero")
-            raise ValueError
+            raise ValueError("Time window must have a value greater than zero")
 
     return timewindow, iterations
 
@@ -85,12 +86,12 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
         timeiter.iternext()
 
-    logging.info("Waveform characteristics...")
-    logging.info(f"Type: {w.type}")
-    logging.info(f"Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}")
+    logger.info("Waveform characteristics...")
+    logger.info(f"Type: {w.type}")
+    logger.info(f"Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}")
 
     if w.freq and w.type != "gaussian" and w.type != "impulse":
-        logging.info(f"Centre frequency: {w.freq:g} Hz")
+        logger.info(f"Centre frequency: {w.freq:g} Hz")
 
     if w.type in [
         "gaussian",
@@ -100,13 +101,13 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         "gaussiandoubleprime",
     ]:
         delay = 1 / w.freq
-        logging.info(f"Time to centre of pulse: {delay:g} s")
+        logger.info(f"Time to centre of pulse: {delay:g} s")
     elif w.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
         delay = np.sqrt(2) / w.freq
-        logging.info(f"Time to centre of pulse: {delay:g} s")
+        logger.info(f"Time to centre of pulse: {delay:g} s")
 
-    logging.info(f"Time window: {timewindow:g} s ({iterations} iterations)")
-    logging.info(f"Time step: {dt:g} s")
+    logger.info(f"Time window: {timewindow:g} s ({iterations} iterations)")
+    logger.info(f"Time step: {dt:g} s")
 
     if fft:
         # FFT
@@ -114,11 +115,12 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
 
         # Set plotting range to 4 times frequency at max power of waveform or
         # 4 times the centre frequency
-        freqmaxpower = np.where(np.isclose(power, 0))[0][0]
-        if freqs[freqmaxpower] > w.freq:
-            pltrange = np.where(freqs > 4 * freqs[freqmaxpower])[0][0]
-        else:
-            pltrange = np.where(freqs > 4 * w.freq)[0][0]
+        positive = np.flatnonzero(freqs >= 0)
+        finite = positive[np.isfinite(power[positive])]
+        freqmaxpower = finite[np.argmax(power[finite])] if finite.size else 0
+        upper_frequency = 4 * max(freqs[freqmaxpower], w.freq or 0)
+        above = np.flatnonzero(freqs > upper_frequency)
+        pltrange = above[0] if above.size else max(1, len(freqs) // 2)
         pltrange = np.s_[0:pltrange]
 
         fig, (ax1, ax2) = plt.subplots(
@@ -150,19 +152,21 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     # Turn on grid
     [ax.grid(which="both", axis="both", linestyle="-.") for ax in fig.axes]
 
-    savefile = Path(__file__).parent / w.type
+    savefile = Path.cwd() / w.type
     handle_plot_output(plt, fig, str(savefile), show=show)
 
     return plt
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(message)s", level=logging.INFO)
+    plottable_waveforms = [wave_type for wave_type in Waveform.types if wave_type != "user"]
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Plot built-in waveforms that can be used for sources.",
         usage="cd gprMax; python -m toolboxes.Plotting.plot_source_wave type amp freq timewindow dt",
     )
-    parser.add_argument("type", help="type of waveform", choices=Waveform.types)
+    parser.add_argument("type", help="type of waveform", choices=plottable_waveforms)
     parser.add_argument("amp", type=float, help="amplitude of waveform")
     parser.add_argument("freq", type=float, help="centre frequency of waveform")
     parser.add_argument("timewindow", help="time window to view waveform")
@@ -177,16 +181,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Check waveform parameters
-    if args.type.lower() not in Waveform.types:
-        logging.exception(
-            f"The waveform must have one of the following types {', '.join(Waveform.types)}"
-        )
-        raise ValueError
-    if args.freq <= 0:
-        logging.exception(
-            "The waveform requires an excitation frequency value of greater than zero"
-        )
-        raise ValueError
+    if args.type.lower() not in plottable_waveforms:
+        raise ValueError(f"The waveform must have one of: {', '.join(plottable_waveforms)}")
+    if args.freq <= 0 and args.type != "impulse":
+        raise ValueError("The waveform requires an excitation frequency greater than zero")
 
     # Create waveform instance
     w = Waveform()

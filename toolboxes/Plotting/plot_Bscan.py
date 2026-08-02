@@ -17,17 +17,32 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import logging
 from pathlib import Path
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..Utilities.outputfiles_merge import get_output_data
 from gprMax.utilities.utilities import handle_plot_output
 
-logger = logging.getLogger(__name__)
+from ..Utilities.outputfiles_merge import get_output_data
+
+
+def gather_receiver_outputs(filename, rxcomponent):
+    """Gather one component from all receivers without duplicating rx1."""
+    with h5py.File(filename, "r") as output:
+        nrx = int(output.attrs["nrx"])
+
+    if nrx == 0:
+        raise ValueError(f"No receivers found in {filename}")
+
+    traces = []
+    dt = None
+    for rx in range(1, nrx + 1):
+        outputdata, dt = get_output_data(filename, rx, rxcomponent)
+        traces.append(np.asarray(outputdata))
+
+    return np.column_stack(traces), dt
 
 
 def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
@@ -55,14 +70,18 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
         facecolor="w",
         edgecolor="w",
     )
+    colour_limit = np.amax(np.abs(outputdata))
+    if colour_limit == 0:
+        colour_limit = 1
+
     plt.imshow(
         outputdata,
         extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0],
         interpolation="nearest",
         aspect="auto",
         cmap="seismic",
-        vmin=-np.amax(np.abs(outputdata)),
-        vmax=np.amax(np.abs(outputdata)),
+        vmin=-colour_limit,
+        vmax=colour_limit,
     )
     plt.xlabel("Trace number")
     plt.ylabel("Time [s]")
@@ -112,26 +131,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
-    f = h5py.File(args.outputfile, "r")
-    nrx = f.attrs["nrx"]
-    f.close()
+    with h5py.File(args.outputfile, "r") as f:
+        nrx = int(f.attrs["nrx"])
 
     # Check there are any receivers
     if nrx == 0:
-        logger.exception(f"No receivers found in {args.outputfile}")
-        raise ValueError
+        raise ValueError(f"No receivers found in {args.outputfile}")
 
-    for rx in range(1, nrx + 1):
-        outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        if args.gather:
-            if rx == 1:
-                rxsgather = outputdata
-            rxsgather = np.column_stack((rxsgather, outputdata))
-        else:
-            mpl_plot(
-                args.outputfile, outputdata, dt, rx, args.rx_component, show=not args.save
-            )
-
-    # Plot all receivers from single output file together if required
     if args.gather:
-        mpl_plot(args.outputfile, rxsgather, dt, rx, args.rx_component, show=not args.save)
+        rxsgather, dt = gather_receiver_outputs(args.outputfile, args.rx_component)
+        mpl_plot(args.outputfile, rxsgather, dt, nrx, args.rx_component, show=not args.save)
+    else:
+        for rx in range(1, nrx + 1):
+            outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
+            mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component, show=not args.save)

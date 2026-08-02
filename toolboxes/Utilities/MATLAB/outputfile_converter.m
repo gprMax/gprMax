@@ -27,28 +27,21 @@ HDR.fext  = 'h5';
 
 % Read data from HDF5 file ================================================
 infile = [HDR.pname infile];
-dataex = h5read(infile, '/rxs/rx1/Ex');
-dataey = h5read(infile, '/rxs/rx1/Ey');
-dataez = h5read(infile, '/rxs/rx1/Ez');
+rxinfo = h5info(infile, '/rxs/rx1');
+available = {rxinfo.Datasets.Name};
+components = intersect({'Ex', 'Ey', 'Ez'}, available, 'stable');
+if isempty(components)
+    error('Receiver 1 does not contain an electric-field component.');
+end
 
-
-% Field check =============================================================
-if dataey == 0 & dataez == 0
-    data = dataex';
-elseif dataex == 0 & dataez == 0
-    data = dataey';
-elseif dataex == 0 & dataey == 0
-    data = dataez';
-else
-    maxex = max(max(dataex));
-    maxey = max(max(dataey));
-    maxez = max(max(dataez));
-    if maxex > maxey & maxex > maxez
-        data = dataex';
-    elseif maxey > maxex & maxey > maxez
-        data = dataey';
-    elseif maxez > maxex & maxez > maxey
-        data = dataez';
+% Use the available electric-field component with the largest absolute peak.
+peak = -Inf;
+for componentindex = 1:numel(components)
+    candidate = h5read(infile, ['/rxs/rx1/' components{componentindex}]);
+    candidatepeak = max(abs(candidate(:)));
+    if candidatepeak > peak
+        data = candidate';
+        peak = candidatepeak;
     end
 end
 

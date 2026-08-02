@@ -56,6 +56,15 @@ Package contents
 
 * ``head_only_h5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
+For example:
+
+.. code-block:: none
+
+    python -m toolboxes.AustinManWoman.head_only_h5 AustinMan_v2.3_2x2x2.h5
+
+This writes ``AustinMan_v2.3_2x2x2_head.h5``. Use ``--output`` to choose a
+different output filename.
+
 How to use the package
 ======================
 

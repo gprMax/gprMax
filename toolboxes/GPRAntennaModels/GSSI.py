@@ -5,12 +5,9 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-import logging
 from pathlib import Path
 
 import gprMax
-
-logger = logging.getLogger(__name__)
 
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
@@ -65,17 +62,31 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         patchheight = 0.016
         tx = x + 0.114, y + 0.052, z + skidthickness
     else:
-        logger.exception(
+        raise ValueError(
             "This antenna module can only be used with a spatial discretisation of 1mm or 2mm"
         )
-        logger.exception(
-            "This antenna module can only be used with a spatial discretisation of 1mm or 2mm"
-        )
-        raise ValueError
 
     # If using parameters from an optimisation
-    try:
-        kwargs
+    if kwargs:
+        required = {
+            "absorber1Er",
+            "absorber1sig",
+            "absorber2Er",
+            "absorber2sig",
+            "pcbEr",
+            "pcbsig",
+            "hdpeEr",
+            "hdpesig",
+        }
+        missing = sorted(required - kwargs.keys())
+        if missing:
+            raise ValueError(
+                "Missing GSSI 1.5 GHz optimisation parameter(s): " + ", ".join(missing)
+            )
+
+        optstate = "Custom"
+        excitationfreq = kwargs.get("excitationfreq", 1.71e9)
+        sourceresistance = kwargs.get("sourceresistance", 195)
         absorber1Er = kwargs["absorber1Er"]
         absorber1sig = kwargs["absorber1sig"]
         absorber2Er = kwargs["absorber2Er"]
@@ -84,8 +95,6 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         pcbsig = kwargs["pcbsig"]
         hdpeEr = kwargs["hdpeEr"]
         hdpesig = kwargs["hdpesig"]
-        sourceresistance = 195
-        rxres = 50
         absorber1 = gprMax.Material(er=absorber1Er, se=absorber1sig, mr=1, sm=0, id="absorber1")
         absorber2 = gprMax.Material(er=absorber2Er, se=absorber2sig, mr=1, sm=0, id="absorber2")
         pcb = gprMax.Material(er=pcbEr, se=pcbsig, mr=1, sm=0, id="pcb")
@@ -93,7 +102,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         scene_objects.extend((absorber1, absorber2, pcb, hdpe))
 
     # Otherwise choose parameters for different optimisation models
-    except:
+    else:
         # Specify optimisation model
         optstate = ["WarrenThesis", "DebyeAbsorber", "GiannakisPaper"]
         optstate = optstate[0]
@@ -412,7 +421,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     # scene_objects.extend((gv1, gv2))
 
     # Excitation
-    if optstate == "WarrenThesis" or optstate == "DebyeAbsorber":
+    if optstate in ("WarrenThesis", "DebyeAbsorber", "Custom"):
         # Gaussian pulse
         w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         vs1 = gprMax.VoltageSource(
@@ -426,7 +435,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     elif optstate == "GiannakisPaper":
         # Optimised custom pulse
         exc1 = gprMax.ExcitationFile(
-            filepath="toolboxes/GPRAntennaModels/GSSI_1500MHz_pulse.txt",
+            filepath=Path(__file__).with_name("GSSI_1500MHz_pulse.txt"),
             kind="linear",
             fill_value="extrapolate",
         )
@@ -508,9 +517,17 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     hdper = 1.0
     skidthickness = 0.01
 
+    if resolution != 0.002:
+        raise ValueError("The GSSI 400 MHz antenna model requires a 2 mm resolution")
+
     # If using parameters from an optimisation
-    try:
-        kwargs
+    if kwargs:
+        required = {"excitationfreq", "sourceresistance", "absorberEr", "absorbersig"}
+        missing = sorted(required - kwargs.keys())
+        if missing:
+            raise ValueError(
+                "Missing GSSI 400 MHz optimisation parameter(s): " + ", ".join(missing)
+            )
         excitationfreq = kwargs["excitationfreq"]
         sourceresistance = kwargs["sourceresistance"]
         receiverresistance = sourceresistance
@@ -518,7 +535,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
         absorbersig = kwargs["absorbersig"]
 
     # Otherwise choose pre-set optimised parameters
-    except:
+    else:
         excitationfreq = 3.5e8  # Hz, only used with voltage_source
         sourceresistance = 257.97407389585214  # Ohms
         receiverresistance = 288.92728542970417  # Ohms
@@ -927,7 +944,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     else:
         # Optimised custom pulse
         exc1 = gprMax.ExcitationFile(
-            filepath="toolboxes/GPRAntennaModels/GSSI_400MHz_pulse.txt",
+            filepath=Path(__file__).with_name("GSSI_400MHz_pulse.txt"),
             kind="linear",
             fill_value="extrapolate",
         )

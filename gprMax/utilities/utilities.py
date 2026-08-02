@@ -75,12 +75,9 @@ def logo(version):
     )
     current_year = datetime.datetime.now().year
     copyright = (
-        f"Copyright (C) 2015-{current_year}: The University of "
-        f"Edinburgh, United Kingdom"
+        f"Copyright (C) 2015-{current_year}: The University of " f"Edinburgh, United Kingdom"
     )
-    authors = (
-        "Authors: Craig Warren, Antonis Giannopoulos, John Hartley and Nathan Mannall"
-    )
+    authors = "Authors: Craig Warren, Antonis Giannopoulos, John Hartley and Nathan Mannall"
     licenseinfo1 = (
         "gprMax is free software: you can redistribute it and/or "
         "modify it under the terms of the GNU General Public "
@@ -120,10 +117,7 @@ def logo(version):
         + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=" ")
         + "\n"
     )
-    str += (
-        textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ")
-        + "\n\n"
-    )
+    str += textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ") + "\n\n"
     str += (
         textwrap.fill(
             licenseinfo1,
@@ -179,9 +173,7 @@ def round_float(value: float, decimalplaces: int) -> float:
         rounded: Rounded value.
     """
     precision = f"1.{'0' * decimalplaces}"
-    return float(
-        d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR)
-    )
+    return float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
 
 
 def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
@@ -225,19 +217,24 @@ def fft_power(waveform, dt):
         power: array containing power spectra.
     """
 
-    # Calculate magnitude of frequency spectra of waveform (ignore warning from
-    # taking a log of any zero values)
-    with np.errstate(divide="ignore"):
-        power = 10 * np.log10(np.abs(np.fft.fft(waveform)) ** 2)
+    waveform = np.asarray(waveform)
+    if waveform.ndim != 1 or waveform.size == 0:
+        raise ValueError("waveform must be a non-empty one-dimensional array")
+    if not np.isfinite(dt) or dt <= 0:
+        raise ValueError("dt must be finite and greater than zero")
 
-    # Replace any NaNs or Infs from zero division
-    power[np.invert(np.isfinite(power))] = 0
+    magnitude = np.abs(np.fft.fft(waveform))
+    maximum = np.max(magnitude)
+    if maximum == 0:
+        power = np.full(magnitude.shape, -np.inf, dtype=float)
+    else:
+        # Normalise before taking the logarithm. Spectral nulls intentionally
+        # remain -inf rather than being turned into apparent 0 dB peaks.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            power = 20 * np.log10(magnitude / maximum)
 
     # Frequency bins
     freqs = np.fft.fftfreq(power.size, d=dt)
-
-    # Shift powers so that frequency with maximum power is at zero decibels
-    power -= np.amax(power)
 
     return freqs, power
 
