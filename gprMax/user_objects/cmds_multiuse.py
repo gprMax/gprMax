@@ -2012,6 +2012,12 @@ class EigenmodeSource(GridUserObject):
             logger.exception(f"{self.params_str()} normal source plane coordinate is outside the grid.")
             raise ValueError
 
+        if direction == "+" and plane_index < 1:
+            raise ValueError(
+                "A positive-direction eigenmode source must be at least "
+                "one cell inside the lower domain boundary."
+            )
+
         if np.any(lower[transverse_axes] < 0) or np.any(
             upper[transverse_axes] > grid.size[transverse_axes]
         ):
