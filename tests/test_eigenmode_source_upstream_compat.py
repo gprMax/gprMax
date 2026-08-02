@@ -29,6 +29,28 @@ def _source(grid):
     return source
 
 
+def test_modal_plot_policy_uses_geometry_only_default_and_explicit_overrides(
+    monkeypatch,
+):
+    source = EigenmodeSource(None)
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(geometry_only=False),
+    )
+
+    source.plot_fields = None
+    assert not source._should_plot_eigenmode_fields()
+    config.sim_config.geometry_only = True
+    assert source._should_plot_eigenmode_fields()
+
+    source.plot_fields = False
+    assert not source._should_plot_eigenmode_fields()
+    source.plot_fields = True
+    config.sim_config.geometry_only = False
+    assert source._should_plot_eigenmode_fields()
+
+
 def test_unused_builtin_pmc_does_not_block_eigenmode_material_slice():
     """The built-in PMC may exist in the grid without being on the source plane."""
     pec, pmc, free_space = _materials()

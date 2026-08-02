@@ -1871,12 +1871,17 @@ class EigenmodeSource(GridUserObject):
     """
     Specifies an eigenmode source plane. The command form is:
 
-        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> mode_index frequency [frequency ...] waveform_id
+        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> mode_index frequency [frequency ...] waveform_id [y|n]
 
     Exactly one coordinate pair must match between the two points. If x0=x1
     the source lies in the yz plane with normal x; if y0=y1 the source lies in
     the xz plane with normal y; if z0=z1 the source lies in the xy plane with
     normal z.
+
+    ``plot_fields`` controls diagnostic modal-field plots. Its default value,
+    ``None``, writes plots for geometry-only builds and suppresses them for
+    normal simulations. ``True`` always writes the plots and ``False`` always
+    suppresses them.
     """
 
     @property
@@ -1927,6 +1932,13 @@ class EigenmodeSource(GridUserObject):
             self.kwargs.get("mode_overlap_threshold", 0.9)
         )
         spectral_threshold = float(self.kwargs.get("spectral_threshold", 1e-3))
+        plot_fields = self.kwargs.get("plot_fields")
+        if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
+            raise ValueError(
+                f"{self.params_str()} plot_fields must be True, False, or None."
+            )
+        if plot_fields is not None:
+            plot_fields = bool(plot_fields)
 
         if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             logger.exception(
@@ -2076,6 +2088,7 @@ class EigenmodeSource(GridUserObject):
         source.frequencies = frequencies
         source.mode_overlap_threshold = mode_overlap_threshold
         source.spectral_threshold = spectral_threshold
+        source.plot_fields = plot_fields
         source.waveformID = waveform_id
         source.waveform = next(x for x in grid.waveforms if x.ID == waveform_id)
         source.start = 0

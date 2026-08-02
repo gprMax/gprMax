@@ -4,6 +4,38 @@ Advanced features
 
 This section provides example models of some of the more advanced features of gprMax. Each example comes with an input file which you can download and run.
 
+Eigenmode sources
+=================
+
+The models in ``examples/features/eigenmode_sources`` demonstrate the FDFD
+eigenmode solver and TF/SF modal injection in 2D and 3D dielectric guides,
+PEC waveguides, microstrip, and a broadband dielectric channel. Start with
+:download:`dielectric_slab_2d_tm.in <../../examples/features/eigenmode_sources/dielectric_slab_2d_tm.in>`
+or its equivalent
+:download:`Python API model <../../examples/features/eigenmode_sources/dielectric_slab_2d_tm.py>`.
+
+Always inspect the solved mode before committing to a long FDTD run:
+
+.. code-block:: console
+
+    python -m gprMax examples/features/eigenmode_sources/dielectric_slab_2d_tm.in --geometry-only
+
+Geometry-only mode builds the material grid and solves the mode without time
+stepping. It automatically writes the modal-field plot. Check its requested
+polarisation, symmetry, mode order, confinement, and field behaviour at
+material, PEC, or PMC boundaries. In the Python API model, pass
+``geometry_only=True`` to ``gprMax.run`` for the same workflow.
+
+.. figure:: ../../images_shared/eigenmode_dielectric_slab_2d_tm_fields.png
+    :width: 700 px
+
+    Yee-staggered active field components of the fundamental 2D TM dielectric-slab mode.
+
+The complete regression and directionality matrix is kept separately under
+``testing/validation/eigenmode_sources``; it is not intended as introductory
+user material.
+
+
 Plane-wave TFSF source
 ======================
 
