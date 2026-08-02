@@ -1,0 +1,27 @@
+#title: 3D broadband pulse in a dielectric channel using seven eigenmode solves
+
+#domain: 2.0 0.8 0.8
+#dx_dy_dz: 0.01 0.01 0.01
+#time_window: 6.01e-9
+#pml_cells: 10
+
+#material: 4 0 1 0 channel_core
+#waveform: gaussiandot 1 0.5e9 eig_pulse
+
+#box: 0 0.28 0.32 2.0 0.52 0.48 channel_core
+
+## Seven 2D cross-section solves exercise complex field interpolation for all
+## six E/H components of a fully 3D eigenmode source.
+#eigenmode_source: 0.20 0.10 0.10 0.20 0.70 0.70 + 0 0.5e9 0.6e9 0.7e9 0.85e9 1.1e9 1.6e9 2.5e9 eig_pulse y
+#rx_array: 0.10 0.10 0.10 0.10 0.70 0.70 1 0.02 0.02
+#rx_array: 0.50 0.10 0.10 0.50 0.70 0.70 1 0.02 0.02
+
+#snapshot: 0 0 0.40 2.0 0.8 0.41 0.01 0.01 0.01 1.5e-9 xy_center_1500ps.h5
+#snapshot: 0 0 0.40 2.0 0.8 0.41 0.01 0.01 0.01 3e-9 xy_center_3000ps.h5
+#snapshot: 0 0 0.40 2.0 0.8 0.41 0.01 0.01 0.01 4.5e-9 xy_center_4500ps.h5
+#snapshot: 0 0 0.40 2.0 0.8 0.41 0.01 0.01 0.01 5.9e-9 xy_center_5900ps.h5
+
+#snapshot: 0 0.40 0 2.0 0.41 0.8 0.01 0.01 0.01 1.5e-9 xz_center_1500ps.h5
+#snapshot: 0 0.40 0 2.0 0.41 0.8 0.01 0.01 0.01 3e-9 xz_center_3000ps.h5
+#snapshot: 0 0.40 0 2.0 0.41 0.8 0.01 0.01 0.01 4.5e-9 xz_center_4500ps.h5
+#snapshot: 0 0.40 0 2.0 0.41 0.8 0.01 0.01 0.01 5.9e-9 xz_center_5900ps.h5

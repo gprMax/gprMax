@@ -1378,7 +1378,7 @@ Allows you to introduce a two-dimensional eigenmode source port. The command ext
 
 .. code-block:: none
 
-    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1 f7 [f8 ...] str1
+    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1 f7 [f8 ...] str1 [c2]
 
 * ``f1 f2 f3`` are the first point ``x0 y0 z0`` of the rectangular source port in metres.
 * ``f4 f5 f6`` are the opposite point ``x1 y1 z1`` of the rectangular source port in metres.
@@ -1388,6 +1388,9 @@ Allows you to introduce a two-dimensional eigenmode source port. The command ext
 * ``i1`` is the zero-based mode index to excite.
 * ``f7 [f8 ...]`` are one or more strictly increasing frequencies in Hertz used to solve the eigenmode fields. One frequency retains the original fixed-profile source. Two or more frequencies create a broadband source by phase-aligning and linearly interpolating the complex modal fields and propagation constant.
 * ``str1`` is the identifier of the waveform that should be used with the source.
+* ``c2`` is an optional modal-field plotting control: ``y`` always writes the
+  diagnostic plots and ``n`` always suppresses them. If it is omitted, plots
+  are written for a ``--geometry-only`` build but not for a normal simulation.
 
 For example, to specify an eigenmode source on the yz plane at ``x=0.008`` m, propagating in the positive x direction, using mode index 1 solved at 80 GHz and the waveform defined by the identifier ``eig_pulse``, use: ``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 80e9 eig_pulse``.
 
@@ -1418,6 +1421,37 @@ guaranteed.
 The 2D modal fields are normalised to carry one watt per metre along the
 invariant direction. TM solves for the invariant electric component and TE
 solves for the invariant magnetic component.
+
+Inspecting the solved mode
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Users should inspect the solved modal fields before committing to a full
+time-domain simulation. The recommended workflow is to run the model first
+with ``--geometry-only``. Geometry construction still processes each
+eigenmode source and runs its FDFD solve, but the FDTD time-stepping loop is
+skipped. Modal-field plots are therefore written automatically alongside the
+input file.
+
+For a 2D TM or TE model, one ``*_TM_fields.png`` or ``*_TE_fields.png`` file
+is written for every solved frequency. For a 3D model, separate
+``*_Eu_Ev.png`` and ``*_Hu_Hv.png`` files are written. A multi-frequency
+source produces these plots for every anchor frequency. Check that the fields
+have the expected polarisation, symmetry, confinement, boundary behaviour,
+and mode order. An unexpected profile may indicate an incorrect mode index,
+a mode near cutoff, a degeneracy, or a source aperture that is too small.
+
+For example:
+
+.. code-block:: console
+
+    python -m gprMax path/to/model.in --geometry-only
+
+The optional final ``y`` can be used when plots are also required during a
+normal run, while a final ``n`` suppresses them even in geometry-only mode:
+
+.. code-block:: none
+
+    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 80e9 eig_pulse y
 
 .. note::
 

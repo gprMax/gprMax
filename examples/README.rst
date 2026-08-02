@@ -16,8 +16,8 @@ files and Python API models can be found together.
 
 ``features/``
     Small models demonstrating solver or model-building features independently
-    of a particular application. This includes plane waves and generic
-    subgridding examples.
+    of a particular application. This includes eigenmode sources, plane waves,
+    and generic subgridding examples.
 
 ``jupyter-notebooks/``
     Interactive tutorials. These are retained separately while their older

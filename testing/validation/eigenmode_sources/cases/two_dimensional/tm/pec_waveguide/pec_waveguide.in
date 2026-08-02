@@ -1,0 +1,26 @@
+#title: 2D TMz eigenmode source in an air-filled PEC parallel-plate waveguide
+
+#domain_mode: TM
+#domain: 0.20 0.05 inf
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 0.85e-9
+#pml_cells: 5 0 0 5 0 0
+
+#waveform: contsine 1 5e9 eig_pulse
+
+#box: 0 0 0 0.20 0.005 inf pec
+#box: 0 0.045 0 0.20 0.05 inf pec
+
+#eigenmode_source: 0.02 0.005 0 0.02 0.045 inf + 0 5e9 eig_pulse y
+#rx: 0.07 0.025 inf
+#rx: 0.12 0.025 inf
+#rx: 0.17 0.025 inf
+
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 1e-10 xy_center_100ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 2e-10 xy_center_200ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 3e-10 xy_center_300ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 4e-10 xy_center_400ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 5e-10 xy_center_500ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 6e-10 xy_center_600ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 7e-10 xy_center_700ps.h5
+#snapshot: 0 0 0 0.20 0.05 inf 0.001 0.001 0.001 8e-10 xy_center_800ps.h5

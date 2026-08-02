@@ -1,0 +1,25 @@
+#title: Broadband pulse in a dielectric slab using one eigenmode solve
+
+#domain_mode: TM
+#domain: 0.5 5.02 inf
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 4.01e-9
+#pml_cells: 10 10 0 10 10 0
+
+#material: 4 0 1 0 slab_core
+#waveform: gaussiandot 1 1e9 eig_pulse
+
+#box: 0 2.41 0 0.5 2.61 inf slab_core
+
+## This is the comparison baseline: a broadband Gaussian-derivative pulse using the
+## traditional single-frequency modal profile.
+#eigenmode_source: 0.04 0.01 0 0.04 5.01 inf + 0 1e9 eig_pulse y
+## Cross-section receiver planes before and after the source. The plotting
+## helper integrates -Ez*Hy over y to estimate backward and forward power.
+#rx_array: 0.02 0.01 inf 0.02 5.01 inf 1 0.005 1
+#rx_array: 0.10 0.01 inf 0.10 5.01 inf 1 0.005 1
+
+#snapshot: 0 2.39 0 0.5 2.63 inf 0.001 0.001 0.001 1e-9 xy_center_1000ps.h5
+#snapshot: 0 2.39 0 0.5 2.63 inf 0.001 0.001 0.001 2e-9 xy_center_2000ps.h5
+#snapshot: 0 2.39 0 0.5 2.63 inf 0.001 0.001 0.001 3e-9 xy_center_3000ps.h5
+#snapshot: 0 2.39 0 0.5 2.63 inf 0.001 0.001 0.001 4e-9 xy_center_4000ps.h5

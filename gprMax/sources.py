@@ -173,6 +173,10 @@ class EigenmodeSource(Source):
         self.complex_profile_phase = None
         self.complex_profile_residual = None
         self.uses_quadrature = False
+        # None selects the default policy: write modal-field plots for a
+        # geometry-only build, but not for a normal simulation. True and False
+        # explicitly override that policy.
+        self.plot_fields = None
 
     def grid_init(self, G):
         """Prepare source data that depends on the final built Yee grid."""
@@ -992,7 +996,18 @@ class EigenmodeSource(Source):
                 f"reconstruction relative peak error is {reconstruction_error:.3e}."
             )
 
+    def _should_plot_eigenmode_fields(self):
+        """Return the explicit setting or the geometry-only default."""
+        return (
+            bool(config.sim_config.geometry_only)
+            if self.plot_fields is None
+            else bool(self.plot_fields)
+        )
+
     def _plot_eigenmode_fields(self, solver):
+        if not self._should_plot_eigenmode_fields():
+            return
+
         input_path = config.sim_config.input_file_path
         output_dir = input_path.parent
         filename_base = (

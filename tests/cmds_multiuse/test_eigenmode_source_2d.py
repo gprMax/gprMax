@@ -173,6 +173,7 @@ def test_2d_eigenmode_injection_updates_only_live_system(
         cpu_precision=cpu_precision,
         hide_progress_bars=True,
     )
+    assert not list(tmp_path.glob("*_eigenmode_*_fields.png"))
 
     with h5py.File(output.with_suffix(".h5"), "r") as handle:
         receiver = handle["rxs/rx1"]
@@ -463,16 +464,24 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
 @pytest.mark.parametrize(
     "relative_path",
     [
-        Path("2d_tm/pec_waveguide/pec_waveguide.in"),
-        Path("2d_te/pec_waveguide/pec_waveguide.in"),
-        Path("2d_tm/dielectric_slab/dielectric_slab.in"),
-        Path("2d_te/pmc_waveguide/pmc_waveguide.in"),
-        Path("2d_tm/dielectric_bend/dielectric_bend.in"),
-        Path("2d_te/dielectric_bend/dielectric_bend.in"),
+        Path("tm/pec_waveguide/pec_waveguide.in"),
+        Path("te/pec_waveguide/pec_waveguide.in"),
+        Path("tm/dielectric_slab/dielectric_slab.in"),
+        Path("te/pmc_waveguide/pmc_waveguide.in"),
+        Path("tm/dielectric_bend/dielectric_bend.in"),
+        Path("te/dielectric_bend/dielectric_bend.in"),
     ],
 )
 def test_2d_example_builds_with_eight_timestamps(tmp_path, relative_path):
-    source = REPOSITORY_ROOT / "eigensource_test_run" / relative_path
+    source = (
+        REPOSITORY_ROOT
+        / "testing"
+        / "validation"
+        / "eigenmode_sources"
+        / "cases"
+        / "two_dimensional"
+        / relative_path
+    )
     copied_input = tmp_path / source.name
     shutil.copyfile(source, copied_input)
 
@@ -485,3 +494,49 @@ def test_2d_example_builds_with_eight_timestamps(tmp_path, relative_path):
         hide_progress_bars=True,
     )
     assert len(list(tmp_path.glob(f"{source.stem}_eigenmode_*_fields.png"))) == 1
+
+
+@pytest.mark.parametrize(
+    ("plot_control", "expected_plot_count"),
+    [("n", 0), ("y", 1)],
+)
+def test_hash_modal_plot_control_overrides_geometry_only_default(
+    tmp_path,
+    plot_control,
+    expected_plot_count,
+):
+    source = (
+        REPOSITORY_ROOT
+        / "testing"
+        / "validation"
+        / "eigenmode_sources"
+        / "cases"
+        / "two_dimensional"
+        / "tm"
+        / "pec_waveguide"
+        / "pec_waveguide.in"
+    )
+    copied_input = tmp_path / f"pec_waveguide_{plot_control}.in"
+    lines = source.read_text().splitlines()
+    copied_input.write_text(
+        "\n".join(
+            f"{line.rsplit(maxsplit=1)[0]} {plot_control}"
+            if line.startswith("#eigenmode_source:")
+            else line
+            for line in lines
+        )
+        + "\n"
+    )
+
+    gprMax.run(
+        inputfile=copied_input,
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / f"pec_waveguide_{plot_control}",
+        hide_progress_bars=True,
+    )
+
+    assert (
+        len(list(tmp_path.glob(f"{copied_input.stem}_eigenmode_*_fields.png")))
+        == expected_plot_count
+    )

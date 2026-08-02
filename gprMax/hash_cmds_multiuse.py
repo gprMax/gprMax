@@ -419,7 +419,31 @@ def process_multicmds(multicmds):
             transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
             transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
 
-            frequencies = tuple(float(value) for value in tmp[8:-1])
+            frequency_tokens = []
+            parameter_index = 8
+            while parameter_index < len(tmp):
+                try:
+                    float(tmp[parameter_index])
+                except ValueError:
+                    break
+                frequency_tokens.append(tmp[parameter_index])
+                parameter_index += 1
+
+            if not frequency_tokens or parameter_index >= len(tmp):
+                raise ValueError(
+                    f"{cmdname} requires one or more frequencies followed by a waveform identifier."
+                )
+
+            frequencies = tuple(float(value) for value in frequency_tokens)
+            waveform_id = tmp[parameter_index]
+            optional = tmp[parameter_index + 1 :]
+            if len(optional) > 1 or (
+                optional and optional[0].lower() not in ("y", "n")
+            ):
+                raise ValueError(
+                    f"{cmdname} accepts only an optional final y or n field-plot parameter."
+                )
+            plot_fields = None if not optional else optional[0].lower() == "y"
             kwargs = {
                 "normal": axis_names[normal_axis],
                 "direction": tmp[6],
@@ -427,7 +451,8 @@ def process_multicmds(multicmds):
                 "p2": transverse_upper,
                 "w": p0[normal_axis],
                 "mode_index": int(tmp[7]),
-                "waveform_id": tmp[-1],
+                "waveform_id": waveform_id,
+                "plot_fields": plot_fields,
             }
             if len(frequencies) == 1:
                 kwargs["frequency"] = frequencies[0]
