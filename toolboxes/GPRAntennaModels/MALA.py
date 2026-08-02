@@ -5,11 +5,7 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-import logging
-
 import gprMax
-
-logger = logging.getLogger(__name__)
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
@@ -48,15 +44,20 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     bowtieheight = 0.025
 
     # If using parameters from an optimisation
-    try:
-        kwargs
+    if kwargs:
+        required = {"excitationfreq", "sourceresistance", "absorberEr", "absorbersig"}
+        missing = sorted(required - kwargs.keys())
+        if missing:
+            raise ValueError(
+                "Missing MALA 1.2 GHz optimisation parameter(s): " + ", ".join(missing)
+            )
         excitationfreq = kwargs["excitationfreq"]
         sourceresistance = kwargs["sourceresistance"]
         absorberEr = kwargs["absorberEr"]
         absorbersig = kwargs["absorbersig"]
 
     # Otherwise choose pre-set optimised parameters
-    except:
+    else:
         # Original optimised values from http://hdl.handle.net/1842/4074
         excitationfreq = 0.978e9
         sourceresistance = 1000
@@ -84,10 +85,9 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         bowtieheight = 0.024
         tx = x + 0.062, y + 0.052, z + skidthickness
     else:
-        logger.exception(
+        raise ValueError(
             "This antenna module can only be used with a spatial resolution of 1mm or 2mm"
         )
-        raise ValueError
 
     # SMD resistors - 3 on each Tx & Rx bowtie arm
     txres = 470  # Ohms

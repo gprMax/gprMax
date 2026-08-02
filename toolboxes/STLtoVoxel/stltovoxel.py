@@ -1,20 +1,21 @@
 import argparse
-import glob
 import logging
-import os
+from pathlib import Path
 
 import h5py
 
 from .convert import convert_files
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-if __name__ == "__main__":
+
+def main():
+    logging.basicConfig(format="%(message)s", level=logging.INFO)
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Allows the user to convert a STL files to voxelized mesh.",
-        usage="cd gprMax; python -m toolboxes.STLtoVoxel.stltovoxel stlfilename -matindex -dxdydz",
+        usage="python -m toolboxes.STLtoVoxel.stltovoxel stlfilename -dxdydz VALUE",
     )
     parser.add_argument(
         "stlfiles",
@@ -28,21 +29,23 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if os.path.isdir(args.stlfiles):
-        path = args.stlfiles
-        files = sorted(glob.glob(path + "/*.stl"))
-        filename_hdf5 = os.path.join(path, os.path.basename(path) + "_geo.h5")
-        filename_mats = os.path.join(path, os.path.basename(path) + "_mats.txt")
-    elif os.path.isfile(args.stlfiles):
-        path = os.path.dirname(args.stlfiles)
-        files = [args.stlfiles]
-        filename_hdf5 = os.path.splitext(args.stlfiles)[0] + "_geo.h5"
-        filename_mats = os.path.splitext(args.stlfiles)[0] + "_mats.txt"
+    input_path = Path(args.stlfiles)
+    if input_path.is_dir():
+        files = sorted(input_path.glob("*.stl"))
+        filename_hdf5 = input_path / f"{input_path.name}_geo.h5"
+    elif input_path.is_file():
+        files = [input_path]
+        filename_hdf5 = input_path.with_name(f"{input_path.stem}_geo.h5")
+    else:
+        parser.error(f"STL file or directory does not exist: {input_path}")
+
+    if not files:
+        parser.error(f"No STL files found in: {input_path}")
 
     dxdydz = (args.dxdydz, args.dxdydz, args.dxdydz)
 
     newline = "\n\t"
-    logger.info(f"\nConverting STL file(s): {newline.join(files)}")
+    logger.info(f"\nConverting STL file(s): {newline.join(map(str, files))}")
     model_array = convert_files(files, dxdydz)
     logger.info(
         f"Number of voxels: {model_array.shape[0]} x {model_array.shape[1]} x {model_array.shape[2]}"
@@ -55,9 +58,6 @@ if __name__ == "__main__":
         f.attrs["dx_dy_dz"] = (dxdydz[0], dxdydz[1], dxdydz[2])
     logger.info(f"Written geometry object file: {filename_hdf5}")
 
-    # Write materials file for gprMax
-    # with open(filename_mats, 'w') as f:
-    #     for i, file in enumerate(files):
-    #         name = os.path.splitext(os.path.basename(file))[0]
-    #         f.write(f"#material: {i + 1} 0 1 0 {name}" + "\n")
-    # logger.info(f"Written materials file: {filename_mats}")
+
+if __name__ == "__main__":
+    main()

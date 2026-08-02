@@ -1,5 +1,6 @@
-# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+# Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
+#                          and Nathan Mannall
 #
 # This file is part of gprMax.
 #
@@ -27,6 +28,394 @@ import numpy as np
 from gprMax.utilities.utilities import handle_plot_output
 
 logger = logging.getLogger(__name__)
+
+
+def discover_terminal_outputs(filename):
+    """Return HDF5 paths containing the common terminal-output schema."""
+
+    paths = []
+    with h5py.File(filename, "r") as output:
+
+        def visitor(name, item):
+            if isinstance(item, h5py.Group) and all(
+                dataset in item for dataset in ("frequency", "S11", "Zin", "Yin")
+            ):
+                paths.append(name)
+
+        output.visititems(visitor)
+    return sorted(paths)
+
+
+def _select_terminal_path(paths, selector, filename):
+    if not paths:
+        raise ValueError(f"{filename} does not contain terminal S11/Zin output")
+    if selector is None:
+        if len(paths) != 1:
+            choices = ", ".join(paths)
+            raise ValueError(
+                f"{filename} contains multiple terminal outputs ({choices}); "
+                "select one with --port"
+            )
+        return paths[0]
+
+    selector = selector.strip("/")
+    exact = [path for path in paths if path == selector]
+    if len(exact) == 1:
+        return exact[0]
+    named = [path for path in paths if path.rsplit("/", 1)[-1] == selector]
+    if len(named) == 1:
+        return named[0]
+    if len(named) > 1:
+        choices = ", ".join(named)
+        raise ValueError(f"Port name {selector!r} is ambiguous; use one of: {choices}")
+    choices = ", ".join(paths)
+    raise ValueError(f"Port {selector!r} not found in {filename}; available outputs: {choices}")
+
+
+def _read_time_trace(output, group, dataset_name, time_names, label):
+    if dataset_name not in group:
+        return None
+    values = group[dataset_name][...]
+    for time_name in time_names:
+        if time_name in group and group[time_name].shape == values.shape:
+            time = group[time_name][...]
+            break
+    else:
+        dt = output.attrs.get("dt")
+        if dt is None:
+            return None
+        time = np.arange(values.size) * dt
+    return {"label": label, "time": time, "values": values}
+
+
+def _read_spectral_trace(group, dataset_name, label):
+    if dataset_name not in group:
+        return None
+    values = group[dataset_name][...]
+    if values.shape != group["frequency"].shape:
+        return None
+    return {"label": label, "values": values}
+
+
+def read_port_params(filename, port_id=None):
+    """Read an adaptive terminal-output view from an HDF5 group.
+
+    Args:
+        filename: Output HDF5 filename.
+        port_id: Port name or complete HDF5 path. It may be omitted when the
+            file contains exactly one terminal output.
+
+    Returns:
+        Dictionary containing the stored frequency-domain port quantities and
+        validity masks.
+    """
+
+    file = Path(filename)
+    paths = discover_terminal_outputs(file)
+    port_path = _select_terminal_path(paths, port_id, file)
+    with h5py.File(file, "r") as output:
+        port = output[port_path]
+        port_id = port_path.rsplit("/", 1)[-1]
+
+        frequency = port["frequency"][...]
+        s11 = port["S11"][...]
+        zin = port["Zin"][...]
+        yin = port["Yin"][...]
+        valid_s11 = port["valid_S11"][...].astype(bool) if "valid_S11" in port else np.isfinite(s11)
+        valid_zin = port["valid_Zin"][...].astype(bool) if "valid_Zin" in port else np.isfinite(zin)
+        valid_yin = port["valid_Yin"][...].astype(bool) if "valid_Yin" in port else np.isfinite(yin)
+
+        time_traces = {"voltage": [], "current": []}
+        for dataset_name, time_names, label in (
+            ("Vgenerator", ("time", "time_voltage"), "Generator voltage"),
+            ("Vinc", ("time_voltage", "time"), "Incident voltage"),
+            ("Vtotal", ("time_voltage", "time"), "Total voltage"),
+        ):
+            trace = _read_time_trace(output, port, dataset_name, time_names, label)
+            if trace is not None:
+                time_traces["voltage"].append(trace)
+        for dataset_name, time_names, label in (
+            ("Iinc", ("time_current", "time"), "Incident current"),
+            ("Itotal", ("time_current", "time"), "Total current"),
+            ("Itot", ("time_current", "time"), "Total current"),
+            ("Iloop", ("time_current", "time"), "Ampere-loop current"),
+        ):
+            trace = _read_time_trace(output, port, dataset_name, time_names, label)
+            if trace is not None:
+                time_traces["current"].append(trace)
+
+        spectral_traces = {"voltage": [], "current": []}
+        for dataset_name, label in (
+            ("Vincident_spectrum", "Incident voltage"),
+            ("Vreflected_spectrum", "Reflected voltage"),
+            ("Vreflected_source_spectrum", "Reflected voltage (source plane)"),
+            ("Vtotal_spectrum", "Total voltage"),
+        ):
+            trace = _read_spectral_trace(port, dataset_name, label)
+            if trace is not None:
+                spectral_traces["voltage"].append(trace)
+        for dataset_name, label in (
+            ("Iincident_spectrum", "Incident current"),
+            ("Itotal_spectrum", "Total current"),
+            ("Iterminal_spectrum", "Terminal current"),
+            ("Iterminal_current_spectrum", "Terminal current (line check)"),
+            ("Iloop_spectrum", "Ampere-loop current"),
+        ):
+            trace = _read_spectral_trace(port, dataset_name, label)
+            if trace is not None:
+                spectral_traces["current"].append(trace)
+
+        if port_path.startswith("ports/") or "/ports/" in port_path:
+            source_type = port.attrs.get("SourceType", "Voltage-source port")
+        elif port_path.startswith("tls/") or "/tls/" in port_path:
+            source_type = "Transmission line"
+        elif port_path.startswith("frills/") or "/frills/" in port_path:
+            source_type = "Magnetic frill"
+        else:
+            source_type = "Terminal output"
+
+        return {
+            "port_id": port_id,
+            "port_path": port_path,
+            "source_type": source_type,
+            "frequency": frequency,
+            "s11": s11,
+            "zin": zin,
+            "yin": yin,
+            "valid_s11": valid_s11,
+            "valid_zin": valid_zin,
+            "valid_yin": valid_yin,
+            "reference_impedance": port.attrs.get("ReferenceImpedance"),
+            "time_traces": time_traces,
+            "spectral_traces": spectral_traces,
+        }
+
+
+def mpl_plot_port_signals(
+    filename,
+    port_id,
+    port_path,
+    source_type,
+    frequency,
+    time_traces,
+    spectral_traces,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    show=True,
+):
+    """Plot only the voltage/current histories and spectra that are present."""
+
+    quantities = [
+        quantity
+        for quantity in ("voltage", "current")
+        if time_traces[quantity] or spectral_traces[quantity]
+    ]
+    if not quantities:
+        return None
+
+    frequency_band = frequency >= 0
+    if fmin is not None:
+        frequency_band &= frequency >= fmin
+    if fmax is not None:
+        frequency_band &= frequency <= fmax
+
+    fig, axes = plt.subplots(
+        nrows=len(quantities),
+        ncols=2,
+        figsize=(14, 4.5 * len(quantities)),
+        squeeze=False,
+        constrained_layout=True,
+    )
+    units = {"voltage": ("Voltage [V]", "|V(f)| [V s]"), "current": ("Current [A]", "|I(f)| [A s]")}
+    for row, quantity in enumerate(quantities):
+        time_axis, spectrum_axis = axes[row]
+        for trace in time_traces[quantity]:
+            time = trace["time"]
+            time_band = np.ones(time.shape, dtype=bool)
+            if tmin is not None:
+                time_band &= time >= tmin
+            if tmax is not None:
+                time_band &= time <= tmax
+            time_axis.plot(time[time_band], trace["values"][time_band], label=trace["label"])
+        if time_traces[quantity]:
+            time_axis.legend()
+        else:
+            time_axis.text(
+                0.5,
+                0.5,
+                "Not stored",
+                ha="center",
+                va="center",
+                transform=time_axis.transAxes,
+            )
+        time_axis.set_xlabel("Time [s]")
+        time_axis.set_ylabel(units[quantity][0])
+        time_axis.set_title(f"Available {quantity} histories")
+        time_axis.grid(which="both", axis="both", linestyle="-.")
+
+        for trace in spectral_traces[quantity]:
+            spectrum_axis.plot(
+                frequency[frequency_band],
+                np.abs(trace["values"][frequency_band]),
+                label=trace["label"],
+            )
+        if spectral_traces[quantity]:
+            spectrum_axis.legend()
+        else:
+            spectrum_axis.text(
+                0.5, 0.5, "Not stored", ha="center", va="center", transform=spectrum_axis.transAxes
+            )
+        spectrum_axis.set_xlabel("Frequency [Hz]")
+        spectrum_axis.set_ylabel(units[quantity][1])
+        spectrum_axis.set_title(f"Available {quantity} spectra")
+        spectrum_axis.grid(which="both", axis="both", linestyle="-.")
+
+    fig.suptitle(f"{source_type}: {port_path}")
+    handle_plot_output(plt, fig, filename, suffix="_port_signals", show=show)
+    return plt
+
+
+def mpl_plot_port(
+    filename,
+    port_id,
+    frequency,
+    s11,
+    zin,
+    yin,
+    valid_s11,
+    valid_zin,
+    valid_yin,
+    port_path,
+    source_type,
+    time_traces,
+    spectral_traces,
+    reference_impedance=None,
+    fmin=None,
+    fmax=None,
+    tmin=None,
+    tmax=None,
+    plot_signals=True,
+    show=True,
+):
+    """Plot S11 and input impedance already calculated by an RxPort."""
+
+    frequency_band = frequency > 0
+    if fmin is not None:
+        frequency_band &= frequency >= fmin
+    if fmax is not None:
+        frequency_band &= frequency <= fmax
+    valid_s11 = valid_s11 & np.isfinite(s11) & frequency_band
+    valid_zin = valid_zin & np.isfinite(zin) & frequency_band
+    valid_yin = valid_yin & np.isfinite(yin) & frequency_band
+    if plot_signals:
+        mpl_plot_port_signals(
+            filename,
+            port_id,
+            port_path,
+            source_type,
+            frequency,
+            time_traces,
+            spectral_traces,
+            fmin=fmin,
+            fmax=fmax,
+            tmin=tmin,
+            tmax=tmax,
+            show=show,
+        )
+
+    with np.errstate(divide="ignore"):
+        s11_db = 20 * np.log10(np.abs(s11))
+
+    if np.any(valid_s11):
+        valid_indices = np.flatnonzero(valid_s11)
+        minimum_index = valid_indices[np.nanargmin(s11_db[valid_s11])]
+        logger.info(
+            f"Port {port_id!r} S11 minimum: {s11_db[minimum_index]:g} dB at "
+            f"{frequency[minimum_index]:g} Hz"
+        )
+        if valid_zin[minimum_index]:
+            logger.info(
+                f"Input impedance: {zin[minimum_index].real:.1f}"
+                f"{zin[minimum_index].imag:+.1f}j Ohms"
+            )
+
+    fig, axes = plt.subplots(
+        num=f"Antenna port {port_id}",
+        figsize=(14, 12),
+        nrows=3,
+        ncols=2,
+        constrained_layout=True,
+    )
+    if np.any(valid_s11):
+        axes[0, 0].plot(frequency[valid_s11], s11_db[valid_s11], color="tab:green")
+        axes[0, 1].plot(
+            frequency[valid_s11],
+            np.angle(s11[valid_s11], deg=True),
+            color="tab:purple",
+        )
+    else:
+        for axis in axes[0]:
+            axis.text(
+                0.5,
+                0.5,
+                "Not available in selected range",
+                ha="center",
+                va="center",
+                transform=axis.transAxes,
+            )
+    axes[0, 0].set_title(r"$|S_{11}|$")
+    axes[0, 0].set_ylabel("Magnitude [dB]")
+    axes[0, 1].set_title(r"$S_{11}$ phase")
+    axes[0, 1].set_ylabel("Phase [degrees]")
+
+    if np.any(valid_zin):
+        axes[1, 0].plot(frequency[valid_zin], zin[valid_zin].real, color="tab:blue")
+        axes[1, 1].plot(frequency[valid_zin], zin[valid_zin].imag, color="tab:orange")
+    else:
+        for axis in axes[1]:
+            axis.text(
+                0.5,
+                0.5,
+                "Not available in selected range",
+                ha="center",
+                va="center",
+                transform=axis.transAxes,
+            )
+    axes[1, 0].set_title("Input resistance")
+    axes[1, 0].set_ylabel("Resistance [Ohms]")
+    axes[1, 1].set_title("Input reactance")
+    axes[1, 1].set_ylabel("Reactance [Ohms]")
+
+    if np.any(valid_yin):
+        axes[2, 0].plot(frequency[valid_yin], yin[valid_yin].real, color="tab:cyan")
+        axes[2, 1].plot(frequency[valid_yin], yin[valid_yin].imag, color="tab:red")
+    else:
+        for axis in axes[2]:
+            axis.text(
+                0.5,
+                0.5,
+                "Not available in selected range",
+                ha="center",
+                va="center",
+                transform=axis.transAxes,
+            )
+    axes[2, 0].set_title("Input conductance")
+    axes[2, 0].set_ylabel("Conductance [S]")
+    axes[2, 1].set_title("Input susceptance")
+    axes[2, 1].set_ylabel("Susceptance [S]")
+
+    for axis in axes.flat:
+        axis.set_xlabel("Frequency [Hz]")
+        axis.grid(which="both", axis="both", linestyle="-.")
+
+    title = f"{source_type}: {port_path}"
+    if reference_impedance is not None:
+        title += f", Z0 = {reference_impedance:g} Ohms"
+    fig.suptitle(title)
+    handle_plot_output(plt, fig, filename, suffix="_port_params", show=show)
+    return plt
 
 
 def calculate_antenna_params(
@@ -367,12 +756,8 @@ def mpl_plot(
 
     # Figure 2
     # Plot frequency spectra of s11
-    fig2, axs = plt.subplots(num="Antenna parameters", 
-                             figsize=(20, 12),
-                             nrows=2,
-                             ncols=2,
-                             facecolor="w",
-                             edgecolor="w"
+    fig2, axs = plt.subplots(
+        num="Antenna parameters", figsize=(20, 12), nrows=2, ncols=2, facecolor="w", edgecolor="w"
     )
     plt.subplots_adjust(hspace=0.75)
     markerline, stemlines, baseline = axs[0, 0].stem(freqs[pltrange], s11[pltrange], "-.")
@@ -451,14 +836,35 @@ def mpl_plot(
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="Plots antenna parameters - "
-        + "incident, reflected and total voltages "
-        + "and currents; s11, (s21) and input impedance "
-        + "from an output file containing a transmission "
-        + "line source.",
+        description=(
+            "Plot stored RxPort S11 and input impedance, or legacy "
+            "transmission-line voltage/current antenna parameters."
+        ),
         usage="cd gprMax; python -m toolboxes.Plotting.plot_antenna_params outputfile",
     )
     parser.add_argument("outputfile", help="name of output file including path")
+    parser.add_argument(
+        "--port",
+        help="terminal-output name or HDF5 path; optional when exactly one exists",
+    )
+    parser.add_argument(
+        "--list-ports",
+        action="store_true",
+        help="list discoverable voltage, transmission-line, and frill terminal outputs",
+    )
+    parser.add_argument("--fmin", type=float, help="minimum plotted port frequency in Hz")
+    parser.add_argument("--fmax", type=float, help="maximum plotted port frequency in Hz")
+    parser.add_argument(
+        "--tmin", type=float, help="minimum plotted terminal-history time in seconds"
+    )
+    parser.add_argument(
+        "--tmax", type=float, help="maximum plotted terminal-history time in seconds"
+    )
+    parser.add_argument(
+        "--params-only",
+        action="store_true",
+        help="plot S11, impedance, and admittance without available signal histories",
+    )
     parser.add_argument(
         "--tltx-num", default=1, type=int, help="transmitter antenna - transmission line number"
     )
@@ -478,7 +884,29 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    antennaparams = calculate_antenna_params(
-        args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component
-    )
-    mpl_plot(args.outputfile, **antennaparams, show=not args.save)
+    terminal_paths = discover_terminal_outputs(args.outputfile)
+    if args.list_ports:
+        if terminal_paths:
+            print("\n".join(terminal_paths))
+        else:
+            print("No terminal outputs found")
+        raise SystemExit(0)
+
+    use_legacy_s21 = args.tlrx_num is not None or args.rx_num is not None
+    if args.port is not None or (terminal_paths and not use_legacy_s21):
+        portparams = read_port_params(args.outputfile, args.port)
+        mpl_plot_port(
+            args.outputfile,
+            **portparams,
+            fmin=args.fmin,
+            fmax=args.fmax,
+            tmin=args.tmin,
+            tmax=args.tmax,
+            plot_signals=not args.params_only,
+            show=not args.save,
+        )
+    else:
+        antennaparams = calculate_antenna_params(
+            args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component
+        )
+        mpl_plot(args.outputfile, **antennaparams, show=not args.save)

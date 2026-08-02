@@ -36,12 +36,12 @@ This module enables a Portable Network Graphics (PNG) image file to be converted
 
 .. code-block:: none
 
-    python -m toolboxes.Utilities.convert_png2h5 imagefile dxdydz
+    python -m toolboxes.Utilities.convert_png2h5 imagefile dx dy dz
 
 where:
 
 * ``imagefile`` is the name of the PNG image file including the path
-* ``dxdydz`` is the spatial discretisation to be used in the model
+* ``dx dy dz`` are the three spatial discretisations to be used in the model
 
 There is an optional command line argument:
 
@@ -59,13 +59,15 @@ The module will display the PNG image and allow the user to select colours that 
 get_host_spec.py
 ----------------
 
-This module prints information about the host machine capabilities for OpenMP/CUDA/OpenCL.
+This module prints information about the host machine capabilities for OpenMP,
+CUDA, OpenCL, and Apple Metal. It is safe to import; the hardware probing is
+performed only when the module is run as a command.
 
 
 outputfiles_merge.py
 --------------------
 
-gprMax produces a separate output file for each trace (A-scan) in a B-scan. This module combines the separate output files into a single file, and can remove the separate output files afterwards. Usage (from the top-level gprMax directory) is:
+gprMax produces a separate output file for each trace (A-scan) in a B-scan. This module combines the separate output files into a single file, and can remove the separate output files afterwards. Main-grid and subgrid receiver outputs and their metadata are retained. The files must have matching receiver schemas, iteration counts, and time steps. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 

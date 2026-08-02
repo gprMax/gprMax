@@ -30,8 +30,12 @@ testing/*.out
 testing/*.png
 
 # Output files from running the examples
-examples/*.h5
-examples/*.pdf
+examples/**/*.h5
+examples/**/*.pdf
+examples/**/*.npy
+examples/**/*.vti
+examples/**/*.vtkhdf
+examples/**/*_eigenmode_*.png
 
 # Test coverage files
 .coverage

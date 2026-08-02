@@ -1,8 +1,8 @@
 Toolboxes is a sub-package where useful Python modules contributed by users are stored.
 
-****************
-Antenna Patterns
-****************
+********************
+GPR Antenna Patterns
+********************
 
 Information
 ===========
@@ -13,38 +13,89 @@ Information
 
 **Attribution/cite**: Warren, C., Giannopoulos, A. (2016). Characterisation of a Ground Penetrating Radar Antenna in Lossless Homogeneous and Lossy Heterogeneous Environments. *Signal Processing* (http://dx.doi.org/10.1016/j.sigpro.2016.04.010)
 
-The package contains scripts to help calculate, process, and visualise field patterns from simulations that contain models of antennas.
+The package contains scripts to calculate, process, and visualise finite-radius
+field-intensity patterns from simulations containing models of GPR antennas.
+Electric or magnetic field components are sampled by receiver circles around
+the antenna and integrated over the time record. This makes the method useful
+for antennas operating across an air--ground interface or in heterogeneous
+ground, where a conventional homogeneous-background near-to-far-field
+transformation is not applicable.
+
+These outputs are not NTFF radiation patterns, gain, or directivity. They show
+the angular distribution of a time-integrated tangential-field intensity at
+the requested observation radii. Patterns at several radii are useful for
+showing how the field distribution evolves through the near-field and
+radiating regions.
 
 .. warning::
 
-    Although the principals of calculating and visualising field patterns are straightforward, this package should be used with care. The package:
+    Although the principles of calculating and visualising field-intensity
+    patterns are straightforward, this package should be used with care. The
+    package:
 
-    * Does not calculate/plot conventional field patterns, i.e. at a single frequency. It uses a measure of the total energy of the electric field at a certain angle and radius, see http://dx.doi.org/10.1016/j.jappgeo.2013.08.001
-    * Requires knowledge of Python to contruct input files with antenna models and positioning of receivers, as well as to edit/modify the saving and processing modules
-    * Can require simulations that demand significant computational resource depending on the distance from the antenna at which the field patterns are observed, e.g. the example models, set with a maximum observation distance of 0.6m, require ~30GB of RAM
+    * Does not calculate a conventional single-frequency far-field pattern. It
+      uses a time-integrated field-intensity measure at each angle and radius;
+      see http://dx.doi.org/10.1016/j.jappgeo.2013.08.001.
+    * Requires receiver circles large enough to contain all desired observation
+      radii, which can make the FDTD domain computationally demanding.
+    * Must not be interpreted as antenna gain or directivity. Use the NTFF
+      antenna outputs for those quantities when the antenna and integration
+      surface are entirely in a homogeneous background.
 
 Package contents
 ================
 
-* ``initial_save.py`` is a module that calculates and stores (in a Numpy file) the field patterns from the output file of a simulation.
-* ``plot_fields.py`` is a module that plots the field patterns. It should be used after the field pattern data has been processed and stored using the ``initial_save.py`` module.
+* ``initial_save.py`` selects the explicitly identified pattern receivers,
+  calculates the time-integrated field intensity, and stores the patterns and
+  their metadata in a NumPy ``.npz`` file.
+* ``plot_fields.py`` plots the processed patterns. It should be used after the
+  data has been processed by ``initial_save.py``.
 
 The package has been designed to work with the input file found in the ``examples`` directory:
 
-* ``antenna_like_GSSI_1500_patterns.py`` is an input file that includes an antenna model similar to a GSSI 1.5 GHz antenna and receivers to calculate field patterns in the principal E- and H-planes of the antenna
+* ``antenna_like_GSSI_1500_patterns.py`` includes a model similar to a GSSI
+  1.5 GHz antenna and receiver circles for its principal E- or H-plane. It also
+  writes a JSON metadata file used by the processing script.
 
 
 How to use the package
 ======================
 
-* Firstly you should familiarise yourself with the example model input file. Edit the input file as desired and run a simulation for either E-plane or H-plane patterns.
-* Whilst the simulation is running edit the 'user configurable parameters' sections of the ``initial_save.py`` and ``plot_fields.py`` modules to match the setup of the simulation.
-* Once the simulation has completed, run the ``initial_save.py`` module on the output file, e.g. ``python -m toolboxes.AntennaPatterns.initial_save examples/antenna_like_GSSI_1500_patterns.h5``. This will produce a Numpy file containing the field pattern data.
-* Plot the field pattern data by running the ``plot_fields.py`` module on the Numpy file, e.g. for the E-plane ``python -m toolboxes.AntennaPatterns.plot_fields examples/antenna_like_GSSI_1500_patterns.npy``
+Run the E-plane example on CUDA device zero:
+
+.. code-block:: console
+
+    python examples/gpr/antennas/gssi_1500/antenna_like_GSSI_1500_patterns.py --pattern E --gpu 0
+
+The default 1 mm model is intended for producing the final pattern. For a
+quicker workflow check, the antenna model also supports a 2 mm grid:
+
+.. code-block:: console
+
+    python examples/gpr/antennas/gssi_1500/antenna_like_GSSI_1500_patterns.py --pattern E --resolution 0.002 --gpu 0
+
+After the simulation, process the HDF5 receiver outputs. The matching JSON
+metadata file is found automatically:
+
+.. code-block:: console
+
+    python -m toolboxes.AntennaPatterns.initial_save examples/gpr/antennas/gssi_1500/antenna_like_GSSI_1500_patterns.h5
+
+Finally, create the polar plot:
+
+.. code-block:: console
+
+    python -m toolboxes.AntennaPatterns.plot_fields examples/gpr/antennas/gssi_1500/antenna_like_GSSI_1500_patterns.npz
+
+Use ``--pattern H`` for the H-plane. The model stores the radii, angles,
+pattern plane, material properties, and antenna origin in the metadata file,
+so the processing and plotting scripts do not have to be edited to match the
+model.
 
 .. tip::
 
-    If you want to create different plots you just need to edit and re-run the ``plot_fields.py`` module on the Numpy file, i.e. you don't have to re-process the output file.
+    Plot limits and output filenames can be changed using the command-line
+    options of ``plot_fields.py`` without re-processing the HDF5 output.
 
 
 .. figure:: ../../images_shared/antenna_like_GSSI_1500_patterns_E_Er5.png

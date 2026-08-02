@@ -3,12 +3,12 @@
 %
 % Craig Warren
 
-clear all, clc
+clearvars; clc
 
-[filename, pathname] = uigetfile('*.out', 'Select gprMax A-scan output file to plot');
+[filename, pathname] = uigetfile('*.h5', 'Select gprMax A-scan output file to plot');
 fullfilename = strcat(pathname, filename);
 
-if filename ~= 0
+if ~isequal(filename, 0)
     header.title = h5readatt(fullfilename, '/', 'Title');
     header.iterations = double(h5readatt(fullfilename,'/', 'Iterations'));
     tmp = h5readatt(fullfilename, '/', 'dx_dy_dz');
@@ -22,14 +22,6 @@ if filename ~= 0
     % Time vector for plotting
     time = linspace(0, (header.iterations - 1) * header.dt, header.iterations)';
 
-    % Initialise structure for field arrays
-    fields.ex = zeros(header.iterations, header.nrx);
-    fields.ey = zeros(header.iterations, header.nrx);
-    fields.ez = zeros(header.iterations, header.nrx);
-    fields.hx = zeros(header.iterations, header.nrx);
-    fields.hy = zeros(header.iterations, header.nrx);
-    fields.hz = zeros(header.iterations, header.nrx);
-
     % Save and plot fields from each receiver
     for n=1:header.nrx
         path = strcat('/rxs/rx', num2str(n));
@@ -37,21 +29,31 @@ if filename ~= 0
         header.rx(n) = tmp(1);
         header.ry(n) = tmp(2);
         header.rz(n) = tmp(3);
-        path = strcat(path, '/');
-        fields.ex(:,n) = h5read(fullfilename, strcat(path, 'Ex'));
-        fields.ey(:,n) = h5read(fullfilename, strcat(path, 'Ey'));
-        fields.ez(:,n) = h5read(fullfilename, strcat(path, 'Ez'));
-        fields.hx(:,n) = h5read(fullfilename, strcat(path, 'Hx'));
-        fields.hy(:,n) = h5read(fullfilename, strcat(path, 'Hy'));
-        fields.hz(:,n) = h5read(fullfilename, strcat(path, 'Hz'));
+        info = h5info(fullfilename, path);
+        outputs = {info.Datasets.Name};
+        if isempty(outputs)
+            warning('No receiver datasets found at %s', path);
+            continue
+        end
 
         fh1=figure('Name', strcat('rx', num2str(n)));
-        ax(1) = subplot(3,2,1); plot(time, fields.ex(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [s]'), ylabel('Field strength [V/m]'), title('E_x')
-        ax(2) = subplot(3,2,3); plot(time, fields.ey(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [s]'), ylabel('Field strength [V/m]'), title('E_y')
-        ax(3) = subplot(3,2,5); plot(time, fields.ez(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [s]'), ylabel('Field strength [V/m]'), title('E_z')
-        ax(4) = subplot(3,2,2); plot(time, fields.hx(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [s]'), ylabel('Field strength [A/m]'), title('H_x')
-        ax(5) = subplot(3,2,4); plot(time, fields.hy(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [s]'), ylabel('Field strength [A/m]'), title('H_y')
-        ax(6) = subplot(3,2,6); plot(time, fields.hz(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [s]'), ylabel('Field strength [A/m]'), title('H_z')
+        tiledlayout(ceil(numel(outputs) / 2), 2);
+        ax = gobjects(1, numel(outputs));
+        for outputindex=1:numel(outputs)
+            output = outputs{outputindex};
+            outputdata = h5read(fullfilename, strcat(path, '/', output));
+            fields.(lower(output))(:,n) = outputdata;
+            ax(outputindex) = nexttile;
+            if startsWith(output, 'E')
+                colour = 'r'; units = 'Field strength [V/m]';
+            elseif startsWith(output, 'H')
+                colour = 'b'; units = 'Field strength [A/m]';
+            else
+                colour = 'k'; units = 'Current [A]';
+            end
+            plot(time, outputdata, colour, 'LineWidth', 2), grid on
+            xlabel('Time [s]'), ylabel(units), title(strrep(output, '_', '\_'))
+        end
         set(ax,'FontSize', 16, 'xlim', [0 time(end)]);
 
         % Options to create a nice looking figure for display and printing

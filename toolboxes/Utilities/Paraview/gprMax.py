@@ -24,6 +24,7 @@ from paraview.simple import (
     FetchData,
     GetActiveSource,
     GetActiveView,
+    GetActiveViewOrCreate,
     GetDisplayProperties,
     GetParaViewVersion,
     Hide,
@@ -266,11 +267,13 @@ try:
     ################
 
     # Get active view
-    pv_view = GetActiveView()
+    pv_view = GetActiveView() or GetActiveViewOrCreate("RenderView")
     pv_view.AxesGrid.Visibility = 1  # Show Data Axes Grid
 
     # Get display properties
     pv_disp = GetDisplayProperties(pv_source, view=pv_view)
+    if pv_disp is None:
+        pv_disp = Show(pv_source, pv_view)
 
     # Set scalar colouring
     ColorBy(pv_disp, COLOUR_SCALARS)
