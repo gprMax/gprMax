@@ -1250,6 +1250,13 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         )
 
 
+def _reject_discrete_plane_wave_mpi(params_str):
+    """Reject TFSF corrections that are not MPI-decomposition aware."""
+
+    if config.sim_config.mpi:
+        raise ValueError(f"{params_str} cannot currently be used with MPI.")
+
+
 def _dpw_tfsf_corners(uip, p1, p2, params_str):
     """Discretises and validates the TFSF box corners for a discrete plane
     wave, shared by all three #plane_wave_* builders.
@@ -1367,6 +1374,8 @@ class DiscretePlaneWaveAngles(GridUserObject):
         except KeyError:
             logger.exception(f"{self.params_str()} requires at least ten parameters.")
             raise
+
+        _reject_discrete_plane_wave_mpi(self.params_str())
         try:
             max_angle_diff = self.kwargs["max_angle_diff"]
         except KeyError:
@@ -1563,6 +1572,8 @@ class DiscretePlaneWaveVector(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least eleven parameters.")
             raise
 
+        _reject_discrete_plane_wave_mpi(self.params_str())
+
 
         try:
             material_id = self.kwargs["material_id"]
@@ -1734,6 +1745,8 @@ class DiscretePlaneWaveAxial(GridUserObject):
         except KeyError:
             logger.exception(f"{self.params_str()} requires at least 9 parameters.")
             raise
+
+        _reject_discrete_plane_wave_mpi(self.params_str())
 
         try:
             precompute = self.kwargs["precompute"]
