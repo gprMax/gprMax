@@ -19,6 +19,7 @@
 
 """Advanced-time KSIR field extension for CPU and device collectors."""
 
+import logging
 from collections import deque
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -32,10 +33,8 @@ from .closures import ResolvedKSIRClosure
 from .surfaces import KSIRComponentSurface
 
 try:
-    from gprMax.cython.ntff import (
-        deposit_time_domain_surface as _deposit_time_domain_surface,
-        gather_time_domain_surface as _gather_time_domain_surface,
-    )
+    from gprMax.cython.ntff import deposit_time_domain_surface as _deposit_time_domain_surface
+    from gprMax.cython.ntff import gather_time_domain_surface as _gather_time_domain_surface
 except ImportError:  # Source-tree use before extensions are rebuilt.
     _deposit_time_domain_surface = None
     _gather_time_domain_surface = None
@@ -43,6 +42,12 @@ except ImportError:  # Source-tree use before extensions are rebuilt.
 
 ELECTRIC_COMPONENTS = ("Ex", "Ey", "Ez")
 MAGNETIC_COMPONENTS = ("Hx", "Hy", "Hz")
+# Avoid warning on the normal sub-percent spatial-quadrature tail while still
+# detecting a materially truncated pulse.
+TERMINAL_DECAY_THRESHOLD = 1e-2
+TERMINAL_DECAY_WINDOW_SAMPLES = 32
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -57,23 +62,65 @@ class KSIRTimeDomainResult:
     time_origin: str
     time_origins: npt.NDArray[np.floating]
     valid_lengths: npt.NDArray[np.int64]
+    fully_supported_lengths: npt.NDArray[np.int64]
+    terminal_field_ratios: npt.NDArray[np.floating]
+    terminal_decay_ok: npt.NDArray[np.bool_]
+    terminal_decay_threshold: float
+    terminal_decay_window_samples: int
     collection_backend: str
     closure: str
     mathematically_closed: bool
 
     def point_times(self, point_index: int) -> npt.NDArray[np.floating]:
-        """Return physical times for one point's valid output samples."""
+        """Return physical times for one point's fully supported samples."""
+
+        length = int(self.fully_supported_lengths[point_index])
+        return self.time_origins[point_index] + self.times[:length]
+
+    def point_field(self, component: str, point_index: int) -> npt.NDArray[np.floating]:
+        """Return one point's fully supported field trace."""
+
+        length = int(self.fully_supported_lengths[point_index])
+        return self.fields[component][point_index, :length]
+
+    def point_raw_times(self, point_index: int) -> npt.NDArray[np.floating]:
+        """Return all stored times, including the partial retarded tail."""
 
         length = int(self.valid_lengths[point_index])
         return self.time_origins[point_index] + self.times[:length]
 
-    def point_field(
-        self, component: str, point_index: int
-    ) -> npt.NDArray[np.floating]:
-        """Return one point's valid field trace without padded trailing bins."""
+    def point_raw_field(self, component: str, point_index: int) -> npt.NDArray[np.floating]:
+        """Return all stored field bins, including the partial retarded tail."""
 
         length = int(self.valid_lengths[point_index])
         return self.fields[component][point_index, :length]
+
+
+def _terminal_field_ratios(
+    fields: Mapping[str, npt.NDArray[np.floating]],
+    fully_supported_lengths: npt.NDArray[np.int64],
+    window_samples: int,
+    dtype: npt.DTypeLike,
+) -> npt.NDArray[np.floating]:
+    """Return the largest terminal-window/peak ratio at each point.
+
+    Ratios are formed independently for every field component before taking
+    their maximum, so electric and magnetic field units are never mixed.
+    """
+
+    ratios = np.zeros(fully_supported_lengths.size, dtype=dtype)
+    for point_index, raw_length in enumerate(fully_supported_lengths):
+        length = int(raw_length)
+        width = min(window_samples, length)
+        for values in fields.values():
+            trace = np.asarray(values[point_index, :length])
+            peak = float(np.max(np.abs(trace)))
+            if peak == 0:
+                continue
+            terminal = float(np.max(np.abs(trace[-width:])))
+            ratios[point_index] = max(ratios[point_index], terminal / peak)
+    ratios.setflags(write=False)
+    return ratios
 
 
 class _ComponentAccumulator:
@@ -114,16 +161,12 @@ class _ComponentAccumulator:
         source_patch_indices = []
         parities = []
         for image in closure.component_images(surface.component):
-            image_positions, image_normals = image.transform(
-                base_positions, base_normals
-            )
+            image_positions, image_normals = image.transform(base_positions, base_normals)
             positions.append(image_positions)
             normals.append(image_normals)
             areas.append(base_areas)
             source_patch_indices.append(base_indices)
-            parities.append(
-                np.full(surface.npatches, image.parity, dtype=self.real_dtype)
-            )
+            parities.append(np.full(surface.npatches, image.parity, dtype=self.real_dtype))
         positions = np.concatenate(positions)
         normals = np.concatenate(normals)
         areas = np.concatenate(areas)
@@ -146,9 +189,9 @@ class _ComponentAccumulator:
             np.asarray((lower, upper), dtype=self.real_dtype)
             for lower, upper in zip(support_lower, support_upper)
         ]
-        support_corners = np.stack(
-            np.meshgrid(*support_axes, indexing="ij"), axis=-1
-        ).reshape(-1, 3)
+        support_corners = np.stack(np.meshgrid(*support_axes, indexing="ij"), axis=-1).reshape(
+            -1, 3
+        )
         completed_corners = []
         corner_normals = np.zeros_like(support_corners)
         for image in closure.component_images(surface.component):
@@ -160,15 +203,12 @@ class _ComponentAccumulator:
         displacement = points[:, np.newaxis, :] - positions[np.newaxis, :, :]
         distance = np.linalg.norm(displacement, axis=2)
         if np.any(distance == 0):
-            raise ValueError(
-                "observation points must not coincide with surface patches"
-            )
+            raise ValueError("observation points must not coincide with surface patches")
         direction = displacement / distance[:, :, np.newaxis]
         normal_projection = np.sum(normals[np.newaxis, :, :] * direction, axis=2)
 
         self._normal_derivative_weight = np.ascontiguousarray(
-            -areas[np.newaxis, :] * parity[np.newaxis, :]
-            / (4 * np.pi * distance),
+            -areas[np.newaxis, :] * parity[np.newaxis, :] / (4 * np.pi * distance),
             dtype=self.real_dtype,
         )
         self._field_weight = np.ascontiguousarray(
@@ -187,38 +227,27 @@ class _ComponentAccumulator:
         )
 
         delay = sample_time_offset_steps + distance / (wave_speed * dt)
-        self._integer_delay = np.ascontiguousarray(
-            np.floor(delay), dtype=np.int64
-        )
+        self._integer_delay = np.ascontiguousarray(np.floor(delay), dtype=np.int64)
         self._fractional_delay = np.ascontiguousarray(
             delay - self._integer_delay, dtype=self.real_dtype
         )
         self.minimum_delay_steps = np.min(delay, axis=1)
         self.maximum_integer_delay_steps = np.max(self._integer_delay, axis=1)
         self._inside_indices = np.ascontiguousarray(
-            np.concatenate(
-                [face.inside_flat_indices for face in self.surface.faces]
-            ),
+            np.concatenate([face.inside_flat_indices for face in self.surface.faces]),
             dtype=np.int64,
         )
         self._outside_indices = np.ascontiguousarray(
-            np.concatenate(
-                [face.outside_flat_indices for face in self.surface.faces]
-            ),
+            np.concatenate([face.outside_flat_indices for face in self.surface.faces]),
             dtype=np.int64,
         )
         self._normal_spacing = np.ascontiguousarray(
             np.concatenate(
-                [
-                    np.full(face.npatches, face.normal_spacing)
-                    for face in self.surface.faces
-                ]
+                [np.full(face.npatches, face.normal_spacing) for face in self.surface.faces]
             ),
             dtype=self.real_dtype,
         )
-        self._surface_buffer = np.empty(
-            self.surface.npatches, dtype=self.real_dtype
-        )
+        self._surface_buffer = np.empty(self.surface.npatches, dtype=self.real_dtype)
         self._derivative_buffer = np.empty_like(self._surface_buffer)
         self._time_origin_steps: npt.NDArray[np.int64]
         self.output: npt.NDArray[np.floating] | None
@@ -230,13 +259,9 @@ class _ComponentAccumulator:
         *,
         allocate_output: bool = True,
     ) -> None:
-        self._time_origin_steps = np.ascontiguousarray(
-            time_origin_steps, dtype=np.int64
-        )
+        self._time_origin_steps = np.ascontiguousarray(time_origin_steps, dtype=np.int64)
         if allocate_output:
-            self.output = np.zeros(
-                (self.points.shape[0], output_length), dtype=self.real_dtype
-            )
+            self.output = np.zeros((self.points.shape[0], output_length), dtype=self.real_dtype)
         else:
             self.output = None
 
@@ -250,9 +275,7 @@ class _ComponentAccumulator:
                 f"{self.surface.field_shape}"
             )
         if _gather_time_domain_surface is not None:
-            flat = np.ascontiguousarray(
-                values_array, dtype=self.real_dtype
-            ).ravel()
+            flat = np.ascontiguousarray(values_array, dtype=self.real_dtype).ravel()
             _gather_time_domain_surface(
                 self.nthreads,
                 self._inside_indices,
@@ -281,9 +304,7 @@ class _ComponentAccumulator:
         time_derivative: npt.NDArray,
     ) -> None:
         if sample_index != self._last_deposited + 1:
-            raise RuntimeError(
-                "KSIR samples must be deposited exactly once in time order"
-            )
+            raise RuntimeError("KSIR samples must be deposited exactly once in time order")
 
         if _deposit_time_domain_surface is not None:
             _deposit_time_domain_surface(
@@ -306,17 +327,11 @@ class _ComponentAccumulator:
 
         source = self._source_patch_index
         integrand = (
-            self._normal_derivative_weight
-            * normal_derivative[source][np.newaxis, :]
+            self._normal_derivative_weight * normal_derivative[source][np.newaxis, :]
             + self._field_weight * surface_value[source][np.newaxis, :]
-            + self._time_derivative_weight
-            * time_derivative[source][np.newaxis, :]
+            + self._time_derivative_weight * time_derivative[source][np.newaxis, :]
         )
-        destination = (
-            sample_index
-            + self._integer_delay
-            - self._time_origin_steps[:, np.newaxis]
-        )
+        destination = sample_index + self._integer_delay - self._time_origin_steps[:, np.newaxis]
         for point_index in range(self.points.shape[0]):
             np.add.at(
                 self.output[point_index],
@@ -349,9 +364,7 @@ class _ComponentAccumulator:
 
         previous, centre, following = self._recent
         if iteration == 2:
-            forward_derivative = (
-                -3 * previous[1] + 4 * centre[1] - following[1]
-            ) / (2 * self.dt)
+            forward_derivative = (-3 * previous[1] + 4 * centre[1] - following[1]) / (2 * self.dt)
             self._deposit(previous[0], previous[1], previous[2], forward_derivative)
 
         centred_derivative = (following[1] - previous[1]) / (2 * self.dt)
@@ -379,9 +392,9 @@ class _ComponentAccumulator:
             self._deposit(last[0], last[1], last[2], derivative)
         elif len(self._recent) == 3:
             before_previous, previous, last = self._recent
-            backward_derivative = (
-                3 * last[1] - 4 * previous[1] + before_previous[1]
-            ) / (2 * self.dt)
+            backward_derivative = (3 * last[1] - 4 * previous[1] + before_previous[1]) / (
+                2 * self.dt
+            )
             self._deposit(last[0], last[1], last[2], backward_derivative)
 
         self.output.setflags(write=False)
@@ -427,24 +440,16 @@ class KSIRTimeDomainMonitor:
             "simulation",
             "first_arrival",
         ):
-            raise ValueError(
-                "time_origin must be 'simulation' or 'first_arrival'"
-            )
+            raise ValueError("time_origin must be 'simulation' or 'first_arrival'")
         if device_backend not in (None, "cuda", "opencl", "metal"):
-            raise ValueError(
-                "device_backend must be None, 'cuda', 'opencl', or 'metal'"
-            )
+            raise ValueError("device_backend must be None, 'cuda', 'opencl', or 'metal'")
         self.real_dtype = np.dtype(real_dtype)
         if self.real_dtype.kind != "f":
             raise ValueError("real_dtype must be a floating-point dtype")
         point_array = np.asarray(points, dtype=self.real_dtype)
         if point_array.ndim == 1:
             point_array = point_array[np.newaxis, :]
-        if (
-            point_array.ndim != 2
-            or point_array.shape[0] == 0
-            or point_array.shape[1] != 3
-        ):
+        if point_array.ndim != 2 or point_array.shape[0] == 0 or point_array.shape[1] != 3:
             raise ValueError("points must have shape (npoints, 3)")
         if not np.all(np.isfinite(point_array)):
             raise ValueError("points must contain only finite values")
@@ -474,13 +479,9 @@ class KSIRTimeDomainMonitor:
             self.collection_backend = f"{device_backend}_device"
         self.components = components
         self.surfaces = MappingProxyType(dict(surfaces))
-        self.closure = closure or ResolvedKSIRClosure(
-            "closed", (), (), True, True
-        )
+        self.closure = closure or ResolvedKSIRClosure("closed", (), (), True, True)
         if not self.closure.mathematically_closed:
-            raise ValueError(
-                "advanced-time KSIR requires a closed or symmetry-completed surface"
-            )
+            raise ValueError("advanced-time KSIR requires a closed or symmetry-completed surface")
         for surface in surfaces.values():
             face_ids = tuple(face.face_id for face in surface.faces)
             if face_ids != self.closure.active_faces:
@@ -515,14 +516,8 @@ class KSIRTimeDomainMonitor:
             )
             tolerance = 10 * np.finfo(self.real_dtype).eps * completed_scale
             on_or_inside = np.all(
-                (
-                    point_array
-                    >= accumulator.completed_physical_lower - tolerance
-                )
-                & (
-                    point_array
-                    <= accumulator.completed_physical_upper + tolerance
-                ),
+                (point_array >= accumulator.completed_physical_lower - tolerance)
+                & (point_array <= accumulator.completed_physical_upper + tolerance),
                 axis=1,
             )
             if np.any(on_or_inside):
@@ -533,10 +528,7 @@ class KSIRTimeDomainMonitor:
 
         minimum_delay = np.min(
             np.stack(
-                [
-                    accumulator.minimum_delay_steps
-                    for accumulator in self._accumulators.values()
-                ]
+                [accumulator.minimum_delay_steps for accumulator in self._accumulators.values()]
             ),
             axis=0,
         )
@@ -553,22 +545,20 @@ class KSIRTimeDomainMonitor:
             time_origin_steps = np.floor(minimum_delay).astype(np.int64)
         else:
             time_origin_steps = np.zeros(self.points.shape[0], dtype=np.int64)
-        valid_lengths = (
-            self.iterations
-            + maximum_integer_delay
-            - time_origin_steps
-            + 1
+        valid_lengths = self.iterations + maximum_integer_delay - time_origin_steps + 1
+        fully_supported_lengths = (
+            self.iterations + np.floor(minimum_delay).astype(np.int64) - time_origin_steps
         )
-        self.time_origin_steps = np.ascontiguousarray(
-            time_origin_steps, dtype=np.int64
-        )
+        if np.any(fully_supported_lengths <= 0) or np.any(fully_supported_lengths > valid_lengths):
+            raise RuntimeError("invalid KSIR fully supported time interval")
+        self.time_origin_steps = np.ascontiguousarray(time_origin_steps, dtype=np.int64)
         self.time_origin_steps.setflags(write=False)
-        self.time_origins = np.asarray(
-            self.time_origin_steps * self.dt, dtype=self.real_dtype
-        )
+        self.time_origins = np.asarray(self.time_origin_steps * self.dt, dtype=self.real_dtype)
         self.time_origins.setflags(write=False)
         self.valid_lengths = np.ascontiguousarray(valid_lengths, dtype=np.int64)
         self.valid_lengths.setflags(write=False)
+        self.fully_supported_lengths = np.ascontiguousarray(fully_supported_lengths, dtype=np.int64)
+        self.fully_supported_lengths.setflags(write=False)
         self.output_length = int(np.max(self.valid_lengths))
         for accumulator in self._accumulators.values():
             accumulator.allocate(
@@ -580,14 +570,10 @@ class KSIRTimeDomainMonitor:
     @property
     def result(self) -> KSIRTimeDomainResult:
         if self._result is None:
-            raise RuntimeError(
-                "KSIR result is not available until the solver has finalised"
-            )
+            raise RuntimeError("KSIR result is not available until the solver has finalised")
         return self._result
 
-    def validate_materials(
-        self, material_ids: npt.ArrayLike, id_lookup: Mapping[str, int]
-    ) -> int:
+    def validate_materials(self, material_ids: npt.ArrayLike, id_lookup: Mapping[str, int]) -> int:
         """Verify that all straddling samples use one homogeneous material ID."""
 
         ids = np.asarray(material_ids)
@@ -612,16 +598,11 @@ class KSIRTimeDomainMonitor:
                         atol=tolerance,
                     )
                 if np.any(keep):
-                    sampled_ids.append(
-                        component_ids[tuple(face.inside_indices[keep].T)]
-                    )
-                    sampled_ids.append(
-                        component_ids[tuple(face.outside_indices[keep].T)]
-                    )
+                    sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
+                    sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
         if not sampled_ids:
             raise ValueError(
-                f"KSIR monitor {self.name!r} has no off-symmetry samples "
-                "for material validation"
+                f"KSIR monitor {self.name!r} has no off-symmetry samples " "for material validation"
             )
         unique_ids = np.unique(np.concatenate(sampled_ids))
         if unique_ids.size != 1:
@@ -666,20 +647,24 @@ class KSIRTimeDomainMonitor:
         if self.device_backend is None:
             for accumulator in self._accumulators.values():
                 accumulator.finalise()
-        elif any(
-            accumulator.output is None
-            for accumulator in self._accumulators.values()
-        ):
+        elif any(accumulator.output is None for accumulator in self._accumulators.values()):
             raise RuntimeError("not all device KSIR component outputs were loaded")
 
         times = self.dt * np.arange(self.output_length, dtype=self.real_dtype)
         times.setflags(write=False)
         fields = MappingProxyType(
-            {
-                component: self._accumulators[component].output
-                for component in self.components
-            }
+            {component: self._accumulators[component].output for component in self.components}
         )
+        terminal_field_ratios = _terminal_field_ratios(
+            fields,
+            self.fully_supported_lengths,
+            TERMINAL_DECAY_WINDOW_SAMPLES,
+            self.real_dtype,
+        )
+        terminal_decay_ok = np.ascontiguousarray(
+            terminal_field_ratios <= TERMINAL_DECAY_THRESHOLD, dtype=bool
+        )
+        terminal_decay_ok.setflags(write=False)
         offsets = MappingProxyType(
             {
                 component: (0.0 if component in ELECTRIC_COMPONENTS else 0.5 * self.dt)
@@ -695,15 +680,31 @@ class KSIRTimeDomainMonitor:
             time_origin=self.time_origin,
             time_origins=self.time_origins,
             valid_lengths=self.valid_lengths,
+            fully_supported_lengths=self.fully_supported_lengths,
+            terminal_field_ratios=terminal_field_ratios,
+            terminal_decay_ok=terminal_decay_ok,
+            terminal_decay_threshold=TERMINAL_DECAY_THRESHOLD,
+            terminal_decay_window_samples=TERMINAL_DECAY_WINDOW_SAMPLES,
             collection_backend=self.collection_backend,
             closure=self.closure.name,
             mathematically_closed=self.closure.mathematically_closed,
         )
+        if not np.all(terminal_decay_ok):
+            worst_point = int(np.argmax(terminal_field_ratios))
+            logger.warning(
+                "KSIR time monitor %r has not decayed below %.1e at the end "
+                "of its fully supported interval (point %d ratio %.3e). "
+                "Increase the simulation time window; bins beyond "
+                "fully_supported_lengths contain only a partial retarded "
+                "surface history.",
+                self.name,
+                TERMINAL_DECAY_THRESHOLD,
+                worst_point,
+                terminal_field_ratios[worst_point],
+            )
         self._finalised = True
 
-    def load_device_component_output(
-        self, component: str, output: npt.ArrayLike
-    ) -> None:
+    def load_device_component_output(self, component: str, output: npt.ArrayLike) -> None:
         """Attach one configured-dtype history downloaded at finalisation."""
 
         if self.device_backend is None:
@@ -715,13 +716,9 @@ class KSIRTimeDomainMonitor:
         values = np.asarray(output)
         expected_shape = (self.points.shape[0], self.output_length)
         if values.shape != expected_shape:
-            raise ValueError(
-                f"device output for {component} must have shape {expected_shape}"
-            )
+            raise ValueError(f"device output for {component} must have shape {expected_shape}")
         if values.dtype != self.real_dtype:
-            raise ValueError(
-                f"device output for {component} must use dtype {self.real_dtype}"
-            )
+            raise ValueError(f"device output for {component} must use dtype {self.real_dtype}")
         values = np.ascontiguousarray(values)
         values.setflags(write=False)
         self._accumulators[component].output = values
@@ -741,9 +738,7 @@ class KSIRTimeDomainMonitor:
         group.attrs["mathematically_closed"] = self.closure.mathematically_closed
         group.attrs["closure"] = self.closure.name
         group.attrs["closure_exact"] = self.closure.exact
-        group.attrs["omitted_faces"] = np.asarray(
-            self.closure.omitted_faces, dtype="S5"
-        )
+        group.attrs["omitted_faces"] = np.asarray(self.closure.omitted_faces, dtype="S5")
         group.attrs["symmetry_plane_faces"] = np.asarray(
             [plane.face for plane in self.closure.symmetry_planes], dtype="S5"
         )
@@ -761,9 +756,7 @@ class KSIRTimeDomainMonitor:
             *first_surface.upper,
         )
         group.attrs["wave_speed"] = self.wave_speed
-        group.attrs["precision"] = (
-            "single" if self.real_dtype.itemsize == 4 else "double"
-        )
+        group.attrs["precision"] = "single" if self.real_dtype.itemsize == 4 else "double"
         group.attrs["real_dtype"] = self.real_dtype.name
         group.attrs["solver"] = self.device_backend or "cpu"
         group.attrs["collection_backend"] = self.collection_backend
@@ -777,6 +770,11 @@ class KSIRTimeDomainMonitor:
             dtype=self.real_dtype,
         )
         group.attrs["time_origin"] = self.time_origin
+        group.attrs["terminal_decay_threshold"] = result.terminal_decay_threshold
+        group.attrs["terminal_decay_window_samples"] = result.terminal_decay_window_samples
+        group.attrs[
+            "raw_tail_policy"
+        ] = "stored_for_research_use; use fully_supported_lengths by default"
         if self.surface_material_id is not None:
             group.attrs["background_material_id"] = self.surface_material_id
 
@@ -784,6 +782,9 @@ class KSIRTimeDomainMonitor:
         group["times"] = result.times
         group["time_origins"] = result.time_origins
         group["valid_lengths"] = result.valid_lengths
+        group["fully_supported_lengths"] = result.fully_supported_lengths
+        group["terminal_field_ratios"] = result.terminal_field_ratios
+        group["terminal_decay_ok"] = result.terminal_decay_ok
         fields_group = group.create_group("fields")
         for component, values in result.fields.items():
             fields_group[component] = values

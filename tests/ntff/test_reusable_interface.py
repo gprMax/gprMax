@@ -100,6 +100,17 @@ def test_python_api_groups_requests_and_exposes_results(tmp_path):
 
     assert time_cartesian.result.fields["Ez"].shape[0] == 1
     assert time_spherical.result.fields["Etheta"].shape[0] == 1
+    assert np.all(
+        time_cartesian.result.fully_supported_lengths <= time_cartesian.result.valid_lengths
+    )
+    assert time_cartesian.result.point_field("Ez", 0).size == int(
+        time_cartesian.result.fully_supported_lengths[0]
+    )
+    assert time_cartesian.result.point_raw_field("Ez", 0).size == int(
+        time_cartesian.result.valid_lengths[0]
+    )
+    assert time_cartesian.result.terminal_field_ratios.shape == (1,)
+    assert time_cartesian.result.terminal_decay_ok.shape == (1,)
     assert frequency_receiver.result.fields["Ez"].shape == (1, 1)
     assert far_field.result.fields["Etheta"].shape == (1, 3)
     assert not frequency_receiver.result.range_normalized

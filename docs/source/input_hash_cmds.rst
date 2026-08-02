@@ -1313,6 +1313,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
+    * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
     * Internally, theta and phi are approximated by an integer direction vector (Mx, My, Mz) found to within a maximum acceptable angular difference of 3 arc minutes (0.05 degrees) by default. This tolerance can be relaxed or tightened using the ``max_angle_diff`` parameter (in degrees) when using the Python API.
 
@@ -1338,6 +1339,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
+    * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
@@ -1364,6 +1366,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
     * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Plane waves support non-dispersive dielectric layers and multi-pole Debye, Lorentz, and Drude layers. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
+    * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
     * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
@@ -1738,6 +1741,13 @@ The engineering convention is used throughout: phasors have time dependence
 ``exp(+j*omega*t)``, the forward transform kernel is ``exp(-j*omega*t)``, and
 the outgoing Green function contains ``exp(-j*k*R)``.
 
+A frequency transform still requires a sufficiently long FDTD time window.
+The ``hann`` window reduces leakage from a truncated non-zero tail, but it is
+not a replacement for allowing the physical surface fields to decay. A
+``rectangular`` window retains the unmodified engineering phasor and is
+required by gain normalisation, but is more sensitive to end-of-record
+truncation.
+
 .. code-block:: none
 
     #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
@@ -1832,6 +1842,14 @@ component names, and both the ID and any desired components must precede
 The spherical radius is explicit because these commands return the actual
 finite-distance field, including all ``1/R`` and ``1/R^2`` terms. It is not a
 normalization constant.
+
+The output file stores both ``fully_supported_lengths`` and ``valid_lengths``.
+Use the former by default: it stops before retarded propagation causes any
+surface patch to run beyond the available FDTD history. The latter exposes the
+longer partial tail for research use. gprMax also records a terminal decay
+ratio and warns when the field has not decayed adequately within the fully
+supported interval; in that case the simulation time window should be
+increased.
 
 #ksir_time_rx_array:
 --------------------
