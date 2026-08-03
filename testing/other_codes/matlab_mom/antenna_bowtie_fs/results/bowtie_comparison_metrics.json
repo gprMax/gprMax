@@ -1,0 +1,71 @@
+{
+  "pattern_frequency_hz": 820000000.0,
+  "outer_length_m": 0.101,
+  "outer_width_m": 0.1,
+  "matlab_flare_angle_deg": 89.42989744483235,
+  "pattern": {
+    "gprmax_vs_matlab_xz": {
+      "number_of_angles": 179,
+      "rms_difference_db": 0.014388065742658586,
+      "maximum_absolute_difference_db": 0.05852889170716935
+    },
+    "gprmax_vs_matlab_xy": {
+      "number_of_angles": 178,
+      "rms_difference_db": 0.3349960575911767,
+      "maximum_absolute_difference_db": 1.9536767697907678
+    }
+  },
+  "s11": {
+    "reference_impedance_ohm": 50.0,
+    "independent_frequency_resolution_hz": 12499837.966874957,
+    "minima": {
+      "matlab": {
+        "frequency_hz": 824762146.430301,
+        "magnitude_db": -13.913161172000724,
+        "sampled_frequency_hz": 826551785.559617,
+        "sampled_magnitude_db": -13.908391350166195
+      },
+      "gprmax_voltage": {
+        "frequency_hz": 799931426.1587648,
+        "magnitude_db": -12.911270525247541,
+        "sampled_frequency_hz": 801552109.625866,
+        "sampled_magnitude_db": -12.907847302879729
+      },
+      "gprmax_impedance": {
+        "frequency_hz": 799625897.5355656,
+        "magnitude_db": -12.891398058546324,
+        "sampled_frequency_hz": 801552109.625866,
+        "sampled_magnitude_db": -12.88659933631623
+      }
+    },
+    "matlab_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 766235492.7162619,
+      "upper_frequency_hz": 900137761.8670673,
+      "bandwidth_hz": 133902269.15080547
+    },
+    "gprmax_voltage_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 748871305.9493812,
+      "upper_frequency_hz": 863653844.4505389,
+      "bandwidth_hz": 114782538.50115764
+    },
+    "gprmax_impedance_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 748721299.4233085,
+      "upper_frequency_hz": 863130778.6503472,
+      "bandwidth_hz": 114409479.22703874
+    },
+    "gprmax_voltage_wave_vs_impedance_s11_rms_complex": 0.0024246016640124216
+  },
+  "impedance": {
+    "full_band_resistance_rms_ohm": 1.4365570263793235,
+    "full_band_reactance_rms_ohm": 8.90230455742858,
+    "resonance_band_hz": [
+      700000000.0,
+      950000000.0
+    ],
+    "resonance_band_resistance_rms_ohm": 1.1967403774737677,
+    "resonance_band_reactance_rms_ohm": 8.786103784525729
+  }
+}

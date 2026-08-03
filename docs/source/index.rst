@@ -62,6 +62,7 @@ gprMax User Guide
     :caption: Developers
 
     contributing
+    testing
     reframe_test_suite
 
 .. toctree::

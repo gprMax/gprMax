@@ -11,6 +11,7 @@ repos:
     -   id: check-yaml
     -   id: check-added-large-files
         args: ['--maxkb=1000']
+        exclude: '^testing/other_codes/matlab_mom/[^/]+/results/(?:[^/]*_3d_[^/]*|helix_antenna_matlab_metrics)\.csv$'
     -   id: check-toml
 -   repo: https://github.com/psf/black-pre-commit-mirror
     rev: 23.12.0

@@ -1,3 +1,5 @@
+.. _reframe-test-suite:
+
 ******************
 ReFrame Test Suite
 ******************

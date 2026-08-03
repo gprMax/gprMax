@@ -1,0 +1,85 @@
+{
+  "frequency_hz": 2370000000.0,
+  "comparison_floor_db": -40.0,
+  "normalisation": "one co-polar peak across the two principal planes per formulation",
+  "upper_hemisphere": {
+    "xz": {
+      "ksir_vs_matlab": {
+        "sample_count": 91,
+        "rms_db": 0.4152383057801191,
+        "mean_db": -0.1352942334215127,
+        "maximum_absolute_db": 0.6995124279749634
+      },
+      "equivalent_current_vs_matlab": {
+        "sample_count": 91,
+        "rms_db": 0.4152920271313374,
+        "mean_db": -0.13542886274523444,
+        "maximum_absolute_db": 0.6996634396688766
+      },
+      "equivalent_current_vs_ksir": {
+        "sample_count": 91,
+        "rms_db": 0.00015597507290252618,
+        "mean_db": -0.0001346293237217214,
+        "maximum_absolute_db": 0.0004153038703282874
+      }
+    },
+    "yz": {
+      "ksir_vs_matlab": {
+        "sample_count": 91,
+        "rms_db": 0.044768184043066164,
+        "mean_db": -0.029201159347639727,
+        "maximum_absolute_db": 0.07380434613074449
+      },
+      "equivalent_current_vs_matlab": {
+        "sample_count": 91,
+        "rms_db": 0.04472619899969373,
+        "mean_db": -0.02919763630004019,
+        "maximum_absolute_db": 0.07370896784528114
+      },
+      "equivalent_current_vs_ksir": {
+        "sample_count": 91,
+        "rms_db": 6.238014738806461e-05,
+        "mean_db": 3.523047599534377e-06,
+        "maximum_absolute_db": 0.00014693863906245497
+      }
+    }
+  },
+  "ksir_vs_equivalent_current_complex": {
+    "raw_relative_l2_error": 2.0875479094684124e-05,
+    "best_fit_complex_scale_real": 1.0000159740447998,
+    "best_fit_complex_scale_imag": 1.0574837688182015e-05,
+    "best_fit_magnitude_ratio": 1.0000159740447998,
+    "best_fit_phase_difference_deg": 0.0006058838916942477,
+    "shape_relative_l2_error_after_complex_scaling": 8.287756827485282e-06
+  },
+  "upper_hemisphere_complex_components": {
+    "xz": {
+      "co_polar": {
+        "ksir_norm": 5.565031213627947e-10,
+        "ksir_norm_relative_to_co_polar": 1.0,
+        "difference_relative_to_same_component": 1.7691638277028687e-05,
+        "difference_relative_to_co_polar": 1.7691638277028687e-05
+      },
+      "cross_polar": {
+        "ksir_norm": 1.1997976852395849e-16,
+        "ksir_norm_relative_to_co_polar": 2.155958611638198e-07,
+        "difference_relative_to_same_component": 1.1200823783874512,
+        "difference_relative_to_co_polar": 2.4148513944055594e-07
+      }
+    },
+    "yz": {
+      "co_polar": {
+        "ksir_norm": 5.93922078184761e-10,
+        "ksir_norm_relative_to_co_polar": 1.0,
+        "difference_relative_to_same_component": 2.331505857000593e-05,
+        "difference_relative_to_co_polar": 2.331505857000593e-05
+      },
+      "cross_polar": {
+        "ksir_norm": 9.308267698293626e-12,
+        "ksir_norm_relative_to_co_polar": 0.01567254029214382,
+        "difference_relative_to_same_component": 0.00013181145186536014,
+        "difference_relative_to_co_polar": 2.0658201265177922e-06
+      }
+    }
+  }
+}

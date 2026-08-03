@@ -1,0 +1,49 @@
+{
+  "frequency_hz": 2370000000.0,
+  "discretisation_m": [
+    0.0005,
+    0.0005,
+    0.0005233333333333333
+  ],
+  "mesh_mode": "standard",
+  "domain_m": [
+    0.12,
+    0.1,
+    0.0628
+  ],
+  "time_window_s": 6e-08,
+  "substrate_relative_permittivity": 2.33,
+  "substrate_height_m": 0.00157,
+  "patch_length_m": 0.04,
+  "patch_width_m": 0.03,
+  "ground_length_m": 0.08,
+  "ground_width_m": 0.06,
+  "feed_offset_m": 0.0055,
+  "feed_side_m": 0.001,
+  "feed_mode": "series",
+  "feed_excitation": "three one-third-voltage, 16.67 Ohm sources in series",
+  "feed_source_count": 3,
+  "feed_source_resistance_ohm": 16.666666666666668,
+  "feed_source_waveform_amplitude_v": 0.3333333333333333,
+  "feed_equivalent_resistance_ohm": 50.0,
+  "s11_incident_voltage": "one half of the Thevenin generator waveform",
+  "s11_fft_zero_padding_factor": 8,
+  "s11_independent_frequency_resolution_hz": 16666666.666666668,
+  "s11_frequency_range_hz": [
+    1500000000.0,
+    3200000000.0
+  ],
+  "pattern_postprocessing_source": "patch_antenna_gprmax_series_feed.h5",
+  "ksir_surface_m": {
+    "p1": [
+      0.0125,
+      0.0125,
+      0.013083333333333334
+    ],
+    "p2": [
+      0.1075,
+      0.0875,
+      0.03925
+    ]
+  }
+}

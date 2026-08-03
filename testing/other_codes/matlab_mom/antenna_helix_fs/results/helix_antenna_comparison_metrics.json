@@ -1,0 +1,45 @@
+{
+  "frequency_hz": 2200000000.0,
+  "angular_samples": 16380,
+  "circular_component_mapping": "Etheta+jEphi maps to MATLAB RHCP",
+  "gprmax": {
+    "maximum_directivity_dbi": 10.146753326914624,
+    "maximum_gain_dbi": 10.147119522094727,
+    "maximum_realized_gain_dbi": 9.687591552734375,
+    "axis_directivity_dbi": 10.114550924301147,
+    "axis_realized_gain_dbi": 9.655389165878296,
+    "axis_axial_ratio_db": 2.0218817517202523,
+    "front_to_back_ratio_db": 11.88367676668697,
+    "half_power_beamwidth_deg": 54.64193390733078,
+    "radiation_efficiency": 1.0000842809677124,
+    "mismatch_efficiency": 0.8995954004740256,
+    "total_efficiency": 0.8996712565422058,
+    "input_impedance_real_ohm": 83.07233265384832,
+    "input_impedance_imag_ohm": -30.241414978305524,
+    "s11_magnitude_db": -9.982463917428365
+  },
+  "matlab": {
+    "maximum_directivity_dbi": 10.2852360888466,
+    "maximum_gain_dbi": 10.2852360888466,
+    "maximum_realized_gain_dbi": 10.094598500579913,
+    "axis_directivity_dbi": 10.2385270983506,
+    "axis_realized_gain_dbi": 10.047889510083902,
+    "axis_axial_ratio_db": 2.0423813205002377,
+    "front_to_back_ratio_db": 12.35792504237525,
+    "half_power_beamwidth_deg": 53.79223915898437,
+    "radiation_efficiency": 1.0,
+    "mismatch_efficiency": 0.9570535558295031,
+    "total_efficiency": 0.9570535558295031,
+    "input_impedance_real_ohm": 114.59890442827657,
+    "input_impedance_imag_ohm": -42.80469696743109,
+    "s11_magnitude_db": -13.670727885512646
+  },
+  "cross_code": {
+    "maximum_directivity_difference_db": -0.13848276193197684,
+    "maximum_realized_gain_difference_db": -0.40700694784553804,
+    "directivity_rms_difference_db_above_minus_25_db": 0.4980680234158549,
+    "axis_axial_ratio_difference_db": -0.020499568779985378,
+    "half_power_beamwidth_difference_deg": 0.8496947483464083
+  },
+  "gprmax_source_mode": "resistive"
+}

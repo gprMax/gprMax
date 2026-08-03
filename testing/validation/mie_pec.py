@@ -1,22 +1,3 @@
-# Copyright (C) 2026: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
-#                          and Nathan Mannall
-#
-# This file is part of gprMax.
-#
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax. If not, see <http://www.gnu.org/licenses/>.
-
 """Analytical far-field scattering by a perfectly conducting sphere."""
 
 import numpy as np
@@ -46,9 +27,7 @@ def pec_mie_coefficients(
     psi = size_parameter * jn
     psi_derivative = jn + size_parameter * jn_derivative
     xi = size_parameter * (jn + 1j * yn)
-    xi_derivative = (
-        jn + 1j * yn + size_parameter * (jn_derivative + 1j * yn_derivative)
-    )
+    xi_derivative = jn + 1j * yn + size_parameter * (jn_derivative + 1j * yn_derivative)
     electric = -psi_derivative / xi_derivative
     magnetic = -psi / xi
     return electric.astype(np.complex128), magnetic.astype(np.complex128)
@@ -73,9 +52,7 @@ def pec_mie_amplitudes(
         if order == 1:
             pi_n = pi_current
         else:
-            pi_n = (
-                (2 * order - 1) * cosine * pi_current - order * pi_previous
-            ) / (order - 1)
+            pi_n = ((2 * order - 1) * cosine * pi_current - order * pi_previous) / (order - 1)
             pi_previous, pi_current = pi_current, pi_n
         tau_n = order * cosine * pi_n - (order + 1) * pi_previous
         factor = (2 * order + 1) / (order * (order + 1))
@@ -99,9 +76,7 @@ def pec_sphere_bistatic_rcs(
     if not np.isfinite(radius) or radius <= 0:
         raise ValueError("radius must be finite and greater than zero")
     wavenumber = 2 * np.pi * frequency / c
-    perpendicular, parallel = pec_mie_amplitudes(
-        wavenumber * radius, scattering_angles
-    )
+    perpendicular, parallel = pec_mie_amplitudes(wavenumber * radius, scattering_angles)
     if polarisation == "perpendicular":
         amplitude = perpendicular
     elif polarisation == "parallel":

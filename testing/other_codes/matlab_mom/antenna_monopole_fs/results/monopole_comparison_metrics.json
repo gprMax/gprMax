@@ -1,0 +1,112 @@
+{
+  "pattern_frequency_hz": 910000000.0,
+  "monopole_height_m": 0.079,
+  "ground_plane_m": [
+    0.16,
+    0.16
+  ],
+  "matlab_wire_radius_m": 0.00023,
+  "pattern": {
+    "gprmax_vs_matlab_xz": {
+      "number_of_angles": 178,
+      "rms_difference_db": 0.04042020711030074,
+      "maximum_absolute_difference_db": 0.07702410335634013
+    },
+    "gprmax_vs_matlab_xy": {
+      "number_of_angles": 181,
+      "rms_difference_db": 0.0004002907451548664,
+      "maximum_absolute_difference_db": 0.0006180312203499794
+    },
+    "frill_vs_matlab_xz": {
+      "number_of_angles": 178,
+      "rms_difference_db": 0.039711123135279594,
+      "maximum_absolute_difference_db": 0.0754651033563416
+    },
+    "frill_vs_matlab_xy": {
+      "number_of_angles": 181,
+      "rms_difference_db": 0.0004269222889590084,
+      "maximum_absolute_difference_db": 0.0007311554896299657
+    },
+    "frill_vs_voltage_gap_xz": {
+      "number_of_angles": 178,
+      "rms_difference_db": 0.0007644990140103781,
+      "maximum_absolute_difference_db": 0.0016429999999978406
+    },
+    "frill_vs_voltage_gap_xy": {
+      "number_of_angles": 181,
+      "rms_difference_db": 0.0001075995354488162,
+      "maximum_absolute_difference_db": 0.00012199799999999816
+    }
+  },
+  "s11": {
+    "reference_impedance_ohm": 36.5,
+    "frequency_spacing_hz": 9999918.518314004,
+    "fft_zero_padding_factor": 8,
+    "independent_frequency_resolution_hz": 9999918.518314004,
+    "minima": {
+      "matlab": {
+        "frequency_hz": 911709328.3132066,
+        "magnitude_db": -12.719120894647155,
+        "sampled_frequency_hz": 911242574.981339,
+        "sampled_magnitude_db": -12.717699401828547
+      },
+      "gprmax_voltage": {
+        "frequency_hz": 906449930.5363191,
+        "magnitude_db": -12.626216467553448,
+        "sampled_frequency_hz": 911242574.981339,
+        "sampled_magnitude_db": -12.489613058112823
+      },
+      "gprmax_impedance": {
+        "frequency_hz": 906315200.6818789,
+        "magnitude_db": -12.616807013675476,
+        "sampled_frequency_hz": 911242574.981339,
+        "sampled_magnitude_db": -12.473532801661381
+      },
+      "gprmax_frill": {
+        "frequency_hz": 905650298.4374369,
+        "magnitude_db": -12.68786870049009,
+        "sampled_frequency_hz": 901242656.463025,
+        "sampled_magnitude_db": -12.5620891001563
+      }
+    },
+    "gprmax_voltage_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 884852219.3253781,
+      "upper_frequency_hz": 929852109.0321444,
+      "bandwidth_hz": 44999889.70676637
+    },
+    "gprmax_impedance_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 884774337.8649244,
+      "upper_frequency_hz": 929708843.2044879,
+      "bandwidth_hz": 44934505.33956349
+    },
+    "gprmax_frill_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 883633382.4475881,
+      "upper_frequency_hz": 929741938.000144,
+      "bandwidth_hz": 46108555.55255592
+    },
+    "matlab_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 888844988.6002368,
+      "upper_frequency_hz": 936454574.6628139,
+      "bandwidth_hz": 47609586.06257713
+    },
+    "gprmax_voltage_wave_vs_impedance_s11_rms_complex": 0.0028803917929698854
+  },
+  "impedance": {
+    "gprmax_vs_matlab_resistance_rms_ohm": 12.883351932882157,
+    "gprmax_vs_matlab_reactance_rms_ohm": 5.950114063613584,
+    "frill_vs_matlab_resistance_rms_ohm": 12.056995995119193,
+    "frill_vs_matlab_reactance_rms_ohm": 4.7310338133211065,
+    "resonance_band_hz": [
+      850000000.0,
+      950000000.0
+    ],
+    "resonance_band_resistance_rms_ohm": 0.47644635238780675,
+    "resonance_band_reactance_rms_ohm": 2.4336244078791367,
+    "frill_resonance_band_resistance_rms_ohm": 0.5380912192514948,
+    "frill_resonance_band_reactance_rms_ohm": 2.8518477895588896
+  }
+}

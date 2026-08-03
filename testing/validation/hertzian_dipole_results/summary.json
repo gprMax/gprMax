@@ -1,0 +1,129 @@
+{
+  "configuration": {
+    "dl_metres": 0.001,
+    "far_frequency_hz": 3000000000.0,
+    "source_command_position_metres": [
+      0.05,
+      0.05,
+      0.05
+    ],
+    "source_ez_centre_metres": [
+      0.05,
+      0.05,
+      0.0505
+    ],
+    "receiver_command_position_metres": [
+      0.07,
+      0.07,
+      0.07
+    ],
+    "receiver_ez_centre_metres": [
+      0.07,
+      0.07,
+      0.0705
+    ],
+    "analytical_relative_position_metres": [
+      0.02,
+      0.02,
+      0.02
+    ],
+    "backend": "cuda:3",
+    "precision": "double",
+    "threads": 4
+  },
+  "runtime_seconds": {
+    "far_field": 4.137440983206034,
+    "near_field": 3.134537497535348
+  },
+  "far_field": {
+    "analytical_maximum_directivity": 1.5,
+    "analytical_maximum_directivity_dbi": 1.7609125905568124,
+    "methods": {
+      "ksir": {
+        "field_metrics": {
+          "rms_error": 7.105887878913743e-05,
+          "maximum_absolute_error": 0.00011264859791471071
+        },
+        "directivity_metrics": {
+          "rms_error": 9.82634664697679e-05,
+          "maximum_absolute_error": 0.00016224479401327763
+        },
+        "h_plane_metrics": {
+          "rms_error": 0.00016029642366359735,
+          "maximum_absolute_error": 0.00016224479401327763
+        },
+        "maximum_directivity": 1.4998417655464586,
+        "maximum_directivity_dbi": 1.7604544307240308,
+        "radiated_power": 7.564877026829239e-22
+      },
+      "equivalent_current": {
+        "field_metrics": {
+          "rms_error": 1.582140300777644e-05,
+          "maximum_absolute_error": 2.6735962166624105e-05
+        },
+        "directivity_metrics": {
+          "rms_error": 2.440580991656328e-05,
+          "maximum_absolute_error": 5.8516369408456725e-05
+        },
+        "h_plane_metrics": {
+          "rms_error": 4.18304266009075e-05,
+          "maximum_absolute_error": 5.8516369412231484e-05
+        },
+        "maximum_directivity": 1.5000585163694122,
+        "maximum_directivity_dbi": 1.7610820094944852,
+        "radiated_power": 7.565577732734276e-22
+      }
+    }
+  },
+  "near_field": {
+    "direct_metrics": {
+      "relative_l2_error_significant": 0.00033532735071984635,
+      "relative_l2_error_full": 0.006011759898546066,
+      "correlation_significant": 0.9999999470615604,
+      "peak_relative_error": 6.315179243449872e-05
+    },
+    "ksir_metrics": {
+      "relative_l2_error_significant": 0.00016669214066613938,
+      "relative_l2_error_full": 0.00016749187683781657,
+      "correlation_significant": 0.9999999952639402,
+      "peak_relative_error": 0.00010460046571577537
+    },
+    "dt_seconds": 1.92583320154647e-12,
+    "distance_metres": 0.03464101615137755
+  },
+  "acceptance": {
+    "passed": true,
+    "checks": {
+      "ksir_directivity_rms": {
+        "value": 9.82634664697679e-05,
+        "maximum": 0.001,
+        "passed": true
+      },
+      "ksir_maximum_directivity_error": {
+        "value": 0.00015823445354135046,
+        "maximum": 0.001,
+        "passed": true
+      },
+      "equivalent_current_directivity_rms": {
+        "value": 2.440580991656328e-05,
+        "maximum": 0.001,
+        "passed": true
+      },
+      "equivalent_current_maximum_directivity_error": {
+        "value": 5.8516369412231484e-05,
+        "maximum": 0.001,
+        "passed": true
+      },
+      "direct_near_field_relative_l2": {
+        "value": 0.00033532735071984635,
+        "maximum": 0.001,
+        "passed": true
+      },
+      "ksir_near_field_relative_l2": {
+        "value": 0.00016669214066613938,
+        "maximum": 0.001,
+        "passed": true
+      }
+    }
+  }
+}

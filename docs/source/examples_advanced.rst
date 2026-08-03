@@ -32,7 +32,7 @@ material, PEC, or PMC boundaries. In the Python API model, pass
     Yee-staggered active field components of the fundamental 2D TM dielectric-slab mode.
 
 The complete regression and directionality matrix is kept separately under
-``testing/validation/eigenmode_sources``; it is not intended as introductory
+``testing/regression/eigenmode_sources``; it is not intended as introductory
 user material.
 
 
