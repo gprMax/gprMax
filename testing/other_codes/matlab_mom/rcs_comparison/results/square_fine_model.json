@@ -1,0 +1,57 @@
+{
+  "target": "square",
+  "mesh": "fine",
+  "discretisation_m": 0.00127,
+  "frequency_hz": 9224383323.076923,
+  "wavelength_m": 0.0325,
+  "time_window_s": 5e-09,
+  "solver_backends": [
+    "cpu"
+  ],
+  "collection_backends": [
+    "cython_openmp"
+  ],
+  "precisions": [
+    "single"
+  ],
+  "polarisation": "HH; incident E parallel to y",
+  "direction_mapping_scale": 64,
+  "layout": {
+    "cells": 142,
+    "domain": [
+      0.18034,
+      0.18034,
+      0.18034
+    ],
+    "centre": [
+      0.09017,
+      0.09017,
+      0.09017
+    ],
+    "centre_index": 71,
+    "half_target_cells": 40,
+    "tfsf_p1": [
+      0.029210000000000003,
+      0.029210000000000003,
+      0.029210000000000003
+    ],
+    "tfsf_p2": [
+      0.15113000000000001,
+      0.15113000000000001,
+      0.15113000000000001
+    ],
+    "ksir_p1": [
+      0.022860000000000002,
+      0.022860000000000002,
+      0.022860000000000002
+    ],
+    "ksir_p2": [
+      0.15748,
+      0.15748,
+      0.15748
+    ]
+  },
+  "square_length_m": 0.1016,
+  "square_width_m": 0.1016,
+  "circle_radius_m": 0.1016
+}

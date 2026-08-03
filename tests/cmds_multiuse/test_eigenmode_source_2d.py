@@ -51,7 +51,7 @@ def _user_waveform_broadband_scene(direction):
         gprMax.Waveform(
             wave_type="user",
             user_func=lambda time: np.sin(2 * np.pi * 5e9 * time)
-            * np.exp(-((time - 0.5e-9) / 0.15e-9) ** 2),
+            * np.exp(-(((time - 0.5e-9) / 0.15e-9) ** 2)),
             id="eig_pulse",
         )
     )
@@ -277,9 +277,7 @@ def test_eigenmode_source_rejected_with_mpi(monkeypatch):
 def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
     scene = _scene("TM")
     scene.grid_objects = [
-        obj
-        for obj in scene.grid_objects
-        if not isinstance(obj, gprMax.EigenmodeSource)
+        obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)
     ]
     scene.add(
         gprMax.EigenmodeSource(
@@ -334,9 +332,7 @@ def test_positive_direction_eigenmode_rejects_lower_boundary(tmp_path):
         )
 
 
-def test_real_solver_negative_broadband_power_and_user_waveform(
-    tmp_path, monkeypatch
-):
+def test_real_solver_negative_broadband_power_and_user_waveform(tmp_path, monkeypatch):
     captured = {}
     warnings = []
     active_direction = {"value": None}
@@ -354,9 +350,7 @@ def test_real_solver_negative_broadband_power_and_user_waveform(
                         grid,
                     )
                 )
-                for electric, magnetic in zip(
-                    source.anchor_modal_e, source.anchor_modal_h
-                )
+                for electric, magnetic in zip(source.anchor_modal_e, source.anchor_modal_h)
             ]
         )
         captured[source.direction] = {
@@ -476,7 +470,7 @@ def test_2d_example_builds_with_eight_timestamps(tmp_path, relative_path):
     source = (
         REPOSITORY_ROOT
         / "testing"
-        / "validation"
+        / "regression"
         / "eigenmode_sources"
         / "cases"
         / "two_dimensional"
@@ -508,7 +502,7 @@ def test_hash_modal_plot_control_overrides_geometry_only_default(
     source = (
         REPOSITORY_ROOT
         / "testing"
-        / "validation"
+        / "regression"
         / "eigenmode_sources"
         / "cases"
         / "two_dimensional"

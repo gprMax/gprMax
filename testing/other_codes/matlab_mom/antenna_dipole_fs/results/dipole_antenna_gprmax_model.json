@@ -1,0 +1,39 @@
+{
+  "discretisation_m": [
+    0.001,
+    0.001,
+    0.001
+  ],
+  "domain_m": [
+    0.25,
+    0.25,
+    0.25
+  ],
+  "time_window_s": 1e-07,
+  "wire_outer_length_m": 0.151,
+  "wire_arm_length_m": 0.075,
+  "feed_gap_m": 0.001,
+  "fdtd_equivalent_wire_radius_m": 0.00023,
+  "fdtd_equivalent_radius_cells": 0.23,
+  "port_reference_impedance_ohm": 73.0,
+  "pattern_frequency_hz": 950000000.0,
+  "s11_fft_zero_padding_factor": 8,
+  "s11_independent_frequency_resolution_hz": 10000000.0,
+  "s11_frequency_range_hz": [
+    550000000.0,
+    1350000000.0
+  ],
+  "ksir_surface_m": {
+    "p1": [
+      0.025,
+      0.025,
+      0.025
+    ],
+    "p2": [
+      0.225,
+      0.225,
+      0.225
+    ]
+  },
+  "postprocessing_source": "dipole_antenna_gprmax.h5"
+}

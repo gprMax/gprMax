@@ -1,0 +1,43 @@
+{
+  "frequency_hz": 2370000000.0,
+  "angular_samples": 16380,
+  "comparison_floor_relative_to_peak_db": -30.0,
+  "gprmax": {
+    "maximum_directivity_dbi": 6.9576754217381485,
+    "maximum_gain_dbi": 6.95756196975708,
+    "maximum_realized_gain_dbi": 6.6538848876953125,
+    "radiation_efficiency": 0.9999738335609436,
+    "mismatch_efficiency": 0.9324644455792825,
+    "total_efficiency": 0.9324400424957275,
+    "directivity_sphere_average": 0.9997476974289138,
+    "gain_identity_max_error_db": 3.0146670245478414e-06,
+    "realized_gain_identity_max_error_db": 4.3959051012620876e-06,
+    "radiation_intensity_identity_max_error_db": 6.8971839510822974e-06
+  },
+  "matlab": {
+    "maximum_directivity_dbi": 6.8437621675825655,
+    "maximum_gain_dbi": 6.871865640563756,
+    "maximum_realized_gain_dbi": 2.061754825045309,
+    "radiation_efficiency": 1.0,
+    "mismatch_efficiency": 0.3303611113637649,
+    "total_efficiency": 0.3303611113637649,
+    "directivity_sphere_average": 0.9924016535637498,
+    "gain_identity_max_error_db": 0.028103472981193534,
+    "realized_gain_identity_max_error_db": 6.217248937900877e-15,
+    "radiation_intensity_identity_max_error_db": 0.03312520767207161
+  },
+  "cross_code": {
+    "directivity_peak_difference_db": 0.11391325415558295,
+    "gain_peak_difference_db": 0.0856963291933237,
+    "realized_gain_peak_difference_db": 4.5921300626500035,
+    "directivity_rms_difference_db_above_floor": 0.9597811016754773,
+    "gain_rms_difference_db_above_floor": 0.9621733687446059,
+    "realized_gain_rms_difference_db_above_floor": 4.513564261916237,
+    "normalized_pattern_rms_difference_db_above_floor": 0.9744246849998786,
+    "upper_hemisphere_directivity_rms_difference_db_above_floor": 0.29415360743465097,
+    "upper_hemisphere_normalized_pattern_rms_difference_db_above_floor": 0.2983622272817791,
+    "radiation_efficiency_difference": -2.6166439056396484e-05,
+    "mismatch_efficiency_difference": 0.6021033342155176,
+    "total_efficiency_difference": 0.6020789311319626
+  }
+}

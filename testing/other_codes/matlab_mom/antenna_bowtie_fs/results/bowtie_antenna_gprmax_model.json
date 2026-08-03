@@ -1,0 +1,39 @@
+{
+  "discretisation_m": [
+    0.001,
+    0.001,
+    0.001
+  ],
+  "domain_m": [
+    0.2,
+    0.2,
+    0.1
+  ],
+  "time_window_s": 8e-08,
+  "outer_length_m": 0.101,
+  "outer_width_m": 0.1,
+  "wing_length_m": 0.05,
+  "feed_gap_m": 0.001,
+  "matlab_flare_angle_deg": 89.42989744483235,
+  "port_reference_impedance_ohm": 50.0,
+  "pattern_frequency_hz": 820000000.0,
+  "s11_fft_zero_padding_factor": 8,
+  "s11_independent_frequency_resolution_hz": 12500000.0,
+  "s11_frequency_range_hz": [
+    450000000.0,
+    1200000000.0
+  ],
+  "ksir_surface_m": {
+    "p1": [
+      0.02,
+      0.02,
+      0.02
+    ],
+    "p2": [
+      0.18,
+      0.18,
+      0.08
+    ]
+  },
+  "postprocessing_source": "bowtie_antenna_gprmax.h5"
+}

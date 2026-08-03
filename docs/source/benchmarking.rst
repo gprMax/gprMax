@@ -41,23 +41,25 @@ The surface sizes, frequency counts, number of repeats, and output filename
 can be changed using command-line options; run the module with ``--help`` for
 the complete list.
 
-End-to-end KSIR validation cases are provided separately. They include the
-closed-form Hertzian-dipole pattern in both principal planes, PEC-sphere RCS
-against Mie theory, a broadband PEC-sphere backscatter sweep through the Mie
-resonances, finite-distance time-domain fields against direct Yee-grid
-receivers, and CPU/accelerator time-domain parity.
+End-to-end :ref:`analytical validation cases <analytical-comparisons>` are
+provided separately. They include
+dielectric and dispersive half-space reflection against Fresnel theory,
+Hertzian-dipole far- and near-field comparisons, and broadband PEC- and
+dielectric-sphere backscatter through the Mie resonances. Solver HDF5 files are
+treated as local cache data; compact reports, CSV tables, and plots record the
+comparison with the independent analytical solution.
 
 .. code-block:: none
 
-    (gprMax)$ python -m testing.validation.validate_ntff --case all --backend cpu
-    (gprMax)$ python -m testing.validation.validate_ntff --case mie-sweep --backend cpu --plot mie-sweep.png
-    (gprMax)$ python -m testing.validation.validate_ntff --case dipole --backend cuda --device 0
-    (gprMax)$ python -m testing.validation.validate_ntff --case parity --backend opencl --device 0
+    (gprMax)$ python -m testing.validation.validate_plane_wave_dispersive_halfspace --gpu 0
+    (gprMax)$ python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
+    (gprMax)$ python -m testing.validation.validate_hertzian_dipole --gpu 0
+    (gprMax)$ python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
+    (gprMax)$ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
 
-Results are written to ``ntff_validation_results.json`` by default. A summary
-figure can be requested with ``--plot filename.png``. The TFSF PEC-sphere Mie
-case is CPU-only because discrete plane-wave excitation is not currently
-available for accelerator solvers.
+Omit ``--gpu`` to use the CPU. See :download:`the validation README
+<../../testing/validation/README.rst>` for the scope of each case and the
+output layout.
 
 Apple Metal GPU Benchmarking
 =============================

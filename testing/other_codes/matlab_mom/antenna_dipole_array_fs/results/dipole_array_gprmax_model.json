@@ -1,0 +1,38 @@
+{
+  "discretisation_m": [
+    0.001,
+    0.001,
+    0.001
+  ],
+  "domain_m": [
+    0.25,
+    0.25,
+    0.25
+  ],
+  "time_window_s": 6e-08,
+  "element_length_m": 0.075,
+  "element_spacing_m": 0.08,
+  "wire_effective_radius_m": 0.00023,
+  "port_reference_impedance_ohm": 50.0,
+  "excitation": "equal-amplitude, zero-relative-phase voltage sources",
+  "pattern_frequency_hz": 1900000000.0,
+  "port_fft_zero_padding_factor": 8,
+  "port_independent_frequency_resolution_hz": 16666666.666666668,
+  "port_frequency_range_hz": [
+    1300000000.0,
+    2500000000.0
+  ],
+  "ksir_surface_m": {
+    "p1": [
+      0.025,
+      0.025,
+      0.025
+    ],
+    "p2": [
+      0.225,
+      0.225,
+      0.225
+    ]
+  },
+  "postprocessing_source": "dipole_array_gprmax.h5"
+}

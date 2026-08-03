@@ -1,0 +1,178 @@
+{
+  "model": {
+    "dl_metres": 0.0005,
+    "time_window_seconds": 4e-08,
+    "dt_seconds": 1.179327168374842e-12,
+    "interface_x_metres": 0.09,
+    "receiver_x_metres": 0.0725,
+    "nominal_receiver_to_interface_metres": 0.0175,
+    "source_frequency_hz": 3000000000.0,
+    "frequency_band_hz": [
+      250000000.0,
+      8000000000.0
+    ],
+    "precision": "double",
+    "threads": 4,
+    "backend": "cuda:0"
+  },
+  "runtime_seconds": {
+    "free_space": 79.92115850187838,
+    "dielectric": 85.64066006615758,
+    "dielectric_unsmoothed": 84.10154704935849,
+    "debye_1pole": 71.7981270570308,
+    "debye_3pole": 179.6647958047688,
+    "lorentz_2pole": 199.0805179104209,
+    "drude_2pole": 146.82219422236085
+  },
+  "cases": {
+    "dielectric": {
+      "magnitude_rmse": 0.0005360006684191526,
+      "magnitude_max_error": 0.0011765733607905782,
+      "complex_relative_l2_error": 0.0016080020122889312,
+      "phase_rmse_degrees": 8.62521886433648e-06,
+      "effective_interface_x_metres": 0.09,
+      "receiver_to_interface_metres": 0.0175,
+      "frequency_samples": 310
+    },
+    "dielectric_unsmoothed": {
+      "magnitude_rmse": 0.0005356749606204618,
+      "magnitude_max_error": 0.0011755682810266621,
+      "complex_relative_l2_error": 0.0016070248889541395,
+      "phase_rmse_degrees": 8.641474200296657e-06,
+      "effective_interface_x_metres": 0.08975,
+      "receiver_to_interface_metres": 0.01725,
+      "frequency_samples": 310
+    },
+    "debye_1pole": {
+      "magnitude_rmse": 0.00040849613528478896,
+      "magnitude_max_error": 0.0008145273147749377,
+      "complex_relative_l2_error": 0.0011657810789600543,
+      "phase_rmse_degrees": 0.015172181037942453,
+      "effective_interface_x_metres": 0.08975,
+      "receiver_to_interface_metres": 0.01725,
+      "frequency_samples": 310
+    },
+    "debye_3pole": {
+      "magnitude_rmse": 0.0006136421793215435,
+      "magnitude_max_error": 0.0012487086099189915,
+      "complex_relative_l2_error": 0.00153990398153805,
+      "phase_rmse_degrees": 0.020335494737135824,
+      "effective_interface_x_metres": 0.08975,
+      "receiver_to_interface_metres": 0.01725,
+      "frequency_samples": 310
+    },
+    "lorentz_2pole": {
+      "magnitude_rmse": 0.00033273376671211365,
+      "magnitude_max_error": 0.0007500164636407569,
+      "complex_relative_l2_error": 0.001021590050285771,
+      "phase_rmse_degrees": 0.007389712290549875,
+      "effective_interface_x_metres": 0.08975,
+      "receiver_to_interface_metres": 0.01725,
+      "frequency_samples": 310
+    },
+    "drude_2pole": {
+      "magnitude_rmse": 0.0012041694249901268,
+      "magnitude_max_error": 0.002648580037601378,
+      "complex_relative_l2_error": 0.00244243116378569,
+      "phase_rmse_degrees": 0.0004370299719533499,
+      "effective_interface_x_metres": 0.08975,
+      "receiver_to_interface_metres": 0.01725,
+      "frequency_samples": 310
+    }
+  },
+  "acceptance": {
+    "passed": true,
+    "checks": {
+      "dielectric_magnitude_rmse": {
+        "value": 0.0005360006684191526,
+        "maximum": 0.005,
+        "passed": true
+      },
+      "dielectric_complex_relative_l2_error": {
+        "value": 0.0016080020122889312,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "dielectric_phase_rmse_degrees": {
+        "value": 8.62521886433648e-06,
+        "maximum": 0.1,
+        "passed": true
+      },
+      "dielectric_unsmoothed_magnitude_rmse": {
+        "value": 0.0005356749606204618,
+        "maximum": 0.005,
+        "passed": true
+      },
+      "dielectric_unsmoothed_complex_relative_l2_error": {
+        "value": 0.0016070248889541395,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "dielectric_unsmoothed_phase_rmse_degrees": {
+        "value": 8.641474200296657e-06,
+        "maximum": 0.1,
+        "passed": true
+      },
+      "debye_1pole_magnitude_rmse": {
+        "value": 0.00040849613528478896,
+        "maximum": 0.005,
+        "passed": true
+      },
+      "debye_1pole_complex_relative_l2_error": {
+        "value": 0.0011657810789600543,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "debye_1pole_phase_rmse_degrees": {
+        "value": 0.015172181037942453,
+        "maximum": 0.1,
+        "passed": true
+      },
+      "debye_3pole_magnitude_rmse": {
+        "value": 0.0006136421793215435,
+        "maximum": 0.005,
+        "passed": true
+      },
+      "debye_3pole_complex_relative_l2_error": {
+        "value": 0.00153990398153805,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "debye_3pole_phase_rmse_degrees": {
+        "value": 0.020335494737135824,
+        "maximum": 0.1,
+        "passed": true
+      },
+      "lorentz_2pole_magnitude_rmse": {
+        "value": 0.00033273376671211365,
+        "maximum": 0.005,
+        "passed": true
+      },
+      "lorentz_2pole_complex_relative_l2_error": {
+        "value": 0.001021590050285771,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "lorentz_2pole_phase_rmse_degrees": {
+        "value": 0.007389712290549875,
+        "maximum": 0.1,
+        "passed": true
+      },
+      "drude_2pole_magnitude_rmse": {
+        "value": 0.0012041694249901268,
+        "maximum": 0.005,
+        "passed": true
+      },
+      "drude_2pole_complex_relative_l2_error": {
+        "value": 0.00244243116378569,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "drude_2pole_phase_rmse_degrees": {
+        "value": 0.0004370299719533499,
+        "maximum": 0.1,
+        "passed": true
+      }
+    }
+  }
+}

@@ -39,5 +39,5 @@ The supplied models are:
 
 The larger coordinate-direction, PEC/PMC, dimensionality, and broadband
 comparison matrix is maintained under
-``testing/validation/eigenmode_sources``. Generated snapshots and modal plots
+``testing/regression/eigenmode_sources``. Generated snapshots and modal plots
 are outputs and should not be committed.

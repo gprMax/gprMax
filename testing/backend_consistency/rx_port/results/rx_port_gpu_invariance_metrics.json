@@ -1,0 +1,140 @@
+{
+  "frequency_points": 13,
+  "frequency_range_hz": [
+    562370880.0,
+    1312198656.0
+  ],
+  "tail_relative_level_db": {
+    "baseline": -109.49336571844793,
+    "reference_25_ohm": -96.15180550150546,
+    "reference_75_ohm": -126.13925300116199,
+    "amplitude_0p25": -109.49336571844793,
+    "amplitude_2": -109.49336571844793,
+    "orientation_x": -109.49322009111935,
+    "orientation_y": -109.49367422651157
+  },
+  "reference_impedance": {
+    "reference_25_ohm": {
+      "zin_error_ohm": {
+        "maximum_absolute": 0.08428759507017333,
+        "rms_absolute": 0.036632001362166454,
+        "rms_relative": 0.0001374374710179112
+      },
+      "s11_transformation_error": {
+        "maximum_absolute": 5.0120257658011796e-05,
+        "rms_absolute": 2.977200202929565e-05,
+        "rms_relative": 3.4598874126557375e-05
+      }
+    },
+    "reference_75_ohm": {
+      "zin_error_ohm": {
+        "maximum_absolute": 0.010761806605373332,
+        "rms_absolute": 0.004277896420674396,
+        "rms_relative": 1.60499902672883e-05
+      },
+      "s11_transformation_error": {
+        "maximum_absolute": 8.255052797368116e-06,
+        "rms_absolute": 6.226019871984752e-06,
+        "rms_relative": 8.538243092815475e-06
+      }
+    }
+  },
+  "source_amplitude": {
+    "amplitude_0p25": {
+      "zin_error_ohm": {
+        "maximum_absolute": 0.0,
+        "rms_absolute": 0.0,
+        "rms_relative": 0.0
+      },
+      "s11_error": {
+        "maximum_absolute": 0.0,
+        "rms_absolute": 0.0,
+        "rms_relative": 0.0
+      }
+    },
+    "amplitude_2": {
+      "zin_error_ohm": {
+        "maximum_absolute": 0.0,
+        "rms_absolute": 0.0,
+        "rms_relative": 0.0
+      },
+      "s11_error": {
+        "maximum_absolute": 0.0,
+        "rms_absolute": 0.0,
+        "rms_relative": 0.0
+      }
+    }
+  },
+  "orientation": {
+    "orientation_x": {
+      "zin_error_ohm": {
+        "maximum_absolute": 0.00015935210093845687,
+        "rms_absolute": 4.575190746510845e-05,
+        "rms_relative": 1.716539152224501e-07
+      },
+      "s11_error": {
+        "maximum_absolute": 1.6858739404357614e-07,
+        "rms_absolute": 5.54436355190079e-08,
+        "rms_relative": 7.120817816816944e-08
+      }
+    },
+    "orientation_y": {
+      "zin_error_ohm": {
+        "maximum_absolute": 0.00015935210093845687,
+        "rms_absolute": 4.519806436611868e-05,
+        "rms_relative": 1.695759835770202e-07
+      },
+      "s11_error": {
+        "maximum_absolute": 1.6858739404357614e-07,
+        "rms_absolute": 4.959406222926639e-08,
+        "rms_relative": 6.36953689318257e-08
+      }
+    }
+  },
+  "gpu_precision": {
+    "zin_error_ohm": {
+      "maximum_absolute": 0.0002984633756137851,
+      "rms_absolute": 0.00011205760261820906,
+      "rms_relative": 4.20422388608087e-07
+    },
+    "s11_error": {
+      "maximum_absolute": 2.448803573747038e-07,
+      "rms_absolute": 1.1686684260971394e-07,
+      "rms_relative": 1.5009612686114195e-07
+    }
+  },
+  "passivity": {
+    "baseline": {
+      "maximum_abs_s11": 0.9885029643505435,
+      "minimum_real_zin_ohm": 17.53281593322754
+    },
+    "reference_25_ohm": {
+      "maximum_abs_s11": 0.9941504846304944,
+      "minimum_real_zin_ohm": 17.570449829101562
+    },
+    "reference_75_ohm": {
+      "maximum_abs_s11": 0.9831500204913721,
+      "minimum_real_zin_ohm": 17.530118942260742
+    },
+    "amplitude_0p25": {
+      "maximum_abs_s11": 0.9885029643505435,
+      "minimum_real_zin_ohm": 17.53281593322754
+    },
+    "amplitude_2": {
+      "maximum_abs_s11": 0.9885029643505435,
+      "minimum_real_zin_ohm": 17.53281593322754
+    },
+    "orientation_x": {
+      "maximum_abs_s11": 0.9885029643505435,
+      "minimum_real_zin_ohm": 17.53281593322754
+    },
+    "orientation_y": {
+      "maximum_abs_s11": 0.9885029643505435,
+      "minimum_real_zin_ohm": 17.53281593322754
+    },
+    "baseline_double": {
+      "maximum_abs_s11": 0.9885030037721572,
+      "minimum_real_zin_ohm": 17.532743994498002
+    }
+  }
+}
