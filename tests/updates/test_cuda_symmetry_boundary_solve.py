@@ -7,6 +7,8 @@ from numpy.testing import assert_allclose
 
 import gprMax
 
+pytestmark = [pytest.mark.integration, pytest.mark.gpu]
+
 try:
     import pycuda.driver as _cuda_driver
 
@@ -57,7 +59,7 @@ def _scene(faces, source_position, receiver_position):
     ],
 )
 def test_cuda_pmc_waveform_matches_cpu(
-    tmp_path, case, faces, source_position, receiver_position
+    tmp_path, gpu_device, case, faces, source_position, receiver_position
 ):
     cpu_path = tmp_path / f"cpu_pmc_{case}"
     cuda_path = tmp_path / f"cuda_pmc_{case}"
@@ -73,7 +75,7 @@ def test_cuda_pmc_waveform_matches_cpu(
         n=1,
         outputfile=cuda_path,
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision="double",
     )
 

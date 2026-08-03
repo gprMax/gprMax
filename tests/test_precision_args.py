@@ -26,6 +26,13 @@ def _make_args(**overrides):
     return args
 
 
+@pytest.fixture
+def mock_cuda_devices(monkeypatch):
+    """Avoid requiring CUDA hardware for configuration-only tests."""
+
+    monkeypatch.setattr(config, "detect_cuda_gpus", lambda: {0: object()})
+
+
 def test_cpu_precision_defaults_to_single():
     sim_config = config.SimulationConfig(_make_args())
     assert sim_config.general["precision"] == "single"
@@ -38,13 +45,13 @@ def test_cpu_precision_can_be_raised_to_double():
     assert sim_config.dtypes["float_or_double"] is np.float64
 
 
-def test_gpu_precision_defaults_to_single():
+def test_gpu_precision_defaults_to_single(mock_cuda_devices):
     sim_config = config.SimulationConfig(_make_args(gpu=[0]))
     assert sim_config.general["solver"] == "cuda"
     assert sim_config.general["precision"] == "single"
 
 
-def test_gpu_precision_can_be_raised_to_double():
+def test_gpu_precision_can_be_raised_to_double(mock_cuda_devices):
     sim_config = config.SimulationConfig(_make_args(gpu=[0], gpu_precision="double"))
     assert sim_config.general["precision"] == "double"
 
@@ -85,7 +92,7 @@ def test_invalid_cpu_precision_string_rejected():
         config.SimulationConfig(_make_args(cpu_precision="triple"))
 
 
-def test_invalid_gpu_precision_string_rejected():
+def test_invalid_gpu_precision_string_rejected(mock_cuda_devices):
     with pytest.raises(ValueError):
         config.SimulationConfig(_make_args(gpu=[0], gpu_precision="triple"))
 

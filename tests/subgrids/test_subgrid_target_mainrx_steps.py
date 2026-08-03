@@ -12,9 +12,13 @@ completely independent of whether a subgrid exists elsewhere in the model.
 """
 from pathlib import Path
 
-import gprMax
 import h5py
 import numpy as np
+import pytest
+
+import gprMax
+
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 
 def test_main_grid_src_rx_steps_with_stationary_subgrid_target(tmp_path: Path):
