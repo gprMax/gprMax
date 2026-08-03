@@ -7,6 +7,8 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 import gprMax
 
+pytestmark = [pytest.mark.integration, pytest.mark.gpu]
+
 try:
     import pycuda.driver as _cuda_driver
 
@@ -182,7 +184,9 @@ def _plane_wave_rcs_scene():
         ("double", np.dtype("float64"), np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, complex_dtype, rtol):
+def test_cuda_reusable_outputs_match_cpu(
+    tmp_path, gpu_device, precision, real_dtype, complex_dtype, rtol
+):
     cpu_scene, cpu_transform, cpu_time, cpu_frequency, cpu_far = _scene()
     cuda_scene, cuda_transform, cuda_time, cuda_frequency, cuda_far = _scene()
     gprMax.run(
@@ -197,7 +201,7 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, comple
         n=1,
         outputfile=tmp_path / f"cuda_{precision}",
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision=precision,
     )
 
@@ -275,7 +279,9 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, precision, real_dtype, comple
         ("double", np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, precision, complex_dtype, rtol):
+def test_cuda_equivalent_current_far_field_matches_cpu(
+    tmp_path, gpu_device, precision, complex_dtype, rtol
+):
     cpu_scene, _, cpu_far = _equivalent_current_scene()
     cuda_scene, cuda_transform, cuda_far = _equivalent_current_scene()
     gprMax.run(
@@ -290,7 +296,7 @@ def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, precision, comp
         n=1,
         outputfile=tmp_path / f"cuda_current_{precision}",
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision=precision,
     )
 
@@ -316,7 +322,7 @@ def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, precision, comp
 
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
-def test_cuda_antenna_metrics_match_cpu(tmp_path):
+def test_cuda_antenna_metrics_match_cpu(tmp_path, gpu_device):
     cpu_scene, cpu_far = _antenna_scene()
     cuda_scene, cuda_far = _antenna_scene()
     gprMax.run(
@@ -331,7 +337,7 @@ def test_cuda_antenna_metrics_match_cpu(tmp_path):
         n=1,
         outputfile=tmp_path / "cuda_antenna",
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision="single",
     )
 
@@ -373,7 +379,7 @@ def test_cuda_antenna_metrics_match_cpu(tmp_path):
     ],
 )
 def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(
-    tmp_path, precision, complex_dtype, rtol
+    tmp_path, gpu_device, precision, complex_dtype, rtol
 ):
     cpu_scene, cpu_transform, _ = _plane_wave_rcs_scene()
     cuda_scene, cuda_transform, cuda_far = _plane_wave_rcs_scene()
@@ -389,7 +395,7 @@ def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(
         n=1,
         outputfile=tmp_path / f"cuda_plane_wave_rcs_{precision}",
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision=precision,
     )
 

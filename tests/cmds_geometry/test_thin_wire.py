@@ -424,7 +424,9 @@ def _cuda_parity_scene():
 
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
-def test_cuda_uses_same_thin_wire_coefficients_as_cpu(tmp_path):
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_cuda_uses_same_thin_wire_coefficients_as_cpu(tmp_path, gpu_device):
     cpu_path = tmp_path / "thin_wire_cpu"
     cuda_path = tmp_path / "thin_wire_cuda"
     gprMax.run(
@@ -439,7 +441,7 @@ def test_cuda_uses_same_thin_wire_coefficients_as_cpu(tmp_path):
         n=1,
         outputfile=cuda_path,
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision="double",
     )
 

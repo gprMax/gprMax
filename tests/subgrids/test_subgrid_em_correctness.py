@@ -26,12 +26,14 @@ intentionally an integration test, not a fast unit test.
 
 from pathlib import Path
 
-import gprMax
 import h5py
 import numpy as np
 import pytest
 
+import gprMax
 from testing.analytical_solutions import hertzian_dipole_fs
+
+pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 OUTPUTS = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]
 

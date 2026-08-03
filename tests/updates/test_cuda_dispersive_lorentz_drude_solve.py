@@ -26,6 +26,8 @@ from numpy.testing import assert_allclose
 
 import gprMax
 
+pytestmark = [pytest.mark.integration, pytest.mark.gpu]
+
 try:
     import pycuda.driver as _cuda_driver
 
@@ -75,7 +77,7 @@ def _drude_scene():
     return scene
 
 
-def _run_cpu_vs_cuda(scene_factory, tmp_path, label, precision):
+def _run_cpu_vs_cuda(scene_factory, tmp_path, label, precision, gpu_device):
     cpu_path = tmp_path / f"cpu_{label}_{precision}"
     cuda_path = tmp_path / f"cuda_{label}_{precision}"
     gprMax.run(
@@ -84,7 +86,7 @@ def _run_cpu_vs_cuda(scene_factory, tmp_path, label, precision):
     )
     gprMax.run(
         scenes=[scene_factory()], n=1, outputfile=cuda_path,
-        hide_progress_bars=True, gpu=[0], gpu_precision=precision,
+        hide_progress_bars=True, gpu=[gpu_device], gpu_precision=precision,
     )
 
     with h5py.File(str(cpu_path) + ".h5", "r") as f:
@@ -110,11 +112,11 @@ def _run_cpu_vs_cuda(scene_factory, tmp_path, label, precision):
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
 @pytest.mark.parametrize("precision", ["single", "double"])
-def test_cuda_lorentz_material_matches_cpu(tmp_path, precision):
-    _run_cpu_vs_cuda(_lorentz_scene, tmp_path, "lorentz", precision)
+def test_cuda_lorentz_material_matches_cpu(tmp_path, gpu_device, precision):
+    _run_cpu_vs_cuda(_lorentz_scene, tmp_path, "lorentz", precision, gpu_device)
 
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
 @pytest.mark.parametrize("precision", ["single", "double"])
-def test_cuda_drude_material_matches_cpu(tmp_path, precision):
-    _run_cpu_vs_cuda(_drude_scene, tmp_path, "drude", precision)
+def test_cuda_drude_material_matches_cpu(tmp_path, gpu_device, precision):
+    _run_cpu_vs_cuda(_drude_scene, tmp_path, "drude", precision, gpu_device)

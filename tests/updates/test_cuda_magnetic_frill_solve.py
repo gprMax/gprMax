@@ -26,6 +26,8 @@ from numpy.testing import assert_allclose
 
 import gprMax
 
+pytestmark = [pytest.mark.integration, pytest.mark.gpu]
+
 try:
     import pycuda.driver as _cuda_driver
 
@@ -95,7 +97,7 @@ def _read(path):
     ("precision", "symmetry"),
     [("single", False), ("double", False), ("double", True)],
 )
-def test_cuda_magnetic_frill_matches_cpu(tmp_path, precision, symmetry):
+def test_cuda_magnetic_frill_matches_cpu(tmp_path, gpu_device, precision, symmetry):
     suffix = f"{precision}_{'symmetry' if symmetry else 'full'}"
     cpu_path = tmp_path / f"cpu_frill_{suffix}"
     cuda_path = tmp_path / f"cuda_frill_{suffix}"
@@ -111,7 +113,7 @@ def test_cuda_magnetic_frill_matches_cpu(tmp_path, precision, symmetry):
         n=1,
         outputfile=cuda_path,
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision=precision,
     )
 

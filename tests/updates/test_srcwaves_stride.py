@@ -103,14 +103,17 @@ def test_metal_srcwaves_stride_matches_htod_src_arrays_row_length():
     assert _srcwaves_stride(updates.knl_common) == ITERATIONS + 1
 
 
-def test_htod_src_arrays_row_length_is_iterations_plus_one():
+@pytest.mark.gpu
+def test_htod_src_arrays_row_length_is_iterations_plus_one(gpu_device):
     """Sanity check on the array side of the contract: if sources.py's
     allocation shape ever changes, this test (not just the macro-side
     ones above) should fail first. Needs a real CUDA context to allocate
     device memory (available in this environment); skipped elsewhere."""
-    pytest.importorskip("pycuda")
-    import pycuda.autoinit  # noqa: F401 - establishes a CUDA context
+    cuda = pytest.importorskip("pycuda.driver")
     from gprMax.sources import htod_src_arrays
+
+    cuda.init()
+    context = cuda.Device(gpu_device).make_context()
 
     class _Src:
         xcoord = ycoord = zcoord = 0
@@ -133,5 +136,7 @@ def test_htod_src_arrays_row_length_is_iterations_plus_one():
         srcinfo1_dev, srcinfo2_dev, srcwaves_dev = htod_src_arrays([src], _Grid())
     finally:
         cfg.sim_config = orig_sim_config
+        context.pop()
+        context.detach()
 
     assert srcwaves_dev.shape[1] == ITERATIONS + 1

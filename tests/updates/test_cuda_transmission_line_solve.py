@@ -7,6 +7,8 @@ from numpy.testing import assert_allclose
 
 import gprMax
 
+pytestmark = [pytest.mark.integration, pytest.mark.gpu]
+
 try:
     import pycuda.driver as _cuda_driver
 
@@ -38,7 +40,7 @@ def _scene():
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
 @pytest.mark.parametrize("precision", ["single", "double"])
-def test_cuda_transmission_line_matches_cpu(tmp_path, precision):
+def test_cuda_transmission_line_matches_cpu(tmp_path, gpu_device, precision):
     cpu_path = tmp_path / f"cpu_tl_{precision}"
     cuda_path = tmp_path / f"cuda_tl_{precision}"
     gprMax.run(
@@ -53,7 +55,7 @@ def test_cuda_transmission_line_matches_cpu(tmp_path, precision):
         n=1,
         outputfile=cuda_path,
         hide_progress_bars=True,
-        gpu=[0],
+        gpu=[gpu_device],
         gpu_precision=precision,
     )
 

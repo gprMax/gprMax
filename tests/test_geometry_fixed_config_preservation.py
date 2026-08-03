@@ -230,7 +230,9 @@ def test_dispersive_geometry_fixed_runs_produce_identical_traces_not_leaked_stat
 
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA/pycuda available in this environment")
-def test_dispersive_geometry_fixed_gpu_matches_cpu(tmp_path):
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_dispersive_geometry_fixed_gpu_matches_cpu(tmp_path, gpu_device):
     """GPU configuration path: CUDAUpdates._set_field_knls() reads
     materials["maxpoles"] to decide whether to build dispersive kernels
     at all - verify a geometry_fixed dispersive run on real GPU hardware
@@ -245,7 +247,7 @@ def test_dispersive_geometry_fixed_gpu_matches_cpu(tmp_path):
     )
     outputfile_gpu = tmp_path / "gpu"
     gprMax.run(
-        scenes=[_dispersive_scene("debye")], n=3, geometry_fixed=True, gpu=[0],
+        scenes=[_dispersive_scene("debye")], n=3, geometry_fixed=True, gpu=[gpu_device],
         outputfile=outputfile_gpu, hide_progress_bars=True,
     )
 
@@ -263,7 +265,11 @@ def test_dispersive_geometry_fixed_gpu_matches_cpu(tmp_path):
 
 
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA/pycuda available in this environment")
-def test_dispersive_geometry_fixed_gpu_runs_produce_identical_traces_not_leaked_state(tmp_path):
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_dispersive_geometry_fixed_gpu_runs_produce_identical_traces_not_leaked_state(
+    tmp_path, gpu_device
+):
     """GPU-side equivalent of test_dispersive_geometry_fixed_runs_produce_
     identical_traces_not_leaked_state - CPU-vs-GPU agreement alone
     wouldn't catch this bug if it affected both backends identically
@@ -274,7 +280,7 @@ def test_dispersive_geometry_fixed_gpu_runs_produce_identical_traces_not_leaked_
 
     outputfile = tmp_path / "gpu_run"
     gprMax.run(
-        scenes=[_dispersive_scene("debye")], n=3, geometry_fixed=True, gpu=[0],
+        scenes=[_dispersive_scene("debye")], n=3, geometry_fixed=True, gpu=[gpu_device],
         outputfile=outputfile, hide_progress_bars=True,
     )
 

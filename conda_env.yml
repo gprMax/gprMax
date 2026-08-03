@@ -13,6 +13,7 @@ dependencies:
 - numpy
 - pip
 - psutil
+- pytest>=7
 - scipy
 
 - pip:

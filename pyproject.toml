@@ -8,3 +8,12 @@ line-length = 120
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: exercises multiple gprMax components or executes a complete model",
+    "gpu: requires execution on a real GPU device",
+    "slow: normally takes more than 10 seconds on a development machine",
+]
