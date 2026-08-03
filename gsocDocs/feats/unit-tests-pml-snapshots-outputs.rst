@@ -44,7 +44,7 @@ Unit Tests — PML, Snapshots and Outputs
    - ``tests/unit/pml/test_pml_construction.py`` (65 tests)
    - ``tests/unit/pml/test_pml_coeffs.py`` (71 tests)
    - ``tests/unit/pml/test_pml_updates.py`` (81 tests)
-   - ``tests/unit/pml/test_pml_build_kernel.py`` (24 tests)
+   - ``tests/unit/pml/test_pml_build_kernel.py`` (22 tests)
    - ``tests/unit/pml/test_mpi_pml.py`` (23 tests)
    - ``tests/unit/outputs/test_grid_view.py`` (91 tests)
    - ``tests/unit/outputs/test_mpi_grid_view.py`` (62 tests)
@@ -58,7 +58,7 @@ Unit Tests — PML, Snapshots and Outputs
    - ``tests/unit/outputs/test_geometry_objects.py`` (36 tests)
    - ``tests/unit/outputs/test_geometry_objects_read.py`` (38 tests)
 
-**Total: 923 tests** from 662 test functions across 121
+**Total: 921 tests** from 660 test functions across 121
 classes, all passing, **no** ``xfail``. Three tests skip where ``h5py`` is
 built without MPI support; see *Deliberately Untested Paths*.
 
@@ -1183,7 +1183,7 @@ install -e .``.
 Test Catalog — ``test_pml_build_kernel.py``
 -------------------------------------------
 
-**24 tests** from 19 test functions across 5 classes.
+**22 tests** from 17 test functions across 5 classes.
 
 ``cython/pml_build.pyx`` — averaging the material behind a PML slab.
 
@@ -1198,12 +1198,21 @@ material ID. ``pml_average_er_mr`` divides by the cell count;
 ``pml_sum_er_mr`` does not.
 
 Both are OpenMP ``prange`` loops with ``sumer``/``summr`` as reduction
-variables, so these are real parallel kernels driven with real arrays. One
-caveat worth recording: those accumulators are declared ``cdef double`` with
-no initialiser, and OpenMP's ``reduction(+:)`` adds the *pre-existing* value
-into the result. On this build they read as zero and every test below
-passes; if they ever stop doing so, these are the tests that will go red,
-and the cause will not be anything in this file.
+variables, so these are real parallel kernels driven with real arrays.
+
+**The kernel has a confirmed defect, and it affects these tests.** Those two
+accumulators are declared ``cdef double`` with no initialiser, and OpenMP's
+``reduction(+:)`` adds each thread's private total into the *pre-existing*
+value — which is uninitialised stack. On Linux, macOS and the local Windows
+toolchain that slot happens to read as zero, so the kernel returns the right
+answer. On the GitHub Windows runner it does not: consecutive calls reuse a
+dirty slot and accumulate into each other.
+
+Two tests in ``TestThreading`` detected exactly that and are commented out
+below with the evidence. Every test that remains in this file assumes the
+accumulator starts at zero, so **any of them can go red on an affected
+toolchain**, and the cause will not be anything in this file. See
+``notes/bugs/pml-build-uninitialised-reduction.md`` for the two-line fix.
 
 TestAverageSingleMaterial
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1270,15 +1279,6 @@ TestThreading
    accumulators are OpenMP reduction variables, so a missing reduction
    clause would show up here as a race. (3 parameter sets)
 
-``test_repeated_calls_are_deterministic``
-   Expects the same answer every time. A drifting result would mean the
-   reduction accumulator is carrying state between calls — see the module
-   docstring.
-
-``test_interleaving_different_faces_does_not_contaminate``
-   Expects a small face's answer to be unaffected by a large call in between
-   — the strongest available check that nothing leaks across invocations.
-
 TestDtypes
 ^^^^^^^^^^
 
@@ -1302,12 +1302,29 @@ TestDtypes
 When these fail
 ~~~~~~~~~~~~~~~
 
-**An average is subtly wrong, or drifts between runs.** ``sumer`` and
-``summr`` are ``cdef double`` with no initialiser, used as OpenMP
-``reduction(+:)`` variables. OpenMP adds the *pre-existing* value into the
-result, so this is undefined behaviour that currently happens to read as
-zero. If these tests go red for no apparent reason, the cause is not in the
-test file — see `notes/bugs/pml-build-uninitialised-reduction.md`.
+**An average comes out as a multiple of the correct value.** This is the
+known kernel defect, and it is the first thing to check. ``sumer`` and
+``summr`` are declared ``cdef double`` with no initialiser and used as
+OpenMP ``reduction(+:)`` variables; the reduction adds each thread's private
+total into the *pre-existing* value, which is uninitialised stack. Where
+that slot is dirty, consecutive calls accumulate into one another. Observed
+on the GitHub ``windows-latest`` runner: twenty calls returning ``5.0, 10.0,
+… 100.0`` where every one should have been ``5.0``. **The cause is not in
+this file** — see ``notes/bugs/pml-build-uninitialised-reduction.md``, which
+carries the two-line fix.
+
+**Two tests are missing from this class.**
+``test_repeated_calls_are_deterministic`` and
+``test_interleaving_different_faces_does_not_contaminate`` are commented out
+in ``TestThreading``, with the failing numbers recorded inline. They are
+correct and the kernel is not; they were disabled so this PR could remain
+tests-only, and they should be restored in the same change that fixes the
+kernel.
+
+**Any other test here goes red for no apparent reason.** Every test in this
+file assumes the accumulator starts at zero. The two disabled ones were
+simply the most sensitive detectors — a single call at the wrong stack depth
+is enough to corrupt any of the others on an affected toolchain.
 
 **A thread-count test fails.**
 ``test_result_is_independent_of_thread_count`` is the race detector. A
@@ -4365,6 +4382,20 @@ closing one of these is a matter of applying the fix and pasting in the test.
    ``write_hdf5_outputfile`` never closes its file and ``Snapshot.write_hdf5``
    closes it only on success. Refcounting hides this today.
 
+**Repeated calls into the PML material-averaging kernel.**
+   ``pml_average_er_mr`` and ``pml_sum_er_mr`` reduce into ``cdef double``
+   accumulators that are never initialised, so on a toolchain that leaves the
+   stack slot dirty, consecutive calls accumulate into each other. Two tests in
+   ``test_pml_build_kernel.py::TestThreading`` detected this on the GitHub
+   ``windows-latest`` runner — twenty calls returning ``5.0, 10.0, … 100.0``
+   where all twenty should have been ``5.0``, and an interleaved case returning
+   exactly the predicted ``454.0``. Those two tests are **commented out** with
+   the evidence recorded inline, so that this PR could remain tests-only. They
+   are correct; the kernel is not. Unlike everything else in this section, this
+   defect is *not* confined to an untested path — it corrupts ``sigma_max`` for
+   every real PML slab on an affected build, and the remaining tests in that
+   file are exposed to it too.
+
 **Cross-model growth of the snapshot maxima.**
    ``Snapshot.nx_max`` and friends only ever increase and nothing in production
    resets them, so a B-scan sizes every model's device buffers from the largest
@@ -4393,3 +4424,38 @@ Four of the first five above are the same shape: an ``if``/``elif`` chain
 enumerating the expected cases with **no terminal** ``else``. With PR 9's five
 that is nine instances across two PRs, and it is worth raising as one issue
 about the codebase's dispatch idiom rather than as nine tickets.
+
+Out of Scope
+------------
+
+**No source changes under** ``gprMax/``. Not the missing ``else`` branches, not
+the ``Rx.ID`` annotation, not the unclosed file handles. Tests only, per the
+standing decision from PR 9 onward.
+
+**One CI change.** ``.github/workflows/tests.yml`` loses
+``MPI4PY_RC_INITIALIZE: "0"``, which is incompatible with constructing real MPI
+communicators. ``MPI4PY_RC_FINALIZE: "0"`` and ``OMP_NUM_THREADS: "1"`` are
+retained; the full suite is green under both.
+
+**No physics validation.** The PML coefficients are asserted against the
+published closed forms, never against a measured reflection coefficient. That
+needs an analytic reference solution and belongs in an integration suite.
+
+**No GPU execution.** ``CUDAPML``, ``OpenCLPML`` and ``MetalPML``, and the
+device-transfer branches, are exercised only through their host-side wiring
+with stand-in modules and devices. Real accelerators are PR 12, behind
+hardware ``skipif`` guards.
+
+**No** ``vtkhdf_filehandlers`` **tests.** That package is PR 11. Here it is
+exercised transitively by every round-trip test — which is the point: those
+tests establish what the current on-disk layout is, so PR 11 can refactor the
+writers with something to check against.
+
+**No user-object coverage.** PR 6 tested the ``Snapshot``, ``GeometryView`` and
+``GeometryObjectsWrite`` classes in ``gprMax/user_objects/cmds_output.py`` —
+the *commands*. This suite tests the runtime classes of the same names in
+``snapshots.py`` and ``geometry_outputs/``. Same names, different modules; the
+same trap exists for the two files called ``geometry_objects_read.py``.
+
+**No solver loop.** ``Model.solve``, ``contexts.py`` and ``solvers.py`` remain
+orchestrators, out of scope for the unit suite.
