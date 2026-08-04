@@ -168,6 +168,39 @@ def test_open_huygens_surface_allows_source_through_omitted_face(tmp_path):
         assert surface.attrs["omitted_faces"].tolist() == [b"x0"]
 
 
+def test_open_huygens_surface_emits_runtime_warning(tmp_path):
+    inputfile = tmp_path / "open_huygens_warning.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.04 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf x0\n"
+        "#ntff_frequency: surf spectrum 5e9\n"
+        "#ntff_far_field: 90 0 spectrum pattern Etheta\n"
+    )
+
+    with pytest.warns(RuntimeWarning) as warning_info:
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "open_huygens_warning",
+            hide_progress_bars=True,
+        )
+
+    assert [str(item.message) for item in warning_info] == [
+        "The NTFF integration surface is not closed. Equivalent-current NTFF "
+        "normally assumes a closed Huygens surface. This option is intended for "
+        "configurations where the omitted face is associated with an eigenmode "
+        "port or other modelling scenarios the require such approach. Results may "
+        "be incomplete or inaccurate if the omitted field contribution is not "
+        "represented correctly or is significant for your calculations."
+    ]
+
+
 def test_open_huygens_surface_supports_two_feed_openings(tmp_path):
     inputfile = tmp_path / "two_openings.in"
     inputfile.write_text(

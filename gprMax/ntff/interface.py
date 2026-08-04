@@ -20,6 +20,7 @@
 """Compiled reusable-surface interface for NTFF field transformations."""
 
 import logging
+import warnings
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Mapping, Optional, Sequence
@@ -82,6 +83,14 @@ WINDOWS = ("rectangular", "hann")
 # working-set target. It is a performance bound, not a model-size limit.
 FAR_ZONE_TARGET_WORKING_SET_BYTES = 32 * 1024 * 1024
 MAX_FAR_ZONE_DIRECTION_BLOCK = 1024
+OPEN_HUYGENS_SURFACE_WARNING = (
+    "The NTFF integration surface is not closed. Equivalent-current NTFF "
+    "normally assumes a closed Huygens surface. This option is intended for "
+    "configurations where the omitted face is associated with an eigenmode "
+    "port or other modelling scenarios the require such approach. Results may "
+    "be incomplete or inaccurate if the omitted field contribution is not "
+    "represented correctly or is significant for your calculations."
+)
 
 
 def _readonly(values: npt.ArrayLike, dtype=None) -> npt.NDArray:
@@ -1874,6 +1883,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             )
 
     _validate_ntff_subgrid_enclosure(model, compiled_surfaces)
+
+    open_equivalent_surface_ids = {
+        transform.surface_id
+        for transform in equivalent_transform_specs.values()
+        if compiled_surfaces[transform.surface_id].closure.omitted_faces
+    }
+    for _surface_id in sorted(open_equivalent_surface_ids):
+        warnings.warn(OPEN_HUYGENS_SURFACE_WARNING, RuntimeWarning, stacklevel=2)
 
     writer = NTFFCompiledOutputs(
         model,

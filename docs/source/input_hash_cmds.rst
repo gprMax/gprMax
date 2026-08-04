@@ -1860,6 +1860,15 @@ sampled faces. The edge rows shared with an omitted face are excluded from the
 homogeneous-material check, allowing an active side face to terminate on a PEC
 backplane.
 
+.. warning::
+
+   The NTFF integration surface is not closed. Equivalent-current NTFF normally
+   assumes a closed Huygens surface. This option is intended for configurations
+   where the omitted face is associated with an eigenmode port or other
+   modelling scenarios the require such approach. Results may be incomplete or
+   inaccurate if the omitted field contribution is not represented correctly
+   or is significant for your calculations.
+
 Without omitted face names, the surface is physically closed unless one or more
 faces coincide exactly with a declared
 ``#symmetry_boundary``. Coincident PEC/PMC faces are then omitted from direct
