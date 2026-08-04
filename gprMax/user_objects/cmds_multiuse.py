@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -1397,13 +1397,13 @@ class DiscretePlaneWaveAngles(GridUserObject):
 
         try:
             material_id = self.kwargs["material_id"]
-        except KeyError:    
+        except KeyError:
             #set defaule to free space
             material_id = "free_space"
 
         try:
             precompute = self.kwargs["precompute"]
-        except KeyError:    
+        except KeyError:
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
@@ -1420,21 +1420,21 @@ class DiscretePlaneWaveAngles(GridUserObject):
                 f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
             )
             raise ValueError
-        
+
         # Check if there is a materialID in the materials list
         if not any(x.ID == material_id for x in grid.materials):
             logger.exception(
                 f"{self.params_str()} there is no material " + f"with the identifier {material_id}."
             )
             raise ValueError
-           
+
         # Check angles
         if theta < 0 or theta > 180:
             logger.exception(
                 f"{self.params_str()} Polar angle theta must be between 0 and 180 degrees."
             )
             raise ValueError
-            
+
         if phi < 0 or phi > 360:
             logger.exception(
                 f"{self.params_str()} Azimuthal angle phi must be between 0 and 360 degrees."
@@ -1447,7 +1447,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
             )
             raise ValueError
 
-      
+
         uip = self._create_uip(grid)
         start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
 
@@ -1456,12 +1456,12 @@ class DiscretePlaneWaveAngles(GridUserObject):
         DPW.phi = phi
         DPW.theta = theta
         DPW.psi = psi
-        DPW.max_angle_diff = max_angle_diff 
+        DPW.max_angle_diff = max_angle_diff
         DPW.waveformID = waveform_id
         DPW.materialID = material_id
-        DPW.m = np.zeros(3 + 1, dtype=np.int32) 
+        DPW.m = np.zeros(3 + 1, dtype=np.int32)
         DPW.axial = 0
-             
+
         try:
             # Check source start & source remove time parameters
             start = self.kwargs["start"]
@@ -1489,7 +1489,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
             DPW.start = 0
             DPW.stop = grid.timewindow
             startstop = " "
-        
+
         DPW.initializeDiscretePlaneWave(grid)
 
 
@@ -1504,7 +1504,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
             + startstop
             + f"using waveform {DPW.waveformID} created."
         )
-             
+
         logger.info(
             f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
             + "and angles have been approximated to the nearest rational angles "
@@ -1518,7 +1518,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
             f"{self.grid_name(grid)}Discrete Plane Wave has been initialized "
             + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({DPW.projections[0]:.4f}, {DPW.projections[1]:.4f}, {DPW.projections[2]:.4f}, {DPW.projections[3]:.4f}, {DPW.projections[4]:.4f}, {DPW.projections[5]:.4f})"
             + f" , grid origin = ({DPW.origin[0]}, {DPW.origin[1]}, {DPW.origin[2]})"
-            + f" and 1D vector length = {DPW.length} cells."        
+            + f" and 1D vector length = {DPW.length} cells."
         )
 
 
@@ -1536,9 +1536,9 @@ class DiscretePlaneWaveVector(GridUserObject):
 
 
     Attributes:
-        m_vec: tuple required of the three integer componets specifying 
+        m_vec: tuple required of the three integer componets specifying
             the direction of the the plane wave.
-        psi: float required for the polarisation of wave.    
+        psi: float required for the polarisation of wave.
         p1: tuple required for the lower left position (x, y, z) of the total
             field, scattered field (TFSF) box.
         p2: tuple required for the upper right position (x, y, z) of the total
@@ -1577,13 +1577,13 @@ class DiscretePlaneWaveVector(GridUserObject):
 
         try:
             material_id = self.kwargs["material_id"]
-        except KeyError:    
+        except KeyError:
             #set defaule to free space
             material_id = "free_space"
 
         try:
             precompute = self.kwargs["precompute"]
-        except KeyError:    
+        except KeyError:
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
@@ -1600,23 +1600,23 @@ class DiscretePlaneWaveVector(GridUserObject):
                 f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
             )
             raise ValueError
-        
+
         # Check if there is a materialID in the materials list
         if not any(x.ID == material_id for x in grid.materials):
             logger.exception(
                 f"{self.params_str()} there is no material " + f"with the identifier {material_id}."
             )
             raise ValueError
-           
+
         # Check angle
- 
+
         if psi < 0 or psi > 360:
             logger.exception(
                 f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
             )
             raise ValueError
 
-      
+
         uip = self._create_uip(grid)
         start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
 
@@ -1639,7 +1639,7 @@ class DiscretePlaneWaveVector(GridUserObject):
         DPW.m = np.zeros(3 + 1, dtype=np.int32)
         DPW.m[:3] = np.array(m_vec, dtype=np.int32)
         DPW.axial = 0
-             
+
         try:
             # Check source start & source remove time parameters
             start = self.kwargs["start"]
@@ -1667,7 +1667,7 @@ class DiscretePlaneWaveVector(GridUserObject):
             DPW.start = 0
             DPW.stop = grid.timewindow
             startstop = " "
-        
+
         DPW.initializeDiscretePlaneWave(grid)
 
 
@@ -1682,7 +1682,7 @@ class DiscretePlaneWaveVector(GridUserObject):
             + startstop
             + f"using waveform {DPW.waveformID} created."
         )
-             
+
         logger.info(
             f"{self.grid_name(grid)}Discrete Plane Wave has been discretized "
             + "using user specified integers that are "
@@ -1695,7 +1695,7 @@ class DiscretePlaneWaveVector(GridUserObject):
             f"{self.grid_name(grid)}Discrete Plane Wave has been initialized "
             + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({DPW.projections[0]:.4f}, {DPW.projections[1]:.4f}, {DPW.projections[2]:.4f}, {DPW.projections[3]:.4f}, {DPW.projections[4]:.4f}, {DPW.projections[5]:.4f})"
             + f" , grid origin = ({DPW.origin[0]}, {DPW.origin[1]}, {DPW.origin[2]})"
-            + f" and 1D vector length = {DPW.length} cells."        
+            + f" and 1D vector length = {DPW.length} cells."
         )
 
 
@@ -1750,7 +1750,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
         try:
             precompute = self.kwargs["precompute"]
-        except KeyError:    
+        except KeyError:
             precompute = True
 
         # Warn about using a discrete plane wave on GPU
@@ -1767,7 +1767,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
                 f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
             )
             raise ValueError
-           
+
         # Check polarisation angle
         if psi < 0 or psi > 360:
             logger.exception(
@@ -1775,18 +1775,18 @@ class DiscretePlaneWaveAxial(GridUserObject):
             )
             raise ValueError
 
-      
+
         uip = self._create_uip(grid)
         start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
 
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([*start, *stop], dtype=np.int32)
         DPW.waveformID = waveform_id
-        DPW.m = np.zeros(3 + 1, dtype=np.int32) 
+        DPW.m = np.zeros(3 + 1, dtype=np.int32)
         DPW.axis = axis.lower()
-        DPW.psi = psi   
-        if axis.lower() == 'x':        
-            DPW.axial = 1   
+        DPW.psi = psi
+        if axis.lower() == 'x':
+            DPW.axial = 1
             DPW.m[0] = 1
             DPW.m[1] = 0
             DPW.m[2] = 0
@@ -1804,7 +1804,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
             DPW.m[0] = 0
             DPW.m[1] = 0
             DPW.m[2] = 1
-            DPW.theta = 0.0 
+            DPW.theta = 0.0
             DPW.phi = 0.0
         else:
             logger.exception(
@@ -1848,7 +1848,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
             DPW.start = 0
             DPW.stop = grid.timewindow
             startstop = " "
-        
+
         DPW.initializeDiscretePlaneWave(grid)
 
 
@@ -1866,7 +1866,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
         grid.discreteplanewaves.append(DPW)
 
-        
+
 class EigenmodeSource(GridUserObject):
     """
     Specifies an eigenmode source plane. The command form is:
@@ -2857,7 +2857,7 @@ class MaterialRange(GridUserObject):
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
-        
+
         s = RangeMaterialUser(
             ID,
             (er_lower, er_upper),

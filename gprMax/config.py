@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -390,7 +390,7 @@ class SimulationConfig:
 
             # Add pyopencl available device(s)
             self.devices["devs"] = detect_opencl()
-        
+
         # Apple Metal
         if self.args.metal is not None:
             self.general["solver"] = "metal"
