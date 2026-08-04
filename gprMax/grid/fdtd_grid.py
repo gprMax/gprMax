@@ -310,7 +310,7 @@ class FDTDGrid:
         if config.get_model_config().materials["maxpoles"] > 0:
             self.initialise_dispersive_arrays()
             self.initialise_dispersive_update_coeff_array()
-            
+
         self._build_materials()
         self._apply_thin_wire_update_coefficients()
         self._DPW__source_grid_init()
@@ -860,7 +860,7 @@ class FDTDGrid:
         This is used when axial propagation is used and the DPW needs the grid ID components to have been build first
         """
         # Process any Discrete plane wave sources that are need extra information
-       
+
         for dpw in self.discreteplanewaves:
             dpw.grid_init(self)
 

@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -2801,12 +2801,12 @@ class DiscretePlaneWave(Source):
     Origin of the DPW can be any corner of the FDTD grid and the
     propagation direction is defined by two angles, phi and theta. The DPW
     is defined by three integers, m_x, m_y, m_z which determine the rational
-    angles corresponding to the propagation direction. 
-    
+    angles corresponding to the propagation direction.
+
     """
 
     def __init__(self, G):
-        """    
+        """
         Args:
             m: int array stores the integer mappings, m_x, m_y, m_z which
                 determine the rational angles last element stores
@@ -2975,24 +2975,24 @@ class DiscretePlaneWave(Source):
         px = math.sin(self.theta_est_rad)*math.cos(self.phi_est_rad)
         py = math.sin(self.theta_est_rad)*math.sin(self.phi_est_rad)
         pz = math.cos(self.theta_est_rad)
-        
+
         #Maximum of the absolute values of m_x, m_y, m_z
         self.max_m = np.max(np.abs(self.m[:3]))
 
         # Store the absolute value of max(m_x, m_y, m_z) in the last element of the array
         self.m[3] = self.max_m
-  
+
         if self.m[0] < 0:
             self.origin[0] = G.nx +1
         if self.m[1] < 0:
             self.origin[1] = G.ny +1
         if self.m[2] < 0:
             self.origin[2] = G.nz +1
-        
-        # Calculate ds that is needed for sourcing the 1D array. This is the spatial step of the 1D DPW grid. 
-        # For axial propagation this is simply the grid step in the direction of propagation. 
+
+        # Calculate ds that is needed for sourcing the 1D array. This is the spatial step of the 1D DPW grid.
+        # For axial propagation this is simply the grid step in the direction of propagation.
         # For non-axial propagation this is calculated from the grid steps and the m vector.
-        if self.m[0] == 0:  
+        if self.m[0] == 0:
             if self.m[1] == 0:
                 if self.m[2] == 0:
                     raise ValueError("DPW should not be here as not all m_i values can be zero")
@@ -3005,8 +3005,8 @@ class DiscretePlaneWave(Source):
 
 
         # get the number of 1D DPW grid PML cells from the number of 3D FDTD PML cells used for terminating the 1D grid. This is set to 20 cells by default.
-        self.pml_length = np.abs(self.m[0]) * self.pml_cells + np.abs(self.m[1]) * self.pml_cells + np.abs(self.m[2]) * self.pml_cells      
-        # Set few buffer FDTD cells as extra 
+        self.pml_length = np.abs(self.m[0]) * self.pml_cells + np.abs(self.m[1]) * self.pml_cells + np.abs(self.m[2]) * self.pml_cells
+        # Set few buffer FDTD cells as extra
         buffercells = np.abs(self.m[0]) * self.max_m + np.abs(self.m[1]) * self.max_m + np.abs(self.m[2]) * self.max_m
 
         # Total length of the 1D grid if not axial propagation
@@ -3017,7 +3017,7 @@ class DiscretePlaneWave(Source):
             buffercells = self.buffercells_axial
             self.length = np.abs(self.m[0]) * (G.nx + 1) + np.abs(self.m[1]) * (G.ny + 1) + np.abs(self.m[2]) * (G.nz + 1) + 2*self.pml_length + buffercells
             self.origin_axial = self.pml_length + buffercells
-                    
+
         #self.length = 8000  # For testing purposes, limit length to 8000 cells
 
 
@@ -3033,7 +3033,7 @@ class DiscretePlaneWave(Source):
             order="C",
             dtype=config.sim_config.dtypes["float_or_double"],
         )
-        # Allocate memory for the 1D source fields for axial propagation case 
+        # Allocate memory for the 1D source fields for axial propagation case
         if self.axial != 0:
             self.E_fields_s = np.zeros(
             (3, self.length),
@@ -3050,14 +3050,14 @@ class DiscretePlaneWave(Source):
         # Izjxy means correcting an E_z field due to a H_x field variation in y derivative direction array position 0
         # Izjyx means correcting an E_z field due to a H_y field variation in x derivative direction array position 1
         # Izmxy means correcting an H_z field due to an E_x field variation in y derivative direction array position 2
-        # Izmyx means correcting an H_z field due to an E_y field variation in x derivative direction array position 3 
-        self.Iz = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])      
+        # Izmyx means correcting an H_z field due to an E_y field variation in x derivative direction array position 3
+        self.Iz = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
             self.Iz_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
             self.Iz0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-        
+
         # Iyjxz means correcting an E_y field due to a H_x field variation in z derivative direction array position 0
         # Iyjzx means correcting an E_y field due to a H_z field variation in x derivative direction array position 1
         # Iymxz means correcting an H_y field due to an E_x field variation in z derivative direction array position 2
@@ -3078,13 +3078,13 @@ class DiscretePlaneWave(Source):
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
             self.Ix_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Ix0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])    
+            self.Ix0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
        # When no grid IDs are used Get the background material object with the matching ID and add it to the PlaneWave object
         if self.axial == 0:
             self.material = next((x for x in G.materials if x.ID == self.materialID), None)
-        
-            
+
+
             # A homogeneous DPW can use any electric dispersion supported by
             # the main grid. The real part of eps_r at the waveform centre
             # frequency sets the reference speed and impedance; the complete
@@ -3100,23 +3100,23 @@ class DiscretePlaneWave(Source):
             else:
                 self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
-             
-            
+
+
 
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
 
-            self.projections[0]=math.cos(self.psi_rad)*math.sin(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad) 
+            self.projections[0]=math.cos(self.psi_rad)*math.sin(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad)
             if abs(self.projections[0]) <= 1e-15:
                 self.projections[0] = 0
 
             self.projections[1]=-math.cos(self.psi_rad)*math.cos(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad)
             if abs(self.projections[1]) <= 1e-15:
-                self.projections[1] =0 
+                self.projections[1] =0
 
             self.projections[2]=math.sin(self.psi_rad)*math.sin(self.theta_est_rad)
             if abs(self.projections[2]) <= 1e-15:
-                self.projections[2] = 0    
+                self.projections[2] = 0
 
             self.projections[3]=(math.sin(self.psi_rad)*math.sin(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad))/self.materialZ
             if abs(self.projections[3]) <= 1e-15:
@@ -3124,7 +3124,7 @@ class DiscretePlaneWave(Source):
 
             self.projections[4]=(-math.sin(self.psi_rad)*math.cos(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad))/self.materialZ
             if abs(self.projections[4]) <= 1e-15:
-                self.projections[4] = 0    
+                self.projections[4] = 0
 
             self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
             if abs(self.projections[5]) <= 1e-15:
@@ -3274,7 +3274,7 @@ class DiscretePlaneWave(Source):
             #Set the material ID of the PML region at origin as the same as the material next to the grid origin
             self.materialPML0 = self.material
             self.materialPML0Z = self.materialZ
-            self.PML0speed = self.speed        
+            self.PML0speed = self.speed
 
             # Reference properties at the far-side DPW PML.
             if getattr(self.materialPML, "poles", 0) > 0:
@@ -3297,21 +3297,21 @@ class DiscretePlaneWave(Source):
                 default=0,
             )
 
-        
+
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
 
-            self.projections[0]=math.cos(self.psi_rad)*math.sin(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad) 
+            self.projections[0]=math.cos(self.psi_rad)*math.sin(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad)
             if abs(self.projections[0]) <= 1e-15:
                 self.projections[0] = 0
 
             self.projections[1]=-math.cos(self.psi_rad)*math.cos(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad)
             if abs(self.projections[1]) <= 1e-15:
-                self.projections[1] =0 
+                self.projections[1] =0
 
             self.projections[2]=math.sin(self.psi_rad)*math.sin(self.theta_est_rad)
             if abs(self.projections[2]) <= 1e-15:
-                self.projections[2] = 0    
+                self.projections[2] = 0
 
             self.projections[3]=(math.sin(self.psi_rad)*math.sin(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad))/self.materialZ
             if abs(self.projections[3]) <= 1e-15:
@@ -3319,7 +3319,7 @@ class DiscretePlaneWave(Source):
 
             self.projections[4]=(-math.sin(self.psi_rad)*math.cos(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad))/self.materialZ
             if abs(self.projections[4]) <= 1e-15:
-                self.projections[4] = 0    
+                self.projections[4] = 0
 
             self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
             if abs(self.projections[5]) <= 1e-15:
@@ -3329,7 +3329,7 @@ class DiscretePlaneWave(Source):
 
             self._get_pml_parameters(G)
 
-           
+
             print(f"Discrete Plane Wave has been initialized "
             + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({self.projections[0]:.4f}, {self.projections[1]:.4f}, {self.projections[2]:.4f}, {self.projections[3]:.4f}, {self.projections[4]:.4f}, {self.projections[5]:.4f})"
             + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
@@ -3408,7 +3408,7 @@ class DiscretePlaneWave(Source):
 
                     for r in range(self.m[3]):
                         time2 = (
-                            G.dt * (iteration) 
+                            G.dt * (iteration)
                             - (
                                 r
                                 + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5
@@ -3443,7 +3443,7 @@ class DiscretePlaneWave(Source):
         precompute=True
     ):
         if self.axial != 0:
-            
+
             updatePlaneWave_magnetic_axial(
                 self.length,
                 self.pml_length,
@@ -3456,7 +3456,7 @@ class DiscretePlaneWave(Source):
                 self.E_fields_s,
                 self.Ix,
                 self.Iy,
-                self.Iz,    
+                self.Iz,
                 self.Ix0,
                 self.Iy0,
                 self.Iz0,
@@ -3474,7 +3474,7 @@ class DiscretePlaneWave(Source):
                 self.pml_rhy,
                 self.pml_rhz,
                 self.pml_rex0,
-                self.pml_rey0,   
+                self.pml_rey0,
                 self.pml_rez0,
                 self.pml_rhx0,
                 self.pml_rhy0,
@@ -3504,11 +3504,11 @@ class DiscretePlaneWave(Source):
                 self.waveform.freq,
                 self.waveform.type.encode("UTF-8")
             )
-            
-        else:        
+
+        else:
 
             if cythonize:
-            
+
                 updatePlaneWave_magnetic(
                     self.length,
                     self.pml_length,
@@ -3518,7 +3518,7 @@ class DiscretePlaneWave(Source):
                     self.E_fields,
                     self.Ix,
                     self.Iy,
-                    self.Iz,    
+                    self.Iz,
                     updatecoeffsE[self.material.numID, :],
                     updatecoeffsH[self.material.numID, :],
                     self.pml_rex,
@@ -3526,7 +3526,7 @@ class DiscretePlaneWave(Source):
                     self.pml_rez,
                     self.pml_rhx,
                     self.pml_rhy,
-                    self.pml_rhz,   
+                    self.pml_rhz,
                     Ex,
                     Ey,
                     Ez,
@@ -3555,7 +3555,7 @@ class DiscretePlaneWave(Source):
             else:
                     self.update_magnetic_field_1D(G, iteration, precompute)
                     self.apply_TFSF_conditions_magnetic(G)
-            
+
 
     def update_plane_wave_electric(
         self,
@@ -3573,7 +3573,7 @@ class DiscretePlaneWave(Source):
         cythonize=True,
         precompute=True
     ):
-        
+
         if self.axial != 0:
             updatePlaneWave_electric_axial(
                 self.length,
@@ -3587,9 +3587,9 @@ class DiscretePlaneWave(Source):
                 self.E_fields_s,
                 self.Ix,
                 self.Iy,
-                self.Iz,    
+                self.Iz,
                 self.Ix0,
-                self.Iy0,   
+                self.Iy0,
                 self.Iz0,
                 self.Ix_s,
                 self.Iy_s,
@@ -3648,7 +3648,7 @@ class DiscretePlaneWave(Source):
                     self.E_fields,
                     self.Ix,
                     self.Iy,
-                    self.Iz,    
+                    self.Iz,
                     updatecoeffsE[self.material.numID, :],
                     updatecoeffsH[self.material.numID, :],
                     self.pml_rex,
@@ -3656,7 +3656,7 @@ class DiscretePlaneWave(Source):
                     self.pml_rez,
                     self.pml_rhx,
                     self.pml_rhy,
-                    self.pml_rhz,   
+                    self.pml_rhz,
                     Ex,
                     Ey,
                     Ez,
@@ -3685,7 +3685,7 @@ class DiscretePlaneWave(Source):
             else:
                 self.update_electric_field_1D(G, iteration, precompute)
                 self.apply_TFSF_conditions_electric(G)
-            
+
 
     def update_plane_wave_electric_dispersive(
         self,
@@ -3719,13 +3719,13 @@ class DiscretePlaneWave(Source):
                 self.Py,
                 self.Pz,
                 self.Px_s,
-                self.Py_s,  
+                self.Py_s,
                 self.Pz_s,
                 self.Ix,
                 self.Iy,
-                self.Iz,    
+                self.Iz,
                 self.Ix0,
-                self.Iy0,    
+                self.Iy0,
                 self.Iz0,
                 self.Ix_s,
                 self.Iy_s,
@@ -3743,7 +3743,7 @@ class DiscretePlaneWave(Source):
                 self.pml_rhy,
                 self.pml_rhz,
                 self.pml_rex0,
-                self.pml_rey0,   
+                self.pml_rey0,
                 self.pml_rez0,
                 self.pml_rhx0,
                 self.pml_rhy0,
@@ -3789,7 +3789,7 @@ class DiscretePlaneWave(Source):
                     self.Pz,
                     self.Ix,
                     self.Iy,
-                    self.Iz,    
+                    self.Iz,
                     updatecoeffsE[self.material.numID, :],
                     updatecoeffsH[self.material.numID, :],
                     updatecoeffsdispersive[self.material.numID, :],
@@ -3799,7 +3799,7 @@ class DiscretePlaneWave(Source):
                     self.pml_rez,
                     self.pml_rhx,
                     self.pml_rhy,
-                    self.pml_rhz,   
+                    self.pml_rhz,
                     Ex,
                     Ey,
                     Ez,
@@ -3827,7 +3827,7 @@ class DiscretePlaneWave(Source):
                 )
             else:
                 raise NotImplementedError("Cythonized version not available")
-               
+
 
     def initialize_magnetic_fields_1D(self, G, iteration, precompute):
         if precompute:
@@ -3876,7 +3876,7 @@ class DiscretePlaneWave(Source):
                         self.waveform.type.encode("UTF-8"),
                         G.dt,
                     )
-    
+
 
     def update_magnetic_field_1D(self, G, iteration, precompute=True):
         """Updates magnetic fields for the next time step using Equation 8 of
@@ -3946,7 +3946,7 @@ class DiscretePlaneWave(Source):
 
         """
         self.initialize_electric_fields_1D(G, iteration, precompute)
-       
+
 
         for i in range(3):  # Update each component of electric field
             materialE = G.ID[
@@ -4193,7 +4193,7 @@ class DiscretePlaneWave(Source):
                The geometrically correct projected error components (d_theta, d_phi), in degrees.
            total_error_deg : float
                The final total 3D angular error of the returned vector, in degrees.
-        """ 
+        """
 
         # --- Helper Function to calculate continued fraction convergents ---
         def continued_fractions(x, n_terms=15): # Reduced to 15 to avoid flint warning
@@ -4260,8 +4260,8 @@ class DiscretePlaneWave(Source):
         ratio_2 = (u_perm[1] / u_perm[2]) * (d_perm[1] / d_perm[2])
 
         #  The target ratios are decimal numbers. We need to find simple integer
-        #  fractions that as close as possible to these decimals. 
-        #  This is done using "continued fractions". A list of these best-guess fractions 
+        #  fractions that as close as possible to these decimals.
+        #  This is done using "continued fractions". A list of these best-guess fractions
         #  is generated using the helper function for continued fractions (called "convergents").
         convergents1 = continued_fractions(ratio_1)
         convergents2 = continued_fractions(ratio_2)
@@ -4323,7 +4323,7 @@ class DiscretePlaneWave(Source):
         best_candidate = valid_candidates[0]
         m_vec = best_candidate['m_vec']
         total_error_deg = best_candidate['error']
-        max_m = best_candidate['size'] 
+        max_m = best_candidate['size']
 
         # We perform the final detailed error calculation for the winning vector.
         phys_vec = m_vec / np.array(delta_xyz)
@@ -4357,27 +4357,27 @@ class DiscretePlaneWave(Source):
         """
         Calculates and sets the DPW PML parameters based on RIPML formulation.
                 The forumlation can handle full CFS PML parameters but these are not needed and cannot be set by the user.
-                Hence only sigma_max is calculated here based on the standard formula for PMLs. The other parameters are set to values that disable their grading 
+                Hence only sigma_max is calculated here based on the standard formula for PMLs. The other parameters are set to values that disable their grading
                 but they can be edited here for testing purposes.
-                
+
                 This method uses NumPy vectorization for high performance.
         """
 
         if self.axial == 0:
             Z = self.materialZ
-            
+
             # --- PML Configuration ---
             Order = 4
             KOrder = 1
             AOrder = 1
-            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the 
+            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (0.8 * (Order + 1) / 
+            sigma_max = (0.8 * (Order + 1) /
                               (Z * np.sqrt(self.m[0]**2 + self.m[1]**2 + self.m[2]**2) * self.ds))
             Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
             Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
 
-      
+
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
             depth = np.arange(self.pml_length)
@@ -4396,32 +4396,32 @@ class DiscretePlaneWave(Source):
             sEy = sigma_max * np.maximum(0, sEy_base)**Order
             kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
             aEy = Alpha_max * aEy_base**AOrder
-        
+
             sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
             aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
             sEz = sigma_max * np.maximum(0, sEz_base)**Order
             kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
             aEz = Alpha_max * aEz_base**AOrder
-        
+
             # --- H-Field PML Parameters (Vectorized) ---
             sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             sHx = sigma_max * np.maximum(0, sHx_base)**Order
             kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
             aHx = Alpha_max * aHx_base**AOrder
-        
+
             sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             sHy = sigma_max * np.maximum(0, sHy_base)**Order
             kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
             aHy = Alpha_max * aHy_base**AOrder
-        
+
             sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             sHz = sigma_max * np.maximum(0, sHz_base)**Order
-            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder 
+            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
             aHz = Alpha_max * aHz_base**AOrder
-        
+
             # --- Final Update Coefficients (Vectorized) ---
             # Denominators for E and H field updates
             den_Ex = 2 * config.e0 * kEx + G.dt * kEx * aEx + G.dt * sEx
@@ -4450,7 +4450,7 @@ class DiscretePlaneWave(Source):
             RCHx = G.dt * (kHx * aHx + sHx)
             RCHy = G.dt * (kHy * aHy + sHy)
             RCHz = G.dt * (kHz * aHz + sHz)
-            
+
             # RD Coefficients
             RDEx = G.dt * (aEx * (1 - kEx) - sEx)
             RDEy = G.dt * (aEy * (1 - kEy) - sEy)
@@ -4460,7 +4460,7 @@ class DiscretePlaneWave(Source):
             RDHz = G.dt * (aHz * (1 - kHz) - sHz)
 
             # --- Combine Coefficients into Single Matrices ---
-            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez, 
+            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
             self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
             self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
@@ -4472,19 +4472,19 @@ class DiscretePlaneWave(Source):
 
         else:
             Z = self.materialPMLZ
-            
+
             # --- PML Configuration ---
             Order = 4
             KOrder = 1
             AOrder = 1
-            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the 
+            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (0.8 * (Order + 1) / 
+            sigma_max = (0.8 * (Order + 1) /
                               (Z * np.sqrt(self.m[0]**2 + self.m[1]**2 + self.m[2]**2) * self.ds))
             Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
             Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
 
-      
+
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
             depth = np.arange(self.pml_length)
@@ -4503,32 +4503,32 @@ class DiscretePlaneWave(Source):
             sEy = sigma_max * np.maximum(0, sEy_base)**Order
             kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
             aEy = Alpha_max * aEy_base**AOrder
-        
+
             sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
             aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
             sEz = sigma_max * np.maximum(0, sEz_base)**Order
             kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
             aEz = Alpha_max * aEz_base**AOrder
-        
+
             # --- H-Field PML Parameters (Vectorized) ---
             sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             sHx = sigma_max * np.maximum(0, sHx_base)**Order
             kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
             aHx = Alpha_max * aHx_base**AOrder
-        
+
             sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             sHy = sigma_max * np.maximum(0, sHy_base)**Order
             kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
             aHy = Alpha_max * aHy_base**AOrder
-        
+
             sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             sHz = sigma_max * np.maximum(0, sHz_base)**Order
-            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder 
+            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
             aHz = Alpha_max * aHz_base**AOrder
-        
+
             # --- Final Update Coefficients (Vectorized) ---
             # Denominators for E and H field updates
             den_Ex = 2 * config.e0 * kEx + G.dt * kEx * aEx + G.dt * sEx
@@ -4557,7 +4557,7 @@ class DiscretePlaneWave(Source):
             RCHx = G.dt * (kHx * aHx + sHx)
             RCHy = G.dt * (kHy * aHy + sHy)
             RCHz = G.dt * (kHz * aHz + sHz)
-            
+
             # RD Coefficients
             RDEx = G.dt * (aEx * (1 - kEx) - sEx)
             RDEy = G.dt * (aEy * (1 - kEy) - sEy)
@@ -4567,7 +4567,7 @@ class DiscretePlaneWave(Source):
             RDHz = G.dt * (aHz * (1 - kHz) - sHz)
 
             # --- Combine Coefficients into Single Matrices ---
-            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez, 
+            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
             self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
             self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
@@ -4580,19 +4580,19 @@ class DiscretePlaneWave(Source):
             # --- Repeat for PML0 ---
 
             Z = self.materialPML0Z
-            
+
             # --- PML Configuration ---
             Order = 4
             KOrder = 1
             AOrder = 1
-            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the 
+            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (0.8 * (Order + 1) / 
+            sigma_max = (0.8 * (Order + 1) /
                               (Z * np.sqrt(self.m[0]**2 + self.m[1]**2 + self.m[2]**2) * self.ds))
             Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
             Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
 
-      
+
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
             depth = np.arange(self.pml_length)
@@ -4611,32 +4611,32 @@ class DiscretePlaneWave(Source):
             sEy = sigma_max * np.maximum(0, sEy_base)**Order
             kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
             aEy = Alpha_max * aEy_base**AOrder
-        
+
             sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
             aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
             sEz = sigma_max * np.maximum(0, sEz_base)**Order
             kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
             aEz = Alpha_max * aEz_base**AOrder
-        
+
             # --- H-Field PML Parameters (Vectorized) ---
             sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             sHx = sigma_max * np.maximum(0, sHx_base)**Order
             kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
             aHx = Alpha_max * aHx_base**AOrder
-        
+
             sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             sHy = sigma_max * np.maximum(0, sHy_base)**Order
             kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
             aHy = Alpha_max * aHy_base**AOrder
-        
+
             sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             sHz = sigma_max * np.maximum(0, sHz_base)**Order
-            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder 
+            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
             aHz = Alpha_max * aHz_base**AOrder
-        
+
             # --- Final Update Coefficients (Vectorized) ---
             # Denominators for E and H field updates
             den_Ex = 2 * config.e0 * kEx + G.dt * kEx * aEx + G.dt * sEx
@@ -4665,7 +4665,7 @@ class DiscretePlaneWave(Source):
             RCHx = G.dt * (kHx * aHx + sHx)
             RCHy = G.dt * (kHy * aHy + sHy)
             RCHz = G.dt * (kHz * aHz + sHz)
-            
+
             # RD Coefficients
             RDEx = G.dt * (aEx * (1 - kEx) - sEx)
             RDEy = G.dt * (aEy * (1 - kEy) - sEy)
@@ -4675,7 +4675,7 @@ class DiscretePlaneWave(Source):
             RDHz = G.dt * (aHz * (1 - kHz) - sHz)
 
             # --- Combine Coefficients into Single Matrices ---
-            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez, 
+            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
             self.pml_rex0 = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
             self.pml_rey0 = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
