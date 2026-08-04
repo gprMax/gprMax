@@ -52,7 +52,7 @@ def _write_case(root, source_mode, primary_transmission_db=-1, case_name=None):
         "S_magnitude",
         "S_magnitude_db",
         "S_phase_deg",
-        "power_ratio",
+        "coefficient_magnitude_squared",
         "valid",
     )
     with path.open("w", newline="", encoding="utf-8") as stream:
@@ -84,7 +84,7 @@ def _write_case(root, source_mode, primary_transmission_db=-1, case_name=None):
                         "S_magnitude": 10 ** (magnitude_db / 20),
                         "S_magnitude_db": magnitude_db,
                         "S_phase_deg": 0,
-                        "power_ratio": 10 ** (magnitude_db / 10),
+                        "coefficient_magnitude_squared": 10 ** (magnitude_db / 10),
                         "valid": 1,
                     }
                 )

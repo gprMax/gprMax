@@ -111,6 +111,7 @@ further groups for each named or numbered output.
                 frequency
                 incident
                 outgoing
+                electric_cross_power_matrix
                 power_matrix
                 power_normalization_valid
                 power_matrix_valid
@@ -411,7 +412,8 @@ coefficient divided by the excited source-mode incident coefficient, so the
 source group contains modal S11 and other groups contain S21, S31, and modal
 conversion terms.
 
-The complex Hermitian ``power_matrix`` has shape
+The complex ``electric_cross_power_matrix`` and Hermitian ``power_matrix``
+both have shape
 ``(nfrequencies, nmodes, nmodes)``. For a modal coefficient vector
 :math:`c`, its spectral power is
 
@@ -420,7 +422,11 @@ The complex Hermitian ``power_matrix`` has shape
     P(c)=\operatorname{Re}\{c^\mathrm{H}Wc\}.
 
 This full quadratic form is required when finite-grid modal profiles are not
-exactly orthogonal. ``power_normalization_valid`` is a per-mode mask,
+exactly orthogonal. The incident and outgoing arrays are generalized modal
+travelling-wave coefficients; an individual coefficient magnitude squared is
+not an additive power when ``power_matrix`` is non-diagonal. The electric
+cross-power matrix is retained to reconstruct total-field flux in lossy
+ports. ``power_normalization_valid`` is a per-mode mask,
 ``power_matrix_valid`` is a per-frequency mask, and ``valid`` and ``valid_S``
 also include decomposition conditioning and source-spectrum checks.
 Ill-conditioned or weakly excited bins remain in the file but must not be
@@ -503,6 +509,7 @@ file under their surface and transform IDs:
                             mode_indices
                             incident
                             outgoing
+                            electric_cross_power_matrix
                             power_matrix
                             valid
                 fields/<output>
@@ -584,12 +591,14 @@ cannot be combined with Ramahi/KSIR. Conventional terminal ports use
     P_{\mathrm{inc},p}=\frac{|V_p^+|^2}{2Z_{0p}}.
 
 For a modal port with incident and outgoing vectors :math:`a_p` and
-:math:`b_p` and Hermitian power matrix :math:`W_p`,
+:math:`b_p`, define :math:`x_p=a_p+b_p` and :math:`y_p=a_p-b_p`. With
+electric cross-power matrix :math:`G^E_p`, the co-located total-field flux
+is
 
 .. math::
 
     P_{\mathrm{acc},p}
-      = \Re\{a_p^\mathrm{H}W_pa_p-b_p^\mathrm{H}W_pb_p\}.
+      = \Re\{y_p^\mathrm{H}G^E_px_p\}.
 
 The incident power of an eigenmode source is the quadratic power of its
 externally excited mode only. A passive eigenmode receiver has zero generator
@@ -609,9 +618,11 @@ exact complex terminal and incident spectra are retained so that every
 derived power can be checked independently. For modal ports those terminal
 arrays and reference impedance are NaN because no artificial voltage/current
 equivalent is introduced; ``representations`` identifies them as
-``modal_power_waves``, and ``modal_ports`` retains the modal amplitudes and
-power matrix. Modal amplitudes have units ``sqrt(W) s`` and their dimensionless
-quadratic matrix produces ``W s**2`` spectral power. A zero-amplitude
+``modal_power_waves`` (the retained schema identifier), and ``modal_ports``
+retains the generalized modal amplitudes, electric cross-power matrix, and
+Hermitian forward-wave power matrix. Modal amplitudes have units ``sqrt(W) s``
+and their dimensionless quadratic matrices produce ``W s**2`` spectral
+power. A zero-amplitude
 conventional source remains a terminated port with zero incident voltage; its
 terminal voltage/current and signed accepted power can still be non-zero
 through mutual coupling.

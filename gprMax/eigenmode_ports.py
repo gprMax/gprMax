@@ -97,6 +97,8 @@ except ImportError:  # Source-tree fallback before extensions are rebuilt.
 
 logger = logging.getLogger(__name__)
 INCIDENT_FLOOR_DB = -60.0
+CONDITION_RELATIVE_ERROR_BUDGET = 1e-3
+MAX_CONDITION_NUMBER = 1e10
 
 
 @dataclass(frozen=True)
@@ -109,7 +111,7 @@ class EigenmodePortResult:
 
 
 class EigenmodePortMonitor:
-    """Collect one plane DFT and decompose it into modal power waves."""
+    """Collect one plane DFT and decompose it into generalized modal waves."""
 
     representation = "modal_power_waves"
 
@@ -295,10 +297,11 @@ class EigenmodePortMonitor:
                         - self.conj_ev[frequency_index, row] * self.hu[frequency_index, column]
                     )
 
-        # Modal coefficients are power waves only when the generally
-        # non-diagonal cross-power form is retained.  G_H = G_E^H in exact
-        # arithmetic, so their Hermitian average is the discrete power
-        # matrix W used by P = c^H W c.
+        # G_H = G_E^H in exact arithmetic, so their Hermitian average is the
+        # discrete forward-wave power matrix W used by P = c^H W c. The
+        # coefficients remain generalized modal travelling-wave coordinates:
+        # an individual coefficient squared is not an additive power when W
+        # is non-diagonal.
         self.power_matrix = np.ascontiguousarray(
             0.5 * (self.electric_gram + self.magnetic_gram),
             dtype=complex_dtype,
@@ -362,6 +365,13 @@ class EigenmodePortMonitor:
     def finalise(self, grid):
         nf, nm = self.electric_dft.shape
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+        component_dtype = (
+            np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64
+        )
+        condition_limit = min(
+            MAX_CONDITION_NUMBER,
+            CONDITION_RELATIVE_ERROR_BUDGET / np.finfo(component_dtype).eps,
+        )
         incident = np.full((nm, nf), np.nan + 1j * np.nan, dtype=complex_dtype)
         outgoing = np.full_like(incident, np.nan + 1j * np.nan)
         valid = np.zeros((nm, nf), dtype=bool)
@@ -373,15 +383,26 @@ class EigenmodePortMonitor:
 
         for frequency_index in range(nf):
             try:
+                # The Gram systems are small. Solve them in complex128 even
+                # when the FDTD arrays use complex64, while retaining a
+                # validity limit based on the precision of the stored inputs.
+                electric_gram = np.asarray(
+                    self.electric_gram[frequency_index], dtype=np.complex128
+                )
+                magnetic_gram = np.asarray(
+                    self.magnetic_gram[frequency_index], dtype=np.complex128
+                )
                 condition[frequency_index] = max(
-                    np.linalg.cond(self.electric_gram[frequency_index]),
-                    np.linalg.cond(self.magnetic_gram[frequency_index]),
+                    np.linalg.cond(electric_gram),
+                    np.linalg.cond(magnetic_gram),
                 )
                 electric_coeff = np.linalg.solve(
-                    self.electric_gram[frequency_index], self.electric_dft[frequency_index]
+                    electric_gram,
+                    np.asarray(self.electric_dft[frequency_index], dtype=np.complex128),
                 )
                 magnetic_coeff = np.linalg.solve(
-                    self.magnetic_gram[frequency_index], self.magnetic_dft[frequency_index]
+                    magnetic_gram,
+                    np.asarray(self.magnetic_dft[frequency_index], dtype=np.complex128),
                 )
             except np.linalg.LinAlgError:
                 continue
@@ -399,7 +420,9 @@ class EigenmodePortMonitor:
                 & np.isfinite(a)
                 & np.isfinite(b)
                 & np.isfinite(condition[frequency_index])
-                & (condition[frequency_index] < 1e10)
+                & (condition[frequency_index] < condition_limit)
+                & self.mode_power_valid[frequency_index]
+                & self.power_matrix_valid[frequency_index]
             )
 
         self.result = EigenmodePortResult(
@@ -426,6 +449,7 @@ class EigenmodePortMonitor:
         group["outgoing"] = self.result.outgoing
         group["valid"] = self.result.valid.astype(np.uint8)
         group["condition_number"] = self.result.condition_number
+        group["electric_cross_power_matrix"] = self.electric_gram
         group["power_matrix"] = self.power_matrix
         group["power_normalization_valid"] = self.mode_power_valid.astype(np.uint8)
         group["power_matrix_valid"] = self.power_matrix_valid.astype(np.uint8)
@@ -452,7 +476,10 @@ def finalise_eigenmode_ports(grid):
     source_mode_position = source.mode_indices.index(source.excitation_mode_index)
     denominator = source.result.incident[source_mode_position]
     source_decomposition_valid = (
-        source.result.valid[source_mode_position] & np.isfinite(denominator)
+        source.result.valid[source_mode_position]
+        & source.mode_power_valid[:, source_mode_position]
+        & source.power_matrix_valid
+        & np.isfinite(denominator)
     )
     peak = float(
         np.max(np.abs(denominator[source_decomposition_valid]), initial=0.0)
@@ -470,7 +497,12 @@ def finalise_eigenmode_ports(grid):
             out=port.s_parameters,
             where=source_valid[np.newaxis, :],
         )
-        port.s_valid = port.result.valid & source_valid[np.newaxis, :]
+        port.s_valid = (
+            port.result.valid
+            & port.mode_power_valid.T
+            & port.power_matrix_valid[np.newaxis, :]
+            & source_valid[np.newaxis, :]
+        )
 
     suffix = "" if grid.name == "main_grid" else f"_{grid.name}"
     output_path = config.get_model_config().output_file_path.with_name(
@@ -490,7 +522,7 @@ def finalise_eigenmode_ports(grid):
                 "S_magnitude",
                 "S_magnitude_db",
                 "S_phase_deg",
-                "power_ratio",
+                "coefficient_magnitude_squared",
                 "valid",
             )
         )

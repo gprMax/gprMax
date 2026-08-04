@@ -517,6 +517,7 @@ def test_eigenmode_port_normalises_gain_and_realized_gain(tmp_path):
         assert modal_port["incident"].shape == (1, 9)
         assert modal_port["outgoing"].shape == (1, 9)
         assert modal_port["power_matrix"].shape == (9, 1, 1)
+        assert modal_port["electric_cross_power_matrix"].shape == (9, 1, 1)
         # This deliberately coarse antenna model is only a smoke test for the
         # modal-port/NTFF normalization path. Its upper-band reflection is
         # about 0.35 on the CI mesh, so keep the bound above that physical

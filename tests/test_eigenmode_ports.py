@@ -83,6 +83,8 @@ def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch)
     monitor.magnetic_gram = np.eye(2, dtype=np.complex128)[np.newaxis]
     monitor.frequency = np.asarray([1e9])
     monitor.neff = np.zeros((1, 2), dtype=np.complex128)
+    monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
+    monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
 
@@ -91,6 +93,62 @@ def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch)
     np.testing.assert_allclose(result.incident[:, 0], (2, 3))
     np.testing.assert_allclose(result.outgoing[:, 0], (0.5, -0.25))
     assert result.valid[:, 0].all()
+
+
+@pytest.mark.parametrize(
+    ("complex_dtype", "expected_valid"),
+    ((np.complex64, False), (np.complex128, True)),
+)
+def test_condition_validity_accounts_for_input_precision(
+    monkeypatch, complex_dtype, expected_valid
+):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(dtypes={"complex": complex_dtype}),
+    )
+    monitor = EigenmodePortMonitor.__new__(EigenmodePortMonitor)
+    gram = np.diag(np.asarray([1.0, 1e-5], dtype=complex_dtype))
+    monitor.electric_gram = gram[np.newaxis]
+    monitor.magnetic_gram = gram[np.newaxis]
+    monitor.electric_dft = np.asarray([[1.0, 1e-5]], dtype=complex_dtype)
+    monitor.magnetic_dft = monitor.electric_dft.copy()
+    monitor.frequency = np.asarray([1e9])
+    monitor.neff = np.zeros((1, 2), dtype=complex_dtype)
+    monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
+    monitor.power_matrix_valid = np.ones(1, dtype=bool)
+    monitor.owner = SimpleNamespace(normal_axis=0)
+    monitor.magnetic_side = -1
+
+    result = monitor.finalise(SimpleNamespace(dl=np.zeros(3)))
+
+    assert result.condition_number[0] == pytest.approx(1e5, rel=1e-6)
+    assert result.valid[:, 0].tolist() == [expected_valid, expected_valid]
+
+
+def test_finalise_rejects_fallback_power_normalization(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(dtypes={"complex": np.complex128}),
+    )
+    monitor = EigenmodePortMonitor.__new__(EigenmodePortMonitor)
+    monitor.electric_gram = np.ones((1, 1, 1), dtype=np.complex128)
+    monitor.magnetic_gram = np.ones((1, 1, 1), dtype=np.complex128)
+    monitor.electric_dft = np.ones((1, 1), dtype=np.complex128)
+    monitor.magnetic_dft = np.ones((1, 1), dtype=np.complex128)
+    monitor.frequency = np.asarray([1e9])
+    monitor.neff = np.zeros((1, 1), dtype=np.complex128)
+    monitor.mode_power_valid = np.asarray([[False]])
+    monitor.power_matrix_valid = np.asarray([False])
+    monitor.owner = SimpleNamespace(normal_axis=0)
+    monitor.magnetic_side = -1
+
+    result = monitor.finalise(SimpleNamespace(dl=np.zeros(3)))
+
+    assert np.isfinite(result.incident[0, 0])
+    assert np.isfinite(result.outgoing[0, 0])
+    assert not result.valid[0, 0]
 
 
 def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
@@ -108,6 +166,8 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
             condition_number=np.asarray([1.0]),
         ),
         finalise=lambda grid: None,
+        mode_power_valid=np.ones((1, 2), dtype=bool),
+        power_matrix_valid=np.ones(1, dtype=bool),
     )
     receiver = SimpleNamespace(
         is_source=False,
@@ -121,6 +181,8 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
             condition_number=np.asarray([1.0]),
         ),
         finalise=lambda grid: None,
+        mode_power_valid=np.ones((1, 2), dtype=bool),
+        power_matrix_valid=np.ones(1, dtype=bool),
     )
     grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
     monkeypatch.setattr(
@@ -134,6 +196,8 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     assert csv_path == tmp_path / "modal_run_sparameters.csv"
     with csv_path.open(newline="", encoding="utf-8") as stream:
         rows = list(csv.DictReader(stream))
+    assert "coefficient_magnitude_squared" in rows[0]
+    assert "power_ratio" not in rows[0]
     values = {(int(row["destination_port"]), int(row["destination_mode"])): float(row["S_magnitude"]) for row in rows}
     assert values[(1, 1)] == pytest.approx(0.5)
     assert values[(1, 2)] == pytest.approx(0.25)
@@ -159,6 +223,8 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(
             condition_number=np.asarray([np.inf, 1.0]),
         ),
         finalise=lambda grid: None,
+        mode_power_valid=np.ones((2, 1), dtype=bool),
+        power_matrix_valid=np.ones(2, dtype=bool),
     )
     receiver = SimpleNamespace(
         is_source=False,
@@ -172,6 +238,8 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(
             condition_number=np.asarray([np.inf, 1.0]),
         ),
         finalise=lambda grid: None,
+        mode_power_valid=np.ones((2, 1), dtype=bool),
+        power_matrix_valid=np.ones(2, dtype=bool),
     )
     grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
     monkeypatch.setattr(
@@ -191,3 +259,70 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(
     invalid_rows = [row for row in rows if row["frequency_hz"] == "5000000000.0"]
     assert invalid_rows
     assert all(np.isnan(float(row["S_magnitude_db"])) for row in invalid_rows)
+
+
+def test_fallback_normalized_source_marks_every_csv_row_invalid(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={
+                "float_or_double": np.float64,
+                "complex": np.complex128,
+            }
+        ),
+    )
+    field = np.ones((1, 1), dtype=np.complex128)
+    zero = np.zeros_like(field)
+    owner = SimpleNamespace(
+        transverse_axes=(1, 2),
+        invariant_axis=None,
+        normal_axis=0,
+        direction="+",
+        _linear_anchor_weights=lambda frequency, anchors: np.ones((1, 1)),
+        _transverse_cell_shape=lambda: (1, 1),
+        _modal_cross_power=lambda electric, magnetic, grid: 0.0,
+        _average_to_transverse_cells=lambda values, component: values,
+        _modal_basis_handedness=lambda: 1,
+    )
+    source = EigenmodePortMonitor(
+        owner=owner,
+        port_index=1,
+        port_id="fallback",
+        is_source=True,
+        excitation_mode_index=1,
+        mode_indices=(1,),
+        anchor_frequencies=np.asarray([5e9]),
+        anchor_e=[[[zero, field, zero]]],
+        anchor_h=[[[zero, zero, field]]],
+        anchor_neff=np.asarray([[1.0]]),
+        dft_start=5e9,
+        dft_stop=5e9,
+        dft_points=1,
+    )
+    grid = SimpleNamespace(
+        name="main_grid",
+        dt=1e-12,
+        dl=np.ones(3),
+        eigenmodeports=[],
+    )
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(output_file_path=tmp_path / "fallback"),
+    )
+    source.prepare(grid)
+    grid.eigenmodeports.append(source)
+    source.electric_dft[:] = source.electric_gram[:, 0, :]
+    source.magnetic_dft[:] = source.magnetic_gram[:, 0, :]
+
+    csv_path = finalise_eigenmode_ports(grid)
+
+    assert not source.mode_power_valid[0, 0]
+    assert not source.power_matrix_valid[0]
+    with csv_path.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    assert rows
+    assert all(row["valid"] == "0" for row in rows)

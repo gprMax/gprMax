@@ -1514,7 +1514,7 @@ class NTFFCompiledOutputs:
                 if has_modal_ports:
                     power_group.attrs["accepted_power_definition"] = (
                         "sum per port: 0.5*Re(Vterminal*conj(Iterminal)) for "
-                        "terminal ports; a^H*W*a-b^H*W*b for modal ports"
+                        "terminal ports; Re((a-b)^H*G_E*(a+b)) for modal ports"
                     )
                     power_group.attrs["incident_power_definition"] = (
                         "sum externally driven power: abs(Vincident)**2/(2*Z0) "
@@ -1558,12 +1558,16 @@ class NTFFCompiledOutputs:
                         port_group.attrs["port_id"] = spectrum.port_id
                         port_group.attrs["amplitude_units"] = "sqrt(W) s"
                         port_group.attrs["power_matrix_units"] = "dimensionless"
+                        port_group.attrs["cross_power_matrix_units"] = "dimensionless"
                         port_group["mode_indices"] = np.asarray(
                             spectrum.mode_indices, dtype=np.int64
                         )
                         port_group["incident"] = spectrum.incident_modal_amplitudes
                         port_group["outgoing"] = spectrum.outgoing_modal_amplitudes
                         port_group["power_matrix"] = spectrum.mode_power_matrix
+                        port_group["electric_cross_power_matrix"] = (
+                            spectrum.mode_cross_power_matrix
+                        )
                         port_group["valid"] = spectrum.modal_valid.astype(np.uint8)
             self._write_fields(group, result)
 

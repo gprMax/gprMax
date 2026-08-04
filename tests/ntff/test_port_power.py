@@ -75,6 +75,7 @@ def _eigenmode_port(*, is_source):
         [[[2.0, 0.5 - 0.25j], [0.5 + 0.25j, 1.0]]],
         dtype=np.complex128,
     )
+    monitor.electric_gram = monitor.power_matrix.copy()
     monitor.result = EigenmodePortResult(
         frequency=np.asarray([5.0]),
         incident=np.asarray([[2.0 + 0.0j], [1.0 - 0.5j]]),
@@ -124,6 +125,40 @@ def test_eigenmode_port_power_uses_full_modal_matrix(monkeypatch, is_source):
     else:
         assert_allclose(spectrum.incident_power, 0)
     assert spectrum.terminal_valid.all()
+
+
+def test_lossy_eigenmode_accepted_power_keeps_interference_term(monkeypatch):
+    monitor = _eigenmode_port(is_source=True)
+    monitor.mode_indices = (1,)
+    monitor.mode_power_valid = np.ones((1, 1), dtype=bool)
+    monitor.power_matrix_valid = np.ones(1, dtype=bool)
+    monitor.power_matrix = np.asarray([[[1.0]]], dtype=np.complex128)
+    monitor.electric_gram = np.asarray([[[1.0 + 0.4j]]], dtype=np.complex128)
+    incident = 1.2 + 0.7j
+    outgoing = -0.3 + 0.8j
+    monitor.result = EigenmodePortResult(
+        frequency=np.asarray([5.0]),
+        incident=np.asarray([[incident]]),
+        outgoing=np.asarray([[outgoing]]),
+        valid=np.ones((1, 1), dtype=bool),
+        condition_number=np.ones(1),
+    )
+    monkeypatch.setattr(
+        ports,
+        "_port_mesh_valid",
+        lambda output, grid, frequency: np.ones(frequency.shape, dtype=bool),
+    )
+
+    spectrum = evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.0])
+    expected = np.real(
+        np.conj(incident - outgoing)
+        * monitor.electric_gram[0, 0, 0]
+        * (incident + outgoing)
+    )
+    lossy_formula_without_interference = abs(incident) ** 2 - abs(outgoing) ** 2
+
+    assert_allclose(spectrum.accepted_power, [expected])
+    assert not np.isclose(expected, lossy_formula_without_interference)
 
 
 def test_nyquist_research_override_retains_full_port_mesh_band(monkeypatch):

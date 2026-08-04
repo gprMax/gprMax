@@ -23,8 +23,8 @@ Voltage-source ports use the known Thevenin generator voltage and the electric
 field sampled on one electric Yee edge. Transmission-line sources already
 carry incident and terminal voltage/current histories, so their S11 and input
 impedance are calculated automatically without an additional receiver.
-Eigenmode ports retain their native multi-mode power-wave representation and
-its generally non-diagonal Hermitian power matrix.
+Eigenmode ports retain their native generalized multi-mode travelling-wave
+coordinates and their generally non-diagonal power matrices.
 """
 
 import logging
@@ -83,6 +83,7 @@ class PortPowerSpectrum:
     incident_modal_amplitudes: Optional[npt.NDArray[np.complexfloating]] = None
     outgoing_modal_amplitudes: Optional[npt.NDArray[np.complexfloating]] = None
     mode_power_matrix: Optional[npt.NDArray[np.complexfloating]] = None
+    mode_cross_power_matrix: Optional[npt.NDArray[np.complexfloating]] = None
     modal_valid: Optional[npt.NDArray[np.bool_]] = None
 
 
@@ -180,7 +181,7 @@ def evaluate_port_power_spectrum(
 
     Conventional ports use terminal voltage/current rather than S11, so an
     unexcited but coupled port remains measurable. Eigenmode ports use their
-    native incident/outgoing coefficient vectors and Hermitian power matrix.
+    native incident/outgoing coefficient vectors and cross-power matrices.
     Only a rectangular transform is currently accepted because delayed
     radiated and port histories would otherwise receive different window
     weights.
@@ -209,6 +210,7 @@ def evaluate_port_power_spectrum(
         incident_modal = np.asarray(output.result.incident, dtype=complex_dtype)
         outgoing_modal = np.asarray(output.result.outgoing, dtype=complex_dtype)
         power_matrix = np.asarray(output.power_matrix, dtype=complex_dtype)
+        cross_power_matrix = np.asarray(output.electric_gram, dtype=complex_dtype)
         if incident_modal.shape != outgoing_modal.shape:
             raise ValueError(f"eigenmode port {output.output_id!r} has inconsistent modal arrays")
         if incident_modal.shape != (len(output.mode_indices), frequency.size):
@@ -219,11 +221,17 @@ def evaluate_port_power_spectrum(
             len(output.mode_indices),
         ):
             raise ValueError(f"eigenmode port {output.output_id!r} has an inconsistent power matrix")
+        if cross_power_matrix.shape != power_matrix.shape:
+            raise ValueError(
+                f"eigenmode port {output.output_id!r} has an inconsistent cross-power matrix"
+            )
 
-        measured_incident_power = modal_power_spectrum(incident_modal, power_matrix)
-        outgoing_power = modal_power_spectrum(outgoing_modal, power_matrix)
         accepted_power = np.asarray(
-            measured_incident_power - outgoing_power,
+            modal_net_power_spectrum(
+                incident_modal,
+                outgoing_modal,
+                cross_power_matrix,
+            ),
             dtype=real_dtype,
         )
         incident_power = np.zeros(frequency.shape, dtype=real_dtype)
@@ -245,6 +253,7 @@ def evaluate_port_power_spectrum(
             np.all(np.isfinite(incident_modal), axis=0)
             & np.all(np.isfinite(outgoing_modal), axis=0)
             & np.all(np.isfinite(power_matrix), axis=(1, 2))
+            & np.all(np.isfinite(cross_power_matrix), axis=(1, 2))
             & np.isfinite(incident_power)
             & np.isfinite(accepted_power)
         )
@@ -266,6 +275,7 @@ def evaluate_port_power_spectrum(
             incident_modal_amplitudes=incident_modal,
             outgoing_modal_amplitudes=outgoing_modal,
             mode_power_matrix=power_matrix,
+            mode_cross_power_matrix=cross_power_matrix,
             modal_valid=modal_valid,
         )
 
@@ -392,6 +402,23 @@ def modal_power_spectrum(amplitudes, power_matrix):
         np.conj(np.asarray(amplitudes)),
         np.asarray(power_matrix),
         np.asarray(amplitudes),
+        optimize=True,
+    )
+    return np.asarray(np.real(values))
+
+
+def modal_net_power_spectrum(incident, outgoing, cross_power_matrix):
+    """Return Re{(a-b)^H G_E (a+b)} at each modal-port frequency."""
+
+    incident = np.asarray(incident)
+    outgoing = np.asarray(outgoing)
+    total_e_coeff = incident + outgoing
+    total_h_coeff = incident - outgoing
+    values = np.einsum(
+        "mf,fmn,nf->f",
+        np.conj(total_h_coeff),
+        np.asarray(cross_power_matrix),
+        total_e_coeff,
         optimize=True,
     )
     return np.asarray(np.real(values))

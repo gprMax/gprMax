@@ -64,7 +64,9 @@ time step by the modal Cython DFT kernel. This example requests 21 points from
 contains one row per frequency,
 destination port, and destination mode. Source-port rows are modal S11
 results; port-2 rows are modal S21 results. Complex value, magnitude, dB
-magnitude, phase, power ratio, and validity are all included.
+magnitude, phase, coefficient magnitude squared, and validity are all
+included. Coefficient magnitude squared is not an independently attributable
+modal power fraction when the power matrix is non-diagonal.
 
 The same data are stored in HDF5:
 
@@ -87,8 +89,10 @@ The same data are stored in HDF5:
    s21_mode2_db = 20 * np.log10(np.abs(s21_mode2[valid_21_mode2]))
 
 Arrays ``incident`` and ``outgoing`` have shape
-``(number_of_modes, number_of_frequencies)``. ``power_matrix`` stores the
-generally non-diagonal modal power form, while ``valid``,
+``(number_of_modes, number_of_frequencies)`` and contain generalized modal
+travelling-wave coefficients. ``power_matrix`` stores the generally
+non-diagonal forward-wave power form and ``electric_cross_power_matrix``
+stores the total-field flux form, while ``valid``,
 ``power_normalization_valid``, ``power_matrix_valid``, and ``valid_S`` identify
 usable results. Always apply the validity masks before plotting.
 
@@ -1307,9 +1311,12 @@ device, the single-source scattering result is
 Consequently the explicitly numbered source port gives S11 and a downstream
 multimode port gives one S21 result for every requested destination mode.
 Ill-conditioned modal systems and bins with negligible incident spectrum are
-retained in the output but marked invalid.
+retained in the output but marked invalid. Decompositions must satisfy both
+the absolute condition cap :math:`\kappa<10^{10}` and the precision-aware
+budget :math:`\kappa\epsilon<10^{-3}`. The small Gram systems are solved in
+complex128 even when the stored FDTD fields and Gram entries use complex64.
 
-The same Gram matrices define the Hermitian modal power form
+The same Gram matrices define the Hermitian forward-wave power form
 
 .. math::
 
@@ -1319,12 +1326,21 @@ The same Gram matrices define the Hermitian modal power form
 The implementation symmetrizes :math:`W` against round-off and checks that it
 is finite and positive semidefinite. Keeping the off-diagonal terms is
 essential for degenerate, nearly degenerate, or merely non-orthogonal
-finite-grid profiles. For modal port :math:`p`,
+finite-grid profiles. Individual coefficient magnitudes therefore are not
+additive modal powers.
+
+For net accepted power, let :math:`x=a+b` be the total electric coefficient
+and :math:`y=a-b` the co-located total magnetic coefficient after the
+half-cell correction. The direct time-average flux is
 
 .. math::
 
    P_{\mathrm{acc},p}
-     =P(a_p)-P(b_p).
+     =\operatorname{Re}\{y_p^\mathrm{H}G^E_p x_p\}.
+
+This reduces to :math:`P(a_p)-P(b_p)` when :math:`G^E_p` is Hermitian.
+For a lossy port, its anti-Hermitian part supplies a forward/backward
+interference term which must be retained.
 
 The externally driven incident power contains only the excitation mode at the
 single source. Passive modal receivers have zero generator incident power,
