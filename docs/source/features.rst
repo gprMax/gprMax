@@ -47,6 +47,15 @@ one-dimensional transmission-line feeds. The dipoles provide idealised local
 radiators, while voltage and transmission-line sources can feed explicit
 antenna geometries.
 
+Guided structures can be excited with an eigenmode source. gprMax extracts the
+transverse material cross-section, solves its finite-difference
+frequency-domain modes, and launches the selected mode through a
+total-field/scattered-field plane. The source also acts as a modal port, and
+additional eigenmode receivers enable multimode S-parameters. The formulation
+supports 2D TM, 2D TE, and full 3D models, with fixed-profile or broadband
+modal excitation. See :ref:`eigenmode` for the recommended workflow,
+limitations, antenna coupling, and mathematical formulation.
+
 Plane-wave excitation is available through a total-field/scattered-field
 (TFSF) surface. gprMax uses the finite-difference time-domain discrete plane
 wave (FDTD-DPW) formulation of Tan and Potter [TAN2010]_. Its auxiliary
@@ -56,7 +65,7 @@ leakage into the scattered-field region. Plane waves can be specified by
 propagation angles or an integer direction vector in a homogeneous background;
 an axial form is available for normally incident layered-media models.
 
-The source and plane-wave commands are described in
+The source, eigenmode, and plane-wave commands are described in
 :ref:`input-hash-cmds`.
 
 .. _ntff-formulations:

@@ -1314,7 +1314,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
-    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
     * Internally, theta and phi are approximated by an integer direction vector (Mx, My, Mz) found to within a maximum acceptable angular difference of 3 arc minutes (0.05 degrees) by default. This tolerance can be relaxed or tightened using the ``max_angle_diff`` parameter (in degrees) when using the Python API.
 
 #plane_wave_vector:
@@ -1340,13 +1340,13 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
-    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
 #plane_wave_axial:
 ---------------------
 
-Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. This command introduces a plane wave that propagates along one of the three grid axes and can be normally incident on mulit-layer setups that span the entire model domain perpenticular to the direction of propagation. It takes its media properties from the background materials of the grid at the direction of the axis that it propagates. This allows for half-space simulations but only for normally incident plane waves. The syntax of the command is:
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. This command introduces a plane wave that propagates along one of the three grid axes and can be normally incident on multi-layer setups that span the entire model domain perpendicular to the direction of propagation. It takes its media properties from the background materials of the grid at the direction of the axis that it propagates. This allows for half-space simulations but only for normally incident plane waves. The syntax of the command is:
 
 .. code-block:: none
 
@@ -1363,11 +1363,11 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 .. note::
 
-    * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
+    * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formulations are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Plane waves support non-dispersive dielectric layers and multi-pole Debye, Lorentz, and Drude layers. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
-    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
 
@@ -1865,9 +1865,9 @@ backplane.
    The NTFF integration surface is not closed. Equivalent-current NTFF normally
    assumes a closed Huygens surface. This option is intended for configurations
    where the omitted face is associated with an eigenmode port or other
-   modelling scenarios the require such approach. Results may be incomplete or
-   inaccurate if the omitted field contribution is not represented correctly
-   or is significant for your calculations.
+   modelling scenarios that require an open Huygens surface. Results may be
+   incomplete or inaccurate if the omitted field contribution is not
+   represented correctly or is significant for your calculations.
 
 Without omitted face names, the surface is physically closed unless one or more
 faces coincide exactly with a declared

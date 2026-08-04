@@ -241,16 +241,22 @@ The requested linear antenna quantities use
 
 .. math::
 
-   D &= \frac{4\pi U}{P_{\mathrm{rad}}},&
-   G &= \frac{4\pi U}{P_{\mathrm{acc}}},&
-   G_{\mathrm{realized}} &= \frac{4\pi U}{P_{\mathrm{inc}}}.
+   D = \frac{4\pi U}{P_{\mathrm{rad}}},\qquad
+   G = \frac{4\pi U}{P_{\mathrm{acc}}},\qquad
+   G_{\mathrm{realized}} = \frac{4\pi U}{P_{\mathrm{inc}}}.
 
-Directivity removes neither material/radiation loss nor mismatch. Gain uses
-the net accepted port power. Realized gain uses the externally driven
-incident power and therefore includes reflection loss as well. For an
-eigenmode source, the incident denominator is the launched mode's modal
-power; a passive modal receiver contributes zero generator incident power but
-its signed net modal power remains in the multiport accepted-power balance.
+Here :math:`U` is radiation intensity, :math:`P_{\mathrm{rad}}` is total
+radiated power, :math:`P_{\mathrm{acc}}` is the net power accepted across all
+physical ports, and :math:`P_{\mathrm{inc}}` is the externally launched
+incident power. Directivity is normalised by total radiated power, so it does
+not include reductions from dissipative losses or port mismatch. Gain is
+normalised by net accepted port power and therefore includes radiation
+efficiency, including material loss, but not mismatch loss. Realized gain is
+normalised by externally driven incident power and includes both radiation
+efficiency and reflection loss. For an eigenmode source, the incident
+denominator is the launched mode's modal power; a passive modal receiver
+contributes zero generator incident power, but its signed net modal power
+remains in the multiport accepted-power balance.
 
 The far-field group stores ``directivity``, ``gain``, and
 ``realized_gain`` (and their dB forms), radiation and total efficiencies, and
@@ -648,13 +654,13 @@ All component arrays are flattened with Fortran order:
 
 .. code-block:: python
 
-   flat = array.ravel(order=F)
+   flat = array.ravel(order='F')
 
 and modal vectors are reshaped back with:
 
 .. code-block:: python
 
-   array = vector.reshape((*shape, num_modes), order=F)
+   array = vector.reshape((*shape, num_modes), order='F')
 
 There is no axis-order switch. gprMax must pass local ``u``/``v`` slices in the
 same native transverse ordering used by the extracted source plane.
