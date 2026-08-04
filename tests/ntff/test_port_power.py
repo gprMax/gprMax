@@ -9,11 +9,13 @@ from numpy.testing import assert_allclose
 import gprMax.config as config
 import gprMax.ports as ports
 from gprMax.ntff.conventions import engineering_dft
+from gprMax.eigenmode_ports import EigenmodePortMonitor, EigenmodePortResult
 from gprMax.ports import (
     MagneticFrillPortOutput,
     TransmissionLinePortOutput,
     VoltageSourcePortMonitor,
     evaluate_port_power_spectrum,
+    modal_power_spectrum,
 )
 
 
@@ -57,6 +59,71 @@ def _hard_voltage_port(total_voltage, loop_current, *, dt, resistance=50.0):
     output.hard_voltage_time_offset = dt
     output.hard_current_time_offset = 0.5 * dt
     return output, grid
+
+
+def _eigenmode_port(*, is_source):
+    monitor = EigenmodePortMonitor.__new__(EigenmodePortMonitor)
+    monitor.port_id = "modal"
+    monitor.port_index = 1
+    monitor.owner = SimpleNamespace()
+    monitor.mode_indices = (1, 2)
+    monitor.is_source = is_source
+    monitor.excitation_mode_index = 1 if is_source else None
+    monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
+    monitor.power_matrix_valid = np.ones(1, dtype=bool)
+    monitor.power_matrix = np.asarray(
+        [[[2.0, 0.5 - 0.25j], [0.5 + 0.25j, 1.0]]],
+        dtype=np.complex128,
+    )
+    monitor.result = EigenmodePortResult(
+        frequency=np.asarray([5.0]),
+        incident=np.asarray([[2.0 + 0.0j], [1.0 - 0.5j]]),
+        outgoing=np.asarray([[0.25 + 0.0j], [0.5 + 0.25j]]),
+        valid=np.ones((2, 1), dtype=bool),
+        condition_number=np.ones(1),
+    )
+    return monitor
+
+
+def test_modal_power_quadratic_form_is_invariant_under_basis_change():
+    amplitudes = np.asarray([[1.0 + 0.5j], [-0.25 + 0.75j]])
+    matrix = np.asarray([[[1.5, 0.2j], [-0.2j, 0.8]]])
+    transform = np.asarray([[1.0, 0.25j], [-0.3, 1.2]])
+    transformed_amplitudes = np.linalg.solve(transform, amplitudes)
+    transformed_matrix = np.asarray([np.conj(transform.T) @ matrix[0] @ transform])
+
+    assert_allclose(
+        modal_power_spectrum(amplitudes, matrix),
+        modal_power_spectrum(transformed_amplitudes, transformed_matrix),
+    )
+
+
+@pytest.mark.parametrize("is_source", (True, False))
+def test_eigenmode_port_power_uses_full_modal_matrix(monkeypatch, is_source):
+    monitor = _eigenmode_port(is_source=is_source)
+    monkeypatch.setattr(
+        ports,
+        "_port_mesh_valid",
+        lambda output, grid, frequency: np.ones(frequency.shape, dtype=bool),
+    )
+
+    spectrum = evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.0])
+    expected_accepted = modal_power_spectrum(monitor.result.incident, monitor.power_matrix) - modal_power_spectrum(
+        monitor.result.outgoing, monitor.power_matrix
+    )
+
+    assert spectrum.representation == "modal_power_waves"
+    assert_allclose(spectrum.accepted_power, expected_accepted)
+    if is_source:
+        driven = np.zeros_like(monitor.result.incident)
+        driven[0] = monitor.result.incident[0]
+        assert_allclose(
+            spectrum.incident_power,
+            modal_power_spectrum(driven, monitor.power_matrix),
+        )
+    else:
+        assert_allclose(spectrum.incident_power, 0)
+    assert spectrum.terminal_valid.all()
 
 
 def test_nyquist_research_override_retains_full_port_mesh_band(monkeypatch):
@@ -138,9 +205,9 @@ def test_voltage_port_terminal_current_reproduces_gap_corrected_s11(monkeypatch)
     omega_discrete = (2 / dt) * np.tan(np.pi * frequency * dt)
     correction = output.reference_impedance * 1j * omega_discrete * output.gap_capacitance
     expected_s11, _ = ports.correct_s11_for_parallel_gap(source_s11, correction)
-    terminal_s11 = (
-        result.terminal_voltage - output.reference_impedance * result.terminal_current
-    ) / (result.terminal_voltage + output.reference_impedance * result.terminal_current)
+    terminal_s11 = (result.terminal_voltage - output.reference_impedance * result.terminal_current) / (
+        result.terminal_voltage + output.reference_impedance * result.terminal_current
+    )
 
     assert_allclose(terminal_s11, expected_s11, rtol=2e-13, atol=2e-13)
 
@@ -168,9 +235,7 @@ def test_hard_voltage_port_uses_time_aligned_loop_current(monkeypatch):
         dt,
         time_offset=0.5 * dt,
     )
-    expected_incident = 0.5 * (
-        expected_voltage + output.reference_impedance * expected_current
-    )
+    expected_incident = 0.5 * (expected_voltage + output.reference_impedance * expected_current)
 
     assert_allclose(result.terminal_voltage, expected_voltage)
     assert_allclose(result.terminal_current, expected_current)

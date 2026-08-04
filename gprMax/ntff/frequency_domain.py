@@ -677,22 +677,11 @@ class KSIRFrequencyDomainMonitor:
         for component, surface in self.surfaces.items():
             component_ids = ids[id_lookup[component]]
             for face in surface.faces:
-                keep = np.ones(face.npatches, dtype=bool)
-                for plane in self.closure.symmetry_planes:
-                    tolerance = (
-                        16
-                        * np.finfo(self.real_dtype).eps
-                        * max(
-                            abs(plane.coordinate),
-                            surface.grid_spacing[plane.axis],
-                        )
-                    )
-                    keep &= ~np.isclose(
-                        face.patch_positions[:, plane.axis],
-                        plane.coordinate,
-                        rtol=0,
-                        atol=tolerance,
-                    )
+                keep = self.closure.material_validation_mask(
+                    surface,
+                    face,
+                    self.real_dtype,
+                )
                 if np.any(keep):
                     sampled_ids.append(
                         component_ids[tuple(face.inside_indices[keep].T)]
@@ -752,6 +741,27 @@ class KSIRFrequencyDomainMonitor:
                         atol=tolerance,
                     )
                 outside &= ~on_symmetry_plane
+                for face in self.closure.omitted_faces:
+                    axis = "xyz".index(face[0])
+                    tolerance = (
+                        16
+                        * np.finfo(self.real_dtype).eps
+                        * max(
+                            abs(surface.physical_lower[axis]),
+                            abs(surface.physical_upper[axis]),
+                            surface.grid_spacing[axis],
+                        )
+                    )
+                    if face.endswith("0"):
+                        outside &= (
+                            coordinates[axis]
+                            > surface.physical_lower[axis] + surface.grid_spacing[axis] + tolerance
+                        )
+                    else:
+                        outside &= (
+                            coordinates[axis]
+                            < surface.physical_upper[axis] - surface.grid_spacing[axis] - tolerance
+                        )
                 exterior_ids.append(component_ids[outside])
             exterior_unique = np.unique(np.concatenate(exterior_ids))
             if (

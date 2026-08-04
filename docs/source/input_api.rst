@@ -847,6 +847,18 @@ class. Hash
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
+``EigenmodeSource`` cannot be combined with any of the ``KSIR*`` classes.
+Use ``NTFFFrequencyTransform``, ``NTFFFarField`` or
+``NTFFFarFieldArray``, and ``NTFFAntennaPorts`` for an eigenmode-fed
+antenna.
+
+``NTFFSurface(omit_faces=('x0', 'xmax'))`` creates an open frequency-domain
+Huygens surface. ``omit_faces`` accepts one to five distinct Cartesian face
+names; at least one of the six faces must remain active. A feed crossing an
+opening continues uniformly into its PML, with the impressed source plane
+outside the Huygens volume. KSIR and transient equivalent-current outputs
+reject omitted physical faces.
+
 NTFF definitions are main-grid objects, but their notional closed integration
 surface may enclose complete HSG subgrids. A surface must not touch or cut an
 HSG outer coupling surface: overlapping regions require the NTFF surface to
@@ -906,14 +918,19 @@ KSIR antenna-port association
 .. autoclass:: gprMax.user_objects.cmds_output.KSIRAntennaPorts
 
 The association is needed only for gain and efficiency. It must name every
-physical port, including a zero-amplitude source that acts as a termination.
+physical port, including a zero-amplitude source that acts as a termination
+and every eigenmode source or receiver.
 Main-grid port IDs are used directly. A subgrid port is qualified by its
 subgrid ID, for example ``fine_grid/feed``, ``fine_grid/tl1``, or
 ``fine_grid/frill1``. Its voltage and current spectra are transformed with the
 owning subgrid's finer time step.
 For voltage sources, use the ID of the coincident :class:`RxPort`; automatic
 transmission-line and magnetic-frill IDs are ``tl1``, ... and ``frill1``, ...
-respectively. For example:
+respectively. An eigenmode source is ``portN`` for its explicit port index;
+an eigenmode receiver uses its configured ID. Eigenmode transform
+frequencies must exactly match the modal direct-DFT bins. Their gain
+normalization uses the full modal power matrix rather than an artificial
+voltage/current or reference impedance. For example:
 
 .. code-block:: python
 

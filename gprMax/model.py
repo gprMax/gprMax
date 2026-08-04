@@ -608,6 +608,10 @@ class Model:
         # host. Complete derived port spectra before opening the HDF5 file so
         # a calculation error cannot leave a partially written port group.
         grids = [self.G] + self.subgrids
+        from gprMax.eigenmode_ports import finalise_eigenmode_ports
+
+        for grid in grids:
+            finalise_eigenmode_ports(grid)
         for grid in grids:
             for port in getattr(grid, "port_monitors", ()):
                 port.finalise(grid)
@@ -639,6 +643,8 @@ class Model:
             or sg_ports
             or ntff_outputs
             or self.G.port_monitors
+            or self.G.eigenmodeports
+            or any(grid.eigenmodeports for grid in self.subgrids)
         ):
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 

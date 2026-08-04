@@ -3,22 +3,28 @@
 #domain_mode: TM
 #domain: 0.24 0.08 inf
 #dx_dy_dz: 0.001 0.001 0.001
-#time_window: 1.8e-9
+#time_window: 5e-9
 #pml_cells: 5 5 0 5 5 0
 
 #material: 9 0 1 0 slab_core
-#waveform: contsine 1 5e9 eig_pulse
+#waveform: ricker 1 5e9 eig_pulse
 
 #box: 0 0.03 0 0.24 0.05 inf slab_core
 
 ## The source aperture contains 25 mm of free space on either side of the
 ## 20 mm core so that its evanescent tails decay before reaching the aperture
 ## and the transverse PML.
-#eigenmode_source: 0.02 0.005 0 0.02 0.075 inf + 0 5e9 eig_pulse
+## Excite mode 1 while monitoring modes 1 and 2 at both ports. The mode-2
+## traces demonstrate the negligible conversion of a uniform straight guide.
+#eigenmode_source: 0.02 0.005 0 0.02 0.075 inf + 1,2 1 4e9 4.5e9 5e9 5.5e9 6e9 eig_pulse 4e9 6e9 21
+#eigenmode_rx: 0.235 0.005 0 0.235 0.075 inf - 2 2 4e9 4.5e9 5e9 5.5e9 6e9 output 4e9 6e9 21
 #rx: 0.08 0.04 inf
 #rx: 0.14 0.04 inf
 #rx: 0.20 0.04 inf
 
-#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 4e-10 dielectric_slab_2d_tm_400ps.h5
-#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1e-9 dielectric_slab_2d_tm_1000ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 3.5e-10 dielectric_slab_2d_tm_350ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 6e-10 dielectric_slab_2d_tm_600ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 8.5e-10 dielectric_slab_2d_tm_850ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.1e-9 dielectric_slab_2d_tm_1100ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.35e-9 dielectric_slab_2d_tm_1350ps.h5
 #snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.6e-9 dielectric_slab_2d_tm_1600ps.h5

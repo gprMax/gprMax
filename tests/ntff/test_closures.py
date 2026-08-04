@@ -5,6 +5,7 @@ from scipy.constants import c
 
 from gprMax.ntff.closures import (
     ExperimentalMask,
+    HuygensOpenSurface,
     ResolvedKSIRClosure,
     SymmetryCompletion,
     SymmetryPlane,
@@ -30,9 +31,7 @@ def test_component_parity_matches_electric_edge_image_theory(axis, boundary_type
                 expected_even = normal if family == "E" else not normal
             else:
                 expected_even = not normal if family == "E" else normal
-            assert component_parity(component, axis, boundary_type) == (
-                1 if expected_even else -1
-            )
+            assert component_parity(component, axis, boundary_type) == (1 if expected_even else -1)
 
 
 def test_resolver_uses_only_declared_electric_grid_line_planes():
@@ -107,9 +106,7 @@ def test_on_plane_electric_edge_patches_receive_half_area(
     face, lower, upper, plane_coordinate, boundary_index, real_dtype
 ):
     plane = SymmetryPlane(face, 0, plane_coordinate, "pmc")
-    closure = ResolvedKSIRClosure(
-        "symmetry", (face,), (plane,), True, True
-    )
+    closure = ResolvedKSIRClosure("symmetry", (face,), (plane,), True, True)
     surface = build_component_surface(
         "Ey",
         lower,
@@ -139,25 +136,19 @@ def _point_source_phasors(surface, frequency, sources):
         displacement = positions - source_position
         radius = np.linalg.norm(displacement, axis=1)
         radial_direction = displacement / radius[:, np.newaxis]
-        source_field = (
-            amplitude * np.exp(-1j * wavenumber * radius) / (4 * np.pi * radius)
-        )
+        source_field = amplitude * np.exp(-1j * wavenumber * radius) / (4 * np.pi * radius)
         radial_derivative = (-1j * wavenumber - 1 / radius) * source_field
         field += source_field
-        derivative += radial_derivative * np.sum(
-            normals * radial_direction, axis=1
-        )
+        derivative += radial_derivative * np.sum(normals * radial_direction, axis=1)
     return field[np.newaxis, :], derivative[np.newaxis, :]
 
 
-def _evaluate_with_closure(
-    surface, field, derivative, closure, frequency, directions, origin
-):
+def _evaluate_with_closure(surface, field, derivative, closure, frequency, directions, origin):
     """Evaluate all physical and virtual patches using only the core API."""
 
     result = np.zeros((1, directions.shape[0]), dtype=field.dtype)
-    for _, positions, normals, areas, image_field, image_derivative in (
-        closure.transformed_faces(surface, field, derivative)
+    for _, positions, normals, areas, image_field, image_derivative in closure.transformed_faces(
+        surface, field, derivative
     ):
         result += evaluate_far_zone_patches(
             positions,
@@ -186,19 +177,13 @@ def _evaluate_with_closure(
         ),
     ],
 )
-def test_half_surface_image_completion_matches_full_surface(
-    component, boundary_type, sources
-):
+def test_half_surface_image_completion_matches_full_surface(component, boundary_type, sources):
     frequency = 250e6
     spacing = (0.1, 0.1, 0.1)
     shape = (25, 22, 22)
-    full = build_component_surface(
-        component, (2, 4, 4), (20, 16, 16), spacing, shape
-    )
+    full = build_component_surface(component, (2, 4, 4), (20, 16, 16), spacing, shape)
     plane = SymmetryPlane("x0", 0, 1.1, boundary_type)
-    symmetry = ResolvedKSIRClosure(
-        "symmetry", ("x0",), (plane,), True, True
-    )
+    symmetry = ResolvedKSIRClosure("symmetry", ("x0",), (plane,), True, True)
     half = symmetry.apply_quadrature(
         build_component_surface(
             component,
@@ -210,15 +195,9 @@ def test_half_surface_image_completion_matches_full_surface(
         )
     )
     closed = ResolvedKSIRClosure("closed", (), (), True, True)
-    directions = spherical_directions(
-        [20, 55, 90, 125, 160], [10, 80, 155, 240, 320], degrees=True
-    )
-    full_field, full_derivative = _point_source_phasors(
-        full, frequency, sources
-    )
-    half_field, half_derivative = _point_source_phasors(
-        half, frequency, sources
-    )
+    directions = spherical_directions([20, 55, 90, 125, 160], [10, 80, 155, 240, 320], degrees=True)
+    full_field, full_derivative = _point_source_phasors(full, frequency, sources)
+    half_field, half_derivative = _point_source_phasors(half, frequency, sources)
 
     expected = _evaluate_with_closure(
         full,
@@ -247,17 +226,13 @@ def test_triple_reflection_matches_full_surface_and_uses_eight_images():
     spacing = (0.1, 0.1, 0.1)
     shape = (24, 24, 24)
     component = "Ex"
-    full = build_component_surface(
-        component, (2, 2, 2), (20, 20, 20), spacing, shape
-    )
+    full = build_component_surface(component, (2, 2, 2), (20, 20, 20), spacing, shape)
     planes = (
         SymmetryPlane("x0", 0, 1.1, "pec"),
         SymmetryPlane("y0", 1, 1.1, "pmc"),
         SymmetryPlane("z0", 2, 1.1, "pmc"),
     )
-    symmetry = ResolvedKSIRClosure(
-        "symmetry", ("x0", "y0", "z0"), planes, True, True
-    )
+    symmetry = ResolvedKSIRClosure("symmetry", ("x0", "y0", "z0"), planes, True, True)
     octant = symmetry.apply_quadrature(
         build_component_surface(
             component,
@@ -269,15 +244,9 @@ def test_triple_reflection_matches_full_surface_and_uses_eight_images():
         )
     )
     source = (((1.1, 1.1, 1.1), 1.0),)
-    directions = spherical_directions(
-        [30, 65, 100, 145], [15, 110, 220, 310], degrees=True
-    )
-    full_field, full_derivative = _point_source_phasors(
-        full, frequency, source
-    )
-    octant_field, octant_derivative = _point_source_phasors(
-        octant, frequency, source
-    )
+    directions = spherical_directions([30, 65, 100, 145], [15, 110, 220, 310], degrees=True)
+    full_field, full_derivative = _point_source_phasors(full, frequency, source)
+    octant_field, octant_derivative = _point_source_phasors(octant, frequency, source)
     closed = ResolvedKSIRClosure("closed", (), (), True, True)
 
     expected = _evaluate_with_closure(
@@ -328,6 +297,34 @@ def test_experimental_mask_is_explicitly_open_and_removes_only_requested_faces()
     assert not closure.mathematically_closed
     assert not closure.exact
     assert tuple(face.face_id for face in surface.faces) == closure.active_faces
+
+
+def test_huygens_open_surface_selects_any_nonempty_face_subset_and_round_trips():
+    closure = resolve_closure(
+        HuygensOpenSurface(("z0", "xmax", "x0")),
+        {},
+        (2, 2, 2),
+        (5, 5, 5),
+        (8, 8, 8),
+        (0.02, 0.02, 0.02),
+    )
+    restored = closure_from_metadata(
+        closure.name,
+        closure.omitted_faces,
+        (),
+        (),
+        (),
+    )
+
+    assert closure.name == "huygens_open"
+    assert closure.omitted_faces == ("x0", "xmax", "z0")
+    assert closure.active_faces == ("y0", "ymax", "zmax")
+    assert not closure.mathematically_closed
+    assert restored == closure
+    with pytest.raises(ValueError, match="unknown faces"):
+        HuygensOpenSurface(("feed",))
+    with pytest.raises(ValueError, match="leave at least one active face"):
+        HuygensOpenSurface(FACES)
 
 
 def test_saved_symmetry_metadata_reconstructs_the_same_closure():

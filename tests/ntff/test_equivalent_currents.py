@@ -34,20 +34,14 @@ def _dipole_fields(points, frequency, source, current):
         )
     )
     green = exponential / (4 * np.pi * radius)
-    magnetic = (
-        (-1j * wavenumber - 1 / radius)[:, np.newaxis]
-        * green[:, np.newaxis]
-        * np.cross(radial, current)
-    )
+    magnetic = (-1j * wavenumber - 1 / radius)[:, np.newaxis] * green[:, np.newaxis] * np.cross(radial, current)
     return electric, magnetic
 
 
 def _analytic_surface_data(lower, upper, spacing, field_shape, frequency, source, current):
     result = {}
     for component in COMPONENTS:
-        surface = build_component_surface(
-            component, lower, upper, spacing, field_shape, real_dtype=np.float64
-        )
+        surface = build_component_surface(component, lower, upper, spacing, field_shape, real_dtype=np.float64)
         axis = "xyz".index(component[1].lower())
         offset = np.asarray(COMPONENT_OFFSETS[component])
         field_parts = []
@@ -94,6 +88,71 @@ def test_arithmetic_collocation_forms_constant_love_currents():
     assert_allclose(currents.magnetic_current[0], -np.cross(currents.normals, electric))
 
 
+def test_five_face_huygens_surface_collocates_common_currents():
+    surfaces = {}
+    lower = (2, 2, 2)
+    upper = (6, 7, 5)
+    spacing = np.asarray((0.02, 0.03, 0.04))
+    shape = (10, 11, 9)
+    electric = np.asarray((2 + 3j, -1 + 0.5j, 4 - 2j))
+    magnetic = np.asarray((0.2 - 0.1j, 0.7 + 0.3j, -0.4 + 0.9j))
+    for component in COMPONENTS:
+        surface = build_component_surface(
+            component,
+            lower,
+            upper,
+            spacing,
+            shape,
+            excluded_faces=("x0",),
+        )
+        value = electric if component.startswith("E") else magnetic
+        axis = "xyz".index(component[1].lower())
+        surfaces[component] = SimpleNamespace(
+            surface=surface,
+            field=np.full((1, surface.npatches), value[axis], dtype=np.complex128),
+            normal_derivative=np.zeros((1, surface.npatches), dtype=np.complex128),
+        )
+
+    currents = collocate_love_currents(surfaces)
+
+    assert not np.any(currents.normals[:, 0] < 0)
+    assert_allclose(currents.electric_current[0], np.cross(currents.normals, magnetic))
+    assert_allclose(currents.magnetic_current[0], -np.cross(currents.normals, electric))
+
+
+def test_single_active_huygens_face_collocates_common_currents():
+    surfaces = {}
+    lower = (2, 2, 2)
+    upper = (6, 7, 5)
+    spacing = np.asarray((0.02, 0.03, 0.04))
+    shape = (10, 11, 9)
+    electric = np.asarray((2 + 3j, -1 + 0.5j, 4 - 2j))
+    magnetic = np.asarray((0.2 - 0.1j, 0.7 + 0.3j, -0.4 + 0.9j))
+    excluded = tuple(face for face in ("x0", "xmax", "y0", "ymax", "z0"))
+    for component in COMPONENTS:
+        surface = build_component_surface(
+            component,
+            lower,
+            upper,
+            spacing,
+            shape,
+            excluded_faces=excluded,
+        )
+        value = electric if component.startswith("E") else magnetic
+        axis = "xyz".index(component[1].lower())
+        surfaces[component] = SimpleNamespace(
+            surface=surface,
+            field=np.full((1, surface.npatches), value[axis], dtype=np.complex128),
+            normal_derivative=np.zeros((1, surface.npatches), dtype=np.complex128),
+        )
+
+    currents = collocate_love_currents(surfaces)
+
+    assert np.all(currents.normals == (0, 0, 1))
+    assert_allclose(currents.electric_current[0], np.cross(currents.normals, magnetic))
+    assert_allclose(currents.magnetic_current[0], -np.cross(currents.normals, electric))
+
+
 def test_analytic_hertzian_dipole_absolute_far_field():
     frequency = 1e9
     wavelength = c / frequency
@@ -118,13 +177,7 @@ def test_analytic_hertzian_dipole_absolute_far_field():
         nthreads=2,
     )[0]
     transverse_current = current - directions * (directions @ current)[:, np.newaxis]
-    expected = (
-        -1j
-        * (2 * np.pi * frequency / c)
-        * np.sqrt(mu_0 / epsilon_0)
-        / (4 * np.pi)
-        * transverse_current
-    )
+    expected = -1j * (2 * np.pi * frequency / c) * np.sqrt(mu_0 / epsilon_0) / (4 * np.pi) * transverse_current
 
     relative_error = np.linalg.norm(actual - expected) / np.linalg.norm(expected)
     assert relative_error < 0.002
@@ -148,12 +201,8 @@ def test_cython_evaluator_matches_numpy_reference(monkeypatch):
         nthreads=2,
     )
 
-    cython_result = evaluate_equivalent_current_far_zone(
-        surface_data, (frequency,), directions, **kwargs
-    )
+    cython_result = evaluate_equivalent_current_far_zone(surface_data, (frequency,), directions, **kwargs)
     monkeypatch.setattr(equivalent_currents, "_evaluate_equivalent_current_cython", None)
-    numpy_result = evaluate_equivalent_current_far_zone(
-        surface_data, (frequency,), directions, **kwargs
-    )
+    numpy_result = evaluate_equivalent_current_far_zone(surface_data, (frequency,), directions, **kwargs)
 
     assert_allclose(cython_result, numpy_result, rtol=2e-13, atol=2e-13)

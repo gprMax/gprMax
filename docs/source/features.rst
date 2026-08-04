@@ -64,12 +64,12 @@ The source and plane-wave commands are described in
 Near-to-far-field transformations
 ==================================
 
-gprMax provides two complementary closed-surface formulations. The Kirchhoff
+gprMax provides two complementary surface formulations. The Kirchhoff
 surface-integral representation (KSIR) reconstructs finite-distance fields as
 well as far fields in the time and frequency domains. The conventional
 Love-equivalent-current formulation provides an independent far-zone result,
 using a direct frequency-domain transform or the modified time-domain method
-of Giannopoulos *et al.* [GIAFF1997]_. A single ``NTFFSurface`` can be reused
+of Giannopoulos *et al.* [GIAFF1997]_. A closed ``NTFFSurface`` can be reused
 by both formulations, so their results can be compared without changing the
 FDTD model or integration surface.
 
@@ -93,7 +93,7 @@ The available formulations are summarised below.
      - Far-zone fields
      - Frequency
      - No
-     - Six physical faces are required
+     - Any user-selected nonempty subset of the six faces
    * - Modified Love currents [GIAFF1997]_
      - Far-zone fields
      - Time
@@ -103,9 +103,20 @@ The available formulations are summarised below.
 Definitions and conventions
 ---------------------------
 
-The integration surface :math:`S` must enclose all radiating sources, or the
-complete TFSF box and scatterer for a scattering calculation. It lies in a
+For KSIR and transient equivalent-current transforms, the integration surface
+:math:`S` must enclose all radiating sources, or the complete TFSF box and
+scatterer for a scattering calculation. A frequency-domain Huygens surface
+may instead omit one to five physical faces. This permits, for example, a
+feed-through surface with both waveguide ends open or a surface that terminates
+on a PEC backplane. An impressed source outside the Huygens volume must enter
+through one of the omitted faces; a uniform feed should continue directly into
+the corresponding PML, which absorbs backward guide waves. Every sampled face
+lies in a
 homogeneous, linear, lossless and non-dispersive background with
+
+Eigenmode sources are not supported by the Ramahi/KSIR formulation. Use the
+frequency-domain equivalent-current Huygens commands (the ``#ntff_*`` family)
+for eigenmode-fed antenna far fields, gain, and realized gain.
 
 .. math::
 
@@ -233,8 +244,10 @@ Love currents are then
 Frequency-domain far field
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The frequency-domain transform follows the conventional closed-surface FDTD
-construction of Luebbers *et al.* [LUE1991]_. Define
+The frequency-domain transform follows the conventional FDTD construction of
+Luebbers *et al.* [LUE1991]_. It can integrate a closed six-face surface or any
+user-selected nonempty subset of its faces. A feed crossing an omitted face
+continues into the PML. Define
 
 .. math::
 

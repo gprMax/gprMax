@@ -265,7 +265,10 @@ class FDFD_2D_mode_solver:
         self._set_modal_fields()
 
     def _calculate_fields(self, Q_reduced, eps_ww_inv, mu_ww_inv):
-        sqrt_eigenvalues = np.sqrt(self.eigenvalues)
+        # eigenvalue = -neff^2, so the branch consistent with
+        # exp(+j*omega*t - j*beta*w) is sqrt(eigenvalue) = +j*neff.
+        # Reuse the selected propagation branch when reconstructing H.
+        sqrt_eigenvalues = 1j * self.complex_neff
         if np.any(np.abs(sqrt_eigenvalues) < 1e-300):
             raise ValueError("Encountered a near-zero eigenvalue while reconstructing magnetic fields.")
         eigenvalues_inv = diags(1.0 / sqrt_eigenvalues, format="csr")
@@ -411,7 +414,7 @@ class FDFD_2D_mode_solver:
                     (axes[mode, 1], np.real(self.Ev[:, :, mode]), "E_v"),
             ):
                 image = ax.imshow(field.T, origin="lower", cmap="RdBu_r", aspect="auto")
-                ax.set_title(f"Mode {mode} {component}, neff={self.complex_neff[mode]:.6g}")
+                ax.set_title(f"Mode {mode + 1} {component}, neff={self.complex_neff[mode]:.6g}")
                 ax.set_xlabel("u index")
                 ax.set_ylabel("v index")
                 fig.colorbar(image, ax=ax)
@@ -427,7 +430,7 @@ class FDFD_2D_mode_solver:
                     (axes[mode, 1], np.real(self.Hv[:, :, mode]), "H_v"),
             ):
                 image = ax.imshow(field.T, origin="lower", cmap="RdBu_r", aspect="auto")
-                ax.set_title(f"Mode {mode} {component}, neff={self.complex_neff[mode]:.6g}")
+                ax.set_title(f"Mode {mode + 1} {component}, neff={self.complex_neff[mode]:.6g}")
                 ax.set_xlabel("u index")
                 ax.set_ylabel("v index")
                 fig.colorbar(image, ax=ax)
@@ -451,14 +454,19 @@ class FDFD_2D_mode_solver:
         fig.savefig(output_path, dpi=200)
         return output_path
 
-    def _passive_positive_neff(self, neff_squared):
-        sqrt = np.sqrt(neff_squared)
-        neff = np.where(np.real(sqrt) < 0, -sqrt, sqrt)
+    @staticmethod
+    def _passive_positive_neff(neff_squared):
+        root = np.sqrt(neff_squared)
+        tolerance = 1e-12 * np.maximum(1.0, np.abs(root))
+        flip = (np.real(root) < -tolerance) | (
+            (np.abs(np.real(root)) <= tolerance) & (np.imag(root) > tolerance)
+        )
+        neff = np.where(flip, -root, root)
+
         real = np.real(neff)
         imag = np.imag(neff)
-        tolerance = 1e-12 * np.maximum(1.0, np.abs(neff))
         real = np.where(np.abs(real) <= tolerance, 0.0, real)
-        imag = np.where(np.abs(imag) <= tolerance, 0.0, np.abs(imag))
+        imag = np.where(np.abs(imag) <= tolerance, 0.0, imag)
         return real + 1j * imag
 
     def _default_guess(self):

@@ -31,9 +31,13 @@ def _scene(mode):
             p1=(0.005, 0),
             p2=(0.045, INF),
             w=0.015,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequency=5e9,
             waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
     scene.add(gprMax.Rx(p1=(0.035, 0.025, INF)))
@@ -50,8 +54,7 @@ def _user_waveform_broadband_scene(direction):
     scene.add(
         gprMax.Waveform(
             wave_type="user",
-            user_func=lambda time: np.sin(2 * np.pi * 5e9 * time)
-            * np.exp(-(((time - 0.5e-9) / 0.15e-9) ** 2)),
+            user_func=lambda time: np.sin(2 * np.pi * 5e9 * time) * np.exp(-(((time - 0.5e-9) / 0.15e-9) ** 2)),
             id="eig_pulse",
         )
     )
@@ -76,9 +79,13 @@ def _user_waveform_broadband_scene(direction):
             p1=(0.005, 0),
             p2=(0.045, INF),
             w=0.015,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequencies=(4e9, 5e9, 7e9),
             waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
     return scene
@@ -115,9 +122,13 @@ def _dielectric_scene(conductivity=0):
             p1=(0.005, 0),
             p2=(0.075, INF),
             w=0.015,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequency=5e9,
             waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
     scene.add(gprMax.Rx(p1=(0.05, 0.04, INF)))
@@ -141,9 +152,13 @@ def _pmc_scene():
             p1=(0.005, 0),
             p2=(0.045, INF),
             w=0.015,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequency=5e9,
             waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
     scene.add(gprMax.Rx(p1=(0.035, 0.025, INF)))
@@ -212,9 +227,15 @@ def test_single_frequency_real_solver_selects_complex_profile_path(
 
     def capture_prepared_source(source, grid):
         original_prepare(source, grid)
+        neff = complex(source.complex_neff)
+        beta = 2 * np.pi * source.frequency * neff / config.sim_config.em_consts["c"]
+        forward_factor = np.exp(-1j * beta * grid.dl[source.normal_axis] / 2)
         captured.update(
             residual=source.complex_profile_residual,
             uses_quadrature=source.uses_quadrature,
+            neff=neff,
+            forward_factor=forward_factor,
+            modal_power=np.real(source._modal_cross_power(source.modal_e, source.modal_h, grid)),
         )
 
     monkeypatch.setattr(
@@ -231,6 +252,15 @@ def test_single_frequency_real_solver_selects_complex_profile_path(
     )
 
     assert captured["uses_quadrature"] is expected_quadrature
+    assert np.real(captured["neff"]) > 0
+    assert captured["modal_power"] > 0
+    if conductivity:
+        assert np.imag(captured["neff"]) < 0
+        assert abs(captured["forward_factor"]) < 1
+    else:
+        assert np.imag(captured["neff"]) == pytest.approx(0, abs=1e-12)
+        assert abs(captured["forward_factor"]) == pytest.approx(1)
+
     if expected_quadrature:
         assert captured["residual"] > RuntimeEigenmodeSource.COMPLEX_PROFILE_TOLERANCE
     else:
@@ -266,9 +296,13 @@ def test_eigenmode_source_rejected_with_mpi(monkeypatch):
         p1=(0.005, 0),
         p2=(0.045, INF),
         w=0.015,
-        mode_index=0,
+        mode_index=1,
+        port_index=1,
         frequency=5e9,
         waveform_id="eig_pulse",
+        dft_start=5e9,
+        dft_stop=5e9,
+        dft_points=1,
     )
     with pytest.raises(ValueError, match="MPI"):
         source.build(grid=None)
@@ -276,9 +310,7 @@ def test_eigenmode_source_rejected_with_mpi(monkeypatch):
 
 def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
     scene = _scene("TM")
-    scene.grid_objects = [
-        obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)
-    ]
+    scene.grid_objects = [obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)]
     scene.add(
         gprMax.EigenmodeSource(
             normal="z",
@@ -286,9 +318,13 @@ def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
             p1=(0.005, 0.005),
             p2=(0.045, 0.045),
             w=INF,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequency=5e9,
             waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
     with pytest.raises(ValueError):
@@ -303,9 +339,7 @@ def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
 
 def test_positive_direction_eigenmode_rejects_lower_boundary(tmp_path):
     scene = _scene("TM")
-    scene.grid_objects = [
-        obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)
-    ]
+    scene.grid_objects = [obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodeSource)]
     scene.add(
         gprMax.EigenmodeSource(
             normal="x",
@@ -313,9 +347,13 @@ def test_positive_direction_eigenmode_rejects_lower_boundary(tmp_path):
             p1=(0.005, 0),
             p2=(0.045, INF),
             w=0,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequency=5e9,
             waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
 
@@ -440,9 +478,13 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
             p1=tuple(full_lower[axis] for axis in source_transverse_axes),
             p2=tuple(full_upper[axis] for axis in source_transverse_axes),
             w=0.01,
-            mode_index=0,
+            mode_index=1,
+            port_index=1,
             frequency=10e9,
             waveform_id="w",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
         )
     )
 
@@ -456,30 +498,37 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
 
 
 @pytest.mark.parametrize(
-    "relative_path",
+    ("relative_path", "snapshot_count"),
     [
-        Path("tm/pec_waveguide/pec_waveguide.in"),
-        Path("te/pec_waveguide/pec_waveguide.in"),
-        Path("tm/dielectric_slab/dielectric_slab.in"),
-        Path("te/pmc_waveguide/pmc_waveguide.in"),
-        Path("tm/dielectric_bend/dielectric_bend.in"),
-        Path("te/dielectric_bend/dielectric_bend.in"),
+        (
+            Path("straight_waveguide/2d_tm/dielectric_waveguide/dielectric_waveguide.in"),
+            4,
+        ),
+        (
+            Path("straight_waveguide/2d_te/dielectric_waveguide/dielectric_waveguide.in"),
+            4,
+        ),
+        (Path("bending_waveguide/2d_tm/small_bend/small_bend.in"), 4),
+        (Path("bending_waveguide/2d_tm/medium_bend/medium_bend.in"), 4),
+        (Path("bending_waveguide/2d_tm/large_bend/large_bend.in"), 4),
+        (Path("bending_waveguide/2d_te/small_bend/small_bend.in"), 4),
+        (Path("bending_waveguide/2d_te/medium_bend/medium_bend.in"), 4),
+        (Path("bending_waveguide/2d_te/large_bend/large_bend.in"), 4),
+        (Path("loss_comparison/nonlossy/nonlossy.in"), 2),
+        (Path("loss_comparison/lossy/lossy.in"), 2),
+        (Path("broadband_vs_single_frequency/broadband/broadband.in"), 2),
+        (
+            Path("broadband_vs_single_frequency/single_frequency/single_frequency.in"),
+            2,
+        ),
     ],
 )
-def test_2d_example_builds_with_eight_timestamps(tmp_path, relative_path):
-    source = (
-        REPOSITORY_ROOT
-        / "testing"
-        / "regression"
-        / "eigenmode_sources"
-        / "cases"
-        / "two_dimensional"
-        / relative_path
-    )
+def test_2d_regression_example_builds(tmp_path, relative_path, snapshot_count):
+    source = REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / "cases" / relative_path
     copied_input = tmp_path / source.name
     shutil.copyfile(source, copied_input)
 
-    assert copied_input.read_text().count("#snapshot:") == 8
+    assert copied_input.read_text().count("#snapshot:") == snapshot_count
     gprMax.run(
         inputfile=copied_input,
         n=1,
@@ -487,36 +536,24 @@ def test_2d_example_builds_with_eight_timestamps(tmp_path, relative_path):
         outputfile=tmp_path / source.stem,
         hide_progress_bars=True,
     )
-    assert len(list(tmp_path.glob(f"{source.stem}_eigenmode_*_fields.png"))) == 1
+    assert list(tmp_path.glob(f"{source.stem}_eigenmode_*_fields.png"))
 
 
 @pytest.mark.parametrize(
     ("plot_control", "expected_plot_count"),
-    [("n", 0), ("y", 1)],
+    [("n", 0), ("y", 10)],
 )
 def test_hash_modal_plot_control_overrides_geometry_only_default(
     tmp_path,
     plot_control,
     expected_plot_count,
 ):
-    source = (
-        REPOSITORY_ROOT
-        / "testing"
-        / "regression"
-        / "eigenmode_sources"
-        / "cases"
-        / "two_dimensional"
-        / "tm"
-        / "pec_waveguide"
-        / "pec_waveguide.in"
-    )
-    copied_input = tmp_path / f"pec_waveguide_{plot_control}.in"
+    source = REPOSITORY_ROOT / "examples" / "features" / "eigenmode_sources" / "dielectric_slab_2d_tm.in"
+    copied_input = tmp_path / f"dielectric_slab_{plot_control}.in"
     lines = source.read_text().splitlines()
     copied_input.write_text(
         "\n".join(
-            f"{line.rsplit(maxsplit=1)[0]} {plot_control}"
-            if line.startswith("#eigenmode_source:")
-            else line
+            f"{line} {plot_control}" if line.startswith(("#eigenmode_source:", "#eigenmode_rx:")) else line
             for line in lines
         )
         + "\n"
@@ -526,11 +563,8 @@ def test_hash_modal_plot_control_overrides_geometry_only_default(
         inputfile=copied_input,
         n=1,
         geometry_only=True,
-        outputfile=tmp_path / f"pec_waveguide_{plot_control}",
+        outputfile=tmp_path / f"dielectric_slab_{plot_control}",
         hide_progress_bars=True,
     )
 
-    assert (
-        len(list(tmp_path.glob(f"{copied_input.stem}_eigenmode_*_fields.png")))
-        == expected_plot_count
-    )
+    assert len(list(tmp_path.glob(f"{copied_input.stem}_eigenmode_*_fields.png"))) == expected_plot_count

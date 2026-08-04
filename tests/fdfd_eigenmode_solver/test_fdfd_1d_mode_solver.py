@@ -5,6 +5,7 @@ import pytest
 
 import gprMax.config as config
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
+from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +39,63 @@ def _solver(polarization, n=80, frequency=10e9, **kwargs):
     }
     defaults.update(kwargs)
     return FDFD_1D_mode_solver(**defaults)
+
+
+@pytest.mark.parametrize(
+    'solver_class', [FDFD_1D_mode_solver, FDFD_2D_mode_solver]
+)
+def test_passive_neff_branch_preserves_loss_and_evanescent_decay(solver_class):
+    epsilon = 9 - 7.19004143381j
+    expected = np.sqrt(epsilon)
+
+    neff = solver_class._passive_positive_neff(epsilon)
+    evanescent_neff = solver_class._passive_positive_neff(-4 + 0j)
+
+    assert neff == pytest.approx(expected)
+    assert np.real(neff) > 0
+    assert np.imag(neff) < 0
+    assert evanescent_neff == pytest.approx(-2j)
+
+
+@pytest.mark.parametrize('polarization', ['TM', 'TE'])
+def test_lossy_homogeneous_mode_uses_passive_forward_neff(polarization):
+    n = 40
+    frequency = 5e9
+    epsilon = 9 - 1j * 2 / (2 * np.pi * frequency * 8.8541878128e-12)
+    kwargs = {
+        'eps_r_t': np.full(n, epsilon),
+        'eps_r_a': np.full(n + 1, epsilon),
+        'eps_r_w': np.full(n + 1, epsilon),
+    }
+    if polarization == 'TE':
+        pec_w = np.zeros(n + 1, dtype=bool)
+        pec_w[[0, -1]] = True
+        kwargs['pec_w_mask'] = pec_w
+
+    solver = _solver(
+        polarization,
+        n=n,
+        frequency=frequency,
+        **kwargs,
+    )
+    solver.solve()
+
+    expected = np.sqrt(epsilon)
+    forward_factor = np.exp(-1j * solver.k0 * solver.modal_complex_neff * 0.5e-3)
+    assert solver.modal_complex_neff == pytest.approx(expected, rel=1e-9)
+    assert np.real(solver.modal_complex_neff) > 0
+    assert np.imag(solver.modal_complex_neff) < 0
+    assert abs(forward_factor) < 1
+    assert solver.modal_power == pytest.approx(1.0, rel=1e-12)
+    if polarization == 'TM':
+        active = np.abs(solver.modal_Ea) > 1e-12 * np.max(np.abs(solver.modal_Ea))
+        ratio = solver.modal_Ht[active] / solver.modal_Ea[active]
+        expected_ratio = -solver.modal_complex_neff / solver.eta0
+    else:
+        active = np.abs(solver.modal_Ha) > 1e-12 * np.max(np.abs(solver.modal_Ha))
+        ratio = solver.modal_Et[active] / solver.modal_Ha[active]
+        expected_ratio = solver.eta0 * solver.modal_complex_neff / epsilon
+    np.testing.assert_allclose(ratio, expected_ratio, rtol=1e-9, atol=1e-12)
 
 
 def test_tm_pec_parallel_plate_neff_and_yee_shapes():

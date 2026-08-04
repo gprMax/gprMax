@@ -1,5 +1,7 @@
 """Text-input coverage for the reusable positional NTFF interface."""
 
+from pathlib import Path
+
 import h5py
 import numpy as np
 import pytest
@@ -99,6 +101,156 @@ def test_defaults_and_optional_parameter_positions_are_unambiguous():
     assert objects[2].time_origin == "simulation"
     assert objects[3].ID is None
     assert objects[3].outputs is None
+
+
+def test_ntff_surface_accepts_multiple_omitted_huygens_faces():
+    objects = _parse(
+        "#ntff_surface: 0.02 0.02 0.02 0.08 0.08 0.08 open_surface x0 xmax z0",
+        "#ntff_frequency: open_surface spectrum 1e8",
+        "#ntff_far_field: 90 0 spectrum",
+    )
+
+    assert objects[0].omit_faces == ("x0", "xmax", "z0")
+
+
+def test_open_huygens_surface_rejects_ksir_ramahi(tmp_path):
+    inputfile = tmp_path / "open_ksir.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#material: 4 0 1 0 feed\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.02 0.04 0.04 pulse\n"
+        "#box: 0 0.036 0.036 0.040 0.044 0.044 feed\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf x0\n"
+        "#ksir_frequency: surf spectrum 5e9\n"
+        "#ksir_far_field: 90 0 spectrum pattern Etheta\n"
+    )
+
+    with pytest.raises(ValueError, match="KSIR/Ramahi.*requires all six"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            outputfile=tmp_path / "open_ksir",
+            hide_progress_bars=True,
+        )
+
+
+def test_open_huygens_surface_allows_source_through_omitted_face(tmp_path):
+    inputfile = tmp_path / "open_huygens.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#material: 4 0 1 0 feed\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.02 0.04 0.04 pulse\n"
+        "#box: 0 0.036 0.036 0.040 0.044 0.044 feed\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf x0\n"
+        "#ntff_frequency: surf spectrum 5e9\n"
+        "#ntff_far_field: 90 0 spectrum pattern Etheta Ephi\n"
+    )
+    outputfile = tmp_path / "open_huygens"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        surface = output["ntff/surf"]
+        assert surface.attrs["closure"] == "huygens_open"
+        assert surface.attrs["omitted_faces"].tolist() == [b"x0"]
+
+
+def test_open_huygens_surface_supports_two_feed_openings(tmp_path):
+    inputfile = tmp_path / "two_openings.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#material: 4 0 1 0 feed\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.02 0.04 0.04 pulse\n"
+        "#box: 0 0.036 0.036 0.080 0.044 0.044 feed\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf x0 xmax\n"
+        "#ntff_frequency: surf spectrum 5e9\n"
+        "#ntff_far_field: 90 0 spectrum pattern Etheta Ephi\n"
+    )
+    outputfile = tmp_path / "two_openings"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        surface = output["ntff/surf"]
+        normals = surface["frequency/spectrum/surface_dft/Ex/patch_normals"][...]
+        assert surface.attrs["closure"] == "huygens_open"
+        assert surface.attrs["omitted_faces"].tolist() == [b"x0", b"xmax"]
+        assert not np.any(normals[:, 0])
+
+
+def test_open_huygens_surface_can_omit_a_pec_backplane(tmp_path):
+    inputfile = tmp_path / "pec_backplane.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.044 pulse\n"
+        "#box: 0.012 0.012 0.012 0.068 0.068 0.028 pec\n"
+        "#ntff_surface: 0.024 0.024 0.028 0.056 0.056 0.056 surf z0\n"
+        "#ntff_frequency: surf spectrum 5e9\n"
+        "#ntff_far_field: 45 0 spectrum pattern Etheta Ephi\n"
+    )
+    outputfile = tmp_path / "pec_backplane"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        surface = output["ntff/surf"]
+        normals = surface["frequency/spectrum/surface_dft/Ex/patch_normals"][...]
+        assert surface.attrs["omitted_faces"].tolist() == [b"z0"]
+        assert not np.any(normals[:, 2] < 0)
+
+
+def test_open_huygens_surface_rejects_source_beyond_a_sampled_face(tmp_path):
+    inputfile = tmp_path / "wrong_opening.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.02 0.04 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf x0\n"
+        "#ntff_frequency: surf spectrum 5e9\n"
+        "#ntff_far_field: 90 0 spectrum pattern Etheta\n"
+    )
+
+    with pytest.raises(ValueError, match="configured omitted faces"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            outputfile=tmp_path / "wrong_opening",
+            hide_progress_bars=True,
+        )
 
 
 def test_cartesian_array_accepts_zero_step_only_on_fixed_axes():
@@ -315,10 +467,7 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
         group = output["ntff/surf/frequency/band/far_field/broadside"]
         assert group.attrs["radiation_quadrature_theta_order"] >= 12
         assert group.attrs["radiation_quadrature_phi_order"] >= 24
-        assert (
-            group.attrs["maximum_directivity_sampling"]
-            == "full-sphere quadrature plus requested directions"
-        )
+        assert group.attrs["maximum_directivity_sampling"] == "full-sphere quadrature plus requested directions"
         assert group["port_power/port_ids"].asstr()[...].tolist() == ["feed"]
         assert group["port_power/incident_voltage_per_port"].shape == (1, 1)
         assert group["port_power/terminal_voltage_per_port"].shape == (1, 1)
@@ -337,6 +486,49 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
             "total_efficiency",
         ):
             assert np.isfinite(group[f"fields/{name}"][...]).all()
+
+
+def test_eigenmode_port_normalises_gain_and_realized_gain(tmp_path):
+    inputfile = (
+        Path(__file__).parents[2] / "examples" / "features" / "eigenmode_sources" / "dielectric_rod_antenna_3d.in"
+    )
+    outputfile = tmp_path / "eigenmode_antenna"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        far_field = output["ntff/radiation_surface/frequency/antenna_band/far_field/full_sphere"]
+        port_power = far_field["port_power"]
+        modal_port = port_power["modal_ports/port1"]
+
+        assert port_power["port_ids"].asstr()[...].tolist() == ["port1"]
+        assert port_power["representations"].asstr()[...].tolist() == ["modal_power_waves"]
+        assert np.isnan(port_power["reference_impedances"][0])
+        assert np.all(port_power["mesh_valid"][...] == 1)
+        assert np.all(port_power["terminal_valid"][...] == 1)
+        assert np.all(port_power["gain_valid"][...] == 1)
+        assert np.all(port_power["realized_gain_valid"][...] == 1)
+        assert modal_port.attrs["port_id"] == "port1"
+        assert modal_port["incident"].shape == (1, 9)
+        assert modal_port["outgoing"].shape == (1, 9)
+        assert modal_port["power_matrix"].shape == (9, 1, 1)
+        assert np.all(np.abs(output["eigenmode_ports/port1/S"][0]) < 0.3)
+        radiation_efficiency = far_field["fields/radiation_efficiency"][...]
+        total_efficiency = far_field["fields/total_efficiency"][...]
+        directivity_dbi = far_field["fields/directivity_dbi"][...]
+        gain_dbi = far_field["fields/gain_dbi"][...]
+        realized_gain_dbi = far_field["fields/realized_gain_dbi"][...]
+        assert np.all((0 < radiation_efficiency) & (radiation_efficiency <= 1))
+        assert np.all((0 < total_efficiency) & (total_efficiency <= 1))
+        assert np.all(gain_dbi <= directivity_dbi + 1e-12)
+        assert np.all(realized_gain_dbi <= gain_dbi + 1e-12)
+        assert np.isfinite(gain_dbi).all()
+        assert np.isfinite(realized_gain_dbi).all()
 
 
 def test_multiport_gain_keeps_zero_amplitude_port_in_power_balance(tmp_path):

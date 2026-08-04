@@ -1,4 +1,6 @@
 *.h5
 *.png
+*_sparameters.csv
 *.vtkhdf
 *_snaps/
+/legacy/

@@ -343,7 +343,7 @@ class FDFD_1D_mode_solver:
                 ax.plot(coordinate, np.real(profile), label=f"Re({label})")
                 ax.plot(coordinate, np.abs(profile), "--", label=f"|{label}|")
                 ax.set_title(
-                    f"Mode {mode}: {label} ({stagger}), " f"neff={self.complex_neff[mode]:.6g}"
+                    f"Mode {mode + 1}: {label} ({stagger}), " f"neff={self.complex_neff[mode]:.6g}"
                 )
                 ax.set_xlabel("t (m)")
                 ax.set_ylabel("normalised field")
@@ -353,14 +353,19 @@ class FDFD_1D_mode_solver:
         fig.savefig(output_path, dpi=200)
         return output_path
 
-    def _passive_positive_neff(self, neff_squared):
+    @staticmethod
+    def _passive_positive_neff(neff_squared):
         root = np.sqrt(neff_squared)
-        neff = np.where(np.real(root) < 0, -root, root)
+        tolerance = 1e-12 * np.maximum(1.0, np.abs(root))
+        flip = (np.real(root) < -tolerance) | (
+            (np.abs(np.real(root)) <= tolerance) & (np.imag(root) > tolerance)
+        )
+        neff = np.where(flip, -root, root)
+
         real = np.real(neff)
         imag = np.imag(neff)
-        tolerance = 1e-12 * np.maximum(1.0, np.abs(neff))
         real = np.where(np.abs(real) <= tolerance, 0.0, real)
-        imag = np.where(np.abs(imag) <= tolerance, 0.0, np.abs(imag))
+        imag = np.where(np.abs(imag) <= tolerance, 0.0, imag)
         return real + 1j * imag
 
     @staticmethod

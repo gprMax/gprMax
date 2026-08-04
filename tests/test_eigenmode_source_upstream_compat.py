@@ -119,7 +119,7 @@ def test_eigenmode_source_passes_cell_pmc_masks_to_solver(monkeypatch):
     )
     grid.solid[0, 0, 0] = pmc.numID
     source = _source(grid)
-    source.mode_index = 0
+    source.mode_index = 1
     source.complex_eps_r_uu = np.ones((2, 3), dtype=np.complex128)
     source.complex_eps_r_vv = np.ones((3, 2), dtype=np.complex128)
     source.complex_eps_r_ww = np.ones((3, 3), dtype=np.complex128)
@@ -132,13 +132,14 @@ def test_eigenmode_source_passes_cell_pmc_masks_to_solver(monkeypatch):
     class FakeSolver:
         def __init__(self, **kwargs):
             captured.update(kwargs)
-            self.modal_Eu = np.zeros((2, 3))
-            self.modal_Ev = np.zeros((3, 2))
-            self.modal_Ew = np.zeros((3, 3))
-            self.modal_Hu = np.zeros((3, 2))
-            self.modal_Hv = np.zeros((2, 3))
-            self.modal_Hw = np.zeros((2, 2))
-            self.modal_real_neff = 1.0
+            self.num_modes = 1
+            self.Eu = np.zeros((2, 3, 1))
+            self.Ev = np.zeros((3, 2, 1))
+            self.Ew = np.zeros((3, 3, 1))
+            self.Hu = np.zeros((3, 2, 1))
+            self.Hv = np.zeros((2, 3, 1))
+            self.Hw = np.zeros((2, 2, 1))
+            self.complex_neff = np.asarray([1.0 + 0j])
 
         def solve(self):
             pass

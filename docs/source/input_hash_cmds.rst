@@ -1378,40 +1378,56 @@ Allows you to introduce a two-dimensional eigenmode source port. The command ext
 
 .. code-block:: none
 
-    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1 f7 [f8 ...] str1 [c2]
+    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1[,i2] i3 f7 [f8 ...] str1 f9 f10 i4 [c2]
 
 * ``f1 f2 f3`` are the first point ``x0 y0 z0`` of the rectangular source port in metres.
 * ``f4 f5 f6`` are the opposite point ``x1 y1 z1`` of the rectangular source port in metres.
 * In a 3D model exactly one coordinate pair must be the same between the two points. If ``x0=x1`` the port lies in the yz plane and is normal to x; if ``y0=y1`` the port lies in the xz plane and is normal to y; if ``z0=z1`` the port lies in the xy plane and is normal to z.
 * In a 2D TM or TE model the source normal must be one of the two in-plane axes. The source becomes a line over the remaining physical transverse axis and must span the complete invariant-axis thickness. Use ``inf`` for the upper invariant coordinate. The source uses the one-dimensional Yee-staggered TM or TE eigensolver selected by ``#domain_mode``.
 * ``c1`` is the propagation direction from the source plane and can be ``+`` or ``-``.
-* ``i1`` is the zero-based mode index to excite.
+* ``i1`` is the one-based mode index to excite: ``1`` selects the first solved
+  mode.
+* ``i2`` is an optional number of modes to calculate and monitor at the source
+  port. The compact mode field is written as ``i1,i2``. The source excites only
+  mode ``i1``, while its simultaneous receiver projects modes 1 through
+  ``i2``. If ``i2`` is omitted it defaults to ``i1`` and it must never be less
+  than ``i1``.
+* ``i3`` is the explicit one-based source port index used in HDF5 and
+  S-parameter output. Port indices must be unique across all eigenmode ports.
 * ``f7 [f8 ...]`` are one or more strictly increasing frequencies in Hertz used to solve the eigenmode fields. One frequency retains the original fixed-profile source. Two or more frequencies create a broadband source by phase-aligning and linearly interpolating the complex modal fields and propagation constant.
 * ``str1`` is the identifier of the waveform that should be used with the source.
+* ``f9 f10`` are the inclusive start and stop frequencies in Hertz for the
+  direct frequency-domain monitor attached automatically to the source.
+* ``i4`` is the number of uniformly spaced DFT frequency points. Use equal
+  start and stop frequencies when ``i4=1``.
 * ``c2`` is an optional modal-field plotting control: ``y`` always writes the
   diagnostic plots and ``n`` always suppresses them. If it is omitted, plots
   are written for a ``--geometry-only`` build but not for a normal simulation.
 
-For example, to specify an eigenmode source on the yz plane at ``x=0.008`` m, propagating in the positive x direction, using mode index 1 solved at 80 GHz and the waveform defined by the identifier ``eig_pulse``, use: ``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 80e9 eig_pulse``.
+For example, to specify port 1 on the yz plane at ``x=0.008`` m,
+propagating in the positive x direction, exciting and monitoring mode 1 solved
+at 80 GHz, and monitoring 71 DFT points from 70--90 GHz, use:
+``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 1 80e9 eig_pulse 70e9 90e9 71``.
 
 For a TMz or TEz model, the equivalent invariant-axis form for a source
 normal to x is, for example:
 
 .. code-block:: none
 
-    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 80e9 eig_pulse
+    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 1 1 80e9 eig_pulse 70e9 90e9 71
 
 For example, a five-anchor broadband source using the same mode index at every
 frequency can be specified as:
 
 .. code-block:: none
 
-    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 20e9 40e9 60e9 80e9 100e9 eig_pulse
+    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 1,3 1 20e9 40e9 60e9 80e9 100e9 eig_pulse 20e9 100e9 161
 
-Consecutive anchor modes are checked against the configured normalized
-field-overlap threshold. A low overlap emits a warning because it can indicate
-a mode-order change, cutoff, degeneracy, or anchors that are too widely spaced,
-but the run continues with the supplied modes. The anchor range should cover
+Consecutive anchor modes are checked using their normalized field overlap.
+An overlap below 0.9 emits a warning because it can indicate a mode-order
+change, cutoff, degeneracy, or anchors that are too widely spaced. An overlap
+below 0.6 is an error and asks the user to use a single-frequency eigenmode
+solve instead. The anchor range should cover
 the significant spectrum of the waveform; uncovered bins emit a warning and
 use the nearest endpoint mode. Warnings are also emitted for unusable modal-power
 normalisation or significant DC/Nyquist content; finite fallbacks are applied
@@ -1451,12 +1467,80 @@ normal run, while a final ``n`` suppresses them even in geometry-only mode:
 
 .. code-block:: none
 
-    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 0 80e9 eig_pulse y
+    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 1 1 80e9 eig_pulse 70e9 90e9 71 y
+
+The complete phasor convention, FDFD eigenproblems, passive propagation
+branch, field reconstruction, power normalization, TF/SF injection, I/Q path,
+and broadband spectrum synthesis are described in
+:doc:`eigenmode`.
 
 .. note::
 
-    * The ``#eigenmode_source`` command currently cannot be used with the CUDA, OpenCL, or Apple Metal solvers.
-    * The ``#eigenmode_source`` command currently cannot be used with MPI.
+    * Eigenmode sources and receivers currently cannot be used with the CUDA,
+      OpenCL, or Apple Metal solvers.
+    * Eigenmode sources and receivers currently cannot be used with MPI.
+
+
+#eigenmode_rx:
+--------------
+
+Introduces a passive plane that projects the time-domain fields onto one or
+more solved eigenmodes. The syntax is:
+
+.. code-block:: none
+
+    #eigenmode_rx: f1 f2 f3 f4 f5 f6 c1 i1 i2 f7 [f8 ...] str1 f9 f10 i3 [c2]
+
+The two points and modal solve frequencies have the same meanings and
+restrictions as for ``#eigenmode_source``. The remaining parameters are:
+
+* ``c1`` is the positive, incident-wave direction of this port. For the usual
+  two-port model, use ``+`` at a port next to the lower PML and ``-`` at a port
+  next to the upper PML; both directions then point into the device.
+* ``i1`` is the number of modes to calculate and measure. A value of ``3``
+  projects onto the consecutive one-based modes 1, 2, and 3.
+* ``i2`` is the explicit one-based port index. It must be unique and does not
+  depend on command creation order.
+* ``str1`` is the receiver identifier.
+* ``f9 f10 i3`` define the same uniformly spaced direct-DFT bins as on the
+  source. Every eigenmode source and receiver in a simulation must use
+  identical DFT bins for S-parameter calculation.
+* ``c2`` optionally controls modal-field plots using ``y`` or ``n``.
+
+For example, this receiver is adjacent to the upper x PML and measures modes 1
+and 2 over the same 70--90 GHz bins as the source above:
+
+.. code-block:: none
+
+    #eigenmode_rx: 0.017 0.0025 0.0025 0.017 0.0155 0.0155 - 2 2 80e9 output 70e9 90e9 71
+
+Exactly one ``#eigenmode_source`` must exist whenever either eigenmode command
+is used. Zero or multiple eigenmode sources are errors. The source also acts as
+a receiver for modes 1 through its configured mode count. Source and receiver
+port indices are supplied explicitly and may be listed in any command order.
+A receiver away from its corresponding PML interface is accepted but produces
+a warning because reflections beyond the reference plane can corrupt the
+decomposition.
+
+At every FDTD time step a Cython kernel projects the cell-centred transverse E
+and H fields onto all requested modal profiles and updates each requested DFT
+bin exactly once. A full modal Gram matrix is solved at the end of the run;
+this separates non-orthogonal or numerically mixed modes instead of treating
+each overlap independently. Broadband modal profiles are phase-aligned and
+interpolated between anchors. An overlap below 0.9 produces a warning; an
+overlap below 0.6 stops the simulation and asks the user to use a
+single-frequency eigenmode solve.
+
+gprMax writes ``<output>_sparameters.csv`` with one row per frequency,
+destination port, and destination mode. The incident denominator is the mode
+explicitly excited at the source; all monitored modes at the source port are
+S11 modal-reflection results, while modes at another port are the corresponding
+S21, S31, and other modal-conversion results.
+Complex S, magnitude, dB magnitude, phase, power ratio, and a validity flag are
+included. The incident/outgoing modal spectra, condition numbers, S values, and
+validity masks are also stored below ``/eigenmode_ports`` in the HDF5 output.
+Bins more than 60 dB below the peak source incident spectrum are marked
+invalid.
 
 
 #rx:
@@ -1666,10 +1750,13 @@ Near-to-far-field transformation commands
 ==========================================
 
 The NTFF commands separate the integration surface from the formulation and
-its output points. One surface can therefore be reused by KSIR and
+its output points. A closed surface can therefore be reused by KSIR and
 equivalent-current transforms, and by many output directions, without
-repeating the six surface coordinates. All optional parameters use the
-traditional positional gprMax syntax; ``name=value`` tokens are not used.
+repeating the six surface coordinates. An open surface is specific to the
+frequency-domain Huygens/equivalent-current transform, which can use any
+user-selected nonempty subset of the six faces. All optional parameters
+use the traditional positional gprMax syntax; ``name=value`` tokens are not
+used.
 The derivations, field normalisation, Yee placement, and comparison of the
 three implemented transforms are given in :ref:`ntff-formulations`.
 
@@ -1692,8 +1779,9 @@ The following conventions apply to every NTFF command:
   non-dispersive material. gprMax determines its wave speed and impedance
   from the Yee material IDs; these are not user-entered command parameters;
 * surface samples must remain outside the PML and clear of the TFSF correction
-  stencil. The surface must enclose the radiating source or the complete TFSF
-  box and scatterer as appropriate;
+  stencil. A closed surface must enclose the radiating source or the complete
+  TFSF box and scatterer. An open Huygens surface instead permits an impressed
+  source outside only through one of its omitted faces;
 * the implementation currently requires a three-dimensional serial model and
   does not support MPI or geometry-fixed reuse. NTFF commands are main-grid
   objects, but their closed surface may contain complete subgrids. A surface
@@ -1751,11 +1839,29 @@ Defines a reusable Yee-aligned cuboidal integration surface:
 
 .. code-block:: none
 
-    #ntff_surface: x1 y1 z1 x2 y2 z2 surface_id
+    #ntff_surface: x1 y1 z1 x2 y2 z2 surface_id [omit_face1 ... omit_face5]
 
 ``x1 y1 z1`` and ``x2 y2 z2`` are the lower and upper logical corners.
-``surface_id`` must be unique and must not contain ``/``. The surface is
-physically closed unless one or more faces coincide exactly with a declared
+``surface_id`` must be unique and must not contain ``/``. Zero to five trailing
+face names may be supplied from ``x0``, ``xmax``, ``y0``, ``ymax``, ``z0``,
+and ``zmax``; duplicates are not allowed. Listed faces are omitted from the
+frequency-domain Huygens/equivalent-current integral. At least one face must
+remain active. An impressed source outside the Huygens volume must enter
+through an omitted face. A feed crossing an opening should remain uniform to
+the corresponding PML, with its impressed source plane outside the volume.
+Every sampled face must lie in the homogeneous exterior. This open-surface form
+is rejected by every KSIR/Ramahi command and by the transient equivalent-current
+transform.
+
+An arbitrary open surface is not a mathematically exact closure. It is useful
+when the omitted contribution is intentionally excluded, but its far field can
+depend on the selected faces. Check convergence by moving and enlarging the
+sampled faces. The edge rows shared with an omitted face are excluded from the
+homogeneous-material check, allowing an active side face to terminate on a PEC
+backplane.
+
+Without omitted face names, the surface is physically closed unless one or more
+faces coincide exactly with a declared
 ``#symmetry_boundary``. Coincident PEC/PMC faces are then omitted from direct
 sampling and completed automatically using the exact image parity, reflected
 normal, edge quadrature, and propagation distance for every component.
@@ -1765,6 +1871,25 @@ For example:
 .. code-block:: none
 
     #ntff_surface: 0.034 0.034 0.034 0.066 0.066 0.066 radiation_surface
+
+An antenna fed from the negative x direction can omit its feed face:
+
+.. code-block:: none
+
+    #ntff_surface: 0.034 0.020 0.020 0.080 0.080 0.080 radiation_surface x0
+
+A leaky-wave antenna can omit both waveguide end faces so that a passive
+eigenmode receiver beyond ``xmax`` still measures S21:
+
+.. code-block:: none
+
+    #ntff_surface: 0.034 0.020 0.020 0.080 0.080 0.080 radiation_surface x0 xmax
+
+A surface whose lower side terminates on a PEC backplane can omit ``z0``:
+
+.. code-block:: none
+
+    #ntff_surface: 0.020 0.020 0.030 0.080 0.080 0.080 radiation_surface z0
 
 #ksir_frequency:
 ----------------
@@ -1802,7 +1927,7 @@ truncation.
 ----------------
 
 Declares a streaming frequency transform using the conventional
-closed-surface equivalent-current method of Luebbers *et al.* [LUE1991]_:
+equivalent-current method of Luebbers *et al.* [LUE1991]_:
 
 .. code-block:: none
 
@@ -1842,8 +1967,10 @@ the stored range-normalized electric far field is
 Here :math:`\mathbf r_0` is the surface phase origin. This transform cannot be
 used by the finite-distance ``#ksir_frequency_rx`` commands. It is consumed by
 ``#ntff_far_field``, ``#ntff_far_field_array``, and optionally
-``#ntff_antenna_ports``. It currently requires all six physical integration
-faces; symmetry-completed equivalent-current surfaces are not yet enabled.
+``#ntff_antenna_ports``. It accepts either all six physical integration faces
+or any nonempty subset selected by trailing omitted face names on
+``#ntff_surface``. Symmetry-completed equivalent-current
+surfaces are not yet enabled.
 
 .. code-block:: none
 
@@ -1863,9 +1990,14 @@ calculated:
 For a voltage source, ``port_id`` is the ID of the coincident ``#rx_port``.
 Transmission-line and magnetic-frill sources provide automatic port IDs
 ``tl1``, ``tl2``, ... and ``frill1``, ``frill2``, ... respectively, in source
-creation order. The association is not required for electric or magnetic
-far fields, radiation intensity, RCS, or directivity. It is required when a
+creation order. The association is not required for electric or magnetic far
+fields, radiation intensity, RCS, or directivity. It is required when a
 far-field command asks for gain or efficiency.
+
+An eigenmode source cannot be used with any Ramahi/KSIR command. gprMax rejects
+that combination even when gain is not requested. Use the frequency-domain
+equivalent-current Huygens commands ``#ntff_frequency``, ``#ntff_far_field``
+or ``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
 
 A port on a subgrid is named as ``subgrid_id/port_id``. For example,
 ``fine_grid/feed`` identifies an ``#rx_port`` called ``feed`` on subgrid
@@ -1873,14 +2005,14 @@ A port on a subgrid is named as ``subgrid_id/port_id``. For example,
 ``fine_grid/frill1``. Main-grid IDs remain unqualified. Each subgrid port is
 post-processed using its owning grid's finer spatial and temporal steps.
 
-The listed set must include **every** physical voltage, transmission-line,
-and magnetic-frill port in the model. Every voltage source must therefore
-have a coincident ``#rx_port``. This requirement makes the net accepted power
-unambiguous in coupled multiport antennas. A source whose waveform amplitude
-is zero is still a terminated physical port: list it normally. It has zero
+The listed set must include **every** physical voltage, transmission-line, and
+magnetic-frill port in the model. Every voltage source must therefore have a
+coincident ``#rx_port``. This requirement makes the net accepted power
+unambiguous in coupled multiport antennas. A source whose waveform amplitude is
+zero is still a terminated physical port: list it normally. It has zero
 incident power, but coupling from driven ports can make its accepted power
-negative because it delivers coupled energy into its termination. gprMax
-sums that signed terminal power when normalising antenna gain.
+negative because it delivers coupled energy into its termination. gprMax sums
+all signed port powers when normalising antenna gain.
 
 Gain normalisation currently requires the transform to use the
 ``rectangular`` window. Active Hertzian electric or magnetic dipoles and
@@ -1920,6 +2052,18 @@ Its port-set, rectangular-window, multiport-power, subgrid, and validity rules
 are the same as for ``#ksir_antenna_ports``. The separate command name prevents
 accidentally associating a port set with a transform from the other
 formulation.
+
+This is the antenna-port association to use with an eigenmode source. An
+eigenmode source uses ``portN``, where ``N`` is its explicit port index; an
+``#eigenmode_rx`` uses its receiver identifier. The listed set must include
+every physical conventional and modal port in the model. A passive eigenmode
+receiver has zero generator incident power and contributes signed net modal
+power to the accepted-power balance.
+
+For every associated eigenmode port, the transform frequencies must exactly
+match that port's direct-DFT bins. Degenerate modes and mode crossings should
+use a single-frequency modal solve rather than broadband profile
+interpolation.
 
 #ksir_time_rx: and #ksir_time_rx_spherical:
 --------------------------------------------
@@ -2245,8 +2389,9 @@ reflected images form the completed closed surface. Observation points must be
 outside this completed physical-plus-image surface, not merely outside the
 simulated half. This KSIR workflow is supported by the local CPU, CUDA,
 OpenCL, and Metal solvers for nondispersive models. Equivalent-current
-transforms currently require all six physical faces. OpenCL and Metal still
-require end-to-end qualification on suitable hardware.
+transforms do not yet support symmetry image completion; physical faces can
+instead be omitted explicitly for an open frequency-domain Huygens surface.
+OpenCL and Metal still require end-to-end qualification on suitable hardware.
 
 
 PML commands

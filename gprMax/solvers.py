@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -67,7 +67,7 @@ class Solver:
             self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
             self.updates.observe_ntff_electric(iteration)
-
+            
             #time loop at this point is working at fields updated to be at n+1/2
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
@@ -76,7 +76,9 @@ class Solver:
                 self.updates.update_eigenmode_sources_magnetic(iteration)
             if isinstance(self.updates, (CPUUpdates, CUDAUpdates)):
                 self.updates.update_plane_waves_magnetic(iteration)
-
+            if isinstance(self.updates, CPUUpdates):
+                self.updates.observe_eigenmode_ports(iteration)
+          
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
 
@@ -97,7 +99,7 @@ class Solver:
             if isinstance(self.updates, CPUUpdates):
                 self.updates.update_eigenmode_sources_electric(iteration)
             if isinstance(self.updates, (CPUUpdates, CUDAUpdates)):
-                self.updates.update_plane_waves_electric(iteration)
+                self.updates.update_plane_waves_electric(iteration)    
 
            # TODO: Increment iteration here if add Model to Solver
             if isinstance(self.updates, SubgridUpdates):
@@ -107,7 +109,7 @@ class Solver:
             # mirroring the bulk dispersive update's A/B split.
             if not isinstance(self.updates, MPIUpdates):
                 self.updates.update_symmetry_boundaries_electric_b()
-
+                         
             self.updates.update_electric_b()
 
             if isinstance(self.updates, MPIUpdates):

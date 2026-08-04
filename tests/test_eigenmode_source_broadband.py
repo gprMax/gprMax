@@ -21,17 +21,14 @@ def test_broadband_anchor_phase_alignment_is_phase_invariant(monkeypatch):
         SimpleNamespace(em_consts={"z0": 376.730313668, "c": 299792458.0}),
     )
     source = EigenmodeSource(None)
-    source.mode_index = 0
-    source.mode_overlap_threshold = 0.9
+    source.mode_index = 1
     reference_e = _field_set([1.0, 2.0])
     reference_h = _field_set([0.25, 0.5])
     phase = np.exp(0.73j)
     anchor_e = [reference_e, [field * phase for field in reference_e]]
     anchor_h = [reference_h, [field * phase for field in reference_h]]
 
-    overlaps = source._align_and_validate_anchors(
-        anchor_e, anchor_h, (1e9, 2e9)
-    )
+    overlaps = source._align_and_validate_anchors(anchor_e, anchor_h, (1e9, 2e9))
 
     assert overlaps == pytest.approx([1.0])
     for expected, actual in zip(reference_e, anchor_e[1]):
@@ -47,31 +44,86 @@ def test_broadband_anchor_overlap_warns_and_continues(monkeypatch):
         SimpleNamespace(em_consts={"z0": 376.730313668, "c": 299792458.0}),
     )
     source = EigenmodeSource(None)
-    source.mode_index = 2
-    source.mode_overlap_threshold = 0.9
-    anchor_e = [_field_set([1.0, 0.0]), _field_set([0.0, 1.0])]
+    source.mode_index = 3
+    anchor_e = [
+        _field_set([1.0, 0.0]),
+        _field_set([0.75, np.sqrt(1 - 0.75**2)]),
+    ]
     anchor_h = [_field_set([0.0, 0.0]), _field_set([0.0, 0.0])]
     warnings = []
     monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
 
-    overlaps = source._align_and_validate_anchors(
-        anchor_e, anchor_h, (1e9, 2e9)
-    )
+    overlaps = source._align_and_validate_anchors(anchor_e, anchor_h, (1e9, 2e9))
     output = "\n".join(warnings)
 
-    assert overlaps == pytest.approx([0.0])
-    assert "Continuing with the supplied anchor modes" in output
+    assert overlaps == pytest.approx([0.75])
+    assert "below the warning threshold 0.900000" in output
+    assert "The run will continue" in output
 
 
-def test_broadband_invalid_anchor_norm_warns_and_continues(monkeypatch):
+def test_broadband_anchor_overlap_below_minimum_raises(monkeypatch):
     monkeypatch.setattr(
         config,
         "sim_config",
         SimpleNamespace(em_consts={"z0": 376.730313668, "c": 299792458.0}),
     )
     source = EigenmodeSource(None)
-    source.mode_index = 0
-    source.mode_overlap_threshold = 0.9
+    source.mode_index = 2
+    anchor_e = [
+        _field_set([1.0, 0.0]),
+        _field_set([0.59, np.sqrt(1 - 0.59**2)]),
+    ]
+    anchor_h = [_field_set([0.0, 0.0]), _field_set([0.0, 0.0])]
+
+    with pytest.raises(
+        ValueError,
+        match="Use a single-frequency eigenmode solver instead",
+    ):
+        source._align_and_validate_anchors(anchor_e, anchor_h, (1e9, 2e9))
+
+
+def test_broadband_anchor_overlap_at_minimum_warns_but_does_not_raise(
+    monkeypatch,
+):
+    warnings = []
+    monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
+
+    EigenmodeSource._check_anchor_overlap(
+        0.6,
+        1e9,
+        2e9,
+        1,
+        "Broadband eigenmode source",
+    )
+
+    assert "below the warning threshold 0.900000" in "\n".join(warnings)
+
+
+def test_broadband_anchor_overlap_at_warning_threshold_does_not_warn(
+    monkeypatch,
+):
+    warnings = []
+    monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
+
+    EigenmodeSource._check_anchor_overlap(
+        0.9,
+        1e9,
+        2e9,
+        1,
+        "Broadband eigenmode source",
+    )
+
+    assert not warnings
+
+
+def test_broadband_invalid_anchor_norm_raises(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(em_consts={"z0": 376.730313668, "c": 299792458.0}),
+    )
+    source = EigenmodeSource(None)
+    source.mode_index = 1
     zero_fields = _field_set([0.0, 0.0])
     anchor_e = [
         [field.copy() for field in zero_fields],
@@ -81,17 +133,11 @@ def test_broadband_invalid_anchor_norm_warns_and_continues(monkeypatch):
         [field.copy() for field in zero_fields],
         [field.copy() for field in zero_fields],
     ]
-    warnings = []
-    monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
-
-    overlaps = source._align_and_validate_anchors(
-        anchor_e, anchor_h, (1e9, 2e9)
-    )
-    output = "\n".join(warnings)
-
-    assert overlaps == pytest.approx([0.0])
-    assert "zero or invalid field norm" in output
-    assert "Continuing with the supplied anchor modes" in output
+    with pytest.raises(
+        ValueError,
+        match="Use a single-frequency eigenmode solver instead",
+    ):
+        source._align_and_validate_anchors(anchor_e, anchor_h, (1e9, 2e9))
 
 
 def test_broadband_quality_safeguards_warn_and_continue(monkeypatch):
@@ -208,9 +254,7 @@ def test_broadband_ifft_recovers_original_waveform(monkeypatch, wave_type):
 
     reconstructed = np.sum(source.broadband_e_envelopes[:, 0, :], axis=0)
     times = np.arange(grid.iterations) * grid.dt
-    expected = np.asarray(
-        [source.waveform.calculate_value(time, grid.dt) for time in times]
-    )
+    expected = np.asarray([source.waveform.calculate_value(time, grid.dt) for time in times])
     peak = np.max(np.abs(expected))
     assert np.max(np.abs(reconstructed - expected)) / peak < 1e-8
     assert source.broadband_waveform_error < 1e-8
@@ -222,13 +266,9 @@ def test_magnetic_stagger_factor_uses_each_frequency_and_beta():
     dt = 2e-12
     spacing = 0.5e-3
 
-    factors = EigenmodeSource._magnetic_stagger_factor(
-        omega, beta, dt, spacing
-    )
+    factors = EigenmodeSource._magnetic_stagger_factor(omega, beta, dt, spacing)
 
-    assert factors == pytest.approx(
-        np.exp(1j * (omega * dt / 2 + beta * spacing / 2))
-    )
+    assert factors == pytest.approx(np.exp(1j * (omega * dt / 2 + beta * spacing / 2)))
     assert factors[0] != pytest.approx(factors[1])
 
 
@@ -373,27 +413,21 @@ def test_single_frequency_phase_residual_matches_rotated_imaginary_norm(
         np.asarray([0.8 * np.exp(0.45j), 0.3 * np.exp(-0.8j)]) / impedance,
     ]
     total_energy = sum(
-        np.sum(np.abs(source.modal_e[axis]) ** 2)
-        + np.sum(np.abs(impedance * source.modal_h[axis]) ** 2)
+        np.sum(np.abs(source.modal_e[axis]) ** 2) + np.sum(np.abs(impedance * source.modal_h[axis]) ** 2)
         for axis in source.transverse_axes
     )
 
     residual = source._align_tangential_mode_for_real_injection()
 
     rotated_imaginary_energy = sum(
-        np.sum(np.imag(source.modal_e[axis]) ** 2)
-        + np.sum(np.imag(impedance * source.modal_h[axis]) ** 2)
+        np.sum(np.imag(source.modal_e[axis]) ** 2) + np.sum(np.imag(impedance * source.modal_h[axis]) ** 2)
         for axis in source.transverse_axes
     )
-    independently_measured_residual = np.sqrt(
-        rotated_imaginary_energy / total_energy
-    )
+    independently_measured_residual = np.sqrt(rotated_imaginary_energy / total_energy)
     assert 0.1 < abs(source.complex_profile_phase) < 1.0
     assert 0.1 < residual < 0.7
     assert residual == pytest.approx(independently_measured_residual)
-    assert source.complex_profile_residual == pytest.approx(
-        independently_measured_residual
-    )
+    assert source.complex_profile_residual == pytest.approx(independently_measured_residual)
 
 
 def test_single_frequency_spatial_phase_requires_quadrature(monkeypatch):
@@ -455,8 +489,7 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
     source.waveform = Waveform()
     source.waveform.type = "user"
     source.waveform.userfunc = lambda time: (
-        np.sin(2 * np.pi * source.frequency * time)
-        * np.exp(-((time - 1.0e-9) / 0.3e-9) ** 2)
+        np.sin(2 * np.pi * source.frequency * time) * np.exp(-(((time - 1.0e-9) / 0.3e-9) ** 2))
     )
     grid = SimpleNamespace(
         iterations=256,
@@ -478,9 +511,7 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
     sample_count = grid.iterations
     padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
     times = np.arange(sample_count) * grid.dt
-    waveform = np.asarray(
-        [source.waveform.calculate_value(time, grid.dt) for time in times]
-    )
+    waveform = np.asarray([source.waveform.calculate_value(time, grid.dt) for time in times])
     spectrum = np.fft.rfft(waveform, n=padded_count)
     spectrum[0] = 0
     spectrum[-1] = 0
@@ -488,30 +519,20 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
     electric_real = source.broadband_modal_e_real[0][1][1]
     electric_imag = source.broadband_modal_e_imag[0][1][1]
     actual_electric = (
-        electric_real * source.broadband_e_envelopes[0, 0]
-        + electric_imag * source.broadband_e_envelopes[0, 1]
+        electric_real * source.broadband_e_envelopes[0, 0] + electric_imag * source.broadband_e_envelopes[0, 1]
     )
     electric_field = source.anchor_modal_e[0][1][1]
-    expected_electric = np.fft.irfft(
-        electric_field * spectrum, n=padded_count
-    )[:sample_count]
+    expected_electric = np.fft.irfft(electric_field * spectrum, n=padded_count)[:sample_count]
     assert actual_electric == pytest.approx(expected_electric)
 
     bin_frequencies = np.fft.rfftfreq(padded_count, d=grid.dt)
     omega = 2 * np.pi * bin_frequencies
     beta = omega * source.complex_neff / speed
-    magnetic_phase = np.exp(
-        1j
-        * (
-            omega * grid.dt / 2
-            + beta * grid.dl[source.normal_axis] / 2
-        )
-    )
+    magnetic_phase = np.exp(1j * (omega * grid.dt / 2 + beta * grid.dl[source.normal_axis] / 2))
     magnetic_real = source.broadband_modal_h_real[0][2][1]
     magnetic_imag = source.broadband_modal_h_imag[0][2][1]
     actual_magnetic = (
-        magnetic_real * source.broadband_h_envelopes[0, 0]
-        + magnetic_imag * source.broadband_h_envelopes[0, 1]
+        magnetic_real * source.broadband_h_envelopes[0, 0] + magnetic_imag * source.broadband_h_envelopes[0, 1]
     )
     magnetic_field = source.anchor_modal_h[0][2][1]
     expected_magnetic = np.fft.irfft(

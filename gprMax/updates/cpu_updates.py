@@ -88,6 +88,11 @@ class CPUUpdates(Updates[GridType]):
                 iteration, self.grid.Hx, self.grid.Hy, self.grid.Hz
             )
 
+    def observe_eigenmode_ports(self, iteration):
+        """Project E(n) and H(n+1/2) and advance each modal DFT bin once."""
+        for monitor in getattr(self.grid, "eigenmodeports", ()):
+            monitor.observe(self.grid)
+
     def update_magnetic(self):
         """Updates magnetic field components."""
         update_magnetic_cpu(

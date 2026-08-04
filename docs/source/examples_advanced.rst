@@ -7,12 +7,17 @@ This section provides example models of some of the more advanced features of gp
 Eigenmode sources
 =================
 
-The models in ``examples/features/eigenmode_sources`` demonstrate the FDFD
-eigenmode solver and TF/SF modal injection in 2D and 3D dielectric guides,
-PEC waveguides, microstrip, and a broadband dielectric channel. Start with
-:download:`dielectric_slab_2d_tm.in <../../examples/features/eigenmode_sources/dielectric_slab_2d_tm.in>`
-or its equivalent
-:download:`Python API model <../../examples/features/eigenmode_sources/dielectric_slab_2d_tm.py>`.
+The maintained runnable examples are the
+:download:`straight dielectric guide <../../examples/features/eigenmode_sources/dielectric_slab_2d_tm.in>`
+and the
+:download:`eigenmode-fed rod antenna <../../examples/features/eigenmode_sources/dielectric_rod_antenna_3d.in>`.
+Both are reproduced and explained in :doc:`eigenmode`. Their directly
+runnable plotting scripts are
+:download:`plot_dielectric_slab_2d_tm.py <../../examples/features/eigenmode_sources/plot_dielectric_slab_2d_tm.py>`
+and
+:download:`plot_dielectric_rod_antenna_3d.py <../../examples/features/eigenmode_sources/plot_dielectric_rod_antenna_3d.py>`.
+They write their figures beside the corresponding input and simulation output
+files.
 
 Always inspect the solved mode before committing to a long FDTD run:
 
@@ -23,8 +28,7 @@ Always inspect the solved mode before committing to a long FDTD run:
 Geometry-only mode builds the material grid and solves the mode without time
 stepping. It automatically writes the modal-field plot. Check its requested
 polarisation, symmetry, mode order, confinement, and field behaviour at
-material, PEC, or PMC boundaries. In the Python API model, pass
-``geometry_only=True`` to ``gprMax.run`` for the same workflow.
+material, PEC, or PMC boundaries.
 
 .. figure:: ../../images_shared/eigenmode_dielectric_slab_2d_tm_fields.png
     :width: 700 px
