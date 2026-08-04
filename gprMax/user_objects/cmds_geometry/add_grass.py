@@ -301,7 +301,7 @@ class AddGrass(RotatableMixin, GeometryUserObject):
         heights = np.zeros((density.shape[0], density.shape[1]))
         for i in range(len(bladesindex[0])):
             heights[bladesindex[0][i], bladesindex[1][i]] = R.randint(
-                surface.fractalrange[0], surface.fractalrange[1], size=1
+                surface.fractalrange[0], surface.fractalrange[1]
             )
 
         if te_axis is not None:
