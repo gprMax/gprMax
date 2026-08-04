@@ -140,3 +140,54 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     assert values[(2, 1)] == pytest.approx(0.5)
     assert values[(2, 2)] == pytest.approx(0.25)
     assert {int(row["source_mode"]) for row in rows} == {2}
+
+
+def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(
+    tmp_path, monkeypatch
+):
+    frequency = np.asarray([5e9, 6e9])
+    source = SimpleNamespace(
+        is_source=True,
+        port_index=1,
+        excitation_mode_index=1,
+        mode_indices=(1,),
+        result=EigenmodePortResult(
+            frequency=frequency,
+            incident=np.asarray([[np.nan + 0j, 2 + 0j]]),
+            outgoing=np.asarray([[np.nan + 0j, 0.5 + 0j]]),
+            valid=np.asarray([[False, True]]),
+            condition_number=np.asarray([np.inf, 1.0]),
+        ),
+        finalise=lambda grid: None,
+    )
+    receiver = SimpleNamespace(
+        is_source=False,
+        port_index=2,
+        mode_indices=(1,),
+        result=EigenmodePortResult(
+            frequency=frequency,
+            incident=np.asarray([[np.nan + 0j, 0 + 0j]]),
+            outgoing=np.asarray([[np.nan + 0j, 1 + 0j]]),
+            valid=np.asarray([[False, True]]),
+            condition_number=np.asarray([np.inf, 1.0]),
+        ),
+        finalise=lambda grid: None,
+    )
+    grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(output_file_path=tmp_path / "partially_valid"),
+    )
+
+    csv_path = finalise_eigenmode_ports(grid)
+
+    assert not receiver.s_valid[0, 0]
+    assert receiver.s_valid[0, 1]
+    assert np.isnan(receiver.s_parameters[0, 0])
+    assert receiver.s_parameters[0, 1] == pytest.approx(0.5)
+    with csv_path.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    invalid_rows = [row for row in rows if row["frequency_hz"] == "5000000000.0"]
+    assert invalid_rows
+    assert all(np.isnan(float(row["S_magnitude_db"])) for row in invalid_rows)

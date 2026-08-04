@@ -451,10 +451,14 @@ def finalise_eigenmode_ports(grid):
             raise ValueError("All eigenmode ports must use identical DFT frequency bins.")
     source_mode_position = source.mode_indices.index(source.excitation_mode_index)
     denominator = source.result.incident[source_mode_position]
-    peak = float(np.max(np.abs(denominator), initial=0.0))
+    source_decomposition_valid = (
+        source.result.valid[source_mode_position] & np.isfinite(denominator)
+    )
+    peak = float(
+        np.max(np.abs(denominator[source_decomposition_valid]), initial=0.0)
+    )
     source_valid = (
-        source.result.valid[source_mode_position]
-        & np.isfinite(denominator)
+        source_decomposition_valid
         & (np.abs(denominator) >= peak * 10 ** (INCIDENT_FLOOR_DB / 20))
         & (peak > 0)
     )
@@ -496,6 +500,12 @@ def finalise_eigenmode_ports(grid):
                 for frequency_index, frequency in enumerate(port.result.frequency):
                     value = values[frequency_index]
                     magnitude = abs(value)
+                    if np.isfinite(magnitude) and magnitude > 0:
+                        magnitude_db = float(20 * np.log10(magnitude))
+                    elif magnitude == 0:
+                        magnitude_db = -np.inf
+                    else:
+                        magnitude_db = np.nan
                     writer.writerow(
                         (
                             float(frequency),
@@ -506,7 +516,7 @@ def finalise_eigenmode_ports(grid):
                             float(np.real(value)),
                             float(np.imag(value)),
                             float(magnitude),
-                            float(20 * np.log10(magnitude)) if magnitude > 0 else -np.inf,
+                            magnitude_db,
                             float(np.angle(value, deg=True)),
                             float(magnitude**2),
                             int(port.s_valid[mode_position, frequency_index]),
