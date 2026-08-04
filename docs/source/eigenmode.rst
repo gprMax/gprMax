@@ -1268,8 +1268,12 @@ recursive DFT
    X_q^{(n+1)}=X_q^{(n)}
      +\Delta t\,x_n\exp(-j2\pi f_q n\Delta t).
 
-The phase factor is advanced once per bin and time step. Electric fields use
-integer FDTD times, while magnetic fields use their half-time-step phase.
+The phase factor is advanced once per bin and time step. To bound complex64
+recurrence drift in long simulations, both oscillators are reconstructed from
+their physical times every 1024 iterations using float64 argument reduction;
+the HDF5 ``PhaseReanchorInterval`` attribute records this interval. Electric
+fields use integer FDTD times, while magnetic fields use their half-time-step
+phase.
 Transverse Yee components are averaged to common cells only inside the
 projection. A passive receiver samples the magnetic reference plane half a
 normal cell upstream of the electric plane. At a TF/SF source, H is sampled

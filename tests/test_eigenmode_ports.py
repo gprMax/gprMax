@@ -6,6 +6,7 @@ import pytest
 
 import gprMax.config as config
 from gprMax.eigenmode_ports import (
+    DFT_PHASE_REANCHOR_INTERVAL,
     EigenmodePortMonitor,
     EigenmodePortResult,
     accumulate_eigenmode_dft,
@@ -68,6 +69,90 @@ def test_cython_dft_updates_every_bin_once_per_time_step(real_dtype, complex_dty
     np.testing.assert_allclose(magnetic_dft[:, 0], (0.15 + 0.15j, 0), atol=1e-6)
     np.testing.assert_allclose(electric_phase, (-1, 1), atol=1e-6)
     np.testing.assert_allclose(magnetic_phase, (-1, 1), atol=1e-6)
+
+
+def test_complex64_eigenmode_phase_drift_is_bounded_by_periodic_reanchoring(
+    monkeypatch,
+):
+    iterations = 65_537
+    dt = 2e-12
+    frequencies = np.asarray([0.137 / dt, 0.467 / dt], dtype=np.float32)
+    check_iterations = {
+        0,
+        1,
+        DFT_PHASE_REANCHOR_INTERVAL - 1,
+        DFT_PHASE_REANCHOR_INTERVAL,
+        DFT_PHASE_REANCHOR_INTERVAL + 1,
+        32_767,
+        iterations - 2,
+        iterations - 1,
+    }
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={
+                "C_float_or_double": "float",
+                "complex": np.complex64,
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(ompthreads=1),
+    )
+    monitor = EigenmodePortMonitor.__new__(EigenmodePortMonitor)
+    monitor.owner = SimpleNamespace(
+        normal_axis=0,
+        direction="+",
+        transverse_start=(0, 0),
+        transverse_stop=(1, 1),
+        plane_index=1,
+    )
+    monitor.magnetic_side = -1
+    monitor.measure = np.float32(1.0)
+    monitor.handedness = 1
+    monitor.frequency = frequencies
+    phase_argument = -2j * np.pi * frequencies.astype(np.float64) * dt
+    monitor.phase_step = np.exp(phase_argument).astype(np.complex64)
+    monitor.electric_phase = np.ones(2, dtype=np.complex64)
+    monitor.magnetic_phase = np.exp(0.5 * phase_argument).astype(np.complex64)
+    monitor._next_iteration = 0
+    mode_shape = (2, 1, 1, 1)
+    mode_zeros = np.zeros(mode_shape, dtype=np.complex64)
+    monitor.conj_eu = mode_zeros
+    monitor.conj_ev = mode_zeros.copy()
+    monitor.conj_hu = mode_zeros.copy()
+    monitor.conj_hv = mode_zeros.copy()
+    monitor.electric_dft = np.zeros((2, 1), dtype=np.complex64)
+    monitor.magnetic_dft = np.zeros((2, 1), dtype=np.complex64)
+    field = np.zeros((2, 2, 2), dtype=np.float32)
+    grid = SimpleNamespace(
+        dt=dt,
+        Ex=field,
+        Ey=field.copy(),
+        Ez=field.copy(),
+        Hx=field.copy(),
+        Hy=field.copy(),
+        Hz=field.copy(),
+    )
+    errors = {}
+
+    for iteration in range(iterations):
+        if iteration in check_iterations:
+            expected_electric = np.exp(phase_argument * iteration)
+            expected_magnetic = np.exp(phase_argument * (iteration + 0.5))
+            errors[iteration] = max(
+                float(np.max(np.abs(monitor.electric_phase - expected_electric))),
+                float(np.max(np.abs(monitor.magnetic_phase - expected_magnetic))),
+            )
+        monitor.observe(grid, iteration)
+
+    assert monitor.electric_phase.dtype == np.complex64
+    assert monitor.magnetic_phase.dtype == np.complex64
+    assert max(errors.values()) < 2e-5
+    assert errors[DFT_PHASE_REANCHOR_INTERVAL] < 2e-7
 
 
 def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch):

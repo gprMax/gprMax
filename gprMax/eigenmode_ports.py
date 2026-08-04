@@ -99,6 +99,14 @@ logger = logging.getLogger(__name__)
 INCIDENT_FLOOR_DB = -60.0
 CONDITION_RELATIVE_ERROR_BUDGET = 1e-3
 MAX_CONDITION_NUMBER = 1e10
+DFT_PHASE_REANCHOR_INTERVAL = 1024
+
+
+def _dft_phase_at_time(frequencies, time, dtype):
+    """Return exp(-j omega t) with float64 transcendental argument reduction."""
+
+    phase_frequencies = np.asarray(frequencies, dtype=np.float64)
+    return np.exp(-2j * np.pi * phase_frequencies * float(time)).astype(dtype)
 
 
 @dataclass(frozen=True)
@@ -325,12 +333,23 @@ class EigenmodePortMonitor:
         self.handedness = int(handedness)
         self.electric_dft = np.zeros((nf, nm), dtype=complex_dtype)
         self.magnetic_dft = np.zeros((nf, nm), dtype=complex_dtype)
-        omega = 2 * np.pi * self.frequency
-        self.phase_step = np.ascontiguousarray(np.exp(-1j * omega * grid.dt), dtype=complex_dtype)
-        self.electric_phase = np.ones(nf, dtype=complex_dtype)
-        self.magnetic_phase = np.ascontiguousarray(np.exp(-0.5j * omega * grid.dt), dtype=complex_dtype)
+        self.phase_step = np.ascontiguousarray(
+            _dft_phase_at_time(self.frequency, grid.dt, complex_dtype)
+        )
+        self.electric_phase = np.ascontiguousarray(
+            _dft_phase_at_time(self.frequency, 0.0, complex_dtype)
+        )
+        self.magnetic_phase = np.ascontiguousarray(
+            _dft_phase_at_time(self.frequency, 0.5 * grid.dt, complex_dtype)
+        )
+        self._next_iteration = 0
 
-    def observe(self, grid):
+    def observe(self, grid, iteration):
+        if iteration != self._next_iteration:
+            raise ValueError(
+                f"expected eigenmode DFT iteration {self._next_iteration}, "
+                f"received {iteration}"
+            )
         real_signature = config.sim_config.dtypes["C_float_or_double"]
         accumulate_eigenmode_dft[f"{real_signature}|{real_signature} complex"](
             config.get_model_config().ompthreads,
@@ -361,6 +380,18 @@ class EigenmodePortMonitor:
             grid.Hy,
             grid.Hz,
         )
+        self._next_iteration += 1
+        if self._next_iteration % DFT_PHASE_REANCHOR_INTERVAL == 0:
+            self.electric_phase[:] = _dft_phase_at_time(
+                self.frequency,
+                self._next_iteration * grid.dt,
+                self.electric_phase.dtype,
+            )
+            self.magnetic_phase[:] = _dft_phase_at_time(
+                self.frequency,
+                (self._next_iteration + 0.5) * grid.dt,
+                self.magnetic_phase.dtype,
+            )
 
     def finalise(self, grid):
         nf, nm = self.electric_dft.shape
@@ -444,6 +475,7 @@ class EigenmodePortMonitor:
         group.attrs["Normal"] = self.owner.normal
         group.attrs["ModeIndices"] = self.mode_indices
         group.attrs["PlaneIndex"] = self.owner.plane_index
+        group.attrs["PhaseReanchorInterval"] = DFT_PHASE_REANCHOR_INTERVAL
         group["frequency"] = self.result.frequency
         group["incident"] = self.result.incident
         group["outgoing"] = self.result.outgoing
