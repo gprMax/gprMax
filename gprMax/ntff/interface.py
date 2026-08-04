@@ -87,7 +87,8 @@ OPEN_HUYGENS_SURFACE_WARNING = (
     "The NTFF integration surface is not closed. Equivalent-current NTFF "
     "normally assumes a closed Huygens surface. This option is intended for "
     "configurations where the omitted face is associated with an eigenmode "
-    "port or other modelling scenarios the require such approach. Results may "
+    "port or other modelling scenarios that require an open Huygens surface. "
+    "Results may "
     "be incomplete or inaccurate if the omitted field contribution is not "
     "represented correctly or is significant for your calculations."
 )

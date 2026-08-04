@@ -656,6 +656,22 @@ complete subgrid; where the two regions overlap, the box must strictly enclose
 the subgrid's HSG outer coupling surface so that the TFSF correction stencil
 remains on the main grid.
 
+Eigenmode Source
+----------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeSource
+
+Eigenmode Receiver
+------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeRx
+
+An eigenmode source solves and launches a selected mode while simultaneously
+acting as the first modal port. Additional eigenmode receivers measure
+reflection, transmission, and higher-order-mode conversion. Geometry-only
+builds write diagnostic modal-field plots so the selected mode can be checked
+before time stepping. See :ref:`eigenmode` for command examples, mode
+selection, broadband excitation, S-parameters, eigenmode-fed antenna results,
+and the complete formulation.
+
 Excitation File
 ---------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.ExcitationFile
