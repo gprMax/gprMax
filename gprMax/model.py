@@ -482,6 +482,9 @@ class Model:
         # identical model. (A stepped receiver/dipole elsewhere in the
         # same scene doesn't need multiple runs either - use multiple
         # #rx commands, or #src_steps/#rx_steps, in a single run instead.)
+        # Eigenmode sources and receivers also attach persistent modal DFT
+        # accumulators, recursive phase state, and derived S-parameters to
+        # their grids. grid.reset_fields() does not reset any of that state.
         if config.sim_config.geometry_fixed and config.sim_config.number_of_models > 1:
             if any(grid.transmissionlines for grid in grids):
                 raise ValueError(
@@ -513,6 +516,15 @@ class Model:
                     "contaminate "
                     "Vtotal/S11/Zin output with no error. Run a single model "
                     "instead."
+                )
+            if any(grid.eigenmodesources or grid.eigenmodereceivers for grid in grids):
+                raise ValueError(
+                    "Eigenmode source/receiver commands (#eigenmode_source and "
+                    "#eigenmode_rx) cannot be used with geometry_fixed when more "
+                    "than one model is requested (n > 1) - their modal DFT "
+                    "accumulators, recursive phase state, and derived "
+                    "S-parameters are not reset between reused-geometry runs. "
+                    "Run a single model instead."
                 )
 
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):

@@ -1750,6 +1750,9 @@ class EigenmodeSource(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
+
         try:
             normal = self.kwargs["normal"]
             direction = self.kwargs["direction"]
@@ -1967,6 +1970,9 @@ class EigenmodeRx(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
+
         try:
             normal = self.kwargs["normal"]
             direction = self.kwargs["direction"]
