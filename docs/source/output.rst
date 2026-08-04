@@ -25,11 +25,14 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``nsrc`` is the total number of sources in the model.
 - ``nrx`` is the total number of receievers in the model.
 - ``nports`` is the number of voltage-source S11/impedance outputs.
+- ``neigenmodeports`` is the number of eigenmode source/receiver port
+  monitors.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
 (``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
 voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
-Within these are further groups for each named or numbered output.
+Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
+further groups for each named or numbered output.
 
 .. code-block:: none
 
@@ -103,6 +106,19 @@ Within these are further groups for each named or numbered output.
                 Zin
                 Yin
                 ...
+        eigenmode_ports/ [optional]
+            port1/
+                frequency
+                incident
+                outgoing
+                electric_cross_power_matrix
+                power_matrix
+                power_normalization_valid
+                power_matrix_valid
+                valid
+                condition_number
+                S
+                valid_S
 
 Within each individual ``rx`` group are the following attributes:
 
@@ -385,6 +401,41 @@ The frequency dataset and validity mask can be plotted directly:
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'$|S_{11}|$ [dB]')
 
+Eigenmode-port and S-parameter output
+-------------------------------------
+
+Each explicitly numbered eigenmode source or receiver is stored below
+``/eigenmode_ports/portN``. ``frequency`` contains the direct-DFT bins.
+``incident`` and ``outgoing`` have shape ``(nmodes, nfrequencies)``, with
+rows ordered by the one-based ``ModeIndices`` attribute. ``S`` is the outgoing
+coefficient divided by the excited source-mode incident coefficient, so the
+source group contains modal S11 and other groups contain S21, S31, and modal
+conversion terms.
+
+The complex ``electric_cross_power_matrix`` and Hermitian ``power_matrix``
+both have shape
+``(nfrequencies, nmodes, nmodes)``. For a modal coefficient vector
+:math:`c`, its spectral power is
+
+.. math::
+
+    P(c)=\operatorname{Re}\{c^\mathrm{H}Wc\}.
+
+This full quadratic form is required when finite-grid modal profiles are not
+exactly orthogonal. The incident and outgoing arrays are generalized modal
+travelling-wave coefficients; an individual coefficient magnitude squared is
+not an additive power when ``power_matrix`` is non-diagonal. The electric
+cross-power matrix is retained to reconstruct total-field flux in lossy
+ports. ``power_normalization_valid`` is a per-mode mask,
+``power_matrix_valid`` is a per-frequency mask, and ``valid`` and ``valid_S``
+also include decomposition conditioning and source-spectrum checks.
+Ill-conditioned or weakly excited bins remain in the file but must not be
+plotted as valid results.
+
+A run with one eigenmode source also writes
+``<output>_sparameters.csv`` with one row per frequency, destination port,
+and destination mode.
+
 .. _output-ntff:
 
 NTFF field-transformation output
@@ -438,6 +489,7 @@ file under their surface and transform IDs:
                 port_power/ [gain/efficiency requests]
                     port_ids
                     source_types
+                    representations
                     reference_impedances
                     incident_voltage_per_port
                     terminal_voltage_per_port
@@ -452,10 +504,21 @@ file under their surface and transform IDs:
                     terminal_valid
                     gain_valid
                     realized_gain_valid
+                    modal_ports/ [eigenmode ports only]
+                        port1/
+                            mode_indices
+                            incident
+                            outgoing
+                            electric_cross_power_matrix
+                            power_matrix
+                            valid
                 fields/<output>
 
 The surface group records logical bounds, physical reference origin, closure
-status, omitted symmetry faces, boundary types/coordinates, and image count.
+status, omitted faces, boundary types/coordinates, and image count.
+``closure=huygens_open`` with one to five values in ``omitted_faces`` identifies
+an open frequency-domain Huygens surface; ``closure=symmetry`` identifies
+faces restored by PEC/PMC image completion.
 The frequency transform group records its ``ksir`` or ``equivalent_current``
 formulation, window, inferred wave speed and impedance, configured precision
 and collection backend, plus the engineering convention:
@@ -516,14 +579,35 @@ The two efficiencies are frequency-only quantities and therefore have shape
 ``(nfrequencies,)`` even though they are stored in ``fields`` with the other
 requested outputs.
 
-For a ``#ksir_antenna_ports`` or ``#ntff_antenna_ports`` association, complex
-port spectra and per-port powers have shape ``(nports, nfrequencies)``. Total
-powers and all validity masks have shape ``(nfrequencies,)``. They use
+For a ``#ksir_antenna_ports`` or ``#ntff_antenna_ports`` association, per-port
+powers have shape ``(nports, nfrequencies)``. Total powers and all validity
+masks have shape ``(nfrequencies,)``. Eigenmode ports are supported only by
+the equivalent-current ``#ntff_antenna_ports`` path; an eigenmode source
+cannot be combined with Ramahi/KSIR. Conventional terminal ports use
 
 .. math::
 
-    P_\mathrm{acc}=\sum_p\frac{1}{2}\Re\{V_p I_p^*\},\qquad
-    P_\mathrm{inc}=\sum_p\frac{|V_p^+|^2}{2Z_{0p}},\qquad
+    P_{\mathrm{acc},p}=\frac{1}{2}\Re\{V_p I_p^*\},\qquad
+    P_{\mathrm{inc},p}=\frac{|V_p^+|^2}{2Z_{0p}}.
+
+For a modal port with incident and outgoing vectors :math:`a_p` and
+:math:`b_p`, define :math:`x_p=a_p+b_p` and :math:`y_p=a_p-b_p`. With
+electric cross-power matrix :math:`G^E_p`, the co-located total-field flux
+is
+
+.. math::
+
+    P_{\mathrm{acc},p}
+      = \Re\{y_p^\mathrm{H}G^E_px_p\}.
+
+The incident power of an eigenmode source is the quadratic power of its
+externally excited mode only. A passive eigenmode receiver has zero generator
+incident power. Totals are
+
+.. math::
+
+    P_\mathrm{acc}=\sum_p P_{\mathrm{acc},p},\qquad
+    P_\mathrm{inc}=\sum_p P_{\mathrm{inc},p},\qquad
     P_\mathrm{refl}=P_\mathrm{inc}-P_\mathrm{acc}.
 
 These are spectral power-normalisation quantities: the voltage and field
@@ -531,15 +615,25 @@ Fourier transforms carry a common time scale, which cancels in gain and
 efficiency. Their HDF5 attributes consequently give voltage spectra in
 ``V s``, current spectra in ``A s``, and spectral powers in ``W s**2``. The
 exact complex terminal and incident spectra are retained so that every
-derived power can be checked independently. A zero-amplitude source remains
-a terminated port with zero incident voltage; its terminal voltage/current
-and signed accepted power can still be non-zero through mutual coupling.
+derived power can be checked independently. For modal ports those terminal
+arrays and reference impedance are NaN because no artificial voltage/current
+equivalent is introduced; ``representations`` identifies them as
+``modal_power_waves`` (the retained schema identifier), and ``modal_ports``
+retains the generalized modal amplitudes, electric cross-power matrix, and
+Hermitian forward-wave power matrix. Modal amplitudes have units ``sqrt(W) s``
+and their dimensionless quadratic matrices produce ``W s**2`` spectral
+power. A zero-amplitude
+conventional source remains a terminated port with zero incident voltage; its
+terminal voltage/current and signed accepted power can still be non-zero
+through mutual coupling.
 The ``port_ids`` dataset stores main-grid IDs unchanged and qualifies subgrid
 ports as ``<subgrid ID>/<local port ID>``. Although the grouped antenna result
 is written below the main-grid NTFF group, each port spectrum is calculated
 with the spatial step, time step, and trace length of the grid that owns it.
 
-The validity datasets should always be applied before plotting. The default
+The legacy name ``terminal_valid`` is also the combined modal-power validity
+mask when a modal port is present. The validity datasets should always be
+applied before plotting. The default
 gain bandwidth includes frequencies whose total incident spectrum is within
 ``40 dB`` of its peak and for which the mesh and port reconstruction are
 valid. Invalid derived results are stored as ``NaN`` rather than a plausible

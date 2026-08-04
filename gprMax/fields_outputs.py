@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -124,6 +124,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     public_rxs = [rx for rx in grid.rxs if not getattr(rx, "internal", False)]
     basegrp.attrs["nrx"] = len(public_rxs)
     basegrp.attrs["nports"] = len(getattr(grid, "port_monitors", ()))
+    basegrp.attrs["neigenmodeports"] = len(getattr(grid, "eigenmodeports", ()))
 
     if is_subgrid:
         # Write additional meta data about subgrid
@@ -229,6 +230,9 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         writer.write_hdf5(basegrp)
 
     for port in getattr(grid, "port_monitors", ()):
+        port.write_hdf5(basegrp)
+
+    for port in getattr(grid, "eigenmodeports", ()):
         port.write_hdf5(basegrp)
 
 

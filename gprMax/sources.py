@@ -124,6 +124,8 @@ class EigenmodeSource(Source):
     FDFD_PEC_PROPERTY = np.inf + 0j
     FDFD_PMC_PROPERTY = np.inf + 0j
     COMPLEX_PROFILE_TOLERANCE = 1e-8
+    ANCHOR_OVERLAP_WARNING_THRESHOLD = 0.9
+    ANCHOR_OVERLAP_ERROR_THRESHOLD = 0.6
 
     def __init__(self, G):
         super().__init__()
@@ -137,9 +139,9 @@ class EigenmodeSource(Source):
         self.transverse_start = None
         self.transverse_stop = None
         self.mode_index = None
+        self.mode_count = None
         self.frequency = None
         self.frequencies = None
-        self.mode_overlap_threshold = 0.9
         self.spectral_threshold = 1e-3
         self.plane_index = None
         self.complex_eps_r_uu = None
@@ -177,6 +179,12 @@ class EigenmodeSource(Source):
         # geometry-only build, but not for a normal simulation. True and False
         # explicitly override that policy.
         self.plot_fields = None
+        self.port_index = None
+        self.port_id = None
+        self.dft_start = None
+        self.dft_stop = None
+        self.dft_points = None
+        self.port_monitor = None
 
     def grid_init(self, G):
         """Prepare source data that depends on the final built Yee grid."""
@@ -185,24 +193,85 @@ class EigenmodeSource(Source):
         frequencies = tuple(self.frequencies or (self.frequency,))
         if len(frequencies) > 1:
             self._solve_broadband_eigenmode(G, frequencies)
-            return
+        else:
+            self.frequency = frequencies[0]
+            self._extract_frequency_dependent_materials(G)
+            self._solve_eigenmode(G)
+            self._prepare_single_frequency_injection(G)
+        self._register_port_monitor(G)
 
-        self.frequency = frequencies[0]
-        self._extract_frequency_dependent_materials(G)
-        self._solve_eigenmode(G)
-        self._prepare_single_frequency_injection(G)
+    def _register_port_monitor(self, G):
+        """Register the automatic modal monitor owned by this source."""
+        from gprMax.eigenmode_ports import EigenmodePortMonitor
+
+        frequencies = tuple(self.frequencies or (self.frequency,))
+        solvers = tuple(self.mode_solvers or (self.mode_solver,))
+        mode_indices = tuple(range(1, self.mode_count + 1))
+        anchor_e = []
+        anchor_h = []
+        anchor_neff = []
+        for solver in solvers:
+            frequency_e = []
+            frequency_h = []
+            frequency_neff = []
+            for mode_index in mode_indices:
+                electric, magnetic, neff = self._fields_from_solver_mode(solver, mode_index)
+                frequency_e.append(electric)
+                frequency_h.append(magnetic)
+                frequency_neff.append(neff)
+            anchor_e.append(frequency_e)
+            anchor_h.append(frequency_h)
+            anchor_neff.append(frequency_neff)
+
+        for mode_position, mode_index in enumerate(mode_indices):
+            for frequency_index in range(1, len(frequencies)):
+                overlap = self._modal_overlap(
+                    anchor_e[frequency_index - 1][mode_position],
+                    anchor_h[frequency_index - 1][mode_position],
+                    anchor_e[frequency_index][mode_position],
+                    anchor_h[frequency_index][mode_position],
+                )
+                magnitude = float(abs(overlap))
+                self._check_anchor_overlap(
+                    magnitude,
+                    frequencies[frequency_index - 1],
+                    frequencies[frequency_index],
+                    mode_index,
+                    "Broadband eigenmode source monitor",
+                )
+                if np.isfinite(magnitude) and magnitude > 1e-300:
+                    factor = np.exp(-1j * np.angle(overlap))
+                    anchor_e[frequency_index][mode_position] = [
+                        field * factor for field in anchor_e[frequency_index][mode_position]
+                    ]
+                    anchor_h[frequency_index][mode_position] = [
+                        field * factor for field in anchor_h[frequency_index][mode_position]
+                    ]
+
+        monitor = EigenmodePortMonitor(
+            owner=self,
+            port_index=self.port_index,
+            port_id=self.port_id,
+            is_source=True,
+            excitation_mode_index=self.mode_index,
+            mode_indices=mode_indices,
+            anchor_frequencies=frequencies,
+            anchor_e=anchor_e,
+            anchor_h=anchor_h,
+            anchor_neff=np.asarray(anchor_neff, dtype=np.complex128),
+            dft_start=self.dft_start,
+            dft_stop=self.dft_stop,
+            dft_points=self.dft_points,
+        )
+        monitor.prepare(G)
+        self.port_monitor = monitor
+        G.eigenmodeports.append(monitor)
 
     def _store_real_modal_fields(self):
         """Store contiguous real modal arrays in the configured CPU precision."""
         dtype = config.sim_config.dtypes["float_or_double"]
-        self.modal_e_real = [
-            np.ascontiguousarray(np.real(field), dtype=dtype)
-            for field in self.modal_e
-        ]
-        self.modal_h_real = [
-            np.ascontiguousarray(np.real(field), dtype=dtype)
-            for field in self.modal_h
-        ]
+        self.modal_e_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e]
+        self.modal_h_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h]
 
     def _align_tangential_mode_for_real_injection(self):
         """Optimally phase-align injected fields and return their imaginary residual.
@@ -217,9 +286,7 @@ class EigenmodeSource(Source):
         unconjugated_energy = 0.0j
         for axis in self.transverse_axes:
             electric = np.asarray(self.modal_e[axis], dtype=np.complex128)
-            magnetic = impedance * np.asarray(
-                self.modal_h[axis], dtype=np.complex128
-            )
+            magnetic = impedance * np.asarray(self.modal_h[axis], dtype=np.complex128)
             total_energy += float(np.vdot(electric, electric).real)
             total_energy += float(np.vdot(magnetic, magnetic).real)
             unconjugated_energy += np.sum(electric * electric)
@@ -247,12 +314,8 @@ class EigenmodeSource(Source):
         for axis in self.transverse_axes:
             imaginary_electric = np.imag(self.modal_e[axis])
             imaginary_magnetic = impedance * np.imag(self.modal_h[axis])
-            imaginary_energy += float(
-                np.vdot(imaginary_electric, imaginary_electric).real
-            )
-            imaginary_energy += float(
-                np.vdot(imaginary_magnetic, imaginary_magnetic).real
-            )
+            imaginary_energy += float(np.vdot(imaginary_electric, imaginary_electric).real)
+            imaginary_energy += float(np.vdot(imaginary_magnetic, imaginary_magnetic).real)
         residual = float(np.sqrt(imaginary_energy / total_energy))
         self.complex_profile_phase = float(phase)
         self.complex_profile_residual = residual
@@ -270,15 +333,9 @@ class EigenmodeSource(Source):
             return
 
         self.uses_quadrature = True
-        self.anchor_modal_e = [
-            [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
-        ]
-        self.anchor_modal_h = [
-            [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
-        ]
-        self.anchor_complex_neff = np.asarray(
-            [complex(self.complex_neff)], dtype=np.complex128
-        )
+        self.anchor_modal_e = [[np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]]
+        self.anchor_modal_h = [[np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]]
+        self.anchor_complex_neff = np.asarray([complex(self.complex_neff)], dtype=np.complex128)
         self.anchor_overlaps = np.empty(0, dtype=np.float64)
         self.mode_solvers = [self.mode_solver]
         logger.info(
@@ -316,12 +373,8 @@ class EigenmodeSource(Source):
             self.frequency = frequency
             self._extract_frequency_dependent_materials(G)
             self._solve_eigenmode(G)
-            anchor_e.append(
-                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
-            )
-            anchor_h.append(
-                [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
-            )
+            anchor_e.append([np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e])
+            anchor_h.append([np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h])
             anchor_neff.append(complex(self.complex_neff))
             solvers.append(self.mode_solver)
 
@@ -339,9 +392,7 @@ class EigenmodeSource(Source):
             if self.representative_frequency is None
             else min(
                 range(len(frequencies)),
-                key=lambda index: abs(
-                    frequencies[index] - self.representative_frequency
-                ),
+                key=lambda index: abs(frequencies[index] - self.representative_frequency),
             )
         )
         self.frequency = frequencies[representative]
@@ -351,14 +402,8 @@ class EigenmodeSource(Source):
         self.complex_neff = self.anchor_complex_neff[representative]
         self.neff = float(np.real(self.complex_neff))
         dtype = config.sim_config.dtypes["float_or_double"]
-        self.modal_e_real = [
-            np.ascontiguousarray(np.real(field), dtype=dtype)
-            for field in self.modal_e
-        ]
-        self.modal_h_real = [
-            np.ascontiguousarray(np.real(field), dtype=dtype)
-            for field in self.modal_h
-        ]
+        self.modal_e_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e]
+        self.modal_h_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h]
 
     def _solve_eigenmode(self, G):
         if self.invariant_axis is not None:
@@ -367,18 +412,13 @@ class EigenmodeSource(Source):
 
     def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
-        local_to_global = (
-            self.transverse_axes[0],
-            self.transverse_axes[1],
-            self.normal_axis,
-        )
         pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
         pmc_u_mask, pmc_v_mask, pmc_w_mask = self._cell_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
             du=G.dl[self.transverse_axes[0]],
             dv=G.dl[self.transverse_axes[1]],
-            mode_index=self.mode_index,
+            mode_index=(self.mode_count or self.mode_index) - 1,
             eps_r_uu=self.complex_eps_r_uu,
             eps_r_vv=self.complex_eps_r_vv,
             eps_r_ww=self.complex_eps_r_ww,
@@ -396,22 +436,8 @@ class EigenmodeSource(Source):
         self._plot_eigenmode_fields(solver)
 
         self.mode_solver = solver
-        self.neff = solver.modal_real_neff
-        self.complex_neff = getattr(
-            solver, "modal_complex_neff", complex(solver.modal_real_neff)
-        )
-        self.modal_e = [None, None, None]
-        self.modal_h = [None, None, None]
-
-        self.modal_e[local_to_global[0]] = solver.modal_Eu
-        self.modal_e[local_to_global[1]] = solver.modal_Ev
-        self.modal_e[local_to_global[2]] = solver.modal_Ew
-        self.modal_h[local_to_global[0]] = solver.modal_Hu
-        self.modal_h[local_to_global[1]] = solver.modal_Hv
-        self.modal_h[local_to_global[2]] = solver.modal_Hw
-        if self._modal_basis_handedness() < 0:
-            self.modal_h = [-field for field in self.modal_h]
-            logger.info("Eigenmode local basis is left-handed; modal H fields were flipped.")
+        self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(solver, self.mode_index)
+        self.neff = float(np.real(self.complex_neff))
         self._validate_modal_field_shapes()
         self._store_real_modal_fields()
 
@@ -421,7 +447,7 @@ class EigenmodeSource(Source):
         solver = FDFD_1D_mode_solver(
             frequency=self.frequency,
             dt=G.dl[self.physical_transverse_axis],
-            mode_index=self.mode_index,
+            mode_index=(self.mode_count or self.mode_index) - 1,
             polarization=self.domain_polarization,
             **solver_inputs,
         )
@@ -429,64 +455,43 @@ class EigenmodeSource(Source):
         self._plot_eigenmode_fields(solver)
 
         self.mode_solver = solver
-        self.neff = solver.modal_real_neff
-        self.complex_neff = getattr(
-            solver, "modal_complex_neff", complex(solver.modal_real_neff)
-        )
-        local_to_global = (
-            self.transverse_axes[0],
-            self.transverse_axes[1],
-            self.normal_axis,
-        )
-        t_local = self.transverse_axes.index(self.physical_transverse_axis)
-        a_local = self.transverse_axes.index(self.invariant_axis)
-        e_local = [
-            np.zeros(shape, dtype=np.complex128)
-            for shape in self._expected_local_field_shapes("E")
-        ]
-        h_local = [
-            np.zeros(shape, dtype=np.complex128)
-            for shape in self._expected_local_field_shapes("H")
-        ]
-
-        if self.domain_polarization == "TM":
-            e_local[a_local] = self._embed_1d_profile(
-                solver.modal_Ea, a_local, "E"
-            )
-            h_local[t_local] = self._embed_1d_profile(
-                solver.modal_Ht, t_local, "H"
-            )
-            h_local[2] = self._embed_1d_profile(solver.modal_Hw, 2, "H")
-        else:
-            e_local[t_local] = self._embed_1d_profile(
-                solver.modal_Et, t_local, "E"
-            )
-            e_local[2] = self._embed_1d_profile(solver.modal_Ew, 2, "E")
-            h_local[a_local] = self._embed_1d_profile(
-                solver.modal_Ha, a_local, "H"
-            )
-
-        self.modal_e = [None, None, None]
-        self.modal_h = [None, None, None]
-        for local_axis, global_axis in enumerate(local_to_global):
-            self.modal_e[global_axis] = e_local[local_axis]
-            self.modal_h[global_axis] = h_local[local_axis]
-        basis = np.eye(3, dtype=np.int32)
-        solver_handedness = int(
-            np.dot(
-                np.cross(
-                    basis[self.physical_transverse_axis],
-                    basis[self.invariant_axis],
-                ),
-                basis[self.normal_axis],
-            )
-        )
-        if solver_handedness < 0:
-            self.modal_h = [-field for field in self.modal_h]
-            logger.info("Eigenmode 1D local basis is left-handed; modal H fields were flipped.")
+        self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(solver, self.mode_index)
+        self.neff = float(np.real(self.complex_neff))
 
         self._validate_modal_field_shapes()
         self._store_real_modal_fields()
+
+    def _fields_from_solver_mode(self, solver, public_mode_index):
+        """Map one solved, one-based mode onto global Yee components."""
+        mode = public_mode_index - 1
+        if mode < 0 or mode >= solver.num_modes:
+            raise ValueError(f"Mode index {public_mode_index} is outside the solved 1-{solver.num_modes} range.")
+        if isinstance(solver, FDFD_2D_mode_solver):
+            local_e = (solver.Eu[:, :, mode], solver.Ev[:, :, mode], solver.Ew[:, :, mode])
+            local_h = (solver.Hu[:, :, mode], solver.Hv[:, :, mode], solver.Hw[:, :, mode])
+        else:
+            t_local = self.transverse_axes.index(self.physical_transverse_axis)
+            a_local = self.transverse_axes.index(self.invariant_axis)
+            local_e = [np.zeros(shape, dtype=np.complex128) for shape in self._expected_local_field_shapes("E")]
+            local_h = [np.zeros(shape, dtype=np.complex128) for shape in self._expected_local_field_shapes("H")]
+            if self.domain_polarization == "TM":
+                local_e[a_local] = self._embed_1d_profile(solver.Ea[:, mode], a_local, "E")
+                local_h[t_local] = self._embed_1d_profile(solver.Ht[:, mode], t_local, "H")
+                local_h[2] = self._embed_1d_profile(solver.Hw[:, mode], 2, "H")
+            else:
+                local_e[t_local] = self._embed_1d_profile(solver.Et[:, mode], t_local, "E")
+                local_e[2] = self._embed_1d_profile(solver.Ew[:, mode], 2, "E")
+                local_h[a_local] = self._embed_1d_profile(solver.Ha[:, mode], a_local, "H")
+
+        local_to_global = (*self.transverse_axes, self.normal_axis)
+        electric = [None, None, None]
+        magnetic = [None, None, None]
+        for local_axis, global_axis in enumerate(local_to_global):
+            electric[global_axis] = np.array(local_e[local_axis], dtype=np.complex128, copy=True)
+            magnetic[global_axis] = np.array(local_h[local_axis], dtype=np.complex128, copy=True)
+        if self._modal_basis_handedness() < 0:
+            magnetic = [-field for field in magnetic]
+        return electric, magnetic, complex(solver.complex_neff[mode])
 
     def _expected_local_field_shapes(self, field_kind):
         nu, nv = self._transverse_cell_shape()
@@ -589,15 +594,41 @@ class EigenmodeSource(Source):
             second_norm += float(np.vdot(second_scaled, second_scaled).real)
         denominator = np.sqrt(first_norm * second_norm)
         if not np.isfinite(denominator) or denominator <= 1e-300:
-            logger.warning(
-                "Cannot compare broadband eigenmode anchors with zero or invalid "
-                "field norm. Treating their overlap as zero and continuing."
-            )
             return 0.0j
         return numerator / denominator
 
+    @classmethod
+    def _check_anchor_overlap(
+        cls,
+        magnitude,
+        first_frequency,
+        second_frequency,
+        mode_index,
+        context,
+    ):
+        """Apply the fixed warning and error limits for adjacent anchors."""
+        description = (
+            f"{context} anchor mode overlap between {first_frequency:g} Hz and "
+            f"{second_frequency:g} Hz for mode index {mode_index} is "
+            f"{magnitude:.6f}"
+        )
+        if not np.isfinite(magnitude) or magnitude < cls.ANCHOR_OVERLAP_ERROR_THRESHOLD:
+            raise ValueError(
+                f"{description}, below the minimum "
+                f"{cls.ANCHOR_OVERLAP_ERROR_THRESHOLD:.6f}. The broadband "
+                "anchor modes cannot be tracked reliably. Use a "
+                "single-frequency eigenmode solver instead."
+            )
+        if magnitude < cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:
+            logger.warning(
+                f"{description}, below the warning threshold "
+                f"{cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:.6f}. The run will "
+                "continue, but inspect the mode ordering, cutoff, degeneracy, "
+                "and anchor spacing."
+            )
+
     def _align_and_validate_anchors(self, anchor_e, anchor_h, frequencies):
-        """Phase-align consecutive anchors and warn about a likely mode switch."""
+        """Phase-align consecutive anchors after enforcing overlap limits."""
         overlaps = []
         for index in range(1, len(frequencies)):
             overlap = self._modal_overlap(
@@ -607,35 +638,23 @@ class EigenmodeSource(Source):
                 anchor_h[index],
             )
             magnitude = float(abs(overlap))
-            if not np.isfinite(magnitude) or magnitude < self.mode_overlap_threshold:
-                logger.warning(
-                    "Broadband eigenmode source mode-overlap check failed between "
-                    f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz "
-                    f"for mode index {self.mode_index}: overlap {magnitude:.6f} is below "
-                    f"the required {self.mode_overlap_threshold:.6f}. The eigenvalue ordering "
-                    "may have changed, the anchors may straddle a cutoff or degeneracy, or the "
-                    "frequency spacing may be too large. Add intermediate frequencies, narrow "
-                    "the source bandwidth, or use the single-frequency eigenmode source. "
-                    "Continuing with the supplied anchor modes."
-                )
+            self._check_anchor_overlap(
+                magnitude,
+                frequencies[index - 1],
+                frequencies[index],
+                self.mode_index,
+                "Broadband eigenmode source",
+            )
 
             phase_aligned = np.isfinite(magnitude) and magnitude > 1e-300
-            phase_factor = (
-                np.exp(-1j * np.angle(overlap))
-                if phase_aligned
-                else 1.0 + 0.0j
-            )
+            phase_factor = np.exp(-1j * np.angle(overlap)) if phase_aligned else 1.0 + 0.0j
             anchor_e[index] = [field * phase_factor for field in anchor_e[index]]
             anchor_h[index] = [field * phase_factor for field in anchor_h[index]]
             overlaps.append(magnitude)
             logger.info(
                 f"Eigenmode anchor overlap {magnitude:.6f} between "
                 f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
-                + (
-                    "the latter anchor was phase-aligned."
-                    if phase_aligned
-                    else "its phase was left unchanged."
-                )
+                + ("the latter anchor was phase-aligned." if phase_aligned else "its phase was left unchanged.")
             )
         return overlaps
 
@@ -662,12 +681,7 @@ class EigenmodeSource(Source):
             measure = G.dl[u_axis] * G.dl[v_axis]
         else:
             measure = G.dl[self.physical_transverse_axis]
-        return (
-            0.5
-            * self._modal_basis_handedness()
-            * np.sum(flux)
-            * measure
-        )
+        return 0.5 * self._modal_basis_handedness() * np.sum(flux) * measure
 
     def _modal_cross_power_2d(self, electric, magnetic, G):
         """Return modal power per metre from the live 2D field profiles.
@@ -691,12 +705,8 @@ class EigenmodeSource(Source):
         else:
             electric_profile = live_profile(electric[invariant_axis])
             magnetic_profile = live_profile(magnetic[transverse_axis])
-            electric_profile = 0.5 * (
-                electric_profile[:-1] + electric_profile[1:]
-            )
-            magnetic_profile = 0.5 * (
-                magnetic_profile[:-1] + magnetic_profile[1:]
-            )
+            electric_profile = 0.5 * (electric_profile[:-1] + electric_profile[1:])
+            magnetic_profile = 0.5 * (magnetic_profile[:-1] + magnetic_profile[1:])
 
         basis = np.eye(3, dtype=np.int32)
         flux_sign = int(
@@ -707,12 +717,7 @@ class EigenmodeSource(Source):
         )
         if self.domain_polarization == "TM":
             flux_sign *= -1
-        return (
-            0.5
-            * flux_sign
-            * np.sum(electric_profile * np.conj(magnetic_profile))
-            * G.dl[transverse_axis]
-        )
+        return 0.5 * flux_sign * np.sum(electric_profile * np.conj(magnetic_profile)) * G.dl[transverse_axis]
 
     @staticmethod
     def _linear_anchor_weights(bin_frequencies, anchor_frequencies):
@@ -728,9 +733,7 @@ class EigenmodeSource(Source):
         weights = np.zeros((anchor_frequencies.size, bin_frequencies.size), dtype=np.float64)
         weights[0, bin_frequencies < anchor_frequencies[0]] = 1.0
         weights[-1, bin_frequencies > anchor_frequencies[-1]] = 1.0
-        inside = (bin_frequencies >= anchor_frequencies[0]) & (
-            bin_frequencies <= anchor_frequencies[-1]
-        )
+        inside = (bin_frequencies >= anchor_frequencies[0]) & (bin_frequencies <= anchor_frequencies[-1])
         for bin_index in np.flatnonzero(inside):
             frequency = bin_frequencies[bin_index]
             if frequency == anchor_frequencies[-1]:
@@ -779,9 +782,7 @@ class EigenmodeSource(Source):
         positive_magnitude = spectrum_magnitude[positive]
         if positive_magnitude.size and np.any(positive_magnitude > 0):
             peak_index = int(np.argmax(positive_magnitude))
-            self.representative_frequency = float(
-                bin_frequencies[positive][peak_index]
-            )
+            self.representative_frequency = float(bin_frequencies[positive][peak_index])
         else:
             self.representative_frequency = None
         if not np.isfinite(peak) or peak <= 0:
@@ -806,8 +807,10 @@ class EigenmodeSource(Source):
         else:
             significant_low = float(bin_frequencies[significant_indices[0]])
             significant_high = float(bin_frequencies[significant_indices[-1]])
-        if not single_frequency_iq and significant_indices.size and (
-            significant_low < frequencies[0] or significant_high > frequencies[-1]
+        if (
+            not single_frequency_iq
+            and significant_indices.size
+            and (significant_low < frequencies[0] or significant_high > frequencies[-1])
         ):
             logger.warning(
                 "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
@@ -843,14 +846,7 @@ class EigenmodeSource(Source):
             usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
             weights[:, usable] /= partition[usable]
             for bin_index in np.flatnonzero(~usable):
-                nearest = int(
-                    np.argmin(
-                        np.abs(
-                            np.asarray(frequencies, dtype=np.float64)
-                            - bin_frequencies[bin_index]
-                        )
-                    )
-                )
+                nearest = int(np.argmin(np.abs(np.asarray(frequencies, dtype=np.float64) - bin_frequencies[bin_index])))
                 weights[:, bin_index] = 0.0
                 weights[nearest, bin_index] = 1.0
             partition = np.sum(weights, axis=0)
@@ -863,13 +859,9 @@ class EigenmodeSource(Source):
                     self.anchor_modal_h[h_index],
                     G,
                 )
-        interpolated_power = np.real(
-            np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
-        )
+        interpolated_power = np.real(np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True))
         active_bins = np.sum(weights, axis=0) > 0
-        invalid_power = active_bins & (
-            ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
-        )
+        invalid_power = active_bins & (~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12))
         if np.any(invalid_power):
             invalid_indices = np.flatnonzero(invalid_power)
             bad_frequency = float(bin_frequencies[invalid_indices[0]])
@@ -880,12 +872,8 @@ class EigenmodeSource(Source):
                 "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
                 f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
             )
-            finite_nonzero = invalid_power & np.isfinite(interpolated_power) & (
-                np.abs(interpolated_power) > 1e-12
-            )
-            interpolated_power[finite_nonzero] = np.abs(
-                interpolated_power[finite_nonzero]
-            )
+            finite_nonzero = invalid_power & np.isfinite(interpolated_power) & (np.abs(interpolated_power) > 1e-12)
+            interpolated_power[finite_nonzero] = np.abs(interpolated_power[finite_nonzero])
             unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
             if unresolved.size:
                 nearest = np.argmax(weights[:, unresolved], axis=0)
@@ -899,21 +887,13 @@ class EigenmodeSource(Source):
         normalization = np.zeros_like(interpolated_power)
         normalization[active_bins] = 1.0 / np.sqrt(interpolated_power[active_bins])
         omega = 2 * np.pi * bin_frequencies
-        interpolated_neff = np.einsum(
-            "kn,k->n", weights, self.anchor_complex_neff, optimize=True
-        )
+        interpolated_neff = np.einsum("kn,k->n", weights, self.anchor_complex_neff, optimize=True)
         beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
         normal_spacing = G.dl[self.normal_axis]
-        magnetic_phase = self._magnetic_stagger_factor(
-            omega, beta, G.dt, normal_spacing
-        )
+        magnetic_phase = self._magnetic_stagger_factor(omega, beta, G.dt, normal_spacing)
 
-        electric_weights = (
-            weights * (spectrum * normalization)[np.newaxis, :]
-        )
-        magnetic_weights = (
-            weights * (spectrum * normalization * magnetic_phase)[np.newaxis, :]
-        )
+        electric_weights = weights * (spectrum * normalization)[np.newaxis, :]
+        magnetic_weights = weights * (spectrum * normalization * magnetic_phase)[np.newaxis, :]
         # DC and Nyquist are self-conjugate FFT bins and cannot carry a
         # general complex modal coefficient.
         electric_weights[:, 0] = 0
@@ -926,9 +906,7 @@ class EigenmodeSource(Source):
         scalar_spectrum[0] = 0
         if padded_count % 2 == 0:
             scalar_spectrum[-1] = 0
-        reconstructed_waveform = np.fft.irfft(
-            scalar_spectrum, n=padded_count
-        )[:sample_count]
+        reconstructed_waveform = np.fft.irfft(scalar_spectrum, n=padded_count)[:sample_count]
         waveform_peak = float(np.max(np.abs(waveform)))
         reconstruction_error = (
             float(np.max(np.abs(reconstructed_waveform - waveform)) / waveform_peak)
@@ -940,36 +918,28 @@ class EigenmodeSource(Source):
         self.broadband_waveform_error = reconstruction_error
 
         dtype = config.sim_config.dtypes["float_or_double"]
-        self.broadband_e_envelopes = np.empty(
-            (anchor_count, 2, sample_count), dtype=dtype
-        )
-        self.broadband_h_envelopes = np.empty(
-            (anchor_count, 2, sample_count), dtype=dtype
-        )
+        self.broadband_e_envelopes = np.empty((anchor_count, 2, sample_count), dtype=dtype)
+        self.broadband_h_envelopes = np.empty((anchor_count, 2, sample_count), dtype=dtype)
         for anchor in range(anchor_count):
-            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(
-                electric_weights[anchor], n=padded_count
-            )[:sample_count]
-            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(
-                1j * electric_weights[anchor], n=padded_count
-            )[:sample_count]
-            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(
-                magnetic_weights[anchor], n=padded_count
-            )[:sample_count]
-            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(
-                1j * magnetic_weights[anchor], n=padded_count
-            )[:sample_count]
+            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(electric_weights[anchor], n=padded_count)[
+                :sample_count
+            ]
+            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(1j * electric_weights[anchor], n=padded_count)[
+                :sample_count
+            ]
+            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(magnetic_weights[anchor], n=padded_count)[
+                :sample_count
+            ]
+            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(1j * magnetic_weights[anchor], n=padded_count)[
+                :sample_count
+            ]
 
         def split_fields(anchor_fields):
             real_fields = []
             imag_fields = []
             for fields in anchor_fields:
-                real_fields.append(
-                    [np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields]
-                )
-                imag_fields.append(
-                    [np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields]
-                )
+                real_fields.append([np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields])
+                imag_fields.append([np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields])
             return real_fields, imag_fields
 
         (
@@ -998,11 +968,7 @@ class EigenmodeSource(Source):
 
     def _should_plot_eigenmode_fields(self):
         """Return the explicit setting or the geometry-only default."""
-        return (
-            bool(config.sim_config.geometry_only)
-            if self.plot_fields is None
-            else bool(self.plot_fields)
-        )
+        return bool(config.sim_config.geometry_only) if self.plot_fields is None else bool(self.plot_fields)
 
     def _plot_eigenmode_fields(self, solver):
         if not self._should_plot_eigenmode_fields():
@@ -1053,9 +1019,7 @@ class EigenmodeSource(Source):
         materials_by_id = {material.numID: material for material in G.materials}
         for material_id in used_ids:
             material = materials_by_id[int(material_id)]
-            material_values[material_id] = (
-                self._complex_er(material) if electric else self._complex_mur(material)
-            )
+            material_values[material_id] = self._complex_er(material) if electric else self._complex_mur(material)
 
         return tuple(material_values[ids].copy() for ids in component_ids)
 
@@ -1152,9 +1116,7 @@ class EigenmodeSource(Source):
         u0, v0 = self.transverse_start
         u1, v1 = self.transverse_stop
         normal_indices = [
-            index
-            for index in (self.plane_index - 1, self.plane_index)
-            if 0 <= index < G.solid.shape[self.normal_axis]
+            index for index in (self.plane_index - 1, self.plane_index) if 0 <= index < G.solid.shape[self.normal_axis]
         ]
         if not normal_indices:
             return np.zeros((u1 - u0, v1 - v0), dtype=bool)
@@ -1490,6 +1452,86 @@ class EigenmodeSource(Source):
                     self._add_e(G, 0, i, j, k, -self._h_incident(1, i, j, time, G))
 
 
+class EigenmodeReceiver(EigenmodeSource):
+    """Passive multi-mode plane monitor backed by the FDFD mode solver."""
+
+    def __init__(self, G):
+        super().__init__(G)
+        self.mode_indices = ()
+
+    def grid_init(self, G):
+        frequencies = tuple(self.frequencies or (self.frequency,))
+        mode_indices = tuple(self.mode_indices)
+        if not mode_indices:
+            raise ValueError("An eigenmode receiver requires at least one mode index.")
+        self.mode_index = max(mode_indices)
+        anchor_e = []
+        anchor_h = []
+        anchor_neff = []
+
+        for frequency in frequencies:
+            self.frequency = frequency
+            self._extract_frequency_dependent_materials(G)
+            self._solve_eigenmode(G)
+            frequency_e = []
+            frequency_h = []
+            frequency_neff = []
+            for mode_index in mode_indices:
+                electric, magnetic, neff = self._fields_from_solver_mode(self.mode_solver, mode_index)
+                frequency_e.append(electric)
+                frequency_h.append(magnetic)
+                frequency_neff.append(neff)
+            anchor_e.append(frequency_e)
+            anchor_h.append(frequency_h)
+            anchor_neff.append(frequency_neff)
+
+        for mode_position, mode_index in enumerate(mode_indices):
+            for frequency_index in range(1, len(frequencies)):
+                overlap = self._modal_overlap(
+                    anchor_e[frequency_index - 1][mode_position],
+                    anchor_h[frequency_index - 1][mode_position],
+                    anchor_e[frequency_index][mode_position],
+                    anchor_h[frequency_index][mode_position],
+                )
+                magnitude = float(abs(overlap))
+                self._check_anchor_overlap(
+                    magnitude,
+                    frequencies[frequency_index - 1],
+                    frequencies[frequency_index],
+                    mode_index,
+                    "Broadband eigenmode receiver",
+                )
+                if np.isfinite(magnitude) and magnitude > 1e-300:
+                    factor = np.exp(-1j * np.angle(overlap))
+                    anchor_e[frequency_index][mode_position] = [
+                        field * factor for field in anchor_e[frequency_index][mode_position]
+                    ]
+                    anchor_h[frequency_index][mode_position] = [
+                        field * factor for field in anchor_h[frequency_index][mode_position]
+                    ]
+
+        from gprMax.eigenmode_ports import EigenmodePortMonitor
+
+        monitor = EigenmodePortMonitor(
+            owner=self,
+            port_index=self.port_index,
+            port_id=self.port_id,
+            is_source=False,
+            excitation_mode_index=None,
+            mode_indices=mode_indices,
+            anchor_frequencies=frequencies,
+            anchor_e=anchor_e,
+            anchor_h=anchor_h,
+            anchor_neff=np.asarray(anchor_neff, dtype=np.complex128),
+            dft_start=self.dft_start,
+            dft_stop=self.dft_stop,
+            dft_points=self.dft_points,
+        )
+        monitor.prepare(G)
+        self.port_monitor = monitor
+        G.eigenmodeports.append(monitor)
+
+
 class VoltageSource(Source):
     """A voltage source can be a hard source if it's resistance is zero,
     i.e. the time variation of the specified electric field component
@@ -1539,9 +1581,7 @@ class VoltageSource(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            self.waveformvalues_halfdt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
-            )
+            self.waveformvalues_halfdt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
@@ -1552,9 +1592,7 @@ class VoltageSource(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
-                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
-                        time + 0.5 * G.dt, G.dt
-                    )
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
                     self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -1677,9 +1715,7 @@ class HertzianDipole(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            self.waveformvalues_halfdt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
-            )
+            self.waveformvalues_halfdt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
 
             for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
@@ -1687,9 +1723,7 @@ class HertzianDipole(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
-                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
-                        time + 0.5 * G.dt, G.dt
-                    )
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
@@ -1829,9 +1863,7 @@ def htod_src_arrays(sources, G, queue=None):
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
-    srcwaves = np.zeros(
-        (len(sources), G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
-    )
+    srcwaves = np.zeros((len(sources), G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord
@@ -1915,9 +1947,7 @@ def transmission_line_host_arrays(transmissionlines, G):
 
     nstate = sum(int(tl.nl) for tl in transmissionlines)
     if nstate > int32_max or ntl * niterations > int32_max:
-        raise ValueError(
-            "Transmission-line device arrays exceed the signed 32-bit index range."
-        )
+        raise ValueError("Transmission-line device arrays exceed the signed 32-bit index range.")
 
     voltage = np.zeros(nstate, dtype=real)
     current = np.zeros(nstate, dtype=real)
@@ -2099,9 +2129,7 @@ class TransmissionLine(Source):
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
-            self.waveformvalues_halfdt = np.zeros(
-                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
-            )
+            self.waveformvalues_halfdt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
 
             for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
@@ -2110,9 +2138,7 @@ class TransmissionLine(Source):
                     # delay in the start
                     time -= self.start
                     self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
-                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
-                        time + 0.5 * G.dt, G.dt
-                    )
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length
@@ -2175,15 +2201,11 @@ class TransmissionLine(Source):
 
         # Update all the voltage values along the line
         self.voltage[1 : self.nl] -= (
-            self.resistance
-            * (config.c * G.dt / self.dl)
-            * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
+            self.resistance * (config.c * G.dt / self.dl) * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
         )
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[
-            iteration
-        ]
+        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[iteration]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -2205,9 +2227,7 @@ class TransmissionLine(Source):
 
         # Update the current one cell before the position of the one-way injector excitation
         self.current[self.srcpos - 1] += (
-            (1 / self.resistance)
-            * (config.c * G.dt / self.dl)
-            * self.waveformvalues_halfdt[iteration]
+            (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[iteration]
         )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -2304,9 +2324,7 @@ def magnetic_frill_source_host_arrays(magneticfrillsources, G):
         nfrill * 3,
     )
     if any(size > int32_max for size in flattened_sizes):
-        raise ValueError(
-            "Magnetic-frill device arrays exceed the signed 32-bit index range."
-        )
+        raise ValueError("Magnetic-frill device arrays exceed the signed 32-bit index range.")
 
     # term_info columns are H component (0=Hx, 1=Hy, 2=Hz), x, y, z.
     # term_params columns are Ampere-loop current weight and the complete
@@ -2328,8 +2346,7 @@ def magnetic_frill_source_host_arrays(magneticfrillsources, G):
         nterms = len(frill._drive_terms)
         if not 1 <= nterms <= MAGNETIC_FRILL_MAX_TERMS:
             raise ValueError(
-                f"{frill.ID} has {nterms} magnetic feed terms; expected between "
-                f"1 and {MAGNETIC_FRILL_MAX_TERMS}."
+                f"{frill.ID} has {nterms} magnetic feed terms; expected between " f"1 and {MAGNETIC_FRILL_MAX_TERMS}."
             )
 
         term_counts[i] = nterms
@@ -2402,11 +2419,7 @@ def dtoh_magnetic_frill_source_outputs(Vinc, Vtotal, Itot, G):
                     "Magnetic-frill Metal output buffer has the wrong size: "
                     f"expected {nbytes} bytes, got {buffer.length()}."
                 )
-            return (
-                np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype)
-                .reshape(expected)
-                .copy()
-            )
+            return np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype).reshape(expected).copy()
 
         Vinc, Vtotal, Itot = map(_metal_to_numpy, (Vinc, Vtotal, Itot))
 
@@ -2485,15 +2498,9 @@ class MagneticFrillSource(Source):
         self._theta = 0.5
         self._previous_half_current = 0.0
 
-        self.Vinc = np.zeros(
-            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.Vtotal = np.zeros(
-            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.Itot = np.zeros(
-            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
-        )
+        self.Vinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Itot = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
 
         # Bound after materials/update coefficients and time/frequency axes
         # are finalised - see prepare_magnetic_frill_ports() in ports.py and
@@ -2508,9 +2515,7 @@ class MagneticFrillSource(Source):
             G: FDTDGrid class describing a grid in a model.
         """
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        self.waveformvalues_wholedt = np.zeros(
-            (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
-        )
+        self.waveformvalues_wholedt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
         for iteration in range(G.iterations + 1):
             time = G.dt * iteration
             if time >= self.start and time <= self.stop:
@@ -2696,23 +2701,13 @@ class MagneticFrillSource(Source):
 
                 factor_f = float(material.thin_wire_factors["F"])
                 radial_step = radial_steps[radial_axis]
-                source_gain = (
-                    source_sign
-                    * G.updatecoeffsH[material_numID, 4]
-                    * factor_f
-                    / (axial_step * radial_step)
-                )
-                terms.append(
-                    (component, x, y, z, float(current_weight), float(source_gain))
-                )
+                source_gain = source_sign * G.updatecoeffsH[material_numID, 4] * factor_f / (axial_step * radial_step)
+                terms.append((component, x, y, z, float(current_weight), float(source_gain)))
 
         self._drive_terms = terms
         self._G_coeff = float(sum(term[-2] * term[-1] for term in terms))
         if not np.isfinite(self._G_coeff) or self._G_coeff <= 0:
-            raise ValueError(
-                f"{self.ID} produced invalid feed-cell self-admittance "
-                f"G={self._G_coeff!r}."
-            )
+            raise ValueError(f"{self.ID} produced invalid feed-cell self-admittance " f"G={self._G_coeff!r}.")
 
         # Two independently advanced feedback relations cannot safely write
         # the same H edge: their result would depend on source order on CPU
@@ -2721,11 +2716,7 @@ class MagneticFrillSource(Source):
         registry = getattr(G, "_magnetic_frill_drive_edges", {})
         drive_edges = {(term[0], term[1], term[2], term[3]) for term in terms}
         overlap = next(
-            (
-                (edge, registry[edge])
-                for edge in drive_edges
-                if edge in registry and registry[edge] is not self
-            ),
+            ((edge, registry[edge]) for edge in drive_edges if edge in registry and registry[edge] is not self),
             None,
         )
         if overlap is not None:
@@ -2749,10 +2740,7 @@ class MagneticFrillSource(Source):
         """Return the image-completed Ampere-loop current from stored H."""
 
         fields = {"Hx": Hx, "Hy": Hy, "Hz": Hz}
-        return sum(
-            weight * fields[component][x, y, z]
-            for component, x, y, z, weight, _ in self._drive_terms
-        )
+        return sum(weight * fields[component][x, y, z] for component, x, y, z, weight, _ in self._drive_terms)
 
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Apply Hyun's time-average implicit feed update in closed form.
@@ -2774,10 +2762,7 @@ class MagneticFrillSource(Source):
             + 2 * self._G_coeff * self.Vinc[iteration]
             - zeta * (1 - self._theta) * self._previous_half_current
         ) / (1 + zeta * self._theta)
-        current_centred = (
-            (1 - self._theta) * self._previous_half_current
-            + self._theta * current_new
-        )
+        current_centred = (1 - self._theta) * self._previous_half_current + self._theta * current_new
         self.Itot[iteration] = current_centred
         V_ab = 2 * self.Vinc[iteration] - self.Z0 * current_centred
         self.Vtotal[iteration] = V_ab
@@ -2830,7 +2815,7 @@ class DiscretePlaneWave(Source):
         self.origin[1] = 0
         self.origin[2] = 0
         self.length = 0
-        #self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
+        # self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
         self.projections = np.zeros(6, dtype=np.float64)  # Use float64 for better precision in projections
         self.corners = None
         self.materialID = None
@@ -2840,8 +2825,8 @@ class DiscretePlaneWave(Source):
         self.dispersive = False
         self.pml_cells = 20
         self.buffercells_axial = 5
-        self.psi= 0.0
-        self.phi= 0.0
+        self.psi = 0.0
+        self.phi = 0.0
         self.theta = 0.0
         self.max_angle_diff = 0.0
         self.actual_angles = np.zeros(2, dtype=np.float64)  # [theta, phi]
@@ -2912,7 +2897,9 @@ class DiscretePlaneWave(Source):
         # check for plane wave definition using angles and in this case m vector should be zero and needs to be calculated
         if self.m[0] == 0 and self.m[1] == 0 and self.m[2] == 0:
             # Find the integer mappings m_x, m_y, m_z for the DPW using partial fractions
-            self.m[:3], self.actual_angles, self.angle_errors, self.total_error = self.find_dpw_integers_optimized(self.theta, self.phi, [G.dx, G.dy, G.dz], self.max_angle_diff)
+            self.m[:3], self.actual_angles, self.angle_errors, self.total_error = self.find_dpw_integers_optimized(
+                self.theta, self.phi, [G.dx, G.dy, G.dz], self.max_angle_diff
+            )
 
         # check for axial propagation case where the user wants a plane wave normally incident using grid geometry assuming layered model at best.
         elif self.axial != 0:
@@ -2972,22 +2959,22 @@ class DiscretePlaneWave(Source):
         self.waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
         # Calculate the direction cosines
-        px = math.sin(self.theta_est_rad)*math.cos(self.phi_est_rad)
-        py = math.sin(self.theta_est_rad)*math.sin(self.phi_est_rad)
+        px = math.sin(self.theta_est_rad) * math.cos(self.phi_est_rad)
+        py = math.sin(self.theta_est_rad) * math.sin(self.phi_est_rad)
         pz = math.cos(self.theta_est_rad)
 
-        #Maximum of the absolute values of m_x, m_y, m_z
+        # Maximum of the absolute values of m_x, m_y, m_z
         self.max_m = np.max(np.abs(self.m[:3]))
 
         # Store the absolute value of max(m_x, m_y, m_z) in the last element of the array
         self.m[3] = self.max_m
 
         if self.m[0] < 0:
-            self.origin[0] = G.nx +1
+            self.origin[0] = G.nx + 1
         if self.m[1] < 0:
-            self.origin[1] = G.ny +1
+            self.origin[1] = G.ny + 1
         if self.m[2] < 0:
-            self.origin[2] = G.nz +1
+            self.origin[2] = G.nz + 1
 
         # Calculate ds that is needed for sourcing the 1D array. This is the spatial step of the 1D DPW grid.
         # For axial propagation this is simply the grid step in the direction of propagation.
@@ -3003,23 +2990,35 @@ class DiscretePlaneWave(Source):
         else:
             self.ds = px * G.dx / self.m[0]
 
-
         # get the number of 1D DPW grid PML cells from the number of 3D FDTD PML cells used for terminating the 1D grid. This is set to 20 cells by default.
-        self.pml_length = np.abs(self.m[0]) * self.pml_cells + np.abs(self.m[1]) * self.pml_cells + np.abs(self.m[2]) * self.pml_cells
+        self.pml_length = (
+            np.abs(self.m[0]) * self.pml_cells + np.abs(self.m[1]) * self.pml_cells + np.abs(self.m[2]) * self.pml_cells
+        )
         # Set few buffer FDTD cells as extra
         buffercells = np.abs(self.m[0]) * self.max_m + np.abs(self.m[1]) * self.max_m + np.abs(self.m[2]) * self.max_m
 
         # Total length of the 1D grid if not axial propagation
         if self.axial == 0:
-            self.length = np.abs(self.m[0]) * (G.nx + 1) + np.abs(self.m[1]) * (G.ny + 1) + np.abs(self.m[2]) * (G.nz + 1) + self.pml_length + buffercells
+            self.length = (
+                np.abs(self.m[0]) * (G.nx + 1)
+                + np.abs(self.m[1]) * (G.ny + 1)
+                + np.abs(self.m[2]) * (G.nz + 1)
+                + self.pml_length
+                + buffercells
+            )
         # Total length of the 1D grid for axial propagation case where a two-sided PML is used
         else:
             buffercells = self.buffercells_axial
-            self.length = np.abs(self.m[0]) * (G.nx + 1) + np.abs(self.m[1]) * (G.ny + 1) + np.abs(self.m[2]) * (G.nz + 1) + 2*self.pml_length + buffercells
+            self.length = (
+                np.abs(self.m[0]) * (G.nx + 1)
+                + np.abs(self.m[1]) * (G.ny + 1)
+                + np.abs(self.m[2]) * (G.nz + 1)
+                + 2 * self.pml_length
+                + buffercells
+            )
             self.origin_axial = self.pml_length + buffercells
 
-        #self.length = 8000  # For testing purposes, limit length to 8000 cells
-
+        # self.length = 8000  # For testing purposes, limit length to 8000 cells
 
         # Setup an DPW grid ID array for accessing material IDs of the main grid for axial propagation problems only
         # Allocate memory for the 1D fields
@@ -3036,14 +3035,14 @@ class DiscretePlaneWave(Source):
         # Allocate memory for the 1D source fields for axial propagation case
         if self.axial != 0:
             self.E_fields_s = np.zeros(
-            (3, self.length),
-            order="C",
-            dtype=config.sim_config.dtypes["float_or_double"],
+                (3, self.length),
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.H_fields_s = np.zeros(
-            (3, self.length),
-            order="C",
-            dtype=config.sim_config.dtypes["float_or_double"],
+                (3, self.length),
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
         # Allocate memory for the 1D DPW PML integrals
@@ -3051,39 +3050,38 @@ class DiscretePlaneWave(Source):
         # Izjyx means correcting an E_z field due to a H_y field variation in x derivative direction array position 1
         # Izmxy means correcting an H_z field due to an E_x field variation in y derivative direction array position 2
         # Izmyx means correcting an H_z field due to an E_y field variation in x derivative direction array position 3
-        self.Iz = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iz = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Iz_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Iz0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iz_s = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iz0 = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
         # Iyjxz means correcting an E_y field due to a H_x field variation in z derivative direction array position 0
         # Iyjzx means correcting an E_y field due to a H_z field variation in x derivative direction array position 1
         # Iymxz means correcting an H_y field due to an E_x field variation in z derivative direction array position 2
         # Iymzx means correcting an H_y field due to an E_z field variation in x derivative direction array position 3
-        self.Iy = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iy = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Iy_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Iy0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iy_s = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iy0 = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
         # Ixjyz means correcting an E_x field due to a H_y field variation in z derivative direction array position 0
         # Ixjzy means correcting an E_x field due to a H_z field variation in y derivative direction array position 1
         # Ixmyz means correcting an H_x field due to an E_y field variation in z derivative direction array position 2
         # Ixmzy means correcting an H_x field due to an E_z field variation in y derivative direction array position 3
-        self.Ix = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Ix = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Ix_s = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Ix0  = np.zeros((4,self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Ix_s = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Ix0 = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
 
-       # When no grid IDs are used Get the background material object with the matching ID and add it to the PlaneWave object
+        # When no grid IDs are used Get the background material object with the matching ID and add it to the PlaneWave object
         if self.axial == 0:
             self.material = next((x for x in G.materials if x.ID == self.materialID), None)
-
 
             # A homogeneous DPW can use any electric dispersion supported by
             # the main grid. The real part of eps_r at the waveform centre
@@ -3092,41 +3090,49 @@ class DiscretePlaneWave(Source):
             if getattr(self.material, "poles", 0) > 0:
                 self.dispersive = True
                 material_er = np.real(self.material.calculate_er(self.waveform.freq))
-                self.materialZ = math.sqrt(
-                    config.m0 * self.material.mr / (config.e0 * material_er)
-                )
+                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * material_er))
                 self.speed = config.c / math.sqrt(material_er * self.material.mr)
                 self.max_poles = self.material.poles
             else:
-                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
+                self.materialZ = math.sqrt(
+                    config.m0 * self.material.mr / (config.e0 * self.material.er)
+                )  # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
-
-
 
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
 
-            self.projections[0]=math.cos(self.psi_rad)*math.sin(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad)
+            self.projections[0] = math.cos(self.psi_rad) * math.sin(self.phi_est_rad) - math.sin(
+                self.psi_rad
+            ) * math.cos(self.theta_est_rad) * math.cos(self.phi_est_rad)
             if abs(self.projections[0]) <= 1e-15:
                 self.projections[0] = 0
 
-            self.projections[1]=-math.cos(self.psi_rad)*math.cos(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad)
+            self.projections[1] = -math.cos(self.psi_rad) * math.cos(self.phi_est_rad) - math.sin(
+                self.psi_rad
+            ) * math.cos(self.theta_est_rad) * math.sin(self.phi_est_rad)
             if abs(self.projections[1]) <= 1e-15:
-                self.projections[1] =0
+                self.projections[1] = 0
 
-            self.projections[2]=math.sin(self.psi_rad)*math.sin(self.theta_est_rad)
+            self.projections[2] = math.sin(self.psi_rad) * math.sin(self.theta_est_rad)
             if abs(self.projections[2]) <= 1e-15:
                 self.projections[2] = 0
 
-            self.projections[3]=(math.sin(self.psi_rad)*math.sin(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad))/self.materialZ
+            self.projections[3] = (
+                math.sin(self.psi_rad) * math.sin(self.phi_est_rad)
+                + math.cos(self.psi_rad) * math.cos(self.theta_est_rad) * math.cos(self.phi_est_rad)
+            ) / self.materialZ
             if abs(self.projections[3]) <= 1e-15:
                 self.projections[3] = 0
 
-            self.projections[4]=(-math.sin(self.psi_rad)*math.cos(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad))/self.materialZ
+            self.projections[4] = (
+                -math.sin(self.psi_rad) * math.cos(self.phi_est_rad)
+                + math.cos(self.psi_rad) * math.cos(self.theta_est_rad) * math.sin(self.phi_est_rad)
+            ) / self.materialZ
             if abs(self.projections[4]) <= 1e-15:
                 self.projections[4] = 0
 
-            self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
+            self.projections[5] = (-math.cos(self.psi_rad) * math.sin(self.theta_est_rad)) / self.materialZ
             if abs(self.projections[5]) <= 1e-15:
                 self.projections[5] = 0
 
@@ -3137,7 +3143,6 @@ class DiscretePlaneWave(Source):
 
         if self.axial == 0:
             self._get_pml_parameters(G)
-
 
     def _validate_2d_projections(self):
         """Validates the polarisation of the plane wave against the active 2D
@@ -3170,9 +3175,7 @@ class DiscretePlaneWave(Source):
             dead = [a, 3 + t1, 3 + t2]
             hint = "for a mode invariant in z, TE requires psi = 0 or 180 degrees"
 
-        nonzero = [
-            f"{names[c]} = {self.projections[c]:g}" for c in dead if self.projections[c] != 0
-        ]
+        nonzero = [f"{names[c]} = {self.projections[c]:g}" for c in dead if self.projections[c] != 0]
         if nonzero:
             logger.exception(
                 f"Discrete plane wave: in {config.get_model_config().mode} mode the "
@@ -3190,10 +3193,10 @@ class DiscretePlaneWave(Source):
             )
             raise ValueError
 
-    def grid_init(self,G):
+    def grid_init(self, G):
         # Initialize the ID array for axial propagation problems only extending accordingly for the two PML regions
         if self.axial != 0:
-            self.ID = np.zeros((6,self.length), dtype=np.uint32)  # 6 for the 6 field components
+            self.ID = np.zeros((6, self.length), dtype=np.uint32)  # 6 for the 6 field components
 
             # Copy the layered material profile out of G.ID along the
             # propagation axis, sampling at self.transverse_pos on the two
@@ -3229,8 +3232,7 @@ class DiscretePlaneWave(Source):
             sampled_dispersive_materials = [
                 material
                 for material in G.materials
-                if material.numID in sampled_material_ids
-                and getattr(material, "poles", 0) > 0
+                if material.numID in sampled_material_ids and getattr(material, "poles", 0) > 0
             ]
 
             # Get the background material near the origin (used for the
@@ -3249,46 +3251,38 @@ class DiscretePlaneWave(Source):
             pos_solid = list(self.transverse_pos)
 
             pos_solid[prop] = 2
-            self.material = next(
-                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
-            )
+            self.material = next((x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None)
 
             pos_solid[prop] = n_prop - 2
-            self.materialPML = next(
-                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
-            )
+            self.materialPML = next((x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None)
 
             # Reference material properties for the source-side auxiliary
             # grid. All Debye, Lorentz, and Drude pole dynamics are handled
             # by the same recurrence as the main grid below.
             if getattr(self.material, "poles", 0) > 0:
                 material_er = np.real(self.material.calculate_er(self.waveform.freq))
-                self.materialZ = math.sqrt(
-                    config.m0 * self.material.mr / (config.e0 * material_er)
-                )
+                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * material_er))
                 self.speed = config.c / math.sqrt(material_er * self.material.mr)
             else:
-                self.materialZ = math.sqrt(config.m0 * self.material.mr / (config.e0 * self.material.er)) # Impedance in the material
+                self.materialZ = math.sqrt(
+                    config.m0 * self.material.mr / (config.e0 * self.material.er)
+                )  # Impedance in the material
                 self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
 
-            #Set the material ID of the PML region at origin as the same as the material next to the grid origin
+            # Set the material ID of the PML region at origin as the same as the material next to the grid origin
             self.materialPML0 = self.material
             self.materialPML0Z = self.materialZ
             self.PML0speed = self.speed
 
             # Reference properties at the far-side DPW PML.
             if getattr(self.materialPML, "poles", 0) > 0:
-                material_pml_er = np.real(
-                    self.materialPML.calculate_er(self.waveform.freq)
-                )
-                self.materialPMLZ = math.sqrt(
-                    config.m0 * self.materialPML.mr / (config.e0 * material_pml_er)
-                )
-                self.PMLspeed = config.c / math.sqrt(
-                    material_pml_er * self.materialPML.mr
-                )
+                material_pml_er = np.real(self.materialPML.calculate_er(self.waveform.freq))
+                self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * material_pml_er))
+                self.PMLspeed = config.c / math.sqrt(material_pml_er * self.materialPML.mr)
             else:
-                self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * self.materialPML.er)) # Impedance in the material
+                self.materialPMLZ = math.sqrt(
+                    config.m0 * self.materialPML.mr / (config.e0 * self.materialPML.er)
+                )  # Impedance in the material
                 self.PMLspeed = config.c / math.sqrt(self.materialPML.er * self.materialPML.mr)  # Speed in the material
 
             self.dispersive = bool(sampled_dispersive_materials)
@@ -3297,31 +3291,40 @@ class DiscretePlaneWave(Source):
                 default=0,
             )
 
-
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
 
-            self.projections[0]=math.cos(self.psi_rad)*math.sin(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad)
+            self.projections[0] = math.cos(self.psi_rad) * math.sin(self.phi_est_rad) - math.sin(
+                self.psi_rad
+            ) * math.cos(self.theta_est_rad) * math.cos(self.phi_est_rad)
             if abs(self.projections[0]) <= 1e-15:
                 self.projections[0] = 0
 
-            self.projections[1]=-math.cos(self.psi_rad)*math.cos(self.phi_est_rad)-math.sin(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad)
+            self.projections[1] = -math.cos(self.psi_rad) * math.cos(self.phi_est_rad) - math.sin(
+                self.psi_rad
+            ) * math.cos(self.theta_est_rad) * math.sin(self.phi_est_rad)
             if abs(self.projections[1]) <= 1e-15:
-                self.projections[1] =0
+                self.projections[1] = 0
 
-            self.projections[2]=math.sin(self.psi_rad)*math.sin(self.theta_est_rad)
+            self.projections[2] = math.sin(self.psi_rad) * math.sin(self.theta_est_rad)
             if abs(self.projections[2]) <= 1e-15:
                 self.projections[2] = 0
 
-            self.projections[3]=(math.sin(self.psi_rad)*math.sin(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.cos(self.phi_est_rad))/self.materialZ
+            self.projections[3] = (
+                math.sin(self.psi_rad) * math.sin(self.phi_est_rad)
+                + math.cos(self.psi_rad) * math.cos(self.theta_est_rad) * math.cos(self.phi_est_rad)
+            ) / self.materialZ
             if abs(self.projections[3]) <= 1e-15:
                 self.projections[3] = 0
 
-            self.projections[4]=(-math.sin(self.psi_rad)*math.cos(self.phi_est_rad)+math.cos(self.psi_rad)*math.cos(self.theta_est_rad)*math.sin(self.phi_est_rad))/self.materialZ
+            self.projections[4] = (
+                -math.sin(self.psi_rad) * math.cos(self.phi_est_rad)
+                + math.cos(self.psi_rad) * math.cos(self.theta_est_rad) * math.sin(self.phi_est_rad)
+            ) / self.materialZ
             if abs(self.projections[4]) <= 1e-15:
                 self.projections[4] = 0
 
-            self.projections[5]=(-math.cos(self.psi_rad)*math.sin(self.theta_est_rad))/self.materialZ
+            self.projections[5] = (-math.cos(self.psi_rad) * math.sin(self.theta_est_rad)) / self.materialZ
             if abs(self.projections[5]) <= 1e-15:
                 self.projections[5] = 0
 
@@ -3329,11 +3332,12 @@ class DiscretePlaneWave(Source):
 
             self._get_pml_parameters(G)
 
-
-            print(f"Discrete Plane Wave has been initialized "
-            + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({self.projections[0]:.4f}, {self.projections[1]:.4f}, {self.projections[2]:.4f}, {self.projections[3]:.4f}, {self.projections[4]:.4f}, {self.projections[5]:.4f})"
-            + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
-            + f" and 1D vector length = {self.length} cells.")
+            print(
+                f"Discrete Plane Wave has been initialized "
+                + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({self.projections[0]:.4f}, {self.projections[1]:.4f}, {self.projections[2]:.4f}, {self.projections[3]:.4f}, {self.projections[4]:.4f}, {self.projections[5]:.4f})"
+                + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
+                + f" and 1D vector length = {self.length} cells."
+            )
 
         # Allocate the DPW auxiliary state after the model-wide dispersive
         # dtype has been resolved. Debye-only models use real storage;
@@ -3348,7 +3352,6 @@ class DiscretePlaneWave(Source):
                 self.Px_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
                 self.Py_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
                 self.Pz_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
-
 
     def calculate_waveform_values(self, G, cythonize=True):
         """Calculates all waveform values for source for duration of simulation.
@@ -3369,7 +3372,7 @@ class DiscretePlaneWave(Source):
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
-        #waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+        # waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         if cythonize:
             calculate1DWaveformValues(
                 self.waveformvalues_wholedt,
@@ -3390,10 +3393,7 @@ class DiscretePlaneWave(Source):
                     for r in range(self.m[3]):
                         time1 = (
                             G.dt * (iteration + 0.5)
-                            - (
-                                r
-                                + (np.abs(self.m[(dimension + 1) % 3]) + np.abs(self.m[(dimension + 2) % 3])) * 0.5
-                            )
+                            - (r + (np.abs(self.m[(dimension + 1) % 3]) + np.abs(self.m[(dimension + 2) % 3])) * 0.5)
                             * self.ds
                             / self.speed
                         )
@@ -3402,17 +3402,14 @@ class DiscretePlaneWave(Source):
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time1 -= self.start
-                            self.waveformvalues_halfdt[
-                                iteration, dimension, r
-                            ] = self.waveform.calculate_value(time1, G.dt)
+                            self.waveformvalues_halfdt[iteration, dimension, r] = self.waveform.calculate_value(
+                                time1, G.dt
+                            )
 
                     for r in range(self.m[3]):
                         time2 = (
                             G.dt * (iteration)
-                            - (
-                                r
-                                + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5
-                            )
+                            - (r + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5)
                             * self.ds
                             / self.speed
                         )
@@ -3421,10 +3418,9 @@ class DiscretePlaneWave(Source):
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time2 -= self.start
-                            self.waveformvalues_wholedt[
-                                iteration, dimension, r
-                            ] = self.waveform.calculate_value(time2, G.dt)
-
+                            self.waveformvalues_wholedt[iteration, dimension, r] = self.waveform.calculate_value(
+                                time2, G.dt
+                            )
 
     def update_plane_wave_magnetic(
         self,
@@ -3440,7 +3436,7 @@ class DiscretePlaneWave(Source):
         iteration,
         G,
         cythonize=True,
-        precompute=True
+        precompute=True,
     ):
         if self.axial != 0:
 
@@ -3502,7 +3498,7 @@ class DiscretePlaneWave(Source):
                 self.start,
                 self.stop,
                 self.waveform.freq,
-                self.waveform.type.encode("UTF-8")
+                self.waveform.type.encode("UTF-8"),
             )
 
         else:
@@ -3553,9 +3549,8 @@ class DiscretePlaneWave(Source):
                     self.waveform.type.encode("UTF-8"),
                 )
             else:
-                    self.update_magnetic_field_1D(G, iteration, precompute)
-                    self.apply_TFSF_conditions_magnetic(G)
-
+                self.update_magnetic_field_1D(G, iteration, precompute)
+                self.apply_TFSF_conditions_magnetic(G)
 
     def update_plane_wave_electric(
         self,
@@ -3571,7 +3566,7 @@ class DiscretePlaneWave(Source):
         iteration,
         G,
         cythonize=True,
-        precompute=True
+        precompute=True,
     ):
 
         if self.axial != 0:
@@ -3686,7 +3681,6 @@ class DiscretePlaneWave(Source):
                 self.update_electric_field_1D(G, iteration, precompute)
                 self.apply_TFSF_conditions_electric(G)
 
-
     def update_plane_wave_electric_dispersive(
         self,
         nthreads,
@@ -3702,7 +3696,7 @@ class DiscretePlaneWave(Source):
         iteration,
         G,
         cythonize=True,
-        precompute=True
+        precompute=True,
     ):
         if self.axial != 0:
             updatePlaneWave_electric_dispersive_axial(
@@ -3828,15 +3822,13 @@ class DiscretePlaneWave(Source):
             else:
                 raise NotImplementedError("Cythonized version not available")
 
-
     def initialize_magnetic_fields_1D(self, G, iteration, precompute):
         if precompute:
             for dimension in range(3):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = (
-                        self.projections[dimension]
-                        * self.waveformvalues_halfdt[iteration, dimension, r]
+                        self.projections[dimension] * self.waveformvalues_halfdt[iteration, dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
         else:
@@ -3859,8 +3851,7 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.E_fields[dimension, r] = (
-                        self.projections[dimension]
-                        * self.waveformvalues_wholedt[iteration + 1 , dimension, r]
+                        self.projections[dimension] * self.waveformvalues_wholedt[iteration + 1, dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
         else:
@@ -3868,15 +3859,11 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.E_fields[dimension, r] = self.projections[dimension] * getSource(
-                        (iteration + 1) * G.dt
-                        - (r + np.abs(self.m[dimension]) * 0.5)
-                        * self.ds
-                        / self.speed,
+                        (iteration + 1) * G.dt - (r + np.abs(self.m[dimension]) * 0.5) * self.ds / self.speed,
                         self.waveform.freq,
                         self.waveform.type.encode("UTF-8"),
                         G.dt,
                     )
-
 
     def update_magnetic_field_1D(self, G, iteration, precompute=True):
         """Updates magnetic fields for the next time step using Equation 8 of
@@ -3913,15 +3900,9 @@ class DiscretePlaneWave(Source):
                 self.H_fields[i, j] = (
                     G.updatecoeffsH[materialH, 0] * self.H_fields[i, j]
                     + G.updatecoeffsH[materialH, (i + 2) % 3 + 1]
-                    * (
-                        self.E_fields[(i + 1) % 3, j + self.m[(i + 2) % 3]]
-                        - self.E_fields[(i + 1) % 3, j]
-                    )
+                    * (self.E_fields[(i + 1) % 3, j + self.m[(i + 2) % 3]] - self.E_fields[(i + 1) % 3, j])
                     - G.updatecoeffsH[materialH, (i + 1) % 3 + 1]
-                    * (
-                        self.E_fields[(i + 2) % 3, j + self.m[(i + 1) % 3]]
-                        - self.E_fields[(i + 2) % 3, j]
-                    )
+                    * (self.E_fields[(i + 2) % 3, j + self.m[(i + 1) % 3]] - self.E_fields[(i + 2) % 3, j])
                 )  # equation 8 of Tan, Potter paper
 
     def update_electric_field_1D(self, G, iteration, precompute=True):
@@ -3947,7 +3928,6 @@ class DiscretePlaneWave(Source):
         """
         self.initialize_electric_fields_1D(G, iteration, precompute)
 
-
         for i in range(3):  # Update each component of electric field
             materialE = G.ID[
                 i,
@@ -3960,19 +3940,13 @@ class DiscretePlaneWave(Source):
                 self.E_fields[i, j] = (
                     G.updatecoeffsE[materialE, 0] * self.E_fields[i, j]
                     + G.updatecoeffsE[materialE, (i + 2) % 3 + 1]
-                    * (
-                        self.H_fields[(i + 2) % 3, j]
-                        - self.H_fields[(i + 2) % 3, j - self.m[(i + 1) % 3]]
-                    )
+                    * (self.H_fields[(i + 2) % 3, j] - self.H_fields[(i + 2) % 3, j - self.m[(i + 1) % 3]])
                     - G.updatecoeffsE[materialE, (i + 1) % 3 + 1]
-                    * (
-                        self.H_fields[(i + 1) % 3, j]
-                        - self.H_fields[(i + 1) % 3, j - self.m[(i + 2) % 3]]
-                    )
+                    * (self.H_fields[(i + 1) % 3, j] - self.H_fields[(i + 1) % 3, j - self.m[(i + 2) % 3]])
                 )  # equation 9 of Tan, Potter paper
 
     def getField(self, i, j, k, array, m, origin, component):
-        return array[component, np.dot(m[:-1], np.array([i-origin[0], j-origin[1], k-origin[2]]))]
+        return array[component, np.dot(m[:-1], np.array([i - origin[0], j - origin[1], k - origin[2]]))]
 
     def apply_TFSF_conditions_magnetic(self, G):
         if self.skip_axis != 0:
@@ -4169,34 +4143,33 @@ class DiscretePlaneWave(Source):
                         i, j, k, self.H_fields, self.m, self.origin, 1
                     )
 
-
     def find_dpw_integers_optimized(self, theta_deg, phi_deg, delta_xyz, max_total_error_deg):
         """
-           Finds the OPTIMAL smallest integer vector (mx, my, mz) for a DPW source
-           by generating all candidates and selecting the simplest valid one.
-            --- Parameters ---
-           theta_deg : float
-               Polar angle in degrees (0 to 180) from the +Z axis.
-           phi_deg : float
-               Azimuthal angle in degrees (0 to 360) from the +X axis.
-           delta_xyz : list or tuple
-               Grid step sizes [dx, dy, dz] in your simulation units.
-           max_total_error_deg : float
-               Maximum acceptable TOTAL 3D angular error in degrees.
+        Finds the OPTIMAL smallest integer vector (mx, my, mz) for a DPW source
+        by generating all candidates and selecting the simplest valid one.
+         --- Parameters ---
+        theta_deg : float
+            Polar angle in degrees (0 to 180) from the +Z axis.
+        phi_deg : float
+            Azimuthal angle in degrees (0 to 360) from the +X axis.
+        delta_xyz : list or tuple
+            Grid step sizes [dx, dy, dz] in your simulation units.
+        max_total_error_deg : float
+            Maximum acceptable TOTAL 3D angular error in degrees.
 
-           --- Returns ---
-           m_vec : numpy.ndarray
-               The optimal 1x3 integer vector [mx, my, mz]. Returns None if no solution is found.
-           actual_angles_deg : tuple
-               The actual (theta, phi) angles of the vector, in degrees.
-           errors_deg : tuple
-               The geometrically correct projected error components (d_theta, d_phi), in degrees.
-           total_error_deg : float
-               The final total 3D angular error of the returned vector, in degrees.
+        --- Returns ---
+        m_vec : numpy.ndarray
+            The optimal 1x3 integer vector [mx, my, mz]. Returns None if no solution is found.
+        actual_angles_deg : tuple
+            The actual (theta, phi) angles of the vector, in degrees.
+        errors_deg : tuple
+            The geometrically correct projected error components (d_theta, d_phi), in degrees.
+        total_error_deg : float
+            The final total 3D angular error of the returned vector, in degrees.
         """
 
         # --- Helper Function to calculate continued fraction convergents ---
-        def continued_fractions(x, n_terms=15): # Reduced to 15 to avoid flint warning
+        def continued_fractions(x, n_terms=15):  # Reduced to 15 to avoid flint warning
             """Computes the continued fraction convergents of a number x."""
             convergents = []
             p_prev, q_prev = 0, 1
@@ -4207,7 +4180,8 @@ class DiscretePlaneWave(Source):
                 p_next = a * p_curr + p_prev
                 q_next = a * q_curr + q_prev
                 convergents.append((p_next, q_next))
-                if abs(xi - a) < 1e-12: return convergents
+                if abs(xi - a) < 1e-12:
+                    return convergents
                 xi = 1 / (xi - a)
                 p_prev, q_prev = p_curr, q_curr
                 p_curr, q_curr = p_next, q_next
@@ -4221,11 +4195,9 @@ class DiscretePlaneWave(Source):
         #  Convert the spherical angles (theta, phi) into a standard 3D (x,y,z)
         #  vector. This vector is the "target direction" of the plane wave. It
         #  is automatically a "unit vector" (length of 1).
-        u_vec_target = np.array([
-            math.sin(theta_rad) * math.cos(phi_rad),
-            math.sin(theta_rad) * math.sin(phi_rad),
-            math.cos(theta_rad)
-        ])
+        u_vec_target = np.array(
+            [math.sin(theta_rad) * math.cos(phi_rad), math.sin(theta_rad) * math.sin(phi_rad), math.cos(theta_rad)]
+        )
 
         #  Snap floating-point residue on components that are analytically
         #  zero (e.g. cos(90 deg) evaluates to ~6.1e-17, not 0). Without
@@ -4244,7 +4216,7 @@ class DiscretePlaneWave(Source):
         #  it has been rearranged so it can be undone later.
 
         ref_idx = np.argmax(np.abs(u_vec_target))
-        perm_order = [0, 1, 2] # Corresponds to x, y, z
+        perm_order = [0, 1, 2]  # Corresponds to x, y, z
         if ref_idx != 2:
             perm_order[2], perm_order[ref_idx] = perm_order[ref_idx], perm_order[2]
 
@@ -4281,11 +4253,7 @@ class DiscretePlaneWave(Source):
                 # cannot overflow.
                 if max(abs(p1 * (common_denom // q1)), abs(p2 * (common_denom // q2)), common_denom) > 10**6:
                     continue
-                m_perm = np.array([
-                    p1 * (common_denom // q1),
-                    p2 * (common_denom // q2),
-                    common_denom
-                ], dtype=int)
+                m_perm = np.array([p1 * (common_denom // q1), p2 * (common_denom // q2), common_denom], dtype=int)
 
                 # Apply the crucial sign correction for the correct quadrant
                 if np.sign(u_perm[2]) < 0:
@@ -4304,54 +4272,44 @@ class DiscretePlaneWave(Source):
                 # Store the candidate with its error and "size" metric. The size
                 # is the largest integer component, a good measure of cost.
                 size = np.max(np.abs(m_vec_candidate))
-                candidates.append({
-                    'm_vec': m_vec_candidate,
-                    'error': total_error_deg,
-                    'size': size
-                 })
+                candidates.append({"m_vec": m_vec_candidate, "error": total_error_deg, "size": size})
 
         # From our list, we keep only those that meet the error criteria, then
         # sort them by size to find the one with the smallest integers.
-        valid_candidates = [c for c in candidates if c['error'] <= max_total_error_deg]
+        valid_candidates = [c for c in candidates if c["error"] <= max_total_error_deg]
 
         if not valid_candidates:
             print("Warning: No DPW solution found within the error tolerance.")
             return None, (math.nan, math.nan), (math.nan, math.nan), math.nan
 
         # Sort the valid solutions by size (smallest integers first)
-        valid_candidates.sort(key=lambda c: c['size'])
+        valid_candidates.sort(key=lambda c: c["size"])
         best_candidate = valid_candidates[0]
-        m_vec = best_candidate['m_vec']
-        total_error_deg = best_candidate['error']
-        max_m = best_candidate['size']
+        m_vec = best_candidate["m_vec"]
+        total_error_deg = best_candidate["error"]
+        max_m = best_candidate["size"]
 
         # We perform the final detailed error calculation for the winning vector.
         phys_vec = m_vec / np.array(delta_xyz)
         phys_vec_norm = phys_vec / np.linalg.norm(phys_vec)
 
         # Define local spherical basis vectors for error projection
-        u_theta = np.array([
-            math.cos(theta_rad) * math.cos(phi_rad),
-            math.cos(theta_rad) * math.sin(phi_rad),
-            -math.sin(theta_rad)
-        ])
+        u_theta = np.array(
+            [math.cos(theta_rad) * math.cos(phi_rad), math.cos(theta_rad) * math.sin(phi_rad), -math.sin(theta_rad)]
+        )
         u_phi = np.array([-math.sin(phi_rad), math.cos(phi_rad), 0])
 
         # Project the 3D error vector onto the basis vectors
         diff_vec = phys_vec_norm - u_vec_target
-        errors_deg = (
-            math.degrees(np.dot(diff_vec, u_theta)),
-            math.degrees(np.dot(diff_vec, u_phi))
-        )
+        errors_deg = (math.degrees(np.dot(diff_vec, u_theta)), math.degrees(np.dot(diff_vec, u_phi)))
 
         # Calculate the final angles for user information
         actual_angles_deg = (
             math.degrees(math.acos(np.clip(phys_vec_norm[2], -1.0, 1.0))),
-            math.degrees(math.atan2(phys_vec_norm[1], phys_vec_norm[0]))
+            math.degrees(math.atan2(phys_vec_norm[1], phys_vec_norm[0])),
         )
 
         return m_vec, actual_angles_deg, errors_deg, total_error_deg
-
 
     def _get_pml_parameters(self, G):
         """
@@ -4372,11 +4330,13 @@ class DiscretePlaneWave(Source):
             AOrder = 1
             # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (0.8 * (Order + 1) /
-                              (Z * np.sqrt(self.m[0]**2 + self.m[1]**2 + self.m[2]**2) * self.ds))
-            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
-            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-
+            sigma_max = 0.8 * (Order + 1) / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
+            Kappa_max = (
+                1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            )
+            Alpha_max = (
+                0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
+            )
 
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
@@ -4387,38 +4347,38 @@ class DiscretePlaneWave(Source):
             # --- E-Field PML Parameters (Vectorized) ---
             sEx_base = (depth + self.m[0] * 0.5) / self.pml_length
             aEx_base = (i_arr + self.m[0] * 0.5) / self.pml_length
-            sEx = sigma_max * np.maximum(0, sEx_base)**Order
+            sEx = sigma_max * np.maximum(0, sEx_base) ** Order
             kEx = 1.0 + (Kappa_max - 1.0) * sEx_base**KOrder
             aEx = Alpha_max * aEx_base**AOrder
 
             sEy_base = (depth + self.m[1] * 0.5) / self.pml_length
             aEy_base = (i_arr + self.m[1] * 0.5) / self.pml_length
-            sEy = sigma_max * np.maximum(0, sEy_base)**Order
+            sEy = sigma_max * np.maximum(0, sEy_base) ** Order
             kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
             aEy = Alpha_max * aEy_base**AOrder
 
             sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
             aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
-            sEz = sigma_max * np.maximum(0, sEz_base)**Order
+            sEz = sigma_max * np.maximum(0, sEz_base) ** Order
             kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
             aEz = Alpha_max * aEz_base**AOrder
 
             # --- H-Field PML Parameters (Vectorized) ---
             sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            sHx = sigma_max * np.maximum(0, sHx_base)**Order
+            sHx = sigma_max * np.maximum(0, sHx_base) ** Order
             kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
             aHx = Alpha_max * aHx_base**AOrder
 
             sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            sHy = sigma_max * np.maximum(0, sHy_base)**Order
+            sHy = sigma_max * np.maximum(0, sHy_base) ** Order
             kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
             aHy = Alpha_max * aHy_base**AOrder
 
             sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            sHz = sigma_max * np.maximum(0, sHz_base)**Order
+            sHz = sigma_max * np.maximum(0, sHz_base) ** Order
             kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
             aHz = Alpha_max * aHz_base**AOrder
 
@@ -4462,13 +4422,25 @@ class DiscretePlaneWave(Source):
             # --- Combine Coefficients into Single Matrices ---
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
-            self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rez = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rex = np.array(
+                [RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rey = np.array(
+                [RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rez = np.array(
+                [RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
-            self.pml_rhx = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhy = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhz = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rhx = np.array(
+                [RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rhy = np.array(
+                [RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rhz = np.array(
+                [RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
         else:
             Z = self.materialPMLZ
@@ -4479,11 +4451,13 @@ class DiscretePlaneWave(Source):
             AOrder = 1
             # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (0.8 * (Order + 1) /
-                              (Z * np.sqrt(self.m[0]**2 + self.m[1]**2 + self.m[2]**2) * self.ds))
-            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
-            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-
+            sigma_max = 0.8 * (Order + 1) / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
+            Kappa_max = (
+                1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            )
+            Alpha_max = (
+                0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
+            )
 
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
@@ -4494,38 +4468,38 @@ class DiscretePlaneWave(Source):
             # --- E-Field PML Parameters (Vectorized) ---
             sEx_base = (depth + self.m[0] * 0.5) / self.pml_length
             aEx_base = (i_arr + self.m[0] * 0.5) / self.pml_length
-            sEx = sigma_max * np.maximum(0, sEx_base)**Order
+            sEx = sigma_max * np.maximum(0, sEx_base) ** Order
             kEx = 1.0 + (Kappa_max - 1.0) * sEx_base**KOrder
             aEx = Alpha_max * aEx_base**AOrder
 
             sEy_base = (depth + self.m[1] * 0.5) / self.pml_length
             aEy_base = (i_arr + self.m[1] * 0.5) / self.pml_length
-            sEy = sigma_max * np.maximum(0, sEy_base)**Order
+            sEy = sigma_max * np.maximum(0, sEy_base) ** Order
             kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
             aEy = Alpha_max * aEy_base**AOrder
 
             sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
             aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
-            sEz = sigma_max * np.maximum(0, sEz_base)**Order
+            sEz = sigma_max * np.maximum(0, sEz_base) ** Order
             kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
             aEz = Alpha_max * aEz_base**AOrder
 
             # --- H-Field PML Parameters (Vectorized) ---
             sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            sHx = sigma_max * np.maximum(0, sHx_base)**Order
+            sHx = sigma_max * np.maximum(0, sHx_base) ** Order
             kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
             aHx = Alpha_max * aHx_base**AOrder
 
             sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            sHy = sigma_max * np.maximum(0, sHy_base)**Order
+            sHy = sigma_max * np.maximum(0, sHy_base) ** Order
             kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
             aHy = Alpha_max * aHy_base**AOrder
 
             sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            sHz = sigma_max * np.maximum(0, sHz_base)**Order
+            sHz = sigma_max * np.maximum(0, sHz_base) ** Order
             kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
             aHz = Alpha_max * aHz_base**AOrder
 
@@ -4569,13 +4543,25 @@ class DiscretePlaneWave(Source):
             # --- Combine Coefficients into Single Matrices ---
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
-            self.pml_rex = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rey = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rez = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rex = np.array(
+                [RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rey = np.array(
+                [RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rez = np.array(
+                [RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
-            self.pml_rhx = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhy = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhz = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rhx = np.array(
+                [RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rhy = np.array(
+                [RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rhz = np.array(
+                [RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
             # --- Repeat for PML0 ---
 
@@ -4587,11 +4573,13 @@ class DiscretePlaneWave(Source):
             AOrder = 1
             # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (0.8 * (Order + 1) /
-                              (Z * np.sqrt(self.m[0]**2 + self.m[1]**2 + self.m[2]**2) * self.ds))
-            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
-            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-
+            sigma_max = 0.8 * (Order + 1) / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
+            Kappa_max = (
+                1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            )
+            Alpha_max = (
+                0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
+            )
 
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
@@ -4602,38 +4590,38 @@ class DiscretePlaneWave(Source):
             # --- E-Field PML Parameters (Vectorized) ---
             sEx_base = (depth + self.m[0] * 0.5) / self.pml_length
             aEx_base = (i_arr + self.m[0] * 0.5) / self.pml_length
-            sEx = sigma_max * np.maximum(0, sEx_base)**Order
+            sEx = sigma_max * np.maximum(0, sEx_base) ** Order
             kEx = 1.0 + (Kappa_max - 1.0) * sEx_base**KOrder
             aEx = Alpha_max * aEx_base**AOrder
 
             sEy_base = (depth + self.m[1] * 0.5) / self.pml_length
             aEy_base = (i_arr + self.m[1] * 0.5) / self.pml_length
-            sEy = sigma_max * np.maximum(0, sEy_base)**Order
+            sEy = sigma_max * np.maximum(0, sEy_base) ** Order
             kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
             aEy = Alpha_max * aEy_base**AOrder
 
             sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
             aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
-            sEz = sigma_max * np.maximum(0, sEz_base)**Order
+            sEz = sigma_max * np.maximum(0, sEz_base) ** Order
             kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
             aEz = Alpha_max * aEz_base**AOrder
 
             # --- H-Field PML Parameters (Vectorized) ---
             sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
             aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            sHx = sigma_max * np.maximum(0, sHx_base)**Order
+            sHx = sigma_max * np.maximum(0, sHx_base) ** Order
             kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
             aHx = Alpha_max * aHx_base**AOrder
 
             sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
             aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            sHy = sigma_max * np.maximum(0, sHy_base)**Order
+            sHy = sigma_max * np.maximum(0, sHy_base) ** Order
             kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
             aHy = Alpha_max * aHy_base**AOrder
 
             sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
             aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            sHz = sigma_max * np.maximum(0, sHz_base)**Order
+            sHz = sigma_max * np.maximum(0, sHz_base) ** Order
             kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
             aHz = Alpha_max * aHz_base**AOrder
 
@@ -4677,10 +4665,22 @@ class DiscretePlaneWave(Source):
             # --- Combine Coefficients into Single Matrices ---
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
-            self.pml_rex0 = np.array([RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rey0 = np.array([RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rez0 = np.array([RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rex0 = np.array(
+                [RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rey0 = np.array(
+                [RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rez0 = np.array(
+                [RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
-            self.pml_rhx0 = np.array([RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhy0 = np.array([RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.pml_rhz0 = np.array([RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.pml_rhx0 = np.array(
+                [RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rhy0 = np.array(
+                [RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.pml_rhz0 = np.array(
+                [RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )

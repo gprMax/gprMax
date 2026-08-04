@@ -13,6 +13,9 @@ The main validations are:
   fresh water and Puerto Rico clay over their dispersive bands;
 * ``validate_hertzian_dipole.py`` -- Hertzian-dipole far-field pattern and
   directivity, plus one analytical near-field time-domain component;
+* ``validate_fdfd_eigenmodes.py`` -- effective index of 1D PEC
+  parallel-plate and dielectric slab modes, plus 2D rectangular and cylindrical
+  PEC waveguide modes, against analytical dispersion;
 * ``validate_dielectric_sphere_rcs.py`` -- broadband dielectric-sphere
   monostatic RCS against the homogeneous-sphere Mie series; and
 * ``validate_pec_sphere_rcs.py`` -- broadband PEC-sphere monostatic RCS
@@ -32,6 +35,7 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_plane_wave_dispersive_halfspace --gpu 0
     python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     python -m testing.validation.validate_hertzian_dipole --gpu 0
+    python -m testing.validation.validate_fdfd_eigenmodes
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
 

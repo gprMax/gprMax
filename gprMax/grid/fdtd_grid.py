@@ -48,6 +48,7 @@ from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
     DiscretePlaneWave,
+    EigenmodeReceiver,
     EigenmodeSource,
     HertzianDipole,
     MagneticDipole,
@@ -150,6 +151,8 @@ class FDTDGrid:
         self.magneticfrillsources: List[MagneticFrillSource] = []
         self.discreteplanewaves: List[DiscretePlaneWave] = []
         self.eigenmodesources: List[EigenmodeSource] = []
+        self.eigenmodereceivers: List[EigenmodeReceiver] = []
+        self.eigenmodeports = []
         self.rxs: List[Rx] = []
         self.port_monitors = []  # Source-bound S-parameter/impedance outputs
         self.snapshots = []  # List[Snapshot]
@@ -223,9 +226,7 @@ class FDTDGrid:
     def dz(self, value: float):
         self.dl[2] = value
 
-    def set_pml_thickness(
-        self, thickness: Union[int, Tuple[int, int, int, int, int, int]]
-    ):
+    def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
         if isinstance(thickness, int) or len(thickness) == 1:
             for key in PML.boundaryIDs:
                 self.pmls["thickness"][key] = int(thickness)
@@ -314,7 +315,7 @@ class FDTDGrid:
         self._build_materials()
         self._apply_thin_wire_update_coefficients()
         self._DPW__source_grid_init()
-        self._eigenmode_source_grid_init()
+        self._eigenmode_port_grid_init()
 
     def _validate_pml_thickness(self) -> None:
         """Check that no PML reaches or crosses the domain midpoint.
@@ -349,12 +350,9 @@ class FDTDGrid:
         for pml_id, thickness in self.pmls["thickness"].items():
             if thickness > 0:
                 pml = self._construct_pml(pml_id, thickness)
-                averageer, averagemr = self._calculate_average_pml_material_properties(
-                    pml
-                )
+                averageer, averagemr = self._calculate_average_pml_material_properties(pml)
                 logger.debug(
-                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability ="
-                    f" {averagemr}"
+                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability =" f" {averagemr}"
                 )
                 pml.calculate_update_coeffs(averageer, averagemr)
                 self.pmls["slabs"].append(pml)
@@ -363,9 +361,7 @@ class FDTDGrid:
 
     PmlType = TypeVar("PmlType", bound=PML)
 
-    def _construct_pml(
-        self, pml_ID: str, thickness: int, pml_type: type[PmlType] = PML
-    ) -> PmlType:
+    def _construct_pml(self, pml_ID: str, thickness: int, pml_type: type[PmlType] = PML) -> PmlType:
         """Build PML instance of the specified ID, thickness and type.
 
         Constructs a PML of the specified type and thickness. Properties
@@ -453,9 +449,7 @@ class FDTDGrid:
 
         return pml
 
-    def _calculate_average_pml_material_properties(
-        self, pml: PML
-    ) -> Tuple[float, float]:
+    def _calculate_average_pml_material_properties(self, pml: PML) -> Tuple[float, float]:
         """Calculate average material properties for the provided PML.
 
         Args:
@@ -489,9 +483,7 @@ class FDTDGrid:
         else:
             raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
-        return pml_average_er_mr(
-            n1, n2, config.get_model_config().ompthreads, solid, ers, mrs
-        )
+        return pml_average_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
 
     def _build_components(self) -> None:
         """Build electric and magnetic components of the grid.
@@ -560,10 +552,7 @@ class FDTDGrid:
         if material is not None:
             return material
 
-        material_id = (
-            f"thin_wire_{wire.wire_axis}_{wire.radius:.12g}_{role}_bg"
-            f"{background.numID}"
-        )
+        material_id = f"thin_wire_{wire.wire_axis}_{wire.radius:.12g}_{role}_bg" f"{background.numID}"
         material = Material(len(self.materials), material_id)
         material.type = "thin-wire"
         material.averagable = False
@@ -675,18 +664,11 @@ class FDTDGrid:
                 previous_e = occupied_e.get(e_key)
                 signature = (wire.wire_axis, wire.radius)
                 if previous_e is not None and previous_e != signature:
-                    raise ValueError(
-                        "Thin-wire electric edges overlap with different axes or radii."
-                    )
+                    raise ValueError("Thin-wire electric edges overlap with different axes or radii.")
                 occupied_e[e_key] = signature
 
-                h_targets = list(
-                    self._thin_wire_h_targets(wire.wire_axis, i, j, k)
-                )
-                if any(
-                    self.within_pml(np.array((x, y, z), dtype=np.int32))
-                    for _, x, y, z in h_targets
-                ):
+                h_targets = list(self._thin_wire_h_targets(wire.wire_axis, i, j, k))
+                if any(self.within_pml(np.array((x, y, z), dtype=np.int32)) for _, x, y, z in h_targets):
                     raise ValueError(
                         f"{wire} has a surrounding magnetic component inside a PML "
                         f"at grid position {(i, j, k)}; thin-wire stencils cannot "
@@ -694,12 +676,8 @@ class FDTDGrid:
                     )
 
                 background_e = self.materials[int(self.ID[component_e_index, i, j, k])]
-                material_e = self._thin_wire_material(
-                    wire, background_e, role=component_e
-                )
-                electric_builders[wire.wire_axis](
-                    i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID
-                )
+                material_e = self._thin_wire_material(wire, background_e, role=component_e)
+                electric_builders[wire.wire_axis](i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID)
 
                 for component_h, x, y, z in h_targets:
                     h_key = (component_h, x, y, z)
@@ -715,21 +693,16 @@ class FDTDGrid:
                     background_h = self.materials[int(self.ID[component_h_index, x, y, z])]
                     if background_h.ID == "pmc" or background_h.sm == float("inf"):
                         raise ValueError(
-                            f"{wire} has a PMC magnetic component in its surrounding "
-                            f"stencil at {(x, y, z)}."
+                            f"{wire} has a PMC magnetic component in its surrounding " f"stencil at {(x, y, z)}."
                         )
-                    radial_axis = self._thin_wire_h_radial_axis(
-                        wire.wire_axis, component_h
-                    )
+                    radial_axis = self._thin_wire_h_radial_axis(wire.wire_axis, component_h)
                     material_h = self._thin_wire_material(
                         wire,
                         background_h,
                         role=component_h,
                         radial_axis=radial_axis,
                     )
-                    magnetic_builders[component_h](
-                        x, y, z, material_h.numID, self.rigidH, self.ID
-                    )
+                    magnetic_builders[component_h](x, y, z, material_h.numID, self.rigidH, self.ID)
 
     def _apply_thin_wire_update_coefficients(self) -> None:
         """Apply the Mäkinen thin-wire projection to magnetic material rows.
@@ -758,9 +731,7 @@ class FDTDGrid:
             factor_ke = 1.0 / factor_kh
             combined = factor_f * factor_kh
 
-            self.updatecoeffsH[
-                material.numID, coefficient_columns[radial_axis]
-            ] *= combined
+            self.updatecoeffsH[material.numID, coefficient_columns[radial_axis]] *= combined
             self.updatecoeffsH[material.numID, 4] *= factor_kh
 
             material.thin_wire_h_is_projected = True
@@ -864,10 +835,25 @@ class FDTDGrid:
         for dpw in self.discreteplanewaves:
             dpw.grid_init(self)
 
-    def _eigenmode_source_grid_init(self):
-        """Process eigenmode sources after Yee component IDs have been built."""
+    def _eigenmode_port_grid_init(self):
+        """Process eigenmode sources and receivers after Yee IDs have been built."""
+        source_count = len(self.eigenmodesources)
+        if (source_count or self.eigenmodereceivers) and source_count != 1:
+            raise ValueError(
+                "Eigenmode ports require one and only one eigenmode source on " f"{self.name}; found {source_count}."
+            )
+        ports = [*self.eigenmodesources, *self.eigenmodereceivers]
+        port_indices = [int(port.port_index) for port in ports]
+        if any(port_index < 1 for port_index in port_indices):
+            raise ValueError("Eigenmode port indices must be one or greater.")
+        if len(set(port_indices)) != len(port_indices):
+            raise ValueError(
+                "Eigenmode source and receiver port indices must be unique; " f"got {port_indices} on {self.name}."
+            )
         for source in self.eigenmodesources:
             source.grid_init(self)
+        for receiver in self.eigenmodereceivers:
+            receiver.grid_init(self)
 
     def _build_materials(self) -> None:
         """Calculate properties of materials in the grid.
@@ -965,9 +951,7 @@ class FDTDGrid:
                 step,
             )
         except ValueError as e:
-            logger.exception(
-                "Source(s) will be stepped to a position outside the domain."
-            )
+            logger.exception("Source(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
     def update_receiver_positions(self, step: int = 0) -> None:
@@ -983,14 +967,10 @@ class FDTDGrid:
         try:
             # Internal port receivers must remain on their fixed voltage
             # source; #rx_steps applies only to public receiver commands.
-            public_receivers = (
-                rx for rx in self.rxs if not getattr(rx, "source_bound", False)
-            )
+            public_receivers = (rx for rx in self.rxs if not getattr(rx, "source_bound", False))
             self._update_positions(public_receivers, self.rxsteps, step)
         except ValueError as e:
-            logger.exception(
-                "Receiver(s) will be stepped to a position outside the domain."
-            )
+            logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
     def within_bounds(self, p: npt.NDArray[np.int32]) -> bool:
@@ -1028,9 +1008,7 @@ class FDTDGrid:
         z = round_value(float(p[2]) / self.dz)
         return (x, y, z)
 
-    def round_to_grid(
-        self, p: Tuple[float, float, float]
-    ) -> Tuple[float, float, float]:
+    def round_to_grid(self, p: Tuple[float, float, float]) -> Tuple[float, float, float]:
         """Round the provided point to the nearest grid cell.
 
         Args:
@@ -1070,9 +1048,7 @@ class FDTDGrid:
         Returns:
             waveform: Requested waveform
         """
-        return next(
-            waveform for waveform in self.waveforms if waveform.ID == waveform_id
-        )
+        return next(waveform for waveform in self.waveforms if waveform.ID == waveform_id)
 
     def initialise_geometry_arrays(self):
         """Initialise arrays to store geometry properties.
@@ -1123,12 +1099,8 @@ class FDTDGrid:
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
-        self.updatecoeffsE = np.zeros(
-            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
-        )
-        self.updatecoeffsH = np.zeros(
-            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
-        )
+        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
+        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
 
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
@@ -1190,9 +1162,7 @@ class FDTDGrid:
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
         # 12 x rigidE array components + 6 x rigidH array components
-        rigidarrays = (
-            (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
-        )
+        rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
 
         # 6 x field arrays + 6 x ID arrays
         fieldarrays = (
@@ -1337,24 +1307,14 @@ class FDTDGrid:
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
         if config.get_model_config().mode in ("2D TMx", "2D TEx"):
-            self.dt = 1 / (
-                config.sim_config.em_consts["c"]
-                * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
-            )
+            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2)))
         elif config.get_model_config().mode in ("2D TMy", "2D TEy"):
-            self.dt = 1 / (
-                config.sim_config.em_consts["c"]
-                * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
-            )
+            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2)))
         elif config.get_model_config().mode in ("2D TMz", "2D TEz"):
-            self.dt = 1 / (
-                config.sim_config.em_consts["c"]
-                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
-            )
+            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2)))
         else:
             self.dt = 1 / (
-                config.sim_config.em_consts["c"]
-                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
             )
 
         # Round down time step to nearest float with precision one less than
@@ -1424,9 +1384,7 @@ class FDTDGrid:
         """
         results = self._dispersion_analysis(iterations)
         if results["error"]:
-            logger.warning(
-                f"Numerical dispersion analysis [{self.name}] not carried out as {results['error']}"
-            )
+            logger.warning(f"Numerical dispersion analysis [{self.name}] not carried out as {results['error']}")
         elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
             logger.exception(
                 f"\nNon-physical wave propagation in [{self.name}] "
@@ -1439,8 +1397,7 @@ class FDTDGrid:
             raise ValueError
         elif (
             results["deltavp"]
-            and np.abs(results["deltavp"])
-            > config.get_model_config().numdispersion["maxnumericaldisp"]
+            and np.abs(results["deltavp"]) > config.get_model_config().numdispersion["maxnumericaldisp"]
         ):
             logger.warning(
                 f"[{self.name}] has potentially significant "
@@ -1508,15 +1465,10 @@ class FDTDGrid:
                     iterations = min(iterations, max_iterations)
                     waveformvalues = np.zeros(iterations)
                     for iteration in range(iterations):
-                        waveformvalues[iteration] = waveform.calculate_value(
-                            iteration * self.dt, self.dt
-                        )
+                        waveformvalues[iteration] = waveform.calculate_value(iteration * self.dt, self.dt)
 
                     # Ensure source waveform is not being overly truncated before attempting any FFT
-                    if (
-                        np.abs(waveformvalues[-1])
-                        < np.abs(np.amax(waveformvalues)) / 100
-                    ):
+                    if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
                         # FFT
                         freqs, power = fft_power(waveformvalues, self.dt)
                         # Get frequency for max power
@@ -1526,10 +1478,7 @@ class FDTDGrid:
                         try:
                             freqthres = (
                                 np.where(
-                                    power[freqmaxpower:]
-                                    < -config.get_model_config().numdispersion[
-                                        "highestfreqthres"
-                                    ]
+                                    power[freqmaxpower:] < -config.get_model_config().numdispersion["highestfreqthres"]
                                 )[0][0]
                                 + freqmaxpower
                             )
@@ -1548,8 +1497,7 @@ class FDTDGrid:
                     # If waveform is truncated don't do any further analysis
                     else:
                         results["error"] = (
-                            "waveform does not fit within specified "
-                            + "time window and is therefore being truncated."
+                            "waveform does not fit within specified " + "time window and is therefore being truncated."
                         )
         else:
             results["error"] = "no waveform detected."
@@ -1600,15 +1548,9 @@ class FDTDGrid:
             results["N"] = minwavelength / delta
 
             # Check grid sampling will result in physical wave propagation
-            if (
-                int(np.floor(results["N"]))
-                >= config.get_model_config().numdispersion["mingridsampling"]
-            ):
+            if int(np.floor(results["N"])) >= config.get_model_config().numdispersion["mingridsampling"]:
                 # Numerical phase velocity
-                vp = np.pi / (
-                    results["N"]
-                    * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
-                )
+                vp = np.pi / (results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"])))
 
                 # Physical phase velocity error (percentage)
                 results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100

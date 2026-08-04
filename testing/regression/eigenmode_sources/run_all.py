@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Run every eigenmode-source regression input and regenerate "
-            "combined |E| snapshot plots with plot_snapshots.py."
+            "the snapshot and case-specific diagnostic plots."
         )
     )
     parser.add_argument(
@@ -73,6 +73,8 @@ def main() -> int:
     suite_root = Path(__file__).resolve().parent
     repo_root = find_repository_root(suite_root)
     plot_script = suite_root / "plot_snapshots.py"
+    sparameter_plot_script = suite_root / "cases" / "plot_sparameters.py"
+    validation_script = suite_root / "cases" / "validate_sparameters.py"
 
     if not root.is_dir():
         raise SystemExit(f"Test root does not exist: {root}")
@@ -111,13 +113,27 @@ def main() -> int:
             run_command(command, cwd=repo_root, dry_run=args.dry_run)
 
     if not args.skip_plots:
+        print(f"\nValidating modal S-parameter expectations below {root}", flush=True)
+        run_command(
+            [python, str(validation_script), str(root)],
+            cwd=repo_root,
+            dry_run=args.dry_run,
+        )
         print(f"\nPlotting snapshots for {len(case_dirs)} case directories", flush=True)
         command = [python, str(plot_script), *(str(case_dir) for case_dir in case_dirs)]
         run_command(command, cwd=repo_root, dry_run=args.dry_run)
-        for comparison_script in sorted(root.rglob("plot_power_comparison.py")):
-            print(f"\nPlotting power comparison with {comparison_script}", flush=True)
+        print(f"\nPlotting modal S-parameters below {root}", flush=True)
+        run_command(
+            [python, str(sparameter_plot_script), str(root)],
+            cwd=repo_root,
+            dry_run=args.dry_run,
+        )
+        for plotter_script in sorted(root.rglob("plot_*.py")):
+            if plotter_script.resolve() == sparameter_plot_script.resolve():
+                continue
+            print(f"\nRunning plot helper {plotter_script}", flush=True)
             run_command(
-                [python, str(comparison_script), str(comparison_script.parent)],
+                [python, str(plotter_script), str(plotter_script.parent)],
                 cwd=repo_root,
                 dry_run=args.dry_run,
             )

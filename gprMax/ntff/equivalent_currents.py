@@ -136,7 +136,7 @@ def _collocate_tangential_component(data, face_id: str) -> npt.NDArray:
 def collocate_love_currents(
     surface_data: Mapping[str, object],
 ) -> EquivalentCurrentPhasors:
-    """Form ``J = n x H`` and ``M = -n x E`` on one common closed box."""
+    """Form ``J = n x H`` and ``M = -n x E`` on common active faces."""
 
     missing = set(ALL_COMPONENTS) - set(surface_data)
     if missing:
@@ -150,6 +150,11 @@ def collocate_love_currents(
     spacing = np.asarray(first.surface.grid_spacing)
     real_dtype = spacing.dtype
     complex_dtype = field.dtype
+    active_faces = tuple(face.face_id for face in first.surface.faces)
+    if not active_faces or any(face not in FACES for face in active_faces):
+        raise ValueError("equivalent-current surface has invalid active faces")
+    if active_faces != tuple(face for face in FACES if face in active_faces):
+        raise ValueError("equivalent-current surface faces must use canonical order")
     for component in ALL_COMPONENTS:
         data = surface_data[component]
         if (
@@ -159,9 +164,9 @@ def collocate_love_currents(
             or np.asarray(data.field).dtype != complex_dtype
         ):
             raise ValueError("surface DFT components are not compatible")
-        if tuple(face.face_id for face in data.surface.faces) != FACES:
+        if tuple(face.face_id for face in data.surface.faces) != active_faces:
             raise ValueError(
-                "equivalent-current colocation currently requires all six physical faces"
+                "equivalent-current surface components must use the same active faces"
             )
 
     all_positions = []
@@ -169,7 +174,7 @@ def collocate_love_currents(
     all_areas = []
     all_electric_current = []
     all_magnetic_current = []
-    for face_id in FACES:
+    for face_id in active_faces:
         positions, normals, areas, normal_axis = _common_face_geometry(
             lower, upper, spacing, face_id, real_dtype
         )

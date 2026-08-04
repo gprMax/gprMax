@@ -20,6 +20,7 @@
 """Compiled reusable-surface interface for NTFF field transformations."""
 
 import logging
+import warnings
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Mapping, Optional, Sequence
@@ -34,7 +35,7 @@ from gprMax.ntff.antenna import (
     radiation_intensity,
     spherical_quadrature,
 )
-from gprMax.ntff.closures import SymmetryCompletion, resolve_closure
+from gprMax.ntff.closures import HuygensOpenSurface, SymmetryCompletion, resolve_closure
 from gprMax.ntff.conventions import (
     FORWARD_TRANSFORM_KERNEL,
     OUTGOING_GREEN_RADIAL_FACTOR,
@@ -82,6 +83,14 @@ WINDOWS = ("rectangular", "hann")
 # working-set target. It is a performance bound, not a model-size limit.
 FAR_ZONE_TARGET_WORKING_SET_BYTES = 32 * 1024 * 1024
 MAX_FAR_ZONE_DIRECTION_BLOCK = 1024
+OPEN_HUYGENS_SURFACE_WARNING = (
+    "The NTFF integration surface is not closed. Equivalent-current NTFF "
+    "normally assumes a closed Huygens surface. This option is intended for "
+    "configurations where the omitted face is associated with an eigenmode "
+    "port or other modelling scenarios the require such approach. Results may "
+    "be incomplete or inaccurate if the omitted field contribution is not "
+    "represented correctly or is significant for your calculations."
+)
 
 
 def _readonly(values: npt.ArrayLike, dtype=None) -> npt.NDArray:
@@ -129,6 +138,7 @@ class NTFFSurfaceSpec:
     lower: tuple[int, int, int]
     upper: tuple[int, int, int]
     origin: Optional[tuple[float, float, float]] = None
+    omit_faces: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -357,6 +367,7 @@ class KSIRPortMetrics:
 
     port_ids: tuple[str, ...]
     source_types: tuple[str, ...]
+    port_representations: tuple[str, ...]
     reference_impedances: npt.NDArray[np.floating]
     incident_voltage_per_port: npt.NDArray[np.complexfloating]
     terminal_voltage_per_port: npt.NDArray[np.complexfloating]
@@ -371,6 +382,7 @@ class KSIRPortMetrics:
     terminal_valid: npt.NDArray[np.bool_]
     gain_valid: npt.NDArray[np.bool_]
     realized_gain_valid: npt.NDArray[np.bool_]
+    port_spectra: tuple[object, ...]
 
 
 @dataclass(frozen=True)
@@ -390,8 +402,17 @@ def _resolve_surface_closure(spec: NTFFSurfaceSpec, grid, real_dtype):
         or (face.endswith("max") and upper["xyz".index(face[0])] == grid.size["xyz".index(face[0])])
         for face in grid.symmetry_boundaries
     )
+    if spec.omit_faces:
+        if touches_symmetry:
+            raise ValueError(
+                f"open Huygens surface {spec.surface_id!r} cannot also use "
+                "symmetry completion"
+            )
+        policy = HuygensOpenSurface(spec.omit_faces)
+    else:
+        policy = SymmetryCompletion() if touches_symmetry else "closed"
     return resolve_closure(
-        SymmetryCompletion() if touches_symmetry else "closed",
+        policy,
         grid.symmetry_boundaries,
         spec.lower,
         spec.upper,
@@ -454,19 +475,11 @@ def _surface_material_id(surfaces: Mapping, closure, grid) -> int:
     for component, surface in surfaces.items():
         component_ids = grid.ID[grid.IDlookup[component]]
         for face in surface.faces:
-            keep = np.ones(face.npatches, dtype=bool)
-            for plane in closure.symmetry_planes:
-                tolerance = (
-                    16
-                    * np.finfo(real_dtype).eps
-                    * max(abs(plane.coordinate), surface.grid_spacing[plane.axis])
-                )
-                keep &= ~np.isclose(
-                    face.patch_positions[:, plane.axis],
-                    plane.coordinate,
-                    rtol=0,
-                    atol=tolerance,
-                )
+            keep = closure.material_validation_mask(
+                surface,
+                face,
+                real_dtype,
+            )
             if np.any(keep):
                 sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
                 sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
@@ -566,6 +579,21 @@ def _boxes_overlap(lower_a, upper_a, lower_b, upper_b):
     return bool(np.all(lower_a <= upper_b) and np.all(upper_a >= lower_b))
 
 
+def _box_enters_through_open_face(box_lower, box_upper, lower, upper, face):
+    """Return whether a source box is outside only through an omitted face."""
+
+    axis = "xyz".index(face[0])
+    transverse = tuple(item for item in range(3) if item != axis)
+    within_opening = all(
+        box_lower[item] > lower[item] and box_upper[item] < upper[item] for item in transverse
+    )
+    if face.endswith("0"):
+        beyond_face = box_upper[axis] <= lower[axis]
+    else:
+        beyond_face = box_lower[axis] >= upper[axis]
+    return bool(within_opening and beyond_face)
+
+
 def validate_tfsf_subgrid_enclosure(model) -> None:
     """Prevent a main-grid TFSF correction surface cutting an HSG region.
 
@@ -623,7 +651,8 @@ def validate_ntff_source_enclosure(model, grid) -> None:
         ("magneticfrillsources", "E"),
     )
     for monitor in grid.ntff_monitors:
-        if getattr(monitor, "allow_external_sources", False):
+        open_faces = getattr(monitor, "external_source_faces", ())
+        if getattr(monitor, "allow_external_sources", False) and not open_faces:
             continue
         surfaces = getattr(monitor, "surfaces", None)
         if not surfaces:
@@ -646,7 +675,12 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                         position = np.asarray(
                             source_grid.local_to_global(local_position), dtype=np.float64
                         )
-                    if not np.all((position > lower) & (position < upper)):
+                    enclosed = np.all((position > lower) & (position < upper))
+                    admitted = any(
+                        _box_enters_through_open_face(position, position, lower, upper, open_face)
+                        for open_face in open_faces
+                    )
+                    if not enclosed and not admitted:
                         source_id = getattr(source, "ID", source.__class__.__name__)
                         offenders.append(
                             f"{source.__class__.__name__} {source_id!r} on {grid_name} at "
@@ -686,7 +720,12 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                     box_upper = np.asarray(
                         source_grid.local_to_global(local_upper), dtype=np.float64
                     )
-                if not (np.all(lower < box_lower) and np.all(upper > box_upper)):
+                enclosed = np.all(lower < box_lower) and np.all(upper > box_upper)
+                admitted = any(
+                    _box_enters_through_open_face(box_lower, box_upper, lower, upper, open_face)
+                    for open_face in open_faces
+                )
+                if not enclosed and not admitted:
                     offenders.append(
                         f"EigenmodeSource[{index}] on {grid_name} injection plane from "
                         f"{tuple(box_lower)} m to {tuple(box_upper)} m"
@@ -696,7 +735,8 @@ def validate_ntff_source_enclosure(model, grid) -> None:
             details = "; ".join(offenders)
             raise ValueError(
                 f"NTFF monitor {monitor.name!r} integration surface must "
-                f"strictly enclose every impressed source; outside or "
+                f"strictly enclose every impressed source, except through its "
+                f"configured omitted faces; outside or "
                 f"boundary source(s): {details}."
             )
 
@@ -959,6 +999,7 @@ class NTFFCompiledOutputs:
         result = KSIRPortMetrics(
             port_ids=spec.port_ids,
             source_types=tuple(item.source_type for item in spectra),
+            port_representations=tuple(item.representation for item in spectra),
             reference_impedances=_readonly(
                 [item.reference_impedance for item in spectra],
                 monitor.real_dtype,
@@ -985,6 +1026,7 @@ class NTFFCompiledOutputs:
             terminal_valid=_readonly(terminal_valid, bool),
             gain_valid=_readonly(gain_valid, bool),
             realized_gain_valid=_readonly(realized_gain_valid, bool),
+            port_spectra=tuple(spectra),
         )
         self._port_cache[transform_id] = result
         return result
@@ -1474,10 +1516,28 @@ class NTFFCompiledOutputs:
             if result.port_metrics is not None:
                 metrics = result.port_metrics
                 power_group = group.create_group("port_power")
-                power_group.attrs[
-                    "accepted_power_definition"
-                ] = "sum(0.5*Re(Vterminal*conj(Iterminal)))"
-                power_group.attrs["incident_power_definition"] = "sum(abs(Vincident)**2/(2*Z0))"
+                has_modal_ports = any(
+                    spectrum.representation == "modal_power_waves"
+                    for spectrum in metrics.port_spectra
+                )
+                if has_modal_ports:
+                    power_group.attrs["accepted_power_definition"] = (
+                        "sum per port: 0.5*Re(Vterminal*conj(Iterminal)) for "
+                        "terminal ports; Re((a-b)^H*G_E*(a+b)) for modal ports"
+                    )
+                    power_group.attrs["incident_power_definition"] = (
+                        "sum externally driven power: abs(Vincident)**2/(2*Z0) "
+                        "for terminal ports; excitation-mode a^H*W*a for modal "
+                        "sources; zero for passive modal ports"
+                    )
+                    power_group["representations"] = np.asarray(
+                        metrics.port_representations, dtype="S32"
+                    )
+                else:
+                    power_group.attrs[
+                        "accepted_power_definition"
+                    ] = "sum(0.5*Re(Vterminal*conj(Iterminal)))"
+                    power_group.attrs["incident_power_definition"] = "sum(abs(Vincident)**2/(2*Z0))"
                 power_group.attrs["incident_floor_db"] = -40.0
                 power_group.attrs["voltage_spectrum_units"] = "V s"
                 power_group.attrs["current_spectrum_units"] = "A s"
@@ -1498,6 +1558,26 @@ class NTFFCompiledOutputs:
                 power_group["terminal_valid"] = metrics.terminal_valid.astype(np.uint8)
                 power_group["gain_valid"] = metrics.gain_valid.astype(np.uint8)
                 power_group["realized_gain_valid"] = metrics.realized_gain_valid.astype(np.uint8)
+                if has_modal_ports:
+                    modal_group = power_group.create_group("modal_ports")
+                    for port_number, spectrum in enumerate(metrics.port_spectra, start=1):
+                        if spectrum.representation != "modal_power_waves":
+                            continue
+                        port_group = modal_group.create_group(f"port{port_number}")
+                        port_group.attrs["port_id"] = spectrum.port_id
+                        port_group.attrs["amplitude_units"] = "sqrt(W) s"
+                        port_group.attrs["power_matrix_units"] = "dimensionless"
+                        port_group.attrs["cross_power_matrix_units"] = "dimensionless"
+                        port_group["mode_indices"] = np.asarray(
+                            spectrum.mode_indices, dtype=np.int64
+                        )
+                        port_group["incident"] = spectrum.incident_modal_amplitudes
+                        port_group["outgoing"] = spectrum.outgoing_modal_amplitudes
+                        port_group["power_matrix"] = spectrum.mode_power_matrix
+                        port_group["electric_cross_power_matrix"] = (
+                            spectrum.mode_cross_power_matrix
+                        )
+                        port_group["valid"] = spectrum.modal_valid.astype(np.uint8)
             self._write_fields(group, result)
 
 
@@ -1561,11 +1641,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
     transform_specs = {**ksir_transform_specs, **equivalent_transform_specs}
     time_requests = list(getattr(grid, "ksir_time_requests", ()))
     frequency_requests = list(getattr(grid, "ksir_frequency_requests", ()))
-    far_requests = list(getattr(grid, "ksir_far_field_requests", ()))
-    far_requests.extend(getattr(grid, "ntff_far_field_requests", ()))
+    ksir_far_requests = list(getattr(grid, "ksir_far_field_requests", ()))
+    equivalent_far_requests = list(getattr(grid, "ntff_far_field_requests", ()))
+    far_requests = ksir_far_requests + equivalent_far_requests
     time_far_requests = list(getattr(grid, "ntff_time_far_field_requests", ()))
-    antenna_port_specs = dict(getattr(grid, "ksir_antenna_port_specs", {}))
-    for transform_id, spec in getattr(grid, "ntff_antenna_port_specs", {}).items():
+    ksir_antenna_port_specs = dict(getattr(grid, "ksir_antenna_port_specs", {}))
+    equivalent_antenna_port_specs = dict(getattr(grid, "ntff_antenna_port_specs", {}))
+    antenna_port_specs = dict(ksir_antenna_port_specs)
+    for transform_id, spec in equivalent_antenna_port_specs.items():
         if transform_id in antenna_port_specs:
             raise ValueError(
                 f"NTFF transform {transform_id!r} has duplicate antenna-port associations"
@@ -1585,6 +1668,23 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         transform_specs or time_requests or frequency_requests or far_requests or time_far_requests
     ):
         return None
+    has_eigenmode_source = any(
+        getattr(source_grid, "eigenmodesources", ()) for source_grid in (model.G, *model.subgrids)
+    )
+    has_ksir_request = bool(
+        ksir_transform_specs
+        or time_requests
+        or frequency_requests
+        or ksir_far_requests
+        or ksir_antenna_port_specs
+    )
+    if has_eigenmode_source and has_ksir_request:
+        raise ValueError(
+            "eigenmode sources cannot be used with the Ramahi/KSIR NTFF "
+            "formulation; use the equivalent-current Huygens NTFF commands "
+            "(#ntff_frequency, #ntff_far_field or #ntff_far_field_array, and "
+            "#ntff_antenna_ports when gain is requested) instead"
+        )
     if config.sim_config.mpi:
         raise ValueError("the reusable NTFF interface does not yet support MPI")
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
@@ -1624,12 +1724,33 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"{request.transform_id!r}"
             )
 
+    for transform in ksir_transform_specs.values():
+        omit_faces = surface_specs[transform.surface_id].omit_faces
+        if omit_faces:
+            raise ValueError(
+                f"KSIR/Ramahi transform {transform.transform_id!r} requires all six "
+                f"physical faces; surface {transform.surface_id!r} omits {omit_faces}"
+            )
+    for request in time_requests:
+        omit_faces = surface_specs[request.surface_id].omit_faces
+        if omit_faces:
+            raise ValueError(
+                f"KSIR/Ramahi time receiver {request.output_id!r} requires all six "
+                f"physical faces; surface {request.surface_id!r} omits {omit_faces}"
+            )
+
     gain_transforms = {
         request.transform_id
         for request in far_requests
         if any(output in PORT_METRICS for output in request.outputs)
     }
     available_port_ids = model_port_ids(model) if antenna_port_specs else ()
+    eigenmode_port_registry = {}
+    if equivalent_antenna_port_specs:
+        for port_grid in (model.G, *model.subgrids):
+            prefix = "" if port_grid is model.G else f"{port_grid.name}/"
+            for output in getattr(port_grid, "eigenmodeports", ()):
+                eigenmode_port_registry[f"{prefix}{output.output_id}"] = output
     for transform_id, antenna_spec in antenna_port_specs.items():
         unknown = set(antenna_spec.port_ids) - set(available_port_ids)
         if unknown:
@@ -1638,6 +1759,21 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"to unknown port IDs {sorted(unknown)}; available ports are "
                 f"{list(available_port_ids)}"
             )
+    for transform_id, antenna_spec in equivalent_antenna_port_specs.items():
+        transform = equivalent_transform_specs[transform_id]
+        for port_id in antenna_spec.port_ids:
+            output = eigenmode_port_registry.get(port_id)
+            if output is None:
+                continue
+            expected = np.asarray(
+                transform.frequencies,
+                dtype=np.asarray(output.frequency).dtype,
+            )
+            if not np.array_equal(expected, output.frequency):
+                raise ValueError(
+                    f"NTFF transform {transform_id!r} frequencies must exactly match "
+                    f"eigenmode port {port_id!r} DFT frequencies"
+                )
     for transform_id in gain_transforms:
         if transform_id not in antenna_port_specs:
             raise ValueError(
@@ -1670,7 +1806,8 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             nonport_sources.extend(getattr(source_grid, "hertziandipoles", ()))
             nonport_sources.extend(getattr(source_grid, "magneticdipoles", ()))
             nonport_sources.extend(getattr(source_grid, "discreteplanewaves", ()))
-            nonport_sources.extend(getattr(source_grid, "eigenmodesources", ()))
+            if transform.formulation == "ksir":
+                nonport_sources.extend(getattr(source_grid, "eigenmodesources", ()))
         unmonitored_voltage_sources = [
             source for source in voltage_sources if source not in monitored_voltage_sources
         ]
@@ -1733,11 +1870,10 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
 
     for transform in equivalent_transform_specs.values():
         closure = compiled_surfaces[transform.surface_id].closure
-        if closure.image_count != 1 or closure.omitted_faces:
+        if closure.image_count != 1:
             raise ValueError(
-                "equivalent-current NTFF currently requires all six physical faces; "
-                "symmetry-completed surfaces will be enabled after primitive E/H "
-                "image-parity validation"
+                "equivalent-current NTFF does not yet support symmetry-completed "
+                "surfaces"
             )
     for request in time_far_requests:
         closure = compiled_surfaces[request.surface_id].closure
@@ -1747,6 +1883,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             )
 
     _validate_ntff_subgrid_enclosure(model, compiled_surfaces)
+
+    open_equivalent_surface_ids = {
+        transform.surface_id
+        for transform in equivalent_transform_specs.values()
+        if compiled_surfaces[transform.surface_id].closure.omitted_faces
+    }
+    for _surface_id in sorted(open_equivalent_surface_ids):
+        warnings.warn(OPEN_HUYGENS_SURFACE_WARNING, RuntimeWarning, stacklevel=2)
 
     writer = NTFFCompiledOutputs(
         model,
@@ -1872,6 +2016,8 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             exterior_index_bounds=compiled.pml_limits,
             closure=compiled.closure,
         )
+        if transform.formulation == "equivalent_current" and compiled.closure.omitted_faces:
+            monitor.external_source_faces = compiled.closure.omitted_faces
         _associate_plane_wave(
             monitor,
             selected_surfaces,

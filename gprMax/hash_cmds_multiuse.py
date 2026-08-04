@@ -29,6 +29,7 @@ from .user_objects.cmds_multiuse import (
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
     DiscretePlaneWaveVector,
+    EigenmodeRx,
     EigenmodeSource,
     ExcitationFile,
     HertzianDipole,
@@ -89,9 +90,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 4:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly four parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly four parameters")
                 raise ValueError
 
             waveform = Waveform(wave_type=tmp[0], amp=float(tmp[1]), freq=float(tmp[2]), id=tmp[3])
@@ -120,12 +119,7 @@ def process_multicmds(multicmds):
                 )
             else:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires six, eight, or nine parameters"
+                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires six, eight, or nine parameters"
                 )
                 raise ValueError
 
@@ -136,14 +130,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least five parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least five parameters")
                 raise ValueError
             if len(tmp) == 5:
                 hertzian_dipole = HertzianDipole(
@@ -160,9 +147,7 @@ def process_multicmds(multicmds):
                     stop=float(tmp[6]),
                 )
             else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
                 raise ValueError
 
             scene_objects.append(hertzian_dipole)
@@ -172,14 +157,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least five parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least five parameters")
                 raise ValueError
             if len(tmp) == 5:
                 magnetic_dipole = MagneticDipole(
@@ -196,9 +174,7 @@ def process_multicmds(multicmds):
                     stop=float(tmp[6]),
                 )
             else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
                 raise ValueError
 
             scene_objects.append(magnetic_dipole)
@@ -208,9 +184,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 6:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least six parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least six parameters")
                 raise ValueError
 
             if len(tmp) == 6:
@@ -230,9 +204,7 @@ def process_multicmds(multicmds):
                     stop=tmp[7],
                 )
             else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
                 raise ValueError
 
             scene_objects.append(tl)
@@ -242,9 +214,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 10:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters")
                 raise ValueError
 
             if len(tmp) == 10:
@@ -279,22 +249,17 @@ def process_multicmds(multicmds):
                     stop=float(tmp[12]),
                 )
             else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
                 raise ValueError
 
             scene_objects.append(plWave)
-
 
     cmdname = "#plane_wave_vector"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 10:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters")
                 raise ValueError
 
             if len(tmp) == 11:
@@ -326,22 +291,17 @@ def process_multicmds(multicmds):
                     stop=float(tmp[13]),
                 )
             else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
                 raise ValueError
 
             scene_objects.append(plWave)
-
 
     cmdname = "#plane_wave_axial"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 9:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least nine parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least nine parameters")
                 raise ValueError
 
             if len(tmp) == 9:
@@ -361,44 +321,44 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[8],
                     start=float(tmp[9]),
                     stop=float(tmp[10]),
-
                 )
             else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
                 raise ValueError
 
             scene_objects.append(plWave)
 
+    eigenmode_source_cmds = multicmds["#eigenmode_source"] or []
+    eigenmode_rx_cmds = multicmds["#eigenmode_rx"] or []
+    if (eigenmode_source_cmds or eigenmode_rx_cmds) and len(eigenmode_source_cmds) != 1:
+        raise ValueError(
+            "Eigenmode ports require one and only one #eigenmode_source command; "
+            f"found {len(eigenmode_source_cmds)}."
+        )
 
     cmdname = "#eigenmode_source"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 10:
+            if len(tmp) < 14:
                 logger.exception(
                     "'"
                     + cmdname
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " requires at least ten parameters: x0 y0 z0 x1 y1 z1 "
-                    "direction mode_index frequency [frequency ...] waveform_id"
+                    + " requires at least fourteen parameters: x0 y0 z0 x1 y1 z1 "
+                    "direction excitation_mode[,mode_count] port_index "
+                    "frequency [frequency ...] waveform_id "
+                    "dft_start dft_stop dft_points"
                 )
                 raise ValueError
 
             p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
             p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
             mode = config.get_model_config().mode
-            invariant_axis = (
-                "xyz".index(mode[-1]) if mode.startswith("2D") else None
-            )
-            equal_axes = [
-                axis
-                for axis in range(3)
-                if axis != invariant_axis and p0[axis] == p1[axis]
-            ]
+            invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+            equal_axes = [axis for axis in range(3) if axis != invariant_axis and p0[axis] == p1[axis]]
             if len(equal_axes) != 1:
                 logger.exception(
                     "'"
@@ -419,8 +379,31 @@ def process_multicmds(multicmds):
             transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
             transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
 
+            try:
+                mode_values = tuple(int(value) for value in tmp[7].split(","))
+            except ValueError as exc:
+                raise ValueError(
+                    f"{cmdname} mode specification must be excitation_mode or " "excitation_mode,mode_count."
+                ) from exc
+            if len(mode_values) not in (1, 2):
+                raise ValueError(f"{cmdname} mode specification must contain one or two integers.")
+            excitation_mode = mode_values[0]
+            mode_count = mode_values[-1]
+            if excitation_mode < 1:
+                raise ValueError(f"{cmdname} excitation_mode must be one or greater.")
+            if mode_count < excitation_mode:
+                raise ValueError(
+                    f"{cmdname} mode_count must be at least excitation_mode " f"({excitation_mode}); got {mode_count}."
+                )
+            try:
+                port_index = int(tmp[8])
+            except ValueError as exc:
+                raise ValueError(f"{cmdname} port_index must be an integer.") from exc
+            if port_index < 1:
+                raise ValueError(f"{cmdname} port_index must be one or greater.")
+
             frequency_tokens = []
-            parameter_index = 8
+            parameter_index = 9
             while parameter_index < len(tmp):
                 try:
                     float(tmp[parameter_index])
@@ -430,28 +413,32 @@ def process_multicmds(multicmds):
                 parameter_index += 1
 
             if not frequency_tokens or parameter_index >= len(tmp):
-                raise ValueError(
-                    f"{cmdname} requires one or more frequencies followed by a waveform identifier."
-                )
+                raise ValueError(f"{cmdname} requires one or more frequencies followed by a waveform identifier.")
 
             frequencies = tuple(float(value) for value in frequency_tokens)
             waveform_id = tmp[parameter_index]
-            optional = tmp[parameter_index + 1 :]
-            if len(optional) > 1 or (
-                optional and optional[0].lower() not in ("y", "n")
-            ):
+            tail = tmp[parameter_index + 1 :]
+            if len(tail) not in (3, 4) or (len(tail) == 4 and tail[3].lower() not in ("y", "n")):
                 raise ValueError(
-                    f"{cmdname} accepts only an optional final y or n field-plot parameter."
+                    f"{cmdname} requires dft_start dft_stop dft_points and accepts "
+                    "an optional final y or n field-plot parameter."
                 )
-            plot_fields = None if not optional else optional[0].lower() == "y"
+            dft_start, dft_stop = float(tail[0]), float(tail[1])
+            dft_points = int(tail[2])
+            plot_fields = None if len(tail) == 3 else tail[3].lower() == "y"
             kwargs = {
                 "normal": axis_names[normal_axis],
                 "direction": tmp[6],
                 "p1": transverse_lower,
                 "p2": transverse_upper,
                 "w": p0[normal_axis],
-                "mode_index": int(tmp[7]),
+                "mode_index": excitation_mode,
+                "mode_count": mode_count,
+                "port_index": port_index,
                 "waveform_id": waveform_id,
+                "dft_start": dft_start,
+                "dft_stop": dft_stop,
+                "dft_points": dft_points,
                 "plot_fields": plot_fields,
             }
             if len(frequencies) == 1:
@@ -461,6 +448,79 @@ def process_multicmds(multicmds):
             eigenmode_source = EigenmodeSource(**kwargs)
             scene_objects.append(eigenmode_source)
 
+    cmdname = "#eigenmode_rx"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 14:
+                raise ValueError(
+                    f"{cmdname} requires x0 y0 z0 x1 y1 z1 direction "
+                    "mode_count port_index frequency [frequency ...] id "
+                    "dft_start dft_stop dft_points [y|n]."
+                )
+            p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
+            p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
+            mode = config.get_model_config().mode
+            invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+            equal_axes = [axis for axis in range(3) if axis != invariant_axis and p0[axis] == p1[axis]]
+            if len(equal_axes) != 1:
+                raise ValueError(
+                    f"{cmdname} must have exactly one finite matching coordinate pair " "for the receiver normal."
+                )
+            normal_axis = equal_axes[0]
+            transverse_axes = [axis for axis in range(3) if axis != normal_axis]
+            transverse_p0 = [p0[axis] for axis in transverse_axes]
+            transverse_p1 = [p1[axis] for axis in transverse_axes]
+            transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
+            transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
+            try:
+                mode_count = int(tmp[7])
+                port_index = int(tmp[8])
+            except ValueError as exc:
+                raise ValueError(f"{cmdname} mode_count and port_index must be integers.") from exc
+            if mode_count < 1:
+                raise ValueError(f"{cmdname} mode_count must be one or greater.")
+            if port_index < 1:
+                raise ValueError(f"{cmdname} port_index must be one or greater.")
+
+            frequency_tokens = []
+            parameter_index = 9
+            while parameter_index < len(tmp):
+                try:
+                    float(tmp[parameter_index])
+                except ValueError:
+                    break
+                frequency_tokens.append(tmp[parameter_index])
+                parameter_index += 1
+            if not frequency_tokens or parameter_index >= len(tmp):
+                raise ValueError(f"{cmdname} requires modal frequencies followed by a receiver ID.")
+            frequencies = tuple(float(value) for value in frequency_tokens)
+            port_id = tmp[parameter_index]
+            tail = tmp[parameter_index + 1 :]
+            if len(tail) not in (3, 4) or (len(tail) == 4 and tail[3].lower() not in ("y", "n")):
+                raise ValueError(
+                    f"{cmdname} requires dft_start dft_stop dft_points and accepts "
+                    "an optional final y or n field-plot parameter."
+                )
+            kwargs = {
+                "normal": "xyz"[normal_axis],
+                "direction": tmp[6],
+                "p1": transverse_lower,
+                "p2": transverse_upper,
+                "w": p0[normal_axis],
+                "mode_count": mode_count,
+                "port_index": port_index,
+                "id": port_id,
+                "dft_start": float(tail[0]),
+                "dft_stop": float(tail[1]),
+                "dft_points": int(tail[2]),
+                "plot_fields": None if len(tail) == 3 else tail[3].lower() == "y",
+            }
+            if len(frequencies) == 1:
+                kwargs["frequency"] = frequencies[0]
+            else:
+                kwargs["frequencies"] = frequencies
+            scene_objects.append(EigenmodeRx(**kwargs))
 
     cmdname = "#excitation_file"
     if multicmds[cmdname] is not None:
@@ -482,14 +542,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 3 and len(tmp) < 5:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " has an incorrect number of parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " has an incorrect number of parameters")
                 raise ValueError
             if len(tmp) == 3:
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
@@ -507,9 +560,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 9:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly nine parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly nine parameters")
                 raise ValueError
 
             p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
@@ -525,8 +576,7 @@ def process_multicmds(multicmds):
             tokens = cmdinstance.split()
             if len(tokens) < 3 or len(tokens) > 5:
                 raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires three coordinates, "
-                    "an optional ID and spectrum limit"
+                    f"'{cmdname}: {cmdinstance}' requires three coordinates, " "an optional ID and spectrum limit"
                 )
             kwargs = {}
             if len(tokens) >= 4:
@@ -548,14 +598,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly eleven parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly eleven parameters")
                 raise ValueError
 
             p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
@@ -569,15 +612,11 @@ def process_multicmds(multicmds):
 
             try:
                 iterations = int(tmp[9])
-                snapshot = Snapshot(
-                    p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename, fileext=fileext
-                )
+                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename, fileext=fileext)
 
             except ValueError:
                 time = float(tmp[9])
-                snapshot = Snapshot(
-                    p1=p1, p2=p2, dl=dl, time=time, filename=filename, fileext=fileext
-                )
+                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, time=time, filename=filename, fileext=fileext)
 
             scene_objects.append(snapshot)
 
@@ -585,15 +624,17 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
-            if len(tokens) != 7:
+            if len(tokens) < 7 or len(tokens) > 12:
                 raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires exactly six coordinates and a surface ID"
+                    f"'{cmdname}: {cmdinstance}' requires six coordinates, a surface "
+                    "ID, and optionally one to five omitted Huygens faces"
                 )
             scene_objects.append(
                 NTFFSurface(
                     p1=tuple(float(value) for value in tokens[:3]),
                     p2=tuple(float(value) for value in tokens[3:6]),
                     id=tokens[6],
+                    omit_faces=tuple(tokens[7:]),
                 )
             )
 
@@ -646,9 +687,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
             if len(tokens) < 2:
-                raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs"
-                )
+                raise ValueError(f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs")
             scene_objects.append(
                 KSIRAntennaPorts(
                     transform_id=tokens[0],
@@ -661,9 +700,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
             if len(tokens) < 2:
-                raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs"
-                )
+                raise ValueError(f"'{cmdname}: {cmdinstance}' requires a transform ID and one or more port IDs")
             scene_objects.append(
                 NTFFAntennaPorts(
                     transform_id=tokens[0],
@@ -778,9 +815,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
             kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
-            scene_objects.append(
-                KSIRFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs)
-            )
+            scene_objects.append(KSIRFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs))
 
     cmdname = "#ksir_far_field_array"
     if multicmds[cmdname] is not None:
@@ -800,9 +835,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
             kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
-            scene_objects.append(
-                NTFFFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs)
-            )
+            scene_objects.append(NTFFFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs))
 
     cmdname = "#ntff_far_field_array"
     if multicmds[cmdname] is not None:
@@ -822,9 +855,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
             kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
-            scene_objects.append(
-                NTFFTimeFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs)
-            )
+            scene_objects.append(NTFFTimeFarField(float(tokens[0]), float(tokens[1]), tokens[2], **kwargs))
 
     cmdname = "#ntff_time_far_field_array"
     if multicmds[cmdname] is not None:
@@ -844,14 +875,10 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 5:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly five parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly five parameters")
                 raise ValueError
 
-            material = Material(
-                er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), id=tmp[4]
-            )
+            material = Material(er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), id=tmp[4])
             scene_objects.append(material)
 
     cmdname = "#add_dispersion_debye"
@@ -860,14 +887,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 4:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least four parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least four parameters")
                 raise ValueError
 
             poles = int(tmp[0])
@@ -879,9 +899,7 @@ def process_multicmds(multicmds):
                 er_delta.append(float(tmp[pole]))
                 tau.append(float(tmp[pole + 1]))
 
-            debye_dispersion = AddDebyeDispersion(
-                poles=poles, er_delta=er_delta, tau=tau, material_ids=material_ids
-            )
+            debye_dispersion = AddDebyeDispersion(poles=poles, er_delta=er_delta, tau=tau, material_ids=material_ids)
             scene_objects.append(debye_dispersion)
 
     cmdname = "#add_dispersion_lorentz"
@@ -890,14 +908,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 5:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least five parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least five parameters")
                 raise ValueError
 
             poles = int(tmp[0])
@@ -926,14 +937,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 4:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least four parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least four parameters")
                 raise ValueError
 
             poles = int(tmp[0])
@@ -945,9 +949,7 @@ def process_multicmds(multicmds):
                 omega.append(float(tmp[pole]))
                 alpha.append(float(tmp[pole + 1]))
 
-            drude_dispersion = AddDrudeDispersion(
-                poles=poles, material_ids=material_ids, omega=omega, alpha=alpha
-            )
+            drude_dispersion = AddDrudeDispersion(poles=poles, material_ids=material_ids, omega=omega, alpha=alpha)
             scene_objects.append(drude_dispersion)
 
     cmdname = "#soil_peplinski"
@@ -956,14 +958,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) != 7:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at exactly seven parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at exactly seven parameters")
                 raise ValueError
             soil = SoilPeplinski(
                 sand_fraction=float(tmp[0]),
@@ -981,14 +976,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly eleven parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly eleven parameters")
                 raise ValueError
 
             p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
@@ -1003,14 +991,7 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 7:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly seven parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly seven parameters")
                 raise ValueError
 
             p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
@@ -1024,14 +1005,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) != 9:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at exactly nine parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at exactly nine parameters")
                 raise ValueError
             material_range = MaterialRange(
                 er_lower=float(tmp[0]),
@@ -1052,9 +1026,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 2:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least two parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least two parameters")
                 raise ValueError
 
             tokens = len(tmp)
@@ -1071,14 +1043,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) != 12:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires exactly twelve parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly twelve parameters")
                 raise ValueError
 
             pml_cfs = PMLCFS(
@@ -1104,9 +1069,7 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) != 2:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly two parameters"
-                )
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly two parameters")
                 raise ValueError
 
             symmetry_boundary = SymmetryBoundary(face=tmp[0].lower(), type=tmp[1].lower())

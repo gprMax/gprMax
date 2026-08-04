@@ -1,5 +1,6 @@
 """Regression tests for KSIR context, enclosure, and sampling guards."""
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -11,6 +12,7 @@ from gprMax.ntff.frequency_domain import validate_nyquist_frequencies
 from gprMax.ntff.interface import (
     _associate_plane_wave,
     _validate_external_points,
+    compile_ntff_outputs,
     validate_ntff_source_enclosure,
 )
 from gprMax.ntff.surfaces import COMPONENTS, build_component_surface
@@ -19,6 +21,29 @@ DL = 0.002
 FREQUENCY = 5e9
 SURFACE_LOWER = (0.012, 0.012, 0.012)
 SURFACE_UPPER = (0.028, 0.028, 0.028)
+
+
+def test_eigenmode_source_is_incompatible_with_ramahi_ksir():
+    grid = SimpleNamespace(
+        ntff_surface_specs={"surface": object()},
+        ksir_transform_specs={"spectrum": object()},
+        ntff_transform_specs={},
+        ksir_time_requests=[],
+        ksir_frequency_requests=[],
+        ksir_far_field_requests=[],
+        ntff_far_field_requests=[],
+        ntff_time_far_field_requests=[],
+        ksir_antenna_port_specs={},
+        ntff_antenna_port_specs={},
+        eigenmodesources=[object()],
+    )
+    model = SimpleNamespace(G=grid, subgrids=[])
+
+    with pytest.raises(
+        ValueError,
+        match="eigenmode sources cannot be used with the Ramahi/KSIR.*" "equivalent-current Huygens NTFF",
+    ):
+        compile_ntff_outputs(model, grid)
 
 
 def _base_scene():
@@ -63,9 +88,7 @@ def test_reusable_interface_rejects_geometry_fixed_up_front(tmp_path):
 def test_reusable_surface_rejects_localised_source_outside(tmp_path, source_type):
     scene = _base_scene()
     if source_type == "hertzian":
-        source = gprMax.HertzianDipole(
-            polarisation="z", p1=(0.032, 0.02, 0.02), waveform_id="pulse"
-        )
+        source = gprMax.HertzianDipole(polarisation="z", p1=(0.032, 0.02, 0.02), waveform_id="pulse")
         expected = "HertzianDipole"
     else:
         source = gprMax.VoltageSource(
@@ -159,9 +182,7 @@ def test_reusable_surface_rejects_eigenmode_injection_plane_outside():
 def test_reusable_frequency_rejects_above_nyquist(tmp_path):
     scene = _base_scene()
     scene.add(gprMax.NTFFSurface(p1=SURFACE_LOWER, p2=SURFACE_UPPER, id="surface"))
-    scene.add(
-        gprMax.KSIRFrequencyTransform(surface_id="surface", id="spectrum", frequencies=(1e15,))
-    )
+    scene.add(gprMax.KSIRFrequencyTransform(surface_id="surface", id="spectrum", frequencies=(1e15,)))
 
     with pytest.raises(ValueError, match="Nyquist limit"):
         gprMax.run(
@@ -195,9 +216,7 @@ def test_tfsf_correction_stencil_requires_one_cell_clearance():
 
     monitor = Monitor()
     clear_surfaces = {
-        component: closure.apply_quadrature(
-            build_component_surface(component, (5, 5, 5), (15, 15, 15), spacing, shape)
-        )
+        component: closure.apply_quadrature(build_component_surface(component, (5, 5, 5), (15, 15, 15), spacing, shape))
         for component in COMPONENTS
     }
     _associate_plane_wave(
@@ -212,9 +231,7 @@ def test_tfsf_correction_stencil_requires_one_cell_clearance():
     assert monitor.association[2] == 0
 
     touching_surface = {
-        "Ez": closure.apply_quadrature(
-            build_component_surface("Ez", (7, 5, 5), (15, 15, 15), spacing, shape)
-        )
+        "Ez": closure.apply_quadrature(build_component_surface("Ez", (7, 5, 5), (15, 15, 15), spacing, shape))
     }
     with pytest.raises(ValueError, match="TFSF correction stencil"):
         _associate_plane_wave(
@@ -229,18 +246,14 @@ def test_tfsf_correction_stencil_requires_one_cell_clearance():
 
 def test_exact_receiver_validation_uses_full_patch_support():
     closure = ResolvedKSIRClosure("closed", (), (), True, True)
-    surface = build_component_surface(
-        "Ez", (5, 5, 5), (15, 15, 15), (0.01, 0.01, 0.01), (25, 25, 25)
-    )
+    surface = build_component_surface("Ez", (5, 5, 5), (15, 15, 15), (0.01, 0.01, 0.01), (25, 25, 25))
 
     with pytest.raises(ValueError, match="strictly outside"):
         _validate_external_points(np.asarray(((0.046, 0.1, 0.1),)), {"Ez": surface}, closure)
 
 
 def _antenna_gain_input(*, window="rectangular", association=None, extra_source=""):
-    association_command = (
-        "" if association is None else f"#ksir_antenna_ports: band {association}\n"
-    )
+    association_command = "" if association is None else f"#ksir_antenna_ports: band {association}\n"
     return (
         "#domain: 0.04 0.04 0.04\n"
         "#dx_dy_dz: 0.002 0.002 0.002\n"
@@ -295,5 +308,26 @@ def test_antenna_gain_rejects_ambiguous_normalisation(
             n=1,
             geometry_only=True,
             outputfile=tmp_path / "invalid_antenna_gain",
+            hide_progress_bars=True,
+        )
+
+
+def test_eigenmode_antenna_transform_must_use_exact_port_dft_bins(tmp_path):
+    example = Path(__file__).parents[2] / "examples" / "features" / "eigenmode_sources" / "dielectric_rod_antenna_3d.in"
+    inputfile = tmp_path / "mismatched_eigenmode_antenna.in"
+    inputfile.write_text(
+        example.read_text(encoding="utf-8").replace(
+            "#ntff_frequency: radiation_surface antenna_band 6.75e9",
+            "#ntff_frequency: radiation_surface antenna_band 6.76e9",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="must exactly match eigenmode port"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "mismatched_eigenmode_antenna",
             hide_progress_bars=True,
         )

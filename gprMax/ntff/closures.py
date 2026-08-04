@@ -81,6 +81,21 @@ class ExperimentalMask:
 
 
 @dataclass(frozen=True)
+class HuygensOpenSurface:
+    """Select an open Huygens box by omitting complete physical faces."""
+
+    omit_faces: Tuple[str, ...]
+
+    def __post_init__(self):
+        omitted = _face_tuple("omit_faces", self.omit_faces)
+        if not omitted:
+            raise ValueError("HuygensOpenSurface must omit at least one face")
+        if len(omitted) == len(FACES):
+            raise ValueError("HuygensOpenSurface must leave at least one active face")
+        object.__setattr__(self, "omit_faces", omitted)
+
+
+@dataclass(frozen=True)
 class SymmetryPlane:
     """One resolved physical reflection plane."""
 
@@ -138,6 +153,49 @@ class ResolvedKSIRClosure:
     @property
     def active_faces(self) -> Tuple[str, ...]:
         return tuple(face for face in FACES if face not in self.omitted_faces)
+
+    def material_validation_mask(
+        self,
+        surface: KSIRComponentSurface,
+        face,
+        real_dtype,
+    ) -> npt.NDArray[np.bool_]:
+        """Exclude active-face edge rows adjacent to omitted physical planes."""
+
+        keep = np.ones(face.npatches, dtype=bool)
+        symmetry_faces = {plane.face for plane in self.symmetry_planes}
+        for plane in self.symmetry_planes:
+            tolerance = (
+                16
+                * np.finfo(np.dtype(real_dtype)).eps
+                * max(abs(plane.coordinate), surface.grid_spacing[plane.axis])
+            )
+            keep &= ~np.isclose(
+                face.patch_positions[:, plane.axis],
+                plane.coordinate,
+                rtol=0,
+                atol=tolerance,
+            )
+        for omitted_face in self.omitted_faces:
+            if omitted_face in symmetry_faces:
+                continue
+            axis = "xyz".index(omitted_face[0])
+            coordinate = (
+                surface.physical_lower[axis]
+                if omitted_face.endswith("0")
+                else surface.physical_upper[axis]
+            )
+            tolerance = (
+                16
+                * np.finfo(np.dtype(real_dtype)).eps
+                * max(abs(coordinate), surface.grid_spacing[axis])
+            )
+            edge_clearance = surface.grid_spacing[axis] + tolerance
+            if omitted_face.endswith("0"):
+                keep &= face.patch_positions[:, axis] > coordinate + edge_clearance
+            else:
+                keep &= face.patch_positions[:, axis] < coordinate - edge_clearance
+        return keep
 
     @property
     def signature(self) -> str:
@@ -278,9 +336,18 @@ def resolve_closure(
             False,
             False,
         )
+    if isinstance(policy, HuygensOpenSurface):
+        return ResolvedKSIRClosure(
+            "huygens_open",
+            policy.omit_faces,
+            (),
+            False,
+            False,
+        )
     if not isinstance(policy, SymmetryCompletion):
         raise ValueError(
-            "closure must be 'closed', SymmetryCompletion, or ExperimentalMask"
+            "closure must be 'closed', SymmetryCompletion, HuygensOpenSurface, "
+            "or ExperimentalMask"
         )
 
     unknown_boundaries = set(symmetry_boundaries) - set(FACES)
@@ -372,7 +439,7 @@ def closure_from_metadata(
 ) -> ResolvedKSIRClosure:
     """Rebuild a resolved closure from persisted HDF5 metadata."""
 
-    if name not in ("closed", "symmetry", "experimental_mask"):
+    if name not in ("closed", "symmetry", "huygens_open", "experimental_mask"):
         raise ValueError(f"unknown saved closure policy {name!r}")
     if not (
         len(plane_faces) == len(plane_types) == len(plane_coordinates)
@@ -387,6 +454,13 @@ def closure_from_metadata(
         raise ValueError(
             "saved experimental mask requires omitted faces and no symmetry planes"
         )
+    if name == "huygens_open" and (
+        not omitted or len(omitted) == len(FACES) or plane_faces
+    ):
+        raise ValueError(
+            "saved open Huygens surface requires one to five omitted faces and "
+            "no symmetry planes"
+        )
     if name == "symmetry" and _face_tuple("plane_faces", plane_faces) != omitted:
         raise ValueError("saved symmetry plane faces must match omitted faces")
     planes = []
@@ -397,7 +471,7 @@ def closure_from_metadata(
         planes.append(
             SymmetryPlane(face, axis, float(coordinate), boundary_type)
         )
-    mathematically_closed = name != "experimental_mask"
+    mathematically_closed = name not in ("huygens_open", "experimental_mask")
     return ResolvedKSIRClosure(
         name,
         omitted,

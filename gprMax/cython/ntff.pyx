@@ -209,8 +209,14 @@ cpdef void accumulate_surface_dft(
         outside_value = field[outside_indices[patch]]
         for frequency in range(nfrequencies):
             phase = multiplier[frequency]
-            inside_dft[frequency, patch] += phase * inside_value
-            outside_dft[frequency, patch] += phase * outside_value
+            # Explicit assignment avoids invalid MSVC ``complex +=`` code
+            # emitted by Cython 3.2 for fused complex memoryviews.
+            inside_dft[frequency, patch] = (
+                inside_dft[frequency, patch] + phase * inside_value
+            )
+            outside_dft[frequency, patch] = (
+                outside_dft[frequency, patch] + phase * outside_value
+            )
 
 
 cpdef void gather_time_domain_surface(

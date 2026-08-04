@@ -159,6 +159,58 @@ def test_magnetic_frill_source_allowed_with_geometry_fixed_and_single_model(tmp_
     )
 
 
+@pytest.mark.parametrize("include_receiver", [False, True])
+def test_eigenmode_ports_rejected_with_geometry_fixed_and_multiple_models(
+    tmp_path, include_receiver
+):
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode="TM"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.06, 0.05, INF)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=0.12e-9))
+    scene.add(gprMax.Waveform(wave_type="contsine", amp=1, freq=5e9, id="eig_pulse"))
+    scene.add(
+        gprMax.EigenmodeSource(
+            normal="x",
+            direction="+",
+            p1=(0.005, 0),
+            p2=(0.045, INF),
+            w=0.015,
+            mode_index=1,
+            port_index=1,
+            frequency=5e9,
+            waveform_id="eig_pulse",
+            dft_start=5e9,
+            dft_stop=5e9,
+            dft_points=1,
+        )
+    )
+    if include_receiver:
+        scene.add(
+            gprMax.EigenmodeRx(
+                normal="x",
+                direction="+",
+                p1=(0.005, 0),
+                p2=(0.045, INF),
+                w=0.035,
+                mode_count=1,
+                port_index=2,
+                frequency=5e9,
+                id="port2",
+                dft_start=5e9,
+                dft_stop=5e9,
+                dft_points=1,
+            )
+        )
+
+    with pytest.raises(ValueError, match="#eigenmode_source.*#eigenmode_rx"):
+        gprMax.run(
+            scenes=[scene], n=2, geometry_fixed=True, geometry_only=True,
+            outputfile=tmp_path / "eigenmode_geom_fixed", hide_progress_bars=True,
+        )
+
+
 def test_stepped_dipole_with_geometry_fixed_and_multiple_models_still_works(tmp_path):
     """The guard must not over-reach: an ordinary geometry_fixed sweep
     with no TransmissionLine/DiscretePlaneWave present (just a stepped
