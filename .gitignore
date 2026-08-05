@@ -42,6 +42,9 @@ examples/**/*_eigenmode_*.png
 # Local eigenmode regression workspace
 eigensource_test_run/
 
+# CST comparisons that are not ready for review
+testing/other_codes/cst/under_test/
+
 # Test coverage files
 .coverage
 cov.xml

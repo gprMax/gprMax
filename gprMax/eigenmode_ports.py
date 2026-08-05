@@ -544,7 +544,7 @@ def finalise_eigenmode_ports(grid):
         config.get_model_config().output_file_path.name + f"{suffix}_sparameters.csv"
     )
     with output_path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream)
+        writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(
             (
                 "frequency_hz",
