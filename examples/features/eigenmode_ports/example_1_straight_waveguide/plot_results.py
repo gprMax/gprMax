@@ -15,9 +15,9 @@ import numpy as np
 
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
-OUTPUT_STEM = EXAMPLE_DIR / "dielectric_slab_2d_tm"
-SPARAMETER_PLOT_PATH = EXAMPLE_DIR / "dielectric_slab_2d_tm_sparameters.png"
-FIELD_PLOT_PATH = EXAMPLE_DIR / "dielectric_slab_2d_tm_field_propagation.png"
+OUTPUT_STEM = EXAMPLE_DIR / "straight_waveguide"
+SPARAMETER_PLOT_PATH = EXAMPLE_DIR / "straight_waveguide_sparameters.png"
+FIELD_PLOT_PATH = EXAMPLE_DIR / "straight_waveguide_field_propagation.png"
 PLOT_FLOOR_DB = -100.0
 
 
@@ -97,15 +97,9 @@ def read_field_snapshots(
             snapshots.append((float(output.attrs["time"]) * 1e9, values.T, extent))
     snapshots.sort(key=lambda snapshot: snapshot[0])
     if maximum_time_ns is not None:
-        snapshots = [
-            snapshot
-            for snapshot in snapshots
-            if snapshot[0] <= maximum_time_ns + 0.01
-        ]
+        snapshots = [snapshot for snapshot in snapshots if snapshot[0] <= maximum_time_ns + 0.01]
     if not snapshots:
-        raise ValueError(
-            f"No snapshots at or before {maximum_time_ns:g} ns in {snapshot_dir}"
-        )
+        raise ValueError(f"No snapshots at or before {maximum_time_ns:g} ns in {snapshot_dir}")
     return snapshots
 
 
@@ -123,11 +117,7 @@ def plot_field_snapshots(
     if not np.isfinite(limit) or limit == 0:
         raise ValueError(f"Snapshots contain no finite non-zero {field} values")
 
-    columns = (
-        len(snapshots)
-        if len(snapshots) <= 4
-        else min(4, (len(snapshots) + 1) // 2)
-    )
+    columns = len(snapshots) if len(snapshots) <= 4 else min(4, (len(snapshots) + 1) // 2)
     rows = int(np.ceil(len(snapshots) / columns))
     figure, axes = plt.subplots(
         rows,

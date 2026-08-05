@@ -3,7 +3,9 @@
 #domain_mode: TM
 #domain: 0.25 0.24 inf
 #dx_dy_dz: 0.001 0.001 0.001
-#time_window: 4e-9
+## The 0.75 GHz lower edge makes the automatic pulse about 4 ns long. Keep
+## another 4 ns for propagation to port 2 and PML absorption.
+#time_window: 8e-9
 #pml_cells: 10 10 0 10 10 0
 
 #material: 9 0 1 0 slab_core
@@ -14,9 +16,11 @@
 #eigenmode_port: 1 0.02 0.01 0 0.02 0.23 inf + 1,2 auto y
 ## Port 2 is exactly beside the upper-x PML and calculates modes 1-2.
 #eigenmode_port: 2 0.24 0.01 0 0.24 0.23 inf - 1,2 auto y
-#eigenmode_excitation: 1 1 auto
+#eigenmode_excitation: 1 1 auto y
 
 #snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 0.8e-9 xy_center_0800ps.h5
 #snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 1.6e-9 xy_center_1600ps.h5
 #snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 2.4e-9 xy_center_2400ps.h5
 #snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 3.2e-9 xy_center_3200ps.h5
+#snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 4.8e-9 xy_center_4800ps.h5
+#snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 6.4e-9 xy_center_6400ps.h5

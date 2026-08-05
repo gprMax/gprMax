@@ -513,15 +513,17 @@ range or waveform:
     ))
 
 ``modes`` is a strictly increasing tuple of one-based modes. A scalar value
-``N`` is shorthand for modes 1 through ``N``. Each port owns its anchors:
-``'auto'`` covers the significant source spectrum at the excited port and the
-shared DFT band at passive ports. Multiple explicit frequencies must cover the
+``N`` is shorthand for modes 1 through ``N``. All ports using ``'auto'``
+receive one common anchor list covering both the shared DFT band and the
+significant source spectrum. Multiple explicit frequencies must cover that
 required range; one explicit frequency intentionally uses a fixed modal basis
 over the complete band.
 
 The automatic excitation is a finite real band-pass pulse with independently
-adapted Gaussian-smoothed lower and upper edges. A custom ``Waveform`` ID can
-be supplied instead. gprMax checks its exact sampled spectrum and rejects
+adapted Gaussian-smoothed lower and upper edges. It is placed at the earliest
+causal time that retains its significant temporal support, maximizing the
+remaining propagation and ring-down interval. A custom ``Waveform`` ID can be
+supplied instead. gprMax checks its exact sampled spectrum and rejects
 significant DC/Nyquist content or more than one percent power outside the
 declared band, with a recommendation to use ``waveform='auto'``.
 ``plot_waveform`` independently controls the single excitation waveform/DFT
@@ -530,9 +532,11 @@ writes it only for geometry-only runs. Each port's ``plot_fields`` setting
 continues to control only that port's modal-field figures.
 
 Severe tracking mismatch between explicit multiple anchors is an error that
-recommends one explicit anchor. With automatic anchors, the affected port
-warns and falls back to one band-centre anchor; results far from it may be
-inaccurate. See :doc:`eigenmode` for the complete workflow and outputs.
+recommends one explicit anchor. With automatic anchors, a failure confined to
+an outer spectral guard trims that tail for every automatic port. A failure
+inside the requested band makes every automatic port warn and use one shared
+band-centre anchor; results far from it may be inaccurate. See
+:doc:`eigenmode_port` for the complete workflow and outputs.
 
 Voltage Source
 --------------

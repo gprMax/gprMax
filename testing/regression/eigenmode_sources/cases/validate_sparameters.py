@@ -40,7 +40,11 @@ def validate_straight(root: Path) -> list[str]:
                 f"{path}: expected fundamental S21 within 0.75 dB of 0 dB, "
                 f"got range {np.min(s21):.3f} to {np.max(s21):.3f} dB"
             )
-        messages.append(f"{path.parent.name}: mean S21={np.mean(s21):.3f} dB, max S11={np.max(s11):.3f} dB")
+        label = path.parent.relative_to(root)
+        messages.append(
+            f"{label}: mean S21={np.mean(s21):.3f} dB, "
+            f"max S11={np.max(s11):.3f} dB"
+        )
     return messages
 
 

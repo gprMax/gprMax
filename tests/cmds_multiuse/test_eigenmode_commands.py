@@ -55,7 +55,7 @@ def _build_definitions(grid, *, source_anchors='auto', receiver_anchors='auto'):
 
 def test_one_band_is_shared_while_each_port_owns_anchors(monkeypatch):
     grid = _configure_grid(monkeypatch)
-    _build_definitions(grid, receiver_anchors=(4e9, 5e9, 6e9))
+    _build_definitions(grid, receiver_anchors=(2e9, 4e9, 6e9, 8e9))
 
     EigenmodeExcitation(
         port=1,
@@ -67,7 +67,7 @@ def test_one_band_is_shared_while_each_port_owns_anchors(monkeypatch):
     assert grid.eigenmodeband.id == 'wg'
     assert grid.eigenmodeportdefs[1].anchor_policy == 'auto'
     assert grid.eigenmodeportdefs[2].anchor_policy == 'explicit'
-    assert grid.eigenmodeportdefs[2].resolved_anchors == (4e9, 5e9, 6e9)
+    assert grid.eigenmodeportdefs[2].resolved_anchors == (2e9, 4e9, 6e9, 8e9)
     assert grid.eigenmodesources[0].mode_indices == (1, 2)
     assert grid.eigenmodereceivers[0].mode_indices == (1,)
     assert grid.eigenmodesources[0].dft_points == 21

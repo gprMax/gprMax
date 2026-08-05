@@ -1992,6 +1992,8 @@ class EigenmodeExcitation(GridUserObject):
                 runtime = grid.eigenmodereceivers[-1]
                 runtime.mode_indices = port.modes
             runtime.anchor_policy = port.anchor_policy
+            runtime.requested_anchor_policy = port.anchor_policy
+            runtime.resolved_anchor_policy = port.anchor_policy
             runtime.fallback_frequency = 0.5 * (band.fmin + band.fmax)
         grid.eigenmodeexcitation = self
         logger.info(

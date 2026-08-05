@@ -1,0 +1,38 @@
+#title: Example 1 - straight 2D dielectric waveguide eigenmode ports
+
+#domain_mode: TM
+#domain: 0.24 0.08 inf
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 5e-9
+#pml_cells: 5 5 0 5 5 0
+
+#material: 9 0 1 0 slab_core
+
+#box: 0 0.03 0 0.24 0.05 inf slab_core
+
+## The source aperture contains 25 mm of free space on either side of the
+## 20 mm core so that its evanescent tails decay before reaching the aperture
+## and the transverse PML.
+## Excite mode 1 while monitoring the two physical guided modes at both ports.
+## Requesting more eigenpairs can expose artificial PEC-boundary box modes;
+## inspect every modal profile before adding it to the monitored mode list.
+#eigenmode_band: eigenmode_band 4e9 6e9 21
+#eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto
+#eigenmode_port: 2 0.235 0.005 0 0.235 0.075 inf - 1,2 auto
+#eigenmode_excitation: 1 1 auto y
+#rx: 0.08 0.04 inf
+#rx: 0.14 0.04 inf
+#rx: 0.20 0.04 inf
+
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 3.5e-10 straight_waveguide_350ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 6e-10 straight_waveguide_600ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 8.5e-10 straight_waveguide_850ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.1e-9 straight_waveguide_1100ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.35e-9 straight_waveguide_1350ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.6e-9 straight_waveguide_1600ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 1.9e-9 straight_waveguide_1900ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 2.2e-9 straight_waveguide_2200ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 2.5e-9 straight_waveguide_2500ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 2.8e-9 straight_waveguide_2800ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 3.4e-9 straight_waveguide_3400ps.h5
+#snapshot: 0 0 0 0.24 0.08 inf 0.001 0.001 0.001 4.2e-9 straight_waveguide_4200ps.h5

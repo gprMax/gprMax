@@ -5,7 +5,7 @@ Eigenmode-source regression matrix
 This directory contains regression and diagnostic models for the FDFD
 eigenmode solver and its TF/SF injection into the FDTD grid. These cases are
 deliberately broader and more repetitive than the curated user examples in
-``examples/features/eigenmode_sources``.
+``examples/features/eigenmode_ports``.
 
 Directory layout
 ================
@@ -65,6 +65,13 @@ Before interpreting receiver or snapshot data, check the modal plot for:
 The FDTD snapshots should show clean straight-guide propagation, progressively
 gentler curved-bend propagation, and the expected extra attenuation in the
 lossy comparison.
+
+The 0.75--7 GHz 2D cases deliberately use an 8 ns time window. Their
+band-adapted excitation has about 4 ns of temporal support, so a 4 ns run
+ends while the transmitted tail is still travelling to port 2. That receiver
+truncation can produce an apparently well-matched guide with a false S21 near
+-30 dB. Keep enough time after the excitation for the complete packet to
+cross the receiving port and enter the PML.
 
 Running the suite
 =================

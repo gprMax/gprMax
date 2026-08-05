@@ -15,6 +15,32 @@ PLANE_AXES = {
 }
 
 
+def declared_snapshot_names(root):
+    """Return snapshot files requested by the current case input."""
+
+    names = set()
+    for input_path in sorted(root.glob("*.in")):
+        for line in input_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped.startswith("#snapshot:"):
+                continue
+            name = stripped.split()[-1]
+            if name.endswith(".h5"):
+                names.add(name)
+    return names
+
+
+def snapshot_paths(root, plane):
+    """Return current declared snapshots, excluding stale generated files."""
+
+    snap_dir = root / f"{root.name}_snaps"
+    paths = sorted(snap_dir.glob(f"{plane}_center_*.h5"))
+    declared = declared_snapshot_names(root)
+    if declared:
+        paths = [path for path in paths if path.name in declared]
+    return paths
+
+
 def read_eabs(path, plane):
     with h5py.File(path, "r") as handle:
         fields = [
@@ -39,7 +65,7 @@ def read_eabs(path, plane):
 
 def plot_family(root, plane, decibels=False):
     snap_dir = root / f"{root.name}_snaps"
-    paths = sorted(snap_dir.glob(f"{plane}_center_*.h5"))
+    paths = snapshot_paths(root, plane)
     if not paths:
         return None
 

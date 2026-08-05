@@ -116,13 +116,164 @@ class Source:
 class EigenmodeAnchorMismatchError(ValueError):
     '''Raised when the same modal branch cannot be tracked between anchors.'''
 
-    def __init__(self, message):
+    def __init__(
+        self,
+        message,
+        *,
+        first_frequency=None,
+        second_frequency=None,
+        mode_index=None,
+        overlap=None,
+        context=None,
+    ):
+        self.detail = message
+        self.first_frequency = first_frequency
+        self.second_frequency = second_frequency
+        self.mode_index = mode_index
+        self.overlap = overlap
+        self.context = context
         super().__init__(
             message
             + ' This may indicate a degenerate mode or mode crossing. Use a single '
             + 'explicit frequency anchor for this port if a constant modal basis '
             + 'across the band is acceptable.'
         )
+
+
+def _trim_failed_guard_anchors(frequencies, mismatch, fmin, fmax):
+    """Trim an untrackable spectral guard while retaining its inner anchor."""
+
+    first = mismatch.first_frequency
+    second = mismatch.second_frequency
+    if first is None or second is None:
+        return None
+    frequencies = tuple(float(value) for value in frequencies)
+    tolerance = 1e-12 * max(abs(float(fmin)), abs(float(fmax)), 1.0)
+    if second <= fmin + tolerance:
+        trimmed = tuple(value for value in frequencies if value >= second - tolerance)
+        return ('lower', second, trimmed) if len(trimmed) > 1 else None
+    if first >= fmax - tolerance:
+        trimmed = tuple(value for value in frequencies if value <= first + tolerance)
+        return ('upper', first, trimmed) if len(trimmed) > 1 else None
+    return None
+
+
+def initialise_eigenmode_ports(grid):
+    """Resolve one coordinated automatic-anchor policy for every port."""
+
+    ports = [*grid.eigenmodesources, *grid.eigenmodereceivers]
+    if not ports:
+        return
+    requested_policies = {
+        id(port): getattr(port, 'requested_anchor_policy', port.anchor_policy)
+        for port in ports
+    }
+    automatic_ports = [
+        port for port in ports if requested_policies[id(port)] == 'auto'
+    ]
+    if not automatic_ports:
+        for port in ports:
+            port.grid_init(grid)
+        return
+
+    common_anchors = tuple(
+        float(value)
+        for value in (automatic_ports[0].frequencies or (automatic_ports[0].frequency,))
+    )
+    for port in automatic_ports[1:]:
+        anchors = tuple(
+            float(value) for value in (port.frequencies or (port.frequency,))
+        )
+        if anchors != common_anchors:
+            raise ValueError(
+                'Automatic eigenmode ports must start with identical anchor '
+                f'frequencies; got {common_anchors} and {anchors}.'
+            )
+
+    band = grid.eigenmodeband
+    candidate_anchors = common_anchors
+    guard_trimmed = False
+    while True:
+        grid.eigenmodeports.clear()
+        for port in ports:
+            requested = requested_policies[id(port)]
+            if requested == 'auto':
+                port.frequency = candidate_anchors[0]
+                port.frequencies = candidate_anchors
+                # Suppress the legacy per-port fallback. The coordinator must
+                # see a mismatch before choosing one policy for every auto port.
+                port.anchor_policy = 'coordinated_auto'
+            else:
+                port.anchor_policy = requested
+            port.port_monitor = None
+
+        source = grid.eigenmodesources[0]
+        source_requested = requested_policies[id(source)]
+        if source_requested == 'auto':
+            source.spectrum_coverage_policy = (
+                'allow' if guard_trimmed else 'error'
+            )
+
+        failing_port = None
+        try:
+            for port in ports:
+                failing_port = port
+                port.grid_init(grid)
+        except EigenmodeAnchorMismatchError as mismatch:
+            grid.eigenmodeports.clear()
+            for port in ports:
+                port.anchor_policy = requested_policies[id(port)]
+            if requested_policies[id(failing_port)] != 'auto':
+                raise
+
+            guard_result = _trim_failed_guard_anchors(
+                candidate_anchors,
+                mismatch,
+                band.fmin,
+                band.fmax,
+            )
+            if guard_result is not None:
+                side, retained_frequency, trimmed = guard_result
+                if trimmed != candidate_anchors:
+                    detail = mismatch.detail.rstrip(' .')
+                    logger.warning(
+                        f'{detail}, within the {side} spectral guard '
+                        f'outside the requested {band.fmin:g} to {band.fmax:g} Hz '
+                        f'band. All automatic eigenmode ports will retain broadband '
+                        f'tracking from {retained_frequency:g} Hz and use that '
+                        f'endpoint modal profile across the trimmed significant-'
+                        'spectrum tail.'
+                    )
+                    candidate_anchors = trimmed
+                    guard_trimmed = True
+                    continue
+
+            fallback = float(failing_port.fallback_frequency)
+            detail = mismatch.detail.rstrip(' .')
+            logger.warning(
+                f'{detail}. All automatic eigenmode ports will therefore '
+                f'use the shared single modal anchor at {fallback:g} Hz. Their '
+                'modal decomposition and S-parameters may be inaccurate toward '
+                'frequencies far from this anchor. Inspect the failed mode for '
+                'cutoff, degeneracy, or an artificial port-boundary mode.'
+            )
+            candidate_anchors = (fallback,)
+            guard_trimmed = False
+            continue
+
+        for port in ports:
+            requested = requested_policies[id(port)]
+            port.anchor_policy = requested
+            if requested == 'auto':
+                if len(candidate_anchors) == 1:
+                    port.resolved_anchor_policy = 'auto_single_fallback'
+                elif guard_trimmed:
+                    port.resolved_anchor_policy = 'auto_broadband_guard_trimmed'
+                else:
+                    port.resolved_anchor_policy = 'auto_broadband'
+            else:
+                port.resolved_anchor_policy = 'explicit'
+        return
 
 
 class EigenmodeSource(Source):
@@ -157,6 +308,8 @@ class EigenmodeSource(Source):
         self.frequency = None
         self.frequencies = None
         self.anchor_policy = 'explicit'
+        self.requested_anchor_policy = 'explicit'
+        self.resolved_anchor_policy = 'explicit'
         self.fallback_frequency = None
         self.spectral_threshold = 1e-3
         self.spectrum_coverage_policy = 'error'
@@ -712,7 +865,12 @@ class EigenmodeSource(Source):
                 f"{description}, below the minimum "
                 f"{cls.ANCHOR_OVERLAP_ERROR_THRESHOLD:.6f}. The broadband "
                 "anchor modes cannot be tracked reliably. Use a "
-                "single-frequency eigenmode solver instead."
+                "single-frequency eigenmode solver instead.",
+                first_frequency=float(first_frequency),
+                second_frequency=float(second_frequency),
+                mode_index=int(mode_index),
+                overlap=float(magnitude),
+                context=context,
             )
         if magnitude < cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:
             logger.warning(
@@ -917,14 +1075,15 @@ class EigenmodeSource(Source):
                     'use EigenmodeExcitation with waveform=\'auto\' for a validated '
                     'bandpass spectrum.'
                 )
-            logger.warning(
-                "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
-                f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
-                f"{self.spectral_threshold:g} of the peak span {significant_low:g} to "
-                f"{significant_high:g} Hz. Add wider frequency anchors, narrow the waveform "
-                "bandwidth, or use the single-frequency eigenmode source. Continuing by "
-                "using the nearest endpoint mode outside the anchor range."
-            )
+            if self.spectrum_coverage_policy == 'warn':
+                logger.warning(
+                    "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
+                    f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
+                    f"{self.spectral_threshold:g} of the peak span {significant_low:g} to "
+                    f"{significant_high:g} Hz. Add wider frequency anchors, narrow the waveform "
+                    "bandwidth, or use the single-frequency eigenmode source. Continuing by "
+                    "using the nearest endpoint mode outside the anchor range."
+                )
         if significant[0] or (padded_count % 2 == 0 and significant[-1]):
             if single_frequency_iq:
                 logger.warning(

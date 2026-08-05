@@ -1407,9 +1407,9 @@ port and mode.
 * ``c1`` is ``+`` or ``-`` and points into the device from the port.
 * ``i2[,i3 ...]`` is a comma-separated, strictly increasing list of positive
   one-based modes to monitor, for example ``1`` or ``1,2``.
-* ``str1`` can be ``auto``. Automatic anchors are chosen independently for
-  each port: the excited port covers the significant sampled source spectrum,
-  while passive ports cover the common DFT band.
+* ``str1`` can be ``auto``. One common automatic anchor list covers the
+  requested band and the significant sampled source spectrum, including its
+  transition regions, and is used by every automatic port.
 * Alternatively, ``f7 [f8 ...]`` are explicit, strictly increasing modal
   anchor frequencies. Multiple anchors must cover the required range or the
   model is rejected with suggested anchors. A single explicit anchor is
@@ -1418,8 +1418,8 @@ port and mode.
   always suppresses them. If omitted, geometry-only runs write the plots and
   normal runs do not.
 
-For example, these two rectangular-waveguide ports share one DFT band but
-choose their modal anchors independently:
+For example, these two rectangular-waveguide ports share one DFT band and one
+automatic anchor list:
 
 .. code-block:: none
 
@@ -1430,8 +1430,10 @@ choose their modal anchors independently:
 Consecutive anchors are checked using normalized modal-field overlap. If
 explicit multiple anchors show a severe mismatch, such as at a degeneracy or
 mode crossing, the run stops and recommends one explicit anchor. With
-``auto``, the affected port instead warns, falls back to one band-centre
-anchor, and states that results far from that anchor may be inaccurate.
+``auto``, a failure confined to a spectral guard outside the requested band
+trims that tail for every automatic port and uses the nearest retained modal
+profile for endpoint extrapolation. A failure in the requested band makes
+every automatic port warn and use one shared band-centre anchor.
 
 #eigenmode_excitation:
 ----------------------
@@ -1448,7 +1450,9 @@ defined:
 * ``str1`` is ``auto`` by default. It constructs a finite, real band-pass
   pulse whose Gaussian-smoothed lower and upper edges adapt to the requested
   band, simulation time step, and Nyquist limit. The same waveform drives the
-  source and its modal spectrum analysis.
+  source and its modal spectrum analysis. The pulse is placed at the earliest
+  causal time that preserves its significant temporal support, leaving the
+  remaining time window for propagation and ring-down.
 * A custom waveform identifier may be supplied instead. Its exact sampled
   spectrum is checked before any modal solve. Significant DC or Nyquist
   content, or more than one percent spectral power outside the requested band,
@@ -1472,7 +1476,7 @@ At every FDTD time step the source port and all passive ports project the
 cell-centred transverse fields onto their requested modes. gprMax writes
 ``<output>_sparameters.csv`` and the corresponding ``/eigenmode_ports`` HDF5
 groups. Source-port rows contain modal S11 results; other ports contain S21
-and modal-conversion results. See :doc:`eigenmode` for the phasor convention,
+and modal-conversion results. See :doc:`eigenmode_port` for the phasor convention,
 FDFD formulation, power normalization, TF/SF injection, broadband synthesis,
 and output definitions.
 
@@ -1480,6 +1484,7 @@ and output definitions.
 
     * Eigenmode commands currently support only the main grid and CPU solver.
     * Eigenmode commands currently cannot be used with MPI.
+
 #rx:
 ----
 

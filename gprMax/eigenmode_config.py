@@ -58,7 +58,6 @@ class EigenmodeBandpassWaveform:
         self.freq = 0.5 * (fmin + fmax)
         self.dt = float(dt)
         self.sample_count = int(sample_count)
-        self.chi = 0.5 * (self.sample_count - 1) * self.dt
         self.spectral_threshold = float(spectral_threshold)
 
         padded_count = _padded_sample_count(self.sample_count)
@@ -120,7 +119,39 @@ class EigenmodeBandpassWaveform:
             1.0 - erf((frequencies - fmax) / (np.sqrt(2.0) * upper_sigma))
         )
         target_magnitude = lower_edge * upper_edge
-        delay = 0.5 * (self.sample_count - 1) * self.dt
+
+        # The zero-phase pulse is periodic and centred at index zero. Find the
+        # part of its analytic envelope above the configured threshold, then
+        # apply the earliest causal delay that keeps that complete support in
+        # the sampled record. Centring the pulse in the full simulation window
+        # unnecessarily consumes half of the propagation and ring-down time.
+        analytic_spectrum = np.zeros(padded_count, dtype=np.complex128)
+        analytic_spectrum[0] = target_magnitude[0]
+        analytic_spectrum[1 : target_magnitude.size - 1] = (
+            2.0 * target_magnitude[1:-1]
+        )
+        analytic_spectrum[padded_count // 2] = target_magnitude[-1]
+        zero_phase_envelope = np.abs(np.fft.ifft(analytic_spectrum))
+        envelope_peak = float(np.max(zero_phase_envelope, initial=0.0))
+        time_significant = np.flatnonzero(
+            zero_phase_envelope >= self.spectral_threshold * envelope_peak
+        )
+        circular_offsets = np.minimum(
+            time_significant,
+            padded_count - time_significant,
+        )
+        half_width_samples = int(np.max(circular_offsets, initial=0))
+        if 2 * half_width_samples + 1 > self.sample_count:
+            raise ValueError(
+                f'The time window is too short to contain the automatic waveform '
+                f'for eigenmode band {band_id!r}. Increase the time window or widen '
+                'the frequency band.'
+            )
+        delay_samples = half_width_samples
+        if 2 * half_width_samples + 2 <= self.sample_count:
+            delay_samples += 1
+        self.chi = delay_samples * self.dt
+        delay = self.chi
         target_spectrum = target_magnitude * np.exp(-2j * np.pi * frequencies * delay)
         samples = np.fft.irfft(target_spectrum, n=padded_count)[: self.sample_count]
         samples -= np.mean(samples)
@@ -158,7 +189,8 @@ class EigenmodeBandpassWaveform:
             f'Prepared automatic eigenmode bandpass {self.ID!r}: requested passband '
             f'{fmin:g} to {fmax:g} Hz, estimated Gaussian-edge threshold frequencies '
             f'{self.lower_stop:g} and {self.upper_stop:g} Hz, significant sampled '
-            f'spectrum {self.significant_low:g} to {self.significant_high:g} Hz.'
+            f'spectrum {self.significant_low:g} to {self.significant_high:g} Hz, '
+            f'and pulse centre {self.chi:g} s.'
         )
 
     def calculate_value(self, time, dt):
@@ -295,14 +327,10 @@ class EigenmodePortSpec:
         return 'auto' if self.anchors == 'auto' else 'explicit'
 
     def resolve_anchors(self, band: EigenmodeBandSpec, *, is_source: bool):
-        if is_source:
-            if band.significant_range is None:
-                raise ValueError('Eigenmode excitation spectrum must be resolved before port anchors.')
-            required_low = min(band.fmin, band.significant_range[0])
-            required_high = max(band.fmax, band.significant_range[1])
-        else:
-            required_low = band.fmin
-            required_high = band.fmax
+        if band.significant_range is None:
+            raise ValueError('Eigenmode excitation spectrum must be resolved before port anchors.')
+        required_low = min(band.fmin, band.significant_range[0])
+        required_high = max(band.fmax, band.significant_range[1])
 
         if self.anchors == 'auto':
             self.resolved_anchors = automatic_anchor_frequencies(
@@ -317,9 +345,8 @@ class EigenmodePortSpec:
                 required_low < explicit[0] or required_high > explicit[-1]
             ):
                 suggestion = _format_anchor_suggestion(required_low, required_high)
-                role = 'excited' if is_source else 'passive'
                 raise ValueError(
-                    f'Explicit eigenmode anchors for {role} port {self.port} span '
+                    f'Explicit eigenmode anchors for port {self.port} span '
                     f'{explicit[0]:g} to {explicit[-1]:g} Hz, but required modal '
                     f'coverage spans {required_low:g} to {required_high:g} Hz. '
                     f'Suggested coverage anchors: {suggestion}. Alternatively use '

@@ -476,6 +476,9 @@ class EigenmodePortMonitor:
         group.attrs["ModeIndices"] = self.mode_indices
         group.attrs["PlaneIndex"] = self.owner.plane_index
         group.attrs["PhaseReanchorInterval"] = DFT_PHASE_REANCHOR_INTERVAL
+        group.attrs["RequestedAnchorPolicy"] = self.owner.requested_anchor_policy
+        group.attrs["ResolvedAnchorPolicy"] = self.owner.resolved_anchor_policy
+        group.attrs["AnchorFrequencies"] = self.anchor_frequencies
         group["frequency"] = self.result.frequency
         group["incident"] = self.result.incident
         group["outgoing"] = self.result.outgoing

@@ -13,6 +13,7 @@ from gprMax.eigenmode_config import (
 from gprMax.sources import (
     EigenmodeAnchorMismatchError,
     EigenmodeSource,
+    initialise_eigenmode_ports,
 )
 from gprMax.waveforms import Waveform
 
@@ -40,6 +41,11 @@ def test_automatic_bandpass_tracks_requested_band_and_avoids_dc_nyquist():
     assert magnitude[-1] < 1e-3
     assert waveform.significant_low < 45e9
     assert waveform.significant_high > 65e9
+    assert waveform.chi < 0.35 * sample_count * dt
+    assert np.argmax(np.abs(waveform.samples)) * dt == pytest.approx(
+        waveform.chi,
+        abs=dt,
+    )
 
 
 def test_bad_custom_waveform_recommends_automatic_bandpass():
@@ -70,7 +76,7 @@ def _port(port, anchors):
     )
 
 
-def test_auto_source_anchors_cover_spectrum_but_passive_anchors_cover_dft_band():
+def test_all_auto_ports_cover_the_same_significant_spectrum():
     band = EigenmodeBandSpec(id='wg', fmin=45e9, fmax=65e9, points=81)
     band.significant_range = (32e9, 78e9)
     source = _port(1, 'auto')
@@ -81,8 +87,7 @@ def test_auto_source_anchors_cover_spectrum_but_passive_anchors_cover_dft_band()
 
     assert source.resolved_anchors[0] == 32e9
     assert source.resolved_anchors[-1] == 78e9
-    assert receiver.resolved_anchors[0] == 45e9
-    assert receiver.resolved_anchors[-1] == 65e9
+    assert receiver.resolved_anchors == source.resolved_anchors
 
 
 def test_explicit_multiple_anchors_require_coverage_but_single_is_allowed():
@@ -137,3 +142,98 @@ def test_explicit_anchor_mode_mismatch_remains_an_error():
             1,
             'Eigenmode port 1',
         )
+
+
+class _CoordinatedPort:
+    def __init__(self, port, frequencies, failure=None):
+        self.port_index = port
+        self.frequency = frequencies[0]
+        self.frequencies = frequencies
+        self.anchor_policy = 'auto'
+        self.requested_anchor_policy = 'auto'
+        self.resolved_anchor_policy = 'auto'
+        self.fallback_frequency = 55e9
+        self.spectrum_coverage_policy = 'error'
+        self.port_monitor = None
+        self.failure = failure
+        self.attempts = []
+
+    def grid_init(self, grid):
+        frequencies = tuple(self.frequencies)
+        self.attempts.append(frequencies)
+        if self.failure is not None and self.failure(frequencies):
+            raise EigenmodeAnchorMismatchError(
+                'test tracking failure',
+                first_frequency=self.failure.first,
+                second_frequency=self.failure.second,
+                mode_index=2,
+                overlap=0.2,
+                context=f'Eigenmode port {self.port_index}',
+            )
+        grid.eigenmodeports.append(self)
+
+
+def _failure(first, second, predicate):
+    predicate.first = first
+    predicate.second = second
+    return predicate
+
+
+def test_guard_band_tracking_failure_trims_all_auto_ports(monkeypatch):
+    anchors = (32e9, 45e9, 55e9, 65e9, 78e9)
+    failure = _failure(32e9, 45e9, lambda values: values[0] == 32e9)
+    source = _CoordinatedPort(1, anchors, failure)
+    receiver = _CoordinatedPort(2, anchors)
+    grid = SimpleNamespace(
+        eigenmodesources=[source],
+        eigenmodereceivers=[receiver],
+        eigenmodeports=[],
+        eigenmodeband=EigenmodeBandSpec(
+            id='wg',
+            fmin=45e9,
+            fmax=65e9,
+            points=81,
+            significant_range=(32e9, 78e9),
+        ),
+    )
+    warnings = []
+    monkeypatch.setattr(sources_module.logger, 'warning', warnings.append)
+
+    initialise_eigenmode_ports(grid)
+
+    expected = (45e9, 55e9, 65e9, 78e9)
+    assert source.frequencies == expected
+    assert receiver.frequencies == expected
+    assert source.spectrum_coverage_policy == 'allow'
+    assert source.resolved_anchor_policy == 'auto_broadband_guard_trimmed'
+    assert receiver.resolved_anchor_policy == 'auto_broadband_guard_trimmed'
+    assert 'endpoint modal profile' in warnings[0]
+
+
+def test_in_band_tracking_failure_falls_back_all_auto_ports(monkeypatch):
+    anchors = (32e9, 45e9, 55e9, 65e9, 78e9)
+    failure = _failure(45e9, 55e9, lambda values: len(values) > 1)
+    source = _CoordinatedPort(1, anchors)
+    receiver = _CoordinatedPort(2, anchors, failure)
+    grid = SimpleNamespace(
+        eigenmodesources=[source],
+        eigenmodereceivers=[receiver],
+        eigenmodeports=[],
+        eigenmodeband=EigenmodeBandSpec(
+            id='wg',
+            fmin=45e9,
+            fmax=65e9,
+            points=81,
+            significant_range=(32e9, 78e9),
+        ),
+    )
+    warnings = []
+    monkeypatch.setattr(sources_module.logger, 'warning', warnings.append)
+
+    initialise_eigenmode_ports(grid)
+
+    assert source.frequencies == (55e9,)
+    assert receiver.frequencies == (55e9,)
+    assert source.resolved_anchor_policy == 'auto_single_fallback'
+    assert receiver.resolved_anchor_policy == 'auto_single_fallback'
+    assert 'All automatic eigenmode ports' in warnings[0]

@@ -857,10 +857,9 @@ class FDTDGrid:
             raise ValueError(
                 "Eigenmode source and receiver port indices must be unique; " f"got {port_indices} on {self.name}."
             )
-        for source in self.eigenmodesources:
-            source.grid_init(self)
-        for receiver in self.eigenmodereceivers:
-            receiver.grid_init(self)
+        from gprMax.sources import initialise_eigenmode_ports
+
+        initialise_eigenmode_ports(self)
 
     def _build_materials(self) -> None:
         """Calculate properties of materials in the grid.

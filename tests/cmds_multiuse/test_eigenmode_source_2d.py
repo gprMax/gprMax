@@ -1,3 +1,4 @@
+import csv
 import shutil
 from pathlib import Path
 
@@ -464,11 +465,11 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
     [
         (
             Path("straight_waveguide/2d_tm/dielectric_waveguide/dielectric_waveguide.in"),
-            4,
+            6,
         ),
         (
             Path("straight_waveguide/2d_te/dielectric_waveguide/dielectric_waveguide.in"),
-            4,
+            6,
         ),
         (Path("bending_waveguide/2d_tm/small_bend/small_bend.in"), 4),
         (Path("bending_waveguide/2d_tm/medium_bend/medium_bend.in"), 4),
@@ -476,12 +477,12 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
         (Path("bending_waveguide/2d_te/small_bend/small_bend.in"), 4),
         (Path("bending_waveguide/2d_te/medium_bend/medium_bend.in"), 4),
         (Path("bending_waveguide/2d_te/large_bend/large_bend.in"), 4),
-        (Path("loss_comparison/nonlossy/nonlossy.in"), 2),
-        (Path("loss_comparison/lossy/lossy.in"), 2),
-        (Path("broadband_vs_single_frequency/broadband/broadband.in"), 2),
+        (Path("loss_comparison/nonlossy/nonlossy.in"), 4),
+        (Path("loss_comparison/lossy/lossy.in"), 4),
+        (Path("broadband_vs_single_frequency/broadband/broadband.in"), 4),
         (
             Path("broadband_vs_single_frequency/single_frequency/single_frequency.in"),
-            2,
+            4,
         ),
     ],
 )
@@ -502,6 +503,127 @@ def test_2d_regression_example_builds(tmp_path, relative_path, snapshot_count):
     assert (tmp_path / f"{source.stem}_EigenmodeExcitation.png").is_file()
 
 
+def _copy_straight_example(tmp_path, *, modes="1,2"):
+    source = (
+        REPOSITORY_ROOT
+        / "examples"
+        / "features"
+        / "eigenmode_ports"
+        / "example_1_straight_waveguide"
+        / "straight_waveguide.in"
+    )
+    copied_input = tmp_path / f"straight_modes_{modes.replace(',', '_')}.in"
+    copied_input.write_text(
+        source.read_text(encoding="utf-8").replace(
+            " 1,2 auto",
+            f" {modes} auto",
+        ),
+        encoding="utf-8",
+    )
+    return copied_input
+
+
+def test_straight_example_auto_ports_share_broadband_anchors(tmp_path):
+    inputfile = _copy_straight_example(tmp_path)
+    outputfile = tmp_path / "straight_shared_anchors"
+
+    gprMax.run(
+        inputfile=inputfile,
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    with h5py.File(outputfile.with_suffix(".h5"), "r") as output:
+        port1 = output["eigenmode_ports/port1"]
+        port2 = output["eigenmode_ports/port2"]
+        assert port1.attrs["ResolvedAnchorPolicy"] == "auto_broadband"
+        assert port2.attrs["ResolvedAnchorPolicy"] == "auto_broadband"
+        np.testing.assert_array_equal(
+            port1.attrs["AnchorFrequencies"],
+            port2.attrs["AnchorFrequencies"],
+        )
+        assert len(port1.attrs["AnchorFrequencies"]) > 1
+
+    with outputfile.with_name(outputfile.name + "_sparameters.csv").open(
+        newline="",
+        encoding="utf-8",
+    ) as stream:
+        s21_mode1_db = np.asarray(
+            [
+                float(row["S_magnitude_db"])
+                for row in csv.DictReader(stream)
+                if row["source_port"] == "1"
+                and row["source_mode"] == "1"
+                and row["destination_port"] == "2"
+                and row["destination_mode"] == "1"
+                and row["valid"] == "1"
+            ]
+        )
+    assert np.ptp(s21_mode1_db) < 0.01
+
+    snapshot_metrics = []
+    snapshot_dir = outputfile.with_name(outputfile.name + "_snaps")
+    for path in snapshot_dir.glob("*.h5"):
+        with h5py.File(path, "r") as snapshot:
+            values = np.squeeze(snapshot["Ez"][...])
+            x_energy = np.sum(np.abs(values) ** 2, axis=1)
+            total_energy = float(np.sum(x_energy))
+            centroid = float(
+                np.sum(np.arange(values.shape[0]) * x_energy) / total_energy
+            )
+            snapshot_metrics.append(
+                (float(snapshot.attrs["time"]), centroid, total_energy)
+            )
+    snapshot_metrics.sort()
+    propagating = min(
+        snapshot_metrics,
+        key=lambda metric: abs(metric[0] - 1.6e-9),
+    )
+    assert propagating[1] > snapshot_metrics[0][1] + 40
+    assert snapshot_metrics[-1][2] < 0.05 * max(
+        metric[2] for metric in snapshot_metrics
+    )
+
+
+def test_spurious_modes_apply_one_anchor_policy_to_all_ports(
+    tmp_path,
+    monkeypatch,
+):
+    inputfile = _copy_straight_example(tmp_path, modes="1,2,3,4")
+    outputfile = tmp_path / "straight_guard_trim"
+
+    warnings = []
+    monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
+    gprMax.run(
+        inputfile=inputfile,
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+    )
+
+    with h5py.File(outputfile.with_suffix(".h5"), "r") as output:
+        port1 = output["eigenmode_ports/port1"]
+        port2 = output["eigenmode_ports/port2"]
+        policy = port1.attrs["ResolvedAnchorPolicy"]
+        assert policy in {"auto_broadband", "auto_broadband_guard_trimmed"}
+        assert port2.attrs["ResolvedAnchorPolicy"] == policy
+        np.testing.assert_array_equal(
+            port1.attrs["AnchorFrequencies"],
+            port2.attrs["AnchorFrequencies"],
+        )
+        anchors = port1.attrs["AnchorFrequencies"]
+        assert np.any(np.isclose(anchors, 4e9))
+        assert anchors[-1] >= 6e9
+    if policy == "auto_broadband_guard_trimmed":
+        assert anchors[0] > 2.4842e9
+        assert anchors[0] <= 4e9
+        assert any("spectral guard" in warning for warning in warnings)
+        assert any("endpoint modal profile" in warning for warning in warnings)
+    else:
+        assert anchors[0] == pytest.approx(2.4842025e9, rel=1e-6)
+
+
 @pytest.mark.parametrize(
     ("plot_control", "expected_plot_count"),
     [("n", 0), ("y", 4)],
@@ -511,7 +633,14 @@ def test_hash_modal_plot_control_overrides_geometry_only_default(
     plot_control,
     expected_plot_count,
 ):
-    source = REPOSITORY_ROOT / "examples" / "features" / "eigenmode_sources" / "dielectric_slab_2d_tm.in"
+    source = (
+        REPOSITORY_ROOT
+        / "examples"
+        / "features"
+        / "eigenmode_ports"
+        / "example_1_straight_waveguide"
+        / "straight_waveguide.in"
+    )
     copied_input = tmp_path / f"dielectric_slab_{plot_control}.in"
     lines = source.read_text().splitlines()
     copied_input.write_text(
@@ -551,8 +680,9 @@ def test_hash_excitation_plot_control_is_independent_of_modal_plots(
         REPOSITORY_ROOT
         / "examples"
         / "features"
-        / "eigenmode_sources"
-        / "dielectric_slab_2d_tm.in"
+        / "eigenmode_ports"
+        / "example_1_straight_waveguide"
+        / "straight_waveguide.in"
     )
     copied_input = tmp_path / f"dielectric_slab_excitation_{plot_control}.in"
     lines = source.read_text().splitlines()
