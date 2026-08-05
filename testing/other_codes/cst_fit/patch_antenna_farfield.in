@@ -1,0 +1,34 @@
+#title: SAB-derived patch antenna 2.45 GHz far field
+
+## This companion run uses the same geometry and enlarged eigenmode port as
+## patch_antenna.in. Three DFT bins provide a finite-band automatic excitation;
+## the postprocessor selects the central 2.45 GHz bin.
+#domain: 0.0964 0.1320 0.0360
+#dx_dy_dz: 0.0004 0.0004 0.0004
+#time_window: 20e-9
+#pml_cells: 12
+
+#material: 4.4 0 1 0 substrate
+
+## Ground and substrate continue through the +y PML.
+#box: 0.0108 0.0080 0.0072 0.0856 0.1320 0.0076 pec n
+#box: 0.0108 0.0080 0.0076 0.0856 0.1320 0.0092 substrate y
+
+## Revised SAB geometry on the 0.4 mm mesh.
+#box: 0.0296 0.0348 0.0092 0.0668 0.0616 0.0096 pec n
+#box: 0.0480 0.0616 0.0092 0.0484 0.0792 0.0096 pec n
+#box: 0.0468 0.0792 0.0092 0.0496 0.1320 0.0096 pec n
+
+## 34 mm x 18 mm quasi-TEM aperture; the feed crosses the +y PML.
+#eigenmode_band: patch_farfield_band 2.2e9 2.7e9 3
+#eigenmode_port: 1 0.0312 0.1204 0.0072 0.0652 0.1204 0.0252 - 1 auto y
+#eigenmode_excitation: 1 1 auto y
+
+## Omit the +y Huygens face where the uniform feed/substrate/ground pass
+## through. Sample the full sphere at one-degree theta and phi increments.
+#ntff_surface: 0.0088 0.0064 0.0060 0.0876 0.1080 0.0280 patch_surface ymax
+#ntff_frequency: patch_surface patch_farfield_band 2.2e9 2.45e9 2.7e9 rectangular
+#ntff_antenna_ports: patch_farfield_band port1
+#ntff_far_field_array: 0 180 1 0 359 1 patch_farfield_band full_sphere Etheta Ephi radiation_intensity directivity_dbi gain_dbi realized_gain_dbi radiation_efficiency total_efficiency
+
+#geometry_view: 0 0 0 0.0964 0.1320 0.0360 0.0004 0.0004 0.0004 patch_antenna_farfield_geometry n

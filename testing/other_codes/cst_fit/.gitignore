@@ -1,0 +1,18 @@
+# Large or regenerable gprMax outputs.
+S-parameter/*.h5
+S-parameter/*.vtkhdf
+Farfield/*.h5
+Farfield/*.vtkhdf
+Farfield/patch_farfield_2p45GHz_1deg.csv
+
+# The full CST far-field grid is retained locally; the comparison PNG and
+# compact JSON summary are committed instead.
+Farfield/patch_ff_cst.txt
+
+# Regenerable eigenmode diagnostic plots.
+S-parameter/*_EigenmodeExcitation.png
+S-parameter/*_Port*_Mode*.png
+Farfield/*_EigenmodeExcitation.png
+Farfield/*_Port*_Mode*.png
+
+__pycache__/

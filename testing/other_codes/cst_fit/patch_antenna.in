@@ -1,0 +1,38 @@
+#title: SAB-derived microstrip-fed rectangular patch antenna
+
+## The revised SAB dimensions are aligned to the 0.4 mm mesh. The 0.1 mm CST
+## metal is deliberately represented as one 0.4 mm PEC cell.
+#domain: 0.0964 0.1320 0.0360
+#dx_dy_dz: 0.0004 0.0004 0.0004
+#time_window: 20e-9
+#pml_cells: 12
+
+## Lossless substrate requested by the user.
+#material: 4.4 0 1 0 substrate
+
+## Dimensions reconstructed from patch.sab (ACIS 34, CST units in mm):
+## substrate/ground: 74.8 x 88.0 x 1.6
+## patch:             37.4 x 26.8 (represented as 37.2 x 26.8)
+## matching line:      0.4 x 17.6
+## feed line:          2.8 x 16.8
+## The substrate, ground, and feed are continued through the +y PML so that
+## reflected microstrip waves leave the model rather than see an artificial
+## open/short termination.
+#box: 0.0108 0.0080 0.0072 0.0856 0.1320 0.0076 pec n
+#box: 0.0108 0.0080 0.0076 0.0856 0.1320 0.0092 substrate y
+
+## Top conductor: rectangular patch, narrow matching section, and 50-ohm-like
+## feed strip. Adjacent boxes share faces and form one continuous conductor.
+#box: 0.0296 0.0348 0.0092 0.0668 0.0616 0.0096 pec n
+#box: 0.0480 0.0616 0.0092 0.0484 0.0792 0.0096 pec n
+#box: 0.0468 0.0792 0.0092 0.0496 0.1320 0.0096 pec n
+
+## The large 34 mm x 18 mm modal aperture places its artificial side/top PEC
+## boundaries many substrate heights away from the strip, retaining the
+## quasi-TEM mode's evanescent field. The port points into the antenna (-y).
+## 321 bins give 5 MHz S11 sampling from 1.6 to 3.2 GHz.
+#eigenmode_band: patch_sweep 1.6e9 3.2e9 321
+#eigenmode_port: 1 0.0312 0.1204 0.0072 0.0652 0.1204 0.0252 - 1 auto y
+#eigenmode_excitation: 1 1 auto y
+
+#geometry_view: 0 0 0 0.0964 0.1320 0.0360 0.0004 0.0004 0.0004 patch_antenna_geometry n
