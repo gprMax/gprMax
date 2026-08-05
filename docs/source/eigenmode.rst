@@ -5,14 +5,15 @@
 Eigenmode Sources, Ports, and Mode Solvers
 *********************************************
 
-Eigenmode sources launch a solved waveguide mode instead of prescribing one
-field component. Every source is simultaneously a modal receiver, and
-additional ``#eigenmode_rx`` planes provide explicitly numbered ports. A
-single time-domain run can therefore produce multimode S-parameters and, when
-the device radiates, directivity, gain, and realized gain.
+Eigenmode excitation launches a solved waveguide mode instead of prescribing
+one field component. One shared ``#eigenmode_band`` defines the DFT bins,
+``#eigenmode_port`` defines every active or passive reference plane, and one
+``#eigenmode_excitation`` selects the launched port and mode. A single
+time-domain run can therefore produce multimode S-parameters and, when the
+device radiates, directivity, gain, and realized gain.
 
-Using an eigenmode source and receiver
-======================================
+Using eigenmode ports
+=====================
 
 The quickest workflow is:
 
@@ -26,16 +27,12 @@ This straight 2D dielectric guide uses source port 1 and receiver port 2:
    :language: none
    :caption: ``dielectric_slab_2d_tm.in``
 
-The source token after the direction is
-``excitation_mode[,mode_count]``. Both values are one-based. For example,
-``2,4`` excites mode 2 while the source monitor calculates modes 1 through 4.
-If the second value is omitted, the monitor calculates modes 1 through the
-excited mode. The following integer is the explicit one-based port number.
-
-For ``#eigenmode_rx``, the integer after the direction is only the number of
-consecutive modes to calculate and measure, followed by its explicit
-one-based port number. Port numbers must be unique. Whenever either command
-is present, one and only one ``#eigenmode_source`` must exist.
+The band is declared once and used automatically by all ports. Port numbers
+are unique and one-based. Each port lists the one-based modes it measures and
+owns either independent explicit modal anchor frequencies or ``auto``.
+Finally, the excitation command names an existing port and one of its modes.
+``waveform=auto`` creates a band-adapted finite pulse; a custom waveform is
+accepted only when its exact sampled spectrum fits the declared band.
 
 Run the geometry-only check first:
 
@@ -43,11 +40,24 @@ Run the geometry-only check first:
 
    python -m gprMax examples/features/eigenmode_sources/dielectric_slab_2d_tm.in --geometry-only
 
-For 2D models this writes a TM or TE modal-field PNG. For 3D models it writes
-separate transverse electric and magnetic PNGs. Check the expected
+This writes one PNG per requested port mode, using names such as
+``dielectric_slab_2d_tm_Port1_Mode1.png``. Every anchor frequency occupies one
+row; the left and right columns show the tangential E and tangential H vector
+fields respectively. The staggered components are averaged to common
+transverse cell centres for this diagnostic only. Check the expected
 polarisation, symmetry, confinement, conducting-boundary behaviour, and mode
-order. The final optional ``y`` or ``n`` on either eigenmode command forces or
-suppresses these plots during a normal run.
+order. The final optional ``y`` or ``n`` on an eigenmode-port command forces or
+suppresses only that port's modal-field plots. The independent final ``y`` or
+``n`` on ``#eigenmode_excitation`` controls the single waveform/DFT figure. If
+either flag is omitted, geometry-only runs write the corresponding diagnostic
+and normal full simulations do not.
+
+The single excitation also writes ``<input>_EigenmodeExcitation.png``. Its left
+subplot shows the exact sampled injection waveform. Its right subplot shows
+the surrounding zero-padded positive-frequency spectrum, overlays the source
+DFT evaluated at the ports' exact common frequency bins, and shades the port
+band. This makes significant out-of-band waveform energy visible without
+mistaking it for frequencies retained by the port monitors.
 
 Then run the time-domain model:
 
@@ -56,10 +66,9 @@ Then run the time-domain model:
    python -m gprMax examples/features/eigenmode_sources/dielectric_slab_2d_tm.in -outputfile examples/features/eigenmode_sources/dielectric_slab_2d_tm
    python examples/features/eigenmode_sources/plot_dielectric_slab_2d_tm.py
 
-The source and every receiver must use identical ``dft_start``, ``dft_stop``,
-and ``dft_points`` values. Each requested bin is updated once at every FDTD
-time step by the modal Cython DFT kernel. This example requests 21 points from
-4 to 6 GHz. The resulting
+The global band guarantees identical DFT bins at every port. Each requested
+bin is updated once at every FDTD time step by the modal Cython DFT kernel.
+This example requests 21 points from 4 to 6 GHz. The resulting
 ``examples/features/eigenmode_sources/dielectric_slab_2d_tm_sparameters.csv``
 contains one row per frequency,
 destination port, and destination mode. Source-port rows are modal S11
@@ -882,7 +891,7 @@ Source synthesis and FDTD injection
 -----------------------------------
 
 This section connects the FDFD solvers described above to the complete
-``#eigenmode_source`` workflow. It fixes the phasor and propagation signs,
+eigenmode band/port/excitation workflow. It fixes the phasor and propagation signs,
 shows how a solved mode becomes real FDTD update terms, and describes the
 single-frequency, in-phase/quadrature (I/Q), and broadband synthesis paths.
 
@@ -1259,13 +1268,13 @@ activation is clipped to the configured waveform start and stop times.
 Modal Receivers, Direct DFT, and S-parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Exactly one eigenmode source must exist whenever modal ports are used. The
-source owns a passive monitor at its reference plane, and ``#eigenmode_rx``
-adds another passive plane. Port indices are supplied explicitly, are
-one-based, and must be unique. The source token
-``excitation_mode[,mode_count]`` separates the single mode being launched
-from the consecutive modes 1 through ``mode_count`` monitored at that source.
-An eigenmode receiver similarly monitors modes 1 through its ``mode_count``.
+Exactly one global band and one excitation must exist whenever modal ports are
+used. Every ``EigenmodePort`` is a passive monitor at its reference plane;
+the selected excitation port additionally applies the TF/SF source. Port
+indices are one-based and unique, and each port carries an explicit tuple of
+monitored mode indices. The excitation selects one of the modes listed by its
+port. All ports accumulate the common DFT bins from ``EigenmodeBand`` while
+retaining independent modal anchor frequencies.
 For each requested frequency :math:`f_q`, a Cython kernel applies the
 recursive DFT
 
@@ -1372,10 +1381,11 @@ For a passive lossy mode, users should expect:
 * downstream attenuation to be produced by the FDTD material updates after
   the mode has been launched.
 
-The source field plots show the solved cross-sectional profile and report the
-complex effective index. A nonzero receiver field alone does not validate a
-lossy mode: sign-sensitive validation must also check ``Im(n_eff)``, modal
-power direction, and forward attenuation.
+The port-mode field plots show tangential E and H vectors for every retained
+anchor and report the complex effective index. E and H magnitudes are
+normalised independently in their panels. A nonzero receiver field alone does
+not validate a lossy mode: sign-sensitive validation must also check
+``Im(n_eff)``, modal power direction, and forward attenuation.
 
 Accuracy Guidance and Warnings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

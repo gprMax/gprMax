@@ -7,7 +7,6 @@
 #pml_cells: 5 5 0 5 5 0
 
 #material: 9 0 1 0 slab_core
-#waveform: ricker 1 5e9 eig_pulse
 
 #box: 0 0.03 0 0.24 0.05 inf slab_core
 
@@ -16,8 +15,10 @@
 ## and the transverse PML.
 ## Excite mode 1 while monitoring modes 1 and 2 at both ports. The mode-2
 ## traces demonstrate the negligible conversion of a uniform straight guide.
-#eigenmode_source: 0.02 0.005 0 0.02 0.075 inf + 1,2 1 4e9 4.5e9 5e9 5.5e9 6e9 eig_pulse 4e9 6e9 21
-#eigenmode_rx: 0.235 0.005 0 0.235 0.075 inf - 2 2 4e9 4.5e9 5e9 5.5e9 6e9 output 4e9 6e9 21
+#eigenmode_band: eigenmode_band 4e9 6e9 21
+#eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto
+#eigenmode_port: 2 0.235 0.005 0 0.235 0.075 inf - 1,2 auto
+#eigenmode_excitation: 1 1 auto
 #rx: 0.08 0.04 inf
 #rx: 0.14 0.04 inf
 #rx: 0.20 0.04 inf

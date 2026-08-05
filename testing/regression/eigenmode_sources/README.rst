@@ -13,8 +13,9 @@ Directory layout
 ``cases/straight_waveguide``
     Broadband-driven straight-guide checks: 2D TM and TE dielectric slabs,
     plus 3D rectangular and cylindrical PEC waveguides. The cylindrical guide
-    deliberately uses one 55 GHz modal solve because its first two modes are a
-    degenerate pair; the DFT still covers 45--65 GHz. The expected
+    deliberately requests automatic anchors for a degenerate modal pair; a
+    severe tracking mismatch should warn and fall back to one band-centre
+    anchor. The common DFT still covers 45--65 GHz. The expected
     fundamental-mode S21 is approximately 0 dB and S11 is very small.
 
 ``cases/bending_waveguide``
@@ -31,16 +32,24 @@ Directory layout
     The same broadband waveform injected using either multi-frequency modal
     anchors or only the 3 GHz modal profile.
 
+``cases/grid_spacing``
+    A 3D rectangular PEC waveguide repeated at 0.20, 0.10, and 0.05 mm cubic
+    spacing. The physical geometry, 1 mm PML thickness, port positions,
+    frequency range, and time window remain fixed. The comparison helper plots
+    fundamental-mode S21 and max-absolute, half-peak-to-peak, and RMS
+    fluctuation metrics versus spacing, with a second-order convergence guide.
+
 ``legacy``
     Previous development runs moved out of the maintained matrix. This
     directory is intentionally ignored by Git and is not discovered by the
     default runner.
 
-The source mode token is ``excitation_mode[,mode_count]`` and the following
-integer is its explicit port index. A receiver supplies one mode count followed
-by its explicit port index. The three values before the final ``y`` define the
-direct-DFT start, stop, and point count. The final ``y`` intentionally retains
-modal-field plots during normal regression runs.
+Each model defines its DFT range once with ``#eigenmode_band``. Every
+``#eigenmode_port`` then supplies a unique port number, plane, direction,
+comma-separated monitored modes, and independent explicit or ``auto`` modal
+anchors. One ``#eigenmode_excitation`` selects the active port and mode and,
+for these regressions, generates the band-adapted automatic waveform. A final
+``y`` on a port intentionally retains modal-field plots during normal runs.
 
 What to inspect
 ===============

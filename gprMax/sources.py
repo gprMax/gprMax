@@ -26,6 +26,7 @@ import numpy.typing as npt
 import gprMax.config as config
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
+from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.waveforms import Waveform
 
 from .cython.plane_wave import (
@@ -112,6 +113,18 @@ class Source:
         self.coordorigin[2] = value
 
 
+class EigenmodeAnchorMismatchError(ValueError):
+    '''Raised when the same modal branch cannot be tracked between anchors.'''
+
+    def __init__(self, message):
+        super().__init__(
+            message
+            + ' This may indicate a degenerate mode or mode crossing. Use a single '
+            + 'explicit frequency anchor for this port if a constant modal basis '
+            + 'across the band is acceptable.'
+        )
+
+
 class EigenmodeSource(Source):
     """Holds data for an eigenmode source and prepares material slices.
 
@@ -140,9 +153,13 @@ class EigenmodeSource(Source):
         self.transverse_stop = None
         self.mode_index = None
         self.mode_count = None
+        self.mode_indices = ()
         self.frequency = None
         self.frequencies = None
+        self.anchor_policy = 'explicit'
+        self.fallback_frequency = None
         self.spectral_threshold = 1e-3
+        self.spectrum_coverage_policy = 'error'
         self.plane_index = None
         self.complex_eps_r_uu = None
         self.complex_eps_r_vv = None
@@ -179,6 +196,9 @@ class EigenmodeSource(Source):
         # geometry-only build, but not for a normal simulation. True and False
         # explicitly override that policy.
         self.plot_fields = None
+        # The excitation waveform/DFT figure has an independent control with
+        # the same geometry-only default policy as modal-field figures.
+        self.plot_waveform = None
         self.port_index = None
         self.port_id = None
         self.dft_start = None
@@ -192,7 +212,12 @@ class EigenmodeSource(Source):
             self.plane_index = self._select_plane_index(G)
         frequencies = tuple(self.frequencies or (self.frequency,))
         if len(frequencies) > 1:
-            self._solve_broadband_eigenmode(G, frequencies)
+            try:
+                self._solve_broadband_eigenmode(G, frequencies)
+            except EigenmodeAnchorMismatchError as exc:
+                if self.anchor_policy != 'auto':
+                    raise
+                self._fallback_to_single_anchor(G, exc)
         else:
             self.frequency = frequencies[0]
             self._extract_frequency_dependent_materials(G)
@@ -200,13 +225,32 @@ class EigenmodeSource(Source):
             self._prepare_single_frequency_injection(G)
         self._register_port_monitor(G)
 
+    def _fallback_to_single_anchor(self, G, mismatch):
+        frequency = float(self.fallback_frequency)
+        logger.warning(
+            f'{mismatch} Automatic anchors for eigenmode port {self.port_index} '
+            f'will therefore use a single modal anchor at {frequency:g} Hz. The '
+            'modal field and S-parameters may be inaccurate toward frequencies '
+            'far from this anchor.'
+        )
+        self.frequency = frequency
+        self.frequencies = (frequency,)
+        self.mode_solvers = None
+        self.anchor_modal_e = None
+        self.anchor_modal_h = None
+        self.anchor_complex_neff = None
+        self.anchor_overlaps = None
+        self._extract_frequency_dependent_materials(G)
+        self._solve_eigenmode(G)
+        self._prepare_single_frequency_injection(G)
+
     def _register_port_monitor(self, G):
         """Register the automatic modal monitor owned by this source."""
         from gprMax.eigenmode_ports import EigenmodePortMonitor
 
         frequencies = tuple(self.frequencies or (self.frequency,))
         solvers = tuple(self.mode_solvers or (self.mode_solver,))
-        mode_indices = tuple(range(1, self.mode_count + 1))
+        mode_indices = tuple(self.mode_indices or range(1, self.mode_count + 1))
         anchor_e = []
         anchor_h = []
         anchor_neff = []
@@ -222,6 +266,37 @@ class EigenmodeSource(Source):
             anchor_e.append(frequency_e)
             anchor_h.append(frequency_h)
             anchor_neff.append(frequency_neff)
+
+        if len(frequencies) > 1 and self.anchor_policy == 'auto':
+            for mode_position, mode_index in enumerate(mode_indices):
+                for frequency_index in range(1, len(frequencies)):
+                    overlap = self._modal_overlap(
+                        anchor_e[frequency_index - 1][mode_position],
+                        anchor_h[frequency_index - 1][mode_position],
+                        anchor_e[frequency_index][mode_position],
+                        anchor_h[frequency_index][mode_position],
+                    )
+                    magnitude = float(abs(overlap))
+                    if (
+                        not np.isfinite(magnitude)
+                        or magnitude < self.ANCHOR_OVERLAP_ERROR_THRESHOLD
+                    ):
+                        frequency = float(self.fallback_frequency)
+                        logger.warning(
+                            f'Automatic anchor tracking failed for eigenmode port '
+                            f'{self.port_index}, mode {mode_index}, between '
+                            f'{frequencies[frequency_index - 1]:g} and '
+                            f'{frequencies[frequency_index]:g} Hz with overlap '
+                            f'{magnitude:.6f}. This may indicate a mode crossing or '
+                            f'degeneracy. The port will use a single modal anchor at '
+                            f'{frequency:g} Hz. Its modal decomposition and '
+                            'S-parameters may be inaccurate toward frequencies far '
+                            'from this anchor.'
+                        )
+                        self.frequency = frequency
+                        self.frequencies = (frequency,)
+                        self.mode_solvers = None
+                        return self.grid_init(G)
 
         for mode_position, mode_index in enumerate(mode_indices):
             for frequency_index in range(1, len(frequencies)):
@@ -266,6 +341,8 @@ class EigenmodeSource(Source):
         monitor.prepare(G)
         self.port_monitor = monitor
         G.eigenmodeports.append(monitor)
+        self._plot_eigenmode_fields()
+        self._plot_eigenmode_excitation(G)
 
     def _store_real_modal_fields(self):
         """Store contiguous real modal arrays in the configured CPU precision."""
@@ -378,6 +455,7 @@ class EigenmodeSource(Source):
             anchor_neff.append(complex(self.complex_neff))
             solvers.append(self.mode_solver)
 
+        self._validate_solver_mode_tracking(solvers, frequencies)
         overlaps = self._align_and_validate_anchors(anchor_e, anchor_h, frequencies)
         self.anchor_modal_e = anchor_e
         self.anchor_modal_h = anchor_h
@@ -404,6 +482,25 @@ class EigenmodeSource(Source):
         dtype = config.sim_config.dtypes["float_or_double"]
         self.modal_e_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e]
         self.modal_h_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h]
+
+    def _validate_solver_mode_tracking(self, solvers, frequencies):
+        mode_indices = tuple(self.mode_indices or (self.mode_index,))
+        for mode_index in mode_indices:
+            previous_e = None
+            previous_h = None
+            for frequency_index, solver in enumerate(solvers):
+                electric, magnetic, _ = self._fields_from_solver_mode(solver, mode_index)
+                if previous_e is not None:
+                    overlap = self._modal_overlap(previous_e, previous_h, electric, magnetic)
+                    self._check_anchor_overlap(
+                        float(abs(overlap)),
+                        frequencies[frequency_index - 1],
+                        frequencies[frequency_index],
+                        mode_index,
+                        f'Eigenmode port {self.port_index}',
+                    )
+                previous_e = electric
+                previous_h = magnetic
 
     def _solve_eigenmode(self, G):
         if self.invariant_axis is not None:
@@ -433,7 +530,6 @@ class EigenmodeSource(Source):
             pmc_w_mask=pmc_w_mask,
         )
         solver.solve()
-        self._plot_eigenmode_fields(solver)
 
         self.mode_solver = solver
         self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(solver, self.mode_index)
@@ -452,7 +548,6 @@ class EigenmodeSource(Source):
             **solver_inputs,
         )
         solver.solve()
-        self._plot_eigenmode_fields(solver)
 
         self.mode_solver = solver
         self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(solver, self.mode_index)
@@ -613,7 +708,7 @@ class EigenmodeSource(Source):
             f"{magnitude:.6f}"
         )
         if not np.isfinite(magnitude) or magnitude < cls.ANCHOR_OVERLAP_ERROR_THRESHOLD:
-            raise ValueError(
+            raise EigenmodeAnchorMismatchError(
                 f"{description}, below the minimum "
                 f"{cls.ANCHOR_OVERLAP_ERROR_THRESHOLD:.6f}. The broadband "
                 "anchor modes cannot be tracked reliably. Use a "
@@ -812,6 +907,16 @@ class EigenmodeSource(Source):
             and significant_indices.size
             and (significant_low < frequencies[0] or significant_high > frequencies[-1])
         ):
+            if self.spectrum_coverage_policy == 'error':
+                raise ValueError(
+                    'Eigenmode anchors do not cover the significant excitation '
+                    f'spectrum: anchors span {frequencies[0]:g} to '
+                    f'{frequencies[-1]:g} Hz, while significant bins span '
+                    f'{significant_low:g} to {significant_high:g} Hz. Use '
+                    'per-port anchors=\'auto\', provide wider explicit anchors, or '
+                    'use EigenmodeExcitation with waveform=\'auto\' for a validated '
+                    'bandpass spectrum.'
+                )
             logger.warning(
                 "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
                 f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
@@ -970,31 +1075,62 @@ class EigenmodeSource(Source):
         """Return the explicit setting or the geometry-only default."""
         return bool(config.sim_config.geometry_only) if self.plot_fields is None else bool(self.plot_fields)
 
-    def _plot_eigenmode_fields(self, solver):
+    def _should_plot_eigenmode_excitation(self):
+        """Return the excitation-plot setting or the geometry-only default."""
+        if self.plot_waveform is None:
+            return bool(config.sim_config.geometry_only)
+        return bool(self.plot_waveform)
+
+    def _plot_eigenmode_fields(self):
         if not self._should_plot_eigenmode_fields():
             return
 
         input_path = config.sim_config.input_file_path
         output_dir = input_path.parent
-        filename_base = (
-            f"{input_path.stem}_eigenmode_{self.normal}{self.direction}"
-            f"_w{self.plane_index}_u{self.transverse_start[0]}-{self.transverse_stop[0]}"
-            f"_v{self.transverse_start[1]}-{self.transverse_stop[1]}"
-            f"_mode{self.mode_index}"
+        frequencies = tuple(self.frequencies or (self.frequency,))
+        solvers = tuple(self.mode_solvers or (self.mode_solver,))
+        mode_indices = tuple(self.mode_indices or range(1, self.mode_count + 1))
+        for mode_index in mode_indices:
+            field_path = output_dir / f"{input_path.stem}_Port{self.port_index}_Mode{mode_index}.png"
+            plot_eigenmode_port_fields(
+                solvers=solvers,
+                frequencies=frequencies,
+                mode_index=mode_index,
+                port_index=self.port_index,
+                output_path=field_path,
+            )
+            logger.info(
+                f"Eigenmode port {self.port_index}, mode {mode_index} tangential "
+                f"vector-field plot written to {field_path}"
+            )
+
+    def _plot_eigenmode_excitation(self, G):
+        """Write the single excitation waveform and its exact port-bin DFT."""
+        if not self._should_plot_eigenmode_excitation():
+            return
+
+        sample_count = int(G.iterations)
+        samples = self.broadband_input_waveform
+        if samples is None:
+            times = np.arange(sample_count, dtype=np.float64) * G.dt
+            samples = np.asarray(
+                [self.waveform.calculate_value(time - self.start, G.dt) for time in times],
+                dtype=np.float64,
+            )
+        input_path = config.sim_config.input_file_path
+        output_path = input_path.parent / f"{input_path.stem}_EigenmodeExcitation.png"
+        plot_eigenmode_excitation(
+            samples=samples,
+            dt=G.dt,
+            dft_frequencies=self.port_monitor.frequency,
+            band_start=self.dft_start,
+            band_stop=self.dft_stop,
+            port_index=self.port_index,
+            waveform_id=self.waveformID,
+            spectral_threshold=self.spectral_threshold,
+            output_path=output_path,
         )
-        if self.frequencies is not None and len(self.frequencies) > 1:
-            filename_base += f"_f{self.frequency:.12g}Hz"
-        if isinstance(solver, FDFD_1D_mode_solver):
-            field_path = output_dir / f"{filename_base}_{self.domain_polarization}_fields.png"
-            solver.plot_fields(field_path)
-            logger.info(f"Eigenmode 1D field profiles written to {field_path}")
-        else:
-            e_path = output_dir / f"{filename_base}_Eu_Ev.png"
-            h_path = output_dir / f"{filename_base}_Hu_Hv.png"
-            solver.plot_e_fields(e_path)
-            solver.plot_h_fields(h_path)
-            logger.info(f"Eigenmode local transverse electric field plot written to {e_path}")
-            logger.info(f"Eigenmode local transverse magnetic field plot written to {h_path}")
+        logger.info(f"Eigenmode excitation waveform and DFT plot written to {output_path}")
 
     def _select_plane_index(self, G):
         """Choose the normal-axis plane from the propagation direction."""
@@ -1468,6 +1604,7 @@ class EigenmodeReceiver(EigenmodeSource):
         anchor_e = []
         anchor_h = []
         anchor_neff = []
+        solvers = []
 
         for frequency in frequencies:
             self.frequency = frequency
@@ -1484,6 +1621,38 @@ class EigenmodeReceiver(EigenmodeSource):
             anchor_e.append(frequency_e)
             anchor_h.append(frequency_h)
             anchor_neff.append(frequency_neff)
+            solvers.append(self.mode_solver)
+
+        if len(frequencies) > 1 and self.anchor_policy == 'auto':
+            for mode_position, mode_index in enumerate(mode_indices):
+                for frequency_index in range(1, len(frequencies)):
+                    overlap = self._modal_overlap(
+                        anchor_e[frequency_index - 1][mode_position],
+                        anchor_h[frequency_index - 1][mode_position],
+                        anchor_e[frequency_index][mode_position],
+                        anchor_h[frequency_index][mode_position],
+                    )
+                    magnitude = float(abs(overlap))
+                    if (
+                        not np.isfinite(magnitude)
+                        or magnitude < self.ANCHOR_OVERLAP_ERROR_THRESHOLD
+                    ):
+                        frequency = float(self.fallback_frequency)
+                        logger.warning(
+                            f'Automatic anchor tracking failed for eigenmode port '
+                            f'{self.port_index}, mode {mode_index}, between '
+                            f'{frequencies[frequency_index - 1]:g} and '
+                            f'{frequencies[frequency_index]:g} Hz with overlap '
+                            f'{magnitude:.6f}. This may indicate a mode crossing or '
+                            f'degeneracy. The port will use a single modal anchor at '
+                            f'{frequency:g} Hz. Its modal decomposition and '
+                            'S-parameters may be inaccurate toward frequencies far '
+                            'from this anchor.'
+                        )
+                        self.frequency = frequency
+                        self.frequencies = (frequency,)
+                        self.mode_solvers = None
+                        return self.grid_init(G)
 
         for mode_position, mode_index in enumerate(mode_indices):
             for frequency_index in range(1, len(frequencies)):
@@ -1530,6 +1699,8 @@ class EigenmodeReceiver(EigenmodeSource):
         monitor.prepare(G)
         self.port_monitor = monitor
         G.eigenmodeports.append(monitor)
+        self.mode_solvers = solvers
+        self._plot_eigenmode_fields()
 
 
 class VoltageSource(Source):

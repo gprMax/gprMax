@@ -29,6 +29,11 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
+from gprMax.eigenmode_config import (
+    EigenmodeBandSpec,
+    EigenmodeBandpassWaveform,
+    EigenmodePortSpec,
+)
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
@@ -1710,6 +1715,291 @@ class DiscretePlaneWaveAxial(GridUserObject):
         grid.discreteplanewaves.append(DPW)
 
 
+class EigenmodeBand(GridUserObject):
+    '''Define the single frequency band shared by all eigenmode ports.'''
+
+    @property
+    def order(self):
+        return 20
+
+    @property
+    def hash(self):
+        return '#eigenmode_band'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f'{self.params_str()} currently supports only the main grid.')
+        if grid.eigenmodeband is not None:
+            raise ValueError('Exactly one EigenmodeBand may be defined per grid.')
+        try:
+            band_id = str(self.kwargs['id'])
+            fmin = float(self.kwargs['fmin'])
+            fmax = float(self.kwargs['fmax'])
+            points = int(self.kwargs['points'])
+        except KeyError:
+            logger.exception(f'{self.params_str()} requires id, fmin, fmax, and points.')
+            raise
+        if not band_id or any(character.isspace() for character in band_id):
+            raise ValueError(f'{self.params_str()} id must be a non-empty token without whitespace.')
+        _validate_eigenmode_dft(self.params_str(), fmin, fmax, points)
+        threshold = float(self.kwargs.get('spectral_threshold', 1e-3))
+        if not 0 < threshold < 1:
+            raise ValueError(f'{self.params_str()} spectral_threshold must be between zero and one.')
+        transition = self.kwargs.get('transition', 'auto')
+        if transition != 'auto':
+            transition = float(transition)
+            if not np.isfinite(transition) or transition <= 0:
+                raise ValueError(f'{self.params_str()} transition must be positive or auto.')
+        grid.eigenmodeband = EigenmodeBandSpec(
+            id=band_id,
+            fmin=fmin,
+            fmax=fmax,
+            points=points,
+            transition=transition,
+            spectral_threshold=threshold,
+        )
+        logger.info(
+            f'{self.grid_name(grid)}Eigenmode band {band_id!r}, frequencies '
+            f'{fmin:g} to {fmax:g} Hz with {points} common DFT point(s), created.'
+        )
+
+
+class EigenmodePort(GridUserObject):
+    '''Define a modal port plane with its own anchor-frequency policy.'''
+
+    @property
+    def order(self):
+        return 21
+
+    @property
+    def hash(self):
+        return '#eigenmode_port'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f'{self.params_str()} currently supports only the main grid.')
+        if grid.eigenmodeband is None:
+            raise ValueError(f'{self.params_str()} requires one preceding EigenmodeBand.')
+        if config.sim_config.general['solver'] in ('cuda', 'opencl', 'metal'):
+            raise ValueError(
+                f'{self.params_str()} cannot currently be used with CUDA, OpenCL, or Metal.'
+            )
+        if config.sim_config.mpi:
+            raise ValueError(f'{self.params_str()} cannot currently be used with MPI.')
+        try:
+            port = int(self.kwargs['port'])
+            p1 = tuple(float(value) for value in self.kwargs['p1'])
+            p2 = tuple(float(value) for value in self.kwargs['p2'])
+            direction = str(self.kwargs['direction'])
+            modes_arg = self.kwargs['modes']
+        except KeyError:
+            logger.exception(f'{self.params_str()} requires port, p1, p2, direction, and modes.')
+            raise
+        if port < 1:
+            raise ValueError(f'{self.params_str()} port must be one or greater.')
+        if len(p1) != 3 or len(p2) != 3:
+            raise ValueError(f'{self.params_str()} p1 and p2 must each contain three coordinates.')
+        if direction not in ('+', '-'):
+            raise ValueError(f'{self.params_str()} direction must be + or -.')
+        if np.isscalar(modes_arg):
+            mode_count = int(modes_arg)
+            modes = tuple(range(1, mode_count + 1))
+        else:
+            modes = tuple(int(value) for value in modes_arg)
+        if not modes or any(mode < 1 for mode in modes):
+            raise ValueError(f'{self.params_str()} modes must contain positive one-based indices.')
+        if modes != tuple(sorted(set(modes))):
+            raise ValueError(f'{self.params_str()} modes must be unique and strictly increasing.')
+        anchors_arg = self.kwargs.get('anchors', 'auto')
+        if isinstance(anchors_arg, str):
+            if anchors_arg.lower() != 'auto':
+                raise ValueError(f'{self.params_str()} anchors must be auto or frequencies.')
+            anchors = 'auto'
+        elif np.isscalar(anchors_arg):
+            anchors = (float(anchors_arg),)
+        else:
+            anchors = tuple(float(value) for value in anchors_arg)
+        if anchors != 'auto':
+            if not anchors:
+                raise ValueError(f'{self.params_str()} requires at least one explicit anchor.')
+            if any(not np.isfinite(value) or value <= 0 for value in anchors):
+                raise ValueError(f'{self.params_str()} anchors must be finite and positive.')
+            if any(anchors[index] >= anchors[index + 1] for index in range(len(anchors) - 1)):
+                raise ValueError(f'{self.params_str()} anchors must be unique and strictly increasing.')
+        if port in grid.eigenmodeportdefs:
+            raise ValueError(f'Eigenmode port {port} is already defined.')
+
+        domain_mode = config.get_model_config().mode
+        invariant_axis = 'xyz'.index(domain_mode[-1]) if domain_mode.startswith('2D') else None
+        equal_axes = [
+            axis
+            for axis in range(3)
+            if axis != invariant_axis and p1[axis] == p2[axis] and np.isfinite(p1[axis])
+        ]
+        if len(equal_axes) != 1:
+            raise ValueError(
+                f'{self.params_str()} must have exactly one finite matching coordinate '
+                'pair, which defines the port normal.'
+            )
+        normal_axis = equal_axes[0]
+        transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
+        plot_fields = self.kwargs.get('plot_fields')
+        if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
+            raise ValueError(f'{self.params_str()} plot_fields must be True, False, or None.')
+        grid.eigenmodeportdefs[port] = EigenmodePortSpec(
+            port=port,
+            p1=p1,
+            p2=p2,
+            normal='xyz'[normal_axis],
+            direction=direction,
+            normal_axis=normal_axis,
+            transverse_axes=transverse_axes,
+            invariant_axis=invariant_axis,
+            modes=modes,
+            anchors=anchors,
+            plot_fields=None if plot_fields is None else bool(plot_fields),
+        )
+        axis_name = 'xyz'[normal_axis]
+        logger.info(
+            f'{self.grid_name(grid)}Eigenmode port {port}, normal {axis_name}{direction}, '
+            f'monitoring modes {modes}, with anchors {anchors}, created.'
+        )
+
+
+class EigenmodeExcitation(GridUserObject):
+    '''Attach the single active modal excitation to a defined port.'''
+
+    @property
+    def order(self):
+        return 22
+
+    @property
+    def hash(self):
+        return '#eigenmode_excitation'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def _runtime_plane_kwargs(port, band):
+        transverse_p1 = tuple(port.p1[axis] for axis in port.transverse_axes)
+        transverse_p2 = tuple(port.p2[axis] for axis in port.transverse_axes)
+        lower = tuple(min(first, second) for first, second in zip(transverse_p1, transverse_p2))
+        upper = tuple(max(first, second) for first, second in zip(transverse_p1, transverse_p2))
+        kwargs = {
+            'normal': port.normal,
+            'direction': port.direction,
+            'p1': lower,
+            'p2': upper,
+            'w': port.p1[port.normal_axis],
+            'port_index': port.port,
+            'dft_start': band.fmin,
+            'dft_stop': band.fmax,
+            'dft_points': band.points,
+            'plot_fields': port.plot_fields,
+        }
+        if len(port.resolved_anchors) == 1:
+            kwargs['frequency'] = port.resolved_anchors[0]
+        else:
+            kwargs['frequencies'] = port.resolved_anchors
+        return kwargs
+
+    def build(self, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f'{self.params_str()} currently supports only the main grid.')
+        if grid.eigenmodeexcitation is not None:
+            raise ValueError('Only one EigenmodeExcitation may be defined per grid.')
+        if grid.eigenmodeband is None:
+            raise ValueError(f'{self.params_str()} requires one EigenmodeBand.')
+        try:
+            source_port_number = int(self.kwargs['port'])
+            excitation_mode = int(self.kwargs['mode'])
+        except KeyError:
+            logger.exception(f'{self.params_str()} requires port and mode.')
+            raise
+        if not grid.eigenmodeportdefs:
+            raise ValueError(f'{self.params_str()} requires at least one EigenmodePort.')
+        if source_port_number not in grid.eigenmodeportdefs:
+            raise ValueError(f'{self.params_str()} references unknown eigenmode port {source_port_number}.')
+        source_port = grid.eigenmodeportdefs[source_port_number]
+        if excitation_mode not in source_port.modes:
+            raise ValueError(
+                f'{self.params_str()} mode {excitation_mode} is not monitored by port '
+                f'{source_port_number}; available modes are {source_port.modes}.'
+            )
+        band = grid.eigenmodeband
+        waveform_arg = self.kwargs.get('waveform', 'auto')
+        amplitude = float(self.kwargs.get('amplitude', 1.0))
+        plot_waveform = self.kwargs.get('plot_waveform')
+        if plot_waveform is not None and not isinstance(plot_waveform, (bool, np.bool_)):
+            raise ValueError(
+                f'{self.params_str()} plot_waveform must be True, False, or None.'
+            )
+        if plot_waveform is not None:
+            plot_waveform = bool(plot_waveform)
+        generated_waveform = isinstance(waveform_arg, str) and waveform_arg.lower() == 'auto'
+        if generated_waveform:
+            waveform = EigenmodeBandpassWaveform(
+                band_id=band.id,
+                fmin=band.fmin,
+                fmax=band.fmax,
+                amplitude=amplitude,
+                dt=grid.dt,
+                sample_count=int(grid.iterations),
+                spectral_threshold=band.spectral_threshold,
+                transition=band.transition,
+            )
+            if any(existing.ID == waveform.ID for existing in grid.waveforms):
+                raise ValueError(f'Generated eigenmode waveform ID {waveform.ID!r} is already in use.')
+            grid.waveforms.append(waveform)
+        else:
+            if amplitude != 1.0:
+                raise ValueError('EigenmodeExcitation amplitude is only used with waveform=\'auto\'.')
+            waveform_id = str(waveform_arg)
+            matches = [waveform for waveform in grid.waveforms if waveform.ID == waveform_id]
+            if not matches:
+                raise ValueError(f'{self.params_str()} references unknown waveform {waveform_id!r}.')
+            waveform = matches[0]
+        band.resolve_spectrum(grid, waveform, generated_waveform=generated_waveform)
+
+        for port_number in sorted(grid.eigenmodeportdefs):
+            port = grid.eigenmodeportdefs[port_number]
+            is_source = port_number == source_port_number
+            port.resolve_anchors(band, is_source=is_source)
+            common = self._runtime_plane_kwargs(port, band)
+            if is_source:
+                common.update(
+                    {
+                        'mode_index': excitation_mode,
+                        'mode_count': max(port.modes),
+                        'waveform_id': waveform.ID,
+                        'spectral_threshold': band.spectral_threshold,
+                    }
+                )
+                _EigenmodeSourceBuilder(**common).build(grid)
+                runtime = grid.eigenmodesources[-1]
+                runtime.mode_indices = port.modes
+                runtime.plot_waveform = plot_waveform
+            else:
+                common.update({'mode_count': max(port.modes), 'id': f'port{port.port}'})
+                _EigenmodeReceiverBuilder(**common).build(grid)
+                runtime = grid.eigenmodereceivers[-1]
+                runtime.mode_indices = port.modes
+            runtime.anchor_policy = port.anchor_policy
+            runtime.fallback_frequency = 0.5 * (band.fmin + band.fmax)
+        grid.eigenmodeexcitation = self
+        logger.info(
+            f'{self.grid_name(grid)}Eigenmode excitation created on port '
+            f'{source_port_number}, mode {excitation_mode}, using waveform {waveform.ID!r}.'
+        )
+
+
 def _validate_eigenmode_dft(label, start, stop, points):
     if not np.isfinite(start) or not np.isfinite(stop) or start <= 0 or stop < start:
         raise ValueError(f"{label} DFT frequencies must satisfy 0 < start <= stop.")
@@ -1721,22 +2011,8 @@ def _validate_eigenmode_dft(label, start, stop, points):
         raise ValueError(f"{label} a multi-point DFT requires stop greater than start.")
 
 
-class EigenmodeSource(GridUserObject):
-    """
-    Specifies an eigenmode source plane. The command form is:
-
-        #eigenmode_source: x0 y0 z0 x1 y1 z1 <+|-> excitation_mode[,mode_count] port_index frequency [frequency ...] waveform_id dft_start dft_stop dft_points [y|n]
-
-    Exactly one coordinate pair must match between the two points. If x0=x1
-    the source lies in the yz plane with normal x; if y0=y1 the source lies in
-    the xz plane with normal y; if z0=z1 the source lies in the xy plane with
-    normal z.
-
-    ``plot_fields`` controls diagnostic modal-field plots. Its default value,
-    ``None``, writes plots for geometry-only builds and suppresses them for
-    normal simulations. ``True`` always writes the plots and ``False`` always
-    suppresses them.
-    """
+class _EigenmodeSourceBuilder(GridUserObject):
+    """Internal builder for the active plane defined by an EigenmodePort."""
 
     @property
     def order(self):
@@ -1744,7 +2020,7 @@ class EigenmodeSource(GridUserObject):
 
     @property
     def hash(self):
-        return "#eigenmode_source"
+        return "#eigenmode_port"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1955,8 +2231,8 @@ class EigenmodeSource(GridUserObject):
         grid.eigenmodesources.append(source)
 
 
-class EigenmodeRx(GridUserObject):
-    """Passive eigenmode receiver plane monitoring modes 1 through mode_count."""
+class _EigenmodeReceiverBuilder(GridUserObject):
+    """Internal builder for a passive plane defined by an EigenmodePort."""
 
     @property
     def order(self):
@@ -1964,7 +2240,7 @@ class EigenmodeRx(GridUserObject):
 
     @property
     def hash(self):
-        return "#eigenmode_rx"
+        return "#eigenmode_port"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

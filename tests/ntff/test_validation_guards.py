@@ -175,7 +175,7 @@ def test_reusable_surface_rejects_eigenmode_injection_plane_outside():
     model = SimpleNamespace(G=main_grid, subgrids=[])
     output_grid = SimpleNamespace(ntff_monitors=[monitor])
 
-    with pytest.raises(ValueError, match="EigenmodeSource"):
+    with pytest.raises(ValueError, match="EigenmodePort"):
         validate_ntff_source_enclosure(model, output_grid)
 
 

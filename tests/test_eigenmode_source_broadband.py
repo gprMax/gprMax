@@ -156,6 +156,7 @@ def test_broadband_quality_safeguards_warn_and_continue(monkeypatch):
     source.start = 0.0
     source.normal_axis = 0
     source.spectral_threshold = 1e-3
+    source.spectrum_coverage_policy = 'warn'
     source.anchor_complex_neff = np.ones(2, dtype=np.complex128)
     modal_fields = [
         np.ones((1, 1), dtype=np.complex128),

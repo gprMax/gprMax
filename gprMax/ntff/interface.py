@@ -728,7 +728,7 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                 )
                 if not enclosed and not admitted:
                     offenders.append(
-                        f"EigenmodeSource[{index}] on {grid_name} injection plane from "
+                        f"EigenmodePort[{index}] on {grid_name} injection plane from "
                         f"{tuple(box_lower)} m to {tuple(box_upper)} m"
                     )
 

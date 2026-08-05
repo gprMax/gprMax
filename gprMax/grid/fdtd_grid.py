@@ -150,6 +150,9 @@ class FDTDGrid:
         self.transmissionlines: List[TransmissionLine] = []
         self.magneticfrillsources: List[MagneticFrillSource] = []
         self.discreteplanewaves: List[DiscretePlaneWave] = []
+        self.eigenmodeband = None
+        self.eigenmodeportdefs = {}
+        self.eigenmodeexcitation = None
         self.eigenmodesources: List[EigenmodeSource] = []
         self.eigenmodereceivers: List[EigenmodeReceiver] = []
         self.eigenmodeports = []
@@ -837,6 +840,10 @@ class FDTDGrid:
 
     def _eigenmode_port_grid_init(self):
         """Process eigenmode sources and receivers after Yee IDs have been built."""
+        if self.eigenmodeportdefs and self.eigenmodeband is None:
+            raise ValueError('Eigenmode ports require exactly one EigenmodeBand.')
+        if self.eigenmodeportdefs and self.eigenmodeexcitation is None:
+            raise ValueError('Eigenmode ports require exactly one EigenmodeExcitation.')
         source_count = len(self.eigenmodesources)
         if (source_count or self.eigenmodereceivers) and source_count != 1:
             raise ValueError(

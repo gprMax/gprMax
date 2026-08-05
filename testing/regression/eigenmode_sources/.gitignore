@@ -1,6 +1,7 @@
 *.h5
 *.png
 *_sparameters.csv
+grid_spacing_metrics.csv
 *.vtkhdf
 *_snaps/
 /legacy/

@@ -29,8 +29,9 @@ from .user_objects.cmds_multiuse import (
     DiscretePlaneWaveAngles,
     DiscretePlaneWaveAxial,
     DiscretePlaneWaveVector,
-    EigenmodeRx,
-    EigenmodeSource,
+    EigenmodeBand,
+    EigenmodeExcitation,
+    EigenmodePort,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -254,6 +255,93 @@ def process_multicmds(multicmds):
 
             scene_objects.append(plWave)
 
+    eigenmode_band_cmds = multicmds.get('#eigenmode_band') or []
+    eigenmode_port_cmds = multicmds.get('#eigenmode_port') or []
+    eigenmode_excitation_cmds = multicmds.get('#eigenmode_excitation') or []
+    if eigenmode_port_cmds and len(eigenmode_band_cmds) != 1:
+        raise ValueError(
+            'Eigenmode ports require exactly one #eigenmode_band command; '
+            f'found {len(eigenmode_band_cmds)}.'
+        )
+    if eigenmode_port_cmds and len(eigenmode_excitation_cmds) != 1:
+        raise ValueError(
+            'Eigenmode ports require exactly one #eigenmode_excitation command; '
+            f'found {len(eigenmode_excitation_cmds)}.'
+        )
+    if eigenmode_excitation_cmds and not eigenmode_port_cmds:
+        raise ValueError('#eigenmode_excitation requires at least one #eigenmode_port.')
+
+    for cmdinstance in eigenmode_band_cmds:
+        tmp = cmdinstance.split()
+        if len(tmp) != 4:
+            raise ValueError('#eigenmode_band requires id fmin fmax points.')
+        scene_objects.append(
+            EigenmodeBand(
+                id=tmp[0],
+                fmin=float(tmp[1]),
+                fmax=float(tmp[2]),
+                points=int(tmp[3]),
+            )
+        )
+
+    for cmdinstance in eigenmode_port_cmds:
+        tmp = cmdinstance.split()
+        if len(tmp) < 10:
+            raise ValueError(
+                '#eigenmode_port requires port x0 y0 z0 x1 y1 z1 direction '
+                'modes anchors [anchor ...] [y|n].'
+            )
+        port = int(tmp[0])
+        p1 = tuple(float(value) for value in tmp[1:4])
+        p2 = tuple(float(value) for value in tmp[4:7])
+        direction = tmp[7]
+        try:
+            modes = tuple(int(value) for value in tmp[8].split(','))
+        except ValueError as exc:
+            raise ValueError('#eigenmode_port modes must be comma-separated integers.') from exc
+        tail = tmp[9:]
+        plot_fields = None
+        if tail[-1].lower() in ('y', 'n'):
+            plot_fields = tail[-1].lower() == 'y'
+            tail = tail[:-1]
+        if tail == ['auto']:
+            anchors = 'auto'
+        else:
+            if not tail or 'auto' in (value.lower() for value in tail):
+                raise ValueError('#eigenmode_port anchors must be auto or frequencies.')
+            anchors = tuple(float(value) for value in tail)
+        scene_objects.append(
+            EigenmodePort(
+                port=port,
+                p1=p1,
+                p2=p2,
+                direction=direction,
+                modes=modes,
+                anchors=anchors,
+                plot_fields=plot_fields,
+            )
+        )
+
+    for cmdinstance in eigenmode_excitation_cmds:
+        tmp = cmdinstance.split()
+        plot_waveform = None
+        if tmp and tmp[-1].lower() in ('y', 'n'):
+            plot_waveform = tmp[-1].lower() == 'y'
+            tmp = tmp[:-1]
+        if len(tmp) not in (2, 3, 4):
+            raise ValueError(
+                '#eigenmode_excitation requires port mode '
+                '[auto|waveform_id] [amplitude] [y|n].'
+            )
+        kwargs = {'port': int(tmp[0]), 'mode': int(tmp[1])}
+        if len(tmp) >= 3:
+            kwargs['waveform'] = tmp[2]
+        if len(tmp) == 4:
+            kwargs['amplitude'] = float(tmp[3])
+        if plot_waveform is not None:
+            kwargs['plot_waveform'] = plot_waveform
+        scene_objects.append(EigenmodeExcitation(**kwargs))
+
     cmdname = "#plane_wave_vector"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -327,200 +415,6 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             scene_objects.append(plWave)
-
-    eigenmode_source_cmds = multicmds["#eigenmode_source"] or []
-    eigenmode_rx_cmds = multicmds["#eigenmode_rx"] or []
-    if (eigenmode_source_cmds or eigenmode_rx_cmds) and len(eigenmode_source_cmds) != 1:
-        raise ValueError(
-            "Eigenmode ports require one and only one #eigenmode_source command; "
-            f"found {len(eigenmode_source_cmds)}."
-        )
-
-    cmdname = "#eigenmode_source"
-    if multicmds[cmdname] is not None:
-        for cmdinstance in multicmds[cmdname]:
-            tmp = cmdinstance.split()
-            if len(tmp) < 14:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least fourteen parameters: x0 y0 z0 x1 y1 z1 "
-                    "direction excitation_mode[,mode_count] port_index "
-                    "frequency [frequency ...] waveform_id "
-                    "dft_start dft_stop dft_points"
-                )
-                raise ValueError
-
-            p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
-            p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
-            mode = config.get_model_config().mode
-            invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
-            equal_axes = [axis for axis in range(3) if axis != invariant_axis and p0[axis] == p1[axis]]
-            if len(equal_axes) != 1:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " must have exactly one finite matching coordinate pair "
-                    "for the source normal"
-                )
-                raise ValueError
-
-            axis_names = ("x", "y", "z")
-            normal_axis = equal_axes[0]
-            transverse_axes = [axis for axis in range(3) if axis != normal_axis]
-            transverse_p0 = [p0[axis] for axis in transverse_axes]
-            transverse_p1 = [p1[axis] for axis in transverse_axes]
-            transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
-            transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
-
-            try:
-                mode_values = tuple(int(value) for value in tmp[7].split(","))
-            except ValueError as exc:
-                raise ValueError(
-                    f"{cmdname} mode specification must be excitation_mode or " "excitation_mode,mode_count."
-                ) from exc
-            if len(mode_values) not in (1, 2):
-                raise ValueError(f"{cmdname} mode specification must contain one or two integers.")
-            excitation_mode = mode_values[0]
-            mode_count = mode_values[-1]
-            if excitation_mode < 1:
-                raise ValueError(f"{cmdname} excitation_mode must be one or greater.")
-            if mode_count < excitation_mode:
-                raise ValueError(
-                    f"{cmdname} mode_count must be at least excitation_mode " f"({excitation_mode}); got {mode_count}."
-                )
-            try:
-                port_index = int(tmp[8])
-            except ValueError as exc:
-                raise ValueError(f"{cmdname} port_index must be an integer.") from exc
-            if port_index < 1:
-                raise ValueError(f"{cmdname} port_index must be one or greater.")
-
-            frequency_tokens = []
-            parameter_index = 9
-            while parameter_index < len(tmp):
-                try:
-                    float(tmp[parameter_index])
-                except ValueError:
-                    break
-                frequency_tokens.append(tmp[parameter_index])
-                parameter_index += 1
-
-            if not frequency_tokens or parameter_index >= len(tmp):
-                raise ValueError(f"{cmdname} requires one or more frequencies followed by a waveform identifier.")
-
-            frequencies = tuple(float(value) for value in frequency_tokens)
-            waveform_id = tmp[parameter_index]
-            tail = tmp[parameter_index + 1 :]
-            if len(tail) not in (3, 4) or (len(tail) == 4 and tail[3].lower() not in ("y", "n")):
-                raise ValueError(
-                    f"{cmdname} requires dft_start dft_stop dft_points and accepts "
-                    "an optional final y or n field-plot parameter."
-                )
-            dft_start, dft_stop = float(tail[0]), float(tail[1])
-            dft_points = int(tail[2])
-            plot_fields = None if len(tail) == 3 else tail[3].lower() == "y"
-            kwargs = {
-                "normal": axis_names[normal_axis],
-                "direction": tmp[6],
-                "p1": transverse_lower,
-                "p2": transverse_upper,
-                "w": p0[normal_axis],
-                "mode_index": excitation_mode,
-                "mode_count": mode_count,
-                "port_index": port_index,
-                "waveform_id": waveform_id,
-                "dft_start": dft_start,
-                "dft_stop": dft_stop,
-                "dft_points": dft_points,
-                "plot_fields": plot_fields,
-            }
-            if len(frequencies) == 1:
-                kwargs["frequency"] = frequencies[0]
-            else:
-                kwargs["frequencies"] = frequencies
-            eigenmode_source = EigenmodeSource(**kwargs)
-            scene_objects.append(eigenmode_source)
-
-    cmdname = "#eigenmode_rx"
-    if multicmds[cmdname] is not None:
-        for cmdinstance in multicmds[cmdname]:
-            tmp = cmdinstance.split()
-            if len(tmp) < 14:
-                raise ValueError(
-                    f"{cmdname} requires x0 y0 z0 x1 y1 z1 direction "
-                    "mode_count port_index frequency [frequency ...] id "
-                    "dft_start dft_stop dft_points [y|n]."
-                )
-            p0 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
-            p1 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
-            mode = config.get_model_config().mode
-            invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
-            equal_axes = [axis for axis in range(3) if axis != invariant_axis and p0[axis] == p1[axis]]
-            if len(equal_axes) != 1:
-                raise ValueError(
-                    f"{cmdname} must have exactly one finite matching coordinate pair " "for the receiver normal."
-                )
-            normal_axis = equal_axes[0]
-            transverse_axes = [axis for axis in range(3) if axis != normal_axis]
-            transverse_p0 = [p0[axis] for axis in transverse_axes]
-            transverse_p1 = [p1[axis] for axis in transverse_axes]
-            transverse_lower = tuple(min(a, b) for a, b in zip(transverse_p0, transverse_p1))
-            transverse_upper = tuple(max(a, b) for a, b in zip(transverse_p0, transverse_p1))
-            try:
-                mode_count = int(tmp[7])
-                port_index = int(tmp[8])
-            except ValueError as exc:
-                raise ValueError(f"{cmdname} mode_count and port_index must be integers.") from exc
-            if mode_count < 1:
-                raise ValueError(f"{cmdname} mode_count must be one or greater.")
-            if port_index < 1:
-                raise ValueError(f"{cmdname} port_index must be one or greater.")
-
-            frequency_tokens = []
-            parameter_index = 9
-            while parameter_index < len(tmp):
-                try:
-                    float(tmp[parameter_index])
-                except ValueError:
-                    break
-                frequency_tokens.append(tmp[parameter_index])
-                parameter_index += 1
-            if not frequency_tokens or parameter_index >= len(tmp):
-                raise ValueError(f"{cmdname} requires modal frequencies followed by a receiver ID.")
-            frequencies = tuple(float(value) for value in frequency_tokens)
-            port_id = tmp[parameter_index]
-            tail = tmp[parameter_index + 1 :]
-            if len(tail) not in (3, 4) or (len(tail) == 4 and tail[3].lower() not in ("y", "n")):
-                raise ValueError(
-                    f"{cmdname} requires dft_start dft_stop dft_points and accepts "
-                    "an optional final y or n field-plot parameter."
-                )
-            kwargs = {
-                "normal": "xyz"[normal_axis],
-                "direction": tmp[6],
-                "p1": transverse_lower,
-                "p2": transverse_upper,
-                "w": p0[normal_axis],
-                "mode_count": mode_count,
-                "port_index": port_index,
-                "id": port_id,
-                "dft_start": float(tail[0]),
-                "dft_stop": float(tail[1]),
-                "dft_points": int(tail[2]),
-                "plot_fields": None if len(tail) == 3 else tail[3].lower() == "y",
-            }
-            if len(frequencies) == 1:
-                kwargs["frequency"] = frequencies[0]
-            else:
-                kwargs["frequencies"] = frequencies
-            scene_objects.append(EigenmodeRx(**kwargs))
 
     cmdname = "#excitation_file"
     if multicmds[cmdname] is not None:

@@ -519,8 +519,8 @@ class Model:
                 )
             if any(grid.eigenmodesources or grid.eigenmodereceivers for grid in grids):
                 raise ValueError(
-                    "Eigenmode source/receiver commands (#eigenmode_source and "
-                    "#eigenmode_rx) cannot be used with geometry_fixed when more "
+                    "EigenmodeBand, EigenmodePort, and EigenmodeExcitation cannot "
+                    "be used with geometry_fixed when more "
                     "than one model is requested (n > 1) - their modal DFT "
                     "accumulators, recursive phase state, and derived "
                     "S-parameters are not reset between reused-geometry runs. "
