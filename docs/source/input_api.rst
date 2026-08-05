@@ -477,6 +477,67 @@ waveforms can drive local Hertzian or magnetic dipoles, voltage sources,
 transmission lines, and magnetic-frill sources. The discrete-plane-wave
 formulation currently requires a built-in analytic waveform.
 
+Eigenmode band, ports, and excitation
+-------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeBand
+.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodePort
+.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeExcitation
+
+An eigenmode model has one shared frequency band, one or more independently
+configured ports, and exactly one excitation. Ports do not repeat the DFT
+range or waveform:
+
+.. code-block:: python
+
+    scene.add(gprMax.EigenmodeBand(
+        id='wg_band', fmin=45e9, fmax=65e9, points=81,
+    ))
+    scene.add(gprMax.EigenmodePort(
+        port=1,
+        p1=(0.002, 0.001, 0.001),
+        p2=(0.002, 0.007, 0.005),
+        direction='+',
+        modes=(1,),
+        anchors='auto',
+    ))
+    scene.add(gprMax.EigenmodePort(
+        port=2,
+        p1=(0.011, 0.001, 0.001),
+        p2=(0.011, 0.007, 0.005),
+        direction='-',
+        modes=(1,),
+        anchors='auto',
+    ))
+    scene.add(gprMax.EigenmodeExcitation(
+        port=1, mode=1, waveform='auto', plot_waveform=True,
+    ))
+
+``modes`` is a strictly increasing tuple of one-based modes. A scalar value
+``N`` is shorthand for modes 1 through ``N``. All ports using ``'auto'``
+receive one common anchor list covering both the shared DFT band and the
+significant source spectrum. Multiple explicit frequencies must cover that
+required range; one explicit frequency intentionally uses a fixed modal basis
+over the complete band.
+
+The automatic excitation is a finite real band-pass pulse with independently
+adapted Gaussian-smoothed lower and upper edges. It is placed at the earliest
+causal time that retains its significant temporal support, maximizing the
+remaining propagation and ring-down interval. A custom ``Waveform`` ID can be
+supplied instead. gprMax checks its exact sampled spectrum and rejects
+significant DC/Nyquist content or more than one percent power outside the
+declared band, with a recommendation to use ``waveform='auto'``.
+``plot_waveform`` independently controls the single excitation waveform/DFT
+figure. ``True`` writes it, ``False`` suppresses it, and the default ``None``
+writes it only for geometry-only runs. Each port's ``plot_fields`` setting
+continues to control only that port's modal-field figures.
+
+Severe tracking mismatch between explicit multiple anchors is an error that
+recommends one explicit anchor. With automatic anchors, a failure confined to
+an outer spectral guard trims that tail for every automatic port. A failure
+inside the requested band makes every automatic port warn and use one shared
+band-centre anchor; results far from it may be inaccurate. See
+:doc:`eigenmode_port` for the complete workflow and outputs.
+
 Voltage Source
 --------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.VoltageSource
@@ -863,7 +924,7 @@ class. Hash
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
-``EigenmodeSource`` cannot be combined with any of the ``KSIR*`` classes.
+An eigenmode excitation cannot be combined with any of the ``KSIR*`` classes.
 Use ``NTFFFrequencyTransform``, ``NTFFFarField`` or
 ``NTFFFarFieldArray``, and ``NTFFAntennaPorts`` for an eigenmode-fed
 antenna.

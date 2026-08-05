@@ -18,7 +18,7 @@ gprMax User Guide
 
     input_hash_cmds
     input_api
-    eigenmode
+    eigenmode_port
     output
 
 .. toctree::

@@ -1,5 +1,5 @@
 {
-  "runtime_seconds": 0.2733187999983784,
+  "runtime_seconds": 0.29046310000012454,
   "row_count": 30,
   "cases": {
     "pec_parallel_plate_1d": {
@@ -34,7 +34,7 @@
       "frequency_samples": 6,
       "reported_modes": 2,
       "maximum_relative_error_percent": 1.0430500668810936,
-      "rms_relative_error_percent": 0.5264734741497051,
+      "rms_relative_error_percent": 0.5264734741497042,
       "maximum_allowed_relative_error_percent": 1.5,
       "passed": true
     }

@@ -7,7 +7,6 @@
 #pml_cells: 5 5 0 5 5 0
 
 #material: 9 0 1 0 bend_core
-#waveform: ricker 1 5.5e9 eig_pulse
 
 ## A 20 mm slab follows a 90 degree annular bend with 30 mm centreline radius.
 #box: 0 0.035 0 0.10 0.055 inf bend_core
@@ -15,8 +14,10 @@
 #cylindrical_sector: z 0.10 0.075 0 inf 0.020 270 90 free_space y
 #box: 0.12 0.075 0 0.14 0.18 inf bend_core
 
-#eigenmode_source: 0.02 0.005 0 0.02 0.085 inf + 1,2 1 3e9 4e9 5e9 6e9 7e9 8e9 eig_pulse 3e9 8e9 101 y
-#eigenmode_rx: 0.09 0.175 0 0.17 0.175 inf - 2 2 3e9 4e9 5e9 6e9 7e9 8e9 output 3e9 8e9 101 y
+#eigenmode_band: eigenmode_band 3e9 8e9 101
+#eigenmode_port: 1 0.02 0.005 0 0.02 0.085 inf + 1,2 auto y
+#eigenmode_port: 2 0.09 0.175 0 0.17 0.175 inf - 1,2 auto y
+#eigenmode_excitation: 1 1 auto
 
 #snapshot: 0 0 0 0.21 0.18 inf 0.001 0.001 0.001 1.2e-9 xy_center_1200ps.h5
 #snapshot: 0 0 0 0.21 0.18 inf 0.001 0.001 0.001 2.4e-9 xy_center_2400ps.h5

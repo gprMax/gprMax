@@ -4,26 +4,19 @@ Advanced features
 
 This section provides example models of some of the more advanced features of gprMax. Each example comes with an input file which you can download and run.
 
-Eigenmode sources
-=================
+Eigenmode ports
+===============
 
-The maintained runnable examples are the
-:download:`straight dielectric guide <../../examples/features/eigenmode_sources/dielectric_slab_2d_tm.in>`
-and the
-:download:`eigenmode-fed rod antenna <../../examples/features/eigenmode_sources/dielectric_rod_antenna_3d.in>`.
-Both are reproduced and explained in :doc:`eigenmode`. Their directly
-runnable plotting scripts are
-:download:`plot_dielectric_slab_2d_tm.py <../../examples/features/eigenmode_sources/plot_dielectric_slab_2d_tm.py>`
-and
-:download:`plot_dielectric_rod_antenna_3d.py <../../examples/features/eigenmode_sources/plot_dielectric_rod_antenna_3d.py>`.
-They write their figures beside the corresponding input and simulation output
-files.
+The three numbered examples under ``examples/features/eigenmode_ports`` cover
+a straight waveguide, a curved waveguide, and an eigenmode-fed pyramidal horn.
+:doc:`eigenmode_port` provides a step-by-step tutorial for users who primarily
+want S-parameters and far fields.
 
 Always inspect the solved mode before committing to a long FDTD run:
 
 .. code-block:: console
 
-    python -m gprMax examples/features/eigenmode_sources/dielectric_slab_2d_tm.in --geometry-only
+    python -m gprMax examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide.in --geometry-only
 
 Geometry-only mode builds the material grid and solves the mode without time
 stepping. It automatically writes the modal-field plot. Check its requested

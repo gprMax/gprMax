@@ -35,12 +35,15 @@ examples/**/*.pdf
 examples/**/*.npy
 examples/**/*.vti
 examples/**/*.vtkhdf
-examples/features/eigenmode_sources/*.csv
-examples/features/eigenmode_sources/*.png
+examples/features/eigenmode_ports/**/*.csv
+examples/features/eigenmode_ports/**/*.png
 examples/**/*_eigenmode_*.png
 
 # Local eigenmode regression workspace
 eigensource_test_run/
+
+# CST comparisons that are not ready for review
+testing/other_codes/cst/under_test/
 
 # Test coverage files
 .coverage

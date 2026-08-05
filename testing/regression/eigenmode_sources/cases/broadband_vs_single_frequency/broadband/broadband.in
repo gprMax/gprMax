@@ -3,15 +3,18 @@
 #domain_mode: TM
 #domain: 0.25 0.24 inf
 #dx_dy_dz: 0.001 0.001 0.001
-#time_window: 4e-9
+#time_window: 8e-9
 #pml_cells: 10 10 0 10 10 0
 
 #material: 9 0 1 0 slab_core
-#waveform: ricker 1 3e9 eig_pulse
 #box: 0 0.08 0 0.25 0.16 inf slab_core
 
-#eigenmode_source: 0.02 0.01 0 0.02 0.23 inf + 1,2 1 0.75e9 1e9 1.5e9 2e9 3e9 4e9 5e9 6e9 7e9 eig_pulse 0.75e9 7e9 126 y
-#eigenmode_rx: 0.24 0.01 0 0.24 0.23 inf - 2 2 0.75e9 1e9 1.5e9 2e9 3e9 4e9 5e9 6e9 7e9 output 0.75e9 7e9 126 y
+#eigenmode_band: eigenmode_band 0.75e9 7e9 126
+#eigenmode_port: 1 0.02 0.01 0 0.02 0.23 inf + 1,2 auto y
+#eigenmode_port: 2 0.24 0.01 0 0.24 0.23 inf - 1,2 auto y
+#eigenmode_excitation: 1 1 auto
 
 #snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 1.6e-9 xy_center_1600ps.h5
 #snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 3.2e-9 xy_center_3200ps.h5
+#snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 4.8e-9 xy_center_4800ps.h5
+#snapshot: 0 0 0 0.25 0.24 inf 0.001 0.001 0.001 6.4e-9 xy_center_6400ps.h5

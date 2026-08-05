@@ -40,7 +40,28 @@ def validate_straight(root: Path) -> list[str]:
                 f"{path}: expected fundamental S21 within 0.75 dB of 0 dB, "
                 f"got range {np.min(s21):.3f} to {np.max(s21):.3f} dB"
             )
-        messages.append(f"{path.parent.name}: mean S21={np.mean(s21):.3f} dB, max S11={np.max(s11):.3f} dB")
+        label = path.parent.relative_to(root)
+        messages.append(
+            f"{label}: mean S21={np.mean(s21):.3f} dB, "
+            f"max S11={np.max(s11):.3f} dB"
+        )
+    return messages
+
+
+def validate_grid_spacing(root: Path) -> list[str]:
+    paths = _paths_below(root, 'grid_spacing')
+    messages = []
+    for path in paths:
+        s21 = _series(path, 2, 1)
+        minimum = float(np.min(s21))
+        maximum = float(np.max(s21))
+        maximum_absolute = float(np.max(np.abs(s21)))
+        half_peak_to_peak = 0.5 * float(np.ptp(s21))
+        message = (
+            '%s: S21 range=%.3f to %.3f dB, max absolute=%.3f dB, half peak-to-peak=%.3f dB'
+            % (path.parent.name, minimum, maximum, maximum_absolute, half_peak_to_peak)
+        )
+        messages.append(message)
     return messages
 
 
@@ -126,6 +147,7 @@ def validate_tree(root: Path) -> list[str]:
     messages = []
     for validator in (
         validate_straight,
+        validate_grid_spacing,
         validate_bends,
         validate_loss,
         validate_source_profiles,

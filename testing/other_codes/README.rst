@@ -13,3 +13,5 @@ are kept in ``testing/regression`` and ``testing/backend_consistency``.
 
 ``matlab_mom`` contains the current comparisons with MATLAB Antenna Toolbox
 Method-of-Moments models.
+
+``cst`` contains the current comparisons with CST Studio Suite solvers.

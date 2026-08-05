@@ -279,6 +279,7 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     csv_path = finalise_eigenmode_ports(grid)
 
     assert csv_path == tmp_path / "modal_run_sparameters.csv"
+    assert b"\r\n" not in csv_path.read_bytes()
     with csv_path.open(newline="", encoding="utf-8") as stream:
         rows = list(csv.DictReader(stream))
     assert "coefficient_magnitude_squared" in rows[0]

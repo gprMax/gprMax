@@ -29,9 +29,12 @@ class FDFD_2D_mode_solver:
         mu_r_ww, H_w:       (Nu,     Nv)
 
     Electric PEC and magnetic PMC masks constrain the corresponding component
-    DOFs. Non-finite electric and magnetic material entries are interpreted as
-    PEC and PMC respectively, then replaced by finite placeholders after the
-    masks have been built.
+    DOFs. A PEC tangential-E constraint also constrains the collocated,
+    surface-normal transverse H component, and a PMC tangential-H constraint
+    likewise constrains the collocated, surface-normal transverse E component.
+    Non-finite electric and magnetic material entries are interpreted as PEC
+    and PMC respectively, then replaced by finite placeholders after the masks
+    have been built.
     """
 
     def __init__(
@@ -104,6 +107,17 @@ class FDFD_2D_mode_solver:
         self.pmc_v_mask = self._component_constraint_mask(self.mu_r_vv, pmc_v_mask, self.shape_hv)
         self.pmc_w_mask = self._component_constraint_mask(self.mu_r_ww, pmc_w_mask, self.shape_hw)
 
+        # H_u is collocated with E_v and is normal to a u-oriented PEC face;
+        # H_v is collocated with E_u and is normal to a v-oriented PEC face.
+        # Keep tangential H unconstrained so it can represent PEC surface current.
+        self.hu_constraint_mask = self.pmc_u_mask | self.pec_v_mask
+        self.hv_constraint_mask = self.pmc_v_mask | self.pec_u_mask
+
+        # By electromagnetic duality, tangential PMC H_v constrains normal E_u,
+        # and tangential PMC H_u constrains normal E_v. Tangential E remains free.
+        self.eu_constraint_mask = self.pec_u_mask | self.pmc_v_mask
+        self.ev_constraint_mask = self.pec_v_mask | self.pmc_u_mask
+
         self.eps_r_uu[self.pec_u_mask] = 1.0 + 0j
         self.eps_r_vv[self.pec_v_mask] = 1.0 + 0j
         self.eps_r_ww[self.pec_w_mask] = 1.0 + 0j
@@ -117,6 +131,10 @@ class FDFD_2D_mode_solver:
         self.free_hu_mask = ~self.pmc_u_mask.ravel(order="F")
         self.free_hv_mask = ~self.pmc_v_mask.ravel(order="F")
         self.free_hw_mask = ~self.pmc_w_mask.ravel(order="F")
+        self.free_eu_mask &= ~self.pmc_v_mask.ravel(order='F')
+        self.free_ev_mask &= ~self.pmc_u_mask.ravel(order='F')
+        self.free_hu_mask &= ~self.pec_v_mask.ravel(order='F')
+        self.free_hv_mask &= ~self.pec_u_mask.ravel(order='F')
         self.free_euv_mask = np.concatenate((self.free_eu_mask, self.free_ev_mask))
         self.free_huv_mask = np.concatenate((self.free_hu_mask, self.free_hv_mask))
 
@@ -296,11 +314,11 @@ class FDFD_2D_mode_solver:
         return np.asarray(flat_modes, dtype=np.complex128).reshape((*shape, flat_modes.shape[1]), order="F")
 
     def _zero_constrained_fields(self):
-        self.Eu[self.pec_u_mask, :] = 0.0
-        self.Ev[self.pec_v_mask, :] = 0.0
+        self.Eu[self.eu_constraint_mask, :] = 0.0
+        self.Ev[self.ev_constraint_mask, :] = 0.0
         self.Ew[self.pec_w_mask, :] = 0.0
-        self.Hu[self.pmc_u_mask, :] = 0.0
-        self.Hv[self.pmc_v_mask, :] = 0.0
+        self.Hu[self.hu_constraint_mask, :] = 0.0
+        self.Hv[self.hv_constraint_mask, :] = 0.0
         self.Hw[self.pmc_w_mask, :] = 0.0
 
     def _set_modal_fields(self):

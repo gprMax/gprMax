@@ -13,6 +13,7 @@ from testing.regression.eigenmode_sources.cases.plot_sparameters import plot_tre
 from testing.regression.eigenmode_sources.cases.validate_sparameters import (
     validate_tree,
 )
+from testing.regression.eigenmode_sources.plot_snapshots import snapshot_paths
 
 
 def _load_example_plotter():
@@ -20,8 +21,9 @@ def _load_example_plotter():
         Path(__file__).resolve().parents[1]
         / "examples"
         / "features"
-        / "eigenmode_sources"
-        / "plot_dielectric_slab_2d_tm.py"
+        / "eigenmode_ports"
+        / "example_1_straight_waveguide"
+        / "plot_results.py"
     )
     spec = importlib.util.spec_from_file_location("eigenmode_example_plotter", path)
     module = importlib.util.module_from_spec(spec)
@@ -117,6 +119,22 @@ def test_example_snapshots_are_sorted_by_physical_time_and_can_be_capped(
     snapshots = plotter.read_field_snapshots(stem, maximum_time_ns=1.0)
 
     assert [snapshot[0] for snapshot in snapshots] == pytest.approx([0.4, 1.0])
+
+
+def test_regression_snapshot_plot_ignores_stale_generated_files(tmp_path):
+    case_dir = tmp_path / "guide"
+    snapshot_dir = case_dir / "guide_snaps"
+    snapshot_dir.mkdir(parents=True)
+    (case_dir / "guide.in").write_text(
+        "#snapshot: 0 0 0 1 1 inf 1 1 1 1e-9 xy_center_current.h5\n",
+        encoding="utf-8",
+    )
+    _write_snapshot(snapshot_dir / "xy_center_current.h5", 1.0)
+    _write_snapshot(snapshot_dir / "xy_center_stale.h5", 2.0)
+
+    paths = snapshot_paths(case_dir, "xy")
+
+    assert [path.name for path in paths] == ["xy_center_current.h5"]
 
 
 def test_straight_waveguide_sparameter_validator_accepts_expected_response(

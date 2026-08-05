@@ -524,7 +524,12 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
 
 def test_eigenmode_port_normalises_gain_and_realized_gain(tmp_path):
     inputfile = (
-        Path(__file__).parents[2] / "examples" / "features" / "eigenmode_sources" / "dielectric_rod_antenna_3d.in"
+        Path(__file__).parents[2]
+        / "examples"
+        / "features"
+        / "eigenmode_ports"
+        / "example_3_antenna_and_farfield"
+        / "horn_antenna.in"
     )
     outputfile = tmp_path / "eigenmode_antenna"
 
@@ -536,7 +541,7 @@ def test_eigenmode_port_normalises_gain_and_realized_gain(tmp_path):
     )
 
     with h5py.File(str(outputfile) + ".h5", "r") as output:
-        far_field = output["ntff/radiation_surface/frequency/antenna_band/far_field/full_sphere"]
+        far_field = output["ntff/horn_surface/frequency/antenna_band/far_field/full_sphere"]
         port_power = far_field["port_power"]
         modal_port = port_power["modal_ports/port1"]
 
@@ -553,9 +558,9 @@ def test_eigenmode_port_normalises_gain_and_realized_gain(tmp_path):
         assert modal_port["power_matrix"].shape == (9, 1, 1)
         assert modal_port["electric_cross_power_matrix"].shape == (9, 1, 1)
         # This deliberately coarse antenna model is only a smoke test for the
-        # modal-port/NTFF normalization path. Its upper-band reflection is
-        # about 0.35 on the CI mesh, so keep the bound above that physical
-        # response while still catching a broken incident/outgoing split.
+        # modal-port/NTFF normalization path. Its maximum reflection is about
+        # 0.20 on the CI mesh, so retain headroom for platform differences
+        # while still catching a broken incident/outgoing split.
         assert np.all(np.abs(output["eigenmode_ports/port1/S"][0]) < 0.4)
         radiation_efficiency = far_field["fields/radiation_efficiency"][...]
         total_efficiency = far_field["fields/total_efficiency"][...]

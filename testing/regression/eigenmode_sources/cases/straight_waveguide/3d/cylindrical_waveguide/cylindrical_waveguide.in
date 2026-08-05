@@ -1,17 +1,18 @@
-#title: Straight cylindrical PEC waveguide with a single-frequency modal solve
+#title: Straight cylindrical PEC waveguide with automatic degenerate-mode fallback
 
 #domain: 0.012 0.008 0.008
 #dx_dy_dz: 0.0001 0.0001 0.0001
 #time_window: 0.3e-9
 #pml_cells: 10
 
-#waveform: gaussiandot 1 55e9 eig_pulse
 
 #cylinder: 0 0.004 0.004 0.012 0.004 0.004 0.0032 pec n
 #cylinder: 0 0.004 0.004 0.012 0.004 0.004 0.003 free_space n
 
-#eigenmode_source: 0.002 0.0008 0.0008 0.002 0.0072 0.0072 + 1,2 1 55e9 eig_pulse 45e9 65e9 81 y
-#eigenmode_rx: 0.011 0.0008 0.0008 0.011 0.0072 0.0072 - 2 2 55e9 output 45e9 65e9 81 y
+#eigenmode_band: eigenmode_band 45e9 65e9 81
+#eigenmode_port: 1 0.002 0.0008 0.0008 0.002 0.0072 0.0072 + 1,2 auto y
+#eigenmode_port: 2 0.011 0.0008 0.0008 0.011 0.0072 0.0072 - 1,2 auto y
+#eigenmode_excitation: 1 1 auto
 
 #snapshot: 0 0.004 0 0.012 0.0041 0.008 0.0001 0.0001 0.0001 0.06e-9 xz_center_0060ps.h5
 #snapshot: 0 0.004 0 0.012 0.0041 0.008 0.0001 0.0001 0.0001 0.12e-9 xz_center_0120ps.h5

@@ -5,15 +5,16 @@
 #time_window: 0.3e-9
 #pml_cells: 10
 
-#waveform: gaussiandot 1 55e9 eig_pulse
 
 #box: 0 0 0 0.012 0.001 0.006 pec
 #box: 0 0.007 0 0.012 0.008 0.006 pec
 #box: 0 0 0 0.012 0.008 0.001 pec
 #box: 0 0 0.005 0.012 0.008 0.006 pec
 
-#eigenmode_source: 0.002 0.001 0.001 0.002 0.007 0.005 + 1 1 45e9 55e9 65e9 eig_pulse 45e9 65e9 81 y
-#eigenmode_rx: 0.011 0.001 0.001 0.011 0.007 0.005 - 1 2 45e9 55e9 65e9 output 45e9 65e9 81 y
+#eigenmode_band: eigenmode_band 45e9 65e9 81
+#eigenmode_port: 1 0.002 0.001 0.001 0.002 0.007 0.005 + 1 auto y
+#eigenmode_port: 2 0.011 0.001 0.001 0.011 0.007 0.005 - 1 auto y
+#eigenmode_excitation: 1 1 auto
 
 #snapshot: 0 0.004 0 0.012 0.0041 0.006 0.0001 0.0001 0.0001 0.06e-9 xz_center_0060ps.h5
 #snapshot: 0 0.004 0 0.012 0.0041 0.006 0.0001 0.0001 0.0001 0.12e-9 xz_center_0120ps.h5

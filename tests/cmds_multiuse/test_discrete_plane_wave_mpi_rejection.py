@@ -11,7 +11,7 @@ warning - confirmed relative errors up to ~70x against a serial reference.
 All three discrete-plane-wave commands (#plane_wave_angles,
 #plane_wave_vector, #plane_wave_axial) now reject MPI outright at build
 time, matching the existing pattern for #magnetic_frill_source and
-#eigenmode_source (both of which reject MPI for analogous reasons - a
+#eigenmode_port (both of which reject MPI for analogous reasons - a
 write footprint or box that cannot be safely split across rank
 boundaries).
 """

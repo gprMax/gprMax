@@ -476,6 +476,9 @@ class EigenmodePortMonitor:
         group.attrs["ModeIndices"] = self.mode_indices
         group.attrs["PlaneIndex"] = self.owner.plane_index
         group.attrs["PhaseReanchorInterval"] = DFT_PHASE_REANCHOR_INTERVAL
+        group.attrs["RequestedAnchorPolicy"] = self.owner.requested_anchor_policy
+        group.attrs["ResolvedAnchorPolicy"] = self.owner.resolved_anchor_policy
+        group.attrs["AnchorFrequencies"] = self.anchor_frequencies
         group["frequency"] = self.result.frequency
         group["incident"] = self.result.incident
         group["outgoing"] = self.result.outgoing
@@ -541,7 +544,7 @@ def finalise_eigenmode_ports(grid):
         config.get_model_config().output_file_path.name + f"{suffix}_sparameters.csv"
     )
     with output_path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream)
+        writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(
             (
                 "frequency_hz",

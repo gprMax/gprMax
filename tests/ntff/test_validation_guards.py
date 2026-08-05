@@ -175,7 +175,7 @@ def test_reusable_surface_rejects_eigenmode_injection_plane_outside():
     model = SimpleNamespace(G=main_grid, subgrids=[])
     output_grid = SimpleNamespace(ntff_monitors=[monitor])
 
-    with pytest.raises(ValueError, match="EigenmodeSource"):
+    with pytest.raises(ValueError, match="EigenmodePort"):
         validate_ntff_source_enclosure(model, output_grid)
 
 
@@ -313,12 +313,19 @@ def test_antenna_gain_rejects_ambiguous_normalisation(
 
 
 def test_eigenmode_antenna_transform_must_use_exact_port_dft_bins(tmp_path):
-    example = Path(__file__).parents[2] / "examples" / "features" / "eigenmode_sources" / "dielectric_rod_antenna_3d.in"
+    example = (
+        Path(__file__).parents[2]
+        / "examples"
+        / "features"
+        / "eigenmode_ports"
+        / "example_3_antenna_and_farfield"
+        / "horn_antenna.in"
+    )
     inputfile = tmp_path / "mismatched_eigenmode_antenna.in"
     inputfile.write_text(
         example.read_text(encoding="utf-8").replace(
-            "#ntff_frequency: radiation_surface antenna_band 6.75e9",
-            "#ntff_frequency: radiation_surface antenna_band 6.76e9",
+            "#ntff_frequency: horn_surface antenna_band 8e9",
+            "#ntff_frequency: horn_surface antenna_band 8.1e9",
         ),
         encoding="utf-8",
     )

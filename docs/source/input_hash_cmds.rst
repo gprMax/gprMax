@@ -1371,177 +1371,119 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 
 
-#eigenmode_source:
-------------------
+#eigenmode_band:
+----------------
 
-Allows you to introduce a two-dimensional eigenmode source port. The command extracts the material slice on the specified source plane, solves for the requested transverse eigenmode at one or more frequencies, and uses the referenced waveform to excite that mode. The syntax of the command is:
-
-.. code-block:: none
-
-    #eigenmode_source: f1 f2 f3 f4 f5 f6 c1 i1[,i2] i3 f7 [f8 ...] str1 f9 f10 i4 [c2]
-
-* ``f1 f2 f3`` are the first point ``x0 y0 z0`` of the rectangular source port in metres.
-* ``f4 f5 f6`` are the opposite point ``x1 y1 z1`` of the rectangular source port in metres.
-* In a 3D model exactly one coordinate pair must be the same between the two points. If ``x0=x1`` the port lies in the yz plane and is normal to x; if ``y0=y1`` the port lies in the xz plane and is normal to y; if ``z0=z1`` the port lies in the xy plane and is normal to z.
-* In a 2D TM or TE model the source normal must be one of the two in-plane axes. The source becomes a line over the remaining physical transverse axis and must span the complete invariant-axis thickness. Use ``inf`` for the upper invariant coordinate. The source uses the one-dimensional Yee-staggered TM or TE eigensolver selected by ``#domain_mode``.
-* ``c1`` is the propagation direction from the source plane and can be ``+`` or ``-``.
-* ``i1`` is the one-based mode index to excite: ``1`` selects the first solved
-  mode.
-* ``i2`` is an optional number of modes to calculate and monitor at the source
-  port. The compact mode field is written as ``i1,i2``. The source excites only
-  mode ``i1``, while its simultaneous receiver projects modes 1 through
-  ``i2``. If ``i2`` is omitted it defaults to ``i1`` and it must never be less
-  than ``i1``.
-* ``i3`` is the explicit one-based source port index used in HDF5 and
-  S-parameter output. Port indices must be unique across all eigenmode ports.
-* ``f7 [f8 ...]`` are one or more strictly increasing frequencies in Hertz used to solve the eigenmode fields. One frequency retains the original fixed-profile source. Two or more frequencies create a broadband source by phase-aligning and linearly interpolating the complex modal fields and propagation constant.
-* ``str1`` is the identifier of the waveform that should be used with the source.
-* ``f9 f10`` are the inclusive start and stop frequencies in Hertz for the
-  direct frequency-domain monitor attached automatically to the source.
-* ``i4`` is the number of uniformly spaced DFT frequency points. Use equal
-  start and stop frequencies when ``i4=1``.
-* ``c2`` is an optional modal-field plotting control: ``y`` always writes the
-  diagnostic plots and ``n`` always suppresses them. If it is omitted, plots
-  are written for a ``--geometry-only`` build but not for a normal simulation.
-
-For example, to specify port 1 on the yz plane at ``x=0.008`` m,
-propagating in the positive x direction, exciting and monitoring mode 1 solved
-at 80 GHz, and monitoring 71 DFT points from 70--90 GHz, use:
-``#eigenmode_source: 0.008 0.0025 0.0025 0.008 0.0155 0.0155 + 1 1 80e9 eig_pulse 70e9 90e9 71``.
-
-For a TMz or TEz model, the equivalent invariant-axis form for a source
-normal to x is, for example:
+Defines the single frequency band shared by every eigenmode port in the model:
 
 .. code-block:: none
 
-    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 1 1 80e9 eig_pulse 70e9 90e9 71
+    #eigenmode_band: str1 f1 f2 i1
 
-For example, a five-anchor broadband source using the same mode index at every
-frequency can be specified as:
+* ``str1`` is a non-empty band identifier.
+* ``f1`` and ``f2`` are the inclusive DFT start and stop frequencies in Hertz.
+* ``i1`` is the number of uniformly spaced DFT points. A one-point band
+  requires ``f1=f2``; a multi-point band requires ``f2>f1``.
 
-.. code-block:: none
+Exactly one band is required when eigenmode ports are present. Defining the
+band once guarantees identical DFT bins at every port.
 
-    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 1,3 1 20e9 40e9 60e9 80e9 100e9 eig_pulse 20e9 100e9 161
+#eigenmode_port:
+----------------
 
-Consecutive anchor modes are checked using their normalized field overlap.
-An overlap below 0.9 emits a warning because it can indicate a mode-order
-change, cutoff, degeneracy, or anchors that are too widely spaced. An overlap
-below 0.6 is an error and asks the user to use a single-frequency eigenmode
-solve instead. The anchor range should cover
-the significant spectrum of the waveform; uncovered bins emit a warning and
-use the nearest endpoint mode. Warnings are also emitted for unusable modal-power
-normalisation or significant DC/Nyquist content; finite fallbacks are applied
-so the simulation can continue, but the resulting source accuracy is not
-guaranteed.
-
-The 2D modal fields are normalised to carry one watt per metre along the
-invariant direction. TM solves for the invariant electric component and TE
-solves for the invariant magnetic component.
-
-Inspecting the solved mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Users should inspect the solved modal fields before committing to a full
-time-domain simulation. The recommended workflow is to run the model first
-with ``--geometry-only``. Geometry construction still processes each
-eigenmode source and runs its FDFD solve, but the FDTD time-stepping loop is
-skipped. Modal-field plots are therefore written automatically alongside the
-input file.
-
-For a 2D TM or TE model, one ``*_TM_fields.png`` or ``*_TE_fields.png`` file
-is written for every solved frequency. For a 3D model, separate
-``*_Eu_Ev.png`` and ``*_Hu_Hv.png`` files are written. A multi-frequency
-source produces these plots for every anchor frequency. Check that the fields
-have the expected polarisation, symmetry, confinement, boundary behaviour,
-and mode order. An unexpected profile may indicate an incorrect mode index,
-a mode near cutoff, a degeneracy, or a source aperture that is too small.
-
-For example:
-
-.. code-block:: console
-
-    python -m gprMax path/to/model.in --geometry-only
-
-The optional final ``y`` can be used when plots are also required during a
-normal run, while a final ``n`` suppresses them even in geometry-only mode:
+Defines an active or passive modal reference plane. The same command is used
+for every port; ``#eigenmode_excitation`` separately selects the one active
+port and mode.
 
 .. code-block:: none
 
-    #eigenmode_source: 0.008 0.0025 0 0.008 0.0155 inf + 1 1 80e9 eig_pulse 70e9 90e9 71 y
+    #eigenmode_port: i1 f1 f2 f3 f4 f5 f6 c1 i2[,i3 ...] str1|f7 [f8 ...] [c2]
 
-The complete phasor convention, FDFD eigenproblems, passive propagation
-branch, field reconstruction, power normalization, TF/SF injection, I/Q path,
-and broadband spectrum synthesis are described in
-:doc:`eigenmode`.
+* ``i1`` is the unique, one-based port number.
+* ``f1 f2 f3`` and ``f4 f5 f6`` are opposite port-plane points in metres.
+  In 3D exactly one finite coordinate pair must match, defining the normal.
+  In 2D the normal must be in-plane and the port must span the complete
+  invariant thickness; use ``inf`` for the upper invariant coordinate.
+* ``c1`` is ``+`` or ``-`` and points into the device from the port.
+* ``i2[,i3 ...]`` is a comma-separated, strictly increasing list of positive
+  one-based modes to monitor, for example ``1`` or ``1,2``.
+* ``str1`` can be ``auto``. One common automatic anchor list covers the
+  requested band and the significant sampled source spectrum, including its
+  transition regions, and is used by every automatic port.
+* Alternatively, ``f7 [f8 ...]`` are explicit, strictly increasing modal
+  anchor frequencies. Multiple anchors must cover the required range or the
+  model is rejected with suggested anchors. A single explicit anchor is
+  accepted intentionally as a constant modal basis across the complete band.
+* ``c2`` optionally controls field plots: ``y`` always writes them and ``n``
+  always suppresses them. If omitted, geometry-only runs write the plots and
+  normal runs do not.
+
+For example, these two rectangular-waveguide ports share one DFT band and one
+automatic anchor list:
+
+.. code-block:: none
+
+    #eigenmode_band: wg_band 45e9 65e9 81
+    #eigenmode_port: 1 0.002 0.001 0.001 0.002 0.007 0.005 + 1 auto
+    #eigenmode_port: 2 0.011 0.001 0.001 0.011 0.007 0.005 - 1 auto
+
+Consecutive anchors are checked using normalized modal-field overlap. If
+explicit multiple anchors show a severe mismatch, such as at a degeneracy or
+mode crossing, the run stops and recommends one explicit anchor. With
+``auto``, a failure confined to a spectral guard outside the requested band
+trims that tail for every automatic port and uses the nearest retained modal
+profile for endpoint extrapolation. A failure in the requested band makes
+every automatic port warn and use one shared band-centre anchor.
+
+#eigenmode_excitation:
+----------------------
+
+Selects the single active port and mode after the band and ports have been
+defined:
+
+.. code-block:: none
+
+    #eigenmode_excitation: i1 i2 [str1] [f1] [c1]
+
+* ``i1`` is an existing port number.
+* ``i2`` is one of that port's monitored mode indices.
+* ``str1`` is ``auto`` by default. It constructs a finite, real band-pass
+  pulse whose Gaussian-smoothed lower and upper edges adapt to the requested
+  band, simulation time step, and Nyquist limit. The same waveform drives the
+  source and its modal spectrum analysis. The pulse is placed at the earliest
+  causal time that preserves its significant temporal support, leaving the
+  remaining time window for propagation and ring-down.
+* A custom waveform identifier may be supplied instead. Its exact sampled
+  spectrum is checked before any modal solve. Significant DC or Nyquist
+  content, or more than one percent spectral power outside the requested band,
+  is an error that reports the measured range and recommends ``auto``.
+* ``f1`` is an optional amplitude scale and is valid only with ``auto``.
+* ``c1`` optionally controls the waveform/DFT plot: ``y`` always writes it and
+  ``n`` always suppresses it. If omitted, geometry-only runs write the plot and
+  normal runs do not. The flag may follow ``i2`` directly when the default
+  waveform and amplitude are used.
+
+A complete excitation for the ports above is:
+
+.. code-block:: none
+
+    #eigenmode_excitation: 1 1 auto y
+
+A single-frequency band cannot use the automatic finite-band pulse. Supply a
+matching continuous waveform and one explicit modal anchor instead.
+
+At every FDTD time step the source port and all passive ports project the
+cell-centred transverse fields onto their requested modes. gprMax writes
+``<output>_sparameters.csv`` and the corresponding ``/eigenmode_ports`` HDF5
+groups. Source-port rows contain modal S11 results; other ports contain S21
+and modal-conversion results. See :doc:`eigenmode_port` for the phasor convention,
+FDFD formulation, power normalization, TF/SF injection, broadband synthesis,
+and output definitions.
 
 .. note::
 
-    * Eigenmode sources and receivers currently cannot be used with the CUDA,
-      OpenCL, or Apple Metal solvers.
-    * Eigenmode sources and receivers currently cannot be used with MPI.
-
-
-#eigenmode_rx:
---------------
-
-Introduces a passive plane that projects the time-domain fields onto one or
-more solved eigenmodes. The syntax is:
-
-.. code-block:: none
-
-    #eigenmode_rx: f1 f2 f3 f4 f5 f6 c1 i1 i2 f7 [f8 ...] str1 f9 f10 i3 [c2]
-
-The two points and modal solve frequencies have the same meanings and
-restrictions as for ``#eigenmode_source``. The remaining parameters are:
-
-* ``c1`` is the positive, incident-wave direction of this port. For the usual
-  two-port model, use ``+`` at a port next to the lower PML and ``-`` at a port
-  next to the upper PML; both directions then point into the device.
-* ``i1`` is the number of modes to calculate and measure. A value of ``3``
-  projects onto the consecutive one-based modes 1, 2, and 3.
-* ``i2`` is the explicit one-based port index. It must be unique and does not
-  depend on command creation order.
-* ``str1`` is the receiver identifier.
-* ``f9 f10 i3`` define the same uniformly spaced direct-DFT bins as on the
-  source. Every eigenmode source and receiver in a simulation must use
-  identical DFT bins for S-parameter calculation.
-* ``c2`` optionally controls modal-field plots using ``y`` or ``n``.
-
-For example, this receiver is adjacent to the upper x PML and measures modes 1
-and 2 over the same 70--90 GHz bins as the source above:
-
-.. code-block:: none
-
-    #eigenmode_rx: 0.017 0.0025 0.0025 0.017 0.0155 0.0155 - 2 2 80e9 output 70e9 90e9 71
-
-Exactly one ``#eigenmode_source`` must exist whenever either eigenmode command
-is used. Zero or multiple eigenmode sources are errors. The source also acts as
-a receiver for modes 1 through its configured mode count. Source and receiver
-port indices are supplied explicitly and may be listed in any command order.
-A receiver away from its corresponding PML interface is accepted but produces
-a warning because reflections beyond the reference plane can corrupt the
-decomposition.
-
-At every FDTD time step a Cython kernel projects the cell-centred transverse E
-and H fields onto all requested modal profiles and updates each requested DFT
-bin exactly once. A full modal Gram matrix is solved at the end of the run;
-this separates non-orthogonal or numerically mixed modes instead of treating
-each overlap independently. Broadband modal profiles are phase-aligned and
-interpolated between anchors. An overlap below 0.9 produces a warning; an
-overlap below 0.6 stops the simulation and asks the user to use a
-single-frequency eigenmode solve.
-
-gprMax writes ``<output>_sparameters.csv`` with one row per frequency,
-destination port, and destination mode. The incident denominator is the mode
-explicitly excited at the source; all monitored modes at the source port are
-S11 modal-reflection results, while modes at another port are the corresponding
-S21, S31, and other modal-conversion results.
-Complex S, magnitude, dB magnitude, phase, power ratio, and a validity flag are
-included. The incident/outgoing modal spectra, condition numbers, S values, and
-validity masks are also stored below ``/eigenmode_ports`` in the HDF5 output.
-Bins more than 60 dB below the peak source incident spectrum are marked
-invalid.
-
+    * Eigenmode commands currently support only the main grid and CPU solver.
+    * Eigenmode commands currently cannot be used with MPI.
 
 #rx:
 ----
@@ -2062,12 +2004,11 @@ are the same as for ``#ksir_antenna_ports``. The separate command name prevents
 accidentally associating a port set with a transform from the other
 formulation.
 
-This is the antenna-port association to use with an eigenmode source. An
-eigenmode source uses ``portN``, where ``N`` is its explicit port index; an
-``#eigenmode_rx`` uses its receiver identifier. The listed set must include
-every physical conventional and modal port in the model. A passive eigenmode
-receiver has zero generator incident power and contributes signed net modal
-power to the accepted-power balance.
+This is the antenna-port association to use with an eigenmode excitation.
+Every ``#eigenmode_port`` uses ``portN``, where ``N`` is its explicit port
+number. The listed set must include every physical conventional and modal
+port in the model. A passive eigenmode port has zero generator incident power
+and contributes signed net modal power to the accepted-power balance.
 
 For every associated eigenmode port, the transform frequencies must exactly
 match that port's direct-DFT bins. Degenerate modes and mode crossings should

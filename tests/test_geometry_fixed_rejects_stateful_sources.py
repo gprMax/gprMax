@@ -168,43 +168,32 @@ def test_eigenmode_ports_rejected_with_geometry_fixed_and_multiple_models(
     scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
     scene.add(gprMax.Domain(p1=(0.06, 0.05, INF)))
     scene.add(gprMax.PMLThickness(thickness=0))
-    scene.add(gprMax.TimeWindow(time=0.12e-9))
-    scene.add(gprMax.Waveform(wave_type="contsine", amp=1, freq=5e9, id="eig_pulse"))
+    scene.add(gprMax.TimeWindow(time=3e-9))
+    scene.add(gprMax.EigenmodeBand(id="band", fmin=4e9, fmax=6e9, points=3))
     scene.add(
-        gprMax.EigenmodeSource(
-            normal="x",
+        gprMax.EigenmodePort(
+            port=1,
+            p1=(0.015, 0.005, 0),
+            p2=(0.015, 0.045, INF),
             direction="+",
-            p1=(0.005, 0),
-            p2=(0.045, INF),
-            w=0.015,
-            mode_index=1,
-            port_index=1,
-            frequency=5e9,
-            waveform_id="eig_pulse",
-            dft_start=5e9,
-            dft_stop=5e9,
-            dft_points=1,
+            modes=(1,),
+            anchors="auto",
         )
     )
     if include_receiver:
         scene.add(
-            gprMax.EigenmodeRx(
-                normal="x",
+            gprMax.EigenmodePort(
+                port=2,
+                p1=(0.035, 0.005, 0),
+                p2=(0.035, 0.045, INF),
                 direction="+",
-                p1=(0.005, 0),
-                p2=(0.045, INF),
-                w=0.035,
-                mode_count=1,
-                port_index=2,
-                frequency=5e9,
-                id="port2",
-                dft_start=5e9,
-                dft_stop=5e9,
-                dft_points=1,
+                modes=(1,),
+                anchors="auto",
             )
         )
+    scene.add(gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto"))
 
-    with pytest.raises(ValueError, match="#eigenmode_source.*#eigenmode_rx"):
+    with pytest.raises(ValueError, match="EigenmodeBand.*EigenmodePort.*EigenmodeExcitation"):
         gprMax.run(
             scenes=[scene], n=2, geometry_fixed=True, geometry_only=True,
             outputfile=tmp_path / "eigenmode_geom_fixed", hide_progress_bars=True,
