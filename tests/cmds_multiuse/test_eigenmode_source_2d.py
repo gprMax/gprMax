@@ -690,7 +690,7 @@ def test_hash_excitation_plot_control_is_independent_of_modal_plots(
         "\n".join(
             f"{line} n"
             if line.startswith("#eigenmode_port:")
-            else f"{line} {plot_control}"
+            else f"{line.rsplit(' ', 1)[0]} {plot_control}"
             if line.startswith("#eigenmode_excitation:")
             else line
             for line in lines

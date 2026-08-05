@@ -319,6 +319,60 @@ enlarge the sampled NTFF faces while keeping them outside the PML, refine the
 mesh, and lengthen the time window. Change only one quantity per run so that a
 shift in S11 or the far field has a clear cause.
 
+How automatic excitation and frequency anchors work
+====================================================
+
+The usual broadband setup makes both choices automatic:
+
+.. code-block:: none
+
+   #eigenmode_band: device_band fmin fmax points
+   #eigenmode_port: 1 x0 y0 z0 x1 y1 z1 + 1 auto
+   #eigenmode_excitation: 1 1 auto
+
+gprMax constructs the excitation waveform first because the modal profiles
+must cover the waveform's significant spectrum, including its finite
+transition regions outside ``fmin``--``fmax``. The automatic waveform is made
+on the simulation's exact time and zero-padded FFT grids. Its frequency-domain
+magnitude has a flat central band with Gaussian-smoothed lower and upper
+edges. With the default automatic transition width, gprMax balances frequency
+selectivity against localization inside the available time window, then caps
+each edge so that it decays before DC or the temporal Nyquist frequency.
+
+The default spectral significance threshold is :math:`10^{-3}` of the peak
+magnitude. gprMax inverse-transforms the target spectrum, moves the pulse by
+the earliest delay that makes all above-threshold temporal support causal,
+removes residual DC and Nyquist components, and normalizes the peak sample to
+the requested amplitude. It then measures the spectrum of those *actual time
+samples* rather than assuming that the analytic target was reproduced
+exactly. A band too close to DC or Nyquist, or a time window too short to hold
+the pulse, is rejected with a corrective error. A one-point frequency band
+cannot use this finite-band pulse and requires a matching explicit waveform.
+
+For every port whose anchor policy is ``auto``, the required modal range is
+the union of the requested output band and the measured above-threshold
+waveform spectrum. One deterministic anchor list is then built from:
+
+* the lower and upper limits of that required range;
+* ``fmin``, the band centre, and ``fmax``; and
+* geometrically spaced frequencies across the required range, aiming for
+  adjacent ratios no larger than about 1.5 and limiting the generated grid to
+  at most eight intervals.
+
+Duplicate landmarks are removed, and the same resulting frequencies are used
+by every automatic port. At each anchor, the requested modes are solved and
+adjacent profiles are phase-aligned before frequency interpolation. This
+common list is important: source and receiver ports must synthesize and
+decompose fields on compatible modal bases. The resolved frequencies and the
+requested/resolved policies are logged and stored in the HDF5 port metadata.
+
+Automatic does not mean that mode identity is guaranteed. Adjacent normalized
+field overlaps are checked; weak overlap warns, while severe tracking failure
+can trim an out-of-band spectral guard or fall back to one shared band-centre
+anchor as described in `Choosing frequency anchors`_. Always inspect the
+modal-field and excitation-spectrum figures from a geometry-only run before
+trusting broadband S-parameters.
+
 S-parameter output details
 ==========================
 
