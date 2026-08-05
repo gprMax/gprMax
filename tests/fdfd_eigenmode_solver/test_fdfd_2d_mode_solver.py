@@ -78,3 +78,114 @@ def test_lossy_pec_waveguide_mode_uses_same_passive_branch_for_neff_and_h():
         rtol=1e-12,
         atol=1e-12,
     )
+
+
+def test_rectangular_te10_enforces_pec_normal_h_and_wave_impedance():
+    nu, nv = 60, 40
+    spacing = 0.1e-3
+    frequency = 55e9
+
+    eps_uu = np.ones((nu, nv + 1))
+    eps_vv = np.ones((nu + 1, nv))
+    eps_ww = np.ones((nu + 1, nv + 1))
+    mu_uu = np.ones((nu + 1, nv))
+    mu_vv = np.ones((nu, nv + 1))
+    mu_ww = np.ones((nu, nv))
+
+    pec_u = np.zeros_like(eps_uu, dtype=bool)
+    pec_v = np.zeros_like(eps_vv, dtype=bool)
+    pec_w = np.zeros_like(eps_ww, dtype=bool)
+    pec_u[:, [0, -1]] = True
+    pec_v[[0, -1], :] = True
+    pec_w[[0, -1], :] = True
+    pec_w[:, [0, -1]] = True
+
+    width = nu * spacing
+    expected_neff = np.sqrt(
+        1 - (config.sim_config.em_consts['c'] / (2 * width * frequency)) ** 2
+    )
+    solver = FDFD_2D_mode_solver(
+        frequency=frequency,
+        du=spacing,
+        dv=spacing,
+        mode_index=0,
+        eps_r_uu=eps_uu,
+        eps_r_vv=eps_vv,
+        eps_r_ww=eps_ww,
+        mu_r_uu=mu_uu,
+        mu_r_vv=mu_vv,
+        mu_r_ww=mu_ww,
+        pec_u_mask=pec_u,
+        pec_v_mask=pec_v,
+        pec_w_mask=pec_w,
+        guess=-(expected_neff**2),
+    )
+    solver.solve()
+
+    np.testing.assert_array_equal(solver.hu_constraint_mask, pec_v)
+    np.testing.assert_array_equal(solver.hv_constraint_mask, pec_u)
+    np.testing.assert_array_equal(solver.modal_Hu[pec_v], 0.0)
+    np.testing.assert_array_equal(solver.modal_Hv[pec_u], 0.0)
+
+    cell_hu = 0.5 * (solver.modal_Hu[:-1, :] + solver.modal_Hu[1:, :])
+    cell_ev = 0.5 * (solver.modal_Ev[:-1, :] + solver.modal_Ev[1:, :])
+    fitted_impedance = abs(np.vdot(cell_hu, cell_ev) / np.vdot(cell_hu, cell_hu))
+    expected_impedance = solver.eta0 / solver.modal_real_neff
+    assert fitted_impedance == pytest.approx(expected_impedance, rel=1e-3)
+
+
+def test_rectangular_pmc_tm10_enforces_normal_e_and_matches_theory():
+    nu, nv = 61, 41
+    spacing = 0.1e-3
+    frequency = 55e9
+
+    eps_uu = np.ones((nu, nv + 1))
+    eps_vv = np.ones((nu + 1, nv))
+    eps_ww = np.ones((nu + 1, nv + 1))
+    mu_uu = np.ones((nu + 1, nv))
+    mu_vv = np.ones((nu, nv + 1))
+    mu_ww = np.ones((nu, nv))
+
+    pmc_u = np.zeros_like(mu_uu, dtype=bool)
+    pmc_v = np.zeros_like(mu_vv, dtype=bool)
+    pmc_w = np.zeros_like(mu_ww, dtype=bool)
+    pmc_u[:, [0, -1]] = True
+    pmc_v[[0, -1], :] = True
+    pmc_w[[0, -1], :] = True
+    pmc_w[:, [0, -1]] = True
+
+    # Transverse PMC samples lie at cell centres, so their plane separation
+    # is one cell smaller than the corresponding array extent.
+    width = (nu - 1) * spacing
+    expected_neff = np.sqrt(
+        1 - (config.sim_config.em_consts['c'] / (2 * width * frequency)) ** 2
+    )
+    solver = FDFD_2D_mode_solver(
+        frequency=frequency,
+        du=spacing,
+        dv=spacing,
+        mode_index=0,
+        eps_r_uu=eps_uu,
+        eps_r_vv=eps_vv,
+        eps_r_ww=eps_ww,
+        mu_r_uu=mu_uu,
+        mu_r_vv=mu_vv,
+        mu_r_ww=mu_ww,
+        pmc_u_mask=pmc_u,
+        pmc_v_mask=pmc_v,
+        pmc_w_mask=pmc_w,
+        guess=-(expected_neff**2),
+    )
+    solver.solve()
+
+    np.testing.assert_array_equal(solver.eu_constraint_mask, pmc_v)
+    np.testing.assert_array_equal(solver.ev_constraint_mask, pmc_u)
+    np.testing.assert_array_equal(solver.modal_Eu[pmc_v], 0.0)
+    np.testing.assert_array_equal(solver.modal_Ev[pmc_u], 0.0)
+    assert solver.modal_real_neff == pytest.approx(expected_neff, rel=1e-4)
+
+    cell_eu = 0.5 * (solver.modal_Eu[:, :-1] + solver.modal_Eu[:, 1:])
+    cell_hv = 0.5 * (solver.modal_Hv[:, :-1] + solver.modal_Hv[:, 1:])
+    fitted_impedance = abs(np.vdot(cell_eu, cell_eu) / np.vdot(cell_eu, cell_hv))
+    expected_impedance = solver.eta0 * solver.modal_real_neff
+    assert fitted_impedance == pytest.approx(expected_impedance, rel=1e-3)

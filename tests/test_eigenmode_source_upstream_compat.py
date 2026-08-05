@@ -202,6 +202,8 @@ def test_fdfd_solver_interprets_nonfinite_permeability_as_pmc(monkeypatch):
     assert solver.pmc_u_mask[1, 0]
     assert solver.pmc_v_mask[0, 1]
     assert solver.pmc_w_mask[1, 1]
+    assert solver.ev_constraint_mask[1, 0]
+    assert solver.eu_constraint_mask[0, 1]
     assert solver.mu_r_uu[1, 0] == 1
     assert solver.mu_r_vv[0, 1] == 1
     assert solver.mu_r_ww[1, 1] == 1
