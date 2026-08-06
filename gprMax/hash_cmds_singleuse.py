@@ -20,6 +20,7 @@
 import logging
 
 from .user_objects.cmds_singleuse import (
+    DebyeAveraging,
     Discretisation,
     Domain,
     DomainMode,
@@ -105,6 +106,16 @@ def process_singlecmds(singlecmds):
 
         magnetic_averaging = MagneticAveraging(mode=tmp[0])
         scene_objects.append(magnetic_averaging)
+
+    cmd = "#debye_averaging"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1 or tmp[0].lower() not in ("y", "n"):
+            logger.exception(f"{cmd} requires exactly one parameter, either 'y' or 'n'")
+            raise ValueError
+
+        debye_averaging = DebyeAveraging(enabled=tmp[0].lower() == "y")
+        scene_objects.append(debye_averaging)
 
     cmd = "#domain"
     if singlecmds[cmd] is not None:

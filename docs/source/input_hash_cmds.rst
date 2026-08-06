@@ -263,6 +263,10 @@ Allows you to introduce a material into the model described by a set of constitu
 
 For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_sand`` which has a relative permittivity (frequency independent) of :math:`\epsilon_r = 3`, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
 
+.. note::
+
+    The Debye, Lorentz, and Drude commands below describe **electric** dispersion. They cannot be applied to PEC or PMC materials, including user-defined materials with infinite electric or magnetic conductivity.
+
 
 #add_dispersion_debye:
 ----------------------
@@ -478,7 +482,8 @@ At the boundaries between different materials in the model there is the question
 
 .. note::
 
-    * If a material has dispersive properties then dielectric smoothing is automatically turned off for that material.
+    * Debye materials participate in dielectric smoothing by default. This can be disabled globally with ``#debye_averaging: n``.
+    * Lorentz and Drude materials remain non-averageable.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular patch not triangular prism) cannot have dielectric smoothing.
 
@@ -499,6 +504,62 @@ Selects the mixing rule used for magnetic-field components at smoothed material 
     * This command is optional; the default is ``harmonic``.
     * Earlier versions of gprMax used an arithmetic magnetic average. Add ``#magnetic_averaging: arithmetic`` when exact reproduction of those results is required.
     * The command chooses the magnetic mixing rule only; it does not enable or disable dielectric smoothing.
+
+
+#debye_averaging:
+-------------------
+
+Enables or disables interface averaging for Debye materials. When enabled,
+Debye media use the same arithmetic four-cell electric-edge average as
+nondispersive dielectrics. This implements the effective-permittivity
+formulation developed by [HAR2020]_. The syntax is:
+
+.. code-block:: none
+
+    #debye_averaging: c1
+
+* ``c1`` is ``y`` to enable Debye averaging or ``n`` to disable it.
+
+For surrounding-cell weights :math:`w_m`, the effective high-frequency
+permittivity and conductivity are
+
+.. math::
+
+    \begin{aligned}
+    \epsilon_{\infty,\mathrm{eff}}
+      &= \sum_m w_m\epsilon_{\infty,m}, \\
+    \sigma_{\mathrm{eff}}
+      &= \sum_m w_m\sigma_m.
+    \end{aligned}
+
+Every constituent Debye pole retains its relaxation time and has its strength
+scaled by the corresponding cell weight:
+
+.. math::
+
+    \epsilon_{r,\mathrm{eff}}(\omega) =
+    \epsilon_{\infty,\mathrm{eff}} +
+    \sum_m\sum_p
+    \frac{w_m\Delta\epsilon_{m,p}}
+         {1 + j\omega\tau_{m,p}}.
+
+The four surrounding cells each contribute :math:`1/4`; repeated materials
+therefore naturally produce weights of :math:`1/2` or :math:`3/4`. Poles with
+identical relaxation times are combined exactly. Two different single-pole
+Debye materials generally produce a two-pole effective material.
+
+.. note::
+
+    * This command is optional; the default is ``y``.
+    * The ``n`` setting affects Debye materials only. Nondispersive dielectric
+      smoothing remains controlled by the optional ``y``/``n`` argument of
+      each volumetric geometry command.
+    * Dispersive state arrays use the model-wide maximum pole count for
+      computational efficiency. An averaged interface containing additional
+      distinct relaxation times can therefore increase memory use throughout
+      the grid. The resolved maximum is included in gprMax's memory estimate.
+    * Use ``#debye_averaging: n`` to reproduce the earlier behaviour in which
+      Debye material averaging was always disabled.
 
 
 .. _geometryview:

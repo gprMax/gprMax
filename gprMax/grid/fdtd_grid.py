@@ -501,12 +501,28 @@ class FDTDGrid:
             file=sys.stdout,
             disable=not config.sim_config.general["progressbars"],
         )
-        build_electric_components(self.solid, self.rigidE, self.ID, self)
+        if not getattr(self, "_electric_components_built", False):
+            build_electric_components(self.solid, self.rigidE, self.ID, self)
+            self._electric_components_built = True
         pbar.update()
         harmonic = config.get_model_config().magnetic_averaging_mode == "harmonic"
         build_magnetic_components(self.solid, self.rigidH, self.ID, self, harmonic)
         pbar.update()
         pbar.close()
+
+    def prepare_electric_components(self) -> None:
+        """Resolve electric material IDs before dispersive memory checks.
+
+        Debye interface averaging may produce a compound with more poles than
+        any individual material. The dense dispersive state arrays use the
+        model-wide maximum pole count, so these compounds must be known before
+        memory requirements are estimated. The normal grid build recognises
+        the flag and does not repeat this work.
+        """
+
+        if self.averagevolumeobjects and not getattr(self, "_electric_components_built", False):
+            build_electric_components(self.solid, self.rigidE, self.ID, self)
+            self._electric_components_built = True
 
     def _thin_wire_material(
         self,
@@ -1075,6 +1091,7 @@ class FDTDGrid:
             free_space_numid,
             dtype=np.uint32,
         )
+        self._electric_components_built = False
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""

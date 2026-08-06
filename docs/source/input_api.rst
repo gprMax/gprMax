@@ -140,6 +140,10 @@ Magnetic Averaging
 ------------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.MagneticAveraging
 
+Debye Averaging
+---------------
+.. autoclass:: gprMax.user_objects.cmds_singleuse.DebyeAveraging
+
 Typical general settings are added directly to the scene:
 
 .. code-block:: python
@@ -149,6 +153,7 @@ Typical general settings are added directly to the scene:
     scene.add(gprMax.TimeStepStabilityFactor(f=0.95))
     scene.add(gprMax.OutputDir(dir='results'))
     scene.add(gprMax.MagneticAveraging(mode='harmonic'))
+    scene.add(gprMax.DebyeAveraging(enabled=True))
 
 Material functions
 ==================
@@ -174,7 +179,9 @@ Soil Peplinski
 .. autoclass:: gprMax.user_objects.cmds_multiuse.SoilPeplinski
 
 The dispersion objects modify materials that have already been added to the
-same scene. Each material ID below is therefore unique:
+same scene. Each material ID below is therefore unique. These objects describe
+electric dispersion and cannot target PEC or PMC materials, including custom
+materials with infinite electric or magnetic conductivity:
 
 .. code-block:: python
 

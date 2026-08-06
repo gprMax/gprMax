@@ -187,6 +187,52 @@ class MagneticAveraging(ModelUserObject):
         logger.info(f"Magnetic (H-field) averaging mixing rule: {self.mode}")
 
 
+class DebyeAveraging(ModelUserObject):
+    """Enable or disable arithmetic interface averaging for Debye media.
+
+    When enabled, Debye materials participate in the same four-cell
+    electric-edge averaging used for nondispersive dielectric materials. The
+    effective material retains every distinct constituent relaxation time and
+    scales each pole strength by its cell weight. Ordinary dielectric
+    smoothing remains controlled by the ``averaging`` argument of each
+    volumetric geometry object.
+
+    This option is enabled by default. Disabling it restores the previous
+    behaviour in which Debye objects were always constructed without material
+    averaging. Lorentz and Drude materials are unaffected and remain
+    non-averageable.
+
+    Attributes:
+        enabled (bool): Whether Debye interface averaging is enabled.
+    """
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#debye_averaging"
+
+    def __init__(self, enabled: bool = True):
+        """Create a DebyeAveraging user object.
+
+        Args:
+            enabled: ``True`` (default) to average Debye interfaces, or
+                ``False`` to construct Debye objects without smoothing.
+        """
+        super().__init__(enabled=enabled)
+        self.enabled = enabled
+
+    def build(self, model: Model):
+        if not isinstance(self.enabled, (bool, np.bool_)):
+            raise TypeError(f"{self} requires enabled to be True or False")
+
+        config.get_model_config().debye_averaging = bool(self.enabled)
+        state = "enabled" if self.enabled else "disabled"
+        logger.info(f"Debye material averaging: {state}")
+
+
 class Domain(ModelUserObject):
     """Size of the model.
 

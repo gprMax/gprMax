@@ -2674,9 +2674,35 @@ class Material(GridUserObject):
         grid.materials.append(m)
 
 
+def _reject_perfect_conductor_dispersion(user_object, materials, formulation):
+    """Reject electric dispersion on ideal electric or magnetic conductors."""
+
+    invalid = []
+    for material in materials:
+        conductor_types = []
+        if material.is_pec:
+            conductor_types.append("PEC")
+        if material.is_pmc:
+            conductor_types.append("PMC")
+        if conductor_types:
+            invalid.append(f"{material.ID!r} ({'/'.join(conductor_types)})")
+
+    if invalid:
+        message = (
+            f"{user_object.params_str()} cannot add {formulation} electric dispersion to "
+            f"perfect conductor material(s): {', '.join(invalid)}"
+        )
+        logger.error(message)
+        raise ValueError(message)
+
+
 class AddDebyeDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
-        multi-pole Debye formulation.
+    multi-pole Debye formulation.
+
+    Perfect electric and magnetic conductors cannot be assigned electric
+    dispersion, including custom materials with infinite electric or magnetic
+    conductivity.
 
     Attributes:
         poles: float required for number of Debye poles.
@@ -2721,6 +2747,8 @@ class AddDebyeDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
             raise ValueError
 
+        _reject_perfect_conductor_dispersion(self, materials, "Debye")
+
         for material in materials:
             disp_material = DispersiveMaterialUser(material.numID, material.ID)
             disp_material.er = material.er
@@ -2729,7 +2757,7 @@ class AddDebyeDispersion(GridUserObject):
             disp_material.sm = material.sm
             disp_material.type = "debye"
             disp_material.poles = poles
-            disp_material.averagable = False
+            disp_material.averagable = config.get_model_config().debye_averaging
             for i in range(poles):
                 if tau[i] > 0:
                     logger.debug("Not checking if relaxation times are " "greater than time-step.")
@@ -2753,7 +2781,11 @@ class AddDebyeDispersion(GridUserObject):
 
 class AddLorentzDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
-        multi-pole Lorentz formulation.
+    multi-pole Lorentz formulation.
+
+    Perfect electric and magnetic conductors cannot be assigned electric
+    dispersion, including custom materials with infinite electric or magnetic
+    conductivity.
 
     Attributes:
         poles: float required for number of Lorentz poles.
@@ -2800,6 +2832,8 @@ class AddLorentzDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
             raise ValueError
 
+        _reject_perfect_conductor_dispersion(self, materials, "Lorentz")
+
         for material in materials:
             disp_material = DispersiveMaterialUser(material.numID, material.ID)
             disp_material.er = material.er
@@ -2844,7 +2878,11 @@ class AddLorentzDispersion(GridUserObject):
 
 class AddDrudeDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
-        multi-pole Drude formulation.
+    multi-pole Drude formulation.
+
+    Perfect electric and magnetic conductors cannot be assigned electric
+    dispersion, including custom materials with infinite electric or magnetic
+    conductivity.
 
     Attributes:
         poles: float required for number of Drude poles.
@@ -2886,6 +2924,8 @@ class AddDrudeDispersion(GridUserObject):
             notfound = [x for x in material_ids if x not in materials]
             logger.exception(f"{self.params_str()} material(s) {notfound} do not exist.")
             raise ValueError
+
+        _reject_perfect_conductor_dispersion(self, materials, "Drude")
 
         for material in materials:
             disp_material = DispersiveMaterialUser(material.numID, material.ID)
