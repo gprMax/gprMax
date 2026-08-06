@@ -31,7 +31,7 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
     get_rigid_Hz,
 )
 
-from gprMax.materials import Material
+from gprMax.materials import Material, create_electric_average_material
 
 
 def _material_id_index(G):
@@ -129,19 +129,20 @@ cpdef void create_electric_average(
     if material is not None:
         G.ID[componentID, i, j, k] = material.numID
     else:
-        # Create new material
+        # Create a new nondispersive or multipole-Debye material. The helper
+        # retains each distinct Debye relaxation time and scales its pole
+        # strength by the ordinary quarter-cell weight.
         newNumID = len(G.materials)
-        m = Material(newNumID, requiredID)
-        m.type = 'dielectric-smoothed'
-        # Create averaged constituents for material
-        m.er = np.mean((G.materials[numID1].er, G.materials[numID2].er,
-                        G.materials[numID3].er, G.materials[numID4].er), axis=0)
-        m.se = np.mean((G.materials[numID1].se, G.materials[numID2].se,
-                        G.materials[numID3].se, G.materials[numID4].se), axis=0)
-        m.mr = np.mean((G.materials[numID1].mr, G.materials[numID2].mr,
-                        G.materials[numID3].mr, G.materials[numID4].mr), axis=0)
-        m.sm = np.mean((G.materials[numID1].sm, G.materials[numID2].sm,
-                        G.materials[numID3].sm, G.materials[numID4].sm), axis=0)
+        m = create_electric_average_material(
+            newNumID,
+            requiredID,
+            (
+                G.materials[numID1],
+                G.materials[numID2],
+                G.materials[numID3],
+                G.materials[numID4],
+            ),
+        )
 
         # Append the new material object to the materials list
         G.materials.append(m)

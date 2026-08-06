@@ -126,6 +126,19 @@ class Material:
         """
         return self.ID == "pec" or self.se == float("inf")
 
+    @property
+    def is_pmc(self) -> bool:
+        """Check if a material is magnetically a perfect conductor (PMC).
+
+        This mirrors :attr:`is_pec`: the builtin material name and a
+        user-defined infinite magnetic conductivity are equivalent to the
+        magnetic-field update equations.
+
+        Returns:
+            is_pmc: True if material is PMC or PMC-equivalent.
+        """
+        return self.ID == "pmc" or self.sm == float("inf")
+
     @staticmethod
     def create_compound_id(*materials: "Material") -> str:
         """Create a compound ID from existing materials.
@@ -360,6 +373,81 @@ class DispersiveMaterial(Material):
         return er
 
 
+def create_electric_average_material(numID, ID, materials):
+    """Create the arithmetic electric-edge average of four materials.
+
+    The ordinary constitutive properties are averaged exactly as in the
+    existing generalised-Yee construction. If any constituent is Debye
+    dispersive, the effective susceptibility is formed by scaling every
+    constituent pole strength by its cell weight while retaining its
+    relaxation time. Repeated relaxation times are combined exactly. Thus a
+    dielectric/Debye interface retains the Debye poles, while two distinct
+    single-pole Debye media produce a two-pole effective material.
+
+    This is the grid-aligned contour-path formulation developed in Chapter 4
+    of Hartley (2020), "On Finite-Difference Time-Domain Sub-Gridding
+    Algorithms for Efficient Modelling of Ground-Penetrating Radar".
+
+    Args:
+        numID: Numeric identifier for the compound material.
+        ID: Deterministic compound material identifier.
+        materials: Four materials surrounding an electric Yee edge. Repeated
+            entries provide the normal quarter-cell weighting used by gprMax.
+
+    Returns:
+        The effective :class:`Material` or :class:`DispersiveMaterial`.
+    """
+
+    if len(materials) != 4:
+        raise ValueError("Electric-edge averaging requires exactly four materials")
+
+    dispersive = [material for material in materials if getattr(material, "poles", 0) > 0]
+    unsupported = [material for material in dispersive if "debye" not in material.type]
+    if unsupported:
+        ids = ", ".join(sorted({material.ID for material in unsupported}))
+        raise ValueError(
+            "Material averaging currently supports Debye dispersion only; "
+            f"cannot average Lorentz/Drude material(s): {ids}"
+        )
+
+    if dispersive:
+        averaged = DispersiveMaterial(numID, ID)
+        averaged.type = "dielectric-smoothed, debye"
+
+        # Each surrounding cell contributes one quarter of its susceptibility.
+        # A dictionary both combines repeated materials and merges poles that
+        # have exactly the same relaxation time. Sorting below makes the pole
+        # ordering deterministic for equivalent compound IDs on different
+        # MPI ranks.
+        pole_strengths = {}
+        weight = 1.0 / len(materials)
+        for material in materials:
+            if "debye" not in material.type:
+                continue
+            for deltaer, tau in zip(material.deltaer, material.tau):
+                tau = float(tau)
+                pole_strengths[tau] = pole_strengths.get(tau, 0.0) + weight * float(deltaer)
+
+        for tau in sorted(pole_strengths):
+            averaged.tau.append(tau)
+            averaged.deltaer.append(pole_strengths[tau])
+        averaged.poles = len(averaged.tau)
+        averaged.averagable = config.get_model_config().debye_averaging
+
+        if averaged.poles > config.get_model_config().materials["maxpoles"]:
+            config.get_model_config().materials["maxpoles"] = averaged.poles
+    else:
+        averaged = Material(numID, ID)
+        averaged.type = "dielectric-smoothed"
+
+    averaged.er = np.mean([material.er for material in materials], axis=0)
+    averaged.se = np.mean([material.se for material in materials], axis=0)
+    averaged.mr = np.mean([material.mr for material in materials], axis=0)
+    averaged.sm = np.mean([material.sm for material in materials], axis=0)
+
+    return averaged
+
+
 class PeplinskiSoil:
     """Soil objects that are characterised according to a mixing model
     by Peplinski (http://dx.doi.org/10.1109/36.387598).
@@ -451,7 +539,7 @@ class PeplinskiSoil:
             # Create individual materials
             m = DispersiveMaterial(len(G.materials), None)
             m.type = "debye"
-            m.averagable = False
+            m.averagable = config.get_model_config().debye_averaging
             m.poles = 1
             if m.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = m.poles
@@ -671,7 +759,7 @@ def create_water(G, T=25, S=0):
     eri, er, tau, sig = calculate_water_properties(T, S)
 
     m = DispersiveMaterial(len(G.materials), "water")
-    m.averagable = False
+    m.averagable = config.get_model_config().debye_averaging
     m.type = "builtin, debye"
     m.poles = 1
     m.er = eri
@@ -697,7 +785,7 @@ def create_grass(G):
     sig = 0
 
     m = DispersiveMaterial(len(G.materials), "grass")
-    m.averagable = False
+    m.averagable = config.get_model_config().debye_averaging
     m.type = "builtin, debye"
     m.poles = 1
     m.er = eri

@@ -28,18 +28,28 @@ def _capture_grid(monkeypatch):
 
 
 def test_3d_dispersive_material_unaffected(monkeypatch, tmp_path):
-    """Bit-exact regression: 3D dispersive result must match the
-    pre-refactor value recorded before mode2d-awareness was added."""
+    """A finite 3-D Debye dielectric remains a stable regression fixture."""
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
     scene.add(gprMax.Domain(p1=(10e-3, 10e-3, 10e-3)))
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(time=1e-11))
-    scene.add(gprMax.Material(er=1, se=float("inf"), mr=1, sm=0, id="mypec"))
+    scene.add(gprMax.Material(er=3, se=0, mr=1, sm=0, id="diel"))
     scene.add(
-        gprMax.AddDebyeDispersion(poles=1, er_delta=[2.0], tau=[1e-10], material_ids=["mypec"])
+        gprMax.AddDebyeDispersion(
+            poles=1,
+            er_delta=[2.0],
+            tau=[1e-10],
+            material_ids=["diel"],
+        )
     )
-    scene.add(gprMax.Box(p1=(3e-3, 3e-3, 3e-3), p2=(7e-3, 7e-3, 7e-3), material_id="mypec"))
+    scene.add(
+        gprMax.Box(
+            p1=(3e-3, 3e-3, 3e-3),
+            p2=(7e-3, 7e-3, 7e-3),
+            material_id="diel",
+        )
+    )
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
     scene.add(gprMax.HertzianDipole(polarisation="z", p1=(5e-3, 5e-3, 1e-3), waveform_id="w"))
 
@@ -49,12 +59,9 @@ def test_3d_dispersive_material_unaffected(monkeypatch, tmp_path):
 
     for arr in (grid.Ex, grid.Ey, grid.Ez):
         assert not np.any(np.isnan(arr))
-    # Regression value re-pinned for the now-mandatory PMLThickness(0) fixture
-    # (this 10-cell domain previously had the default 10-cell PML on every
-    # side, which - being unvalidated at the time - overlapped essentially
-    # the whole domain rather than acting as a thin boundary layer, so the
-    # old pinned value was PML-dominated, not just PML-adjacent).
-    assert np.isclose(np.max(np.abs(grid.Ez)), 0.14002717, rtol=1e-6)
+    # Pinned after replacing the former dispersive-PEC fixture: adding
+    # electric dispersion to an ideal conductor is now rejected as invalid.
+    assert np.isclose(np.max(np.abs(grid.Ez)), 0.1396385, rtol=1e-6)
 
 
 def test_tez_dispersive_dead_component_and_interior_layer(monkeypatch, tmp_path):
@@ -73,13 +80,9 @@ def test_tez_dispersive_dead_component_and_interior_layer(monkeypatch, tmp_path)
     scene.add(
         gprMax.AddDebyeDispersion(poles=1, er_delta=[2.0], tau=[1e-10], material_ids=["diel"])
     )
-    scene.add(
-        gprMax.Box(p1=(5e-3, 5e-3, 0), p2=(15e-3, 15e-3, 2e-3), material_id="diel")
-    )
+    scene.add(gprMax.Box(p1=(5e-3, 5e-3, 0), p2=(15e-3, 15e-3, 2e-3), material_id="diel"))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
-    scene.add(
-        gprMax.HertzianDipole(polarisation="x", p1=(0.01, 0.01, 1e-3), waveform_id="w")
-    )
+    scene.add(gprMax.HertzianDipole(polarisation="x", p1=(0.01, 0.01, 1e-3), waveform_id="w"))
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(scenes=[scene], n=1, outputfile=tmp_path / "run", hide_progress_bars=True)
@@ -110,13 +113,9 @@ def test_tmz_dispersive_live_component(monkeypatch, tmp_path):
     scene.add(
         gprMax.AddDebyeDispersion(poles=1, er_delta=[2.0], tau=[1e-10], material_ids=["diel"])
     )
-    scene.add(
-        gprMax.Box(p1=(5e-3, 5e-3, 0), p2=(15e-3, 15e-3, 1e-3), material_id="diel")
-    )
+    scene.add(gprMax.Box(p1=(5e-3, 5e-3, 0), p2=(15e-3, 15e-3, 1e-3), material_id="diel"))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
-    scene.add(
-        gprMax.HertzianDipole(polarisation="z", p1=(0.01, 0.01, 0), waveform_id="w")
-    )
+    scene.add(gprMax.HertzianDipole(polarisation="z", p1=(0.01, 0.01, 0), waveform_id="w"))
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(scenes=[scene], n=1, outputfile=tmp_path / "run", hide_progress_bars=True)

@@ -376,6 +376,14 @@ At the boundaries between different materials in a model there is the question o
 
 This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_ [WHI2009]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. When dielectric smoothing is on, gprMax uses an arithmetic mean for the four cells surrounding each electric-field edge and, by default, a harmonic mean for the two cells normal to each magnetic-field edge. The harmonic magnetic average follows continuity of the normal magnetic flux density. The earlier arithmetic magnetic behaviour remains available for reproducing results from older versions; see ``#magnetic_averaging`` in :ref:`input-hash-cmds`.
 
+Debye media can also participate in the arithmetic electric-edge average using
+the effective-permittivity formulation developed by [HAR2020]_. The
+high-frequency permittivity, conductivity, and pole strengths are weighted by
+the surrounding-cell fractions, while each distinct Debye relaxation time is
+retained. This behaviour is enabled by default and can be disabled independently
+with ``#debye_averaging: n``; see :ref:`input-hash-cmds`. Lorentz and Drude
+materials remain non-averageable.
+
 Perfectly Matched Layer (PML) absorbing boundary conditions
 ===========================================================
 

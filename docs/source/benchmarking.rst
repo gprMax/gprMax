@@ -45,7 +45,9 @@ End-to-end :ref:`analytical validation cases <analytical-comparisons>` are
 provided separately. They include
 dielectric and dispersive half-space reflection against Fresnel theory,
 Hertzian-dipole far- and near-field comparisons, and broadband PEC- and
-dielectric-sphere backscatter through the Mie resonances. Solver HDF5 files are
+dielectric-sphere backscatter through the Mie resonances. The Debye-sphere
+case additionally compares averaged and staircased dispersive interfaces.
+Solver HDF5 files are
 treated as local cache data; compact reports, CSV tables, and plots record the
 comparison with the independent analytical solution.
 
@@ -55,6 +57,7 @@ comparison with the independent analytical solution.
     (gprMax)$ python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     (gprMax)$ python -m testing.validation.validate_hertzian_dipole --gpu 0
     (gprMax)$ python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
+    (gprMax)$ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     (gprMax)$ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
 
 Omit ``--gpu`` to use the CPU. See :download:`the validation README

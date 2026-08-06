@@ -101,6 +101,12 @@ class ModelConfig:
         # boundaries during Yee-cell smoothing. Harmonic averaging is the
         # default; arithmetic averaging preserves results from older versions.
         self.magnetic_averaging_mode = "harmonic"
+        # Permit Debye materials to participate in the same arithmetic
+        # four-cell electric-edge averaging as nondispersive dielectrics.
+        # The resulting compound retains the weighted poles of every
+        # constituent material. This is enabled by default; users can disable
+        # it independently of ordinary dielectric smoothing.
+        self.debye_averaging = True
         self.grids = []
         self.ompthreads = None
         self.model_num = model_num
@@ -209,6 +215,7 @@ class ModelConfig:
         self.mode = reference.mode
         self.requested_2d_mode = reference.requested_2d_mode
         self.magnetic_averaging_mode = reference.magnetic_averaging_mode
+        self.debye_averaging = reference.debye_averaging
         self.materials = dict(reference.materials)
 
     def get_scene(self):

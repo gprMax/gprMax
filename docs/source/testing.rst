@@ -126,6 +126,8 @@ Analytical validation
 The higher-resolution drivers in ``testing/validation`` compare normal-incidence
 plane-wave reflection, Hertzian-dipole fields and antenna metrics, and PEC or
 dielectric sphere RCS with independent Fresnel, dipole, and Mie solutions.
+The dispersive-sphere study also compares Hartley's Debye interface average
+with the non-averaged staircased representation.
 They write CSV data, PNG plots, ``summary.json`` acceptance results, and a
 human-readable report. Run, for example:
 
@@ -133,6 +135,7 @@ human-readable report. Run, for example:
 
     $ python -m testing.validation.validate_hertzian_dipole --gpu 0
     $ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
+    $ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
 
 Omit ``--gpu`` to use the CPU solver. These full-resolution cases can take
 minutes and are intentionally not all part of routine CI. Compact FDTD

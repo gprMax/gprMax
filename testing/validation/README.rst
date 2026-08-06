@@ -17,7 +17,10 @@ The main validations are:
   parallel-plate and dielectric slab modes, plus 2D rectangular and cylindrical
   PEC waveguide modes, against analytical dispersion;
 * ``validate_dielectric_sphere_rcs.py`` -- broadband dielectric-sphere
-  monostatic RCS against the homogeneous-sphere Mie series; and
+  monostatic RCS against the homogeneous-sphere Mie series;
+* ``validate_debye_sphere_averaging.py`` -- three two-pole dispersive-soil
+  spheres with and without Hartley's Debye interface average, compared with
+  the homogeneous dispersive-sphere Mie series; and
 * ``validate_pec_sphere_rcs.py`` -- broadband PEC-sphere monostatic RCS
   against the Mie series.
 
@@ -37,6 +40,7 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_hertzian_dipole --gpu 0
     python -m testing.validation.validate_fdfd_eigenmodes
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
+    python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
 
 Omit ``--gpu`` for CPU execution. Each script writes a report, summary, CSV
