@@ -3291,12 +3291,12 @@ class PMLCFS(GridUserObject):
 class PMLSlab(GridUserObject):
     """Place an experimental one-axis RIPML slab inside the main grid.
 
-    ``p1`` and ``p2`` bound a rectangular region. ``termination_face``
-    selects the local face at which absorption is greatest and which is
-    capped by PEC; the profile reduces to zero towards the opposite face.
-    For example, ``x0`` is PEC-backed at ``p1.x`` and opens towards increasing
-    x. The transverse material geometry should be a constant extrusion along
-    the slab normal.
+    ``p1`` and ``p2`` bound a rectangular region. ``maximum_face`` selects the
+    local face at which complex stretching is greatest; the profile reduces
+    to zero towards the opposite face. For example, ``x0`` has its maximum at
+    ``p1.x`` and opens towards increasing x. Unlike a domain-boundary PML, the
+    slab does not create or imply a PEC termination. The transverse material
+    geometry should be a constant extrusion along the slab normal.
     """
 
     FACE_TO_DIRECTION = {
@@ -3325,11 +3325,11 @@ class PMLSlab(GridUserObject):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
-            termination_face = self.kwargs["termination_face"].lower()
+            maximum_face = self.kwargs["maximum_face"].lower()
             ID = self.kwargs["id"]
         except KeyError:
             logger.exception(
-                f"{self.params_str()} requires p1, p2, termination_face, and id."
+                f"{self.params_str()} requires p1, p2, maximum_face, and id."
             )
             raise
 
@@ -3339,9 +3339,9 @@ class PMLSlab(GridUserObject):
             raise ValueError(f"{self.params_str()} cannot currently be used on a subgrid.")
         if config.get_model_config().mode.startswith("2D"):
             raise ValueError(f"{self.params_str()} cannot currently be used in 2D mode.")
-        if termination_face not in self.FACE_TO_DIRECTION:
+        if maximum_face not in self.FACE_TO_DIRECTION:
             raise ValueError(
-                f"{self.params_str()} termination_face must be one of "
+                f"{self.params_str()} maximum_face must be one of "
                 f"{', '.join(self.FACE_TO_DIRECTION)}."
             )
         if not ID:
@@ -3356,7 +3356,7 @@ class PMLSlab(GridUserObject):
         if not np.all(upper > lower):
             raise ValueError(f"{self.params_str()} must have non-zero extent on all three axes.")
 
-        axis = "xyz".index(termination_face[0])
+        axis = "xyz".index(maximum_face[0])
         if upper[axis] - lower[axis] < 2:
             raise ValueError(
                 f"{self.params_str()} must be at least two cells thick along its absorption axis."
@@ -3364,8 +3364,8 @@ class PMLSlab(GridUserObject):
 
         spec = InternalPMLSpec(
             ID=ID,
-            termination_face=termination_face,
-            direction=self.FACE_TO_DIRECTION[termination_face],
+            maximum_face=maximum_face,
+            direction=self.FACE_TO_DIRECTION[maximum_face],
             xs=int(lower[0]),
             xf=int(upper[0]),
             ys=int(lower[1]),
@@ -3377,8 +3377,8 @@ class PMLSlab(GridUserObject):
         logger.info(
             f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
             f"{tuple(uip.discrete_to_continuous(lower))}m to "
-            f"{tuple(uip.discrete_to_continuous(upper))}m, PEC-backed on "
-            f"its {termination_face} face, registered."
+            f"{tuple(uip.discrete_to_continuous(upper))}m, with maximum "
+            f"stretching on its {maximum_face} face, registered."
         )
 
 

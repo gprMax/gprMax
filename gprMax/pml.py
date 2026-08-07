@@ -44,7 +44,7 @@ class InternalPMLSpec:
     """
 
     ID: str
-    termination_face: str
+    maximum_face: str
     direction: str
     xs: int
     xf: int
@@ -243,7 +243,7 @@ class PML:
         zf=0,
         *,
         internal=False,
-        termination_face=None,
+        maximum_face=None,
     ):
         """
         Args:
@@ -263,7 +263,7 @@ class PML:
         self.zs = zs
         self.zf = zf
         self.internal = internal
-        self.termination_face = termination_face
+        self.maximum_face = maximum_face
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs

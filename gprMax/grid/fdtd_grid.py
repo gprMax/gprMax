@@ -482,7 +482,7 @@ class FDTDGrid:
             zs=spec.zs,
             zf=spec.zf,
             internal=True,
-            termination_face=spec.termination_face,
+            maximum_face=spec.maximum_face,
         )
 
     def _calculate_average_pml_material_properties(self, pml: PML) -> Tuple[float, float]:
@@ -505,7 +505,7 @@ class FDTDGrid:
             mrs[i] = m.mr
 
         if pml.internal:
-            # Sample the zero-loss entrance plane, not the PEC-backed end.
+            # Sample the zero-loss entrance plane, not the high-stretch end.
             # A portable slab is required to be a longitudinal extrusion, so
             # this plane represents the material cross-section throughout it.
             if pml.direction == "xminus":
@@ -814,7 +814,7 @@ class FDTDGrid:
             self.tez()
 
     def _terminate_pmls_with_pec(self) -> None:
-        """Mark the tangential E components at PML termination faces as PEC.
+        """Mark the tangential E components at boundary-PML outer faces as PEC.
 
         The existing field-update bounds already make the outer PML wall a
         PEC termination. Updating the material IDs makes that termination
@@ -822,40 +822,12 @@ class FDTDGrid:
         face. This must run after geometry and component averaging.
         """
         pml_faces = [face for face, thickness in self.pmls["thickness"].items() if thickness > 0]
-        internal_pmls = [pml for pml in self.pmls["slabs"] if pml.internal]
-        if not pml_faces and not internal_pmls:
+        if not pml_faces:
             return
 
         pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         for face in pml_faces:
             self._force_pec_tangential_e(face, pec_numid)
-
-        for pml in internal_pmls:
-            self._force_pec_internal_pml_cap(pml, pec_numid)
-
-    def _force_pec_internal_pml_cap(self, pml: PML, pec_numid: int) -> None:
-        """Force tangential E IDs on the bounded rear face of an internal PML."""
-        face = pml.termination_face
-        if face == "x0":
-            self.ID[1, pml.xs, pml.ys : pml.yf, pml.zs : pml.zf + 1] = pec_numid
-            self.ID[2, pml.xs, pml.ys : pml.yf + 1, pml.zs : pml.zf] = pec_numid
-        elif face == "xmax":
-            self.ID[1, pml.xf, pml.ys : pml.yf, pml.zs : pml.zf + 1] = pec_numid
-            self.ID[2, pml.xf, pml.ys : pml.yf + 1, pml.zs : pml.zf] = pec_numid
-        elif face == "y0":
-            self.ID[0, pml.xs : pml.xf, pml.ys, pml.zs : pml.zf + 1] = pec_numid
-            self.ID[2, pml.xs : pml.xf + 1, pml.ys, pml.zs : pml.zf] = pec_numid
-        elif face == "ymax":
-            self.ID[0, pml.xs : pml.xf, pml.yf, pml.zs : pml.zf + 1] = pec_numid
-            self.ID[2, pml.xs : pml.xf + 1, pml.yf, pml.zs : pml.zf] = pec_numid
-        elif face == "z0":
-            self.ID[0, pml.xs : pml.xf, pml.ys : pml.yf + 1, pml.zs] = pec_numid
-            self.ID[1, pml.xs : pml.xf + 1, pml.ys : pml.yf, pml.zs] = pec_numid
-        elif face == "zmax":
-            self.ID[0, pml.xs : pml.xf, pml.ys : pml.yf + 1, pml.zf] = pec_numid
-            self.ID[1, pml.xs : pml.xf + 1, pml.ys : pml.yf, pml.zf] = pec_numid
-        else:
-            raise ValueError(f"Unknown internal PML termination face '{face}'")
 
     def _build_symmetry_boundaries(self) -> None:
         """Apply PEC faces and resolve the per-iteration PMC edge dispatch."""

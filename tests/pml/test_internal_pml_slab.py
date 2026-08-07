@@ -18,7 +18,7 @@ def _capture_grid(monkeypatch):
     return captured
 
 
-def test_x0_internal_pml_is_local_graded_and_pec_capped(monkeypatch, tmp_path):
+def test_x0_internal_pml_is_local_graded_and_does_not_change_geometry(monkeypatch, tmp_path):
     dl = 1e-3
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
@@ -29,7 +29,7 @@ def test_x0_internal_pml_is_local_graded_and_pec_capped(monkeypatch, tmp_path):
         gprMax.PMLSlab(
             p1=(0.005, 0.010, 0.010),
             p2=(0.015, 0.020, 0.020),
-            termination_face="x0",
+            maximum_face="x0",
             id="feed_load",
         )
     )
@@ -49,7 +49,7 @@ def test_x0_internal_pml_is_local_graded_and_pec_capped(monkeypatch, tmp_path):
     assert pml.internal
     assert pml.ID == "feed_load"
     assert pml.direction == "xminus"
-    assert pml.termination_face == "x0"
+    assert pml.maximum_face == "x0"
     assert (pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf) == (
         5,
         15,
@@ -65,12 +65,50 @@ def test_x0_internal_pml_is_local_graded_and_pec_capped(monkeypatch, tmp_path):
     assert pml.EPhi2.shape[1:] == (11, 11, 10)
     assert pml.ERA[0, 0] != pml.ERA[0, -1]
 
+    # Neither face nor any component is converted to PEC: this is an embedded
+    # complex-stretching correction, not a boundary termination.
     pec_numid = next(material.numID for material in grid.materials if material.ID == "pec")
-    assert np.all(grid.ID[1, 5, 10:20, 10:21] == pec_numid)
-    assert np.all(grid.ID[2, 5, 10:21, 10:20] == pec_numid)
-
-    # The open entrance and the normal E component are not converted to PEC.
+    assert not np.any(grid.ID[1, 5, 10:20, 10:21] == pec_numid)
+    assert not np.any(grid.ID[2, 5, 10:21, 10:20] == pec_numid)
     assert not np.any(grid.ID[1, 15, 10:20, 10:21] == pec_numid)
     assert not np.any(grid.ID[2, 15, 10:21, 10:20] == pec_numid)
     assert not np.any(grid.ID[0, 5, 10:20, 10:20] == pec_numid)
 
+
+def test_internal_pml_preserves_explicit_pec_plate(monkeypatch, tmp_path):
+    """A slab is an update correction and must not own its end geometry."""
+    dl = 1e-3
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.03, 0.03, 0.03)))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(
+        gprMax.Plate(
+            p1=(0.005, 0.010, 0.010),
+            p2=(0.005, 0.020, 0.020),
+            material_id="pec",
+        )
+    )
+    scene.add(
+        gprMax.PMLSlab(
+            p1=(0.005, 0.010, 0.010),
+            p2=(0.015, 0.020, 0.020),
+            maximum_face="x0",
+            id="pec_backed_load",
+        )
+    )
+
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run_pec",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+
+    pec_numid = next(material.numID for material in grid.materials if material.ID == "pec")
+    assert np.all(grid.ID[1, 5, 10:20, 10:21] == pec_numid)
+    assert np.all(grid.ID[2, 5, 10:21, 10:20] == pec_numid)

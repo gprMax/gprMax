@@ -972,7 +972,7 @@ def process_multicmds(multicmds):
             pml_slab = PMLSlab(
                 p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                 p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
-                termination_face=tmp[6].lower(),
+                maximum_face=tmp[6].lower(),
                 id=tmp[7],
             )
             scene_objects.append(pml_slab)
