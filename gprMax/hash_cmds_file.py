@@ -280,6 +280,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#ksir_far_field_array",
             "#ksir_antenna_ports",
             "#pml_cfs",
+            "#pml_slab",
             "#symmetry_boundary",
             "#include_file",
         ]

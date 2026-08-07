@@ -18,6 +18,8 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from copy import deepcopy
+from dataclasses import dataclass
 from importlib import import_module
 from typing import List
 
@@ -29,6 +31,27 @@ import gprMax.config as config
 from .cython.pml_build import pml_average_er_mr, pml_sum_er_mr
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class InternalPMLSpec:
+    """Deferred description of an axis-aligned internal PML slab.
+
+    The scene is parsed before the grid has finalised its CFS parameters and
+    material IDs, so a user-defined internal slab is recorded first and the
+    backend-specific :class:`PML` instance is constructed during
+    :meth:`FDTDGrid.build`.
+    """
+
+    ID: str
+    termination_face: str
+    direction: str
+    xs: int
+    xf: int
+    ys: int
+    yf: int
+    zs: int
+    zf: int
 
 
 class CFSParameter:
@@ -207,7 +230,21 @@ class PML:
     #                       x-axis, y-axis, or z-axis
     directions = ["xminus", "yminus", "zminus", "xplus", "yplus", "zplus"]
 
-    def __init__(self, G, ID: str, direction: str, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
+    def __init__(
+        self,
+        G,
+        ID: str,
+        direction: str,
+        xs=0,
+        xf=0,
+        ys=0,
+        yf=0,
+        zs=0,
+        zf=0,
+        *,
+        internal=False,
+        termination_face=None,
+    ):
         """
         Args:
             G: FDTDGrid class describing a grid in a model.
@@ -225,6 +262,8 @@ class PML:
         self.yf = yf
         self.zs = zs
         self.zf = zf
+        self.internal = internal
+        self.termination_face = termination_face
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
@@ -240,7 +279,12 @@ class PML:
             self.d = self.G.dz
             self.thickness = self.nz
 
-        self.CFS: List[CFS] = self.G.pmls["cfs"]
+        # Automatic sigma maxima depend on the slab spacing and underlying
+        # material. Each slab therefore needs its own CFS parameter objects;
+        # sharing them lets whichever slab is built first silently determine
+        # sigma.max for every other slab, which is especially inappropriate
+        # for a dielectric-filled internal guide and free-space outer PMLs.
+        self.CFS: List[CFS] = deepcopy(self.G.pmls["cfs"])
         self.check_kappamin()
 
         self.initialise_field_arrays()
@@ -871,9 +915,15 @@ def print_pml_info(G):
     Args:
         G: FDTDGrid class describing a grid in a model.
     """
-    # No PML
+    internal_specs = G.pmls.get("internal_specs", ())
+    internal_info = ""
+    if internal_specs:
+        IDs = ", ".join(spec.ID for spec in internal_specs)
+        internal_info = f"Internal PML slabs [{G.name}]: {len(internal_specs)} ({IDs})\n"
+
+    # No domain-boundary PML. Internal slabs, if any, are reported separately.
     if all(value == 0 for value in G.pmls["thickness"].values()):
-        return f"PML boundaries [{G.name}]: switched off\n"
+        return f"PML boundaries [{G.name}]: switched off\n" + internal_info
 
     if all(value == G.pmls["thickness"]["x0"] for value in G.pmls["thickness"].values()):
         pmlinfo = str(G.pmls["thickness"]["x0"])
@@ -886,4 +936,5 @@ def print_pml_info(G):
     return (
         f"PML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
         f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}\n"
+        + internal_info
     )

@@ -22,11 +22,13 @@ from importlib import import_module
 import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.pml import PML, MetalPML
+from gprMax.pml import MetalPML
 
 
 class MetalGrid(FDTDGrid):
     """Additional grid methods for solving on compute device using Apple Metal."""
+
+    pml_type = MetalPML
 
     def __init__(self):
         super().__init__()
@@ -131,7 +133,3 @@ class MetalGrid(FDTDGrid):
         self.updatecoeffsH_dev = dev.newBufferWithBytes_length_options_(self.updatecoeffsH,
                                                                         self.updatecoeffsH.nbytes,
                                                                         self.storage)
-
-    def _construct_pml(self, pml_ID: str, thickness: int) -> MetalPML:
-        """Construct MetalPML object for the metal backend"""
-        return super()._construct_pml(pml_ID, thickness, MetalPML)

@@ -40,7 +40,7 @@ from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
 from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
 from gprMax.materials import RangeMaterial as RangeMaterialUser
-from gprMax.pml import CFS, CFSParameter
+from gprMax.pml import CFS, CFSParameter, InternalPMLSpec
 from gprMax.receivers import Rx as RxUser
 from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
 from gprMax.sources import EigenmodeReceiver as EigenmodeReceiverUser
@@ -3286,6 +3286,100 @@ class PMLCFS(GridUserObject):
         if len(grid.pmls["cfs"]) > 2:
             logger.exception(f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML.")
             raise ValueError
+
+
+class PMLSlab(GridUserObject):
+    """Place an experimental one-axis RIPML slab inside the main grid.
+
+    ``p1`` and ``p2`` bound a rectangular region. ``termination_face``
+    selects the local face at which absorption is greatest and which is
+    capped by PEC; the profile reduces to zero towards the opposite face.
+    For example, ``x0`` is PEC-backed at ``p1.x`` and opens towards increasing
+    x. The transverse material geometry should be a constant extrusion along
+    the slab normal.
+    """
+
+    FACE_TO_DIRECTION = {
+        "x0": "xminus",
+        "xmax": "xplus",
+        "y0": "yminus",
+        "ymax": "yplus",
+        "z0": "zminus",
+        "zmax": "zplus",
+    }
+
+    @property
+    def order(self):
+        # Register before sources/receivers so their PML-position warning also
+        # recognises user-positioned slabs.
+        return 0
+
+    @property
+    def hash(self):
+        return "#pml_slab"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            termination_face = self.kwargs["termination_face"].lower()
+            ID = self.kwargs["id"]
+        except KeyError:
+            logger.exception(
+                f"{self.params_str()} requires p1, p2, termination_face, and id."
+            )
+            raise
+
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f"{self.params_str()} cannot currently be used on a subgrid.")
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(f"{self.params_str()} cannot currently be used in 2D mode.")
+        if termination_face not in self.FACE_TO_DIRECTION:
+            raise ValueError(
+                f"{self.params_str()} termination_face must be one of "
+                f"{', '.join(self.FACE_TO_DIRECTION)}."
+            )
+        if not ID:
+            raise ValueError(f"{self.params_str()} id must not be empty.")
+        if any(spec.ID == ID for spec in grid.pmls["internal_specs"]):
+            raise ValueError(f"{self.params_str()} id '{ID}' is already in use.")
+
+        uip = self._create_uip(grid)
+        within_grid, lower, upper = uip.check_box_points(p1, p2, self.__str__())
+        if not within_grid:
+            return
+        if not np.all(upper > lower):
+            raise ValueError(f"{self.params_str()} must have non-zero extent on all three axes.")
+
+        axis = "xyz".index(termination_face[0])
+        if upper[axis] - lower[axis] < 2:
+            raise ValueError(
+                f"{self.params_str()} must be at least two cells thick along its absorption axis."
+            )
+
+        spec = InternalPMLSpec(
+            ID=ID,
+            termination_face=termination_face,
+            direction=self.FACE_TO_DIRECTION[termination_face],
+            xs=int(lower[0]),
+            xf=int(upper[0]),
+            ys=int(lower[1]),
+            yf=int(upper[1]),
+            zs=int(lower[2]),
+            zf=int(upper[2]),
+        )
+        grid.pmls["internal_specs"].append(spec)
+        logger.info(
+            f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
+            f"{tuple(uip.discrete_to_continuous(lower))}m to "
+            f"{tuple(uip.discrete_to_continuous(upper))}m, PEC-backed on "
+            f"its {termination_face} face, registered."
+        )
 
 
 class SymmetryBoundary(GridUserObject):

@@ -23,6 +23,7 @@ import gprMax.config as config
 
 from .user_objects.cmds_multiuse import (
     PMLCFS,
+    PMLSlab,
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
@@ -956,6 +957,25 @@ def process_multicmds(multicmds):
             )
 
             scene_objects.append(pml_cfs)
+
+    cmdname = "#pml_slab"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 8:
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "' requires exactly eight parameters"
+                )
+                raise ValueError
+
+            pml_slab = PMLSlab(
+                p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                termination_face=tmp[6].lower(),
+                id=tmp[7],
+            )
+            scene_objects.append(pml_slab)
 
     cmdname = "#symmetry_boundary"
     if multicmds[cmdname] is not None:

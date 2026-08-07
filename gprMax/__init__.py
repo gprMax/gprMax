@@ -37,6 +37,7 @@ from .user_objects.cmds_geometry.thin_wire import ThinWire
 from .user_objects.cmds_geometry.triangle import Triangle
 from .user_objects.cmds_multiuse import (
     PMLCFS,
+    PMLSlab,
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,

@@ -1,0 +1,18 @@
+#title: Rectangular waveguide with a portable internal x0 PML slab
+
+#domain: 0.024 0.008 0.006
+#dx_dy_dz: 0.0002 0.0002 0.0002
+#time_window: 0.6e-9
+#pml_cells: 0
+
+#box: 0 0 0 0.024 0.001 0.006 pec
+#box: 0 0.007 0 0.024 0.008 0.006 pec
+#box: 0 0 0 0.024 0.008 0.001 pec
+#box: 0 0 0.005 0.024 0.008 0.006 pec
+
+#pml_slab: 0.001 0.001 0.001 0.005 0.007 0.005 x0 feed_load
+
+#eigenmode_band: waveguide_band 30e9 45e9 61
+#eigenmode_port: 1 0.010 0.001 0.001 0.010 0.007 0.005 - 1 auto y
+#eigenmode_excitation: 1 1 auto
+
