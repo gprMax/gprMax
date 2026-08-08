@@ -289,6 +289,10 @@ class EigenmodePortMonitor:
             if self.owner.invariant_axis is not None
             else grid.dl[u_axis] * grid.dl[v_axis]
         )
+        if self.owner.invariant_axis is not None and self.owner.domain_polarization == "TE":
+            # Both synthetic invariant cells receive half of each live-layer
+            # TE field during cell averaging, halving their summed overlap.
+            measure *= 2.0
         handedness = self.owner._modal_basis_handedness()
         factor = 0.5 * handedness * measure
         self.electric_gram = np.empty((nf, nm, nm), dtype=complex_dtype)

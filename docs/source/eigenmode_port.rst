@@ -847,14 +847,14 @@ For TM, the selected ``E_a`` eigenvector gives:
 .. code-block:: text
 
    H_t = -n_eff E_a / (eta0 mu_t)
-   H_w = -i inv(mu_w) D_nc E_a / eta0
+   H_w = i inv(mu_w) D_nc E_a / eta0
 
 For TE, the selected ``H_a`` eigenvector gives:
 
 .. code-block:: text
 
    E_t = eta0 n_eff H_a / eps_t
-   E_w = i eta0 inv(eps_w) D_cn H_a
+   E_w = -i eta0 inv(eps_w) D_cn H_a
 
 The other three field components are identically zero for the selected 2D
 polarization. The reconstructed electric fields are in V/m and magnetic
@@ -1151,8 +1151,12 @@ of freedom from the eigenproblem:
 
    Omega = Omega[self.free_euv_mask, :][:, self.free_euv_mask]
 
-After ARPACK returns the reduced eigenvectors, the solver expands them back to
-the full transverse field-vector size and explicitly zeros constrained fields.
+When the reduced matrix has only one more degree of freedom than the requested
+mode count, the solver uses a dense eigensolve because ARPACK requires
+``k < N - 1``. Larger systems use shift-invert ARPACK and retry with a
+roundoff-scale shift perturbation if the original shift produces a singular
+factorisation. The reduced eigenvectors are then expanded back to the full
+transverse field-vector size and constrained fields are explicitly zeroed.
 
 The inverse ``eps_r_ww`` and ``mu_r_ww`` operators are built only on free
 longitudinal degrees of freedom. Constrained entries receive zero inverse

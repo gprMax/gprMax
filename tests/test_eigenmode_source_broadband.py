@@ -5,6 +5,7 @@ import pytest
 
 import gprMax.config as config
 import gprMax.sources as sources_module
+from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.sources import EigenmodeSource
 from gprMax.waveforms import Waveform
 
@@ -334,6 +335,54 @@ def test_modal_cross_power_2d_te_uses_only_live_invariant_layer(monkeypatch):
     grid = SimpleNamespace(dl=np.asarray([0.5, 0.25, 1.0]))
 
     assert source._modal_cross_power(electric, magnetic, grid) == pytest.approx(0.375)
+
+
+@pytest.mark.parametrize("polarization", ("TM", "TE"))
+@pytest.mark.parametrize(
+    ("invariant_axis", "normal_axis"),
+    ((0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)),
+)
+def test_1d_solver_mapping_has_positive_forward_power(
+    invariant_axis,
+    normal_axis,
+    polarization,
+):
+    physical_transverse_axis = next(
+        axis for axis in range(3) if axis not in (invariant_axis, normal_axis)
+    )
+    transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
+    source = EigenmodeSource(None)
+    source.normal_axis = normal_axis
+    source.transverse_axes = transverse_axes
+    source.invariant_axis = invariant_axis
+    source.physical_transverse_axis = physical_transverse_axis
+    source.domain_polarization = polarization
+    source.transverse_start = np.zeros(2, dtype=np.int32)
+    source.transverse_stop = np.asarray(
+        [2 if axis == physical_transverse_axis else 1 for axis in transverse_axes],
+        dtype=np.int32,
+    )
+
+    solver = object.__new__(FDFD_1D_mode_solver)
+    solver.num_modes = 1
+    solver.complex_neff = np.asarray([1.0 + 0j])
+    if polarization == "TM":
+        solver.Ea = np.ones((3, 1), dtype=np.complex128)
+        solver.Ht = -np.ones((3, 1), dtype=np.complex128)
+        solver.Hw = np.zeros((2, 1), dtype=np.complex128)
+    else:
+        solver.Et = np.ones((2, 1), dtype=np.complex128)
+        solver.Ha = np.ones((2, 1), dtype=np.complex128)
+        solver.Ew = np.zeros((3, 1), dtype=np.complex128)
+
+    electric, magnetic, _ = source._fields_from_solver_mode(solver, 1)
+    power = source._modal_cross_power(
+        electric,
+        magnetic,
+        SimpleNamespace(dl=np.ones(3)),
+    )
+
+    assert power == pytest.approx(1.0)
 
 
 def test_single_frequency_global_phase_shift_uses_real_profile(monkeypatch):

@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from scipy.sparse import diags
 
 import gprMax.config as config
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
@@ -189,3 +190,86 @@ def test_rectangular_pmc_tm10_enforces_normal_e_and_matches_theory():
     fitted_impedance = abs(np.vdot(cell_eu, cell_eu) / np.vdot(cell_eu, cell_hv))
     expected_impedance = solver.eta0 * solver.modal_real_neff
     assert fitted_impedance == pytest.approx(expected_impedance, rel=1e-3)
+
+
+def test_default_guess_targets_magnetic_medium_fundamental():
+    nu, nv = 30, 25
+    epsilon = 4.0
+    permeability = 4.0
+    solver = FDFD_2D_mode_solver(
+        frequency=10e9,
+        du=0.5e-3,
+        dv=0.5e-3,
+        mode_index=0,
+        eps_r_uu=np.full((nu, nv + 1), epsilon),
+        eps_r_vv=np.full((nu + 1, nv), epsilon),
+        eps_r_ww=np.full((nu + 1, nv + 1), epsilon),
+        mu_r_uu=np.full((nu + 1, nv), permeability),
+        mu_r_vv=np.full((nu, nv + 1), permeability),
+        mu_r_ww=np.full((nu, nv), permeability),
+    )
+
+    assert solver.guess == pytest.approx(-(epsilon * permeability))
+    solver.solve()
+
+    assert solver.modal_real_neff == pytest.approx(
+        np.sqrt(epsilon * permeability),
+        rel=4e-2,
+    )
+
+
+def test_real_profile_alignment_canonicalizes_global_mode_sign():
+    phase = np.exp(0.37j)
+    aligned_fields = []
+    for sign in (1.0, -1.0):
+        solver = object.__new__(FDFD_2D_mode_solver)
+        solver.num_modes = 1
+        solver.Nu = 2
+        solver.Nv = 2
+        solver.du = 1.0
+        solver.dv = 1.0
+        solver.Eu = sign * phase * np.ones((2, 3, 1), dtype=np.complex128)
+        solver.Ev = np.zeros((3, 2, 1), dtype=np.complex128)
+        solver.Ew = np.zeros((3, 3, 1), dtype=np.complex128)
+        solver.Hu = np.zeros((3, 2, 1), dtype=np.complex128)
+        solver.Hv = sign * phase * np.ones((2, 3, 1), dtype=np.complex128)
+        solver.Hw = np.zeros((2, 2, 1), dtype=np.complex128)
+
+        solver._align_modes_for_real_profile_power()
+        aligned_fields.append(
+            tuple(
+                field.copy()
+                for field in (solver.Eu, solver.Ev, solver.Ew, solver.Hu, solver.Hv, solver.Hw)
+            )
+        )
+
+    for positive, negative in zip(*aligned_fields):
+        np.testing.assert_allclose(positive, negative, rtol=0, atol=1e-14)
+
+    pivot_vector = np.concatenate((aligned_fields[0][0].ravel(), aligned_fields[0][1].ravel()))
+    pivot = pivot_vector[np.argmax(np.abs(pivot_vector))]
+    assert np.real(pivot) > 0
+
+
+def test_small_reduced_system_uses_dense_eigensolve():
+    solver = object.__new__(FDFD_2D_mode_solver)
+    solver.num_modes = 2
+    solver.guess = -4.0
+    matrix = diags((-9.0, -4.0, -1.0), format="csr")
+
+    eigenvalues, eigenvectors = solver._solve_reduced(matrix)
+
+    np.testing.assert_allclose(eigenvalues, (-4.0, -1.0), rtol=0, atol=1e-12)
+    assert eigenvectors.shape == (3, 2)
+
+
+def test_sparse_eigensolve_retries_perturbed_singular_shift():
+    solver = object.__new__(FDFD_2D_mode_solver)
+    solver.num_modes = 1
+    solver.guess = -4.0
+    matrix = diags((-4.0, -2.0, -1.0), format="csr")
+
+    eigenvalues, eigenvectors = solver._solve_reduced(matrix)
+
+    np.testing.assert_allclose(eigenvalues, (-4.0,), rtol=0, atol=1e-12)
+    assert eigenvectors.shape == (3, 1)

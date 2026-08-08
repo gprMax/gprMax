@@ -229,7 +229,7 @@ class FDFD_1D_mode_solver:
                 self.Ea[:, mode] = self.eigenvectors[:, mode]
                 self.Ht[:, mode] = -neff * self.Ea[:, mode] / (self.eta0 * self.mu_r_t)
                 self.Hw[:, mode] = np.asarray(
-                    -1j
+                    1j
                     * (longitudinal_inverse @ (self.D_NODE_TO_CELL @ self.Ea[:, mode]))
                     / self.eta0
                 ).ravel()
@@ -237,7 +237,7 @@ class FDFD_1D_mode_solver:
                 self.Ha[:, mode] = self.eigenvectors[:, mode]
                 self.Et[:, mode] = self.eta0 * neff * self.Ha[:, mode] / self.eps_r_t
                 self.Ew[:, mode] = np.asarray(
-                    1j
+                    -1j
                     * self.eta0
                     * (longitudinal_inverse @ (self.D_CELL_TO_NODE @ self.Ha[:, mode]))
                 ).ravel()
@@ -296,8 +296,18 @@ class FDFD_1D_mode_solver:
             for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
                 field[:, mode] *= factor
             if self._real_profile_power_from_fields(mode) < 0:
-                for field in (self.Ht, self.Ha, self.Hw):
-                    field[:, mode] *= -1
+                for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
+                    field[:, mode] *= 1j
+            self._canonicalize_mode_sign(mode)
+
+    def _canonicalize_mode_sign(self, mode):
+        """Fix the remaining plus/minus gauge using tangential electric fields."""
+        pivot_vector = np.concatenate((self.Et[:, mode].ravel(), self.Ea[:, mode].ravel()))
+        pivot = pivot_vector[np.argmax(np.abs(pivot_vector))]
+        tolerance = 1e-12 * max(1.0, abs(pivot))
+        if np.real(pivot) < -tolerance or (abs(np.real(pivot)) <= tolerance and np.imag(pivot) < 0):
+            for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
+                field[:, mode] *= -1
 
     def _set_modal_fields(self):
         mode = self.mode_index
@@ -375,14 +385,20 @@ class FDFD_1D_mode_solver:
         return float(np.max(finite)) if finite.size else 0.0
 
     def _default_guess(self):
-        return -max(
+        max_epsilon = max(
             self._max_magnitude(values)
             for values in (
                 self.eps_r_t,
                 self.eps_r_a,
                 self.eps_r_w,
+            )
+        )
+        max_permeability = max(
+            self._max_magnitude(values)
+            for values in (
                 self.mu_r_t,
                 self.mu_r_a,
                 self.mu_r_w,
             )
         )
+        return -(max_epsilon * max_permeability)

@@ -737,7 +737,11 @@ class EigenmodeSource(Source):
         for local_axis, global_axis in enumerate(local_to_global):
             electric[global_axis] = np.array(local_e[local_axis], dtype=np.complex128, copy=True)
             magnetic[global_axis] = np.array(local_h[local_axis], dtype=np.complex128, copy=True)
-        if self._modal_basis_handedness() < 0:
+        if isinstance(solver, FDFD_1D_mode_solver):
+            handedness = self._one_dimensional_mapping_handedness()
+        else:
+            handedness = self._modal_basis_handedness()
+        if handedness < 0:
             magnetic = [-field for field in magnetic]
         return electric, magnetic, complex(solver.complex_neff[mode])
 
@@ -823,6 +827,13 @@ class EigenmodeSource(Source):
         transverse_v = basis[self.transverse_axes[1]]
         normal = basis[self.normal_axis]
         return int(np.dot(np.cross(transverse_u, transverse_v), normal))
+
+    def _one_dimensional_mapping_handedness(self):
+        basis = np.eye(3, dtype=np.int32)
+        transverse = basis[self.physical_transverse_axis]
+        invariant = basis[self.invariant_axis]
+        normal = basis[self.normal_axis]
+        return int(np.dot(np.cross(transverse, invariant), normal))
 
     def _modal_overlap(self, first_e, first_h, second_e, second_h):
         """Return the normalized complex overlap of two modal field sets."""

@@ -1,12 +1,13 @@
 import math
 
 import numpy as np
-
-import gprMax.config as config
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from scipy.linalg import eig
 from scipy.sparse import bmat, coo_matrix, diags
 from scipy.sparse.linalg import eigs
+
+import gprMax.config as config
 
 
 class FDFD_2D_mode_solver:
@@ -238,6 +239,36 @@ class FDFD_2D_mode_solver:
         inverse[free_mask] = 1.0 / flat[free_mask]
         return diags(inverse, format="csr")
 
+    def _solve_reduced(self, operator):
+        size = operator.shape[0]
+        if size <= self.num_modes:
+            raise ValueError(
+                f"Not enough unconstrained electric DOFs ({size}) to solve {self.num_modes} modes."
+            )
+
+        if size <= self.num_modes + 1:
+            eigenvalues, eigenvectors = eig(operator.toarray())
+            selection = np.argsort(np.abs(eigenvalues - self.guess))[: self.num_modes]
+            eigenvalues = eigenvalues[selection]
+            eigenvectors = eigenvectors[:, selection]
+        else:
+            try:
+                eigenvalues, eigenvectors = eigs(
+                    operator,
+                    k=self.num_modes,
+                    sigma=self.guess,
+                )
+            except RuntimeError:
+                shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
+                eigenvalues, eigenvectors = eigs(
+                    operator,
+                    k=self.num_modes,
+                    sigma=shifted_guess,
+                )
+
+        order = np.argsort(np.real(eigenvalues))
+        return eigenvalues[order], eigenvectors[:, order]
+
     def solve(self):
         eps_uu_diag = self._diag(self.eps_r_uu)
         eps_vv_diag = self._diag(self.eps_r_vv)
@@ -262,18 +293,12 @@ class FDFD_2D_mode_solver:
         Q_reduced = Q[self.free_huv_mask, :]
         omega_matrix = P_reduced @ Q_reduced
         omega_matrix = omega_matrix[self.free_euv_mask, :][:, self.free_euv_mask]
-        if omega_matrix.shape[0] <= self.num_modes:
-            raise ValueError(
-                f"Not enough unconstrained electric DOFs ({omega_matrix.shape[0]}) to solve {self.num_modes} modes."
-            )
-
-        eigenvalues, reduced_eigenvectors = eigs(omega_matrix, k=self.num_modes, sigma=self.guess)
+        eigenvalues, reduced_eigenvectors = self._solve_reduced(omega_matrix)
         eigenvectors = np.zeros((self.n_e_transverse, self.num_modes), dtype=np.complex128)
         eigenvectors[self.free_euv_mask, :] = reduced_eigenvectors
 
-        order = np.argsort(np.real(eigenvalues))
-        self.eigenvalues = eigenvalues[order]
-        self.eigenvectors = eigenvectors[:, order]
+        self.eigenvalues = eigenvalues
+        self.eigenvectors = eigenvectors
         self.complex_neff = self._passive_positive_neff(-self.eigenvalues)
         self.real_neff = np.real(self.complex_neff)
 
@@ -405,6 +430,16 @@ class FDFD_2D_mode_solver:
             self._rotate_mode(mode, phase)
             if self._calculate_real_profile_power(mode) < 0:
                 self._rotate_mode(mode, 0.5 * np.pi)
+            self._canonicalize_mode_sign(mode)
+
+    def _canonicalize_mode_sign(self, mode):
+        """Fix the remaining plus/minus gauge using tangential electric fields."""
+        pivot_vector = np.concatenate((self.Eu[:, :, mode].ravel(), self.Ev[:, :, mode].ravel()))
+        pivot = pivot_vector[np.argmax(np.abs(pivot_vector))]
+        tolerance = 1e-12 * max(1.0, abs(pivot))
+        if np.real(pivot) < -tolerance or (abs(np.real(pivot)) <= tolerance and np.imag(pivot) < 0):
+            for field in (self.Eu, self.Ev, self.Ew, self.Hu, self.Hv, self.Hw):
+                field[:, :, mode] *= -1
 
     def _rotate_mode(self, mode, phase):
         phase_factor = np.exp(1j * phase)
@@ -488,10 +523,15 @@ class FDFD_2D_mode_solver:
         return real + 1j * imag
 
     def _default_guess(self):
-        return -max(
-            self._max_magnitude(arr)
-            for arr in [self.eps_r_uu, self.eps_r_vv, self.eps_r_ww, self.mu_r_uu, self.mu_r_vv, self.mu_r_ww]
+        max_epsilon = max(
+            self._max_magnitude(values)
+            for values in (self.eps_r_uu, self.eps_r_vv, self.eps_r_ww)
         )
+        max_permeability = max(
+            self._max_magnitude(values)
+            for values in (self.mu_r_uu, self.mu_r_vv, self.mu_r_ww)
+        )
+        return -(max_epsilon * max_permeability)
 
     @staticmethod
     def _max_magnitude(values):

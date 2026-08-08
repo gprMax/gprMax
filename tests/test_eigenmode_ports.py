@@ -12,6 +12,7 @@ from gprMax.eigenmode_ports import (
     accumulate_eigenmode_dft,
     finalise_eigenmode_ports,
 )
+from gprMax.sources import EigenmodeSource
 
 
 @pytest.mark.parametrize(
@@ -153,6 +154,69 @@ def test_complex64_eigenmode_phase_drift_is_bounded_by_periodic_reanchoring(
     assert monitor.magnetic_phase.dtype == np.complex64
     assert max(errors.values()) < 2e-5
     assert errors[DFT_PHASE_REANCHOR_INTERVAL] < 2e-7
+
+
+def test_2d_te_monitor_preserves_absolute_power_after_cell_averaging(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={
+                "float_or_double": np.float64,
+                "complex": np.complex128,
+            }
+        ),
+    )
+    owner = EigenmodeSource(None)
+    owner.normal_axis = 0
+    owner.transverse_axes = (1, 2)
+    owner.invariant_axis = 2
+    owner.physical_transverse_axis = 1
+    owner.domain_polarization = "TE"
+    owner.transverse_start = np.zeros(2, dtype=np.int32)
+    owner.transverse_stop = np.asarray((2, 2), dtype=np.int32)
+
+    electric = [
+        np.zeros((3, 3), dtype=np.complex128),
+        np.zeros((2, 3), dtype=np.complex128),
+        np.zeros((3, 2), dtype=np.complex128),
+    ]
+    magnetic = [
+        np.zeros((2, 2), dtype=np.complex128),
+        np.zeros((3, 2), dtype=np.complex128),
+        np.zeros((2, 3), dtype=np.complex128),
+    ]
+    electric[1][:, 1] = 1.0
+    magnetic[2][:, 1] = 1.0
+    grid = SimpleNamespace(
+        dt=1e-12,
+        dl=np.ones(3),
+        eigenmodeports=[],
+    )
+    assert owner._modal_cross_power(electric, magnetic, grid) == pytest.approx(1.0)
+
+    monitor = EigenmodePortMonitor(
+        owner=owner,
+        port_index=1,
+        port_id="te",
+        is_source=False,
+        excitation_mode_index=None,
+        mode_indices=(1,),
+        anchor_frequencies=np.asarray([1e9]),
+        anchor_e=[[electric]],
+        anchor_h=[[magnetic]],
+        anchor_neff=np.asarray([[1.0]]),
+        dft_start=1e9,
+        dft_stop=1e9,
+        dft_points=1,
+    )
+
+    monitor.prepare(grid)
+
+    assert monitor.measure == pytest.approx(2.0)
+    assert monitor.electric_gram[0, 0, 0] == pytest.approx(1.0)
+    assert monitor.magnetic_gram[0, 0, 0] == pytest.approx(1.0)
+    assert monitor.power_matrix[0, 0, 0] == pytest.approx(1.0)
 
 
 def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch):
