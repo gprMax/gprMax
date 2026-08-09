@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -216,12 +216,14 @@ def check_cmd_names(processedlines, checkessential=True):
     singlecmds = dict.fromkeys(
         [
             "#domain",
+            "#domain_mode",
+            "#magnetic_averaging",
+            "#debye_averaging",
             "#dx_dy_dz",
             "#time_window",
             "#title",
             "#omp_threads",
             "#time_step_stability_factor",
-            "#pml_formulation",
             "#pml_cells",
             "#src_steps",
             "#rx_steps",
@@ -235,6 +237,9 @@ def check_cmd_names(processedlines, checkessential=True):
     multiplecmds = {
         key: []
         for key in [
+            '#eigenmode_band',
+            '#eigenmode_port',
+            '#eigenmode_excitation',
             "#geometry_view",
             "#geometry_objects_write",
             "#material",
@@ -255,8 +260,29 @@ def check_cmd_names(processedlines, checkessential=True):
             "#excitation_file",
             "#rx",
             "#rx_array",
+            "#rx_port",
             "#snapshot",
+            "#ntff_surface",
+            "#ntff_frequency",
+            "#ntff_far_field",
+            "#ntff_far_field_array",
+            "#ntff_time_far_field",
+            "#ntff_time_far_field_array",
+            "#ntff_antenna_ports",
+            "#ksir_frequency",
+            "#ksir_time_rx",
+            "#ksir_time_rx_spherical",
+            "#ksir_time_rx_array",
+            "#ksir_frequency_rx",
+            "#ksir_frequency_rx_spherical",
+            "#ksir_frequency_rx_array",
+            "#ksir_far_field",
+            "#ksir_far_field_array",
+            "#ksir_antenna_ports",
             "#pml_cfs",
+            "#pml_formulation",
+            "#pml_slab",
+            "#symmetry_boundary",
             "#include_file",
         ]
     }
@@ -266,6 +292,8 @@ def check_cmd_names(processedlines, checkessential=True):
     geometrycmds = [
         "#geometry_objects_read",
         "#edge",
+        "#magnetic_edge",
+        "#thin_wire",
         "#plate",
         "#triangle",
         "#box",

@@ -1,0 +1,42 @@
+{
+  "configuration": {
+    "dl_metres": 0.0005,
+    "radius_metres": 0.016,
+    "time_window_seconds": 1.2e-08,
+    "backend": "cuda:2",
+    "collection_backend": "cuda_device",
+    "precision": "single",
+    "threads": 4
+  },
+  "evaluated_frequency_range_hz": [
+    750000000.0,
+    8999999488.0
+  ],
+  "frequency_samples": 34,
+  "size_parameter_range": [
+    0.2515014026342018,
+    3.0180166599187976
+  ],
+  "wavelength_cells_range": [
+    66.62055001219129,
+    799.4465546666667
+  ],
+  "rms_error_db": 0.44160141474182835,
+  "maximum_absolute_error_db": 0.9537479250853456,
+  "runtime_seconds": 365.8886612765491,
+  "acceptance": {
+    "passed": true,
+    "checks": {
+      "rms_error_db": {
+        "value": 0.44160141474182835,
+        "maximum": 0.75,
+        "passed": true
+      },
+      "maximum_absolute_error_db": {
+        "value": 0.9537479250853456,
+        "maximum": 1.25,
+        "passed": true
+      }
+    }
+  }
+}

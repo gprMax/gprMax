@@ -52,7 +52,19 @@ where:
 plot_antenna_params.py
 ----------------------
 
-This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. The module can optionally plot the s21 parameter if another transmission line or a receiver output (``#rx``) is used on the receiver antenna. Usage (from the top-level gprMax directory) is:
+This module is the terminal-output counterpart to ``plot_Ascan.py``. An A-scan
+plots local field or Ampere-loop samples from ``/rxs``; this module plots the
+source-terminal quantities stored by voltage-source ports, transmission lines,
+and magnetic frills. It reads the S11, impedance, and admittance that gprMax
+has already calculated and does not reconstruct them from voltage and current.
+
+The signal figure is adaptive. It plots only histories and spectra present in
+the selected HDF5 group. For example, a resistive voltage-source port has
+generator and total voltage but no current history, a hard-source port adds its
+Ampere-loop current, and a transmission line has incident and total voltage
+and current. Missing quantities are omitted rather than estimated.
+
+If the file contains one terminal output it is selected automatically:
 
 .. code-block:: none
 
@@ -60,7 +72,22 @@ This module uses matplotlib to plot the input impedance (resistance and reactanc
 
 where ``outputfile`` is the name of output file including the path.
 
-There are optional command line arguments:
+Use ``--port ID`` to select one when several ports are present. For example:
+
+.. code-block:: none
+
+    python -m toolboxes.Plotting.plot_antenna_params outputfile --port feed
+
+``--fmin`` and ``--fmax`` optionally limit the displayed port-frequency range
+in Hz. ``--tmin`` and ``--tmax`` similarly limit displayed histories in
+seconds. The stored data and validity masks are not changed. ``--params-only``
+suppresses the adaptive signal figure, and ``--list-ports`` prints every
+discoverable terminal HDF5 path, including ports inside subgrids.
+
+Legacy transmission-line output remains supported. In that mode the module
+plots incident and total line voltage/current histories and can optionally
+calculate s21 using a second line or a field receiver. The corresponding
+optional arguments are:
 
 * ``--tltx-num`` is the number of the transmission line (default is one) for the transmitter antenna. Transmission lines are numbered (starting at one) in the order they appear in the input file.
 * ``--tlrx-num`` is the number of the transmission line (default is None) for the receiver antenna (for a s21 parameter). Transmission lines are numbered (starting at one) in the order they appear in the input file.

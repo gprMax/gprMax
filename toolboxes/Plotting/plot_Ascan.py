@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import logging
 from pathlib import Path
 
 import h5py
@@ -26,12 +25,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from gprMax.receivers import Rx
-from gprMax.utilities.utilities import fft_power
-
-logger = logging.getLogger(__name__)
+from gprMax.utilities.utilities import fft_power, handle_plot_output
 
 
-def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
+def fft_plot_range(freqs, power, floor_db=-60):
+    """Return a positive-frequency slice suitable for plotting an FFT."""
+    positive = np.flatnonzero(freqs >= 0)
+    if positive.size == 0:
+        return np.s_[0:1]
+
+    finite = positive[np.isfinite(power[positive])]
+    if finite.size == 0:
+        return np.s_[0 : max(1, len(freqs) // 2)]
+
+    peak = finite[np.argmax(power[finite])]
+    below = np.flatnonzero(power[peak:] < floor_db)
+    if below.size:
+        stop = peak + below[0] + 1
+    else:
+        stop = max(peak * 4, peak + 1)
+    stop = min(max(stop, 1), positive[-1] + 1)
+    return np.s_[0:stop]
+
+
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, show=True):
     """Plots electric and magnetic fields and currents from all receiver points
         in the given output file. Each receiver point is plotted in a new figure
         window.
@@ -40,7 +57,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
         filename: string of filename (including path) of output file.
         outputs: list of field/current components to plot.
         fft: boolean flag to plot FFT.
-        save: boolean flag to save plot to file.
+        show: boolean flag to display each plot interactively; if False, or
+            if the current matplotlib backend is not interactive, each plot
+            is saved to file instead.
 
     Returns:
         plt: matplotlib plot object.
@@ -60,17 +79,12 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
         paths = paths + ["/subgrids/" + path + "/" for path in f["/subgrids"].keys()]
 
     # Get number of receivers in grid(s)
-    nrxs = []
-    for path in paths:
-        if f[path].attrs["nrx"] > 0:
-            nrxs.append(f[path].attrs["nrx"])
-        else:
-            paths.remove(path)
+    paths = [path for path in paths if f[path].attrs["nrx"] > 0]
 
     # Check there are any receivers
     if not paths:
-        logger.exception(f"No receivers found in {file}")
-        raise ValueError
+        f.close()
+        raise ValueError(f"No receivers found in {file}")
 
     # Loop through all grids
     for path in paths:
@@ -81,8 +95,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
         # Check for single output component when doing a FFT
         if fft and not len(outputs) == 1:
-            logger.exception("A single output must be specified when using " + "the -fft option")
-            raise ValueError
+            f.close()
+            raise ValueError("A single output must be specified when using the -fft option")
 
         # New plot for each receiver
         for rx in range(1, nrx + 1):
@@ -102,12 +116,12 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                     output = outputs[0]
 
                 if output not in availableoutputs:
-                    logger.exception(
+                    f.close()
+                    raise ValueError(
                         f"{output} output requested to plot, but "
                         + f"the available output for receiver 1 is "
                         + f"{', '.join(availableoutputs)}"
                     )
-                    raise ValueError
 
                 outputdata = f[rxpath + output][:] * polarity
 
@@ -115,16 +129,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                 if fft:
                     # FFT
                     freqs, power = fft_power(outputdata, dt)
-                    freqmaxpower = np.where(np.isclose(power, 0))[0][0]
-
-                    # Set plotting range to -60dB from maximum power or 4 times
-                    # frequency at maximum power
-                    try:
-                        pltrange = np.where(power[freqmaxpower:] < -60)[0][0] + freqmaxpower + 1
-                    except:
-                        pltrange = freqmaxpower * 4
-
-                    pltrange = np.s_[0:pltrange]
+                    pltrange = fft_plot_range(freqs, power)
 
                     # Plot time history of output component
                     fig, (ax1, ax2) = plt.subplots(
@@ -168,8 +173,6 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                         plt.setp(stemlines, "color", "b")
                         plt.setp(markerline, "markerfacecolor", "b", "markeredgecolor", "b")
 
-                    plt.show()
-
                 # Plotting if no FFT required
                 else:
                     fig, ax = plt.subplots(
@@ -198,13 +201,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
             # populate only the specified ones
             else:
                 plt_cols = 3 if len(outputs) == 9 else 2
-                
+
                 fig, axs = plt.subplots(
                     subplot_kw=dict(xlabel="Time [s]"),
                     num=rxpath + " - " + f[rxpath].attrs["Name"],
                     figsize=(20, 10),
-                    nrows = 3,
-                    ncols = plt_cols,
+                    nrows=3,
+                    ncols=plt_cols,
                     facecolor="w",
                     edgecolor="w",
                 )
@@ -222,13 +225,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
                     # Check if requested output is in file
                     if output not in availableoutputs:
-                        logger.exception(
+                        f.close()
+                        raise ValueError(
                             f"Output(s) requested to plot: "
                             + f"{', '.join(outputs)}, but available output(s) "
                             + f"for receiver {rx} in the file: "
                             + f"{', '.join(availableoutputs)}"
                         )
-                        raise ValueError
 
                     outputdata = f[rxpath + output][:] * polarity
 
@@ -263,20 +266,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
                     ax.set_xlim([0, np.amax(time)])
                     ax.grid(which="both", axis="both", linestyle="-.")
 
-    f.close()
+            # Show or save this receiver's figure now, rather than after the
+            # loop over all receivers/paths - otherwise only the last
+            # receiver's figure would ever be shown/saved.
+            suffix = "_" + rxpath.strip("/").replace("/", "_")
+            handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
 
-    if save:
-        # Save a PDF of the figure
-        fig.savefig(
-            filename[:-3] + ".pdf",
-            dpi=None,
-            format="pdf",
-            bbox_inches="tight",
-            pad_inches=0.1,
-        )
-        # Save a PNG of the figure
-        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
-        #             bbox_inches='tight', pad_inches=0.1)
+    f.close()
 
     return plt
 
@@ -330,6 +326,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save=args.save)
-
-    plthandle.show()
+    mpl_plot(args.outputfile, args.outputs, fft=args.fft, show=not args.save)

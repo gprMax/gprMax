@@ -2,6 +2,19 @@
 
 {% block header %}
 #include <pycuda-complex.hpp>
+
+// Uniform dispersive arithmetic used by the shared CUDA/OpenCL/Metal
+// field-update kernel. CUDA's scalar and pycuda::complex types both provide
+// the required operators.
+#define GPRMAX_CMUL(a, b) ((a) * (b))
+#define GPRMAX_CRMUL(a, b) ((a) * (b))
+#define GPRMAX_CADD(a, b) ((a) + (b))
+#define GPRMAX_CSUB(a, b) ((a) - (b))
+{% if DRUDELORENTZ %}
+#define GPRMAX_CREAL(a) ((a).real())
+{% else %}
+#define GPRMAX_CREAL(a) (a)
+{% endif %}
 {% endblock header %}
 
 

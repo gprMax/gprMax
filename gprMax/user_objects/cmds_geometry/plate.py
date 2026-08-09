@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -21,6 +21,7 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_face_xy, build_face_xz, build_face_yz
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.rotatable import RotatableMixin
@@ -64,6 +65,9 @@ class Plate(RotatableMixin, GeometryUserObject):
             logger.exception(f"{self.__str__()} 2 points must be specified")
             raise
 
+        mode = config.get_model_config().mode
+        invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
+
         # isotropic
         try:
             materialsrequested = [self.kwargs["material_id"]]
@@ -79,6 +83,21 @@ class Plate(RotatableMixin, GeometryUserObject):
             self._do_rotate(grid)
 
         uip = self._create_uip(grid)
+        # A plate must be exactly flat (zero thickness) on one axis. In 2D
+        # mode, if that flat axis turns out to be the invariant one (see
+        # the orientation check below), the plate is rejected outright - a
+        # wall position on the invariant axis is already a forced PEC/PMC
+        # boundary, so a material plate there is moot. For the other two
+        # (extent) axes, `inf` resolves the same way as Box's corners
+        # (role="lower"/"upper"), which is also exactly right for the
+        # invariant axis when it's one of a plate's extent axes (a plate
+        # standing normal to a transverse axis, spanning the full 1-cell
+        # TM / 2-cell TE invariant thickness). If a user mistakenly puts
+        # `inf` on the flat axis, it resolves to a real (non-flat) span
+        # like any other axis, and the "not specified correctly" check
+        # below catches it.
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
@@ -100,6 +119,17 @@ class Plate(RotatableMixin, GeometryUserObject):
             or (xs != xf and ys != yf and zs != zf)
         ):
             raise ValueError(f"{self.__str__()} the plate is not specified correctly")
+
+        if invariant_axis is not None:
+            flat_axis = 0 if xs == xf else 1 if ys == yf else 2
+            if flat_axis == invariant_axis:
+                raise ValueError(
+                    f"{self.__str__()} in 2D mode, a plate normal to the "
+                    f"invariant axis ('{mode[-1]}') would lie exactly on the "
+                    "domain wall already forced PEC/PMC there - a material "
+                    "plate has no effect in that orientation. Use a plate "
+                    "normal to one of the other two axes instead."
+                )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]

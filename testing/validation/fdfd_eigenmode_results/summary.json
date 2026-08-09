@@ -1,0 +1,45 @@
+{
+  "runtime_seconds": 0.29046310000012454,
+  "row_count": 30,
+  "cases": {
+    "pec_parallel_plate_1d": {
+      "title": "1D PEC parallel-plate guide: TM1",
+      "frequency_samples": 6,
+      "reported_modes": 1,
+      "maximum_relative_error_percent": 0.002058781331523283,
+      "rms_relative_error_percent": 0.001001117264002088,
+      "maximum_allowed_relative_error_percent": 0.1,
+      "passed": true
+    },
+    "dielectric_slab_1d": {
+      "title": "1D dielectric slab: even TE0",
+      "frequency_samples": 6,
+      "reported_modes": 1,
+      "maximum_relative_error_percent": 0.01005261540633815,
+      "rms_relative_error_percent": 0.004857195103867988,
+      "maximum_allowed_relative_error_percent": 0.1,
+      "passed": true
+    },
+    "pec_rectangular_waveguide_2d": {
+      "title": "2D PEC rectangular guide: TE10",
+      "frequency_samples": 6,
+      "reported_modes": 1,
+      "maximum_relative_error_percent": 0.03292907061778573,
+      "rms_relative_error_percent": 0.016012753984821385,
+      "maximum_allowed_relative_error_percent": 0.1,
+      "passed": true
+    },
+    "pec_cylindrical_waveguide_2d": {
+      "title": "2D PEC cylindrical guide: TE11 pair",
+      "frequency_samples": 6,
+      "reported_modes": 2,
+      "maximum_relative_error_percent": 1.0430500668810936,
+      "rms_relative_error_percent": 0.5264734741497042,
+      "maximum_allowed_relative_error_percent": 1.5,
+      "passed": true
+    }
+  },
+  "acceptance": {
+    "passed": true
+  }
+}

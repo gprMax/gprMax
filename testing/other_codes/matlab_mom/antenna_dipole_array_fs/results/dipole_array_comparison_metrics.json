@@ -1,0 +1,53 @@
+{
+  "pattern_frequency_hz": 1900000000.0,
+  "element_length_m": 0.075,
+  "element_spacing_m": 0.08,
+  "excitation": "equal amplitude and phase at both 50 ohm ports",
+  "pattern": {
+    "gprmax_vs_matlab_xz": {
+      "number_of_angles": 170,
+      "rms_difference_db": 0.05577361047814944,
+      "maximum_absolute_difference_db": 0.19821550903986918
+    },
+    "gprmax_vs_matlab_yz": {
+      "number_of_angles": 178,
+      "rms_difference_db": 0.03974751603952058,
+      "maximum_absolute_difference_db": 0.10093050874556653
+    }
+  },
+  "active_ports": {
+    "frequency_samples": 73,
+    "independent_frequency_resolution_hz": 16666316.888620138,
+    "minima": {
+      "MATLAB active Gamma": {
+        "frequency_hz": 1957148672.6260974,
+        "magnitude_db": -21.208920996805322,
+        "sampled_frequency_hz": 1952042365.58005,
+        "sampled_magnitude_db": -21.04388478402055
+      },
+      "gprMax voltage waves": {
+        "frequency_hz": 1927911836.1260018,
+        "magnitude_db": -20.320725112954463,
+        "sampled_frequency_hz": 1935376048.69142,
+        "sampled_magnitude_db": -20.026659338639064
+      },
+      "gprMax active V/I": {
+        "frequency_hz": 1927111425.999732,
+        "magnitude_db": -20.33517648849255,
+        "sampled_frequency_hz": 1935376048.69142,
+        "sampled_magnitude_db": -19.985549097075438
+      }
+    },
+    "gprmax_port_impedance_symmetry_rms_ohm": 3.886803258378915e-06,
+    "matlab_port_impedance_symmetry_rms_ohm": 1.8434707281363317e-08,
+    "gprmax_voltage_wave_vs_impedance_gamma_rms_complex": 0.007507544062646574,
+    "full_band_resistance_rms_ohm": 2.8283328033936463,
+    "full_band_reactance_rms_ohm": 17.744679419057515,
+    "comparison_band_hz": [
+      1650000000.0,
+      2150000000.0
+    ],
+    "comparison_band_resistance_rms_ohm": 3.0584306405307076,
+    "comparison_band_reactance_rms_ohm": 12.831407053702236
+  }
+}

@@ -18,6 +18,7 @@ gprMax User Guide
 
     input_hash_cmds
     input_api
+    eigenmode_port
     output
 
 .. toctree::
@@ -62,6 +63,7 @@ gprMax User Guide
     :caption: Developers
 
     contributing
+    testing
     reframe_test_suite
 
 .. toctree::

@@ -13,6 +13,7 @@ numpy-stl
 pandas
 pre-commit
 psutil
+pytest>=7
 scipy
 terminaltables
 tqdm

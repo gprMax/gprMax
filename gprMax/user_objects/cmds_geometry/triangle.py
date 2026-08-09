@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -18,6 +18,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import math
 
 import numpy as np
 
@@ -99,6 +100,16 @@ class Triangle(RotatableMixin, GeometryUserObject):
 
         uip = self._create_uip(grid)
 
+        # Resolve an invariant-axis triangle and its thickness as a slab.
+        for axis in range(3):
+            if math.isinf(up1[axis]) and math.isinf(up2[axis]) and math.isinf(up3[axis]):
+                up1 = tuple(0.0 if i == axis else v for i, v in enumerate(up1))
+                up2 = tuple(0.0 if i == axis else v for i, v in enumerate(up2))
+                up3 = tuple(0.0 if i == axis else v for i, v in enumerate(up3))
+                if math.isinf(thickness):
+                    thickness = grid.dl[axis] * (grid.nx, grid.ny, grid.nz)[axis]
+                break
+
         # Check whether points are valid against grid
         dp1, dp2, dp3 = uip.check_tri_points(up1, up2, up3, self.__str__())
         # Convert points to metres
@@ -156,6 +167,7 @@ class Triangle(RotatableMixin, GeometryUserObject):
             if len(materials) == 1:
                 averaging = materials[0].averagable and averagetriangularprism
                 numID = numIDx = numIDy = numIDz = materials[0].numID
+                pec_x = pec_y = pec_z = materials[0].is_pec
 
             # Uniaxial anisotropic case
             elif len(materials) == 3:
@@ -163,6 +175,9 @@ class Triangle(RotatableMixin, GeometryUserObject):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
+                pec_x = materials[0].is_pec
+                pec_y = materials[1].is_pec
+                pec_z = materials[2].is_pec
                 requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
                 averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
                 if averagedmaterial:
@@ -184,6 +199,7 @@ class Triangle(RotatableMixin, GeometryUserObject):
             # Isotropic case
             if len(materials) == 1:
                 numID = numIDx = numIDy = numIDz = materials[0].numID
+                pec_x = pec_y = pec_z = materials[0].is_pec
 
             # Uniaxial anisotropic case
             elif len(materials) == 3:
@@ -192,6 +208,9 @@ class Triangle(RotatableMixin, GeometryUserObject):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
+                pec_x = materials[0].is_pec
+                pec_y = materials[1].is_pec
+                pec_z = materials[2].is_pec
 
         build_triangle(
             x1,
@@ -213,6 +232,9 @@ class Triangle(RotatableMixin, GeometryUserObject):
             numIDy,
             numIDz,
             averaging,
+            pec_x,
+            pec_y,
+            pec_z,
             grid.solid,
             grid.rigidE,
             grid.rigidH,

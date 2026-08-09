@@ -1,0 +1,9 @@
+# Large or regenerable gprMax outputs.
+*.h5
+*.vtkhdf
+
+# Regenerable eigenmode diagnostic plots.
+*_EigenmodeExcitation.png
+*_Port*_Mode*.png
+
+__pycache__/

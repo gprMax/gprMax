@@ -1,0 +1,57 @@
+{
+  "target": "circle",
+  "mesh": "coarse",
+  "discretisation_m": 0.00254,
+  "frequency_hz": 9224383323.076923,
+  "wavelength_m": 0.0325,
+  "time_window_s": 5e-09,
+  "solver_backends": [
+    "cpu"
+  ],
+  "collection_backends": [
+    "cython_openmp"
+  ],
+  "precisions": [
+    "single"
+  ],
+  "polarisation": "HH; incident E parallel to y",
+  "direction_mapping_scale": 64,
+  "layout": {
+    "cells": 142,
+    "domain": [
+      0.36068,
+      0.36068,
+      0.36068
+    ],
+    "centre": [
+      0.18034,
+      0.18034,
+      0.18034
+    ],
+    "centre_index": 71,
+    "half_target_cells": 40,
+    "tfsf_p1": [
+      0.05842000000000001,
+      0.05842000000000001,
+      0.05842000000000001
+    ],
+    "tfsf_p2": [
+      0.30226000000000003,
+      0.30226000000000003,
+      0.30226000000000003
+    ],
+    "ksir_p1": [
+      0.045720000000000004,
+      0.045720000000000004,
+      0.045720000000000004
+    ],
+    "ksir_p2": [
+      0.31496,
+      0.31496,
+      0.31496
+    ]
+  },
+  "square_length_m": 0.1016,
+  "square_width_m": 0.1016,
+  "circle_radius_m": 0.1016
+}

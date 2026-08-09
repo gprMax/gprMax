@@ -19,6 +19,8 @@
 import logging
 from typing import List, Sequence
 
+import numpy as np
+
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
@@ -112,16 +114,31 @@ class Scene:
             raise
 
     def process_single_use_objects(self, model: Model):
-        # Check for duplicate commands and warn user if they exist
-        # TODO: Test this works
-        unique_commands = list(set(self.single_use_objects))
-        if len(unique_commands) != len(self.single_use_objects):
-            logger.exception("Duplicate single-use commands exist in the input.")
+        # Check for duplicate commands and warn user if they exist. Each
+        # single-use command TYPE (Domain, Discretisation, TimeWindow,
+        # PMLThickness, ...) is meant to appear at most once per model.
+        # `set(self.single_use_objects)` cannot detect this: UserObject
+        # has no value-based __eq__/__hash__, so it falls back to
+        # identity, meaning two separate Domain(...) instances built from
+        # two `#domain` lines are never considered equal/duplicate - the
+        # old check never fired for real duplicate commands. Detect
+        # duplicates by command type instead.
+        seen_types = set()
+        duplicate_types = set()
+        for cmd in self.single_use_objects:
+            cmd_type = type(cmd)
+            if cmd_type in seen_types:
+                duplicate_types.add(cmd_type)
+            seen_types.add(cmd_type)
+
+        if duplicate_types:
+            names = ", ".join(sorted(t.__name__ for t in duplicate_types))
+            logger.exception(f"Duplicate single-use commands exist in the input: {names}.")
             raise ValueError
 
         # Check essential commands and warn user if missing
         for cmd_type in self.ESSENTIAL_CMDS:
-            d = any(isinstance(cmd, cmd_type) for cmd in unique_commands)
+            d = any(isinstance(cmd, cmd_type) for cmd in self.single_use_objects)
             if not d:
                 logger.exception(
                     "Your input file is missing essential commands "
@@ -130,7 +147,7 @@ class Scene:
                 )
                 raise ValueError
 
-        self.build_model_objects(unique_commands, model)
+        self.build_model_objects(self.single_use_objects, model)
 
     def process_multi_use_objects(self, model: Model):
         self.build_grid_objects(self.grid_objects, model.G)
@@ -151,6 +168,59 @@ class Scene:
 
         # Process all geometry commands
         self.build_grid_objects(objects_to_be_built, grid)
+
+    @staticmethod
+    def _build_internal_pml_enclosures(grid: FDTDGrid):
+        """Build requested PEC enclosures after all user geometry.
+
+        The plates must be the final geometry operation so their rigid PEC
+        edges cannot be overwritten by a later user object. They are still
+        built before ``FDTDGrid.build()``, material averaging, and PML
+        coefficient generation, using the normal :class:`Plate` path.
+        """
+        from gprMax.user_objects.cmds_geometry.plate import Plate
+
+        limits = (grid.nx, grid.ny, grid.nz)
+        for spec in grid.pmls["internal_specs"]:
+            if not spec.build_pec:
+                continue
+
+            lower = np.array((spec.xs, spec.ys, spec.zs), dtype=int)
+            upper = np.array((spec.xf, spec.yf, spec.zf), dtype=int)
+            axis = "xyz".index(spec.maximum_face[0])
+            faces = []
+
+            for normal in range(3):
+                if normal == axis:
+                    continue
+                for coordinate in (lower[normal], upper[normal]):
+                    if coordinate in (0, limits[normal]):
+                        continue
+                    p1 = lower.copy()
+                    p2 = upper.copy()
+                    p1[normal] = coordinate
+                    p2[normal] = coordinate
+                    faces.append((p1, p2))
+
+            maximum_coordinate = lower[axis] if spec.maximum_face.endswith("0") else upper[axis]
+            if maximum_coordinate not in (0, limits[axis]):
+                p1 = lower.copy()
+                p2 = upper.copy()
+                p1[axis] = maximum_coordinate
+                p2[axis] = maximum_coordinate
+                faces.append((p1, p2))
+
+            for p1, p2 in faces:
+                Plate(
+                    p1=tuple(np.asarray(grid.dl) * p1),
+                    p2=tuple(np.asarray(grid.dl) * p2),
+                    material_id="pec",
+                ).build(grid)
+
+            grid.pmls["internal_registry"][spec.ID]["generated_pec_faces"] = len(faces)
+            logger.info(
+                f"Internal PML slab '{spec.ID}' generated {len(faces)} PEC enclosure plates."
+            )
 
     def process_subgrid_objects(self, model: Model):
         """Process all commands in any sub-grids."""
@@ -185,6 +255,7 @@ class Scene:
 
         # Process the main grid geometry commands
         self.process_geometry_objects(self.geometry_objects, model.G)
+        self._build_internal_pml_enclosures(model.G)
 
         # Process all the commands for subgrids
         self.process_subgrid_objects(model)

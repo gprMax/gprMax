@@ -1,0 +1,45 @@
+{
+  "discretisation_m": [
+    0.001,
+    0.001,
+    0.001
+  ],
+  "domain_m": [
+    0.25,
+    0.25,
+    0.25
+  ],
+  "time_window_s": 1e-07,
+  "monopole_height_m": 0.079,
+  "feed_type": "frill",
+  "pec_wire_length_m": 0.0,
+  "thin_wire_length_m": 0.079,
+  "feed_gap_m": 0.0,
+  "ground_plane_m": [
+    0.16,
+    0.16
+  ],
+  "ground_plane_z_m": 0.075,
+  "fdtd_equivalent_wire_radius_m": 0.00023,
+  "port_reference_impedance_ohm": 36.5,
+  "pattern_frequency_hz": 910000000.0,
+  "s11_fft_zero_padding_factor": 8,
+  "s11_independent_frequency_resolution_hz": 10000000.0,
+  "s11_frequency_range_hz": [
+    550000000.0,
+    1300000000.0
+  ],
+  "ksir_surface_m": {
+    "p1": [
+      0.02,
+      0.02,
+      0.02
+    ],
+    "p2": [
+      0.23,
+      0.23,
+      0.23
+    ]
+  },
+  "postprocessing_source": "monopole_antenna_gprmax_frill.h5"
+}

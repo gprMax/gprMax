@@ -18,6 +18,8 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from copy import deepcopy
+from dataclasses import dataclass
 from importlib import import_module
 from typing import List
 
@@ -29,6 +31,29 @@ import gprMax.config as config
 from .cython.pml_build import pml_average_er_mr, pml_sum_er_mr
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class InternalPMLSpec:
+    """Deferred description of an axis-aligned internal PML slab.
+
+    The scene is parsed before the grid has finalised its CFS parameters and
+    material IDs, so a user-defined internal slab is recorded first and the
+    backend-specific :class:`PML` instance is constructed during
+    :meth:`FDTDGrid.build`.
+    """
+
+    ID: str
+    maximum_face: str
+    direction: str
+    xs: int
+    xf: int
+    ys: int
+    yf: int
+    zs: int
+    zf: int
+    profile_id: str | None = None
+    build_pec: bool = True
 
 
 class CFSParameter:
@@ -136,7 +161,7 @@ class CFS:
 
         return Evalues, Hvalues
 
-    def calculate_values(self, thickness, parameter):
+    def calculate_values(self, thickness, parameter, include_e_endpoint=False):
         """Calculates values for electric and magnetic PML updates based on
             profile type and minimum and maximum values.
 
@@ -181,9 +206,11 @@ class CFS:
             # reversal
             Hvalues = np.roll(Hvalues, -1)
 
-        # Extra cell of thickness not required and therefore removed after
-        # scaling
-        Evalues = Evalues[:-1]
+        # Boundary PMLs do not update their terminal tangential-E plane. An
+        # embedded slab retains that endpoint because it is an ordinary Yee
+        # plane inside the model.
+        if not include_e_endpoint:
+            Evalues = Evalues[:-1]
         Hvalues = Hvalues[:-1]
 
         return Evalues, Hvalues
@@ -207,7 +234,24 @@ class PML:
     #                       x-axis, y-axis, or z-axis
     directions = ["xminus", "yminus", "zminus", "xplus", "yplus", "zplus"]
 
-    def __init__(self, G, ID: str, direction: str, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
+    def __init__(
+        self,
+        G,
+        ID: str,
+        direction: str,
+        xs=0,
+        xf=0,
+        ys=0,
+        yf=0,
+        zs=0,
+        zf=0,
+        *,
+        internal=False,
+        maximum_face=None,
+        formulation=None,
+        cfs=None,
+        profile_id=None,
+    ):
         """
         Args:
             G: FDTDGrid class describing a grid in a model.
@@ -225,6 +269,10 @@ class PML:
         self.yf = yf
         self.zs = zs
         self.zf = zf
+        self.internal = internal
+        self.maximum_face = maximum_face
+        self.profile_id = profile_id
+        self.formulation = formulation or self.G.pmls["formulation"]
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
@@ -240,7 +288,12 @@ class PML:
             self.d = self.G.dz
             self.thickness = self.nz
 
-        self.CFS: List[CFS] = self.G.pmls["cfs"]
+        # Automatic sigma maxima depend on the slab spacing and underlying
+        # material. Each slab therefore needs its own CFS parameter objects;
+        # sharing them lets whichever slab is built first silently determine
+        # sigma.max for every other slab, which is especially inappropriate
+        # for a dielectric-filled internal guide and free-space outer PMLs.
+        self.CFS: List[CFS] = deepcopy(cfs if cfs is not None else self.G.pmls["cfs"])
         self.check_kappamin()
 
         self.initialise_field_arrays()
@@ -320,17 +373,18 @@ class PML:
             mr: float of average permeability of underlying material
         """
 
+        electric_thickness = self.thickness + int(self._updates_terminal_e_plane())
         self.ERA = np.zeros(
-            (len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"]
+            (len(self.CFS), electric_thickness), dtype=config.sim_config.dtypes["float_or_double"]
         )
         self.ERB = np.zeros(
-            (len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"]
+            (len(self.CFS), electric_thickness), dtype=config.sim_config.dtypes["float_or_double"]
         )
         self.ERE = np.zeros(
-            (len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"]
+            (len(self.CFS), electric_thickness), dtype=config.sim_config.dtypes["float_or_double"]
         )
         self.ERF = np.zeros(
-            (len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"]
+            (len(self.CFS), electric_thickness), dtype=config.sim_config.dtypes["float_or_double"]
         )
         self.HRA = np.zeros(
             (len(self.CFS), self.thickness), dtype=config.sim_config.dtypes["float_or_double"]
@@ -351,12 +405,13 @@ class PML:
             logger.debug(
                 f"PML {self.ID}: sigma.max set to {cfs.sigma.max} for {'first' if x == 0 else 'second'} order CFS parameter"
             )
-            Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
-            Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
-            Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
+            endpoint = self._updates_terminal_e_plane()
+            Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha, endpoint)
+            Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa, endpoint)
+            Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma, endpoint)
 
             # Define different parameters depending on PML formulation
-            if self.G.pmls["formulation"] == "HORIPML":
+            if self.formulation == "HORIPML":
                 # HORIPML electric update coefficients
                 tmp = (2 * config.sim_config.em_consts["e0"] * Ekappa) + self.G.dt * (
                     Ealpha * Ekappa + Esigma
@@ -381,7 +436,7 @@ class PML:
                 ) / tmp
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / (Hkappa * tmp)
 
-            elif self.G.pmls["formulation"] == "MRIPML":
+            elif self.formulation == "MRIPML":
                 # MRIPML electric update coefficients
                 tmp = 2 * config.sim_config.em_consts["e0"] + self.G.dt * Ealpha
                 self.ERA[x, :] = Ekappa + (self.G.dt * Esigma) / tmp
@@ -400,22 +455,48 @@ class PML:
                 ) / tmp
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / tmp
 
+    def _updates_terminal_e_plane(self):
+        """Return whether an embedded slab has an ordinary terminal E plane."""
+        if not self.internal:
+            return False
+        return {
+            "xminus": self.xs > 0,
+            "xplus": self.xf < self.G.nx,
+            "yminus": self.ys > 0,
+            "yplus": self.yf < self.G.ny,
+            "zminus": self.zs > 0,
+            "zplus": self.zf < self.G.nz,
+        }[self.direction]
+
+    def _electric_update_bounds(self):
+        """Return bounds including an embedded slab's terminal E plane."""
+        xs, xf, ys, yf, zs, zf = self.xs, self.xf, self.ys, self.yf, self.zs, self.zf
+        if self._updates_terminal_e_plane():
+            if self.direction == "xminus":
+                xs -= 1
+            elif self.direction == "xplus":
+                xf += 1
+            elif self.direction == "yminus":
+                ys -= 1
+            elif self.direction == "yplus":
+                yf += 1
+            elif self.direction == "zminus":
+                zs -= 1
+            elif self.direction == "zplus":
+                zf += 1
+        return xs, xf, ys, yf, zs, zf
+
     def update_electric(self):
         """This functions updates electric field components with the PML
         correction.
         """
 
-        pmlmodule = "gprMax.cython.pml_updates_electric_" + self.G.pmls["formulation"]
+        pmlmodule = "gprMax.cython.pml_updates_electric_" + self.formulation
         func = getattr(
             import_module(pmlmodule), "order" + str(len(self.CFS)) + "_" + self.direction
         )
         func(
-            self.xs,
-            self.xf,
-            self.ys,
-            self.yf,
-            self.zs,
-            self.zf,
+            *self._electric_update_bounds(),
             config.get_model_config().ompthreads,
             self.G.updatecoeffsE,
             self.G.ID,
@@ -439,7 +520,7 @@ class PML:
         correction.
         """
 
-        pmlmodule = "gprMax.cython.pml_updates_magnetic_" + self.G.pmls["formulation"]
+        pmlmodule = "gprMax.cython.pml_updates_magnetic_" + self.formulation
         func = getattr(
             import_module(pmlmodule), "order" + str(len(self.CFS)) + "_" + self.direction
         )
@@ -515,20 +596,21 @@ class CUDAPML(PML):
 
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU."""
+        xs, xf, ys, yf, zs, zf = self._electric_update_bounds()
         self.update_electric_dev(
-            np.int32(self.xs),
-            np.int32(self.xf),
-            np.int32(self.ys),
-            np.int32(self.yf),
-            np.int32(self.zs),
-            np.int32(self.zf),
+            np.int32(xs),
+            np.int32(xf),
+            np.int32(ys),
+            np.int32(yf),
+            np.int32(zs),
+            np.int32(zf),
             np.int32(self.EPhi1_dev.shape[1]),
             np.int32(self.EPhi1_dev.shape[2]),
             np.int32(self.EPhi1_dev.shape[3]),
             np.int32(self.EPhi2_dev.shape[1]),
             np.int32(self.EPhi2_dev.shape[2]),
             np.int32(self.EPhi2_dev.shape[3]),
-            np.int32(self.thickness),
+            np.int32(self.ERA_dev.shape[1]),
             self.G.ID_dev.gpudata,
             self.G.Ex_dev.gpudata,
             self.G.Ey_dev.gpudata,
@@ -620,20 +702,21 @@ class OpenCLPML(PML):
         """Updates electric field components with the PML correction on the
         compute device.
         """
+        xs, xf, ys, yf, zs, zf = self._electric_update_bounds()
         event = self.update_electric_dev(
-            np.int32(self.xs),
-            np.int32(self.xf),
-            np.int32(self.ys),
-            np.int32(self.yf),
-            np.int32(self.zs),
-            np.int32(self.zf),
+            np.int32(xs),
+            np.int32(xf),
+            np.int32(ys),
+            np.int32(yf),
+            np.int32(zs),
+            np.int32(zf),
             np.int32(self.EPhi1_dev.shape[1]),
             np.int32(self.EPhi1_dev.shape[2]),
             np.int32(self.EPhi1_dev.shape[3]),
             np.int32(self.EPhi2_dev.shape[1]),
             np.int32(self.EPhi2_dev.shape[2]),
             np.int32(self.EPhi2_dev.shape[3]),
-            np.int32(self.thickness),
+            np.int32(self.ERA_dev.shape[1]),
             self.G.ID_dev,
             self.G.Ex_dev,
             self.G.Ey_dev,
@@ -739,6 +822,7 @@ class MetalPML(PML):
 
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU using Metal."""
+        xs, xf, ys, yf, zs, zf = self._electric_update_bounds()
         
         # Create command buffer and encoder
         cmdbuffer = self.queue.commandBuffer()
@@ -746,19 +830,19 @@ class MetalPML(PML):
         cmpencoder.setComputePipelineState_(self.psoE)
         
         # Set scalar parameters
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.xs).tobytes(), 4, 0)
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.xf).tobytes(), 4, 1)
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.ys).tobytes(), 4, 2)
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.yf).tobytes(), 4, 3)
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.zs).tobytes(), 4, 4)
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.zf).tobytes(), 4, 5)
+        cmpencoder.setBytes_length_atIndex_(np.int32(xs).tobytes(), 4, 0)
+        cmpencoder.setBytes_length_atIndex_(np.int32(xf).tobytes(), 4, 1)
+        cmpencoder.setBytes_length_atIndex_(np.int32(ys).tobytes(), 4, 2)
+        cmpencoder.setBytes_length_atIndex_(np.int32(yf).tobytes(), 4, 3)
+        cmpencoder.setBytes_length_atIndex_(np.int32(zs).tobytes(), 4, 4)
+        cmpencoder.setBytes_length_atIndex_(np.int32(zf).tobytes(), 4, 5)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi1_shape[1]).tobytes(), 4, 6)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi1_shape[2]).tobytes(), 4, 7)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi1_shape[3]).tobytes(), 4, 8)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[1]).tobytes(), 4, 9)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[2]).tobytes(), 4, 10)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[3]).tobytes(), 4, 11)
-        cmpencoder.setBytes_length_atIndex_(np.int32(self.thickness).tobytes(), 4, 12)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.ERA.shape[1]).tobytes(), 4, 12)
         
         # Set buffer arguments
         cmpencoder.setBuffer_offset_atIndex_(self.G.ID_dev, 0, 13)
@@ -871,9 +955,15 @@ def print_pml_info(G):
     Args:
         G: FDTDGrid class describing a grid in a model.
     """
-    # No PML
+    internal_specs = G.pmls.get("internal_specs", ())
+    internal_info = ""
+    if internal_specs:
+        IDs = ", ".join(spec.ID for spec in internal_specs)
+        internal_info = f"Internal PML slabs [{G.name}]: {len(internal_specs)} ({IDs})\n"
+
+    # No domain-boundary PML. Internal slabs, if any, are reported separately.
     if all(value == 0 for value in G.pmls["thickness"].values()):
-        return f"PML boundaries [{G.name}]: switched off\n"
+        return f"PML boundaries [{G.name}]: switched off\n" + internal_info
 
     if all(value == G.pmls["thickness"]["x0"] for value in G.pmls["thickness"].values()):
         pmlinfo = str(G.pmls["thickness"]["x0"])
@@ -886,4 +976,5 @@ def print_pml_info(G):
     return (
         f"PML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
         f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}\n"
+        + internal_info
     )

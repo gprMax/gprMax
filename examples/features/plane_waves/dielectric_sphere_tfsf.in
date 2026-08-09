@@ -1,0 +1,19 @@
+#title: TFSF plane wave scattering from a dielectric sphere
+#domain: 0.160 0.160 0.160
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 3e-9
+#pml_cells: 8
+
+#material: 4 0 1 0 dielectric
+#waveform: ricker 1 1.5e9 incident
+
+#sphere: 0.080 0.080 0.080 0.016 dielectric
+
+## +x propagation; the sphere and first receiver are inside the total-field box.
+#plane_wave_vector: 0.040 0.040 0.040 0.120 0.120 0.120 1 0 0 90 incident
+#rx: 0.060 0.080 0.080 total_field Ex Ey Ez Hx Hy Hz
+
+## This receiver is outside the TFSF box and therefore samples scattered field.
+#rx: 0.130 0.080 0.080 scattered_field Ex Ey Ez Hx Hy Hz
+
+#geometry_view: 0 0 0 0.160 0.160 0.160 0.002 0.002 0.002 dielectric_sphere_tfsf n

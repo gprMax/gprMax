@@ -38,13 +38,51 @@ class ReadGeometryObject(AbstractContextManager):
         filename: PathLike,
         grid: FDTDGrid,
         start: npt.NDArray[np.int32],
-        num_existing_materials: int,
+        material_id_map: npt.NDArray[np.int32],
+        invariant_axis: Optional[int] = None,
+        target_invariant_size: Optional[int] = None,
     ) -> None:
+        """
+        Args:
+            material_id_map: array mapping a file-local material index (the
+                integer values found in the file's /data and /ID arrays) to
+                the numID that material has in `grid`. Built by matching
+                materials by ID name rather than assuming a fixed count/
+                order of built-in materials - see GeometryObjectsRead.build().
+            invariant_axis: 0, 1 or 2 for x, y or z if `grid` is in an
+                active 2D TM/TE mode, else None. A 2D model's geometry has
+                the same physical intention regardless of whether it was
+                exported from a 1-cell TM reduction or a 2-cell TE one, so
+                if the file's own thickness on this axis doesn't match
+                `target_invariant_size`, it is broadcast (1 -> N) or
+                reduced to its canonical layer (N -> 1) automatically - see
+                _resize_cell_axis()/_resize_edge_axis().
+            target_invariant_size: 1 (TM) or 2 (TE), required if
+                `invariant_axis` is given.
+        """
         self.file_handler = h5py.File(filename)
 
         data = self.file_handler["/data"]
         assert isinstance(data, h5py.Dataset)
-        stop = start + data.shape
+        file_shape = np.array(data.shape, dtype=np.int32)
+        stop = start + file_shape
+
+        self.invariant_axis = invariant_axis
+        self.file_invariant_size = (
+            int(file_shape[invariant_axis]) if invariant_axis is not None else None
+        )
+        self.target_invariant_size = target_invariant_size
+
+        if (
+            invariant_axis is not None
+            and self.file_invariant_size != target_invariant_size
+        ):
+            # Decouple the *write* region's size on this axis from the
+            # file's own (read) size - the actual resizing of the read
+            # arrays happens in _resize_cell_axis()/_resize_edge_axis(),
+            # called from each read_*()/get_data() method below.
+            stop = stop.copy()
+            stop[invariant_axis] = start[invariant_axis] + target_invariant_size
 
         if isinstance(grid, MPIGrid):
             if grid.local_bounds_overlap_grid(start, stop):
@@ -61,7 +99,98 @@ class ReadGeometryObject(AbstractContextManager):
         else:
             self.grid_view = GridView(grid, start[0], start[1], start[2], stop[0], stop[1], stop[2])
 
-        self.num_existing_materials = num_existing_materials
+        self.material_id_map = material_id_map
+
+    def _resize_cell_axis(self, array: npt.NDArray, spatial_axis_offset: int) -> npt.NDArray:
+        """Broadcasts (1 -> N) or reduces (N -> 1, taking the first layer)
+        `array` along the invariant axis to match `self.target_invariant_size`,
+        for a cell-based array (solid, rigidE, rigidH - sized nx/ny/nz, no
+        +1 edge padding). No-op if there's no mismatch (including the pure
+        3D case, `self.invariant_axis is None`).
+
+        Args:
+            array: array to resize, whose spatial dims start at
+                `spatial_axis_offset` (0 for solid, 1 for rigidE/rigidH,
+                which have a leading component axis).
+        """
+        if self.invariant_axis is None or self.file_invariant_size == self.target_invariant_size:
+            return array
+
+        axis = self.invariant_axis + spatial_axis_offset
+        if self.file_invariant_size == 1:
+            reps = [1] * array.ndim
+            reps[axis] = self.target_invariant_size
+            return np.tile(array, reps)
+        else:
+            # file_invariant_size > 1, target == 1: every 2D-mode geometry
+            # command in this codebase already keeps the invariant axis's
+            # cells identical (see FractalVolume/FractalSurface/AddGrass),
+            # so any one layer is an equally valid canonical choice - use
+            # the first.
+            return np.take(array, [0], axis=axis)
+
+    def _resize_edge_axis(self, array: npt.NDArray, spatial_axis_offset: int) -> npt.NDArray:
+        """Same as _resize_cell_axis(), but for the ID array, which is
+        edge-based (sized nx+1/ny+1/nz+1) - the invariant axis has 2 edges
+        for TM (0, 1 - both equally valid, no wall/interior distinction for
+        a 1-cell reduction) and 3 for TE (0, 1, 2 - only the interior edge,
+        index 1, is genuinely live; 0 and 2 are outer walls forced pec/pmc
+        afterwards by tex()/tey()/tez(), regardless of what's read here).
+        The canonical edge is therefore TM's edge 0 or TE's edge 1 -
+        whichever the file has - broadcast/reduced to fill the target's
+        edge count.
+        """
+        if self.invariant_axis is None or self.file_invariant_size == self.target_invariant_size:
+            return array
+
+        axis = self.invariant_axis + spatial_axis_offset
+        canonical_edge = 1 if self.file_invariant_size == 2 else 0
+        canonical = np.take(array, [canonical_edge], axis=axis)
+        reps = [1] * array.ndim
+        reps[axis] = self.target_invariant_size + 1
+        return np.tile(canonical, reps)
+
+    def _check_material_coverage(self, data: npt.NDArray[np.int16]) -> None:
+        """Raises a clear error if `data` references a file-local material
+        index this file's materials file never declared, rather than
+        letting numpy fancy-indexing fail with a bare IndexError. This
+        happens whenever the materials file supplied to
+        #geometry_objects_read omits a material that was actually present
+        (and so given an index) when the geometry file was originally
+        written - most commonly the implicit background material (e.g.
+        free_space) of the written region, if the user only listed the
+        material(s) they specifically cared about.
+        """
+        max_index = int(data.max()) if data.size else -1
+        n_declared = len(self.material_id_map)
+        if max_index >= n_declared:
+            raise ValueError(
+                f"'{self.file_handler.filename}' references material index "
+                f"{max_index}, but the accompanying materials file only "
+                f"declares {n_declared} "
+                "material(s). The materials file must list every material "
+                "present in the written region (including any implicit "
+                "background material, e.g. free_space) in the same order "
+                "they appeared when the geometry object file was written, "
+                "not just the ones of interest."
+            )
+
+    def _remap(
+        self, data: npt.NDArray[np.int16], existing: npt.NDArray[np.uint32]
+    ) -> npt.NDArray[np.int32]:
+        """Maps file-local material indices in `data` to numIDs in the
+        target grid, via `self.material_id_map`. A value of -1 means "don't
+        build anything here, leave whatever's already in the grid" (per the
+        #geometry_objects_read documentation) - i.e. it takes its value
+        from `existing` (the grid's current content at that location)
+        rather than the material map, since -1 isn't a valid index into it
+        and, in a model with prior geometry (e.g. a fractal soil built
+        before an imported target), isn't the same thing as free_space.
+        """
+        self._check_material_coverage(data)
+        safe_indices = np.where(data < 0, 0, data)
+        mapped = self.material_id_map[safe_indices]
+        return np.where(data < 0, existing, mapped)
 
     def __enter__(self):
         return self
@@ -113,29 +242,47 @@ class ReadGeometryObject(AbstractContextManager):
 
         data = self.file_handler["/data"]
         assert isinstance(data, h5py.Dataset)
-        data = data[self.grid_view.get_3d_read_slice()]
+        # A full, native-shape read - there is no partial-region reading
+        # support in this class (the read region always equals the file's
+        # own extent), so this is equivalent to the previous grid-view-
+        # sliced read whenever there's no invariant-axis mismatch, and
+        # correctly generalises when there is one (_resize_cell_axis()
+        # below then adapts it to the target's own size).
+        data = data[:]
+        data = self._resize_cell_axis(data, spatial_axis_offset=0)
 
         # Should be int16 to allow for -1 which indicates background, i.e.
         # don't build anything, but AustinMan/Woman maybe uint16
         if data.dtype != "int16":
             data = data.astype("int16")
 
-        self.grid_view.set_solid(data + self.num_existing_materials)
+        existing = self.grid_view.get_solid()
+        self.grid_view.set_solid(self._remap(data, existing))
 
     def get_data(self) -> Optional[npt.NDArray[np.int16]]:
+        """Returns the file's material-index array with valid (>=0) entries
+        already remapped to numIDs in the target grid. -1 is left as -1
+        (rather than substituted, as read_data()/read_ID() do via _remap()),
+        since the caller (build_voxels_from_array) already implements "-1
+        means leave this cell alone" itself by skipping negative values.
+        """
         if self.grid_view is None:
             return None
 
         data = self.file_handler["/data"]
         assert isinstance(data, h5py.Dataset)
-        data = data[self.grid_view.get_3d_read_slice()]
+        data = data[:]
+        data = self._resize_cell_axis(data, spatial_axis_offset=0)
 
         # Should be int16 to allow for -1 which indicates background, i.e.
         # don't build anything, but AustinMan/Woman maybe uint16
         if data.dtype != "int16":
             data = data.astype("int16")
 
-        return data
+        self._check_material_coverage(data)
+        safe_indices = np.where(data < 0, 0, data)
+        mapped = self.material_id_map[safe_indices].astype(data.dtype)
+        return np.where(data < 0, data, mapped)
 
     def read_rigidE(self):
         if self.grid_view is None:
@@ -144,8 +291,8 @@ class ReadGeometryObject(AbstractContextManager):
         rigidE = self.file_handler["/rigidE"]
         assert isinstance(rigidE, h5py.Dataset)
 
-        dset_slice = self.grid_view.get_3d_read_slice()
-        self.grid_view.set_rigidE(rigidE[:, dset_slice[0], dset_slice[1], dset_slice[2]])
+        rigidE = self._resize_cell_axis(rigidE[:], spatial_axis_offset=1)
+        self.grid_view.set_rigidE(rigidE)
 
     def read_rigidH(self):
         if self.grid_view is None:
@@ -154,8 +301,8 @@ class ReadGeometryObject(AbstractContextManager):
         rigidH = self.file_handler["/rigidH"]
         assert isinstance(rigidH, h5py.Dataset)
 
-        dset_slice = self.grid_view.get_3d_read_slice()
-        self.grid_view.set_rigidH(rigidH[:, dset_slice[0], dset_slice[1], dset_slice[2]])
+        rigidH = self._resize_cell_axis(rigidH[:], spatial_axis_offset=1)
+        self.grid_view.set_rigidH(rigidH)
 
     def read_ID(self):
         if self.grid_view is None:
@@ -164,7 +311,6 @@ class ReadGeometryObject(AbstractContextManager):
         ID = self.file_handler["/ID"]
         assert isinstance(ID, h5py.Dataset)
 
-        dset_slice = self.grid_view.get_3d_read_slice(upper_bound_exclusive=False)
-        self.grid_view.set_ID(
-            ID[:, dset_slice[0], dset_slice[1], dset_slice[2]] + self.num_existing_materials
-        )
+        data = self._resize_edge_axis(ID[:], spatial_axis_offset=1)
+        existing = self.grid_view.get_ID(force_refresh=True)
+        self.grid_view.set_ID(self._remap(data, existing))

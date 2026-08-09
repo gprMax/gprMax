@@ -35,6 +35,8 @@ args_defaults = {
     "gpu": None,
     "opencl": None,
     "metal": None,
+    "cpu_precision": "single",
+    "gpu_precision": "single",
     "subgrid": False,
     "autotranslate": False,
     "geometry_only": False,
@@ -81,6 +83,16 @@ help_msg = {
         " device(s)."
     ),
     "metal": "(list/bool, opt): Flag to use Apple Metal or list of Apple Metal GPU device ID(s) for specific GPU card(s).",
+    "cpu_precision": (
+        "(str, opt): Precision (single/double) for the CPU solver. Defaults to single to"
+        " preserve memory - ignored if a GPU solver or sub-gridding is used (sub-gridding"
+        " always uses double, regardless of this setting)."
+    ),
+    "gpu_precision": (
+        "(str, opt): Precision (single/double) for the CUDA/OpenCL/Metal solvers. Defaults"
+        " to single. Ignored if the CPU solver is used, or if sub-gridding is used"
+        " (sub-gridding always uses double and is currently CPU-only)."
+    ),
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": (
         "(bool, opt): For sub-gridding - auto translate objects with main grid coordinates to their"
@@ -126,6 +138,8 @@ def run(
     gpu=args_defaults["gpu"],
     opencl=args_defaults["opencl"],
     metal=args_defaults["metal"],
+    cpu_precision=args_defaults["cpu_precision"],
+    gpu_precision=args_defaults["gpu_precision"],
     subgrid=args_defaults["subgrid"],
     autotranslate=args_defaults["autotranslate"],
     geometry_only=args_defaults["geometry_only"],
@@ -171,6 +185,14 @@ def run(
             device ID(s) for specific compute device(s).
         metal: optional list/boolean to use Apple Metal or list of Apple
             Metal GPU device ID(s) for specific GPU card(s).
+        cpu_precision: optional string, "single" or "double", precision
+            for the CPU solver. Defaults to "single" to preserve memory -
+            ignored if a GPU solver or sub-gridding is used (sub-gridding
+            always uses double, regardless of this setting).
+        gpu_precision: optional string, "single" or "double", precision
+            for the CUDA/OpenCL/Metal solvers. Defaults to "single".
+            Ignored if the CPU solver is used, or if sub-gridding is used
+            (sub-gridding always uses double and is currently CPU-only).
         subgrid: optional boolean to use sub-gridding.
         autotranslate: optional boolean for sub-gridding to auto
             translate objects with main grid coordinates to their
@@ -210,6 +232,8 @@ def run(
             "gpu": gpu,
             "opencl": opencl,
             "metal": metal,
+            "cpu_precision": cpu_precision,
+            "gpu_precision": gpu_precision,
             "subgrid": subgrid,
             "autotranslate": autotranslate,
             "geometry_only": geometry_only,
@@ -255,6 +279,18 @@ def cli():
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument("-metal", type=int, action="append", nargs="*", help=help_msg["metal"])
+    parser.add_argument(
+        "-cpu_precision",
+        choices=["single", "double"],
+        default=args_defaults["cpu_precision"],
+        help=help_msg["cpu_precision"],
+    )
+    parser.add_argument(
+        "-gpu_precision",
+        choices=["single", "double"],
+        default=args_defaults["gpu_precision"],
+        help=help_msg["gpu_precision"],
+    )
     parser.add_argument(
         "--geometry-only",
         action="store_true",

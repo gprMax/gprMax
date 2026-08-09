@@ -10,11 +10,11 @@
 #
 # gprMax is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+# along with gprMax. If not, see <http://www.gnu.org/licenses/>.
 
 import logging
 
@@ -22,51 +22,59 @@ import humanize
 
 from gprMax.utilities.host_info import (
     detect_cuda_gpus,
+    detect_metal,
     detect_opencl,
     get_host_info,
     print_cuda_info,
+    print_metal_info,
     print_opencl_info,
 )
 from gprMax.utilities.utilities import get_terminal_width
 
-logging.basicConfig(format="%(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Host machine info.
-hostinfo = get_host_info()
-hyperthreadingstr = (
-    f", {hostinfo['logicalcores']} cores with Hyper-Threading" if hostinfo["hyperthreading"] else ""
-)
-hostname = f"\n=== {hostinfo['hostname']}"
-logging.info(f"{hostname} {'=' * (get_terminal_width() - len(hostname) - 1)}")
-logging.info(f"\n{'Mfr/model:':<12} {hostinfo['machineID']}")
-logging.info(
-    f"{'CPU:':<12} {hostinfo['sockets']} x {hostinfo['cpuID']} "
-    + f"({hostinfo['physicalcores']} cores{hyperthreadingstr})"
-)
-logging.info(f"{'RAM:':<12} {humanize.naturalsize(hostinfo['ram'], True)}")
-logging.info(f"{'OS/Version:':<12} {hostinfo['osversion']}")
 
-# OpenMP
-logging.info(
-    "\n\n=== OpenMP capabilities (gprMax will not use Hyper-Threading "
-    + "as there is no performance advantage)\n"
-)
-logging.info(f"{'OpenMP threads: '} {hostinfo['physicalcores']}")
+def main():
+    """Print host, CPU, memory, and available accelerator information."""
+    logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-# CUDA
-logging.info("\n\n=== CUDA capabilities\n")
-gpus = detect_cuda_gpus()
-if gpus:
-    print_cuda_info(gpus)
-else:
-    logging.info("Nothing detected.")
+    hostinfo = get_host_info()
+    hyperthreading = (
+        f", {hostinfo['logicalcores']} logical cores with Hyper-Threading"
+        if hostinfo["hyperthreading"]
+        else ""
+    )
+    hostname = f"\n=== {hostinfo['hostname']}"
+    logger.info("%s %s", hostname, "=" * max(0, get_terminal_width() - len(hostname) - 1))
+    logger.info("\n%-12s %s", "Mfr/model:", hostinfo["machineID"])
+    logger.info(
+        "%-12s %s x %s (%s physical cores%s)",
+        "CPU:",
+        hostinfo["sockets"],
+        hostinfo["cpuID"],
+        hostinfo["physicalcores"],
+        hyperthreading,
+    )
+    logger.info("%-12s %s", "RAM:", humanize.naturalsize(hostinfo["ram"], True))
+    logger.info("%-12s %s", "OS/Version:", hostinfo["osversion"])
 
-# OpenCL
-logging.info("\n\n=== OpenCL capabilities\n")
-devs = detect_opencl()
-if devs:
-    print_opencl_info(devs)
-else:
-    logging.info("Nothing detected.")
+    logger.info("\n\n=== OpenMP capabilities\n")
+    logger.info("OpenMP threads: %s", hostinfo["physicalcores"])
 
-logging.info(f"\n{'=' * (get_terminal_width() - 1)}\n")
+    logger.info("\n\n=== CUDA capabilities\n")
+    devices = detect_cuda_gpus()
+    print_cuda_info(devices) if devices else logger.info("Nothing detected.")
+
+    logger.info("\n\n=== OpenCL capabilities\n")
+    devices = detect_opencl()
+    print_opencl_info(devices) if devices else logger.info("Nothing detected.")
+
+    logger.info("\n\n=== Apple Metal capabilities\n")
+    devices = detect_metal()
+    print_metal_info(devices) if devices else logger.info("Nothing detected.")
+
+    logger.info("\n%s\n", "=" * max(0, get_terminal_width() - 1))
+
+
+if __name__ == "__main__":
+    main()

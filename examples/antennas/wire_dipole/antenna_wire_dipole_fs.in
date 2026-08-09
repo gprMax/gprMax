@@ -1,0 +1,16 @@
+#title: Half-wavelength wire dipole with a voltage-source port
+#domain: 0.050 0.050 0.200
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 60e-9
+
+#waveform: gaussian 1 1e9 mypulse
+
+## A 150 mm PEC wire with a one-cell gap at its centre.
+#edge: 0.025 0.025 0.025 0.025 0.025 0.175 pec
+#edge: 0.025 0.025 0.100 0.025 0.025 0.101 free_space
+
+## RxPort must coincide exactly with the single-edge voltage source.
+#voltage_source: z 0.025 0.025 0.100 50 mypulse
+#rx_port: 0.025 0.025 0.100 feed
+
+#geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_fs f

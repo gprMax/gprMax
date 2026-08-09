@@ -1,0 +1,39 @@
+{
+  "discretisation_m": [
+    0.001,
+    0.001,
+    0.001
+  ],
+  "domain_m": [
+    0.26,
+    0.26,
+    0.25
+  ],
+  "time_window_s": 3e-08,
+  "pattern_frequency_hz": 2200000000.0,
+  "port_reference_impedance_ohm": 150.0,
+  "voltage_source_mode": "hard",
+  "helix_radius_m": 0.022,
+  "helix_turns": 3,
+  "helix_spacing_m": 0.035,
+  "helix_segment_angle_deg": 15.0,
+  "helix_height_m": 0.10700000000000001,
+  "ground_plane_radius_m": 0.075,
+  "ordinary_yee_edge_effective_radius_m": 0.00023,
+  "helix_cylinder_radius_m": 0.001,
+  "matlab_equivalent_strip_width_m": 0.004,
+  "piecewise_linear_cylinder_segments": 72,
+  "piecewise_linear_centreline_length_m": 0.4297217122733296,
+  "ksir_surface_m": {
+    "p1": [
+      0.025,
+      0.025,
+      0.025
+    ],
+    "p2": [
+      0.235,
+      0.235,
+      0.225
+    ]
+  }
+}

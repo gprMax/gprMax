@@ -1,3 +1,4 @@
+# cython: cdivision=True
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
 #                          and Nathan Mannall
@@ -49,8 +50,15 @@ cpdef pml_average_er_mr(
 
     cdef Py_ssize_t m, n
     cdef int numID
-    # Sum and average of relative permittivities and permeabilities in PML slab
-    cdef double sumer, summr, averageer, averagemr
+    # Sum and average of relative permittivities and permeabilities in PML slab.
+    # sumer/summr MUST be zero-initialized: they are accumulated with += inside
+    # a prange loop, which Cython/OpenMP treats as a reduction - the reduction
+    # combines per-thread partial sums with whatever value the variable held
+    # BEFORE the parallel region, not with an implicit zero. Leaving them
+    # uninitialized let this function's result depend on leftover stack
+    # garbage, producing an intermittent, geometry-dependent PML impedance
+    # mismatch (silent reflections) - see the investigation of gprMax/gprMax#435.
+    cdef double sumer = 0, summr = 0, averageer, averagemr
 
     for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
         for n in range(n2):
@@ -87,8 +95,10 @@ cpdef pml_sum_er_mr(
 
     cdef Py_ssize_t m, n
     cdef int numID
-    # Sum and average of relative permittivities and permeabilities in PML slab
-    cdef double sumer, summr
+    # Sum and average of relative permittivities and permeabilities in PML
+    # slab. sumer/summr MUST be zero-initialized - see the identical fix and
+    # explanation in pml_average_er_mr() above (gprMax/gprMax#435).
+    cdef double sumer = 0, summr = 0
 
     for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
         for n in range(n2):

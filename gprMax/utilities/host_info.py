@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -43,80 +43,63 @@ def get_host_info():
 
     # Default to 'unknown' if any of the detection fails
     manufacturer = model = cpuID = sockets = threadspercore = "unknown"
+    machineID = "unknown"
+    osversion = platform.platform()
+    hyperthreading = False
+    command_errors = (subprocess.CalledProcessError, FileNotFoundError, OSError)
 
     # Windows
     if sys.platform == "win32":
         # Manufacturer/model
         try:
-            raw = subprocess.check_output(
-                ["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            try:
-                raw = subprocess.check_output(
-                    ["powershell", "-NoProfile", "-Command",
-                     "Get-CimInstance -ClassName Win32_ComputerSystemProduct | Select-Object -ExpandProperty Vendor"],
-                    shell=False, stderr=subprocess.STDOUT
+            manufacturer = (
+                subprocess.check_output(
+                    ["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT
                 )
-                manufacturer = raw.decode("utf-8").strip()
-            except subprocess.CalledProcessError:
-                pass
-        else:
-            manufacturer = raw.decode("utf-8").strip().split("\n")
+                .decode("utf-8")
+                .strip()
+            )
+            manufacturer = manufacturer.split("\n")
             if len(manufacturer) > 1:
                 manufacturer = manufacturer[1]
             else:
                 manufacturer = manufacturer[0]
-        manufacturer = manufacturer.strip()
-
-        try:
-            raw = subprocess.check_output(
-                ["wmic", "computersystem", "get", "model"], shell=False, stderr=subprocess.STDOUT
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            try:
-                raw = subprocess.check_output(
-                    ["powershell", "-NoProfile", "-Command",
-                     "Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty Model"],
-                    shell=False, stderr=subprocess.STDOUT
+            model = (
+                subprocess.check_output(
+                    ["wmic", "computersystem", "get", "model"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
-                model = raw.decode("utf-8").strip()
-            except subprocess.CalledProcessError:
-                pass
-        else:
-            model = raw.decode("utf-8").strip().split("\n")
+                .decode("utf-8")
+                .strip()
+            )
+            model = model.split("\n")
             if len(model) > 1:
                 model = model[1]
             else:
                 model = model[0]
-        model = model.strip()
-
+        except command_errors:
+            pass
         machineID = " ".join(manufacturer.split()) + " " + " ".join(model.split())
 
         # CPU information
         try:
-            raw = subprocess.check_output(
-                ["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            try:
-                raw = subprocess.check_output(
-                    ["powershell", "-NoProfile", "-Command",
-                     "Get-CimInstance -ClassName Win32_Processor | Select-Object -ExpandProperty Name"],
-                    shell=False, stderr=subprocess.STDOUT
+            allcpuinfo = (
+                subprocess.check_output(
+                    ["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT
                 )
-                allcpuinfo = raw.decode("utf-8").strip().split("\n")
-            except subprocess.CalledProcessError:
-                allcpuinfo = []
-        else:
-            allcpuinfo = raw.decode("utf-8").strip().split("\n")
-
-        sockets = 0
-        for line in allcpuinfo:
-            line = line.strip()
-            if line and line != "Name":
-                cpuID = " ".join(line.split())
-                sockets += 1
+                .decode("utf-8")
+                .strip()
+            )
+            allcpuinfo = allcpuinfo.split("\n")
+            sockets = 0
+            for line in allcpuinfo:
+                if "CPU" in line:
+                    cpuID = line.strip()
+                    cpuID = " ".join(cpuID.split())
+                    sockets += 1
+        except command_errors:
+            pass
 
         # Hyperthreading
         if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
@@ -143,7 +126,7 @@ def get_host_info():
                 .decode("utf-8")
                 .strip()
             )
-        except subprocess.CalledProcessError:
+        except command_errors:
             pass
         machineID = " ".join(manufacturer.split()) + " " + " ".join(model.split())
 
@@ -167,7 +150,7 @@ def get_host_info():
                 .strip()
             )
             cpuID = " ".join(cpuID.split())
-        except subprocess.CalledProcessError:
+        except command_errors:
             pass
 
         # Hyperthreading
@@ -199,7 +182,7 @@ def get_host_info():
                 .decode("utf-8")
                 .strip()
             )
-        except subprocess.CalledProcessError:
+        except command_errors:
             pass
         machineID = " ".join(manufacturer.split()) + " " + " ".join(model.split())
 
@@ -216,7 +199,7 @@ def get_host_info():
             )
             for line in cpuIDinfo.split("\n"):
                 if re.search("model name", line):
-                    cpuID = re.sub(".*model name.*:", "", line, 1).strip()
+                    cpuID = re.sub(".*model name.*:", "", line, count=1).strip()
                     cpuID = " ".join(cpuID.split())
             allcpuinfo = (
                 subprocess.check_output(["lscpu"], shell=False, stderr=subprocess.STDOUT, env=myenv)
@@ -225,10 +208,10 @@ def get_host_info():
             )
             for line in allcpuinfo.split("\n"):
                 if "Socket(s)" in line:
-                    sockets = int(line.strip()[-1])
+                    sockets = int(line.split(":", maxsplit=1)[1].strip())
                 if "Thread(s) per core" in line:
-                    threadspercore = int(line.strip()[-1])
-        except subprocess.CalledProcessError:
+                    threadspercore = int(line.split(":", maxsplit=1)[1].strip())
+        except command_errors + (ValueError, IndexError):
             pass
 
         # Hyperthreading
@@ -357,16 +340,22 @@ def mem_check_device_snaps(total_mem, snaps_mem):
         snaps_mem: int for memory required for all snapshots (bytes).
     """
 
-    if config.sim_config.general["solver"] == "cuda":
-        device_mem = config.get_model_config().device["dev"].total_memory()
-    elif config.sim_config.general["solver"] == "opencl":
-        device_mem = config.get_model_config().device["dev"].global_mem_size
+    solver = config.sim_config.general["solver"]
+    device = config.get_model_config().device["dev"]
+    if solver == "cuda":
+        device_mem = device.total_memory()
+        device_name = device.name()
+    elif solver == "opencl":
+        device_mem = device.global_mem_size
+        device_name = device.name
+    else:
+        raise ValueError(f"Device snapshot memory checking is not supported for {solver}")
 
     if total_mem - snaps_mem > device_mem:
         logger.warning(
             f"Memory (RAM) required (~{humanize.naturalsize(total_mem)}) exceeds "
             f"({humanize.naturalsize(device_mem, True)}) physical memory detected "
-            f"on specified {' '.join(config.get_model_config().device['dev'].name.split())} device!\n"
+            f"on specified {' '.join(device_name.split())} device!\n"
         )
 
     # If the required memory without the snapshots will fit on the GPU then
@@ -421,11 +410,12 @@ def mem_check_run_all(grids):
     mem_check_host(total_mem_model)
 
     # Check if there is sufficient memory for any snapshots on GPU
-    if (
-        total_mem_snaps > 0
-        and config.sim_config.general["solver"] == "cuda"
-        or config.sim_config.general["solver"] == "opencl"
-    ):
+    # Metal uses unified system memory, so the host-memory check above is the
+    # relevant capacity check for that backend.
+    if total_mem_snaps > 0 and config.sim_config.general["solver"] in {
+        "cuda",
+        "opencl",
+    }:
         mem_check_device_snaps(total_mem_model, total_mem_snaps)
 
     return total_mem_model, mem_strs
@@ -476,6 +466,7 @@ def has_pycuda():
         pycuda = False
     return pycuda
 
+
 def has_metal():
     """Checks if Apple Metal module is installed."""
     metal = True
@@ -484,6 +475,7 @@ def has_metal():
     except ImportError:
         metal = False
     return metal
+
 
 def has_pyopencl():
     """Checks if pyopencl module is installed."""
@@ -583,8 +575,9 @@ def detect_opencl():
                 for device in platform.get_devices():
                     devs[i] = device
                     i += 1
-        except:
+        except Exception as error:
             logger.warning("No OpenCL-capable platforms detected!\n" + ocl_reqs)
+            logger.debug("OpenCL detection failed", exc_info=error)
 
     else:
         logger.warning("pyopencl not detected!\n" + ocl_reqs)
@@ -612,19 +605,21 @@ def print_opencl_info(devs):
         if platform != dev.platform.name:
             logger.basic(f"     |--->Platform: {dev.platform.name}")
         types = cl.device_type.to_string(dev.type)
+        device_type = types
         if "CPU" in types:
-            type = "CPU"
-        if "GPU" in types:
-            type = "GPU"
+            device_type = "CPU"
+        elif "GPU" in types:
+            device_type = "GPU"
         logger.basic(
-            f"          |--->Device {ID}: {type} | {' '.join(dev.name.split())} | "
+            f"          |--->Device {ID}: {device_type} | {' '.join(dev.name.split())} | "
             f"{humanize.naturalsize(dev.global_mem_size, True)}"
         )
+
 
 def detect_metal():
     """Gets information about Apple Metal devices.
     Returns:
-        devs: dict of detected Apple Metal device object(s) where where device 
+        devs: dict of detected Apple Metal device object(s) where where device
                 ID(s) are keys.
     """
 
@@ -638,7 +633,10 @@ def detect_metal():
 
     if has_metal():
         import Metal
-        devs[0] = Metal.MTLCreateSystemDefaultDevice()
+
+        device = Metal.MTLCreateSystemDefaultDevice()
+        if device is not None:
+            devs[0] = device
 
     else:
         logger.warning("Apple Metal not detected!\n" + metal_reqs)
@@ -647,11 +645,11 @@ def detect_metal():
 
 
 def print_metal_info(devs):
-    """"Prints info about detected Apple Metal device(s).
+    """Prints info about detected Apple Metal device(s).
     Args:
-        devs: dict of detected Apple Metal device object(s) where where device 
+        devs: dict of detected Apple Metal device object(s) where where device
                 ID(s) are keys.
-    """ ""
+    """
 
     logger.basic("|--->Apple Metal:")
 

@@ -14,7 +14,11 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import scipy.interpolate
 from matplotlib import pylab as plt
-from optimization import DA_DLS, DE_DLS, PSO_DLS
+
+try:
+    from .optimization import DA_DLS, DE_DLS, PSO_DLS
+except ImportError:  # Support running the legacy examples directly.
+    from optimization import DA_DLS, DE_DLS, PSO_DLS
 
 
 class Relaxation(object):
@@ -269,7 +273,7 @@ class Relaxation(object):
         fig = plt.figure(figsize=(16, 8), tight_layout=True)
         gs = gridspec.GridSpec(2, 1)
         ax = fig.add_subplot(gs[0])
-        ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
+        ax.grid(visible=True, which="major", linewidth=0.2, linestyle="--")
         ax.semilogx(
             self.freq * 1e-6,
             rl_exp,
@@ -304,7 +308,7 @@ class Relaxation(object):
         ax.set_ylabel("Relative permittivity")
 
         ax = fig.add_subplot(gs[1])
-        ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
+        ax.grid(visible=True, which="major", linewidth=0.2, linestyle="--")
         ax.semilogx(
             self.freq * 1e-6,
             (rl_exp - self.rl) / (self.rl + 1),

@@ -51,6 +51,20 @@ class Updates(Generic[GridType], ABC):
         """
         pass
 
+    def observe_ntff_electric(self, iteration: int) -> None:
+        """Observe electric fields for any KSIR monitors.
+
+        Local solver implementations override this hook; unsupported backends
+        retain the no-op.
+        """
+
+        pass
+
+    def observe_ntff_magnetic(self, iteration: int) -> None:
+        """Observe magnetic fields for any KSIR monitors."""
+
+        pass
+
     @abstractmethod
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""
@@ -69,6 +83,11 @@ class Updates(Generic[GridType], ABC):
     @abstractmethod
     def update_electric_a(self) -> None:
         """Updates electric field components."""
+        pass
+
+    def update_symmetry_boundaries_electric(self) -> None:
+        """Apply any PMC ghost-image electric boundary correction."""
+
         pass
 
     @abstractmethod
@@ -91,6 +110,11 @@ class Updates(Generic[GridType], ABC):
         updated after the electric field has been updated by the PML and
         source updates.
         """
+        pass
+
+    def update_symmetry_boundaries_electric_b(self) -> None:
+        """Apply phase B of any dispersive PMC boundary correction."""
+
         pass
 
     @abstractmethod

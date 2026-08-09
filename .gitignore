@@ -30,12 +30,30 @@ testing/*.out
 testing/*.png
 
 # Output files from running the examples
-examples/*.h5
-examples/*.pdf
+examples/**/*.h5
+examples/**/*.pdf
+examples/**/*.npy
+examples/**/*.vti
+examples/**/*.vtkhdf
+examples/features/eigenmode_ports/**/*.csv
+examples/features/eigenmode_ports/**/*.png
+examples/**/*_eigenmode_*.png
+
+# Local eigenmode regression workspace
+eigensource_test_run/
+
+# CST comparisons that are not ready for review
+testing/other_codes/cst/under_test/
 
 # Test coverage files
 .coverage
 cov.xml
+
+# IDEs
+.idea/
+.vscode/
+.codex_tmp
+target/
 
 #Sahib's files
 notes

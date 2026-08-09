@@ -1,0 +1,74 @@
+{
+  "pattern_frequency_hz": 950000000.0,
+  "wire_outer_length_m": 0.151,
+  "matlab_wire_radius_m": 0.00023,
+  "gprmax_equivalent_radius_cells": 0.23,
+  "pattern": {
+    "gprmax_vs_matlab_xz": {
+      "rms_difference_db": 0.021453764709369636,
+      "maximum_absolute_difference_db": 0.06763264736461139
+    },
+    "gprmax_vs_matlab_xy": {
+      "rms_difference_db": 5.224537031829321e-05,
+      "maximum_absolute_difference_db": 0.00010508471830961316
+    },
+    "gprmax_vs_analytical_xz": {
+      "rms_difference_db": 0.019676946415685705,
+      "maximum_absolute_difference_db": 0.03255741263856038
+    },
+    "matlab_vs_analytical_xz": {
+      "rms_difference_db": 0.04080303116165782,
+      "maximum_absolute_difference_db": 0.09967306000313059
+    },
+    "gprmax_xy_peak_to_peak_db": 0.00010509767,
+    "matlab_xy_peak_to_peak_db": 1.331983012775595e-08
+  },
+  "s11": {
+    "reference_impedance_ohm": 73.0,
+    "frequency_spacing_hz": 1249989.8147892167,
+    "fft_zero_padding_factor": 8,
+    "independent_frequency_resolution_hz": 9999918.518313734,
+    "gprmax_minimum": {
+      "frequency_hz": 942020712.1039095,
+      "magnitude_db": -42.739441627078186,
+      "sampled_frequency_hz": 942492320.3510695,
+      "sampled_magnitude_db": -42.28055473930644
+    },
+    "gprmax_impedance_minimum": {
+      "frequency_hz": 941612693.6647223,
+      "magnitude_db": -42.432945782671425,
+      "sampled_frequency_hz": 941242330.5362802,
+      "sampled_magnitude_db": -42.13696297393366
+    },
+    "matlab_minimum": {
+      "frequency_hz": 948191184.3125784,
+      "magnitude_db": -42.93669919221364,
+      "sampled_frequency_hz": 948742269.4250154,
+      "sampled_magnitude_db": -42.36789013494675
+    },
+    "minimum_frequency_offset_hz": 6170472.208668947,
+    "gprmax_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 899969750.3082634,
+      "upper_frequency_hz": 990586057.2279841,
+      "bandwidth_hz": 90616306.91972065
+    },
+    "gprmax_impedance_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 899740858.4855677,
+      "upper_frequency_hz": 990301076.9438485,
+      "bandwidth_hz": 90560218.4582808
+    },
+    "matlab_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 904003043.3053539,
+      "upper_frequency_hz": 999673369.6711254,
+      "bandwidth_hz": 95670326.36577153
+    },
+    "gprmax_voltage_wave_vs_impedance_s11_rms_complex": 0.005627493281093798
+  },
+  "impedance": {
+    "gprmax_vs_matlab_resistance_rms_ohm": 1.8190543074493373,
+    "gprmax_vs_matlab_reactance_rms_ohm": 16.87732990472519
+  }
+}

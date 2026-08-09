@@ -37,13 +37,13 @@ x_args = {
                                         int NY_R,
                                         const unsigned int* __restrict__ ID,
                                         const $REAL* __restrict__ Ex,
-                                        $REAL *Ey,
-                                        $REAL *Ez,
+                                        $REAL* __restrict__ Ey,
+                                        $REAL* __restrict__ Ez,
                                         const $REAL* __restrict__ Hx,
                                         const $REAL* __restrict__ Hy,
                                         const $REAL* __restrict__ Hz,
-                                        $REAL *PHI1,
-                                        $REAL *PHI2,
+                                        $REAL* __restrict__ PHI1,
+                                        $REAL* __restrict__ PHI2,
                                         const $REAL* __restrict__ RA,
                                         const $REAL* __restrict__ RB,
                                         const $REAL* __restrict__ RE,
@@ -68,13 +68,13 @@ x_args = {
                         int NY_R,
                         __global const unsigned int* restrict ID,
                         __global const $REAL* restrict Ex,
-                        __global $REAL *Ey,
-                        __global $REAL *Ez,
+                        __global $REAL* __restrict__ Ey,
+                        __global $REAL* __restrict__ Ez,
                         __global const $REAL* restrict Hx,
                         __global const $REAL* restrict Hy,
                         __global const $REAL* restrict Hz,
-                        __global $REAL *PHI1,
-                        __global $REAL *PHI2,
+                        __global $REAL* __restrict__ PHI1,
+                        __global $REAL* __restrict__ PHI2,
                         __global const $REAL* restrict RA,
                         __global const $REAL* restrict RB,
                         __global const $REAL* restrict RE,
@@ -99,13 +99,13 @@ x_args = {
                                         device const int& NY_R,
                                         device const uint* ID,
                                         device const $REAL* Ex,
-                                        device $REAL *Ey,
-                                        device $REAL *Ez,
+                                        device $REAL* Ey,
+                                        device $REAL* Ez,
                                         device const $REAL* Hx,
                                         device const $REAL* Hy,
                                         device const $REAL* Hz,
-                                        device $REAL *PHI1,
-                                        device $REAL *PHI2,
+                                        device $REAL* PHI1,
+                                        device $REAL* PHI2,
                                         device const $REAL* RA,
                                         device const $REAL* RB,
                                         device const $REAL* RE,
@@ -133,14 +133,14 @@ y_args = {
                                         int NZ_PHI2,
                                         int NY_R,
                                         const unsigned int* __restrict__ ID,
-                                        $REAL *Ex,
+                                        $REAL* __restrict__ Ex,
                                         const $REAL* __restrict__ Ey,
-                                        $REAL *Ez,
+                                        $REAL* __restrict__ Ez,
                                         const $REAL* __restrict__ Hx,
                                         const $REAL* __restrict__ Hy,
                                         const $REAL* __restrict__ Hz,
-                                        $REAL *PHI1,
-                                        $REAL *PHI2,
+                                        $REAL* __restrict__ PHI1,
+                                        $REAL* __restrict__ PHI2,
                                         const $REAL* __restrict__ RA,
                                         const $REAL* __restrict__ RB,
                                         const $REAL* __restrict__ RE,
@@ -164,14 +164,14 @@ y_args = {
                         int NZ_PHI2,
                         int NY_R,
                         __global const unsigned int* restrict ID,
-                        __global $REAL *Ex,
+                        __global $REAL* __restrict__ Ex,
                         __global const $REAL* restrict Ey,
-                        __global $REAL *Ez,
+                        __global $REAL* __restrict__ Ez,
                         __global const $REAL* restrict Hx,
                         __global const $REAL* restrict Hy,
                         __global const $REAL* restrict Hz,
-                        __global $REAL *PHI1,
-                        __global $REAL *PHI2,
+                        __global $REAL* __restrict__ PHI1,
+                        __global $REAL* __restrict__ PHI2,
                         __global const $REAL* restrict RA,
                         __global const $REAL* restrict RB,
                         __global const $REAL* restrict RE,
@@ -195,14 +195,14 @@ y_args = {
                                         device const int& NZ_PHI2,
                                         device const int& NY_R,
                                         device const uint* ID,
-                                        device $REAL *Ex,
+                                        device $REAL* Ex,
                                         device const $REAL* Ey,
-                                        device $REAL *Ez,
+                                        device $REAL* Ez,
                                         device const $REAL* Hx,
                                         device const $REAL* Hy,
                                         device const $REAL* Hz,
-                                        device $REAL *PHI1,
-                                        device $REAL *PHI2,
+                                        device $REAL* PHI1,
+                                        device $REAL* PHI2,
                                         device const $REAL* RA,
                                         device const $REAL* RB,
                                         device const $REAL* RE,
@@ -230,14 +230,14 @@ z_args = {
                                         int NZ_PHI2,
                                         int NY_R,
                                         const unsigned int* __restrict__ ID,
-                                        $REAL *Ex,
-                                        $REAL *Ey,
+                                        $REAL* __restrict__ Ex,
+                                        $REAL* __restrict__ Ey,
                                         const $REAL* __restrict__ Ez,
                                         const $REAL* __restrict__ Hx,
                                         const $REAL* __restrict__ Hy,
                                         const $REAL* __restrict__ Hz,
-                                        $REAL *PHI1,
-                                        $REAL *PHI2,
+                                        $REAL* __restrict__ PHI1,
+                                        $REAL* __restrict__ PHI2,
                                         const $REAL* __restrict__ RA,
                                         const $REAL* __restrict__ RB,
                                         const $REAL* __restrict__ RE,
@@ -261,14 +261,14 @@ z_args = {
                         int NZ_PHI2,
                         int NY_R,
                         __global const unsigned int* restrict ID,
-                        __global $REAL *Ex,
-                        __global $REAL *Ey,
+                        __global $REAL* __restrict__ Ex,
+                        __global $REAL* __restrict__ Ey,
                         __global const $REAL* restrict Ez,
                         __global const $REAL* restrict Hx,
                         __global const $REAL* restrict Hy,
                         __global const $REAL* restrict Hz,
-                        __global $REAL *PHI1,
-                        __global $REAL *PHI2,
+                        __global $REAL* __restrict__ PHI1,
+                        __global $REAL* __restrict__ PHI2,
                         __global const $REAL* restrict RA,
                         __global const $REAL* restrict RB,
                         __global const $REAL* restrict RE,
@@ -292,14 +292,14 @@ z_args = {
                                         device const int& NZ_PHI2,
                                         device const int& NY_R,
                                         device const uint* ID,
-                                        device $REAL *Ex,
-                                        device $REAL *Ey,
+                                        device $REAL* Ex,
+                                        device $REAL* Ey,
                                         device const $REAL* Ez,
                                         device const $REAL* Hx,
                                         device const $REAL* Hy,
                                         device const $REAL* Hz,
-                                        device $REAL *PHI1,
-                                        device $REAL *PHI2,
+                                        device $REAL* PHI1,
+                                        device $REAL* PHI2,
                                         device const $REAL* RA,
                                         device const $REAL* RB,
                                         device const $REAL* RE,
@@ -329,18 +329,23 @@ order1_xminus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHy, dHz;
     $REAL dx = d;
+    $REAL dx_inv = 1 / dx;
     int ii, jj, kk, materialEy, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -360,7 +365,7 @@ order1_xminus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dHz;
@@ -380,7 +385,7 @@ order1_xminus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHy;
@@ -408,18 +413,23 @@ order2_xminus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
     $REAL dx = d;
+    $REAL dx_inv = 1 / dx;
     int ii, jj, kk, materialEy, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -444,7 +454,7 @@ order2_xminus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
@@ -472,7 +482,7 @@ order2_xminus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHy + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
@@ -503,18 +513,23 @@ order1_xplus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHy, dHz;
     $REAL dx = d;
+    $REAL dx_inv = 1 / dx;
     int ii, jj, kk, materialEy, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -534,7 +549,7 @@ order1_xplus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dHz;
@@ -554,7 +569,7 @@ order1_xplus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHy;
@@ -582,18 +597,23 @@ order2_xplus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
     $REAL dx = d;
+    $REAL dx_inv = 1 / dx;
     int ii, jj, kk, materialEy, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -618,7 +638,7 @@ order2_xplus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
@@ -645,7 +665,7 @@ order2_xplus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) / dx;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii-1,jj,kk)]) * dx_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHy + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
@@ -676,18 +696,23 @@ order1_yminus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHz;
     $REAL dy = d;
+    $REAL dy_inv = 1 / dy;
     int ii, jj, kk, materialEx, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -707,7 +732,7 @@ order1_yminus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dHz;
@@ -727,7 +752,7 @@ order1_yminus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
@@ -755,18 +780,23 @@ order2_yminus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
     $REAL dy = d;
+    $REAL dy_inv = 1 / dy;
     int ii, jj, kk, materialEx, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -791,7 +821,7 @@ order2_yminus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
@@ -819,7 +849,7 @@ order2_yminus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
@@ -850,18 +880,23 @@ order1_yplus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHz;
     $REAL dy = d;
+    $REAL dy_inv = 1 / dy;
     int ii, jj, kk, materialEx, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -881,7 +916,7 @@ order1_yplus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dHz;
@@ -901,7 +936,7 @@ order1_yplus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
@@ -929,18 +964,23 @@ order2_yplus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
     $REAL dy = d;
+    $REAL dy_inv = 1 / dy;
     int ii, jj, kk, materialEx, materialEz;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -965,7 +1005,7 @@ order2_yplus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHz = (Hz[IDX3D_FIELDS(ii,jj,kk)] - Hz[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
@@ -993,7 +1033,7 @@ order2_yplus = {
 
         // Ez
         materialEz = ID[IDX4D_ID(2,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) / dy;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj-1,kk)]) * dy_inv;
         Ez[IDX3D_FIELDS(ii,jj,kk)] = Ez[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                      (RA01 * dHx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
@@ -1024,18 +1064,23 @@ order1_zminus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHy;
     $REAL dz = d;
+    $REAL dz_inv = 1 / dz;
     int ii, jj, kk, materialEx, materialEy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -1055,7 +1100,7 @@ order1_zminus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHy + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dHy;
@@ -1075,7 +1120,7 @@ order1_zminus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
@@ -1103,18 +1148,23 @@ order2_zminus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
     $REAL dz = d;
+    $REAL dz_inv = 1 / dz;
     int ii, jj, kk, materialEx, materialEy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -1139,7 +1189,7 @@ order2_zminus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHy + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
@@ -1167,7 +1217,7 @@ order2_zminus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
@@ -1198,18 +1248,23 @@ order1_zplus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA01, RB0, RE0, RF0, dHx, dHy;
     $REAL dz = d;
+    $REAL dz_inv = 1 / dz;
     int ii, jj, kk, materialEx, materialEy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -1229,7 +1284,7 @@ order1_zplus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHy + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dHy;
@@ -1249,7 +1304,7 @@ order1_zplus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
@@ -1277,18 +1332,23 @@ order2_zplus = {
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
-    int j1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) / NZ_PHI1;
-    int k1 = ((i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) % (NY_PHI1 * NZ_PHI1)) % NZ_PHI1;
+    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
+    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
+    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
+    int j1 = jk1 / NZ_PHI1;
+    int k1 = jk1 % NZ_PHI1;
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
     int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = (i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) / (NY_PHI2 * NZ_PHI2);
-    int j2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
-    int k2 = ((i % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
+    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
+    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
+    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
+    int j2 = jk2 / NZ_PHI2;
+    int k2 = jk2 % NZ_PHI2;
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
     $REAL dz = d;
+    $REAL dz_inv = 1 / dz;
     int ii, jj, kk, materialEx, materialEy;
     int nx = xf - xs;
     int ny = yf - ys;
@@ -1313,7 +1373,7 @@ order2_zplus = {
 
         // Ex
         materialEx = ID[IDX4D_ID(0,ii,jj,kk)];
-        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHy = (Hy[IDX3D_FIELDS(ii,jj,kk)] - Hy[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ex[IDX3D_FIELDS(ii,jj,kk)] = Ex[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                      (RA01 * dHy + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
@@ -1341,7 +1401,7 @@ order2_zplus = {
 
         // Ey
         materialEy = ID[IDX4D_ID(1,ii,jj,kk)];
-        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) / dz;
+        dHx = (Hx[IDX3D_FIELDS(ii,jj,kk)] - Hx[IDX3D_FIELDS(ii,jj,kk-1)]) * dz_inv;
         Ey[IDX3D_FIELDS(ii,jj,kk)] = Ey[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                      (RA01 * dHx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
