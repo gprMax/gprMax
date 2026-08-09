@@ -455,14 +455,14 @@ class Model:
         grids = [self.G] + self.subgrids
 
         self._check_stateful_sources_with_geometry_fixed(grids)
-        # The arithmetic average of several Debye media can contain more
-        # poles than any constituent. Resolve electric compound materials
-        # before selecting dispersive storage and checking memory so the
-        # dense model-wide maxpoles allocation is estimated correctly.
-        if config.get_model_config().debye_averaging:
+        # The arithmetic average of several dispersive media can contain more
+        # inclusive terms than any constituent. Resolve electric compound
+        # materials before selecting dispersive storage and checking memory
+        # so the dense model-wide maxpoles allocation is estimated correctly.
+        if config.get_model_config().dispersive_averaging:
             for grid in grids:
                 if any(
-                    material.averagable and "debye" in material.type
+                    material.averagable and getattr(material, "poles", 0) > 0
                     for material in grid.materials
                 ):
                     grid.prepare_electric_components()

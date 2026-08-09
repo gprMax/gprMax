@@ -103,7 +103,7 @@ def build_sphere_scene(soil_name, averaging, threads, time_window):
     material_id = f"puerto_rico_soil_{soil_name}"
 
     scene = gprMax.Scene()
-    scene.add(gprMax.DebyeAveraging(enabled=averaging))
+    scene.add(gprMax.DispersiveAveraging(enabled=averaging))
     scene.add(gprMax.Discretisation(p1=(dl,) * 3))
     scene.add(gprMax.Domain(p1=domain))
     scene.add(gprMax.TimeWindow(time=time_window))

@@ -1,4 +1,4 @@
-"""Tests for Hartley's arithmetic Debye-interface averaging formulation."""
+"""Tests for arithmetic dispersive-interface averaging."""
 
 import numpy as np
 import pytest
@@ -10,12 +10,12 @@ from gprMax.hash_cmds_file import check_cmd_names
 from gprMax.hash_cmds_singleuse import process_singlecmds
 from gprMax.materials import DispersiveMaterial, Material, create_electric_average_material
 from gprMax.updates.cpu_updates import CPUUpdates
-from gprMax.user_objects.cmds_singleuse import DebyeAveraging
+from gprMax.user_objects.cmds_singleuse import DispersiveAveraging
 
 
 class _MaterialConfig:
-    def __init__(self):
-        self.debye_averaging = True
+    def __init__(self, enabled=True):
+        self.dispersive_averaging = enabled
         self.materials = {"maxpoles": 1}
 
 
@@ -27,6 +27,29 @@ def _debye(numid, material_id, er, se, deltaer, tau):
     material.poles = len(deltaer)
     material.deltaer = list(deltaer)
     material.tau = list(tau)
+    return material
+
+
+def _lorentz(numid, material_id, er, se, deltaer, frequency, damping):
+    material = DispersiveMaterial(numid, material_id)
+    material.type = "lorentz"
+    material.er = er
+    material.se = se
+    material.poles = len(deltaer)
+    material.deltaer = list(deltaer)
+    material.tau = list(frequency)
+    material.alpha = list(damping)
+    return material
+
+
+def _drude(numid, material_id, er, se, frequency, collision):
+    material = DispersiveMaterial(numid, material_id)
+    material.type = "drude"
+    material.er = er
+    material.se = se
+    material.poles = len(frequency)
+    material.tau = list(frequency)
+    material.alpha = list(collision)
     return material
 
 
@@ -91,43 +114,69 @@ def test_effective_frequency_response_is_weighted_constituent_response(monkeypat
     assert averaged.calculate_er(frequencies) == pytest.approx(expected)
 
 
-def test_lorentz_or_drude_cannot_be_silently_averaged(monkeypatch):
+def test_mixed_debye_lorentz_response_is_exact_weighted_average(monkeypatch):
     model_config = _MaterialConfig()
     monkeypatch.setattr(config, "get_model_config", lambda: model_config)
-    debye = _debye(3, "debye", 2, 0, (2,), (1e-11,))
-    lorentz = _debye(4, "lorentz", 3, 0, (4,), (2e9,))
-    lorentz.type = "lorentz"
+    debye = _debye(3, "debye", 2, 0.01, (2,), (1e-10,))
+    resonance = 1.5e9
+    damping = 0.08 * 2 * np.pi * resonance
+    lorentz = _lorentz(4, "lorentz", 3, 0.03, (4,), (resonance,), (damping,))
 
-    with pytest.raises(ValueError, match="Debye dispersion only.*lorentz"):
-        create_electric_average_material(
-            5, "debye+debye+lorentz+lorentz", (debye, debye, lorentz, lorentz)
-        )
+    averaged = create_electric_average_material(
+        5, "debye+debye+lorentz+lorentz", (debye, debye, lorentz, lorentz)
+    )
+    frequencies = np.geomspace(10e6, 4e9, 201)
+    expected = 0.5 * debye.calculate_er(frequencies) + 0.5 * lorentz.calculate_er(frequencies)
+
+    assert averaged.poles == 2
+    assert averaged.calculate_er(frequencies) == pytest.approx(expected)
 
 
-def test_debye_averaging_api_rejects_non_boolean(monkeypatch):
+def test_mixed_drude_lorentz_response_includes_drude_constant_term(monkeypatch):
+    model_config = _MaterialConfig()
+    monkeypatch.setattr(config, "get_model_config", lambda: model_config)
+    plasma = 2.2e9
+    collision = 0.2 * 2 * np.pi * 1e9
+    drude = _drude(3, "drude", 1, 0.01, (plasma,), (collision,))
+    resonance = 1.2e9
+    damping = 0.06 * 2 * np.pi * resonance
+    lorentz = _lorentz(4, "lorentz", 2.5, 0.02, (3,), (resonance,), (damping,))
+
+    averaged = create_electric_average_material(
+        5, "drude+drude+lorentz+lorentz", (drude, drude, lorentz, lorentz)
+    )
+    frequencies = np.geomspace(20e6, 4e9, 201)
+    expected = 0.5 * drude.calculate_er(frequencies) + 0.5 * lorentz.calculate_er(frequencies)
+
+    assert averaged.poles == 2
+    assert averaged.inclusive_conductivity > 0
+    assert averaged.calculate_er(frequencies) == pytest.approx(expected)
+
+
+def test_dispersive_averaging_api_rejects_non_boolean(monkeypatch):
     model_config = _MaterialConfig()
     monkeypatch.setattr(config, "get_model_config", lambda: model_config)
     with pytest.raises(TypeError, match="True or False"):
-        DebyeAveraging(enabled="y").build(None)
+        DispersiveAveraging(enabled="y").build(None)
 
 
 @pytest.mark.parametrize(("token", "enabled"), [("y", True), ("N", False)])
 def test_hash_command_parses_y_or_n(token, enabled):
     lines = [
-        f"#debye_averaging: {token}\n",
+        f"#dispersive_averaging: {token}\n",
         "#domain: 0.01 0.01 0.01\n",
         "#dx_dy_dz: 1e-3 1e-3 1e-3\n",
         "#time_window: 1e-12\n",
     ]
     singlecmds, _, _ = check_cmd_names(lines)
     objects = process_singlecmds(singlecmds)
-    command = next(obj for obj in objects if obj.hash == "#debye_averaging")
+    command = next(obj for obj in objects if obj.hash == "#dispersive_averaging")
     assert command.enabled is enabled
 
 
 def test_hash_command_rejects_invalid_value():
     lines = [
-        "#debye_averaging: maybe\n",
+        "#dispersive_averaging: maybe\n",
         "#domain: 0.01 0.01 0.01\n",
         "#dx_dy_dz: 1e-3 1e-3 1e-3\n",
         "#time_window: 1e-12\n",
@@ -157,7 +206,7 @@ def _run_two_material_interface(tmp_path, monkeypatch, enabled, object_averaging
     dl = 0.01
     scene = gprMax.Scene()
     if enabled is not None:
-        scene.add(gprMax.DebyeAveraging(enabled=enabled))
+        scene.add(gprMax.DispersiveAveraging(enabled=enabled))
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
     scene.add(gprMax.Domain(p1=(0.04, 0.04, 0.04)))
     scene.add(gprMax.PMLThickness(thickness=0))
@@ -194,8 +243,8 @@ def _run_two_material_interface(tmp_path, monkeypatch, enabled, object_averaging
     return captured
 
 
-def test_default_enabled_interface_builds_dense_two_pole_storage(tmp_path, monkeypatch):
-    captured = _run_two_material_interface(tmp_path, monkeypatch, enabled=None)
+def test_enabled_interface_builds_dense_two_pole_storage(tmp_path, monkeypatch):
+    captured = _run_two_material_interface(tmp_path, monkeypatch, enabled=True)
     grid = captured["grid"]
     compound = next(material for material in grid.materials if material.ID == "a+a+b+b")
 
@@ -206,6 +255,80 @@ def test_default_enabled_interface_builds_dense_two_pole_storage(tmp_path, monke
     assert captured["maxpoles"] == 2
     assert grid.Tx.shape[0] == 2
     assert grid.updatecoeffsdispersive.shape[1] == 6
+
+
+def test_debye_lorentz_interface_builds_complex_inclusive_storage(tmp_path, monkeypatch):
+    captured = {}
+    original_build = model_mod.Model.build
+
+    def capture_build(self):
+        original_build(self)
+        captured["grid"] = self.G
+
+    monkeypatch.setattr(model_mod.Model, "build", capture_build)
+    dl = 0.01
+    scene = gprMax.Scene()
+    scene.add(gprMax.DispersiveAveraging(enabled=True))
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.04, 0.04, 0.04)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-10))
+    scene.add(gprMax.Material(er=2, se=0, mr=1, sm=0, id="debye_bulk"))
+    scene.add(gprMax.Material(er=3, se=0, mr=1, sm=0, id="lorentz_bulk"))
+    scene.add(
+        gprMax.AddDebyeDispersion(
+            poles=1,
+            er_delta=(2,),
+            tau=(1e-10,),
+            material_ids=("debye_bulk",),
+        )
+    )
+    scene.add(
+        gprMax.AddLorentzDispersion(
+            poles=1,
+            er_delta=(4,),
+            omega=(1.5e9,),
+            delta=(0.08 * 2 * np.pi * 1.5e9,),
+            material_ids=("lorentz_bulk",),
+        )
+    )
+    scene.add(
+        gprMax.Box(
+            p1=(0, 0, 0),
+            p2=(0.02, 0.04, 0.04),
+            material_id="debye_bulk",
+        )
+    )
+    scene.add(
+        gprMax.Box(
+            p1=(0.02, 0, 0),
+            p2=(0.04, 0.04, 0.04),
+            material_id="lorentz_bulk",
+        )
+    )
+
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        outputfile=tmp_path / "mixed_interface",
+        geometry_only=True,
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+    compound = next(
+        material
+        for material in grid.materials
+        if "inclusive" in material.type and "debye" in material.type and "lorentz" in material.type
+    )
+    debye = next(material for material in grid.materials if material.ID == "debye_bulk")
+    lorentz = next(material for material in grid.materials if material.ID == "lorentz_bulk")
+    frequencies = np.geomspace(20e6, 4e9, 201)
+
+    assert compound.poles == 2
+    assert np.issubdtype(grid.updatecoeffsdispersive.dtype, np.complexfloating)
+    assert compound.calculate_er(frequencies) == pytest.approx(
+        0.5 * debye.calculate_er(frequencies) + 0.5 * lorentz.calculate_er(frequencies)
+    )
 
 
 def test_per_object_n_still_disables_all_smoothing(tmp_path, monkeypatch):
@@ -232,17 +355,27 @@ def test_disabled_interface_retains_previous_nonaveraged_behaviour(tmp_path, mon
     assert grid.Tx.shape[0] == 1
 
 
-def test_geometry_fixed_preserves_disabled_debye_averaging(monkeypatch, tmp_path):
+def test_default_disabled_interface_retains_staircased_storage(tmp_path, monkeypatch):
+    captured = _run_two_material_interface(tmp_path, monkeypatch, enabled=None)
+    grid = captured["grid"]
+
+    assert not any(material.ID == "a+a+b+b" for material in grid.materials)
+    assert captured["maxpoles_at_memory_check"] == 1
+    assert captured["maxpoles"] == 1
+    assert grid.Tx.shape[0] == 1
+
+
+def test_geometry_fixed_preserves_disabled_dispersive_averaging(monkeypatch, tmp_path):
     captured = []
     original_init = CPUUpdates.__init__
 
     def capture_setting(self, grid):
         original_init(self, grid)
-        captured.append(config.get_model_config().debye_averaging)
+        captured.append(config.get_model_config().dispersive_averaging)
 
     monkeypatch.setattr(CPUUpdates, "__init__", capture_setting)
     scene = gprMax.Scene()
-    scene.add(gprMax.DebyeAveraging(enabled=False))
+    scene.add(gprMax.DispersiveAveraging(enabled=False))
     scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
     scene.add(gprMax.Domain(p1=(4e-3, 4e-3, 4e-3)))
     scene.add(gprMax.PMLThickness(thickness=0))

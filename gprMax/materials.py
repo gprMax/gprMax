@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -242,6 +242,12 @@ class DispersiveMaterial(Material):
         self.deltaer = []
         self.tau = []
         self.alpha = []
+        # Compound interface materials use the inclusive susceptibility
+        # representation of Giannakis and Giannopoulos (2014). It permits
+        # Debye, Lorentz, and Drude terms to coexist in one recursive update.
+        self.inclusive_w = []
+        self.inclusive_q = []
+        self.inclusive_conductivity = 0.0
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -285,7 +291,10 @@ class DispersiveMaterial(Material):
         effective_se = self.se
 
         for x in range(self.poles):
-            if "debye" in self.type:
+            if self.inclusive_w:
+                self.w[x] = self.inclusive_w[x]
+                self.q[x] = self.inclusive_q[x]
+            elif "debye" in self.type:
                 self.w[x] = self.deltaer[x] / self.tau[x]
                 self.q[x] = -1 / self.tau[x]
             elif "lorentz" in self.type:
@@ -298,9 +307,7 @@ class DispersiveMaterial(Material):
                 # tau for Drude materials are pole frequencies
                 # alpha for Drude materials are the inverse of relaxation times
                 wp2 = (2 * np.pi * self.tau[x]) ** 2
-                effective_se += (
-                    config.sim_config.em_consts["e0"] * wp2 / self.alpha[x]
-                )
+                effective_se += config.sim_config.em_consts["e0"] * wp2 / self.alpha[x]
                 self.w[x] = -(wp2 / self.alpha[x])
                 self.q[x] = -self.alpha[x]
 
@@ -309,6 +316,7 @@ class DispersiveMaterial(Material):
             self.zt[x] = (self.w[x] / self.q[x]) * (1 - self.eqt[x]) / G.dt
             self.zt2[x] = (self.w[x] / self.q[x]) * (1 - self.eqt2[x])
 
+        effective_se += self.inclusive_conductivity
         EA = (
             (config.sim_config.em_consts["e0"] * self.er / G.dt)
             + 0.5 * effective_se
@@ -356,7 +364,17 @@ class DispersiveMaterial(Material):
 
         w = 2 * np.pi * freq
         er += self.se / (1j * w * config.e0)
-        if "debye" in self.type:
+        if self.inclusive_w:
+            er += self.inclusive_conductivity / (1j * w * config.e0)
+            for pole_w, pole_q in zip(self.inclusive_w, self.inclusive_q):
+                if np.isclose(np.imag(pole_w), 0.0) and np.isclose(np.imag(pole_q), 0.0):
+                    er += np.real(pole_w) / (1j * w - np.real(pole_q))
+                else:
+                    er += 0.5 * (
+                        pole_w / (1j * w - pole_q)
+                        + np.conjugate(pole_w) / (1j * w - np.conjugate(pole_q))
+                    )
+        elif "debye" in self.type:
             for pole in range(self.poles):
                 er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
         elif "lorentz" in self.type:
@@ -377,12 +395,11 @@ def create_electric_average_material(numID, ID, materials):
     """Create the arithmetic electric-edge average of four materials.
 
     The ordinary constitutive properties are averaged exactly as in the
-    existing generalised-Yee construction. If any constituent is Debye
-    dispersive, the effective susceptibility is formed by scaling every
-    constituent pole strength by its cell weight while retaining its
-    relaxation time. Repeated relaxation times are combined exactly. Thus a
-    dielectric/Debye interface retains the Debye poles, while two distinct
-    single-pole Debye media produce a two-pole effective material.
+    existing generalised-Yee construction. For dispersive constituents, each
+    inclusive pole residue is scaled by its cell weight while its pole
+    location is retained. Identical pole locations are merged exactly. This
+    applies to Debye, Lorentz, and Drude terms and permits different
+    dispersion families on opposite sides of an interface.
 
     This is the grid-aligned contour-path formulation developed in Chapter 4
     of Hartley (2020), "On Finite-Difference Time-Domain Sub-Gridding
@@ -402,37 +419,46 @@ def create_electric_average_material(numID, ID, materials):
         raise ValueError("Electric-edge averaging requires exactly four materials")
 
     dispersive = [material for material in materials if getattr(material, "poles", 0) > 0]
-    unsupported = [material for material in dispersive if "debye" not in material.type]
-    if unsupported:
-        ids = ", ".join(sorted({material.ID for material in unsupported}))
-        raise ValueError(
-            "Material averaging currently supports Debye dispersion only; "
-            f"cannot average Lorentz/Drude material(s): {ids}"
-        )
-
     if dispersive:
         averaged = DispersiveMaterial(numID, ID)
-        averaged.type = "dielectric-smoothed, debye"
+        source_types = {
+            kind
+            for material in dispersive
+            for kind in ("debye", "lorentz", "drude")
+            if kind in material.type
+        }
+        averaged.type = "dielectric-smoothed, inclusive, " + ", ".join(sorted(source_types))
 
         # Each surrounding cell contributes one quarter of its susceptibility.
-        # A dictionary both combines repeated materials and merges poles that
-        # have exactly the same relaxation time. Sorting below makes the pole
-        # ordering deterministic for equivalent compound IDs on different
-        # MPI ranks.
+        # Sorting makes equivalent compound IDs deterministic on MPI ranks.
         pole_strengths = {}
         weight = 1.0 / len(materials)
         for material in materials:
-            if "debye" not in material.type:
+            if not getattr(material, "poles", 0):
                 continue
-            for deltaer, tau in zip(material.deltaer, material.tau):
-                tau = float(tau)
-                pole_strengths[tau] = pole_strengths.get(tau, 0.0) + weight * float(deltaer)
+            terms, extra_conductivity = _inclusive_material_terms(material)
+            averaged.inclusive_conductivity += weight * extra_conductivity
+            for pole_w, pole_q in terms:
+                key = complex(pole_q)
+                pole_strengths[key] = pole_strengths.get(key, 0j) + weight * complex(pole_w)
 
-        for tau in sorted(pole_strengths):
-            averaged.tau.append(tau)
-            averaged.deltaer.append(pole_strengths[tau])
-        averaged.poles = len(averaged.tau)
-        averaged.averagable = config.get_model_config().debye_averaging
+        for pole_q in sorted(pole_strengths, key=lambda value: (value.real, value.imag)):
+            pole_w = pole_strengths[pole_q]
+            if source_types == {"debye"}:
+                averaged.inclusive_q.append(pole_q.real)
+                averaged.inclusive_w.append(pole_w.real)
+            else:
+                averaged.inclusive_q.append(pole_q)
+                averaged.inclusive_w.append(pole_w)
+        averaged.poles = len(averaged.inclusive_q)
+
+        # Preserve familiar Debye parameters for material reporting and for
+        # compatibility with tools that inspect deltaer/tau.
+        if source_types == {"debye"}:
+            for pole_w, pole_q in zip(averaged.inclusive_w, averaged.inclusive_q):
+                averaged.tau.append(-1.0 / pole_q)
+                averaged.deltaer.append(-pole_w / pole_q)
+        averaged.averagable = config.get_model_config().dispersive_averaging
 
         if averaged.poles > config.get_model_config().materials["maxpoles"]:
             config.get_model_config().materials["maxpoles"] = averaged.poles
@@ -446,6 +472,33 @@ def create_electric_average_material(numID, ID, materials):
     averaged.sm = np.mean([material.sm for material in materials], axis=0)
 
     return averaged
+
+
+def _inclusive_material_terms(material):
+    """Return inclusive ``(W, Q)`` terms and Drude-equivalent conductivity."""
+
+    if getattr(material, "inclusive_w", None):
+        return (
+            list(zip(material.inclusive_w, material.inclusive_q)),
+            material.inclusive_conductivity,
+        )
+
+    terms = []
+    extra_conductivity = 0.0
+    if "debye" in material.type:
+        for deltaer, tau in zip(material.deltaer, material.tau):
+            terms.append((deltaer / tau, -1.0 / tau))
+    elif "lorentz" in material.type:
+        for deltaer, frequency, damping in zip(material.deltaer, material.tau, material.alpha):
+            omega_0_squared = (2 * np.pi * frequency) ** 2
+            beta = np.sqrt(omega_0_squared - damping**2)
+            terms.append((-1j * omega_0_squared * deltaer / beta, -damping + 1j * beta))
+    elif "drude" in material.type:
+        for frequency, collision in zip(material.tau, material.alpha):
+            omega_p_squared = (2 * np.pi * frequency) ** 2
+            extra_conductivity += config.e0 * omega_p_squared / collision
+            terms.append((-omega_p_squared / collision, -collision))
+    return terms, extra_conductivity
 
 
 class PeplinskiSoil:
@@ -539,7 +592,7 @@ class PeplinskiSoil:
             # Create individual materials
             m = DispersiveMaterial(len(G.materials), None)
             m.type = "debye"
-            m.averagable = config.get_model_config().debye_averaging
+            m.averagable = config.get_model_config().dispersive_averaging
             m.poles = 1
             if m.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = m.poles
@@ -759,7 +812,7 @@ def create_water(G, T=25, S=0):
     eri, er, tau, sig = calculate_water_properties(T, S)
 
     m = DispersiveMaterial(len(G.materials), "water")
-    m.averagable = config.get_model_config().debye_averaging
+    m.averagable = config.get_model_config().dispersive_averaging
     m.type = "builtin, debye"
     m.poles = 1
     m.er = eri
@@ -785,7 +838,7 @@ def create_grass(G):
     sig = 0
 
     m = DispersiveMaterial(len(G.materials), "grass")
-    m.averagable = config.get_model_config().debye_averaging
+    m.averagable = config.get_model_config().dispersive_averaging
     m.type = "builtin, debye"
     m.poles = 1
     m.er = eri
@@ -872,7 +925,6 @@ def process_materials(G):
                     material.zt[pole],
                 )
                 z += 3
-
 
         # Construct information on material properties for printing table
         materialtext = [

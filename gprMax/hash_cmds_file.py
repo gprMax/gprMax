@@ -218,7 +218,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#domain",
             "#domain_mode",
             "#magnetic_averaging",
-            "#debye_averaging",
+            "#dispersive_averaging",
             "#dx_dy_dz",
             "#time_window",
             "#title",

@@ -482,8 +482,9 @@ At the boundaries between different materials in the model there is the question
 
 .. note::
 
-    * Debye materials participate in dielectric smoothing by default. This can be disabled globally with ``#debye_averaging: n``.
-    * Lorentz and Drude materials remain non-averageable.
+    * Dispersive materials are not smoothed by default. Use
+      ``#dispersive_averaging: y`` to include Debye, Lorentz, and Drude media
+      in electric-edge smoothing.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular patch not triangular prism) cannot have dielectric smoothing.
 
@@ -506,19 +507,21 @@ Selects the mixing rule used for magnetic-field components at smoothed material 
     * The command chooses the magnetic mixing rule only; it does not enable or disable dielectric smoothing.
 
 
-#debye_averaging:
--------------------
+#dispersive_averaging:
+----------------------
 
-Enables or disables interface averaging for Debye materials. When enabled,
-Debye media use the same arithmetic four-cell electric-edge average as
-nondispersive dielectrics. This implements the effective-permittivity
-formulation developed by [HAR2020]_. The syntax is:
+Enables or disables interface averaging for dispersive materials. When
+enabled, Debye, Lorentz, and Drude media use the same arithmetic four-cell
+electric-edge average as nondispersive dielectrics. The Debye case follows the
+contour-path formulation developed by [HAR2020]_; its extension to all three
+dispersion families uses the inclusive susceptibility representation of
+[GIA2014]_. The syntax is:
 
 .. code-block:: none
 
-    #debye_averaging: c1
+    #dispersive_averaging: c1
 
-* ``c1`` is ``y`` to enable Debye averaging or ``n`` to disable it.
+* ``c1`` is ``y`` to enable dispersive averaging or ``n`` to disable it.
 
 For surrounding-cell weights :math:`w_m`, the effective high-frequency
 permittivity and conductivity are
@@ -532,34 +535,56 @@ permittivity and conductivity are
       &= \sum_m w_m\sigma_m.
     \end{aligned}
 
-Every constituent Debye pole retains its relaxation time and has its strength
-scaled by the corresponding cell weight:
+Writing a constituent susceptibility in inclusive pole-residue form as
+
+.. math::
+
+    \chi_m(\omega) = \sum_p
+    \frac{W_{m,p}}{j\omega-Q_{m,p}},
+
+where a complex Lorentz term implicitly includes its conjugate contribution,
+the effective response is
 
 .. math::
 
     \epsilon_{r,\mathrm{eff}}(\omega) =
-    \epsilon_{\infty,\mathrm{eff}} +
-    \sum_m\sum_p
+    \sum_m w_m\left[
+      \epsilon_{\infty,m}+
+      \frac{\sigma_m}{j\omega\epsilon_0}+
+      \chi_m(\omega)
+    \right].
+
+Consequently, every pole location :math:`Q_{m,p}` is retained and its residue
+:math:`W_{m,p}` is multiplied by the corresponding cell weight. For a Debye
+term this is equivalent to retaining its relaxation time and scaling
+:math:`\Delta\epsilon`:
+
+.. math::
+
+    \chi_{m,p}(\omega) =
     \frac{w_m\Delta\epsilon_{m,p}}
-         {1 + j\omega\tau_{m,p}}.
+         {1+j\omega\tau_{m,p}}.
 
 The four surrounding cells each contribute :math:`1/4`; repeated materials
-therefore naturally produce weights of :math:`1/2` or :math:`3/4`. Poles with
-identical relaxation times are combined exactly. Two different single-pole
-Debye materials generally produce a two-pole effective material.
+therefore naturally produce weights of :math:`1/2` or :math:`3/4`. Terms with
+identical pole locations are combined exactly. Two different single-pole
+materials generally produce a two-pole effective material, even if each bulk
+material uses only one pole.
 
 .. note::
 
-    * This command is optional; the default is ``y``.
-    * The ``n`` setting affects Debye materials only. Nondispersive dielectric
-      smoothing remains controlled by the optional ``y``/``n`` argument of
-      each volumetric geometry command.
+    * This command is optional; the default is ``n``. Enabling it is
+      recommended when interface accuracy is more important than the possible
+      increase in memory use.
+    * Nondispersive dielectric smoothing remains controlled by the optional
+      ``y``/``n`` argument of each volumetric geometry command.
     * Dispersive state arrays use the model-wide maximum pole count for
       computational efficiency. An averaged interface containing additional
-      distinct relaxation times can therefore increase memory use throughout
+      distinct pole locations can therefore increase memory use throughout
       the grid. The resolved maximum is included in gprMax's memory estimate.
-    * Use ``#debye_averaging: n`` to reproduce the earlier behaviour in which
-      Debye material averaging was always disabled.
+    * The production solver preserves the exact pole union. It does not apply
+      automatic pole reduction because any reduced model is valid only over a
+      chosen frequency band and error tolerance.
 
 
 .. _geometryview:
