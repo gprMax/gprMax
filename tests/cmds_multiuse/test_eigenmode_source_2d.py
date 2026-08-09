@@ -290,7 +290,9 @@ def test_eigenmode_port_rejected_with_mpi(monkeypatch):
 
 def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
     scene = _scene("TM")
-    scene.grid_objects = [obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodePort)]
+    scene.grid_objects = [
+        obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodePort)
+    ]
     scene.add(
         gprMax.EigenmodePort(
             port=1,
@@ -313,7 +315,9 @@ def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
 
 def test_positive_direction_eigenmode_rejects_lower_boundary(tmp_path):
     scene = _scene("TM")
-    scene.grid_objects = [obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodePort)]
+    scene.grid_objects = [
+        obj for obj in scene.grid_objects if not isinstance(obj, gprMax.EigenmodePort)
+    ]
     scene.add(
         gprMax.EigenmodePort(
             port=1,
@@ -487,7 +491,9 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
     ],
 )
 def test_2d_regression_example_builds(tmp_path, relative_path, snapshot_count):
-    source = REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / "cases" / relative_path
+    source = (
+        REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / "cases" / relative_path
+    )
     copied_input = tmp_path / source.name
     shutil.copyfile(source, copied_input)
 
@@ -569,24 +575,18 @@ def test_straight_example_auto_ports_share_broadband_anchors(tmp_path):
             values = np.squeeze(snapshot["Ez"][...])
             x_energy = np.sum(np.abs(values) ** 2, axis=1)
             total_energy = float(np.sum(x_energy))
-            centroid = float(
-                np.sum(np.arange(values.shape[0]) * x_energy) / total_energy
-            )
-            snapshot_metrics.append(
-                (float(snapshot.attrs["time"]), centroid, total_energy)
-            )
+            centroid = float(np.sum(np.arange(values.shape[0]) * x_energy) / total_energy)
+            snapshot_metrics.append((float(snapshot.attrs["time"]), centroid, total_energy))
     snapshot_metrics.sort()
     propagating = min(
         snapshot_metrics,
         key=lambda metric: abs(metric[0] - 1.6e-9),
     )
     assert propagating[1] > snapshot_metrics[0][1] + 40
-    assert snapshot_metrics[-1][2] < 0.05 * max(
-        metric[2] for metric in snapshot_metrics
-    )
+    assert snapshot_metrics[-1][2] < 0.05 * max(metric[2] for metric in snapshot_metrics)
 
 
-def test_spurious_modes_apply_one_anchor_policy_to_all_ports(
+def test_spurious_modes_resolve_automatic_anchors_per_port_and_mode(
     tmp_path,
     monkeypatch,
 ):
@@ -605,23 +605,52 @@ def test_spurious_modes_apply_one_anchor_policy_to_all_ports(
     with h5py.File(outputfile.with_suffix(".h5"), "r") as output:
         port1 = output["eigenmode_ports/port1"]
         port2 = output["eigenmode_ports/port2"]
-        policy = port1.attrs["ResolvedAnchorPolicy"]
-        assert policy in {"auto_broadband", "auto_broadband_guard_trimmed"}
-        assert port2.attrs["ResolvedAnchorPolicy"] == policy
-        np.testing.assert_array_equal(
-            port1.attrs["AnchorFrequencies"],
-            port2.attrs["AnchorFrequencies"],
-        )
-        anchors = port1.attrs["AnchorFrequencies"]
-        assert np.any(np.isclose(anchors, 4e9))
-        assert anchors[-1] >= 6e9
-    if policy == "auto_broadband_guard_trimmed":
-        assert anchors[0] > 2.4842e9
-        assert anchors[0] <= 4e9
+
+        def text_values(values):
+            return tuple(
+                value.decode() if isinstance(value, bytes) else str(value) for value in values
+            )
+
+        source_candidates = np.asarray(port1.attrs["CandidateAnchorFrequencies"])
+        receiver_candidates = np.asarray(port2.attrs["CandidateAnchorFrequencies"])
+        np.testing.assert_array_equal(source_candidates, receiver_candidates)
+        assert np.any(np.isclose(source_candidates, 4e9))
+        assert source_candidates[-1] >= 6e9
+
+        all_policies = []
+        for port in (port1, port2):
+            candidates = np.asarray(port.attrs["CandidateAnchorFrequencies"])
+            resolved = np.asarray(port.attrs["AnchorFrequencies"])
+            valid = port["anchor_mode_valid"][...].astype(bool)
+            propagating = port["anchor_mode_propagating"][...].astype(bool)
+            policies = text_values(port.attrs["ModeAnchorPolicies"])
+            all_policies.extend(policies)
+
+            assert valid.shape == propagating.shape == (len(candidates), 4)
+            assert len(policies) == 4
+            assert np.all(np.any(valid, axis=0))
+            assert np.all(valid <= propagating)
+            np.testing.assert_array_equal(
+                resolved,
+                candidates[np.any(valid, axis=1)],
+            )
+            for mode_position in range(valid.shape[1]):
+                indices = np.flatnonzero(valid[:, mode_position])
+                assert np.all(np.diff(indices) == 1)
+
+            unique_policies = set(policies)
+            expected_scalar = (
+                policies[0]
+                if port.attrs["IsSource"]
+                else (policies[0] if len(unique_policies) == 1 else "auto_mixed_mode_policies")
+            )
+            assert port.attrs["ResolvedAnchorPolicy"] == expected_scalar
+
+    if any("guard_trimmed" in policy for policy in all_policies):
         assert any("spectral guard" in warning for warning in warnings)
         assert any("endpoint modal profile" in warning for warning in warnings)
-    else:
-        assert anchors[0] == pytest.approx(2.4842025e9, rel=1e-6)
+    if any("nonpropagating_trimmed" in policy for policy in all_policies):
+        assert any("non-propagating anchor" in warning for warning in warnings)
 
 
 @pytest.mark.parametrize(
@@ -645,9 +674,7 @@ def test_hash_modal_plot_control_overrides_geometry_only_default(
     lines = source.read_text().splitlines()
     copied_input.write_text(
         "\n".join(
-            f"{line} {plot_control}"
-            if line.startswith("#eigenmode_port:")
-            else line
+            f"{line} {plot_control}" if line.startswith("#eigenmode_port:") else line
             for line in lines
         )
         + "\n"
@@ -707,7 +734,5 @@ def test_hash_excitation_plot_control_is_independent_of_modal_plots(
     )
 
     assert not list(tmp_path.glob(f"{copied_input.stem}_Port*_Mode*.png"))
-    waveform_plot_count = len(
-        list(tmp_path.glob(f"{copied_input.stem}_EigenmodeExcitation.png"))
-    )
+    waveform_plot_count = len(list(tmp_path.glob(f"{copied_input.stem}_EigenmodeExcitation.png")))
     assert waveform_plot_count == expected_plot_count

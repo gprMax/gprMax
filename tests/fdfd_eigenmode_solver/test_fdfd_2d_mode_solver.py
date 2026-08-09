@@ -64,14 +64,15 @@ def test_lossy_pec_waveguide_mode_uses_same_passive_branch_for_neff_and_h():
 
     width = nu * spacing
     expected = np.sqrt(epsilon - (np.pi / (solver.k0 * width)) ** 2)
-    forward_factor = np.exp(
-        -1j * solver.k0 * solver.modal_complex_neff * 0.5e-3
-    )
+    forward_factor = np.exp(-1j * solver.k0 * solver.modal_complex_neff * 0.5e-3)
 
     assert solver.modal_complex_neff == pytest.approx(expected, rel=1e-3)
     assert np.real(solver.modal_complex_neff) > 0
     assert np.imag(solver.modal_complex_neff) < 0
     assert abs(forward_factor) < 1
+    assert solver.modal_power_valid
+    assert solver.modal_forward_power_metric > solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert np.real(solver.modal_raw_power) > 0
     assert solver.modal_power == pytest.approx(1.0, rel=1e-12)
     np.testing.assert_allclose(
         np.square(1j * solver.complex_neff),
@@ -79,6 +80,114 @@ def test_lossy_pec_waveguide_mode_uses_same_passive_branch_for_neff_and_h():
         rtol=1e-12,
         atol=1e-12,
     )
+
+
+def test_backward_wave_uses_passive_forward_power_branch():
+    nu, nv = 8, 6
+    spacing = 5e-3
+    frequency = 5e9
+    material = -2 - 0.05j
+    eps_uu = np.full((nu, nv + 1), material)
+    eps_vv = np.full((nu + 1, nv), material)
+    eps_ww = np.full((nu + 1, nv + 1), material)
+    mu_uu = np.full((nu + 1, nv), material)
+    mu_vv = np.full((nu, nv + 1), material)
+    mu_ww = np.full((nu, nv), material)
+    pec_u = np.zeros_like(eps_uu, dtype=bool)
+    pec_v = np.zeros_like(eps_vv, dtype=bool)
+    pec_w = np.zeros_like(eps_ww, dtype=bool)
+    pec_u[:, [0, -1]] = True
+    pec_v[[0, -1], :] = True
+    pec_w[[0, -1], :] = True
+    pec_w[:, [0, -1]] = True
+    solver = FDFD_2D_mode_solver(
+        frequency=frequency,
+        du=spacing,
+        dv=spacing,
+        mode_index=0,
+        eps_r_uu=eps_uu,
+        eps_r_vv=eps_vv,
+        eps_r_ww=eps_ww,
+        mu_r_uu=mu_uu,
+        mu_r_vv=mu_vv,
+        mu_r_ww=mu_ww,
+        pec_u_mask=pec_u,
+        pec_v_mask=pec_v,
+        pec_w_mask=pec_w,
+    )
+
+    solver.solve()
+
+    forward_factor = np.exp(-1j * solver.k0 * solver.modal_complex_neff * 0.5e-3)
+    assert np.real(solver.modal_complex_neff) < 0
+    assert np.imag(solver.modal_complex_neff) < 0
+    assert abs(forward_factor) < 1
+    assert solver.modal_power_valid
+    assert solver.modal_forward_power_metric > solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert np.real(solver.modal_raw_power) > 0
+    assert solver.modal_power == pytest.approx(1.0, rel=1e-12)
+    np.testing.assert_allclose(
+        np.square(1j * solver.complex_neff),
+        solver.eigenvalues,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+
+def test_below_cutoff_mode_is_kept_with_finite_balanced_normalization():
+    nu, nv = 12, 8
+    spacing = 1e-3
+    frequency = 10e9
+    eps_uu = np.ones((nu, nv + 1))
+    eps_vv = np.ones((nu + 1, nv))
+    eps_ww = np.ones((nu + 1, nv + 1))
+    mu_uu = np.ones((nu + 1, nv))
+    mu_vv = np.ones((nu, nv + 1))
+    mu_ww = np.ones((nu, nv))
+    pec_u = np.zeros_like(eps_uu, dtype=bool)
+    pec_v = np.zeros_like(eps_vv, dtype=bool)
+    pec_w = np.zeros_like(eps_ww, dtype=bool)
+    pec_u[:, [0, -1]] = True
+    pec_v[[0, -1], :] = True
+    pec_w[[0, -1], :] = True
+    pec_w[:, [0, -1]] = True
+    cutoff = config.sim_config.em_consts["c"] / (2 * nu * spacing)
+    expected_neff = -1j * np.sqrt((cutoff / frequency) ** 2 - 1)
+    solver = FDFD_2D_mode_solver(
+        frequency=frequency,
+        du=spacing,
+        dv=spacing,
+        mode_index=0,
+        eps_r_uu=eps_uu,
+        eps_r_vv=eps_vv,
+        eps_r_ww=eps_ww,
+        mu_r_uu=mu_uu,
+        mu_r_vv=mu_vv,
+        mu_r_ww=mu_ww,
+        pec_u_mask=pec_u,
+        pec_v_mask=pec_v,
+        pec_w_mask=pec_w,
+        guess=-(expected_neff**2),
+    )
+
+    solver.solve()
+
+    assert solver.modal_complex_neff.real == 0
+    assert solver.modal_complex_neff.imag < 0
+    assert not solver.modal_power_valid
+    assert abs(solver.modal_forward_power_metric) < solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert abs(solver.modal_raw_power.imag) > abs(solver.modal_raw_power.real)
+    assert solver._calculate_mode_balanced_power(0) == pytest.approx(1.0, rel=1e-12)
+    assert solver.modal_power == pytest.approx(solver.modal_forward_power_metric, abs=1e-14)
+    for field in (
+        solver.modal_Eu,
+        solver.modal_Ev,
+        solver.modal_Ew,
+        solver.modal_Hu,
+        solver.modal_Hv,
+        solver.modal_Hw,
+    ):
+        assert np.all(np.isfinite(field))
 
 
 def test_rectangular_te10_enforces_pec_normal_h_and_wave_impedance():
@@ -102,9 +211,7 @@ def test_rectangular_te10_enforces_pec_normal_h_and_wave_impedance():
     pec_w[:, [0, -1]] = True
 
     width = nu * spacing
-    expected_neff = np.sqrt(
-        1 - (config.sim_config.em_consts['c'] / (2 * width * frequency)) ** 2
-    )
+    expected_neff = np.sqrt(1 - (config.sim_config.em_consts["c"] / (2 * width * frequency)) ** 2)
     solver = FDFD_2D_mode_solver(
         frequency=frequency,
         du=spacing,
@@ -158,9 +265,7 @@ def test_rectangular_pmc_tm10_enforces_normal_e_and_matches_theory():
     # Transverse PMC samples lie at cell centres, so their plane separation
     # is one cell smaller than the corresponding array extent.
     width = (nu - 1) * spacing
-    expected_neff = np.sqrt(
-        1 - (config.sim_config.em_consts['c'] / (2 * width * frequency)) ** 2
-    )
+    expected_neff = np.sqrt(1 - (config.sim_config.em_consts["c"] / (2 * width * frequency)) ** 2)
     solver = FDFD_2D_mode_solver(
         frequency=frequency,
         du=spacing,

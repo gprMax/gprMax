@@ -53,18 +53,30 @@ except ImportError:  # Source-tree fallback before extensions are rebuilt.
     ):
         hplane = plane_index if direction_sign * magnetic_side > 0 else plane_index - 1
         if normal_axis == 0:
-            measured_eu = 0.5 * (Ey[plane_index, u0:u1, v0:v1] + Ey[plane_index, u0:u1, v0 + 1 : v1 + 1])
-            measured_ev = 0.5 * (Ez[plane_index, u0:u1, v0:v1] + Ez[plane_index, u0 + 1 : u1 + 1, v0:v1])
+            measured_eu = 0.5 * (
+                Ey[plane_index, u0:u1, v0:v1] + Ey[plane_index, u0:u1, v0 + 1 : v1 + 1]
+            )
+            measured_ev = 0.5 * (
+                Ez[plane_index, u0:u1, v0:v1] + Ez[plane_index, u0 + 1 : u1 + 1, v0:v1]
+            )
             measured_hu = 0.5 * (Hy[hplane, u0:u1, v0:v1] + Hy[hplane, u0 + 1 : u1 + 1, v0:v1])
             measured_hv = 0.5 * (Hz[hplane, u0:u1, v0:v1] + Hz[hplane, u0:u1, v0 + 1 : v1 + 1])
         elif normal_axis == 1:
-            measured_eu = 0.5 * (Ex[u0:u1, plane_index, v0:v1] + Ex[u0:u1, plane_index, v0 + 1 : v1 + 1])
-            measured_ev = 0.5 * (Ez[u0:u1, plane_index, v0:v1] + Ez[u0 + 1 : u1 + 1, plane_index, v0:v1])
+            measured_eu = 0.5 * (
+                Ex[u0:u1, plane_index, v0:v1] + Ex[u0:u1, plane_index, v0 + 1 : v1 + 1]
+            )
+            measured_ev = 0.5 * (
+                Ez[u0:u1, plane_index, v0:v1] + Ez[u0 + 1 : u1 + 1, plane_index, v0:v1]
+            )
             measured_hu = 0.5 * (Hx[u0:u1, hplane, v0:v1] + Hx[u0 + 1 : u1 + 1, hplane, v0:v1])
             measured_hv = 0.5 * (Hz[u0:u1, hplane, v0:v1] + Hz[u0:u1, hplane, v0 + 1 : v1 + 1])
         else:
-            measured_eu = 0.5 * (Ex[u0:u1, v0:v1, plane_index] + Ex[u0:u1, v0 + 1 : v1 + 1, plane_index])
-            measured_ev = 0.5 * (Ey[u0:u1, v0:v1, plane_index] + Ey[u0 + 1 : u1 + 1, v0:v1, plane_index])
+            measured_eu = 0.5 * (
+                Ex[u0:u1, v0:v1, plane_index] + Ex[u0:u1, v0 + 1 : v1 + 1, plane_index]
+            )
+            measured_ev = 0.5 * (
+                Ey[u0:u1, v0:v1, plane_index] + Ey[u0 + 1 : u1 + 1, v0:v1, plane_index]
+            )
             measured_hu = 0.5 * (Hx[u0:u1, v0:v1, hplane] + Hx[u0 + 1 : u1 + 1, v0:v1, hplane])
             measured_hv = 0.5 * (Hy[u0:u1, v0:v1, hplane] + Hy[u0:u1, v0 + 1 : v1 + 1, hplane])
         factor = 0.5 * handedness * measure * dt
@@ -139,12 +151,17 @@ class EigenmodePortMonitor:
         dft_start,
         dft_stop,
         dft_points,
+        anchor_mode_valid=None,
+        anchor_mode_propagating=None,
+        mode_anchor_policies=None,
     ):
         self.owner = owner
         self.port_index = int(port_index)
         self.port_id = port_id
         self.is_source = bool(is_source)
-        self.excitation_mode_index = None if excitation_mode_index is None else int(excitation_mode_index)
+        self.excitation_mode_index = (
+            None if excitation_mode_index is None else int(excitation_mode_index)
+        )
         # A TF/SF source must sample H on its total-field side. A passive port
         # uses the upstream half-cell, where either side is physically
         # equivalent in the absence of a field discontinuity.
@@ -154,6 +171,23 @@ class EigenmodePortMonitor:
         self.anchor_e = anchor_e
         self.anchor_h = anchor_h
         self.anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        anchor_shape = (self.anchor_frequencies.size, len(self.mode_indices))
+        self.anchor_mode_valid = (
+            np.ones(anchor_shape, dtype=bool)
+            if anchor_mode_valid is None
+            else np.asarray(anchor_mode_valid, dtype=bool)
+        )
+        self._anchor_mode_propagating_explicit = anchor_mode_propagating is not None
+        self.anchor_mode_propagating = (
+            self.anchor_mode_valid.copy()
+            if anchor_mode_propagating is None
+            else np.asarray(anchor_mode_propagating, dtype=bool)
+        )
+        self.mode_anchor_policies = (
+            tuple("explicit" for _ in self.mode_indices)
+            if mode_anchor_policies is None
+            else tuple(str(value) for value in mode_anchor_policies)
+        )
         self.dft_start = float(dft_start)
         self.dft_stop = float(dft_stop)
         self.dft_points = int(dft_points)
@@ -175,7 +209,9 @@ class EigenmodePortMonitor:
         if self.port_index < 1:
             raise ValueError("Eigenmode port indices must be one-based positive integers.")
         if self.is_source and self.excitation_mode_index not in self.mode_indices:
-            raise ValueError("The source excitation mode must be included in its monitored mode indices.")
+            raise ValueError(
+                "The source excitation mode must be included in its monitored mode indices."
+            )
         if not self.is_source and self.excitation_mode_index is not None:
             raise ValueError("A passive eigenmode port cannot have an excitation mode.")
         if self.dft_points < 1:
@@ -188,6 +224,87 @@ class EigenmodePortMonitor:
             raise ValueError("A one-point eigenmode DFT requires equal start and stop frequencies.")
         if self.dft_points > 1 and self.dft_stop == self.dft_start:
             raise ValueError("A multi-point eigenmode DFT requires stop greater than start.")
+        expected_shape = (self.anchor_frequencies.size, len(self.mode_indices))
+        if self.anchor_mode_valid.shape != expected_shape:
+            raise ValueError(
+                "Eigenmode port anchor validity shape "
+                f"{self.anchor_mode_valid.shape} does not match {expected_shape}."
+            )
+        if self.anchor_mode_propagating.shape != expected_shape:
+            raise ValueError(
+                "Eigenmode port anchor propagation shape "
+                f"{self.anchor_mode_propagating.shape} does not match {expected_shape}."
+            )
+        if np.any(self.anchor_mode_valid & ~self.anchor_mode_propagating):
+            raise ValueError("A usable eigenmode anchor must also carry forward propagating power.")
+        if len(self.mode_anchor_policies) != len(self.mode_indices):
+            raise ValueError("Eigenmode port requires one anchor policy per monitored mode.")
+        if np.any(~np.any(self.anchor_mode_valid, axis=0)):
+            raise ValueError("Every eigenmode port mode requires at least one usable anchor.")
+        for mode_position, mode_index in enumerate(self.mode_indices):
+            runs = self._contiguous_true_runs(self.anchor_mode_valid[:, mode_position])
+            if len(runs) > 1:
+                raise ValueError(
+                    f"Eigenmode port mode {mode_index} has disconnected usable "
+                    "anchor ranges; interpolation across an internal anchor "
+                    "gap is not valid."
+                )
+
+    @staticmethod
+    def _contiguous_true_runs(mask):
+        indices = np.flatnonzero(np.asarray(mask, dtype=bool))
+        if indices.size == 0:
+            return ()
+        breaks = np.flatnonzero(np.diff(indices) > 1)
+        starts = np.concatenate((indices[:1], indices[breaks + 1]))
+        stops = np.concatenate((indices[breaks], indices[-1:]))
+        return tuple(zip(starts, stops))
+
+    def _propagating_frequency_mask(self, frequencies, mode_position):
+        """Return bins supported by contiguous propagating, usable anchors."""
+        frequencies = np.asarray(frequencies, dtype=np.float64)
+        propagating = self.anchor_mode_propagating[:, mode_position]
+        if np.all(propagating):
+            # Constant-basis and guard-trimmed policies intentionally retain
+            # endpoint extrapolation when every candidate anchor propagates.
+            return np.ones(frequencies.shape, dtype=bool)
+
+        usable = self.anchor_mode_valid[:, mode_position]
+        anchors = self.anchor_frequencies
+        tolerance = 1e-12 * max(
+            float(np.max(np.abs(anchors), initial=0.0)),
+            1.0,
+        )
+        supported = np.zeros(frequencies.shape, dtype=bool)
+        intervals = []
+        for start, stop in self._contiguous_true_runs(propagating):
+            run_usable = np.flatnonzero(usable[start : stop + 1]) + start
+            if run_usable.size == 0:
+                continue
+            # Propagation defines the physical support; usability only
+            # selects the basis used within that support. In particular, a
+            # centre-only fallback may extrapolate through the remainder of
+            # the same propagating run.
+            low = float(anchors[start])
+            high = float(anchors[stop])
+            intervals.append((low, high))
+            supported |= (frequencies >= low - tolerance) & (frequencies <= high + tolerance)
+
+        if not intervals:
+            return supported
+
+        policy = self.mode_anchor_policies[mode_position]
+        restrict_endpoints = (
+            self._anchor_mode_propagating_explicit or "nonpropagating_trimmed" in policy
+        )
+        if not restrict_endpoints:
+            # With the compatibility default, a false exterior validity bit
+            # may represent an ordinary spectral-guard trim rather than a
+            # physical cutoff. Preserve the established endpoint behavior,
+            # while still rejecting gaps between separate propagating runs.
+            supported |= frequencies <= intervals[0][0] + tolerance
+            supported |= frequencies >= intervals[-1][1] - tolerance
+        return supported
 
     def prepare(self, grid):
         self._validate()
@@ -208,18 +325,30 @@ class EigenmodePortMonitor:
         )
         self.frequency = np.asarray(nominal_frequency, dtype=real_dtype)
         if self.frequency[-1] > 0.5 / grid.dt:
-            raise ValueError(f"Eigenmode port {self.port_id!r} DFT stop frequency exceeds the FDTD Nyquist frequency.")
+            raise ValueError(
+                f"Eigenmode port {self.port_id!r} DFT stop frequency exceeds the FDTD Nyquist frequency."
+            )
         if self.anchor_frequencies.size > 1 and (
-            nominal_frequency[0] < self.anchor_frequencies[0] or nominal_frequency[-1] > self.anchor_frequencies[-1]
+            nominal_frequency[0] < self.anchor_frequencies[0]
+            or nominal_frequency[-1] > self.anchor_frequencies[-1]
         ):
             logger.warning(
                 f"Eigenmode port {self.port_id!r} DFT range extends outside its modal "
                 "anchor range; endpoint modal profiles will be used."
             )
 
-        weights = self.owner._linear_anchor_weights(self.frequency.astype(np.float64), self.anchor_frequencies)
         nf = self.frequency.size
         nm = len(self.mode_indices)
+        weights = np.zeros(
+            (nm, self.anchor_frequencies.size, nf),
+            dtype=np.float64,
+        )
+        for mode_position in range(nm):
+            usable_anchors = np.flatnonzero(self.anchor_mode_valid[:, mode_position])
+            weights[mode_position, usable_anchors] = self.owner._linear_anchor_weights(
+                self.frequency.astype(np.float64),
+                self.anchor_frequencies[usable_anchors],
+            )
         nu, nv = self.owner._transverse_cell_shape()
         shape = (nf, nm, nu, nv)
         self.eu = np.empty(shape, dtype=complex_dtype)
@@ -227,23 +356,34 @@ class EigenmodePortMonitor:
         self.hu = np.empty(shape, dtype=complex_dtype)
         self.hv = np.empty(shape, dtype=complex_dtype)
         self.neff = np.empty((nf, nm), dtype=complex_dtype)
-        self.mode_power_valid = np.ones((nf, nm), dtype=bool)
+        self.mode_power_valid = np.column_stack(
+            tuple(
+                self._propagating_frequency_mask(
+                    nominal_frequency,
+                    mode_position,
+                )
+                for mode_position in range(nm)
+            )
+        )
         u_axis, v_axis = self.owner.transverse_axes
 
         for frequency_index in range(nf):
             for mode_position in range(nm):
+                mode_weights = weights[mode_position]
                 electric = []
                 magnetic = []
                 for component in range(3):
                     electric.append(
                         sum(
-                            weights[anchor, frequency_index] * self.anchor_e[anchor][mode_position][component]
+                            mode_weights[anchor, frequency_index]
+                            * self.anchor_e[anchor][mode_position][component]
                             for anchor in range(self.anchor_frequencies.size)
                         )
                     )
                     magnetic.append(
                         sum(
-                            weights[anchor, frequency_index] * self.anchor_h[anchor][mode_position][component]
+                            mode_weights[anchor, frequency_index]
+                            * self.anchor_h[anchor][mode_position][component]
                             for anchor in range(self.anchor_frequencies.size)
                         )
                     )
@@ -272,7 +412,7 @@ class EigenmodePortMonitor:
                     magnetic[v_axis], "hv"
                 )
                 self.neff[frequency_index, mode_position] = np.sum(
-                    weights[:, frequency_index] * self.anchor_neff[:, mode_position]
+                    mode_weights[:, frequency_index] * self.anchor_neff[:, mode_position]
                 )
 
         self.eu = np.ascontiguousarray(self.eu)
@@ -322,16 +462,21 @@ class EigenmodePortMonitor:
             0.5 * (self.power_matrix + np.swapaxes(np.conj(self.power_matrix), 1, 2)),
             dtype=complex_dtype,
         )
-        self.power_matrix_valid = np.all(self.mode_power_valid, axis=1)
+        self.power_matrix_valid = np.zeros(nf, dtype=bool)
         for frequency_index, matrix in enumerate(self.power_matrix):
-            if not np.all(np.isfinite(matrix)):
-                self.power_matrix_valid[frequency_index] = False
+            active_modes = np.flatnonzero(self.mode_power_valid[frequency_index])
+            if active_modes.size == 0:
                 continue
-            eigenvalues = np.linalg.eigvalsh(np.asarray(matrix, dtype=np.complex128))
+            active_matrix = np.asarray(
+                matrix[np.ix_(active_modes, active_modes)],
+                dtype=np.complex128,
+            )
+            if not np.all(np.isfinite(active_matrix)):
+                continue
+            eigenvalues = np.linalg.eigvalsh(active_matrix)
             scale = max(float(np.max(np.abs(eigenvalues), initial=0.0)), 1.0)
             tolerance = 64 * np.finfo(real_dtype).eps * scale
-            if np.any(eigenvalues < -tolerance):
-                self.power_matrix_valid[frequency_index] = False
+            self.power_matrix_valid[frequency_index] = not np.any(eigenvalues < -tolerance)
 
         self.measure = real_dtype.type(measure)
         self.handedness = int(handedness)
@@ -351,8 +496,7 @@ class EigenmodePortMonitor:
     def observe(self, grid, iteration):
         if iteration != self._next_iteration:
             raise ValueError(
-                f"expected eigenmode DFT iteration {self._next_iteration}, "
-                f"received {iteration}"
+                f"expected eigenmode DFT iteration {self._next_iteration}, " f"received {iteration}"
             )
         real_signature = config.sim_config.dtypes["C_float_or_double"]
         accumulate_eigenmode_dft[f"{real_signature}|{real_signature} complex"](
@@ -400,15 +544,16 @@ class EigenmodePortMonitor:
     def finalise(self, grid):
         nf, nm = self.electric_dft.shape
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
-        component_dtype = (
-            np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64
-        )
+        component_dtype = np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64
         condition_limit = min(
             MAX_CONDITION_NUMBER,
             CONDITION_RELATIVE_ERROR_BUDGET / np.finfo(component_dtype).eps,
         )
-        incident = np.full((nm, nf), np.nan + 1j * np.nan, dtype=complex_dtype)
-        outgoing = np.full_like(incident, np.nan + 1j * np.nan)
+        # Non-propagating modes retain finite coefficients for output and
+        # diagnostics, but are excluded from the modal solve and remain
+        # explicitly invalid as power waves.
+        incident = np.zeros((nm, nf), dtype=complex_dtype)
+        outgoing = np.zeros_like(incident)
         valid = np.zeros((nm, nf), dtype=bool)
         condition = np.full(nf, np.inf, dtype=np.float64)
         magnetic_offset = self.magnetic_side * 0.5 * grid.dl[self.owner.normal_axis]
@@ -417,15 +562,20 @@ class EigenmodePortMonitor:
         backward_phase = np.exp(1j * beta * magnetic_offset)
 
         for frequency_index in range(nf):
+            active_modes = np.flatnonzero(self.mode_power_valid[frequency_index])
+            if active_modes.size == 0 or not self.power_matrix_valid[frequency_index]:
+                continue
             try:
                 # The Gram systems are small. Solve them in complex128 even
                 # when the FDTD arrays use complex64, while retaining a
                 # validity limit based on the precision of the stored inputs.
                 electric_gram = np.asarray(
-                    self.electric_gram[frequency_index], dtype=np.complex128
+                    self.electric_gram[frequency_index][np.ix_(active_modes, active_modes)],
+                    dtype=np.complex128,
                 )
                 magnetic_gram = np.asarray(
-                    self.magnetic_gram[frequency_index], dtype=np.complex128
+                    self.magnetic_gram[frequency_index][np.ix_(active_modes, active_modes)],
+                    dtype=np.complex128,
                 )
                 condition[frequency_index] = max(
                     np.linalg.cond(electric_gram),
@@ -433,30 +583,39 @@ class EigenmodePortMonitor:
                 )
                 electric_coeff = np.linalg.solve(
                     electric_gram,
-                    np.asarray(self.electric_dft[frequency_index], dtype=np.complex128),
+                    np.asarray(
+                        self.electric_dft[frequency_index, active_modes],
+                        dtype=np.complex128,
+                    ),
                 )
                 magnetic_coeff = np.linalg.solve(
                     magnetic_gram,
-                    np.asarray(self.magnetic_dft[frequency_index], dtype=np.complex128),
+                    np.asarray(
+                        self.magnetic_dft[frequency_index, active_modes],
+                        dtype=np.complex128,
+                    ),
                 )
             except np.linalg.LinAlgError:
                 continue
-            denominator = forward_phase[frequency_index] + backward_phase[frequency_index]
+            denominator = (
+                forward_phase[frequency_index, active_modes]
+                + backward_phase[frequency_index, active_modes]
+            )
             usable = np.isfinite(denominator) & (np.abs(denominator) > 1e-12)
-            a = np.full(nm, np.nan + 1j * np.nan, dtype=complex_dtype)
+            a = np.zeros(active_modes.size, dtype=complex_dtype)
             a[usable] = (
-                magnetic_coeff[usable] + backward_phase[frequency_index, usable] * electric_coeff[usable]
+                magnetic_coeff[usable]
+                + backward_phase[frequency_index, active_modes][usable] * electric_coeff[usable]
             ) / denominator[usable]
             b = electric_coeff - a
-            incident[:, frequency_index] = a
-            outgoing[:, frequency_index] = b
-            valid[:, frequency_index] = (
+            incident[active_modes, frequency_index] = a
+            outgoing[active_modes, frequency_index] = b
+            valid[active_modes, frequency_index] = (
                 usable
                 & np.isfinite(a)
                 & np.isfinite(b)
                 & np.isfinite(condition[frequency_index])
                 & (condition[frequency_index] < condition_limit)
-                & self.mode_power_valid[frequency_index]
                 & self.power_matrix_valid[frequency_index]
             )
 
@@ -482,7 +641,10 @@ class EigenmodePortMonitor:
         group.attrs["PhaseReanchorInterval"] = DFT_PHASE_REANCHOR_INTERVAL
         group.attrs["RequestedAnchorPolicy"] = self.owner.requested_anchor_policy
         group.attrs["ResolvedAnchorPolicy"] = self.owner.resolved_anchor_policy
-        group.attrs["AnchorFrequencies"] = self.anchor_frequencies
+        resolved_anchor_union = self.anchor_frequencies[np.any(self.anchor_mode_valid, axis=1)]
+        group.attrs["AnchorFrequencies"] = resolved_anchor_union
+        group.attrs["CandidateAnchorFrequencies"] = self.anchor_frequencies
+        group.attrs["ModeAnchorPolicies"] = self.mode_anchor_policies
         group["frequency"] = self.result.frequency
         group["incident"] = self.result.incident
         group["outgoing"] = self.result.outgoing
@@ -491,6 +653,8 @@ class EigenmodePortMonitor:
         group["electric_cross_power_matrix"] = self.electric_gram
         group["power_matrix"] = self.power_matrix
         group["power_normalization_valid"] = self.mode_power_valid.astype(np.uint8)
+        group["anchor_mode_valid"] = self.anchor_mode_valid.astype(np.uint8)
+        group["anchor_mode_propagating"] = self.anchor_mode_propagating.astype(np.uint8)
         group["power_matrix_valid"] = self.power_matrix_valid.astype(np.uint8)
         if self.s_parameters is not None:
             group["S"] = self.s_parameters
@@ -505,7 +669,8 @@ def finalise_eigenmode_ports(grid):
         return None
     if len(sources) != 1:
         raise ValueError(
-            "Eigenmode S-parameters require one and only one active eigenmode source; " f"found {len(sources)}."
+            "Eigenmode S-parameters require one and only one active eigenmode source; "
+            f"found {len(sources)}."
         )
 
     source = sources[0]
@@ -520,9 +685,7 @@ def finalise_eigenmode_ports(grid):
         & source.power_matrix_valid
         & np.isfinite(denominator)
     )
-    peak = float(
-        np.max(np.abs(denominator[source_decomposition_valid]), initial=0.0)
-    )
+    peak = float(np.max(np.abs(denominator[source_decomposition_valid]), initial=0.0))
     source_valid = (
         source_decomposition_valid
         & (np.abs(denominator) >= peak * 10 ** (INCIDENT_FLOOR_DB / 20))
@@ -542,6 +705,7 @@ def finalise_eigenmode_ports(grid):
             & port.power_matrix_valid[np.newaxis, :]
             & source_valid[np.newaxis, :]
         )
+        port.s_parameters[~port.s_valid] = np.nan + 1j * np.nan
 
     suffix = "" if grid.name == "main_grid" else f"_{grid.name}"
     output_path = config.get_model_config().output_file_path.with_name(

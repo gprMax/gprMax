@@ -41,9 +41,7 @@ def _solver(polarization, n=80, frequency=10e9, **kwargs):
     return FDFD_1D_mode_solver(**defaults)
 
 
-@pytest.mark.parametrize(
-    'solver_class', [FDFD_1D_mode_solver, FDFD_2D_mode_solver]
-)
+@pytest.mark.parametrize("solver_class", [FDFD_1D_mode_solver, FDFD_2D_mode_solver])
 def test_passive_neff_branch_preserves_loss_and_evanescent_decay(solver_class):
     epsilon = 9 - 7.19004143381j
     expected = np.sqrt(epsilon)
@@ -57,20 +55,20 @@ def test_passive_neff_branch_preserves_loss_and_evanescent_decay(solver_class):
     assert evanescent_neff == pytest.approx(-2j)
 
 
-@pytest.mark.parametrize('polarization', ['TM', 'TE'])
+@pytest.mark.parametrize("polarization", ["TM", "TE"])
 def test_lossy_homogeneous_mode_uses_passive_forward_neff(polarization):
     n = 40
     frequency = 5e9
     epsilon = 9 - 1j * 2 / (2 * np.pi * frequency * 8.8541878128e-12)
     kwargs = {
-        'eps_r_t': np.full(n, epsilon),
-        'eps_r_a': np.full(n + 1, epsilon),
-        'eps_r_w': np.full(n + 1, epsilon),
+        "eps_r_t": np.full(n, epsilon),
+        "eps_r_a": np.full(n + 1, epsilon),
+        "eps_r_w": np.full(n + 1, epsilon),
     }
-    if polarization == 'TE':
+    if polarization == "TE":
         pec_w = np.zeros(n + 1, dtype=bool)
         pec_w[[0, -1]] = True
-        kwargs['pec_w_mask'] = pec_w
+        kwargs["pec_w_mask"] = pec_w
 
     solver = _solver(
         polarization,
@@ -86,8 +84,11 @@ def test_lossy_homogeneous_mode_uses_passive_forward_neff(polarization):
     assert np.real(solver.modal_complex_neff) > 0
     assert np.imag(solver.modal_complex_neff) < 0
     assert abs(forward_factor) < 1
+    assert solver.modal_power_valid
+    assert solver.modal_forward_power_metric > solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert np.real(solver.modal_raw_power) > 0
     assert solver.modal_power == pytest.approx(1.0, rel=1e-12)
-    if polarization == 'TM':
+    if polarization == "TM":
         active = np.abs(solver.modal_Ea) > 1e-12 * np.max(np.abs(solver.modal_Ea))
         ratio = solver.modal_Ht[active] / solver.modal_Ea[active]
         expected_ratio = -solver.modal_complex_neff / solver.eta0
@@ -96,6 +97,87 @@ def test_lossy_homogeneous_mode_uses_passive_forward_neff(polarization):
         ratio = solver.modal_Et[active] / solver.modal_Ha[active]
         expected_ratio = solver.eta0 * solver.modal_complex_neff / epsilon
     np.testing.assert_allclose(ratio, expected_ratio, rtol=1e-9, atol=1e-12)
+
+
+@pytest.mark.parametrize("polarization", ["TM", "TE"])
+def test_backward_wave_uses_passive_forward_power_branch(polarization):
+    n = 40
+    frequency = 5e9
+    material = -2 - 0.05j
+    solver = _solver(
+        polarization,
+        n=n,
+        frequency=frequency,
+        eps_r_t=np.full(n, material),
+        eps_r_a=np.full(n + 1, material),
+        eps_r_w=np.full(n + 1, material),
+        mu_r_t=np.full(n + 1, material),
+        mu_r_a=np.full(n, material),
+        mu_r_w=np.full(n, material),
+    )
+
+    solver.solve()
+
+    forward_factor = np.exp(-1j * solver.k0 * solver.modal_complex_neff * 0.5e-3)
+    assert np.real(solver.modal_complex_neff) < 0
+    assert np.imag(solver.modal_complex_neff) < 0
+    assert abs(forward_factor) < 1
+    assert solver.modal_power_valid
+    assert solver.modal_forward_power_metric > solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert np.real(solver.modal_raw_power) > 0
+    assert solver.modal_power == pytest.approx(1.0, rel=1e-12)
+
+
+def test_below_cutoff_mode_is_kept_with_finite_balanced_normalization():
+    n = 40
+    pec_a = np.zeros(n + 1, dtype=bool)
+    pec_a[[0, -1]] = True
+    solver = _solver(
+        "TM",
+        n=n,
+        frequency=5e9,
+        pec_a_mask=pec_a,
+    )
+
+    solver.solve()
+
+    assert solver.modal_complex_neff.real == 0
+    assert solver.modal_complex_neff.imag < 0
+    assert not solver.modal_power_valid
+    assert abs(solver.modal_forward_power_metric) < solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert abs(solver.modal_raw_power.imag) > abs(solver.modal_raw_power.real)
+    assert solver._calculate_mode_balanced_power(0) == pytest.approx(1.0, rel=1e-12)
+    assert solver.modal_power == pytest.approx(solver.modal_forward_power_metric, abs=1e-14)
+    for field in (
+        solver.modal_Et,
+        solver.modal_Ea,
+        solver.modal_Ew,
+        solver.modal_Ht,
+        solver.modal_Ha,
+        solver.modal_Hw,
+    ):
+        assert np.all(np.isfinite(field))
+
+
+def test_propagation_validity_is_classified_per_mode():
+    n = 40
+    pec_a = np.zeros(n + 1, dtype=bool)
+    pec_a[[0, -1]] = True
+    solver = _solver(
+        "TM",
+        n=n,
+        frequency=10e9,
+        mode_index=1,
+        pec_a_mask=pec_a,
+    )
+
+    solver.solve()
+
+    np.testing.assert_array_equal(solver.power_valid, (True, False))
+    assert solver.powers[0] == pytest.approx(1.0, rel=1e-12)
+    assert abs(solver.powers[1]) < solver.FORWARD_POWER_METRIC_TOLERANCE
+    assert np.all(np.isfinite(solver.Ea))
+    assert np.all(np.isfinite(solver.Ht))
 
 
 def test_tm_pec_parallel_plate_neff_and_yee_shapes():
