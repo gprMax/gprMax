@@ -140,9 +140,9 @@ Magnetic Averaging
 ------------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.MagneticAveraging
 
-Debye Averaging
----------------
-.. autoclass:: gprMax.user_objects.cmds_singleuse.DebyeAveraging
+Dispersive Averaging
+--------------------
+.. autoclass:: gprMax.user_objects.cmds_singleuse.DispersiveAveraging
 
 Typical general settings are added directly to the scene:
 
@@ -153,7 +153,7 @@ Typical general settings are added directly to the scene:
     scene.add(gprMax.TimeStepStabilityFactor(f=0.95))
     scene.add(gprMax.OutputDir(dir='results'))
     scene.add(gprMax.MagneticAveraging(mode='harmonic'))
-    scene.add(gprMax.DebyeAveraging(enabled=True))
+    scene.add(gprMax.DispersiveAveraging(enabled=True))
 
 Material functions
 ==================

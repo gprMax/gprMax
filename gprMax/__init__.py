@@ -86,7 +86,7 @@ from .user_objects.cmds_output import (
     Snapshot,
 )
 from .user_objects.cmds_singleuse import (
-    DebyeAveraging,
+    DispersiveAveraging,
     Discretisation,
     Domain,
     DomainMode,
