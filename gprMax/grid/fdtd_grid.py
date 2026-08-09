@@ -906,25 +906,30 @@ class FDTDGrid:
                 "y": (("x", spec.xs), ("x", spec.xf), ("z", spec.zs), ("z", spec.zf)),
                 "z": (("x", spec.xs), ("x", spec.xf), ("y", spec.ys), ("y", spec.yf)),
             }[axis]
+            enclosure_warnings = []
             for normal, coordinate in lateral_faces:
                 if coordinate in (0, limits[normal]):
                     continue
                 if not self._pml_surface_is_pec(spec, normal, coordinate, pec_numids):
-                    raise ValueError(
+                    message = (
                         f"Internal PML slab '{spec.ID}' has an exposed transverse {normal}="
                         f"{coordinate} face. Enclose it with a continuous Yee-aligned PEC wall "
                         "or extend that face to the model boundary."
                     )
+                    enclosure_warnings.append(message)
+                    logger.warning(message)
 
             maximum_coordinate = lower if spec.maximum_face.endswith("0") else upper
             maximum_on_boundary = maximum_coordinate in (0, limits[axis])
             if not maximum_on_boundary and not self._pml_surface_is_pec(
                 spec, axis, maximum_coordinate, pec_numids
             ):
-                raise ValueError(
+                message = (
                     f"Internal PML slab '{spec.ID}' must have a PEC backing on its "
                     f"maximum-stretch face ({spec.maximum_face}) or end at the model boundary."
                 )
+                enclosure_warnings.append(message)
+                logger.warning(message)
 
             transverse_full = {
                 "x": spec.ys == 0 and spec.yf == self.ny and spec.zs == 0 and spec.zf == self.nz,
@@ -942,6 +947,8 @@ class FDTDGrid:
                 classification=classification,
                 formulation=pml.formulation,
                 order=len(pml.CFS),
+                enclosure_complete=not enclosure_warnings,
+                enclosure_warnings=tuple(enclosure_warnings),
             )
             logger.info(
                 f"Internal PML slab '{spec.ID}' validated as {classification} "

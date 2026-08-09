@@ -1268,14 +1268,16 @@ For example, a local MRIPML load can be placed inside a PEC rectangular guide:
         maximum_face='x0',
         profile_id='port_load',
         id='feed_absorber',       # optional API-only label
+        build_pec=True,           # default: generate the PEC enclosure
     ))
 
-The four transverse slab faces must be bounded by continuous Yee-aligned PEC
-walls or model-domain faces. The maximum-stretch face must be PEC-backed or a
-domain face; the opposite, zero-stretch face is the open entrance. The material
-cross-section must be invariant through the slab. These checks deliberately
-reject floating absorbers, which are not a stable or physically complete use
-of a one-axis correction.
+The automatically generated PEC enclosure is applied after user geometry but
+before component averaging and PML coefficient generation. Four transverse
+walls and the maximum-stretch backing plate are generated unless a face is
+already on a model boundary; the opposite, zero-stretch face is the open
+entrance. Set ``build_pec=False`` for manually constructed or deliberately
+open experiments. gprMax then warns about exposed faces rather than rejecting
+the model. The material cross-section must be invariant through the slab.
 
 When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
 ``internal_pml_2``, and so on. Internal slabs currently support the CPU, CUDA,

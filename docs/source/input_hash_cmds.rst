@@ -2434,13 +2434,16 @@ profile. The syntax is:
 
 .. code-block:: none
 
-    #pml_slab: f1 f2 f3 f4 f5 f6 str1 [str2]
+    #pml_slab: f1 f2 f3 f4 f5 f6 str1 [str2 [str3]]
 
 * ``f1 f2 f3`` and ``f4 f5 f6`` are the lower and upper corners of the slab.
 * ``str1`` is the maximum-stretch face: ``x0``, ``y0``, ``z0``, ``xmax``,
   ``ymax``, or ``zmax``. The opposite face is the zero-stretch entrance.
 * ``str2`` is an optional profile ID defined by ``#pml_formulation`` and,
   optionally, ``#pml_cfs``. If omitted, the global PML configuration is used.
+* ``str3`` optionally controls automatic PEC enclosure generation: ``y``
+  (default) or ``n``. To specify ``str3`` without a profile, use ``None`` for
+  ``str2``.
 
 For example, this replaces a disabled ``x0`` boundary PML with a 12-cell slab
 using a locally defined MRIPML recipe:
@@ -2451,13 +2454,25 @@ using a locally defined MRIPML recipe:
     #pml_formulation: MRIPML port_load
     #pml_slab: 0 0 0 0.012 0.080 0.060 x0 port_load
 
-The slab is an update correction and does not create geometry. For a supported
-internal absorber, its four transverse faces must be continuous Yee-aligned
-PEC walls or coincide with model-domain faces. Its maximum-stretch face must
-also be PEC-backed or coincide with the domain boundary. The zero-stretch
-entrance remains open. The material cross-section must be constant along the
-absorption direction. gprMax rejects exposed, overlapping same-axis, or
-inconsistently filled slabs because these arrangements can become unstable.
+For an internal absorber, gprMax normally creates five PEC plates after all
+user geometry has been processed: four transverse walls and a backing plate on
+the maximum-stretch face. Plates coincident with model-domain faces are not
+needed and are omitted. The zero-stretch entrance remains open. Existing
+geometry on an automatically enclosed face is therefore made PEC.
+
+Advanced experiments may disable this behaviour while retaining the global
+PML profile:
+
+.. code-block:: none
+
+    #pml_slab: 0.010 0.020 0.020 0.022 0.060 0.050 x0 None n
+
+With automatic plates disabled, gprMax checks the final Yee edges and warns
+about every exposed transverse or maximum-stretch face, but permits the model
+to run. This supports custom or deliberately incomplete enclosures. The
+material cross-section must remain constant along the absorption direction;
+inconsistently filled slabs, same-axis slab overlaps, and overlaps with a
+native PML remain errors because they invalidate the current formulation.
 
 An automatically generated internal identifier is reported in the log. The
 feature is currently limited to the main 3D grid and is not available with MPI

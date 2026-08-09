@@ -53,6 +53,7 @@ class InternalPMLSpec:
     zs: int
     zf: int
     profile_id: str | None = None
+    build_pec: bool = True
 
 
 class CFSParameter:

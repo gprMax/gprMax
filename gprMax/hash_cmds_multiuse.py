@@ -978,17 +978,34 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) not in (7, 8):
+            if len(tmp) not in (7, 8, 9):
                 logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "' requires seven or eight parameters"
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "' requires seven, eight, or nine parameters"
                 )
                 raise ValueError
+
+            profile_id = tmp[7] if len(tmp) >= 8 else None
+            if profile_id is not None and profile_id.lower() == "none":
+                profile_id = None
+            build_pec = True
+            if len(tmp) == 9:
+                if tmp[8].lower() == "y":
+                    build_pec = True
+                elif tmp[8].lower() == "n":
+                    build_pec = False
+                else:
+                    raise ValueError(f"{cmdname} automatic PEC enclosure must be 'y' or 'n'.")
 
             pml_slab = PMLSlab(
                 p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                 p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                 maximum_face=tmp[6].lower(),
-                profile_id=tmp[7] if len(tmp) == 8 else None,
+                profile_id=profile_id,
+                build_pec=build_pec,
             )
             scene_objects.append(pml_slab)
 

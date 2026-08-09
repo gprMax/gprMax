@@ -3302,10 +3302,11 @@ class PMLSlab(GridUserObject):
     local face at which complex stretching is greatest; the profile reduces
     to zero towards the opposite face. For example, ``x0`` has its maximum at
     ``p1.x`` and opens towards increasing x. Unlike a domain-boundary PML, the
-    slab is a correction applied to the existing geometry. Its transverse
-    faces must be bounded by PEC or coincide with the domain boundary, and its
-    maximum-stretch face must be PEC-backed or coincide with the domain
-    boundary. The zero-stretch entrance remains open.
+    slab is a correction applied to the existing geometry. By default, gprMax
+    creates PEC plates on its four transverse faces and maximum-stretch face;
+    faces coincident with the model boundary are omitted. The zero-stretch
+    entrance remains open. Set ``build_pec=False`` to provide a custom or
+    deliberately open enclosure. Exposed faces are then reported as warnings.
     """
 
     FACE_TO_DIRECTION = {
@@ -3342,6 +3343,7 @@ class PMLSlab(GridUserObject):
             raise
 
         profile_id = self.kwargs.get("profile_id")
+        build_pec = self.kwargs.get("build_pec", True)
         ID = self.kwargs.get("id")
         if ID is None:
             number = len(grid.pmls["internal_specs"]) + 1
@@ -3363,6 +3365,8 @@ class PMLSlab(GridUserObject):
             )
         if any(spec.ID == ID for spec in grid.pmls["internal_specs"]):
             raise ValueError(f"{self.params_str()} id '{ID}' is already in use.")
+        if not isinstance(build_pec, (bool, np.bool_)):
+            raise TypeError(f"{self.params_str()} build_pec must be a boolean.")
 
         uip = self._create_uip(grid)
         within_grid, lower, upper = uip.check_box_points(p1, p2, self.__str__())
@@ -3388,12 +3392,15 @@ class PMLSlab(GridUserObject):
             zs=int(lower[2]),
             zf=int(upper[2]),
             profile_id=profile_id,
+            build_pec=bool(build_pec),
         )
         grid.pmls["internal_specs"].append(spec)
         grid.pmls["internal_registry"][ID] = {
             "spec": spec,
             "classification": "unvalidated",
             "profile_id": profile_id,
+            "build_pec": bool(build_pec),
+            "generated_pec_faces": 0,
         }
         logger.info(
             f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
@@ -3401,6 +3408,11 @@ class PMLSlab(GridUserObject):
             f"{tuple(uip.discrete_to_continuous(upper))}m, with maximum "
             f"stretching on its {maximum_face} face"
             + (f", using profile '{profile_id}'" if profile_id else ", using the global PML configuration")
+            + (
+                ", with an automatic PEC enclosure"
+                if build_pec
+                else ", without an automatic PEC enclosure"
+            )
             + ", registered."
         )
 
