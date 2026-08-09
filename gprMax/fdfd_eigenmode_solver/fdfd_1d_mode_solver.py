@@ -26,6 +26,11 @@ class FDFD_1D_mode_solver:
 
     ``TM`` means the gprMax 2D TM reduction, whose scalar field is ``E_a``.
     ``TE`` means the gprMax 2D TE reduction, whose scalar field is ``H_a``.
+
+    After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
+    before normalization. ``forward_power_metrics`` is its real part divided
+    by a positive, E/H-balanced transverse field norm; ``power_valid`` applies
+    the class tolerance to that signed, scale-independent ratio.
     """
 
     FIELD_SHAPES = {
@@ -42,6 +47,7 @@ class FDFD_1D_mode_solver:
         "pmc_a_mask": "cell",
         "pmc_w_mask": "cell",
     }
+    FORWARD_POWER_METRIC_TOLERANCE = 1e-8
 
     def __init__(
         self,
@@ -122,6 +128,9 @@ class FDFD_1D_mode_solver:
         self.eigenvectors = None
         self.complex_neff = None
         self.real_neff = None
+        self.raw_powers = None
+        self.forward_power_metrics = None
+        self.power_valid = None
         self.powers = None
         self._init_operators()
 
@@ -209,6 +218,7 @@ class FDFD_1D_mode_solver:
         self.real_neff = np.real(self.complex_neff)
         self._calculate_fields(longitudinal_inverse)
         self._zero_constrained_fields()
+        self._orient_backward_modes_to_forward_power(longitudinal_inverse)
         self._normalize_modes_to_power()
         self._align_modes_for_real_profile_power()
         self._set_modal_fields()
@@ -229,7 +239,7 @@ class FDFD_1D_mode_solver:
                 self.Ea[:, mode] = self.eigenvectors[:, mode]
                 self.Ht[:, mode] = -neff * self.Ea[:, mode] / (self.eta0 * self.mu_r_t)
                 self.Hw[:, mode] = np.asarray(
-                    -1j
+                    1j
                     * (longitudinal_inverse @ (self.D_NODE_TO_CELL @ self.Ea[:, mode]))
                     / self.eta0
                 ).ravel()
@@ -237,7 +247,7 @@ class FDFD_1D_mode_solver:
                 self.Ha[:, mode] = self.eigenvectors[:, mode]
                 self.Et[:, mode] = self.eta0 * neff * self.Ha[:, mode] / self.eps_r_t
                 self.Ew[:, mode] = np.asarray(
-                    1j
+                    -1j
                     * self.eta0
                     * (longitudinal_inverse @ (self.D_CELL_TO_NODE @ self.Ha[:, mode]))
                 ).ravel()
@@ -254,14 +264,67 @@ class FDFD_1D_mode_solver:
     def _nodes_to_cells(field):
         return 0.5 * (field[:-1] + field[1:])
 
-    def _calculate_mode_power(self, mode):
+    def _calculate_mode_complex_power(self, mode):
         if self.polarization == "TM":
             ea = self._nodes_to_cells(self.Ea[:, mode])
             ht = self._nodes_to_cells(self.Ht[:, mode])
             flux = -ea * np.conj(ht)
         else:
             flux = self.Et[:, mode] * np.conj(self.Ha[:, mode])
-        return 0.5 * math.fsum(np.ravel(np.real(flux))) * self.dt
+        return (
+            0.5
+            * self.dt
+            * complex(
+                math.fsum(np.ravel(np.real(flux))),
+                math.fsum(np.ravel(np.imag(flux))),
+            )
+        )
+
+    def _calculate_mode_power(self, mode):
+        return float(np.real(self._calculate_mode_complex_power(mode)))
+
+    def _calculate_mode_balanced_power(self, mode):
+        """Return a positive E/H-balanced field scale with units of power."""
+        if self.polarization == "TM":
+            electric = self._nodes_to_cells(self.Ea[:, mode])
+            magnetic = self._nodes_to_cells(self.Ht[:, mode])
+        else:
+            electric = self.Et[:, mode]
+            magnetic = self.Ha[:, mode]
+        density = (np.square(np.abs(electric)) + self.eta0**2 * np.square(np.abs(magnetic))) / (
+            4.0 * self.eta0
+        )
+        return math.fsum(np.ravel(density)) * self.dt
+
+    def _orient_backward_modes_to_forward_power(self, longitudinal_inverse):
+        """Select the passive beta branch whose real power points forward.
+
+        Negative-index media can carry energy opposite to their phase vector.
+        Reversing ``neff`` and reconstructing every dependent field selects
+        the forward-energy solution without the inconsistent H-only flip used
+        by the former normalization guard.
+        """
+
+        reverse = np.zeros(self.num_modes, dtype=bool)
+        for mode in range(self.num_modes):
+            balanced_power = self._calculate_mode_balanced_power(mode)
+            if not np.isfinite(balanced_power) or balanced_power <= 0:
+                continue
+            metric = np.real(self._calculate_mode_complex_power(mode)) / balanced_power
+            candidate = -self.complex_neff[mode]
+            tolerance = 1e-12 * max(1.0, abs(candidate))
+            reverse[mode] = (
+                np.isfinite(metric)
+                and metric < -self.FORWARD_POWER_METRIC_TOLERANCE
+                and np.imag(candidate) <= tolerance
+            )
+        if not np.any(reverse):
+            return
+
+        self.complex_neff[reverse] *= -1
+        self.real_neff = np.real(self.complex_neff)
+        self._calculate_fields(longitudinal_inverse)
+        self._zero_constrained_fields()
 
     def _real_profile_power_from_fields(self, mode):
         if self.polarization == "TM":
@@ -273,16 +336,30 @@ class FDFD_1D_mode_solver:
         return math.fsum(np.ravel(flux)) * self.dt
 
     def _normalize_modes_to_power(self, target_power_per_metre=1.0):
+        """Power-normalize forward modes and safely L2-normalize the rest."""
+        self.raw_powers = np.zeros(self.num_modes, dtype=np.complex128)
+        self.forward_power_metrics = np.full(self.num_modes, np.nan, dtype=np.float64)
+        self.power_valid = np.zeros(self.num_modes, dtype=bool)
         self.powers = np.zeros(self.num_modes, dtype=np.float64)
         for mode in range(self.num_modes):
-            power = self._calculate_mode_power(mode)
-            if not np.isfinite(power) or abs(power) < 1e-300:
-                raise ValueError(f"Cannot normalize mode {mode}: modal power is {power}.")
-            if power < 0:
-                for field in (self.Ht, self.Ha, self.Hw):
-                    field[:, mode] *= -1
-                power = -power
-            scale = np.sqrt(target_power_per_metre / power)
+            raw_power = self._calculate_mode_complex_power(mode)
+            balanced_power = self._calculate_mode_balanced_power(mode)
+            self.raw_powers[mode] = raw_power
+            if np.isfinite(raw_power) and np.isfinite(balanced_power) and balanced_power > 0:
+                metric = float(np.real(raw_power) / balanced_power)
+                self.forward_power_metrics[mode] = metric
+                self.power_valid[mode] = (
+                    np.isfinite(metric) and metric > self.FORWARD_POWER_METRIC_TOLERANCE
+                )
+            if not np.isfinite(balanced_power) or balanced_power <= 0:
+                raise ValueError(
+                    f"Cannot normalize mode {mode}: balanced field power is {balanced_power}."
+                )
+
+            normalization_power = (
+                float(np.real(raw_power)) if self.power_valid[mode] else balanced_power
+            )
+            scale = np.sqrt(target_power_per_metre / normalization_power)
             for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
                 field[:, mode] *= scale
             self.powers[mode] = self._calculate_mode_power(mode)
@@ -296,8 +373,18 @@ class FDFD_1D_mode_solver:
             for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
                 field[:, mode] *= factor
             if self._real_profile_power_from_fields(mode) < 0:
-                for field in (self.Ht, self.Ha, self.Hw):
-                    field[:, mode] *= -1
+                for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
+                    field[:, mode] *= 1j
+            self._canonicalize_mode_sign(mode)
+
+    def _canonicalize_mode_sign(self, mode):
+        """Fix the remaining plus/minus gauge using tangential electric fields."""
+        pivot_vector = np.concatenate((self.Et[:, mode].ravel(), self.Ea[:, mode].ravel()))
+        pivot = pivot_vector[np.argmax(np.abs(pivot_vector))]
+        tolerance = 1e-12 * max(1.0, abs(pivot))
+        if np.real(pivot) < -tolerance or (abs(np.real(pivot)) <= tolerance and np.imag(pivot) < 0):
+            for field in (self.Et, self.Ea, self.Ew, self.Ht, self.Ha, self.Hw):
+                field[:, mode] *= -1
 
     def _set_modal_fields(self):
         mode = self.mode_index
@@ -309,6 +396,9 @@ class FDFD_1D_mode_solver:
         self.modal_Hw = self.Hw[:, mode]
         self.modal_complex_neff = self.complex_neff[mode]
         self.modal_real_neff = self.real_neff[mode]
+        self.modal_raw_power = self.raw_powers[mode]
+        self.modal_forward_power_metric = self.forward_power_metrics[mode]
+        self.modal_power_valid = self.power_valid[mode]
         self.modal_power = self.powers[mode]
 
     def plot_fields(self, output_path="fdfd_1d_modes.png"):
@@ -375,14 +465,20 @@ class FDFD_1D_mode_solver:
         return float(np.max(finite)) if finite.size else 0.0
 
     def _default_guess(self):
-        return -max(
+        max_epsilon = max(
             self._max_magnitude(values)
             for values in (
                 self.eps_r_t,
                 self.eps_r_a,
                 self.eps_r_w,
+            )
+        )
+        max_permeability = max(
+            self._max_magnitude(values)
+            for values in (
                 self.mu_r_t,
                 self.mu_r_a,
                 self.mu_r_w,
             )
         )
+        return -(max_epsilon * max_permeability)

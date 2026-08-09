@@ -5,6 +5,7 @@ import pytest
 
 import gprMax.config as config
 import gprMax.sources as sources_module
+from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.sources import EigenmodeSource
 from gprMax.waveforms import Waveform
 
@@ -156,7 +157,7 @@ def test_broadband_quality_safeguards_warn_and_continue(monkeypatch):
     source.start = 0.0
     source.normal_axis = 0
     source.spectral_threshold = 1e-3
-    source.spectrum_coverage_policy = 'warn'
+    source.spectrum_coverage_policy = "warn"
     source.anchor_complex_neff = np.ones(2, dtype=np.complex128)
     modal_fields = [
         np.ones((1, 1), dtype=np.complex128),
@@ -336,6 +337,54 @@ def test_modal_cross_power_2d_te_uses_only_live_invariant_layer(monkeypatch):
     assert source._modal_cross_power(electric, magnetic, grid) == pytest.approx(0.375)
 
 
+@pytest.mark.parametrize("polarization", ("TM", "TE"))
+@pytest.mark.parametrize(
+    ("invariant_axis", "normal_axis"),
+    ((0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)),
+)
+def test_1d_solver_mapping_has_positive_forward_power(
+    invariant_axis,
+    normal_axis,
+    polarization,
+):
+    physical_transverse_axis = next(
+        axis for axis in range(3) if axis not in (invariant_axis, normal_axis)
+    )
+    transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
+    source = EigenmodeSource(None)
+    source.normal_axis = normal_axis
+    source.transverse_axes = transverse_axes
+    source.invariant_axis = invariant_axis
+    source.physical_transverse_axis = physical_transverse_axis
+    source.domain_polarization = polarization
+    source.transverse_start = np.zeros(2, dtype=np.int32)
+    source.transverse_stop = np.asarray(
+        [2 if axis == physical_transverse_axis else 1 for axis in transverse_axes],
+        dtype=np.int32,
+    )
+
+    solver = object.__new__(FDFD_1D_mode_solver)
+    solver.num_modes = 1
+    solver.complex_neff = np.asarray([1.0 + 0j])
+    if polarization == "TM":
+        solver.Ea = np.ones((3, 1), dtype=np.complex128)
+        solver.Ht = -np.ones((3, 1), dtype=np.complex128)
+        solver.Hw = np.zeros((2, 1), dtype=np.complex128)
+    else:
+        solver.Et = np.ones((2, 1), dtype=np.complex128)
+        solver.Ha = np.ones((2, 1), dtype=np.complex128)
+        solver.Ew = np.zeros((3, 1), dtype=np.complex128)
+
+    electric, magnetic, _ = source._fields_from_solver_mode(solver, 1)
+    power = source._modal_cross_power(
+        electric,
+        magnetic,
+        SimpleNamespace(dl=np.ones(3)),
+    )
+
+    assert power == pytest.approx(1.0)
+
+
 def test_single_frequency_global_phase_shift_uses_real_profile(monkeypatch):
     impedance = 376.730313668
     monkeypatch.setattr(
@@ -414,14 +463,16 @@ def test_single_frequency_phase_residual_matches_rotated_imaginary_norm(
         np.asarray([0.8 * np.exp(0.45j), 0.3 * np.exp(-0.8j)]) / impedance,
     ]
     total_energy = sum(
-        np.sum(np.abs(source.modal_e[axis]) ** 2) + np.sum(np.abs(impedance * source.modal_h[axis]) ** 2)
+        np.sum(np.abs(source.modal_e[axis]) ** 2)
+        + np.sum(np.abs(impedance * source.modal_h[axis]) ** 2)
         for axis in source.transverse_axes
     )
 
     residual = source._align_tangential_mode_for_real_injection()
 
     rotated_imaginary_energy = sum(
-        np.sum(np.imag(source.modal_e[axis]) ** 2) + np.sum(np.imag(impedance * source.modal_h[axis]) ** 2)
+        np.sum(np.imag(source.modal_e[axis]) ** 2)
+        + np.sum(np.imag(impedance * source.modal_h[axis]) ** 2)
         for axis in source.transverse_axes
     )
     independently_measured_residual = np.sqrt(rotated_imaginary_energy / total_energy)
@@ -520,7 +571,8 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
     electric_real = source.broadband_modal_e_real[0][1][1]
     electric_imag = source.broadband_modal_e_imag[0][1][1]
     actual_electric = (
-        electric_real * source.broadband_e_envelopes[0, 0] + electric_imag * source.broadband_e_envelopes[0, 1]
+        electric_real * source.broadband_e_envelopes[0, 0]
+        + electric_imag * source.broadband_e_envelopes[0, 1]
     )
     electric_field = source.anchor_modal_e[0][1][1]
     expected_electric = np.fft.irfft(electric_field * spectrum, n=padded_count)[:sample_count]
@@ -533,7 +585,8 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
     magnetic_real = source.broadband_modal_h_real[0][2][1]
     magnetic_imag = source.broadband_modal_h_imag[0][2][1]
     actual_magnetic = (
-        magnetic_real * source.broadband_h_envelopes[0, 0] + magnetic_imag * source.broadband_h_envelopes[0, 1]
+        magnetic_real * source.broadband_h_envelopes[0, 0]
+        + magnetic_imag * source.broadband_h_envelopes[0, 1]
     )
     magnetic_field = source.anchor_modal_h[0][2][1]
     expected_magnetic = np.fft.irfft(

@@ -1,0 +1,19 @@
+#title: Eigenmode automatic guard failure below TE10 cutoff
+#domain: 0.044 0.008 0.006
+#dx_dy_dz: 0.0002 0.0002 0.0002
+#time_window: 2e-9
+#pml_cells: 12 0 0 12 0 0
+
+## Air-filled 6 mm x 4 mm rectangular PEC waveguide. Its analytical TE10
+## cutoff is c / (2a) = 24.9827 GHz.
+#box: 0 0 0 0.044 0.001 0.006 pec
+#box: 0 0.007 0 0.044 0.008 0.006 pec
+#box: 0 0 0 0.044 0.008 0.001 pec
+#box: 0 0 0.005 0.044 0.008 0.006 pec
+
+## The requested band is entirely above cutoff. Automatic spectral coverage
+## adds a 22.6604 GHz lower guard anchor, which is below cutoff.
+#eigenmode_band: canonical_band 28e9 35e9 29
+#eigenmode_port: 1 0.004 0.001 0.001 0.004 0.007 0.005 + 1 auto n
+#eigenmode_port: 2 0.028 0.001 0.001 0.028 0.007 0.005 - 1 auto n
+#eigenmode_excitation: 1 1 auto n

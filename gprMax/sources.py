@@ -20,15 +20,18 @@
 import logging
 import math
 from copy import deepcopy
+
 import numpy as np
 import numpy.typing as npt
 
 import gprMax.config as config
+from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
-from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.waveforms import Waveform
 
+from .cython.eigenmode_source import update_eigenmode_electric as updateEigenmode_electric
+from .cython.eigenmode_source import update_eigenmode_magnetic as updateEigenmode_magnetic
 from .cython.plane_wave import (
     calculate1DWaveformValues,
     getSource,
@@ -38,10 +41,6 @@ from .cython.plane_wave import (
     updatePlaneWave_electric_dispersive_axial,
     updatePlaneWave_magnetic,
     updatePlaneWave_magnetic_axial,
-)
-from .cython.eigenmode_source import (
-    update_eigenmode_magnetic as updateEigenmode_magnetic,
-    update_eigenmode_electric as updateEigenmode_electric,
 )
 from .utilities.utilities import round_value
 
@@ -114,7 +113,7 @@ class Source:
 
 
 class EigenmodeAnchorMismatchError(ValueError):
-    '''Raised when the same modal branch cannot be tracked between anchors.'''
+    """Raised when the same modal branch cannot be tracked between anchors."""
 
     def __init__(
         self,
@@ -134,9 +133,9 @@ class EigenmodeAnchorMismatchError(ValueError):
         self.context = context
         super().__init__(
             message
-            + ' This may indicate a degenerate mode or mode crossing. Use a single '
-            + 'explicit frequency anchor for this port if a constant modal basis '
-            + 'across the band is acceptable.'
+            + " This may indicate a degenerate mode or mode crossing. Use a single "
+            + "explicit frequency anchor for this port if a constant modal basis "
+            + "across the band is acceptable."
         )
 
 
@@ -151,129 +150,93 @@ def _trim_failed_guard_anchors(frequencies, mismatch, fmin, fmax):
     tolerance = 1e-12 * max(abs(float(fmin)), abs(float(fmax)), 1.0)
     if second <= fmin + tolerance:
         trimmed = tuple(value for value in frequencies if value >= second - tolerance)
-        return ('lower', second, trimmed) if len(trimmed) > 1 else None
+        return ("lower", second, trimmed) if len(trimmed) > 1 else None
     if first >= fmax - tolerance:
         trimmed = tuple(value for value in frequencies if value <= first + tolerance)
-        return ('upper', first, trimmed) if len(trimmed) > 1 else None
+        return ("upper", first, trimmed) if len(trimmed) > 1 else None
     return None
 
 
 def initialise_eigenmode_ports(grid):
-    """Resolve one coordinated automatic-anchor policy for every port."""
+    """Initialise each port without allowing passive ports to rebuild a source."""
 
     ports = [*grid.eigenmodesources, *grid.eigenmodereceivers]
     if not ports:
         return
-    requested_policies = {
-        id(port): getattr(port, 'requested_anchor_policy', port.anchor_policy)
-        for port in ports
-    }
-    automatic_ports = [
-        port for port in ports if requested_policies[id(port)] == 'auto'
-    ]
-    if not automatic_ports:
-        for port in ports:
-            port.grid_init(grid)
-        return
-
-    common_anchors = tuple(
-        float(value)
-        for value in (automatic_ports[0].frequencies or (automatic_ports[0].frequency,))
-    )
-    for port in automatic_ports[1:]:
-        anchors = tuple(
-            float(value) for value in (port.frequencies or (port.frequency,))
-        )
-        if anchors != common_anchors:
-            raise ValueError(
-                'Automatic eigenmode ports must start with identical anchor '
-                f'frequencies; got {common_anchors} and {anchors}.'
-            )
-
+    grid.eigenmodeports.clear()
     band = grid.eigenmodeband
-    candidate_anchors = common_anchors
-    guard_trimmed = False
-    while True:
-        grid.eigenmodeports.clear()
-        for port in ports:
-            requested = requested_policies[id(port)]
-            if requested == 'auto':
-                port.frequency = candidate_anchors[0]
-                port.frequencies = candidate_anchors
-                # Suppress the legacy per-port fallback. The coordinator must
-                # see a mismatch before choosing one policy for every auto port.
-                port.anchor_policy = 'coordinated_auto'
-            else:
-                port.anchor_policy = requested
+    for port in ports:
+        requested = getattr(port, "requested_anchor_policy", port.anchor_policy)
+        candidates = tuple(float(value) for value in (port.frequencies or (port.frequency,)))
+        guard_trimmed = False
+        single_fallback = False
+
+        while True:
+            port.frequency = candidates[0]
+            port.frequencies = candidates
+            # Suppress the legacy recursive fallback so this outer loop can
+            # distinguish a guard-local mismatch from an in-band mismatch.
+            port.anchor_policy = "coordinated_auto" if requested == "auto" else requested
             port.port_monitor = None
-
-        source = grid.eigenmodesources[0]
-        source_requested = requested_policies[id(source)]
-        if source_requested == 'auto':
-            source.spectrum_coverage_policy = (
-                'allow' if guard_trimmed else 'error'
-            )
-
-        failing_port = None
-        try:
-            for port in ports:
-                failing_port = port
+            try:
                 port.grid_init(grid)
-        except EigenmodeAnchorMismatchError as mismatch:
-            grid.eigenmodeports.clear()
-            for port in ports:
-                port.anchor_policy = requested_policies[id(port)]
-            if requested_policies[id(failing_port)] != 'auto':
-                raise
+            except EigenmodeAnchorMismatchError as mismatch:
+                port.anchor_policy = requested
+                if requested != "auto":
+                    raise
 
-            guard_result = _trim_failed_guard_anchors(
-                candidate_anchors,
-                mismatch,
-                band.fmin,
-                band.fmax,
-            )
-            if guard_result is not None:
-                side, retained_frequency, trimmed = guard_result
-                if trimmed != candidate_anchors:
-                    detail = mismatch.detail.rstrip(' .')
-                    logger.warning(
-                        f'{detail}, within the {side} spectral guard '
-                        f'outside the requested {band.fmin:g} to {band.fmax:g} Hz '
-                        f'band. All automatic eigenmode ports will retain broadband '
-                        f'tracking from {retained_frequency:g} Hz and use that '
-                        f'endpoint modal profile across the trimmed significant-'
-                        'spectrum tail.'
-                    )
-                    candidate_anchors = trimmed
-                    guard_trimmed = True
-                    continue
+                guard_result = _trim_failed_guard_anchors(
+                    candidates,
+                    mismatch,
+                    band.fmin,
+                    band.fmax,
+                )
+                if guard_result is not None:
+                    side, retained_frequency, trimmed = guard_result
+                    if trimmed != candidates:
+                        detail = mismatch.detail.rstrip(" .")
+                        logger.warning(
+                            f"{detail}, within the {side} spectral guard "
+                            f"outside the requested {band.fmin:g} to "
+                            f"{band.fmax:g} Hz band. Automatic eigenmode port "
+                            f"{port.port_index} will retain broadband tracking "
+                            f"from {retained_frequency:g} Hz and use that "
+                            "endpoint modal profile across the trimmed "
+                            "significant-spectrum tail."
+                        )
+                        candidates = trimmed
+                        guard_trimmed = True
+                        if port in grid.eigenmodesources:
+                            port.spectrum_coverage_policy = "allow"
+                        continue
 
-            fallback = float(failing_port.fallback_frequency)
-            detail = mismatch.detail.rstrip(' .')
-            logger.warning(
-                f'{detail}. All automatic eigenmode ports will therefore '
-                f'use the shared single modal anchor at {fallback:g} Hz. Their '
-                'modal decomposition and S-parameters may be inaccurate toward '
-                'frequencies far from this anchor. Inspect the failed mode for '
-                'cutoff, degeneracy, or an artificial port-boundary mode.'
-            )
-            candidate_anchors = (fallback,)
-            guard_trimmed = False
-            continue
+                fallback = float(port.fallback_frequency)
+                detail = mismatch.detail.rstrip(" .")
+                logger.warning(
+                    f"{detail}. Automatic eigenmode port {port.port_index} will "
+                    f"therefore use the single modal anchor at {fallback:g} Hz. "
+                    "Its modal decomposition and S-parameters may be inaccurate "
+                    "toward frequencies far from this anchor. Inspect the failed "
+                    "mode for cutoff, degeneracy, or an artificial port-boundary "
+                    "mode."
+                )
+                candidates = (fallback,)
+                guard_trimmed = False
+                single_fallback = True
+                continue
 
-        for port in ports:
-            requested = requested_policies[id(port)]
             port.anchor_policy = requested
-            if requested == 'auto':
-                if len(candidate_anchors) == 1:
-                    port.resolved_anchor_policy = 'auto_single_fallback'
+            current_policy = getattr(port, "resolved_anchor_policy", requested)
+            if requested != "auto":
+                port.resolved_anchor_policy = "explicit"
+            elif current_policy in {"auto", "auto_broadband", "explicit"}:
+                if single_fallback:
+                    port.resolved_anchor_policy = "auto_single_fallback"
                 elif guard_trimmed:
-                    port.resolved_anchor_policy = 'auto_broadband_guard_trimmed'
+                    port.resolved_anchor_policy = "auto_broadband_guard_trimmed"
                 else:
-                    port.resolved_anchor_policy = 'auto_broadband'
-            else:
-                port.resolved_anchor_policy = 'explicit'
-        return
+                    port.resolved_anchor_policy = "auto_broadband"
+            break
 
 
 class EigenmodeSource(Source):
@@ -307,12 +270,12 @@ class EigenmodeSource(Source):
         self.mode_indices = ()
         self.frequency = None
         self.frequencies = None
-        self.anchor_policy = 'explicit'
-        self.requested_anchor_policy = 'explicit'
-        self.resolved_anchor_policy = 'explicit'
+        self.anchor_policy = "explicit"
+        self.requested_anchor_policy = "explicit"
+        self.resolved_anchor_policy = "explicit"
         self.fallback_frequency = None
         self.spectral_threshold = 1e-3
-        self.spectrum_coverage_policy = 'error'
+        self.spectrum_coverage_policy = "error"
         self.plane_index = None
         self.complex_eps_r_uu = None
         self.complex_eps_r_vv = None
@@ -332,6 +295,16 @@ class EigenmodeSource(Source):
         self.anchor_modal_h = None
         self.anchor_complex_neff = None
         self.anchor_overlaps = None
+        # Rectangular candidate-anchor bank used by the modal monitor.  The
+        # excitation fields above may be a per-mode subset of this bank.
+        self.port_anchor_frequencies = None
+        self.port_anchor_e = None
+        self.port_anchor_h = None
+        self.port_anchor_neff = None
+        self.port_anchor_mode_valid = None
+        self.port_anchor_mode_propagating = None
+        self.port_mode_anchor_policies = None
+        self.port_mode_solvers = None
         self.broadband_e_envelopes = None
         self.broadband_h_envelopes = None
         self.broadband_modal_e_real = None
@@ -368,23 +341,34 @@ class EigenmodeSource(Source):
             try:
                 self._solve_broadband_eigenmode(G, frequencies)
             except EigenmodeAnchorMismatchError as exc:
-                if self.anchor_policy != 'auto':
+                if self.anchor_policy != "auto":
                     raise
                 self._fallback_to_single_anchor(G, exc)
         else:
             self.frequency = frequencies[0]
             self._extract_frequency_dependent_materials(G)
             self._solve_eigenmode(G)
+            self._require_forward_power(
+                self.mode_solver,
+                self.mode_index,
+                self.frequency,
+                centre=(self.anchor_policy == "auto"),
+            )
+            self._prepare_port_anchor_bank(
+                frequencies,
+                (self.mode_solver,),
+                tuple(self.mode_indices or range(1, self.mode_count + 1)),
+            )
             self._prepare_single_frequency_injection(G)
         self._register_port_monitor(G)
 
     def _fallback_to_single_anchor(self, G, mismatch):
         frequency = float(self.fallback_frequency)
         logger.warning(
-            f'{mismatch} Automatic anchors for eigenmode port {self.port_index} '
-            f'will therefore use a single modal anchor at {frequency:g} Hz. The '
-            'modal field and S-parameters may be inaccurate toward frequencies '
-            'far from this anchor.'
+            f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
+            f"will therefore use a single modal anchor at {frequency:g} Hz. The "
+            "modal field and S-parameters may be inaccurate toward frequencies "
+            "far from this anchor."
         )
         self.frequency = frequency
         self.frequencies = (frequency,)
@@ -395,86 +379,41 @@ class EigenmodeSource(Source):
         self.anchor_overlaps = None
         self._extract_frequency_dependent_materials(G)
         self._solve_eigenmode(G)
+        self._require_forward_power(
+            self.mode_solver,
+            self.mode_index,
+            self.frequency,
+            centre=True,
+        )
+        mode_indices = tuple(self.mode_indices)
+        if not mode_indices and self.mode_count is not None:
+            mode_indices = tuple(range(1, self.mode_count + 1))
+        if not mode_indices and self.mode_index is not None:
+            mode_indices = (self.mode_index,)
+        # Keep monkeypatched/upstream legacy solvers compatible when they do
+        # not expose a solved mode object. Production ports always populate
+        # both the solver and at least one monitored mode here.
+        if self.mode_solver is not None and mode_indices:
+            self._prepare_port_anchor_bank(
+                (frequency,),
+                (self.mode_solver,),
+                mode_indices,
+                forced_policies=tuple("auto_single_fallback" for _ in mode_indices),
+            )
+        self.resolved_anchor_policy = "auto_single_fallback"
         self._prepare_single_frequency_injection(G)
 
     def _register_port_monitor(self, G):
         """Register the automatic modal monitor owned by this source."""
         from gprMax.eigenmode_ports import EigenmodePortMonitor
 
-        frequencies = tuple(self.frequencies or (self.frequency,))
-        solvers = tuple(self.mode_solvers or (self.mode_solver,))
         mode_indices = tuple(self.mode_indices or range(1, self.mode_count + 1))
-        anchor_e = []
-        anchor_h = []
-        anchor_neff = []
-        for solver in solvers:
-            frequency_e = []
-            frequency_h = []
-            frequency_neff = []
-            for mode_index in mode_indices:
-                electric, magnetic, neff = self._fields_from_solver_mode(solver, mode_index)
-                frequency_e.append(electric)
-                frequency_h.append(magnetic)
-                frequency_neff.append(neff)
-            anchor_e.append(frequency_e)
-            anchor_h.append(frequency_h)
-            anchor_neff.append(frequency_neff)
-
-        if len(frequencies) > 1 and self.anchor_policy == 'auto':
-            for mode_position, mode_index in enumerate(mode_indices):
-                for frequency_index in range(1, len(frequencies)):
-                    overlap = self._modal_overlap(
-                        anchor_e[frequency_index - 1][mode_position],
-                        anchor_h[frequency_index - 1][mode_position],
-                        anchor_e[frequency_index][mode_position],
-                        anchor_h[frequency_index][mode_position],
-                    )
-                    magnitude = float(abs(overlap))
-                    if (
-                        not np.isfinite(magnitude)
-                        or magnitude < self.ANCHOR_OVERLAP_ERROR_THRESHOLD
-                    ):
-                        frequency = float(self.fallback_frequency)
-                        logger.warning(
-                            f'Automatic anchor tracking failed for eigenmode port '
-                            f'{self.port_index}, mode {mode_index}, between '
-                            f'{frequencies[frequency_index - 1]:g} and '
-                            f'{frequencies[frequency_index]:g} Hz with overlap '
-                            f'{magnitude:.6f}. This may indicate a mode crossing or '
-                            f'degeneracy. The port will use a single modal anchor at '
-                            f'{frequency:g} Hz. Its modal decomposition and '
-                            'S-parameters may be inaccurate toward frequencies far '
-                            'from this anchor.'
-                        )
-                        self.frequency = frequency
-                        self.frequencies = (frequency,)
-                        self.mode_solvers = None
-                        return self.grid_init(G)
-
-        for mode_position, mode_index in enumerate(mode_indices):
-            for frequency_index in range(1, len(frequencies)):
-                overlap = self._modal_overlap(
-                    anchor_e[frequency_index - 1][mode_position],
-                    anchor_h[frequency_index - 1][mode_position],
-                    anchor_e[frequency_index][mode_position],
-                    anchor_h[frequency_index][mode_position],
-                )
-                magnitude = float(abs(overlap))
-                self._check_anchor_overlap(
-                    magnitude,
-                    frequencies[frequency_index - 1],
-                    frequencies[frequency_index],
-                    mode_index,
-                    "Broadband eigenmode source monitor",
-                )
-                if np.isfinite(magnitude) and magnitude > 1e-300:
-                    factor = np.exp(-1j * np.angle(overlap))
-                    anchor_e[frequency_index][mode_position] = [
-                        field * factor for field in anchor_e[frequency_index][mode_position]
-                    ]
-                    anchor_h[frequency_index][mode_position] = [
-                        field * factor for field in anchor_h[frequency_index][mode_position]
-                    ]
+        if self.port_anchor_frequencies is None:
+            self._prepare_port_anchor_bank(
+                tuple(self.frequencies or (self.frequency,)),
+                tuple(self.mode_solvers or (self.mode_solver,)),
+                mode_indices,
+            )
 
         monitor = EigenmodePortMonitor(
             owner=self,
@@ -483,13 +422,16 @@ class EigenmodeSource(Source):
             is_source=True,
             excitation_mode_index=self.mode_index,
             mode_indices=mode_indices,
-            anchor_frequencies=frequencies,
-            anchor_e=anchor_e,
-            anchor_h=anchor_h,
-            anchor_neff=np.asarray(anchor_neff, dtype=np.complex128),
+            anchor_frequencies=self.port_anchor_frequencies,
+            anchor_e=self.port_anchor_e,
+            anchor_h=self.port_anchor_h,
+            anchor_neff=self.port_anchor_neff,
             dft_start=self.dft_start,
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
+            anchor_mode_valid=self.port_anchor_mode_valid,
+            anchor_mode_propagating=self.port_anchor_mode_propagating,
+            mode_anchor_policies=self.port_mode_anchor_policies,
         )
         monitor.prepare(G)
         self.port_monitor = monitor
@@ -500,8 +442,12 @@ class EigenmodeSource(Source):
     def _store_real_modal_fields(self):
         """Store contiguous real modal arrays in the configured CPU precision."""
         dtype = config.sim_config.dtypes["float_or_double"]
-        self.modal_e_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e]
-        self.modal_h_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h
+        ]
 
     def _align_tangential_mode_for_real_injection(self):
         """Optimally phase-align injected fields and return their imaginary residual.
@@ -563,8 +509,12 @@ class EigenmodeSource(Source):
             return
 
         self.uses_quadrature = True
-        self.anchor_modal_e = [[np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]]
-        self.anchor_modal_h = [[np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]]
+        self.anchor_modal_e = [
+            [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e]
+        ]
+        self.anchor_modal_h = [
+            [np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h]
+        ]
         self.anchor_complex_neff = np.asarray([complex(self.complex_neff)], dtype=np.complex128)
         self.anchor_overlaps = np.empty(0, dtype=np.float64)
         self.mode_solvers = [self.mode_solver]
@@ -592,49 +542,437 @@ class EigenmodeSource(Source):
             self.complex_mu_r_ww,
         ) = self._extract_local_complex_property_tensors(G, electric=False)
 
-    def _solve_broadband_eigenmode(self, G, frequencies):
-        """Solve, align, validate, and synthesize a multi-frequency mode."""
+    def _automatic_anchor_policy(self):
+        """Return whether this port was configured for automatic anchors."""
+
+        return self.requested_anchor_policy == "auto" or self.anchor_policy in {
+            "auto",
+            "coordinated_auto",
+        }
+
+    @staticmethod
+    def _solver_mode_power_valid(solver, mode_index):
+        """Return the solver's scale-independent forward-power decision.
+
+        Solvers supplied by older downstream integrations do not expose the
+        new diagnostic arrays, so retain their historical behaviour rather
+        than failing on a missing optional attribute.
+        """
+
+        values = getattr(solver, "power_valid", None)
+        if values is None:
+            return True
+        position = int(mode_index) - 1
+        return bool(np.asarray(values, dtype=bool)[position])
+
+    @staticmethod
+    def _solver_mode_power_diagnostics(solver, mode_index):
+        position = int(mode_index) - 1
+
+        def value(name, default):
+            values = getattr(solver, name, None)
+            if values is None:
+                return default
+            return np.asarray(values)[position]
+
+        neff = value("complex_neff", complex(np.nan, np.nan))
+        raw_power = value("raw_powers", complex(np.nan, np.nan))
+        metric = value("forward_power_metrics", float("nan"))
+        return complex(neff), complex(raw_power), float(metric)
+
+    def _require_forward_power(self, solver, mode_index, frequency, *, centre=False):
+        if self._solver_mode_power_valid(solver, mode_index):
+            return
+        neff, raw_power, metric = self._solver_mode_power_diagnostics(
+            solver,
+            mode_index,
+        )
+        anchor = "centre-frequency anchor" if centre else "anchor"
+        raise ValueError(
+            f"Eigenmode port {self.port_index} mode {mode_index} {anchor} at "
+            f"{float(frequency):g} Hz is non-propagating: neff={neff!s}, "
+            f"raw complex power={raw_power!s}, and signed forward-power "
+            f"metric={metric:g}."
+        )
+
+    def _centre_anchor_index(self, frequencies):
+        frequency = (
+            float(self.fallback_frequency)
+            if self.fallback_frequency is not None
+            else 0.5 * (float(self.dft_start) + float(self.dft_stop))
+        )
+        frequencies = np.asarray(frequencies, dtype=np.float64)
+        tolerance = 1e-12 * max(abs(frequency), 1.0)
+        matches = np.flatnonzero(np.abs(frequencies - frequency) <= tolerance)
+        if matches.size != 1:
+            raise ValueError(
+                f"Automatic eigenmode port {self.port_index} requires its "
+                f"centre-frequency anchor at {frequency:g} Hz among the solved "
+                "candidate anchors."
+            )
+        return int(matches[0])
+
+    @staticmethod
+    def _anchor_policy_name(*, automatic, guard_trimmed, nonpropagating_trimmed, fallback):
+        if fallback:
+            return "auto_single_fallback"
+        policy = "auto_broadband" if automatic else "explicit"
+        if guard_trimmed:
+            policy += "_guard_trimmed"
+        if nonpropagating_trimmed:
+            policy += "_nonpropagating_trimmed"
+        return policy
+
+    def _prepare_port_anchor_bank(
+        self,
+        frequencies,
+        solvers,
+        mode_indices,
+        *,
+        forced_policies=None,
+    ):
+        """Build one rectangular field bank and resolve anchors per mode."""
+
+        frequencies = tuple(float(value) for value in frequencies)
+        solvers = tuple(solvers)
+        mode_indices = tuple(int(value) for value in mode_indices)
         anchor_e = []
         anchor_h = []
         anchor_neff = []
+        propagating = np.empty((len(frequencies), len(mode_indices)), dtype=bool)
+        for frequency_position, solver in enumerate(solvers):
+            frequency_e = []
+            frequency_h = []
+            frequency_neff = []
+            for mode_position, mode_index in enumerate(mode_indices):
+                electric, magnetic, neff = self._fields_from_solver_mode(
+                    solver,
+                    mode_index,
+                )
+                frequency_e.append(
+                    [np.array(field, dtype=np.complex128, copy=True) for field in electric]
+                )
+                frequency_h.append(
+                    [np.array(field, dtype=np.complex128, copy=True) for field in magnetic]
+                )
+                frequency_neff.append(complex(neff))
+                propagating[frequency_position, mode_position] = self._solver_mode_power_valid(
+                    solver, mode_index
+                )
+            anchor_e.append(frequency_e)
+            anchor_h.append(frequency_h)
+            anchor_neff.append(frequency_neff)
+
+        valid, policies, overlaps = self._resolve_mode_anchor_masks(
+            frequencies,
+            solvers,
+            mode_indices,
+            anchor_e,
+            anchor_h,
+            propagating,
+        )
+        if forced_policies is not None:
+            policies = tuple(str(value) for value in forced_policies)
+
+        self.port_anchor_frequencies = frequencies
+        self.port_anchor_e = anchor_e
+        self.port_anchor_h = anchor_h
+        self.port_anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        self.port_anchor_mode_valid = valid
+        self.port_anchor_mode_propagating = propagating
+        self.port_mode_anchor_policies = policies
+        self.port_mode_solvers = solvers
+        self.anchor_overlaps = overlaps
+
+        if len(set(policies)) == 1:
+            self.resolved_anchor_policy = policies[0]
+        elif self.mode_index in mode_indices and not isinstance(self, EigenmodeReceiver):
+            self.resolved_anchor_policy = policies[mode_indices.index(self.mode_index)]
+        else:
+            self.resolved_anchor_policy = (
+                "auto_mixed_mode_policies"
+                if self._automatic_anchor_policy()
+                else "explicit_mixed_mode_policies"
+            )
+        return valid, policies
+
+    def _resolve_mode_anchor_masks(
+        self,
+        frequencies,
+        solvers,
+        mode_indices,
+        anchor_e,
+        anchor_h,
+        propagating,
+    ):
+        """Track raw modes first, then retain only forward-power anchors."""
+
+        automatic = self._automatic_anchor_policy()
+        anchor_count = len(frequencies)
+        valid = np.zeros_like(propagating, dtype=bool)
+        overlaps = np.full(
+            (max(anchor_count - 1, 0), len(mode_indices)),
+            np.nan,
+            dtype=np.float64,
+        )
+        policies = []
+        band_low = float(self.dft_start) if self.dft_start is not None else -np.inf
+        band_high = float(self.dft_stop) if self.dft_stop is not None else np.inf
+
+        for mode_position, mode_index in enumerate(mode_indices):
+            retained = list(range(anchor_count))
+            guard_trimmed = False
+            fallback = False
+            while len(retained) > 1:
+                mismatch = None
+                for pair_position in range(1, len(retained)):
+                    first = retained[pair_position - 1]
+                    second = retained[pair_position]
+                    overlap = self._modal_overlap(
+                        anchor_e[first][mode_position],
+                        anchor_h[first][mode_position],
+                        anchor_e[second][mode_position],
+                        anchor_h[second][mode_position],
+                    )
+                    magnitude = float(abs(overlap))
+                    try:
+                        self._check_anchor_overlap(
+                            magnitude,
+                            frequencies[first],
+                            frequencies[second],
+                            mode_index,
+                            f"Eigenmode port {self.port_index}",
+                        )
+                    except EigenmodeAnchorMismatchError as exc:
+                        mismatch = exc
+                        break
+                if mismatch is None:
+                    break
+                if not automatic:
+                    raise mismatch
+
+                guard = _trim_failed_guard_anchors(
+                    tuple(frequencies[index] for index in retained),
+                    mismatch,
+                    band_low,
+                    band_high,
+                )
+                if guard is not None:
+                    side, endpoint, trimmed_frequencies = guard
+                    tolerance = 1e-12 * max(
+                        max((abs(value) for value in frequencies), default=1.0),
+                        1.0,
+                    )
+                    trimmed = [
+                        index
+                        for index in retained
+                        if any(
+                            abs(frequencies[index] - value) <= tolerance
+                            for value in trimmed_frequencies
+                        )
+                    ]
+                    if trimmed != retained:
+                        detail = mismatch.detail.rstrip(" .")
+                        logger.warning(
+                            f"{detail}, within the {side} spectral guard outside "
+                            f"the requested {band_low:g} to {band_high:g} Hz "
+                            f"band. Automatic eigenmode port {self.port_index} "
+                            f"mode {mode_index} will retain broadband tracking "
+                            f"from {endpoint:g} Hz and use that endpoint modal "
+                            "profile across the trimmed significant-spectrum tail."
+                        )
+                        retained = trimmed
+                        guard_trimmed = True
+                        continue
+
+                centre = self._centre_anchor_index(frequencies)
+                self._require_forward_power(
+                    solvers[centre],
+                    mode_index,
+                    frequencies[centre],
+                    centre=True,
+                )
+                detail = mismatch.detail.rstrip(" .")
+                logger.warning(
+                    f"{detail}. Automatic eigenmode port {self.port_index} mode "
+                    f"{mode_index} will therefore use only the centre-frequency "
+                    f"anchor at {frequencies[centre]:g} Hz. Its modal "
+                    "decomposition and S-parameters may be inaccurate toward "
+                    "frequencies far from this anchor."
+                )
+                retained = [centre]
+                fallback = True
+                break
+
+            # Phase is transported through every successfully tracked raw mode,
+            # including an evanescent anchor, before physical filtering.
+            for pair_position in range(1, len(retained)):
+                first = retained[pair_position - 1]
+                second = retained[pair_position]
+                overlap = self._modal_overlap(
+                    anchor_e[first][mode_position],
+                    anchor_h[first][mode_position],
+                    anchor_e[second][mode_position],
+                    anchor_h[second][mode_position],
+                )
+                magnitude = float(abs(overlap))
+                if second == first + 1 and first < overlaps.shape[0]:
+                    overlaps[first, mode_position] = magnitude
+                if np.isfinite(magnitude) and magnitude > 1e-300:
+                    factor = np.exp(-1j * np.angle(overlap))
+                    anchor_e[second][mode_position] = [
+                        field * factor for field in anchor_e[second][mode_position]
+                    ]
+                    anchor_h[second][mode_position] = [
+                        field * factor for field in anchor_h[second][mode_position]
+                    ]
+
+            usable = [index for index in retained if propagating[index, mode_position]]
+            rejected = [index for index in retained if not propagating[index, mode_position]]
+            nonpropagating_trimmed = bool(rejected)
+            if rejected:
+                details = []
+                for index in rejected:
+                    neff, raw_power, metric = self._solver_mode_power_diagnostics(
+                        solvers[index],
+                        mode_index,
+                    )
+                    details.append(
+                        f"{frequencies[index]:g} Hz (neff={neff!s}, "
+                        f"raw power={raw_power!s}, metric={metric:g})"
+                    )
+                logger.warning(
+                    f"Eigenmode port {self.port_index} mode {mode_index} has "
+                    "non-propagating anchor(s) that carry no forward real power: "
+                    + "; ".join(details)
+                    + ". They will be excluded from modal interpolation and the "
+                    "corresponding non-propagating power-wave bins will be marked invalid."
+                )
+
+            if not usable:
+                if automatic:
+                    centre = self._centre_anchor_index(frequencies)
+                    self._require_forward_power(
+                        solvers[centre],
+                        mode_index,
+                        frequencies[centre],
+                        centre=True,
+                    )
+                raise ValueError(
+                    f"Eigenmode port {self.port_index} mode {mode_index} has no "
+                    "propagating anchor with forward real power."
+                )
+
+            if len(usable) > 1 and np.any(np.diff(usable) > 1):
+                if not automatic:
+                    raise ValueError(
+                        f"Eigenmode port {self.port_index} mode {mode_index} has "
+                        "disconnected propagating anchor ranges. Use separate "
+                        "bands or a single explicit anchor; interpolation across "
+                        "a non-propagating gap is not valid."
+                    )
+                centre = self._centre_anchor_index(frequencies)
+                self._require_forward_power(
+                    solvers[centre],
+                    mode_index,
+                    frequencies[centre],
+                    centre=True,
+                )
+                logger.warning(
+                    f"Eigenmode port {self.port_index} mode {mode_index} has "
+                    "disconnected propagating anchor ranges. It will use only "
+                    f"the centre-frequency anchor at {frequencies[centre]:g} Hz "
+                    "instead of interpolating across a non-propagating gap."
+                )
+                usable = [centre]
+                fallback = True
+
+            valid[usable, mode_position] = True
+            policies.append(
+                self._anchor_policy_name(
+                    automatic=automatic,
+                    guard_trimmed=guard_trimmed,
+                    nonpropagating_trimmed=nonpropagating_trimmed,
+                    fallback=fallback,
+                )
+            )
+
+        return valid, tuple(policies), overlaps
+
+    def _solve_broadband_eigenmode(self, G, frequencies):
+        """Solve candidate anchors, resolve each mode, and synthesize the source."""
         solvers = []
 
         for frequency in frequencies:
             self.frequency = frequency
             self._extract_frequency_dependent_materials(G)
             self._solve_eigenmode(G)
-            anchor_e.append([np.array(field, dtype=np.complex128, copy=True) for field in self.modal_e])
-            anchor_h.append([np.array(field, dtype=np.complex128, copy=True) for field in self.modal_h])
-            anchor_neff.append(complex(self.complex_neff))
             solvers.append(self.mode_solver)
 
-        self._validate_solver_mode_tracking(solvers, frequencies)
-        overlaps = self._align_and_validate_anchors(anchor_e, anchor_h, frequencies)
-        self.anchor_modal_e = anchor_e
-        self.anchor_modal_h = anchor_h
-        self.anchor_complex_neff = np.asarray(anchor_neff, dtype=np.complex128)
-        self.anchor_overlaps = np.asarray(overlaps, dtype=np.float64)
-        self.mode_solvers = solvers
-        self._prepare_broadband_time_traces(G, frequencies)
+        mode_indices = tuple(self.mode_indices or range(1, self.mode_count + 1))
+        valid, policies = self._prepare_port_anchor_bank(
+            frequencies,
+            solvers,
+            mode_indices,
+        )
+        excitation_position = mode_indices.index(self.mode_index)
+        used = np.flatnonzero(valid[:, excitation_position])
+        excitation_frequencies = tuple(float(frequencies[index]) for index in used)
+        self.frequencies = excitation_frequencies
+        self.anchor_modal_e = [self.port_anchor_e[index][excitation_position] for index in used]
+        self.anchor_modal_h = [self.port_anchor_h[index][excitation_position] for index in used]
+        self.anchor_complex_neff = np.asarray(
+            [self.port_anchor_neff[index, excitation_position] for index in used],
+            dtype=np.complex128,
+        )
+        self.mode_solvers = [solvers[index] for index in used]
+        excitation_policy = policies[excitation_position]
+        if "nonpropagating_trimmed" in excitation_policy or (
+            self._automatic_anchor_policy()
+            and (
+                "guard_trimmed" in excitation_policy or excitation_policy == "auto_single_fallback"
+            )
+        ):
+            # The physical filtering warning supersedes the generic spectrum
+            # coverage error; endpoint extrapolation keeps the time trace finite.
+            self.spectrum_coverage_policy = "allow"
+
+        if excitation_policy == "auto_single_fallback":
+            self.frequency = excitation_frequencies[0]
+            self.modal_e = self.anchor_modal_e[0]
+            self.modal_h = self.anchor_modal_h[0]
+            self.mode_solver = self.mode_solvers[0]
+            self.complex_neff = self.anchor_complex_neff[0]
+            self.neff = float(np.real(self.complex_neff))
+            self._prepare_single_frequency_injection(G)
+            return
+        else:
+            self._prepare_broadband_time_traces(G, excitation_frequencies)
 
         # Keep representative modal data available to diagnostics and callers.
         representative = (
-            len(frequencies) // 2
+            len(excitation_frequencies) // 2
             if self.representative_frequency is None
             else min(
-                range(len(frequencies)),
-                key=lambda index: abs(frequencies[index] - self.representative_frequency),
+                range(len(excitation_frequencies)),
+                key=lambda index: abs(
+                    excitation_frequencies[index] - self.representative_frequency
+                ),
             )
         )
-        self.frequency = frequencies[representative]
+        self.frequency = excitation_frequencies[representative]
         self.modal_e = self.anchor_modal_e[representative]
         self.modal_h = self.anchor_modal_h[representative]
         self.mode_solver = self.mode_solvers[representative]
         self.complex_neff = self.anchor_complex_neff[representative]
         self.neff = float(np.real(self.complex_neff))
         dtype = config.sim_config.dtypes["float_or_double"]
-        self.modal_e_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e]
-        self.modal_h_real = [np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h]
+        self.modal_e_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_e
+        ]
+        self.modal_h_real = [
+            np.ascontiguousarray(np.real(field), dtype=dtype) for field in self.modal_h
+        ]
 
     def _validate_solver_mode_tracking(self, solvers, frequencies):
         mode_indices = tuple(self.mode_indices or (self.mode_index,))
@@ -650,7 +988,7 @@ class EigenmodeSource(Source):
                         frequencies[frequency_index - 1],
                         frequencies[frequency_index],
                         mode_index,
-                        f'Eigenmode port {self.port_index}',
+                        f"Eigenmode port {self.port_index}",
                     )
                 previous_e = electric
                 previous_h = magnetic
@@ -685,7 +1023,9 @@ class EigenmodeSource(Source):
         solver.solve()
 
         self.mode_solver = solver
-        self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(solver, self.mode_index)
+        self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(
+            solver, self.mode_index
+        )
         self.neff = float(np.real(self.complex_neff))
         self._validate_modal_field_shapes()
         self._store_real_modal_fields()
@@ -703,7 +1043,9 @@ class EigenmodeSource(Source):
         solver.solve()
 
         self.mode_solver = solver
-        self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(solver, self.mode_index)
+        self.modal_e, self.modal_h, self.complex_neff = self._fields_from_solver_mode(
+            solver, self.mode_index
+        )
         self.neff = float(np.real(self.complex_neff))
 
         self._validate_modal_field_shapes()
@@ -713,15 +1055,23 @@ class EigenmodeSource(Source):
         """Map one solved, one-based mode onto global Yee components."""
         mode = public_mode_index - 1
         if mode < 0 or mode >= solver.num_modes:
-            raise ValueError(f"Mode index {public_mode_index} is outside the solved 1-{solver.num_modes} range.")
+            raise ValueError(
+                f"Mode index {public_mode_index} is outside the solved 1-{solver.num_modes} range."
+            )
         if isinstance(solver, FDFD_2D_mode_solver):
             local_e = (solver.Eu[:, :, mode], solver.Ev[:, :, mode], solver.Ew[:, :, mode])
             local_h = (solver.Hu[:, :, mode], solver.Hv[:, :, mode], solver.Hw[:, :, mode])
         else:
             t_local = self.transverse_axes.index(self.physical_transverse_axis)
             a_local = self.transverse_axes.index(self.invariant_axis)
-            local_e = [np.zeros(shape, dtype=np.complex128) for shape in self._expected_local_field_shapes("E")]
-            local_h = [np.zeros(shape, dtype=np.complex128) for shape in self._expected_local_field_shapes("H")]
+            local_e = [
+                np.zeros(shape, dtype=np.complex128)
+                for shape in self._expected_local_field_shapes("E")
+            ]
+            local_h = [
+                np.zeros(shape, dtype=np.complex128)
+                for shape in self._expected_local_field_shapes("H")
+            ]
             if self.domain_polarization == "TM":
                 local_e[a_local] = self._embed_1d_profile(solver.Ea[:, mode], a_local, "E")
                 local_h[t_local] = self._embed_1d_profile(solver.Ht[:, mode], t_local, "H")
@@ -737,7 +1087,11 @@ class EigenmodeSource(Source):
         for local_axis, global_axis in enumerate(local_to_global):
             electric[global_axis] = np.array(local_e[local_axis], dtype=np.complex128, copy=True)
             magnetic[global_axis] = np.array(local_h[local_axis], dtype=np.complex128, copy=True)
-        if self._modal_basis_handedness() < 0:
+        if isinstance(solver, FDFD_1D_mode_solver):
+            handedness = self._one_dimensional_mapping_handedness()
+        else:
+            handedness = self._modal_basis_handedness()
+        if handedness < 0:
             magnetic = [-field for field in magnetic]
         return electric, magnetic, complex(solver.complex_neff[mode])
 
@@ -824,6 +1178,13 @@ class EigenmodeSource(Source):
         normal = basis[self.normal_axis]
         return int(np.dot(np.cross(transverse_u, transverse_v), normal))
 
+    def _one_dimensional_mapping_handedness(self):
+        basis = np.eye(3, dtype=np.int32)
+        transverse = basis[self.physical_transverse_axis]
+        invariant = basis[self.invariant_axis]
+        normal = basis[self.normal_axis]
+        return int(np.dot(np.cross(transverse, invariant), normal))
+
     def _modal_overlap(self, first_e, first_h, second_e, second_h):
         """Return the normalized complex overlap of two modal field sets."""
         numerator = 0.0j
@@ -907,7 +1268,11 @@ class EigenmodeSource(Source):
             logger.info(
                 f"Eigenmode anchor overlap {magnitude:.6f} between "
                 f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
-                + ("the latter anchor was phase-aligned." if phase_aligned else "its phase was left unchanged.")
+                + (
+                    "the latter anchor was phase-aligned."
+                    if phase_aligned
+                    else "its phase was left unchanged."
+                )
             )
         return overlaps
 
@@ -970,7 +1335,12 @@ class EigenmodeSource(Source):
         )
         if self.domain_polarization == "TM":
             flux_sign *= -1
-        return 0.5 * flux_sign * np.sum(electric_profile * np.conj(magnetic_profile)) * G.dl[transverse_axis]
+        return (
+            0.5
+            * flux_sign
+            * np.sum(electric_profile * np.conj(magnetic_profile))
+            * G.dl[transverse_axis]
+        )
 
     @staticmethod
     def _linear_anchor_weights(bin_frequencies, anchor_frequencies):
@@ -986,7 +1356,9 @@ class EigenmodeSource(Source):
         weights = np.zeros((anchor_frequencies.size, bin_frequencies.size), dtype=np.float64)
         weights[0, bin_frequencies < anchor_frequencies[0]] = 1.0
         weights[-1, bin_frequencies > anchor_frequencies[-1]] = 1.0
-        inside = (bin_frequencies >= anchor_frequencies[0]) & (bin_frequencies <= anchor_frequencies[-1])
+        inside = (bin_frequencies >= anchor_frequencies[0]) & (
+            bin_frequencies <= anchor_frequencies[-1]
+        )
         for bin_index in np.flatnonzero(inside):
             frequency = bin_frequencies[bin_index]
             if frequency == anchor_frequencies[-1]:
@@ -1065,17 +1437,17 @@ class EigenmodeSource(Source):
             and significant_indices.size
             and (significant_low < frequencies[0] or significant_high > frequencies[-1])
         ):
-            if self.spectrum_coverage_policy == 'error':
+            if self.spectrum_coverage_policy == "error":
                 raise ValueError(
-                    'Eigenmode anchors do not cover the significant excitation '
-                    f'spectrum: anchors span {frequencies[0]:g} to '
-                    f'{frequencies[-1]:g} Hz, while significant bins span '
-                    f'{significant_low:g} to {significant_high:g} Hz. Use '
-                    'per-port anchors=\'auto\', provide wider explicit anchors, or '
-                    'use EigenmodeExcitation with waveform=\'auto\' for a validated '
-                    'bandpass spectrum.'
+                    "Eigenmode anchors do not cover the significant excitation "
+                    f"spectrum: anchors span {frequencies[0]:g} to "
+                    f"{frequencies[-1]:g} Hz, while significant bins span "
+                    f"{significant_low:g} to {significant_high:g} Hz. Use "
+                    "per-port anchors='auto', provide wider explicit anchors, or "
+                    "use EigenmodeExcitation with waveform='auto' for a validated "
+                    "bandpass spectrum."
                 )
-            if self.spectrum_coverage_policy == 'warn':
+            if self.spectrum_coverage_policy == "warn":
                 logger.warning(
                     "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
                     f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
@@ -1110,7 +1482,13 @@ class EigenmodeSource(Source):
             usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
             weights[:, usable] /= partition[usable]
             for bin_index in np.flatnonzero(~usable):
-                nearest = int(np.argmin(np.abs(np.asarray(frequencies, dtype=np.float64) - bin_frequencies[bin_index])))
+                nearest = int(
+                    np.argmin(
+                        np.abs(
+                            np.asarray(frequencies, dtype=np.float64) - bin_frequencies[bin_index]
+                        )
+                    )
+                )
                 weights[:, bin_index] = 0.0
                 weights[nearest, bin_index] = 1.0
             partition = np.sum(weights, axis=0)
@@ -1123,9 +1501,13 @@ class EigenmodeSource(Source):
                     self.anchor_modal_h[h_index],
                     G,
                 )
-        interpolated_power = np.real(np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True))
+        interpolated_power = np.real(
+            np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
+        )
         active_bins = np.sum(weights, axis=0) > 0
-        invalid_power = active_bins & (~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12))
+        invalid_power = active_bins & (
+            ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
+        )
         if np.any(invalid_power):
             invalid_indices = np.flatnonzero(invalid_power)
             bad_frequency = float(bin_frequencies[invalid_indices[0]])
@@ -1136,7 +1518,11 @@ class EigenmodeSource(Source):
                 "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
                 f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
             )
-            finite_nonzero = invalid_power & np.isfinite(interpolated_power) & (np.abs(interpolated_power) > 1e-12)
+            finite_nonzero = (
+                invalid_power
+                & np.isfinite(interpolated_power)
+                & (np.abs(interpolated_power) > 1e-12)
+            )
             interpolated_power[finite_nonzero] = np.abs(interpolated_power[finite_nonzero])
             unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
             if unresolved.size:
@@ -1185,25 +1571,29 @@ class EigenmodeSource(Source):
         self.broadband_e_envelopes = np.empty((anchor_count, 2, sample_count), dtype=dtype)
         self.broadband_h_envelopes = np.empty((anchor_count, 2, sample_count), dtype=dtype)
         for anchor in range(anchor_count):
-            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(electric_weights[anchor], n=padded_count)[
-                :sample_count
-            ]
-            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(1j * electric_weights[anchor], n=padded_count)[
-                :sample_count
-            ]
-            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(magnetic_weights[anchor], n=padded_count)[
-                :sample_count
-            ]
-            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(1j * magnetic_weights[anchor], n=padded_count)[
-                :sample_count
-            ]
+            self.broadband_e_envelopes[anchor, 0] = np.fft.irfft(
+                electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_e_envelopes[anchor, 1] = np.fft.irfft(
+                1j * electric_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 0] = np.fft.irfft(
+                magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
+            self.broadband_h_envelopes[anchor, 1] = np.fft.irfft(
+                1j * magnetic_weights[anchor], n=padded_count
+            )[:sample_count]
 
         def split_fields(anchor_fields):
             real_fields = []
             imag_fields = []
             for fields in anchor_fields:
-                real_fields.append([np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields])
-                imag_fields.append([np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields])
+                real_fields.append(
+                    [np.ascontiguousarray(np.real(field), dtype=dtype) for field in fields]
+                )
+                imag_fields.append(
+                    [np.ascontiguousarray(np.imag(field), dtype=dtype) for field in fields]
+                )
             return real_fields, imag_fields
 
         (
@@ -1232,7 +1622,11 @@ class EigenmodeSource(Source):
 
     def _should_plot_eigenmode_fields(self):
         """Return the explicit setting or the geometry-only default."""
-        return bool(config.sim_config.geometry_only) if self.plot_fields is None else bool(self.plot_fields)
+        return (
+            bool(config.sim_config.geometry_only)
+            if self.plot_fields is None
+            else bool(self.plot_fields)
+        )
 
     def _should_plot_eigenmode_excitation(self):
         """Return the excitation-plot setting or the geometry-only default."""
@@ -1246,11 +1640,13 @@ class EigenmodeSource(Source):
 
         input_path = config.sim_config.input_file_path
         output_dir = input_path.parent
-        frequencies = tuple(self.frequencies or (self.frequency,))
-        solvers = tuple(self.mode_solvers or (self.mode_solver,))
+        frequencies = tuple(self.port_anchor_frequencies or self.frequencies or (self.frequency,))
+        solvers = tuple(self.port_mode_solvers or self.mode_solvers or (self.mode_solver,))
         mode_indices = tuple(self.mode_indices or range(1, self.mode_count + 1))
         for mode_index in mode_indices:
-            field_path = output_dir / f"{input_path.stem}_Port{self.port_index}_Mode{mode_index}.png"
+            field_path = (
+                output_dir / f"{input_path.stem}_Port{self.port_index}_Mode{mode_index}.png"
+            )
             plot_eigenmode_port_fields(
                 solvers=solvers,
                 frequencies=frequencies,
@@ -1314,7 +1710,9 @@ class EigenmodeSource(Source):
         materials_by_id = {material.numID: material for material in G.materials}
         for material_id in used_ids:
             material = materials_by_id[int(material_id)]
-            material_values[material_id] = self._complex_er(material) if electric else self._complex_mur(material)
+            material_values[material_id] = (
+                self._complex_er(material) if electric else self._complex_mur(material)
+            )
 
         return tuple(material_values[ids].copy() for ids in component_ids)
 
@@ -1411,7 +1809,9 @@ class EigenmodeSource(Source):
         u0, v0 = self.transverse_start
         u1, v1 = self.transverse_stop
         normal_indices = [
-            index for index in (self.plane_index - 1, self.plane_index) if 0 <= index < G.solid.shape[self.normal_axis]
+            index
+            for index in (self.plane_index - 1, self.plane_index)
+            if 0 <= index < G.solid.shape[self.normal_axis]
         ]
         if not normal_indices:
             return np.zeros((u1 - u0, v1 - v0), dtype=bool)
@@ -1760,83 +2160,16 @@ class EigenmodeReceiver(EigenmodeSource):
         if not mode_indices:
             raise ValueError("An eigenmode receiver requires at least one mode index.")
         self.mode_index = max(mode_indices)
-        anchor_e = []
-        anchor_h = []
-        anchor_neff = []
         solvers = []
 
         for frequency in frequencies:
             self.frequency = frequency
             self._extract_frequency_dependent_materials(G)
             self._solve_eigenmode(G)
-            frequency_e = []
-            frequency_h = []
-            frequency_neff = []
-            for mode_index in mode_indices:
-                electric, magnetic, neff = self._fields_from_solver_mode(self.mode_solver, mode_index)
-                frequency_e.append(electric)
-                frequency_h.append(magnetic)
-                frequency_neff.append(neff)
-            anchor_e.append(frequency_e)
-            anchor_h.append(frequency_h)
-            anchor_neff.append(frequency_neff)
             solvers.append(self.mode_solver)
 
-        if len(frequencies) > 1 and self.anchor_policy == 'auto':
-            for mode_position, mode_index in enumerate(mode_indices):
-                for frequency_index in range(1, len(frequencies)):
-                    overlap = self._modal_overlap(
-                        anchor_e[frequency_index - 1][mode_position],
-                        anchor_h[frequency_index - 1][mode_position],
-                        anchor_e[frequency_index][mode_position],
-                        anchor_h[frequency_index][mode_position],
-                    )
-                    magnitude = float(abs(overlap))
-                    if (
-                        not np.isfinite(magnitude)
-                        or magnitude < self.ANCHOR_OVERLAP_ERROR_THRESHOLD
-                    ):
-                        frequency = float(self.fallback_frequency)
-                        logger.warning(
-                            f'Automatic anchor tracking failed for eigenmode port '
-                            f'{self.port_index}, mode {mode_index}, between '
-                            f'{frequencies[frequency_index - 1]:g} and '
-                            f'{frequencies[frequency_index]:g} Hz with overlap '
-                            f'{magnitude:.6f}. This may indicate a mode crossing or '
-                            f'degeneracy. The port will use a single modal anchor at '
-                            f'{frequency:g} Hz. Its modal decomposition and '
-                            'S-parameters may be inaccurate toward frequencies far '
-                            'from this anchor.'
-                        )
-                        self.frequency = frequency
-                        self.frequencies = (frequency,)
-                        self.mode_solvers = None
-                        return self.grid_init(G)
-
-        for mode_position, mode_index in enumerate(mode_indices):
-            for frequency_index in range(1, len(frequencies)):
-                overlap = self._modal_overlap(
-                    anchor_e[frequency_index - 1][mode_position],
-                    anchor_h[frequency_index - 1][mode_position],
-                    anchor_e[frequency_index][mode_position],
-                    anchor_h[frequency_index][mode_position],
-                )
-                magnitude = float(abs(overlap))
-                self._check_anchor_overlap(
-                    magnitude,
-                    frequencies[frequency_index - 1],
-                    frequencies[frequency_index],
-                    mode_index,
-                    "Broadband eigenmode receiver",
-                )
-                if np.isfinite(magnitude) and magnitude > 1e-300:
-                    factor = np.exp(-1j * np.angle(overlap))
-                    anchor_e[frequency_index][mode_position] = [
-                        field * factor for field in anchor_e[frequency_index][mode_position]
-                    ]
-                    anchor_h[frequency_index][mode_position] = [
-                        field * factor for field in anchor_h[frequency_index][mode_position]
-                    ]
+        self._prepare_port_anchor_bank(frequencies, solvers, mode_indices)
+        self.mode_solvers = solvers
 
         from gprMax.eigenmode_ports import EigenmodePortMonitor
 
@@ -1847,18 +2180,20 @@ class EigenmodeReceiver(EigenmodeSource):
             is_source=False,
             excitation_mode_index=None,
             mode_indices=mode_indices,
-            anchor_frequencies=frequencies,
-            anchor_e=anchor_e,
-            anchor_h=anchor_h,
-            anchor_neff=np.asarray(anchor_neff, dtype=np.complex128),
+            anchor_frequencies=self.port_anchor_frequencies,
+            anchor_e=self.port_anchor_e,
+            anchor_h=self.port_anchor_h,
+            anchor_neff=self.port_anchor_neff,
             dft_start=self.dft_start,
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
+            anchor_mode_valid=self.port_anchor_mode_valid,
+            anchor_mode_propagating=self.port_anchor_mode_propagating,
+            mode_anchor_policies=self.port_mode_anchor_policies,
         )
         monitor.prepare(G)
         self.port_monitor = monitor
         G.eigenmodeports.append(monitor)
-        self.mode_solvers = solvers
         self._plot_eigenmode_fields()
 
 
@@ -1911,7 +2246,9 @@ class VoltageSource(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            self.waveformvalues_halfdt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+            )
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
@@ -1922,7 +2259,9 @@ class VoltageSource(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
-                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
                     self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -2045,7 +2384,9 @@ class HertzianDipole(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            self.waveformvalues_halfdt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
             for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
@@ -2053,7 +2394,9 @@ class HertzianDipole(Source):
                     # Set the time of the waveform evaluation to account for any
                     # delay in the start
                     time -= self.start
-                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
@@ -2193,7 +2536,9 @@ def htod_src_arrays(sources, G, queue=None):
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
-    srcwaves = np.zeros((len(sources), G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
+    srcwaves = np.zeros(
+        (len(sources), G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+    )
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord
@@ -2235,9 +2580,15 @@ def htod_src_arrays(sources, G, queue=None):
     elif config.sim_config.general["solver"] == "metal":
         # Metal doesn't use a queue parameter, need to get device from config
         dev = config.get_model_config().device["dev"]
-        srcinfo1_dev = dev.newBufferWithBytes_length_options_(srcinfo1.tobytes(), srcinfo1.nbytes, 0)
-        srcinfo2_dev = dev.newBufferWithBytes_length_options_(srcinfo2.tobytes(), srcinfo2.nbytes, 0)
-        srcwaves_dev = dev.newBufferWithBytes_length_options_(srcwaves.tobytes(), srcwaves.nbytes, 0)
+        srcinfo1_dev = dev.newBufferWithBytes_length_options_(
+            srcinfo1.tobytes(), srcinfo1.nbytes, 0
+        )
+        srcinfo2_dev = dev.newBufferWithBytes_length_options_(
+            srcinfo2.tobytes(), srcinfo2.nbytes, 0
+        )
+        srcwaves_dev = dev.newBufferWithBytes_length_options_(
+            srcwaves.tobytes(), srcwaves.nbytes, 0
+        )
 
     return srcinfo1_dev, srcinfo2_dev, srcwaves_dev
 
@@ -2428,8 +2779,12 @@ class TransmissionLine(Source):
         self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
         self.Vinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
         self.Iinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Itotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(
+            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.Itotal = np.zeros(
+            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
         # Bound after the grid materials and time axis have been finalised.
         # Kept here rather than in the update loop because all spectral port
         # processing is post-solve.
@@ -2459,7 +2814,9 @@ class TransmissionLine(Source):
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
-            self.waveformvalues_halfdt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
+            self.waveformvalues_halfdt = np.zeros(
+                (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
             for iteration in range(G.iterations + 1):
                 time = G.dt * iteration
@@ -2468,7 +2825,9 @@ class TransmissionLine(Source):
                     # delay in the start
                     time -= self.start
                     self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
-                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+                    self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                        time + 0.5 * G.dt, G.dt
+                    )
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length
@@ -2531,11 +2890,15 @@ class TransmissionLine(Source):
 
         # Update all the voltage values along the line
         self.voltage[1 : self.nl] -= (
-            self.resistance * (config.c * G.dt / self.dl) * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
+            self.resistance
+            * (config.c * G.dt / self.dl)
+            * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
         )
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[iteration]
+        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[
+            iteration
+        ]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -2557,7 +2920,9 @@ class TransmissionLine(Source):
 
         # Update the current one cell before the position of the one-way injector excitation
         self.current[self.srcpos - 1] += (
-            (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[iteration]
+            (1 / self.resistance)
+            * (config.c * G.dt / self.dl)
+            * self.waveformvalues_halfdt[iteration]
         )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -2676,7 +3041,8 @@ def magnetic_frill_source_host_arrays(magneticfrillsources, G):
         nterms = len(frill._drive_terms)
         if not 1 <= nterms <= MAGNETIC_FRILL_MAX_TERMS:
             raise ValueError(
-                f"{frill.ID} has {nterms} magnetic feed terms; expected between " f"1 and {MAGNETIC_FRILL_MAX_TERMS}."
+                f"{frill.ID} has {nterms} magnetic feed terms; expected between "
+                f"1 and {MAGNETIC_FRILL_MAX_TERMS}."
             )
 
         term_counts[i] = nterms
@@ -2749,7 +3115,11 @@ def dtoh_magnetic_frill_source_outputs(Vinc, Vtotal, Itot, G):
                     "Magnetic-frill Metal output buffer has the wrong size: "
                     f"expected {nbytes} bytes, got {buffer.length()}."
                 )
-            return np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype).reshape(expected).copy()
+            return (
+                np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype)
+                .reshape(expected)
+                .copy()
+            )
 
         Vinc, Vtotal, Itot = map(_metal_to_numpy, (Vinc, Vtotal, Itot))
 
@@ -2829,7 +3199,9 @@ class MagneticFrillSource(Source):
         self._previous_half_current = 0.0
 
         self.Vinc = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(
+            self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
         self.Itot = np.zeros(self.iterations + 1, dtype=config.sim_config.dtypes["float_or_double"])
 
         # Bound after materials/update coefficients and time/frequency axes
@@ -2845,7 +3217,9 @@ class MagneticFrillSource(Source):
             G: FDTDGrid class describing a grid in a model.
         """
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        self.waveformvalues_wholedt = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
+        self.waveformvalues_wholedt = np.zeros(
+            (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
+        )
         for iteration in range(G.iterations + 1):
             time = G.dt * iteration
             if time >= self.start and time <= self.stop:
@@ -3031,13 +3405,20 @@ class MagneticFrillSource(Source):
 
                 factor_f = float(material.thin_wire_factors["F"])
                 radial_step = radial_steps[radial_axis]
-                source_gain = source_sign * G.updatecoeffsH[material_numID, 4] * factor_f / (axial_step * radial_step)
+                source_gain = (
+                    source_sign
+                    * G.updatecoeffsH[material_numID, 4]
+                    * factor_f
+                    / (axial_step * radial_step)
+                )
                 terms.append((component, x, y, z, float(current_weight), float(source_gain)))
 
         self._drive_terms = terms
         self._G_coeff = float(sum(term[-2] * term[-1] for term in terms))
         if not np.isfinite(self._G_coeff) or self._G_coeff <= 0:
-            raise ValueError(f"{self.ID} produced invalid feed-cell self-admittance " f"G={self._G_coeff!r}.")
+            raise ValueError(
+                f"{self.ID} produced invalid feed-cell self-admittance " f"G={self._G_coeff!r}."
+            )
 
         # Two independently advanced feedback relations cannot safely write
         # the same H edge: their result would depend on source order on CPU
@@ -3046,7 +3427,11 @@ class MagneticFrillSource(Source):
         registry = getattr(G, "_magnetic_frill_drive_edges", {})
         drive_edges = {(term[0], term[1], term[2], term[3]) for term in terms}
         overlap = next(
-            ((edge, registry[edge]) for edge in drive_edges if edge in registry and registry[edge] is not self),
+            (
+                (edge, registry[edge])
+                for edge in drive_edges
+                if edge in registry and registry[edge] is not self
+            ),
             None,
         )
         if overlap is not None:
@@ -3070,7 +3455,10 @@ class MagneticFrillSource(Source):
         """Return the image-completed Ampere-loop current from stored H."""
 
         fields = {"Hx": Hx, "Hy": Hy, "Hz": Hz}
-        return sum(weight * fields[component][x, y, z] for component, x, y, z, weight, _ in self._drive_terms)
+        return sum(
+            weight * fields[component][x, y, z]
+            for component, x, y, z, weight, _ in self._drive_terms
+        )
 
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Apply Hyun's time-average implicit feed update in closed form.
@@ -3092,7 +3480,9 @@ class MagneticFrillSource(Source):
             + 2 * self._G_coeff * self.Vinc[iteration]
             - zeta * (1 - self._theta) * self._previous_half_current
         ) / (1 + zeta * self._theta)
-        current_centred = (1 - self._theta) * self._previous_half_current + self._theta * current_new
+        current_centred = (
+            1 - self._theta
+        ) * self._previous_half_current + self._theta * current_new
         self.Itot[iteration] = current_centred
         V_ab = 2 * self.Vinc[iteration] - self.Z0 * current_centred
         self.Vtotal[iteration] = V_ab
@@ -3146,7 +3536,9 @@ class DiscretePlaneWave(Source):
         self.origin[2] = 0
         self.length = 0
         # self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
-        self.projections = np.zeros(6, dtype=np.float64)  # Use float64 for better precision in projections
+        self.projections = np.zeros(
+            6, dtype=np.float64
+        )  # Use float64 for better precision in projections
         self.corners = None
         self.materialID = None
         self.ds = 0
@@ -3227,7 +3619,12 @@ class DiscretePlaneWave(Source):
         # check for plane wave definition using angles and in this case m vector should be zero and needs to be calculated
         if self.m[0] == 0 and self.m[1] == 0 and self.m[2] == 0:
             # Find the integer mappings m_x, m_y, m_z for the DPW using partial fractions
-            self.m[:3], self.actual_angles, self.angle_errors, self.total_error = self.find_dpw_integers_optimized(
+            (
+                self.m[:3],
+                self.actual_angles,
+                self.angle_errors,
+                self.total_error,
+            ) = self.find_dpw_integers_optimized(
                 self.theta, self.phi, [G.dx, G.dy, G.dz], self.max_angle_diff
             )
 
@@ -3322,10 +3719,16 @@ class DiscretePlaneWave(Source):
 
         # get the number of 1D DPW grid PML cells from the number of 3D FDTD PML cells used for terminating the 1D grid. This is set to 20 cells by default.
         self.pml_length = (
-            np.abs(self.m[0]) * self.pml_cells + np.abs(self.m[1]) * self.pml_cells + np.abs(self.m[2]) * self.pml_cells
+            np.abs(self.m[0]) * self.pml_cells
+            + np.abs(self.m[1]) * self.pml_cells
+            + np.abs(self.m[2]) * self.pml_cells
         )
         # Set few buffer FDTD cells as extra
-        buffercells = np.abs(self.m[0]) * self.max_m + np.abs(self.m[1]) * self.max_m + np.abs(self.m[2]) * self.max_m
+        buffercells = (
+            np.abs(self.m[0]) * self.max_m
+            + np.abs(self.m[1]) * self.max_m
+            + np.abs(self.m[2]) * self.max_m
+        )
 
         # Total length of the 1D grid if not axial propagation
         if self.axial == 0:
@@ -3380,34 +3783,52 @@ class DiscretePlaneWave(Source):
         # Izjyx means correcting an E_z field due to a H_y field variation in x derivative direction array position 1
         # Izmxy means correcting an H_z field due to an E_x field variation in y derivative direction array position 2
         # Izmyx means correcting an H_z field due to an E_y field variation in x derivative direction array position 3
-        self.Iz = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iz = np.zeros(
+            (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Iz_s = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Iz0 = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iz_s = np.zeros(
+                (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.Iz0 = np.zeros(
+                (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
         # Iyjxz means correcting an E_y field due to a H_x field variation in z derivative direction array position 0
         # Iyjzx means correcting an E_y field due to a H_z field variation in x derivative direction array position 1
         # Iymxz means correcting an H_y field due to an E_x field variation in z derivative direction array position 2
         # Iymzx means correcting an H_y field due to an E_z field variation in x derivative direction array position 3
-        self.Iy = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iy = np.zeros(
+            (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Iy_s = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Iy0 = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Iy_s = np.zeros(
+                (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.Iy0 = np.zeros(
+                (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
         # Ixjyz means correcting an E_x field due to a H_y field variation in z derivative direction array position 0
         # Ixjzy means correcting an E_x field due to a H_z field variation in y derivative direction array position 1
         # Ixmyz means correcting an H_x field due to an E_y field variation in z derivative direction array position 2
         # Ixmzy means correcting an H_x field due to an E_z field variation in y derivative direction array position 3
-        self.Ix = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+        self.Ix = np.zeros(
+            (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Allocate memory for the 1D DPW PML integrals for axial propagation case
         if self.axial != 0:
-            self.Ix_s = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
-            self.Ix0 = np.zeros((4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"])
+            self.Ix_s = np.zeros(
+                (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
+            self.Ix0 = np.zeros(
+                (4, self.pml_length), order="C", dtype=config.sim_config.dtypes["float_or_double"]
+            )
 
         # When no grid IDs are used Get the background material object with the matching ID and add it to the PlaneWave object
         if self.axial == 0:
@@ -3427,7 +3848,9 @@ class DiscretePlaneWave(Source):
                 self.materialZ = math.sqrt(
                     config.m0 * self.material.mr / (config.e0 * self.material.er)
                 )  # Impedance in the material
-                self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
+                self.speed = config.c / math.sqrt(
+                    self.material.er * self.material.mr
+                )  # Speed in the material
 
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
@@ -3462,7 +3885,9 @@ class DiscretePlaneWave(Source):
             if abs(self.projections[4]) <= 1e-15:
                 self.projections[4] = 0
 
-            self.projections[5] = (-math.cos(self.psi_rad) * math.sin(self.theta_est_rad)) / self.materialZ
+            self.projections[5] = (
+                -math.cos(self.psi_rad) * math.sin(self.theta_est_rad)
+            ) / self.materialZ
             if abs(self.projections[5]) <= 1e-15:
                 self.projections[5] = 0
 
@@ -3505,7 +3930,9 @@ class DiscretePlaneWave(Source):
             dead = [a, 3 + t1, 3 + t2]
             hint = "for a mode invariant in z, TE requires psi = 0 or 180 degrees"
 
-        nonzero = [f"{names[c]} = {self.projections[c]:g}" for c in dead if self.projections[c] != 0]
+        nonzero = [
+            f"{names[c]} = {self.projections[c]:g}" for c in dead if self.projections[c] != 0
+        ]
         if nonzero:
             logger.exception(
                 f"Discrete plane wave: in {config.get_model_config().mode} mode the "
@@ -3581,10 +4008,14 @@ class DiscretePlaneWave(Source):
             pos_solid = list(self.transverse_pos)
 
             pos_solid[prop] = 2
-            self.material = next((x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None)
+            self.material = next(
+                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+            )
 
             pos_solid[prop] = n_prop - 2
-            self.materialPML = next((x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None)
+            self.materialPML = next(
+                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+            )
 
             # Reference material properties for the source-side auxiliary
             # grid. All Debye, Lorentz, and Drude pole dynamics are handled
@@ -3597,7 +4028,9 @@ class DiscretePlaneWave(Source):
                 self.materialZ = math.sqrt(
                     config.m0 * self.material.mr / (config.e0 * self.material.er)
                 )  # Impedance in the material
-                self.speed = config.c / math.sqrt(self.material.er * self.material.mr)  # Speed in the material
+                self.speed = config.c / math.sqrt(
+                    self.material.er * self.material.mr
+                )  # Speed in the material
 
             # Set the material ID of the PML region at origin as the same as the material next to the grid origin
             self.materialPML0 = self.material
@@ -3607,13 +4040,17 @@ class DiscretePlaneWave(Source):
             # Reference properties at the far-side DPW PML.
             if getattr(self.materialPML, "poles", 0) > 0:
                 material_pml_er = np.real(self.materialPML.calculate_er(self.waveform.freq))
-                self.materialPMLZ = math.sqrt(config.m0 * self.materialPML.mr / (config.e0 * material_pml_er))
+                self.materialPMLZ = math.sqrt(
+                    config.m0 * self.materialPML.mr / (config.e0 * material_pml_er)
+                )
                 self.PMLspeed = config.c / math.sqrt(material_pml_er * self.materialPML.mr)
             else:
                 self.materialPMLZ = math.sqrt(
                     config.m0 * self.materialPML.mr / (config.e0 * self.materialPML.er)
                 )  # Impedance in the material
-                self.PMLspeed = config.c / math.sqrt(self.materialPML.er * self.materialPML.mr)  # Speed in the material
+                self.PMLspeed = config.c / math.sqrt(
+                    self.materialPML.er * self.materialPML.mr
+                )  # Speed in the material
 
             self.dispersive = bool(sampled_dispersive_materials)
             self.max_poles = max(
@@ -3654,7 +4091,9 @@ class DiscretePlaneWave(Source):
             if abs(self.projections[4]) <= 1e-15:
                 self.projections[4] = 0
 
-            self.projections[5] = (-math.cos(self.psi_rad) * math.sin(self.theta_est_rad)) / self.materialZ
+            self.projections[5] = (
+                -math.cos(self.psi_rad) * math.sin(self.theta_est_rad)
+            ) / self.materialZ
             if abs(self.projections[5]) <= 1e-15:
                 self.projections[5] = 0
 
@@ -3723,7 +4162,14 @@ class DiscretePlaneWave(Source):
                     for r in range(self.m[3]):
                         time1 = (
                             G.dt * (iteration + 0.5)
-                            - (r + (np.abs(self.m[(dimension + 1) % 3]) + np.abs(self.m[(dimension + 2) % 3])) * 0.5)
+                            - (
+                                r
+                                + (
+                                    np.abs(self.m[(dimension + 1) % 3])
+                                    + np.abs(self.m[(dimension + 2) % 3])
+                                )
+                                * 0.5
+                            )
                             * self.ds
                             / self.speed
                         )
@@ -3732,14 +4178,17 @@ class DiscretePlaneWave(Source):
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time1 -= self.start
-                            self.waveformvalues_halfdt[iteration, dimension, r] = self.waveform.calculate_value(
-                                time1, G.dt
-                            )
+                            self.waveformvalues_halfdt[
+                                iteration, dimension, r
+                            ] = self.waveform.calculate_value(time1, G.dt)
 
                     for r in range(self.m[3]):
                         time2 = (
                             G.dt * (iteration)
-                            - (r + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5)
+                            - (
+                                r
+                                + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5
+                            )
                             * self.ds
                             / self.speed
                         )
@@ -3748,9 +4197,9 @@ class DiscretePlaneWave(Source):
                             # Set the time of the waveform evaluation to account for any
                             # delay in the start
                             time2 -= self.start
-                            self.waveformvalues_wholedt[iteration, dimension, r] = self.waveform.calculate_value(
-                                time2, G.dt
-                            )
+                            self.waveformvalues_wholedt[
+                                iteration, dimension, r
+                            ] = self.waveform.calculate_value(time2, G.dt)
 
     def update_plane_wave_magnetic(
         self,
@@ -3769,7 +4218,6 @@ class DiscretePlaneWave(Source):
         precompute=True,
     ):
         if self.axial != 0:
-
             updatePlaneWave_magnetic_axial(
                 self.length,
                 self.pml_length,
@@ -3832,9 +4280,7 @@ class DiscretePlaneWave(Source):
             )
 
         else:
-
             if cythonize:
-
                 updatePlaneWave_magnetic(
                     self.length,
                     self.pml_length,
@@ -3898,7 +4344,6 @@ class DiscretePlaneWave(Source):
         cythonize=True,
         precompute=True,
     ):
-
         if self.axial != 0:
             updatePlaneWave_electric_axial(
                 self.length,
@@ -3962,7 +4407,6 @@ class DiscretePlaneWave(Source):
             )
 
         else:
-
             if cythonize:
                 updatePlaneWave_electric(
                     self.length,
@@ -4099,7 +4543,6 @@ class DiscretePlaneWave(Source):
             )
 
         else:
-
             if cythonize:
                 updatePlaneWave_electric_dispersive(
                     self.length,
@@ -4158,7 +4601,8 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = (
-                        self.projections[dimension] * self.waveformvalues_halfdt[iteration, dimension, r]
+                        self.projections[dimension]
+                        * self.waveformvalues_halfdt[iteration, dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
         else:
@@ -4181,7 +4625,8 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.E_fields[dimension, r] = (
-                        self.projections[dimension] * self.waveformvalues_wholedt[iteration + 1, dimension, r]
+                        self.projections[dimension]
+                        * self.waveformvalues_wholedt[iteration + 1, dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
         else:
@@ -4189,7 +4634,8 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.E_fields[dimension, r] = self.projections[dimension] * getSource(
-                        (iteration + 1) * G.dt - (r + np.abs(self.m[dimension]) * 0.5) * self.ds / self.speed,
+                        (iteration + 1) * G.dt
+                        - (r + np.abs(self.m[dimension]) * 0.5) * self.ds / self.speed,
                         self.waveform.freq,
                         self.waveform.type.encode("UTF-8"),
                         G.dt,
@@ -4230,9 +4676,15 @@ class DiscretePlaneWave(Source):
                 self.H_fields[i, j] = (
                     G.updatecoeffsH[materialH, 0] * self.H_fields[i, j]
                     + G.updatecoeffsH[materialH, (i + 2) % 3 + 1]
-                    * (self.E_fields[(i + 1) % 3, j + self.m[(i + 2) % 3]] - self.E_fields[(i + 1) % 3, j])
+                    * (
+                        self.E_fields[(i + 1) % 3, j + self.m[(i + 2) % 3]]
+                        - self.E_fields[(i + 1) % 3, j]
+                    )
                     - G.updatecoeffsH[materialH, (i + 1) % 3 + 1]
-                    * (self.E_fields[(i + 2) % 3, j + self.m[(i + 1) % 3]] - self.E_fields[(i + 2) % 3, j])
+                    * (
+                        self.E_fields[(i + 2) % 3, j + self.m[(i + 1) % 3]]
+                        - self.E_fields[(i + 2) % 3, j]
+                    )
                 )  # equation 8 of Tan, Potter paper
 
     def update_electric_field_1D(self, G, iteration, precompute=True):
@@ -4270,13 +4722,21 @@ class DiscretePlaneWave(Source):
                 self.E_fields[i, j] = (
                     G.updatecoeffsE[materialE, 0] * self.E_fields[i, j]
                     + G.updatecoeffsE[materialE, (i + 2) % 3 + 1]
-                    * (self.H_fields[(i + 2) % 3, j] - self.H_fields[(i + 2) % 3, j - self.m[(i + 1) % 3]])
+                    * (
+                        self.H_fields[(i + 2) % 3, j]
+                        - self.H_fields[(i + 2) % 3, j - self.m[(i + 1) % 3]]
+                    )
                     - G.updatecoeffsE[materialE, (i + 1) % 3 + 1]
-                    * (self.H_fields[(i + 1) % 3, j] - self.H_fields[(i + 1) % 3, j - self.m[(i + 2) % 3]])
+                    * (
+                        self.H_fields[(i + 1) % 3, j]
+                        - self.H_fields[(i + 1) % 3, j - self.m[(i + 2) % 3]]
+                    )
                 )  # equation 9 of Tan, Potter paper
 
     def getField(self, i, j, k, array, m, origin, component):
-        return array[component, np.dot(m[:-1], np.array([i - origin[0], j - origin[1], k - origin[2]]))]
+        return array[
+            component, np.dot(m[:-1], np.array([i - origin[0], j - origin[1], k - origin[2]]))
+        ]
 
     def apply_TFSF_conditions_magnetic(self, G):
         if self.skip_axis != 0:
@@ -4526,7 +4986,11 @@ class DiscretePlaneWave(Source):
         #  vector. This vector is the "target direction" of the plane wave. It
         #  is automatically a "unit vector" (length of 1).
         u_vec_target = np.array(
-            [math.sin(theta_rad) * math.cos(phi_rad), math.sin(theta_rad) * math.sin(phi_rad), math.cos(theta_rad)]
+            [
+                math.sin(theta_rad) * math.cos(phi_rad),
+                math.sin(theta_rad) * math.sin(phi_rad),
+                math.cos(theta_rad),
+            ]
         )
 
         #  Snap floating-point residue on components that are analytically
@@ -4581,9 +5045,16 @@ class DiscretePlaneWave(Source):
                 # with max|m|) and would overflow the C long conversion
                 # below. Computed in Python ints, so this check itself
                 # cannot overflow.
-                if max(abs(p1 * (common_denom // q1)), abs(p2 * (common_denom // q2)), common_denom) > 10**6:
+                if (
+                    max(
+                        abs(p1 * (common_denom // q1)), abs(p2 * (common_denom // q2)), common_denom
+                    )
+                    > 10**6
+                ):
                     continue
-                m_perm = np.array([p1 * (common_denom // q1), p2 * (common_denom // q2), common_denom], dtype=int)
+                m_perm = np.array(
+                    [p1 * (common_denom // q1), p2 * (common_denom // q2), common_denom], dtype=int
+                )
 
                 # Apply the crucial sign correction for the correct quadrant
                 if np.sign(u_perm[2]) < 0:
@@ -4602,7 +5073,9 @@ class DiscretePlaneWave(Source):
                 # Store the candidate with its error and "size" metric. The size
                 # is the largest integer component, a good measure of cost.
                 size = np.max(np.abs(m_vec_candidate))
-                candidates.append({"m_vec": m_vec_candidate, "error": total_error_deg, "size": size})
+                candidates.append(
+                    {"m_vec": m_vec_candidate, "error": total_error_deg, "size": size}
+                )
 
         # From our list, we keep only those that meet the error criteria, then
         # sort them by size to find the one with the smallest integers.
@@ -4625,13 +5098,20 @@ class DiscretePlaneWave(Source):
 
         # Define local spherical basis vectors for error projection
         u_theta = np.array(
-            [math.cos(theta_rad) * math.cos(phi_rad), math.cos(theta_rad) * math.sin(phi_rad), -math.sin(theta_rad)]
+            [
+                math.cos(theta_rad) * math.cos(phi_rad),
+                math.cos(theta_rad) * math.sin(phi_rad),
+                -math.sin(theta_rad),
+            ]
         )
         u_phi = np.array([-math.sin(phi_rad), math.cos(phi_rad), 0])
 
         # Project the 3D error vector onto the basis vectors
         diff_vec = phys_vec_norm - u_vec_target
-        errors_deg = (math.degrees(np.dot(diff_vec, u_theta)), math.degrees(np.dot(diff_vec, u_phi)))
+        errors_deg = (
+            math.degrees(np.dot(diff_vec, u_theta)),
+            math.degrees(np.dot(diff_vec, u_phi)),
+        )
 
         # Calculate the final angles for user information
         actual_angles_deg = (
@@ -4660,13 +5140,13 @@ class DiscretePlaneWave(Source):
             AOrder = 1
             # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = 0.8 * (Order + 1) / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
-            Kappa_max = (
-                1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            sigma_max = (
+                0.8
+                * (Order + 1)
+                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
             )
-            Alpha_max = (
-                0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-            )
+            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
 
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
@@ -4753,23 +5233,35 @@ class DiscretePlaneWave(Source):
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
             self.pml_rex = np.array(
-                [RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEx, RBEx, RCEx, RDEx],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rey = np.array(
-                [RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEy, RBEy, RCEy, RDEy],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rez = np.array(
-                [RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEz, RBEz, RCEz, RDEz],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
             self.pml_rhx = np.array(
-                [RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHx, RBHx, RCHx, RDHx],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rhy = np.array(
-                [RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHy, RBHy, RCHy, RDHy],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rhz = np.array(
-                [RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHz, RBHz, RCHz, RDHz],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
         else:
@@ -4781,13 +5273,13 @@ class DiscretePlaneWave(Source):
             AOrder = 1
             # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = 0.8 * (Order + 1) / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
-            Kappa_max = (
-                1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            sigma_max = (
+                0.8
+                * (Order + 1)
+                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
             )
-            Alpha_max = (
-                0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-            )
+            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
 
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
@@ -4874,23 +5366,35 @@ class DiscretePlaneWave(Source):
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
             self.pml_rex = np.array(
-                [RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEx, RBEx, RCEx, RDEx],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rey = np.array(
-                [RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEy, RBEy, RCEy, RDEy],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rez = np.array(
-                [RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEz, RBEz, RCEz, RDEz],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
             self.pml_rhx = np.array(
-                [RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHx, RBHx, RCHx, RDHx],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rhy = np.array(
-                [RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHy, RBHy, RCHy, RDHy],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rhz = np.array(
-                [RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHz, RBHz, RCHz, RDHz],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
             # --- Repeat for PML0 ---
@@ -4903,13 +5407,13 @@ class DiscretePlaneWave(Source):
             AOrder = 1
             # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
             # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = 0.8 * (Order + 1) / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
-            Kappa_max = (
-                1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            sigma_max = (
+                0.8
+                * (Order + 1)
+                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
             )
-            Alpha_max = (
-                0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-            )
+            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
+            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
 
             # --- Create helper arrays for vectorized calculations ---
             # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
@@ -4996,21 +5500,33 @@ class DiscretePlaneWave(Source):
             # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
             # Hz, Hy, Hz components
             self.pml_rex0 = np.array(
-                [RAEx, RBEx, RCEx, RDEx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEx, RBEx, RCEx, RDEx],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rey0 = np.array(
-                [RAEy, RBEy, RCEy, RDEy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEy, RBEy, RCEy, RDEy],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rez0 = np.array(
-                [RAEz, RBEz, RCEz, RDEz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAEz, RBEz, RCEz, RDEz],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
 
             self.pml_rhx0 = np.array(
-                [RAHx, RBHx, RCHx, RDHx], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHx, RBHx, RCHx, RDHx],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rhy0 = np.array(
-                [RAHy, RBHy, RCHy, RDHy], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHy, RBHy, RCHy, RDHy],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )
             self.pml_rhz0 = np.array(
-                [RAHz, RBHz, RCHz, RDHz], order="C", dtype=config.sim_config.dtypes["float_or_double"]
+                [RAHz, RBHz, RCHz, RDHz],
+                order="C",
+                dtype=config.sim_config.dtypes["float_or_double"],
             )

@@ -12,6 +12,7 @@ from gprMax.eigenmode_ports import (
     accumulate_eigenmode_dft,
     finalise_eigenmode_ports,
 )
+from gprMax.sources import EigenmodeSource
 
 
 @pytest.mark.parametrize(
@@ -155,6 +156,165 @@ def test_complex64_eigenmode_phase_drift_is_bounded_by_periodic_reanchoring(
     assert errors[DFT_PHASE_REANCHOR_INTERVAL] < 2e-7
 
 
+def test_2d_te_monitor_preserves_absolute_power_after_cell_averaging(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={
+                "float_or_double": np.float64,
+                "complex": np.complex128,
+            }
+        ),
+    )
+    owner = EigenmodeSource(None)
+    owner.normal_axis = 0
+    owner.transverse_axes = (1, 2)
+    owner.invariant_axis = 2
+    owner.physical_transverse_axis = 1
+    owner.domain_polarization = "TE"
+    owner.transverse_start = np.zeros(2, dtype=np.int32)
+    owner.transverse_stop = np.asarray((2, 2), dtype=np.int32)
+
+    electric = [
+        np.zeros((3, 3), dtype=np.complex128),
+        np.zeros((2, 3), dtype=np.complex128),
+        np.zeros((3, 2), dtype=np.complex128),
+    ]
+    magnetic = [
+        np.zeros((2, 2), dtype=np.complex128),
+        np.zeros((3, 2), dtype=np.complex128),
+        np.zeros((2, 3), dtype=np.complex128),
+    ]
+    electric[1][:, 1] = 1.0
+    magnetic[2][:, 1] = 1.0
+    grid = SimpleNamespace(
+        dt=1e-12,
+        dl=np.ones(3),
+        eigenmodeports=[],
+    )
+    assert owner._modal_cross_power(electric, magnetic, grid) == pytest.approx(1.0)
+
+    monitor = EigenmodePortMonitor(
+        owner=owner,
+        port_index=1,
+        port_id="te",
+        is_source=False,
+        excitation_mode_index=None,
+        mode_indices=(1,),
+        anchor_frequencies=np.asarray([1e9]),
+        anchor_e=[[electric]],
+        anchor_h=[[magnetic]],
+        anchor_neff=np.asarray([[1.0]]),
+        dft_start=1e9,
+        dft_stop=1e9,
+        dft_points=1,
+    )
+
+    monitor.prepare(grid)
+
+    assert monitor.measure == pytest.approx(2.0)
+    assert monitor.electric_gram[0, 0, 0] == pytest.approx(1.0)
+    assert monitor.magnetic_gram[0, 0, 0] == pytest.approx(1.0)
+    assert monitor.power_matrix[0, 0, 0] == pytest.approx(1.0)
+
+
+def test_monitor_excludes_nonpropagating_anchor_and_invalidates_its_tail(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={
+                "float_or_double": np.float64,
+                "complex": np.complex128,
+            }
+        ),
+    )
+    owner = SimpleNamespace(
+        transverse_axes=(1, 2),
+        invariant_axis=None,
+        normal_axis=0,
+        direction="+",
+        _linear_anchor_weights=EigenmodeSource._linear_anchor_weights,
+        _transverse_cell_shape=lambda: (1, 1),
+        _modal_cross_power=lambda electric, magnetic, grid: 1.0,
+        _average_to_transverse_cells=lambda values, component: values,
+        _modal_basis_handedness=lambda: 1,
+    )
+    zero = np.zeros((1, 1), dtype=np.complex128)
+
+    def modal_fields(value):
+        field = np.full((1, 1), value, dtype=np.complex128)
+        return [zero, field, zero], [zero, zero, field]
+
+    first_mode = [modal_fields(value) for value in (99, 2, 3)]
+    second_mode = [modal_fields(value) for value in (4, 5, 88)]
+    monitor = EigenmodePortMonitor(
+        owner=owner,
+        port_index=1,
+        port_id="cutoff",
+        is_source=False,
+        excitation_mode_index=None,
+        mode_indices=(1, 2),
+        anchor_frequencies=np.asarray([22e9, 28e9, 34e9]),
+        anchor_e=[[first_mode[index][0], second_mode[index][0]] for index in range(3)],
+        anchor_h=[[first_mode[index][1], second_mode[index][1]] for index in range(3)],
+        anchor_neff=np.asarray([[-0.5j, 0.2], [0.4, 0.4], [0.7, -0.3j]]),
+        anchor_mode_valid=np.asarray([[False, True], [True, True], [True, False]]),
+        anchor_mode_propagating=np.asarray([[False, True], [True, True], [True, False]]),
+        mode_anchor_policies=(
+            "auto_nonpropagating_trimmed",
+            "auto_nonpropagating_trimmed",
+        ),
+        dft_start=22e9,
+        dft_stop=34e9,
+        dft_points=3,
+    )
+    grid = SimpleNamespace(
+        dt=1e-12,
+        dl=np.ones(3),
+        eigenmodeports=[],
+    )
+
+    monitor.prepare(grid)
+
+    # Endpoint extrapolation below cutoff must use the first propagating
+    # profile, never the finite-normalized evanescent profile with value 99.
+    assert monitor.eu[:, 0, 0, 0] == pytest.approx([2, 2, 3])
+    assert monitor.eu[:, 1, 0, 0] == pytest.approx([4, 5, 5])
+    assert monitor.mode_power_valid.tolist() == [
+        [False, True],
+        [True, True],
+        [True, False],
+    ]
+
+
+def test_monitor_rejects_disconnected_usable_anchor_ranges():
+    monitor = EigenmodePortMonitor(
+        owner=SimpleNamespace(),
+        port_index=1,
+        port_id="gap",
+        is_source=False,
+        excitation_mode_index=None,
+        mode_indices=(1,),
+        anchor_frequencies=np.asarray([1e9, 2e9, 3e9]),
+        anchor_e=[None, None, None],
+        anchor_h=[None, None, None],
+        anchor_neff=np.ones((3, 1)),
+        anchor_mode_valid=np.asarray([[True], [False], [True]]),
+        anchor_mode_propagating=np.asarray([[True], [False], [True]]),
+        mode_anchor_policies=("explicit",),
+        dft_start=1e9,
+        dft_stop=3e9,
+        dft_points=3,
+    )
+
+    with pytest.raises(ValueError, match="disconnected usable anchor ranges"):
+        monitor._validate()
+
+
 def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch):
     monkeypatch.setattr(
         config,
@@ -236,6 +396,35 @@ def test_finalise_rejects_fallback_power_normalization(monkeypatch):
     assert not result.valid[0, 0]
 
 
+def test_finalise_solves_propagating_sibling_when_other_mode_is_nonpropagating(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(dtypes={"complex": np.complex128}),
+    )
+    monitor = EigenmodePortMonitor.__new__(EigenmodePortMonitor)
+    gram = np.diag([0.0, 1.0]).astype(np.complex128)
+    monitor.electric_gram = gram[np.newaxis]
+    monitor.magnetic_gram = gram[np.newaxis]
+    monitor.electric_dft = np.asarray([[123.0, 2.0]], dtype=np.complex128)
+    monitor.magnetic_dft = np.asarray([[456.0, 2.0]], dtype=np.complex128)
+    monitor.frequency = np.asarray([28e9])
+    monitor.neff = np.zeros((1, 2), dtype=np.complex128)
+    monitor.mode_power_valid = np.asarray([[False, True]])
+    monitor.power_matrix_valid = np.asarray([True])
+    monitor.owner = SimpleNamespace(normal_axis=0)
+    monitor.magnetic_side = -1
+
+    result = monitor.finalise(SimpleNamespace(dl=np.zeros(3)))
+
+    assert result.incident[:, 0] == pytest.approx([0.0, 2.0])
+    assert result.outgoing[:, 0] == pytest.approx([0.0, 0.0])
+    assert result.valid[:, 0].tolist() == [False, True]
+    assert result.condition_number[0] == pytest.approx(1.0)
+
+
 def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     frequency = np.asarray([5e9])
     source = SimpleNamespace(
@@ -284,7 +473,10 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
         rows = list(csv.DictReader(stream))
     assert "coefficient_magnitude_squared" in rows[0]
     assert "power_ratio" not in rows[0]
-    values = {(int(row["destination_port"]), int(row["destination_mode"])): float(row["S_magnitude"]) for row in rows}
+    values = {
+        (int(row["destination_port"]), int(row["destination_mode"])): float(row["S_magnitude"])
+        for row in rows
+    }
     assert values[(1, 1)] == pytest.approx(0.5)
     assert values[(1, 2)] == pytest.approx(0.25)
     assert values[(2, 1)] == pytest.approx(0.5)
@@ -292,9 +484,7 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     assert {int(row["source_mode"]) for row in rows} == {2}
 
 
-def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(
-    tmp_path, monkeypatch
-):
+def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(tmp_path, monkeypatch):
     frequency = np.asarray([5e9, 6e9])
     source = SimpleNamespace(
         is_source=True,
@@ -347,9 +537,60 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(
     assert all(np.isnan(float(row["S_magnitude_db"])) for row in invalid_rows)
 
 
-def test_fallback_normalized_source_marks_every_csv_row_invalid(
-    tmp_path, monkeypatch
+def test_nonpropagating_power_wave_bin_is_invalid_but_above_cutoff_bin_is_valid(
+    tmp_path,
+    monkeypatch,
 ):
+    frequency = np.asarray([22e9, 28e9])
+    source = SimpleNamespace(
+        is_source=True,
+        port_index=1,
+        excitation_mode_index=1,
+        mode_indices=(1,),
+        result=EigenmodePortResult(
+            frequency=frequency,
+            incident=np.asarray([[2 + 0j, 2 + 0j]]),
+            outgoing=np.asarray([[0.2 + 0j, 0.2 + 0j]]),
+            valid=np.asarray([[True, True]]),
+            condition_number=np.ones(2),
+        ),
+        finalise=lambda grid: None,
+        mode_power_valid=np.asarray([[False], [True]]),
+        power_matrix_valid=np.ones(2, dtype=bool),
+    )
+    receiver = SimpleNamespace(
+        is_source=False,
+        port_index=2,
+        mode_indices=(1,),
+        result=EigenmodePortResult(
+            frequency=frequency,
+            incident=np.zeros((1, 2), dtype=np.complex128),
+            outgoing=np.asarray([[1 + 0j, 1 + 0j]]),
+            valid=np.asarray([[True, True]]),
+            condition_number=np.ones(2),
+        ),
+        finalise=lambda grid: None,
+        mode_power_valid=np.asarray([[False], [True]]),
+        power_matrix_valid=np.ones(2, dtype=bool),
+    )
+    grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(output_file_path=tmp_path / "cutoff_band"),
+    )
+
+    csv_path = finalise_eigenmode_ports(grid)
+
+    assert receiver.s_valid[0].tolist() == [False, True]
+    assert np.isnan(receiver.s_parameters[0, 0])
+    assert receiver.s_parameters[0, 1] == pytest.approx(0.5)
+    with csv_path.open(newline="", encoding="utf-8") as stream:
+        rows = [row for row in csv.DictReader(stream) if row["destination_port"] == "2"]
+    assert [row["valid"] for row in rows] == ["0", "1"]
+
+
+def test_fallback_normalized_source_marks_every_csv_row_invalid(tmp_path, monkeypatch):
     monkeypatch.setattr(
         config,
         "sim_config",
