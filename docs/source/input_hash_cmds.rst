@@ -2469,10 +2469,13 @@ PML profile:
 
 With automatic plates disabled, gprMax checks the final Yee edges and warns
 about every exposed transverse or maximum-stretch face, but permits the model
-to run. This supports custom or deliberately incomplete enclosures. The
-material cross-section must remain constant along the absorption direction;
-inconsistently filled slabs, same-axis slab overlaps, and overlaps with a
-native PML remain errors because they invalidate the current formulation.
+to run for research and custom-enclosure experiments. Incomplete enclosures
+have no stability guarantee: long-duration testing has demonstrated
+exponential late-time growth for exposed transverse and open maximum-stretch
+terminations. The material cross-section must remain constant along the
+absorption direction; inconsistently filled slabs, same-axis slab overlaps,
+and overlaps with a native PML remain errors because they invalidate the
+current formulation.
 
 An automatically generated internal identifier is reported in the log. The
 feature is currently limited to the main 3D grid and is not available with MPI

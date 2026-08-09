@@ -1277,7 +1277,9 @@ walls and the maximum-stretch backing plate are generated unless a face is
 already on a model boundary; the opposite, zero-stretch face is the open
 entrance. Set ``build_pec=False`` for manually constructed or deliberately
 open experiments. gprMax then warns about exposed faces rather than rejecting
-the model. The material cross-section must be invariant through the slab.
+the model. Such incomplete enclosures have no stability guarantee and require
+case-specific long-duration testing. The material cross-section must be
+invariant through the slab.
 
 When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
 ``internal_pml_2``, and so on. Internal slabs currently support the CPU, CUDA,

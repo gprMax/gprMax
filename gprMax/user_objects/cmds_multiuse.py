@@ -3306,7 +3306,8 @@ class PMLSlab(GridUserObject):
     creates PEC plates on its four transverse faces and maximum-stretch face;
     faces coincident with the model boundary are omitted. The zero-stretch
     entrance remains open. Set ``build_pec=False`` to provide a custom or
-    deliberately open enclosure. Exposed faces are then reported as warnings.
+    deliberately open enclosure. Exposed faces are then reported as warnings;
+    incomplete enclosures have no stability guarantee.
     """
 
     FACE_TO_DIRECTION = {

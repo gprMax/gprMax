@@ -914,7 +914,8 @@ class FDTDGrid:
                     message = (
                         f"Internal PML slab '{spec.ID}' has an exposed transverse {normal}="
                         f"{coordinate} face. Enclose it with a continuous Yee-aligned PEC wall "
-                        "or extend that face to the model boundary."
+                        "or extend that face to the model boundary; exposed transverse "
+                        "truncation can be numerically unstable."
                     )
                     enclosure_warnings.append(message)
                     logger.warning(message)
@@ -926,7 +927,8 @@ class FDTDGrid:
             ):
                 message = (
                     f"Internal PML slab '{spec.ID}' must have a PEC backing on its "
-                    f"maximum-stretch face ({spec.maximum_face}) or end at the model boundary."
+                    f"maximum-stretch face ({spec.maximum_face}) or end at the model boundary; "
+                    "open maximum-stretch terminations can be numerically unstable."
                 )
                 enclosure_warnings.append(message)
                 logger.warning(message)
