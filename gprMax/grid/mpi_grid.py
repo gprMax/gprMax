@@ -44,6 +44,7 @@ CoordType = TypeVar("CoordType", bound=Union[Rx, Source])
 class MPIGrid(FDTDGrid):
     HALO_SIZE = 1
     COORDINATOR_RANK = 0
+    pml_type = MPIPML
 
     def __init__(self, comm: MPI.Cartcomm):
         self.comm = comm
@@ -446,19 +447,13 @@ class MPIGrid(FDTDGrid):
             self.recv_requests[0].Waitall(self.recv_requests)
             self.recv_requests = []
 
-    def _construct_pml(self, pml_ID: str, thickness: int) -> MPIPML:
-        """Build instance of MPIPML and set the MPI communicator.
-
-        Args:
-            pml_ID: Identifier of PML slab.
-            thickness: Thickness of PML slab in cells.
-        """
-        pml = super()._construct_pml(pml_ID, thickness, MPIPML)
-        if pml.ID[0] == "x":
+    def _prepare_pml(self, pml: MPIPML) -> MPIPML:
+        """Attach the communicator associated with the slab normal."""
+        if pml.direction[0] == "x":
             pml.comm = self.x_comm
-        elif pml.ID[0] == "y":
+        elif pml.direction[0] == "y":
             pml.comm = self.y_comm
-        elif pml.ID[0] == "z":
+        elif pml.direction[0] == "z":
             pml.comm = self.z_comm
         pml.global_comm = self.pml_comm
 

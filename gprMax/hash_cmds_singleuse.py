@@ -27,7 +27,6 @@ from .user_objects.cmds_singleuse import (
     MagneticAveraging,
     OMPThreads,
     OutputDir,
-    PMLFormulation,
     PMLThickness,
     RxSteps,
     SrcSteps,
@@ -155,17 +154,6 @@ def process_singlecmds(singlecmds):
             tw = TimeWindow(time=tmp)
 
         scene_objects.append(tw)
-
-    cmd = "#pml_formulation"
-    if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            logger.exception(f"{cmd} requires one parameter")
-            raise ValueError
-        else:
-            pml_formulation = PMLFormulation(formulation=tmp[0])
-            scene_objects.append(pml_formulation)
-
 
     cmd = "#pml_cells"
     if singlecmds[cmd] is not None:

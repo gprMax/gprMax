@@ -2440,9 +2440,12 @@ Allows you to alter the formulation used for the PML. The current options are to
 
 .. code-block:: none
 
-    #pml_formulation: str
+    #pml_formulation: str1 [str2]
 
-* ``str`` can be either 'HORIPML' or 'MRIPML'
+* ``str1`` can be either ``HORIPML`` or ``MRIPML``.
+* ``str2`` is an optional reusable PML profile ID. Without an ID the
+  formulation is applied globally. With an ID it is stored for use by a
+  ``#pml_slab`` and does not change the domain-boundary PMLs.
 
 For example to use the Multipole RIPML:
 
@@ -2457,7 +2460,7 @@ Allows you (advanced) control of the parameters that are used to build each orde
 
 .. code-block:: none
 
-    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6
+    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6 [str7]
 
 * ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
 * ``str2`` is the direction of the scaling to use for the CFS :math:`\alpha` parameter. It can be ``forward`` or ``reverse``.
@@ -2468,14 +2471,77 @@ Allows you (advanced) control of the parameters that are used to build each orde
 * ``str5`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
 * ``str6`` is the direction of the scaling to use for the CFS :math:`\sigma` parameter. It can be ``forward`` or ``reverse``.
 * ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
+* ``str7`` is an optional reusable PML profile ID. It must match the ID on a
+  named ``#pml_formulation`` and may then be selected by ``#pml_slab``.
 
 The CFS values (which are internally specified) used for the default standard first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
 
 The parameters will be applied to all slabs of the PML that are switched on.
+When a profile ID is supplied, they are applied only to slabs that select that
+profile. A profile can contain one or two CFS terms. A named formulation with
+no named ``#pml_cfs`` uses the default first-order CFS parameters.
 
 .. tip::
 
     ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
+
+#pml_slab:
+----------
+
+Places an experimental, one-axis RIPML correction in an axis-aligned region of
+the main 3D grid. This can form a local matched load inside a PEC guiding
+structure, or replace one domain-boundary PML with an independently configured
+profile. The syntax is:
+
+.. code-block:: none
+
+    #pml_slab: f1 f2 f3 f4 f5 f6 str1 [str2 [str3]]
+
+* ``f1 f2 f3`` and ``f4 f5 f6`` are the lower and upper corners of the slab.
+* ``str1`` is the maximum-stretch face: ``x0``, ``y0``, ``z0``, ``xmax``,
+  ``ymax``, or ``zmax``. The opposite face is the zero-stretch entrance.
+* ``str2`` is an optional profile ID defined by ``#pml_formulation`` and,
+  optionally, ``#pml_cfs``. If omitted, the global PML configuration is used.
+* ``str3`` optionally controls automatic PEC enclosure generation: ``y``
+  (default) or ``n``. To specify ``str3`` without a profile, use ``None`` for
+  ``str2``.
+
+For example, this replaces a disabled ``x0`` boundary PML with a 12-cell slab
+using a locally defined MRIPML recipe:
+
+.. code-block:: none
+
+    #pml_cells: 0 10 10 10 10 10
+    #pml_formulation: MRIPML port_load
+    #pml_slab: 0 0 0 0.012 0.080 0.060 x0 port_load
+
+For an internal absorber, gprMax normally creates five PEC plates after all
+user geometry has been processed: four transverse walls and a backing plate on
+the maximum-stretch face. Plates coincident with model-domain faces are not
+needed and are omitted. The zero-stretch entrance remains open. Existing
+geometry on an automatically enclosed face is therefore made PEC.
+
+Advanced experiments may disable this behaviour while retaining the global
+PML profile:
+
+.. code-block:: none
+
+    #pml_slab: 0.010 0.020 0.020 0.022 0.060 0.050 x0 None n
+
+With automatic plates disabled, gprMax checks the final Yee edges and warns
+about every exposed transverse or maximum-stretch face, but permits the model
+to run for research and custom-enclosure experiments. Incomplete enclosures
+have no stability guarantee: long-duration testing has demonstrated
+exponential late-time growth for exposed transverse and open maximum-stretch
+terminations. The material cross-section must remain constant along the
+absorption direction; inconsistently filled slabs, same-axis slab overlaps,
+and overlaps with a native PML remain errors because they invalidate the
+current formulation.
+
+An automatically generated internal identifier is reported in the log. The
+feature is currently limited to the main 3D grid and is not available with MPI
+or on subgrids. Orthogonal PML slabs may overlap, as domain PMLs do at edges and
+corners.
 
 
 #symmetry_boundary:

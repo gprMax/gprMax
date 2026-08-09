@@ -28,6 +28,8 @@ from gprMax.pml import CUDAPML
 class CUDAGrid(FDTDGrid):
     """Additional grid methods for solving on GPU using CUDA."""
 
+    pml_type = CUDAPML
+
     def __init__(self):
         super().__init__()
 
@@ -37,9 +39,6 @@ class CUDAGrid(FDTDGrid):
         self.tpb = (128, 1, 1)
         # Blocks per grid - used for main electric/magnetic field updates
         self.bpg = None
-
-    def _construct_pml(self, pml_ID: str, thickness: int) -> CUDAPML:
-        return super()._construct_pml(pml_ID, thickness, CUDAPML)
 
     def set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and

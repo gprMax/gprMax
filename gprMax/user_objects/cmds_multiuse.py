@@ -29,18 +29,14 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
-from gprMax.eigenmode_config import (
-    EigenmodeBandSpec,
-    EigenmodeBandpassWaveform,
-    EigenmodePortSpec,
-)
+from gprMax.eigenmode_config import EigenmodeBandpassWaveform, EigenmodeBandSpec, EigenmodePortSpec
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
 from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
 from gprMax.materials import RangeMaterial as RangeMaterialUser
-from gprMax.pml import CFS, CFSParameter
+from gprMax.pml import CFS, CFSParameter, InternalPMLSpec
 from gprMax.receivers import Rx as RxUser
 from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
 from gprMax.sources import EigenmodeReceiver as EigenmodeReceiverUser
@@ -3310,8 +3306,10 @@ class PMLCFS(GridUserObject):
         cfs.kappa = cfskappa
         cfs.sigma = cfssigma
 
+        profile_id = self.kwargs.get("profile_id")
+        destination = "global PML configuration" if profile_id is None else f"PML profile '{profile_id}'"
         logger.info(
-            f"PML CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, "
+            f"{destination} CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, "
             f"scaling direction: {cfsalpha.scalingdirection}, min: "
             f"{cfsalpha.min:g}, max: {cfsalpha.max:g}), kappa (scaling: "
             f"{cfskappa.scalingprofile}, scaling direction: "
@@ -3321,11 +3319,143 @@ class PMLCFS(GridUserObject):
             f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
-        grid.pmls["cfs"].append(cfs)
+        if profile_id is None:
+            terms = grid.pmls["cfs"]
+        else:
+            if not profile_id:
+                raise ValueError(f"{self.params_str()} profile_id must not be empty.")
+            profile = grid.pmls["profiles"].setdefault(
+                profile_id, {"formulation": None, "cfs": []}
+            )
+            terms = profile["cfs"]
+        terms.append(cfs)
 
-        if len(grid.pmls["cfs"]) > 2:
+        if len(terms) > 2:
             logger.exception(f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML.")
             raise ValueError
+
+
+class PMLSlab(GridUserObject):
+    """Place an experimental one-axis RIPML slab inside the main grid.
+
+    ``p1`` and ``p2`` bound a rectangular region. ``maximum_face`` selects the
+    local face at which complex stretching is greatest; the profile reduces
+    to zero towards the opposite face. For example, ``x0`` has its maximum at
+    ``p1.x`` and opens towards increasing x. Unlike a domain-boundary PML, the
+    slab is a correction applied to the existing geometry. By default, gprMax
+    creates PEC plates on its four transverse faces and maximum-stretch face;
+    faces coincident with the model boundary are omitted. The zero-stretch
+    entrance remains open. Set ``build_pec=False`` to provide a custom or
+    deliberately open enclosure. Exposed faces are then reported as warnings;
+    incomplete enclosures have no stability guarantee.
+    """
+
+    FACE_TO_DIRECTION = {
+        "x0": "xminus",
+        "xmax": "xplus",
+        "y0": "yminus",
+        "ymax": "yplus",
+        "z0": "zminus",
+        "zmax": "zplus",
+    }
+
+    @property
+    def order(self):
+        # Register before sources/receivers so their PML-position warning also
+        # recognises user-positioned slabs.
+        return 0
+
+    @property
+    def hash(self):
+        return "#pml_slab"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            maximum_face = self.kwargs["maximum_face"].lower()
+        except KeyError:
+            logger.exception(
+                f"{self.params_str()} requires p1, p2, and maximum_face."
+            )
+            raise
+
+        profile_id = self.kwargs.get("profile_id")
+        build_pec = self.kwargs.get("build_pec", True)
+        ID = self.kwargs.get("id")
+        if ID is None:
+            number = len(grid.pmls["internal_specs"]) + 1
+            ID = f"internal_pml_{number}"
+            while any(spec.ID == ID for spec in grid.pmls["internal_specs"]):
+                number += 1
+                ID = f"internal_pml_{number}"
+
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f"{self.params_str()} cannot currently be used on a subgrid.")
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(f"{self.params_str()} cannot currently be used in 2D mode.")
+        if maximum_face not in self.FACE_TO_DIRECTION:
+            raise ValueError(
+                f"{self.params_str()} maximum_face must be one of "
+                f"{', '.join(self.FACE_TO_DIRECTION)}."
+            )
+        if any(spec.ID == ID for spec in grid.pmls["internal_specs"]):
+            raise ValueError(f"{self.params_str()} id '{ID}' is already in use.")
+        if not isinstance(build_pec, (bool, np.bool_)):
+            raise TypeError(f"{self.params_str()} build_pec must be a boolean.")
+
+        uip = self._create_uip(grid)
+        within_grid, lower, upper = uip.check_box_points(p1, p2, self.__str__())
+        if not within_grid:
+            return
+        if not np.all(upper > lower):
+            raise ValueError(f"{self.params_str()} must have non-zero extent on all three axes.")
+
+        axis = "xyz".index(maximum_face[0])
+        if upper[axis] - lower[axis] < 2:
+            raise ValueError(
+                f"{self.params_str()} must be at least two cells thick along its absorption axis."
+            )
+
+        spec = InternalPMLSpec(
+            ID=ID,
+            maximum_face=maximum_face,
+            direction=self.FACE_TO_DIRECTION[maximum_face],
+            xs=int(lower[0]),
+            xf=int(upper[0]),
+            ys=int(lower[1]),
+            yf=int(upper[1]),
+            zs=int(lower[2]),
+            zf=int(upper[2]),
+            profile_id=profile_id,
+            build_pec=bool(build_pec),
+        )
+        grid.pmls["internal_specs"].append(spec)
+        grid.pmls["internal_registry"][ID] = {
+            "spec": spec,
+            "classification": "unvalidated",
+            "profile_id": profile_id,
+            "build_pec": bool(build_pec),
+            "generated_pec_faces": 0,
+        }
+        logger.info(
+            f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
+            f"{tuple(uip.discrete_to_continuous(lower))}m to "
+            f"{tuple(uip.discrete_to_continuous(upper))}m, with maximum "
+            f"stretching on its {maximum_face} face"
+            + (f", using profile '{profile_id}'" if profile_id else ", using the global PML configuration")
+            + (
+                ", with an automatic PEC enclosure"
+                if build_pec
+                else ", without an automatic PEC enclosure"
+            )
+            + ", registered."
+        )
 
 
 class SymmetryBoundary(GridUserObject):

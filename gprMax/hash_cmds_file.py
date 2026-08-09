@@ -224,7 +224,6 @@ def check_cmd_names(processedlines, checkessential=True):
             "#title",
             "#omp_threads",
             "#time_step_stability_factor",
-            "#pml_formulation",
             "#pml_cells",
             "#src_steps",
             "#rx_steps",
@@ -281,6 +280,8 @@ def check_cmd_names(processedlines, checkessential=True):
             "#ksir_far_field_array",
             "#ksir_antenna_ports",
             "#pml_cfs",
+            "#pml_formulation",
+            "#pml_slab",
             "#symmetry_boundary",
             "#include_file",
         ]

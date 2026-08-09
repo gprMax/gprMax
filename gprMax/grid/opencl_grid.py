@@ -20,19 +20,18 @@
 from importlib import import_module
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.pml import PML, OpenCLPML
+from gprMax.pml import OpenCLPML
 
 
 class OpenCLGrid(FDTDGrid):
     """Additional grid methods for solving on compute device using OpenCL."""
 
+    pml_type = OpenCLPML
+
     def __init__(self):
         super().__init__()
 
         self.clarray = import_module("pyopencl.array")
-
-    def _construct_pml(self, pml_ID: str, thickness: int) -> OpenCLPML:
-        return super()._construct_pml(pml_ID, thickness, OpenCLPML)
 
     def htod_geometry_arrays(self, queue):
         """Initialise an array for cell edge IDs (ID) on compute device.

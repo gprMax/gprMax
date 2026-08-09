@@ -38,6 +38,7 @@ from .user_objects.cmds_multiuse import (
     Material,
     MaterialList,
     MaterialRange,
+    PMLSlab,
     Rx,
     RxArray,
     SoilPeplinski,
@@ -69,6 +70,7 @@ from .user_objects.cmds_output import (
     RxPort,
     Snapshot,
 )
+from .user_objects.cmds_singleuse import PMLFormulation
 
 logger = logging.getLogger(__name__)
 
@@ -931,13 +933,26 @@ def process_multicmds(multicmds):
             material_list = MaterialList(list_of_materials=lmats, id=tmp[tokens - 1])
             scene_objects.append(material_list)
 
+    cmdname = "#pml_formulation"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) not in (1, 2):
+                logger.exception(
+                    "'" + cmdname + ": " + " ".join(tmp) + "' requires one or two parameters"
+                )
+                raise ValueError
+            scene_objects.append(
+                PMLFormulation(formulation=tmp[0], id=tmp[1] if len(tmp) == 2 else None)
+            )
+
     cmdname = "#pml_cfs"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) != 12:
-                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly twelve parameters")
+            if len(tmp) not in (12, 13):
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires twelve or thirteen parameters")
                 raise ValueError
 
             pml_cfs = PMLCFS(
@@ -953,9 +968,46 @@ def process_multicmds(multicmds):
                 sigmascalingdirection=tmp[9],
                 sigmamin=tmp[10],
                 sigmamax=tmp[11],
+                profile_id=tmp[12] if len(tmp) == 13 else None,
             )
 
             scene_objects.append(pml_cfs)
+
+    cmdname = "#pml_slab"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) not in (7, 8, 9):
+                logger.exception(
+                    "'"
+                    + cmdname
+                    + ": "
+                    + " ".join(tmp)
+                    + "' requires seven, eight, or nine parameters"
+                )
+                raise ValueError
+
+            profile_id = tmp[7] if len(tmp) >= 8 else None
+            if profile_id is not None and profile_id.lower() == "none":
+                profile_id = None
+            build_pec = True
+            if len(tmp) == 9:
+                if tmp[8].lower() == "y":
+                    build_pec = True
+                elif tmp[8].lower() == "n":
+                    build_pec = False
+                else:
+                    raise ValueError(f"{cmdname} automatic PEC enclosure must be 'y' or 'n'.")
+
+            pml_slab = PMLSlab(
+                p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                maximum_face=tmp[6].lower(),
+                profile_id=profile_id,
+                build_pec=build_pec,
+            )
+            scene_objects.append(pml_slab)
 
     cmdname = "#symmetry_boundary"
     if multicmds[cmdname] is not None:
