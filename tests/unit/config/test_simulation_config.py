@@ -352,6 +352,26 @@ class TestSolverSelection:
     def test_cuda_devices_carry_compiler_options(self, make_sim_config):
         assert "nvcc_opts" in make_sim_config(gpu=[0]).devices
 
+    def test_windows_suppresses_nvcc_warnings(self, make_sim_config, monkeypatch):
+        """The one platform-conditional line in ``SimulationConfig``.
+
+        ``sys.platform`` is patched rather than read, so this branch is
+        covered on all three CI runners instead of one — and the *absence* of
+        the flag elsewhere is covered too. Left unpatched, the assertion would
+        depend on which runner executed it.
+        """
+        monkeypatch.setattr("sys.platform", "win32")
+
+        assert make_sim_config(gpu=[0]).devices["nvcc_opts"] == ["-w"]
+
+    @pytest.mark.parametrize("platform_name", ["linux", "darwin"])
+    def test_other_platforms_pass_no_nvcc_options(
+        self, make_sim_config, monkeypatch, platform_name
+    ):
+        monkeypatch.setattr("sys.platform", platform_name)
+
+        assert make_sim_config(gpu=[0]).devices["nvcc_opts"] is None
+
     @pytest.mark.parametrize("accelerator", ["opencl", "metal"])
     def test_non_cuda_devices_carry_compiler_options(
         self, make_sim_config, accelerator

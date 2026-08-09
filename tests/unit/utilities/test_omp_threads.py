@@ -319,10 +319,19 @@ class TestWindowsSubsystemForLinux:
 
 
 class TestEnvironmentHygiene:
-    """The function's whole effect is a side effect; pin its extent."""
+    """The function's whole effect is a side effect; pin its extent.
 
-    def test_exactly_five_variables_are_written(self, install_host_config):
-        """A sixth would be a silent change to how the solver runs."""
+    Every test here patches ``sys.platform``, because the number of variables
+    written is platform-dependent — macOS gets a fifth. Leaving it unpatched
+    makes the count assertion pass on two runners and fail on the third, which
+    is the failure mode this suite exists to remove.
+    """
+
+    def test_exactly_four_variables_are_written(
+        self, install_host_config, monkeypatch
+    ):
+        """A fifth would be a silent change to how the solver runs."""
+        monkeypatch.setattr("sys.platform", "linux")
         install_host_config()
         before = set(os.environ)
 
@@ -335,7 +344,43 @@ class TestEnvironmentHygiene:
             "OMP_PROC_BIND",
         }
 
+    def test_windows_writes_the_same_four(self, install_host_config, monkeypatch):
+        monkeypatch.setattr("sys.platform", "win32")
+        install_host_config()
+        before = set(os.environ)
+
+        set_omp_threads()
+
+        assert set(os.environ) - before == {
+            "OMP_NUM_THREADS",
+            "OMP_DYNAMIC",
+            "OMP_PLACES",
+            "OMP_PROC_BIND",
+        }
+
+    def test_macos_writes_a_fifth(self, install_host_config, monkeypatch):
+        """``OMP_WAIT_POLICY`` — the one platform-conditional variable.
+
+        Asserted as its own test rather than folded into the count above, so
+        the difference between the platforms is stated rather than hidden in a
+        conditional expectation.
+        """
+        monkeypatch.setattr("sys.platform", "darwin")
+        install_host_config()
+        before = set(os.environ)
+
+        set_omp_threads()
+
+        assert set(os.environ) - before == {
+            "OMP_NUM_THREADS",
+            "OMP_DYNAMIC",
+            "OMP_PLACES",
+            "OMP_PROC_BIND",
+            "OMP_WAIT_POLICY",
+        }
+
     def test_nothing_unrelated_is_removed(self, install_host_config, monkeypatch):
+        monkeypatch.setattr("sys.platform", "linux")
         install_host_config()
         monkeypatch.setenv("A_BYSTANDER", "untouched")
 
@@ -343,8 +388,9 @@ class TestEnvironmentHygiene:
 
         assert os.environ["A_BYSTANDER"] == "untouched"
 
-    def test_calling_twice_is_idempotent(self, install_host_config):
+    def test_calling_twice_is_idempotent(self, install_host_config, monkeypatch):
         """The context loop configures once per model in a multi-model run."""
+        monkeypatch.setattr("sys.platform", "linux")
         install_host_config()
 
         set_omp_threads()
@@ -353,13 +399,16 @@ class TestEnvironmentHygiene:
 
         assert dict(os.environ) == first
 
-    def test_the_second_call_sees_its_own_first_call(self, install_host_config):
+    def test_the_second_call_sees_its_own_first_call(
+        self, install_host_config, monkeypatch
+    ):
         """A subtle consequence: the first call sets ``OMP_NUM_THREADS``.
 
         So the second takes the *inherited* branch rather than recomputing
         from the core count. Identical result here, but it means an explicit
         argument on a later call is the only way to change the number.
         """
+        monkeypatch.setattr("sys.platform", "linux")
         install_host_config()
         set_omp_threads()
 

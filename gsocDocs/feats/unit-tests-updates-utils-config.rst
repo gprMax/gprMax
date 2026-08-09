@@ -40,7 +40,7 @@ Unit Tests — Updates, Solver, Config, Utilities and VTKHDF
    - ``tests/unit/updates/test_cpu_updates.py`` (91 tests)
    - ``tests/unit/updates/test_dispersive_dispatch.py`` (76 tests)
    - ``tests/unit/updates/test_solver.py`` (45 tests)
-   - ``tests/unit/config/test_simulation_config.py`` (78 tests)
+   - ``tests/unit/config/test_simulation_config.py`` (81 tests)
    - ``tests/unit/config/test_precision_dtypes.py`` (54 tests)
    - ``tests/unit/config/test_model_config.py`` (46 tests)
    - ``tests/unit/config/test_model_registry.py`` (24 tests)
@@ -48,7 +48,7 @@ Unit Tests — Updates, Solver, Config, Utilities and VTKHDF
    - ``tests/unit/utilities/test_utilities.py`` (101 tests)
    - ``tests/unit/utilities/test_logging.py`` (51 tests)
    - ``tests/unit/utilities/test_host_info.py`` (66 tests)
-   - ``tests/unit/utilities/test_omp_threads.py`` (33 tests)
+   - ``tests/unit/utilities/test_omp_threads.py`` (35 tests)
    - ``tests/unit/utilities/test_mem_checks.py`` (35 tests)
    - ``tests/unit/utilities/test_device_detection.py`` (58 tests)
    - ``tests/unit/vtkhdf/test_vtkhdf_base.py`` (64 tests)
@@ -56,7 +56,7 @@ Unit Tests — Updates, Solver, Config, Utilities and VTKHDF
    - ``tests/unit/vtkhdf/test_vtk_image_data.py`` (51 tests)
    - ``tests/unit/vtkhdf/test_vtk_unstructured_grid.py`` (46 tests)
 
-**Total: 1061 tests** from 848 test functions across 137
+**Total: 1066 tests** from 852 test functions across 137
 classes, all passing, **no** ``xfail`` **and no** ``skip``.
 
 **Shared fixtures:** ``tests/unit/updates/conftest.py``,
@@ -1502,7 +1502,7 @@ lives on the parent.
 Test Catalog — ``test_simulation_config.py``
 --------------------------------------------
 
-**78 tests** from 59 test functions across 9 classes.
+**81 tests** from 61 test functions across 9 classes.
 
 ``SimulationConfig`` — ``gprMax/config.py:196``.
 
@@ -1727,6 +1727,17 @@ Which backend the arguments select.
    ``devices`` is only created on an accelerator path.
 
 ``test_cuda_devices_carry_compiler_options``
+   Undocumented.
+
+``test_windows_suppresses_nvcc_warnings``
+   The one platform-conditional line in ``SimulationConfig``.
+
+   ``sys.platform`` is patched rather than read, so this branch is covered
+   on all three CI runners instead of one — and the *absence* of the flag
+   elsewhere is covered too. Left unpatched, the assertion would depend on
+   which runner executed it.
+
+``test_other_platforms_pass_no_nvcc_options``
    Undocumented.
 
 ``test_non_cuda_devices_carry_compiler_options``
@@ -3660,7 +3671,7 @@ it. See ``notes/bugs/host-info-re-sub-positional-count.md``.
 Test Catalog — ``test_omp_threads.py``
 --------------------------------------
 
-**33 tests** from 32 test functions across 6 classes.
+**35 tests** from 34 test functions across 6 classes.
 
 ``set_omp_threads`` — the five environment variables that size the solver.
 
@@ -3832,8 +3843,23 @@ TestEnvironmentHygiene
 
 The function's whole effect is a side effect; pin its extent.
 
-``test_exactly_five_variables_are_written``
-   A sixth would be a silent change to how the solver runs.
+Every test here patches ``sys.platform``, because the number of variables
+written is platform-dependent — macOS gets a fifth. Leaving it unpatched
+makes the count assertion pass on two runners and fail on the third, which
+is the failure mode this suite exists to remove.
+
+``test_exactly_four_variables_are_written``
+   A fifth would be a silent change to how the solver runs.
+
+``test_windows_writes_the_same_four``
+   Undocumented.
+
+``test_macos_writes_a_fifth``
+   ``OMP_WAIT_POLICY`` — the one platform-conditional variable.
+
+   Asserted as its own test rather than folded into the count above, so the
+   difference between the platforms is stated rather than hidden in a
+   conditional expectation.
 
 ``test_nothing_unrelated_is_removed``
    Undocumented.
