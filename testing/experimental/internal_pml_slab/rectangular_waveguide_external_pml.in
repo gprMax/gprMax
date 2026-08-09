@@ -13,4 +13,3 @@
 #eigenmode_band: waveguide_band 30e9 45e9 61
 #eigenmode_port: 1 0.010 0.001 0.001 0.010 0.007 0.005 - 1 auto y
 #eigenmode_excitation: 1 1 auto
-

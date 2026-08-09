@@ -272,13 +272,6 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
-        knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
-        )
-        knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
-        )
-
         subs = {
             "CUDA_IDX": "",
             "REAL": config.sim_config.dtypes["C_float_or_double"],
@@ -293,6 +286,12 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         # Set workgroup size, initialise arrays on compute device, and get
         # kernel functions
         for pml in self.grid.pmls["slabs"]:
+            knl_pml_updates_electric = import_module(
+                "gprMax.cuda_opencl.knl_pml_updates_electric_" + pml.formulation
+            )
+            knl_pml_updates_magnetic = import_module(
+                "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + pml.formulation
+            )
             pml.set_queue(self.queue)
             pml.htod_field_arrays()
             knl_name = f"order{len(pml.CFS)}_{pml.direction}"

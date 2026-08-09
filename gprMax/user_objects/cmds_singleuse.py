@@ -26,7 +26,7 @@ import numpy as np
 from gprMax import config
 from gprMax.model import Model
 from gprMax.pml import PML
-from gprMax.user_objects.user_objects import ModelUserObject
+from gprMax.user_objects.user_objects import GridUserObject, ModelUserObject
 from gprMax.utilities.host_info import set_omp_threads
 
 logger = logging.getLogger(__name__)
@@ -506,7 +506,7 @@ class OMPThreads(ModelUserObject):
         logger.info(f"Simulation will use {config.get_model_config().ompthreads} OpenMP threads")
 
 
-class PMLFormulation(ModelUserObject):
+class PMLFormulation(GridUserObject):
     """Set the formulation of the PMLs.
 
     Current options are to use the Higher Order RIPML (HORIPML) -
@@ -514,35 +514,50 @@ class PMLFormulation(ModelUserObject):
     (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864.
 
     Attributes:
-        formulation (str): Formulation to be used for all PMLs. Either
-            'HORIPML' or 'MRIPML'.
+        formulation (str): Either 'HORIPML' or 'MRIPML'.
+        id (str, optional): Reusable profile identifier. If omitted, set the
+            global formulation used by domain PMLs and unqualified slabs.
     """
 
     @property
     def order(self):
-        return 7
+        return 18
 
     @property
     def hash(self):
         return "#pml_formulation"
 
-    def __init__(self, formulation: str):
+    def __init__(self, formulation: str, id: Optional[str] = None):
         """Create a PMLFormulation user object.
 
         Args:
             formulation: Formulation to be used for all PMLs. Either
                 'HORIPML' or 'MRIPML'.
         """
-        super().__init__(formulation=formulation)
+        super().__init__(formulation=formulation, id=id)
         self.formulation = formulation
+        self.id = id
 
-    def build(self, model: Model):
+    def build(self, target):
         if self.formulation not in PML.formulations:
             raise ValueError(f"{self} requires the value to be one of {' '.join(PML.formulations)}")
 
-        model.G.pmls["formulation"] = self.formulation
+        grid = target.G if isinstance(target, Model) else target
+        if self.id is None:
+            if grid.pmls["global_formulation_set"]:
+                raise ValueError("Only one unnamed PML formulation can be specified.")
+            grid.pmls["formulation"] = self.formulation
+            grid.pmls["global_formulation_set"] = True
+            logger.info(f"PML formulation set to {grid.pmls['formulation']}")
+            return
 
-        logger.info(f"PML formulation set to {model.G.pmls['formulation']}")
+        if not self.id:
+            raise ValueError(f"{self} id must not be empty.")
+        profile = grid.pmls["profiles"].setdefault(self.id, {"formulation": None, "cfs": []})
+        if profile["formulation"] is not None:
+            raise ValueError(f"PML profile '{self.id}' already has a formulation.")
+        profile["formulation"] = self.formulation
+        logger.info(f"PML profile '{self.id}' formulation set to {self.formulation}")
 
 
 class PMLThickness(ModelUserObject):

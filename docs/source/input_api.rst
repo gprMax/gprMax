@@ -1246,3 +1246,38 @@ The CFS values (which are internally specified) used for the default standard fi
     * The parameters will be applied to all slabs of the PML that are switched on.
     * Using ``None`` for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
     * ``forward`` direction implies a minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of the computational domain, ``reverse`` is the opposite.
+
+Reusable profiles and internal PML slabs
+----------------------------------------
+
+An optional ``id`` on :class:`PMLFormulation` defines a reusable local profile
+instead of changing the global PML formulation. One or two :class:`PMLCFS`
+objects may be associated with it through ``profile_id``. A named formulation
+without named CFS terms uses the default first-order CFS parameters.
+
+.. autoclass:: gprMax.user_objects.cmds_multiuse.PMLSlab
+
+For example, a local MRIPML load can be placed inside a PEC rectangular guide:
+
+.. code-block:: python
+
+    scene.add(gprMax.PMLFormulation(formulation='MRIPML', id='port_load'))
+    scene.add(gprMax.PMLSlab(
+        p1=(0.005, 0.010, 0.010),
+        p2=(0.015, 0.020, 0.020),
+        maximum_face='x0',
+        profile_id='port_load',
+        id='feed_absorber',       # optional API-only label
+    ))
+
+The four transverse slab faces must be bounded by continuous Yee-aligned PEC
+walls or model-domain faces. The maximum-stretch face must be PEC-backed or a
+domain face; the opposite, zero-stretch face is the open entrance. The material
+cross-section must be invariant through the slab. These checks deliberately
+reject floating absorbers, which are not a stable or physically complete use
+of a one-axis correction.
+
+When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
+``internal_pml_2``, and so on. Internal slabs currently support the CPU, CUDA,
+OpenCL, and Metal solvers on the main 3D grid; MPI and subgrids are not yet
+supported.

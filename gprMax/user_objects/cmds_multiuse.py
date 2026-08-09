@@ -29,11 +29,7 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
-from gprMax.eigenmode_config import (
-    EigenmodeBandSpec,
-    EigenmodeBandpassWaveform,
-    EigenmodePortSpec,
-)
+from gprMax.eigenmode_config import EigenmodeBandpassWaveform, EigenmodeBandSpec, EigenmodePortSpec
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
@@ -3270,8 +3266,10 @@ class PMLCFS(GridUserObject):
         cfs.kappa = cfskappa
         cfs.sigma = cfssigma
 
+        profile_id = self.kwargs.get("profile_id")
+        destination = "global PML configuration" if profile_id is None else f"PML profile '{profile_id}'"
         logger.info(
-            f"PML CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, "
+            f"{destination} CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, "
             f"scaling direction: {cfsalpha.scalingdirection}, min: "
             f"{cfsalpha.min:g}, max: {cfsalpha.max:g}), kappa (scaling: "
             f"{cfskappa.scalingprofile}, scaling direction: "
@@ -3281,9 +3279,18 @@ class PMLCFS(GridUserObject):
             f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
-        grid.pmls["cfs"].append(cfs)
+        if profile_id is None:
+            terms = grid.pmls["cfs"]
+        else:
+            if not profile_id:
+                raise ValueError(f"{self.params_str()} profile_id must not be empty.")
+            profile = grid.pmls["profiles"].setdefault(
+                profile_id, {"formulation": None, "cfs": []}
+            )
+            terms = profile["cfs"]
+        terms.append(cfs)
 
-        if len(grid.pmls["cfs"]) > 2:
+        if len(terms) > 2:
             logger.exception(f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML.")
             raise ValueError
 
@@ -3295,8 +3302,10 @@ class PMLSlab(GridUserObject):
     local face at which complex stretching is greatest; the profile reduces
     to zero towards the opposite face. For example, ``x0`` has its maximum at
     ``p1.x`` and opens towards increasing x. Unlike a domain-boundary PML, the
-    slab does not create or imply a PEC termination. The transverse material
-    geometry should be a constant extrusion along the slab normal.
+    slab is a correction applied to the existing geometry. Its transverse
+    faces must be bounded by PEC or coincide with the domain boundary, and its
+    maximum-stretch face must be PEC-backed or coincide with the domain
+    boundary. The zero-stretch entrance remains open.
     """
 
     FACE_TO_DIRECTION = {
@@ -3326,12 +3335,20 @@ class PMLSlab(GridUserObject):
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
             maximum_face = self.kwargs["maximum_face"].lower()
-            ID = self.kwargs["id"]
         except KeyError:
             logger.exception(
-                f"{self.params_str()} requires p1, p2, maximum_face, and id."
+                f"{self.params_str()} requires p1, p2, and maximum_face."
             )
             raise
+
+        profile_id = self.kwargs.get("profile_id")
+        ID = self.kwargs.get("id")
+        if ID is None:
+            number = len(grid.pmls["internal_specs"]) + 1
+            ID = f"internal_pml_{number}"
+            while any(spec.ID == ID for spec in grid.pmls["internal_specs"]):
+                number += 1
+                ID = f"internal_pml_{number}"
 
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
@@ -3344,8 +3361,6 @@ class PMLSlab(GridUserObject):
                 f"{self.params_str()} maximum_face must be one of "
                 f"{', '.join(self.FACE_TO_DIRECTION)}."
             )
-        if not ID:
-            raise ValueError(f"{self.params_str()} id must not be empty.")
         if any(spec.ID == ID for spec in grid.pmls["internal_specs"]):
             raise ValueError(f"{self.params_str()} id '{ID}' is already in use.")
 
@@ -3372,13 +3387,21 @@ class PMLSlab(GridUserObject):
             yf=int(upper[1]),
             zs=int(lower[2]),
             zf=int(upper[2]),
+            profile_id=profile_id,
         )
         grid.pmls["internal_specs"].append(spec)
+        grid.pmls["internal_registry"][ID] = {
+            "spec": spec,
+            "classification": "unvalidated",
+            "profile_id": profile_id,
+        }
         logger.info(
             f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
             f"{tuple(uip.discrete_to_continuous(lower))}m to "
             f"{tuple(uip.discrete_to_continuous(upper))}m, with maximum "
-            f"stretching on its {maximum_face} face, registered."
+            f"stretching on its {maximum_face} face"
+            + (f", using profile '{profile_id}'" if profile_id else ", using the global PML configuration")
+            + ", registered."
         )
 
 

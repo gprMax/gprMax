@@ -43,7 +43,7 @@ from gprMax.cython.yee_cell_build import build_electric_components, build_magnet
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.fractal_volume import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
-from gprMax.pml import CFS, InternalPMLSpec, PML, print_pml_info
+from gprMax.pml import CFS, PML, InternalPMLSpec, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
     DiscretePlaneWave,
@@ -116,9 +116,12 @@ class FDTDGrid:
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
         self.pmls["formulation"] = "HORIPML"
+        self.pmls["global_formulation_set"] = False
         self.pmls["cfs"] = []
+        self.pmls["profiles"] = OrderedDict()
         self.pmls["slabs"] = []
         self.pmls["internal_specs"] = []
+        self.pmls["internal_registry"] = OrderedDict()
         # Ordered dictionary required so *updating* the PMLs always follows the
         # same order (the order for *building* PMLs does not matter). The order
         # itself does not matter, however, if must be the same from model to
@@ -311,6 +314,7 @@ class FDTDGrid:
         self._build_thin_wires()
         self._2d_mode_grid_update()
         self._terminate_pmls_with_pec()
+        self._validate_internal_pmls()
         self._build_symmetry_boundaries()
         self._create_voltage_source_materials()
         self.initialise_field_arrays()
@@ -472,6 +476,7 @@ class FDTDGrid:
 
     def _construct_internal_pml(self, spec: InternalPMLSpec) -> PML:
         """Construct a user-positioned one-axis PML slab."""
+        formulation, cfs = self._resolve_internal_pml_profile(spec)
         return self._new_pml(
             ID=spec.ID,
             direction=spec.direction,
@@ -483,7 +488,26 @@ class FDTDGrid:
             zf=spec.zf,
             internal=True,
             maximum_face=spec.maximum_face,
+            formulation=formulation,
+            cfs=cfs,
+            profile_id=spec.profile_id,
         )
+
+    def _resolve_internal_pml_profile(self, spec: InternalPMLSpec):
+        """Resolve a slab's reusable recipe without mutating global settings."""
+        if spec.profile_id is None:
+            return self.pmls["formulation"], self.pmls["cfs"]
+        try:
+            profile = self.pmls["profiles"][spec.profile_id]
+        except KeyError as exc:
+            raise ValueError(
+                f"Internal PML slab '{spec.ID}' refers to unknown profile '{spec.profile_id}'."
+            ) from exc
+        if profile["formulation"] is None:
+            raise ValueError(
+                f"PML profile '{spec.profile_id}' has CFS parameters but no formulation."
+            )
+        return profile["formulation"], profile["cfs"] or [CFS()]
 
     def _calculate_average_pml_material_properties(self, pml: PML) -> Tuple[float, float]:
         """Calculate average material properties for the provided PML.
@@ -822,12 +846,145 @@ class FDTDGrid:
         face. This must run after geometry and component averaging.
         """
         pml_faces = [face for face, thickness in self.pmls["thickness"].items() if thickness > 0]
+        for spec in self.pmls["internal_specs"]:
+            axis = "xyz".index(spec.maximum_face[0])
+            lower = (spec.xs, spec.ys, spec.zs)[axis]
+            upper = (spec.xf, spec.yf, spec.zf)[axis]
+            limit = (self.nx, self.ny, self.nz)[axis]
+            if (spec.maximum_face.endswith("0") and lower == 0) or (
+                spec.maximum_face.endswith("max") and upper == limit
+            ):
+                pml_faces.append(spec.maximum_face)
         if not pml_faces:
             return
 
         pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
         for face in pml_faces:
             self._force_pec_tangential_e(face, pec_numid)
+
+    def _validate_internal_pmls(self) -> None:
+        """Validate slab geometry against final material and component IDs."""
+        specs = self.pmls["internal_specs"]
+        if not specs:
+            return
+
+        pec_numids = np.asarray(
+            [m.numID for m in self.materials if m.is_pec], dtype=np.uint32
+        )
+        limits = {"x": self.nx, "y": self.ny, "z": self.nz}
+
+        for index, spec in enumerate(specs):
+            axis = spec.maximum_face[0]
+            axis_index = "xyz".index(axis)
+            bounds = (spec.xs, spec.xf, spec.ys, spec.yf, spec.zs, spec.zf)
+            lower = bounds[2 * axis_index]
+            upper = bounds[2 * axis_index + 1]
+
+            for other in specs[:index]:
+                if other.maximum_face[0] == axis and self._pml_boxes_overlap(spec, other):
+                    raise ValueError(
+                        f"Internal PML slabs '{spec.ID}' and '{other.ID}' overlap along "
+                        f"their common {axis}-axis absorption direction."
+                    )
+
+            for face in (f"{axis}0", f"{axis}max"):
+                thickness = self.pmls["thickness"][face]
+                if not thickness:
+                    continue
+                native_lower = 0 if face.endswith("0") else limits[axis] - thickness
+                native_upper = thickness if face.endswith("0") else limits[axis]
+                if lower < native_upper and upper > native_lower:
+                    raise ValueError(
+                        f"Internal PML slab '{spec.ID}' overlaps the native {face} PML. "
+                        f"Set that boundary's #pml_cells value to zero or move the slab."
+                    )
+
+            self._validate_internal_pml_material_extrusion(spec)
+
+            lateral_faces = {
+                "x": (("y", spec.ys), ("y", spec.yf), ("z", spec.zs), ("z", spec.zf)),
+                "y": (("x", spec.xs), ("x", spec.xf), ("z", spec.zs), ("z", spec.zf)),
+                "z": (("x", spec.xs), ("x", spec.xf), ("y", spec.ys), ("y", spec.yf)),
+            }[axis]
+            for normal, coordinate in lateral_faces:
+                if coordinate in (0, limits[normal]):
+                    continue
+                if not self._pml_surface_is_pec(spec, normal, coordinate, pec_numids):
+                    raise ValueError(
+                        f"Internal PML slab '{spec.ID}' has an exposed transverse {normal}="
+                        f"{coordinate} face. Enclose it with a continuous Yee-aligned PEC wall "
+                        "or extend that face to the model boundary."
+                    )
+
+            maximum_coordinate = lower if spec.maximum_face.endswith("0") else upper
+            maximum_on_boundary = maximum_coordinate in (0, limits[axis])
+            if not maximum_on_boundary and not self._pml_surface_is_pec(
+                spec, axis, maximum_coordinate, pec_numids
+            ):
+                raise ValueError(
+                    f"Internal PML slab '{spec.ID}' must have a PEC backing on its "
+                    f"maximum-stretch face ({spec.maximum_face}) or end at the model boundary."
+                )
+
+            transverse_full = {
+                "x": spec.ys == 0 and spec.yf == self.ny and spec.zs == 0 and spec.zf == self.nz,
+                "y": spec.xs == 0 and spec.xf == self.nx and spec.zs == 0 and spec.zf == self.nz,
+                "z": spec.xs == 0 and spec.xf == self.nx and spec.ys == 0 and spec.yf == self.ny,
+            }[axis]
+            classification = (
+                "boundary-replacement"
+                if maximum_on_boundary and transverse_full
+                else "internal-absorber"
+            )
+            record = self.pmls["internal_registry"][spec.ID]
+            pml = next(pml for pml in self.pmls["slabs"] if pml.ID == spec.ID)
+            record.update(
+                classification=classification,
+                formulation=pml.formulation,
+                order=len(pml.CFS),
+            )
+            logger.info(
+                f"Internal PML slab '{spec.ID}' validated as {classification} "
+                f"({record['formulation']}, order {record['order']})."
+            )
+
+    @staticmethod
+    def _pml_boxes_overlap(first: InternalPMLSpec, second: InternalPMLSpec) -> bool:
+        return (
+            first.xs < second.xf
+            and first.xf > second.xs
+            and first.ys < second.yf
+            and first.yf > second.ys
+            and first.zs < second.zf
+            and first.zf > second.zs
+        )
+
+    def _validate_internal_pml_material_extrusion(self, spec: InternalPMLSpec) -> None:
+        """Require the material cross-section to be invariant along absorption."""
+        volume = self.solid[spec.xs : spec.xf, spec.ys : spec.yf, spec.zs : spec.zf]
+        axis = "xyz".index(spec.maximum_face[0])
+        entrance_index = -1 if spec.maximum_face.endswith("0") else 0
+        entrance = np.take(volume, entrance_index, axis=axis)
+        if not np.all(volume == np.expand_dims(entrance, axis=axis)):
+            raise ValueError(
+                f"Internal PML slab '{spec.ID}' requires a material cross-section that is "
+                "constant along its absorption direction."
+            )
+
+    def _pml_surface_is_pec(
+        self, spec: InternalPMLSpec, normal: str, coordinate: int, pec_numids: np.ndarray
+    ) -> bool:
+        """Return whether all tangential electric Yee edges on a slab face are PEC."""
+        if normal == "x":
+            first = self.ID[1, coordinate, spec.ys : spec.yf, spec.zs : spec.zf + 1]
+            second = self.ID[2, coordinate, spec.ys : spec.yf + 1, spec.zs : spec.zf]
+        elif normal == "y":
+            first = self.ID[0, spec.xs : spec.xf, coordinate, spec.zs : spec.zf + 1]
+            second = self.ID[2, spec.xs : spec.xf + 1, coordinate, spec.zs : spec.zf]
+        else:
+            first = self.ID[0, spec.xs : spec.xf, spec.ys : spec.yf + 1, coordinate]
+            second = self.ID[1, spec.xs : spec.xf + 1, spec.ys : spec.yf, coordinate]
+        return bool(np.all(np.isin(first, pec_numids)) and np.all(np.isin(second, pec_numids)))
 
     def _build_symmetry_boundaries(self) -> None:
         """Apply PEC faces and resolve the per-iteration PMC edge dispatch."""

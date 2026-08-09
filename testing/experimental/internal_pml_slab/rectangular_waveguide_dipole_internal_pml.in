@@ -4,15 +4,16 @@
 #dx_dy_dz: 0.0002 0.0002 0.0002
 #time_window: 0.3e-9
 #pml_cells: 0
+#pml_formulation: MRIPML feed_load
 
 #box: 0 0 0 0.024 0.001 0.006 pec
 #box: 0 0.007 0 0.024 0.008 0.006 pec
 #box: 0 0 0 0.024 0.008 0.001 pec
 #box: 0 0 0.005 0.024 0.008 0.006 pec
 
+#plate: 0.001 0.001 0.001 0.001 0.007 0.005 pec
 #pml_slab: 0.001 0.001 0.001 0.005 0.007 0.005 x0 feed_load
 
 #waveform: ricker 1 35e9 pulse
 #hertzian_dipole: z 0.010 0.004 0.003 pulse
 #rx: 0.008 0.004 0.003
-
