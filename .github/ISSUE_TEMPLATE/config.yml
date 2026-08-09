@@ -1,0 +1,9 @@
+# .github/ISSUE_TEMPLATE/config.yml
+blank_issues_enabled: false
+contact_links:
+  - name: Question or support request
+    url: https://github.com/gprMax/gprMax/discussions
+    about: Please ask usage, installation, and modelling questions in Discussions.
+  - name: Google Group archive (read-only)
+    url: https://groups.google.com/g/gprmax
+    about: Our former forum. Search here first — many questions are already answered.
