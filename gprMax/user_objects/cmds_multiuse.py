@@ -903,13 +903,12 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             self._log(grid, transmission_line, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # CUDA has a device-resident transmission-line update. OpenCL and
-        # Metal use the same kernel template but do not yet have their host
-        # buffer/launch lifecycle enabled and verified.
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        # Metal uses the same kernel template, but its host buffer/launch
+        # lifecycle has not yet been enabled and verified.
+        if config.sim_config.general["solver"] == "metal":
             raise ValueError(
                 f"{self.params_str()} cannot currently be used "
-                "with the OpenCL or Metal-based solver. Consider "
+                "with the Metal-based solver. Consider "
                 "using a #voltage_source instead."
             )
 

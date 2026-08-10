@@ -1154,7 +1154,7 @@ For example, to specify a y directed voltage source with an internal resistance 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU and CUDA solvers; OpenCL and Metal support is not currently enabled. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, and OpenCL solvers; Metal support is not currently enabled. The syntax of the command is:
 
 .. code-block:: none
 

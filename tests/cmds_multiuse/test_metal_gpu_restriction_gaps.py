@@ -32,9 +32,8 @@ def _set_solver(monkeypatch, solver):
     config.sim_config.em_consts = {"z0": 376.730313668}
 
 
-@pytest.mark.parametrize("solver", ["opencl", "metal"])
-def test_transmission_line_rejected_on_unimplemented_gpu_solvers(monkeypatch, solver):
-    _set_solver(monkeypatch, solver)
+def test_transmission_line_rejected_on_unimplemented_metal_solver(monkeypatch):
+    _set_solver(monkeypatch, "metal")
 
     tl = TransmissionLine(
         p1=(0.01, 0.01, 0.01), polarisation="x", resistance=50, waveform_id="w"
@@ -44,8 +43,9 @@ def test_transmission_line_rejected_on_unimplemented_gpu_solvers(monkeypatch, so
         tl._validate_parameters(grid=None)
 
 
-def test_transmission_line_is_allowed_on_cuda(monkeypatch):
-    _set_solver(monkeypatch, "cuda")
+@pytest.mark.parametrize("solver", ["cuda", "opencl"])
+def test_transmission_line_is_allowed_on_implemented_gpu_solvers(monkeypatch, solver):
+    _set_solver(monkeypatch, solver)
     monkeypatch.setattr(
         config,
         "get_model_config",
