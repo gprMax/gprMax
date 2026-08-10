@@ -54,7 +54,3 @@ cov.xml
 .vscode/
 .codex_tmp
 target/
-
-#Sahib's files
-notes
-.claude
