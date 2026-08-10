@@ -31,6 +31,7 @@ from gprMax.cuda_opencl import (
     knl_source_updates,
     knl_store_outputs,
     knl_symmetry_boundaries,
+    knl_transmission_line,
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.ntff.device import OpenCLCombinedKSIRCollector
@@ -45,8 +46,10 @@ from gprMax.snapshots import (
 from gprMax.sources import (
     MAGNETIC_FRILL_MAX_TERMS,
     dtoh_magnetic_frill_source_outputs,
+    dtoh_transmission_line_outputs,
     htod_magnetic_frill_source_arrays,
     htod_src_arrays,
+    htod_transmission_line_arrays,
 )
 from gprMax.updates.updates import Updates
 
@@ -94,6 +97,8 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self._set_rx_knl()
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
             self._set_src_knls()
+        if self.grid.transmissionlines:
+            self._set_transmission_line_knls()
         if self.grid.magneticfrillsources:
             self._set_magnetic_frill_knl()
         if self.grid.snapshots:
@@ -445,6 +450,55 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
+
+    def _set_transmission_line_knls(self):
+        """Initialise device-resident transmission lines and their kernels."""
+
+        arrays = htod_transmission_line_arrays(
+            self.grid.transmissionlines, self.grid, self.queue
+        )
+        for name, array in arrays.items():
+            setattr(self, f"tl_{name}_dev", array)
+
+        real = config.sim_config.dtypes["float_or_double"]
+        line = self.grid.transmissionlines[0]
+        self.tl_line_coefficient = real(config.c * self.grid.dt / line.dl)
+        self.tl_abc_coefficient = real(
+            (config.c * self.grid.dt - line.dl) / (config.c * self.grid.dt + line.dl)
+        )
+
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NY_TLINFO": 10,
+            "NY_TLWAVES": self.grid.iterations + 1,
+            "NY_TLOUTPUTS": self.grid.iterations + 1,
+        }
+        self.update_transmission_line_magnetic_dev = self.elwiseknl(
+            self.ctx,
+            knl_transmission_line.update_transmission_line_magnetic[
+                "args_opencl"
+            ].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+            knl_transmission_line.update_transmission_line_magnetic["func"].substitute(
+                substitutions
+            ),
+            "update_transmission_line_magnetic",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+        self.update_transmission_line_electric_dev = self.elwiseknl(
+            self.ctx,
+            knl_transmission_line.update_transmission_line_electric[
+                "args_opencl"
+            ].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+            knl_transmission_line.update_transmission_line_electric["func"].substitute(
+                substitutions
+            ),
+            "update_transmission_line_electric",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on compute device, prepares kernel and
         gets kernel function.
@@ -593,6 +647,27 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
     def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
+        if self.grid.transmissionlines:
+            self.update_transmission_line_magnetic_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_info_dev,
+                self.tl_resistance_dev,
+                self.tl_waveform_half_dev,
+                self.tl_voltage_dev,
+                self.tl_current_dev,
+                self.tl_Vtotal_dev,
+                self.tl_Itotal_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+                range=slice(0, len(self.grid.transmissionlines)),
+            )
+
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
@@ -722,6 +797,28 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ez_dev,
             )
 
+        if self.grid.transmissionlines:
+            self.update_transmission_line_electric_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_abc_coefficient,
+                self.tl_info_dev,
+                self.tl_resistance_dev,
+                self.tl_waveform_whole_dev,
+                self.tl_voltage_dev,
+                self.tl_current_dev,
+                self.tl_abcv0_dev,
+                self.tl_abcv1_dev,
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                range=slice(0, len(self.grid.transmissionlines)),
+            )
+
         if self.grid.hertziandipoles:
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
@@ -804,6 +901,11 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.frill_Vtotal_dev.get(),
                 self.frill_Itot_dev.get(),
                 self.grid,
+            )
+
+        if self.grid.transmissionlines:
+            dtoh_transmission_line_outputs(
+                self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
             )
 
         # Copy data from any snapshots back to correct snapshot objects
