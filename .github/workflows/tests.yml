@@ -2,9 +2,11 @@ name: tests
 
 on:
   pull_request:
+    branches:
+      - devel
+      - master
   push:
     branches:
-      - gsoc26-unit-testing
       - devel
       - master
 
@@ -53,16 +55,9 @@ jobs:
         run: python -u -c "import gprMax; from gprMax.fractals.fractal_surface import FractalSurface; print('imports ok')"
 
       - name: Run unit tests
-        run: python -u -m pytest tests_tobe_integrate/unit/ -v
+        run: python -u -m pytest tests/ -v
         env:
           PYTHONUNBUFFERED: "1"
           PYTHONFAULTHANDLER: "1"
           OMP_NUM_THREADS: "1"
-          # MPI4PY_RC_INITIALIZE is deliberately NOT set to "0" here. The PML
-          # and outputs suites construct real MPI communicators (MPI.COMM_SELF,
-          # Cartcomm) to exercise the MPI* classes, and those abort with
-          # "Attempting to use an MPI routine before initializing MPI" if
-          # mpi4py is told not to initialise on import.
-          # MPI4PY_RC_FINALIZE stays at "0": it only suppresses MPI_Finalize
-          # during interpreter shutdown, which is what the Ubuntu run needed.
           MPI4PY_RC_FINALIZE: "0"
