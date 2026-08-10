@@ -19,10 +19,14 @@ The main validations are:
 * ``validate_dielectric_sphere_rcs.py`` -- broadband dielectric-sphere
   monostatic RCS against the homogeneous-sphere Mie series;
 * ``validate_debye_sphere_averaging.py`` -- three two-pole dispersive-soil
-  spheres with and without Hartley's Debye interface average, compared with
+  spheres with and without dispersive interface averaging, compared with
   the homogeneous dispersive-sphere Mie series; and
 * ``validate_pec_sphere_rcs.py`` -- broadband PEC-sphere monostatic RCS
   against the Mie series.
+
+The ``dispersive_averaging`` subdirectory adds mixed-family validations for
+half spaces, finite multilayers, construction-order sensitivity, and a
+Debye-core/Lorentz-shell sphere evaluated with the Aden--Kerker series.
 
 ``mie_pec.py`` and ``mie_dielectric.py`` supply the independent sphere series
 used by both manual validation and automated tests. Behavioural and
@@ -42,6 +46,8 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
+    python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
+    python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
 
 Omit ``--gpu`` for CPU execution. Each script writes a report, summary, CSV
 data, and PNG figures. Solver HDF5 and NumPy working data are written below an

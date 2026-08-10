@@ -155,8 +155,8 @@ exterior geometry and frequency range. Its retained result has 0.27 dB RMS
 error and 0.72 dB maximum error. This case additionally exercises dielectric
 geometry averaging and the shorter wavelength inside the sphere.
 
-Dispersive Debye spheres and interface averaging
-=================================================
+Dispersive spheres and interface averaging
+===========================================
 
 Hartley's effective-permittivity treatment extends the ordinary arithmetic
 electric-edge average to Debye media [HAR2020]_. For the engineering Fourier
@@ -199,6 +199,21 @@ times remain distinct poles. Thus two different single-pole Debye materials
 generally produce a two-pole interface material. This construction follows
 Chapter 4 of Hartley's thesis [HAR2020]_.
 
+The implementation extends the same arithmetic response to Lorentz and Drude
+media through the inclusive susceptibility used by gprMax [GIA2014]_. If
+:math:`W_{m,p}` and :math:`Q_{m,p}` are the residue and location of a Debye,
+Lorentz, or Drude term, the interface retains :math:`Q_{m,p}` and replaces
+:math:`W_{m,p}` by :math:`w_m W_{m,p}`. Identical locations are merged exactly.
+This gives the frequency-by-frequency arithmetic constitutive response without
+fitting. It may, however, increase the model-wide pole count, so dispersive
+averaging is an opt-in feature.
+
+Reducing this exact union is a separate, band-limited material-fitting
+problem. The validation package includes constrained fitting experiments,
+building on the type of hybrid optimisation used for Debye fitting in
+[KEL2007]_, but the production solver never replaces the exact interface
+response automatically.
+
 The :download:`Debye-sphere averaging driver
 <../../testing/validation/validate_debye_sphere_averaging.py>` reproduces the
 three curved-interface experiments from Section 4.4 of the thesis. A
@@ -211,7 +226,7 @@ to 525 MHz with an independent homogeneous dispersive-sphere Mie series.
     :width: 750 px
 
     Type A clay/loam (2.5% moisture): analytical Mie backscatter compared
-    with Debye-averaged and non-averaged FDTD spheres.
+    with dispersive-averaged and non-averaged FDTD spheres.
 
 .. figure:: ../../images_shared/debye_sphere_averaging_soil_b.png
     :width: 750 px
@@ -258,6 +273,49 @@ The relative L2 error is reduced by factors of approximately 4.0, 3.2, and
 these curved objects expose the geometric and accumulated phase errors that
 the interface average is intended to reduce.
 
+Mixed dispersive layers and a core-shell sphere
+------------------------------------------------
+
+The reusable validation modules in
+``testing/validation/dispersive_averaging`` extend the comparison to mixed
+dispersion families. Planar stacks are evaluated with the normal-incidence
+multilayer recursion using the complex permittivity of every layer. All FDTD
+results are de-embedded to the geometrical first interface requested by the
+model; no fitted half-cell displacement is applied.
+
+.. figure:: ../../images_shared/dispersive_multilayer_reflection.png
+    :width: 750 px
+
+    A three-pole Debye layer and a two-pole Lorentz layer compared with the
+    analytical multilayer reflection coefficient. Symbols are FDTD samples;
+    the continuous black curve is evaluated independently.
+
+Across the retained dielectric, Debye/dielectric, Debye/Lorentz,
+Lorentz/Drude, and multipole Debye/Lorentz stacks, exact interface averaging
+gives complex relative L2 errors between :math:`4.3\times10^{-4}` and
+:math:`8.1\times10^{-4}`. The corresponding staircased errors are 1.85--3.70%.
+The :download:`multilayer validation driver
+<../../testing/validation/dispersive_averaging/validate_multilayer_fdtd.py>`
+also records magnitude and phase residuals at every FDTD frequency.
+
+The curved mixed-material test is a 60 mm Debye core surrounded by a 100 mm
+outer-radius Lorentz shell. Its exact backscatter reference uses the
+Aden--Kerker coated-sphere series and the complex material response at every
+frequency.
+
+.. figure:: ../../images_shared/dispersive_core_shell_sphere_averaging.png
+    :width: 750 px
+
+    Refined Debye-core/Lorentz-shell backscatter. The analytical curve is
+    densely sampled; averaged and staircased FDTD results are shown as symbols
+    with pointwise error bars below.
+
+On the 2.5 mm grid, the exact pole-residue average reduces the complex
+relative L2 error from 8.77% to 6.01% and the RMS logarithmic error from
+0.756 dB to 0.507 dB. Run the :download:`coated-sphere validation driver
+<../../testing/validation/dispersive_averaging/validate_core_shell_fdtd.py>`
+to regenerate the full comparison.
+
 Running the validation suite
 ============================
 
@@ -271,6 +329,8 @@ Run the studies from the repository root, for example:
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
+    python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
+    python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
 
 Omit ``--gpu`` for CPU execution. The full-resolution plane-wave and sphere
 cases are long-running and are not part of the default pytest selection. See

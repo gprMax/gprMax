@@ -2753,7 +2753,7 @@ class AddDebyeDispersion(GridUserObject):
             disp_material.sm = material.sm
             disp_material.type = "debye"
             disp_material.poles = poles
-            disp_material.averagable = config.get_model_config().debye_averaging
+            disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
                 if tau[i] > 0:
                     logger.debug("Not checking if relaxation times are " "greater than time-step.")
@@ -2838,7 +2838,7 @@ class AddLorentzDispersion(GridUserObject):
             disp_material.sm = material.sm
             disp_material.type = "lorentz"
             disp_material.poles = poles
-            disp_material.averagable = False
+            disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
                 if (
                     er_delta[i] > 0
@@ -2931,7 +2931,7 @@ class AddDrudeDispersion(GridUserObject):
             disp_material.sm = material.sm
             disp_material.type = "drude"
             disp_material.poles = poles
-            disp_material.averagable = False
+            disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
                 if omega[i] < (2.0 * np.pi) / grid.dt and alpha[i] < 1.0 / grid.dt:
                     disp_material.tau.append(omega[i])

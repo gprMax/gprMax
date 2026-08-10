@@ -3,8 +3,9 @@ contact_links:
   - name: "📚 Read docs"
     url: https://docs.gprmax.com/en/devel/
     about: Find your solution from our documenations
-  - name: "😊 gprMax support"
+  - name: Question or support request
+    url: https://github.com/gprMax/gprMax/discussions
+    about: Please ask usage, installation, and modelling questions in Discussions.
+  - name: Google Group archive (read-only)
     url: https://groups.google.com/g/gprmax
-    about: |
-      Please only file issues here that you believe represent actual bugs or feature requests for the gprMax software.
-      If you're having general trouble with using gprMax, please visit our help center to get support.
+    about: Our former forum. Search here first — many questions are already answered.

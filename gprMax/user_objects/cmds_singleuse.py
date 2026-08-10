@@ -187,23 +187,20 @@ class MagneticAveraging(ModelUserObject):
         logger.info(f"Magnetic (H-field) averaging mixing rule: {self.mode}")
 
 
-class DebyeAveraging(ModelUserObject):
-    """Enable or disable arithmetic interface averaging for Debye media.
+class DispersiveAveraging(ModelUserObject):
+    """Enable or disable arithmetic interface averaging for dispersive media.
 
-    When enabled, Debye materials participate in the same four-cell
+    When enabled, Debye, Lorentz, and Drude materials participate in the four-cell
     electric-edge averaging used for nondispersive dielectric materials. The
-    effective material retains every distinct constituent relaxation time and
-    scales each pole strength by its cell weight. Ordinary dielectric
-    smoothing remains controlled by the ``averaging`` argument of each
-    volumetric geometry object.
+    exact effective material retains every distinct inclusive pole and scales
+    each residue by its cell weight. Ordinary dielectric smoothing remains
+    controlled by the ``averaging`` argument of each volumetric object.
 
-    This option is enabled by default. Disabling it restores the previous
-    behaviour in which Debye objects were always constructed without material
-    averaging. Lorentz and Drude materials are unaffected and remain
-    non-averageable.
+    This option is disabled by default because the compound material can have
+    more poles than its constituents, increasing model-wide dispersive memory.
 
     Attributes:
-        enabled (bool): Whether Debye interface averaging is enabled.
+        enabled (bool): Whether dispersive interface averaging is enabled.
     """
 
     @property
@@ -212,14 +209,14 @@ class DebyeAveraging(ModelUserObject):
 
     @property
     def hash(self):
-        return "#debye_averaging"
+        return "#dispersive_averaging"
 
     def __init__(self, enabled: bool = True):
-        """Create a DebyeAveraging user object.
+        """Create a DispersiveAveraging user object.
 
         Args:
-            enabled: ``True`` (default) to average Debye interfaces, or
-                ``False`` to construct Debye objects without smoothing.
+            enabled: ``True`` (default) to average dispersive interfaces, or
+                ``False`` to retain staircased dispersive interfaces.
         """
         super().__init__(enabled=enabled)
         self.enabled = enabled
@@ -228,9 +225,9 @@ class DebyeAveraging(ModelUserObject):
         if not isinstance(self.enabled, (bool, np.bool_)):
             raise TypeError(f"{self} requires enabled to be True or False")
 
-        config.get_model_config().debye_averaging = bool(self.enabled)
+        config.get_model_config().dispersive_averaging = bool(self.enabled)
         state = "enabled" if self.enabled else "disabled"
-        logger.info(f"Debye material averaging: {state}")
+        logger.info(f"Dispersive material averaging: {state}")
 
 
 class Domain(ModelUserObject):

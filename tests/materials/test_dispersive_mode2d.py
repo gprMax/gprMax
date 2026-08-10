@@ -59,9 +59,9 @@ def test_3d_dispersive_material_unaffected(monkeypatch, tmp_path):
 
     for arr in (grid.Ex, grid.Ey, grid.Ez):
         assert not np.any(np.isnan(arr))
-    # Pinned after replacing the former dispersive-PEC fixture: adding
-    # electric dispersion to an ideal conductor is now rejected as invalid.
-    assert np.isclose(np.max(np.abs(grid.Ez)), 0.1396385, rtol=1e-6)
+    # The global dispersive-interface option is off by default, so this pins
+    # the established staircased Debye result.
+    assert np.isclose(np.max(np.abs(grid.Ez)), 0.1397515, rtol=1e-6)
 
 
 def test_tez_dispersive_dead_component_and_interior_layer(monkeypatch, tmp_path):
