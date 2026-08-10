@@ -17,6 +17,15 @@ Directory layout
     severe tracking mismatch should warn and fall back to one band-centre
     anchor. The common DFT still covers 45--65 GHz. The expected
     fundamental-mode S21 is approximately 0 dB and S11 is very small.
+    The partial-cutoff rectangular case places seven of 100 DFT bins below
+    the TE10 cutoff and supplies explicit anchors immediately on either side.
+    Those seven bins must have invalid/NaN power-wave S-parameters. The first
+    few propagating bins resolve the near-cutoff transition; farther above
+    cutoff, S11 is low and S21 is approximately 0 dB. Its case-specific plot
+    also separates forward and backward TE10 field
+    amplitudes from paired point receivers, so dashed generalized S11/S21
+    traces show evanescent reflection and transmission below cutoff without
+    treating them as real power waves.
 
 ``cases/bending_waveguide``
     Broadband 2D TM and TE 90-degree curved dielectric bends made from
@@ -89,7 +98,14 @@ fundamental S21 must improve monotonically with radius and by at least 2 dB
 from the 15 mm to the 100 mm case;
 the lossy guide must transmit at least 3 dB less than the non-lossy guide; and
 multi-anchor broadband injection must stay closer to 0 dB than the
-single-profile result. The runner then uses
+single-profile result. The partial-cutoff guide additionally samples 100
+uniformly spaced DFT points, with seven below analytical TE10 cutoff. Every
+cutoff bin must be invalid with NaN power-wave S-parameters and every sampled
+bin above cutoff must be valid. Its generalized cutoff-region S21 must follow
+the analytical :math:`\exp(-\alpha L)` field attenuation within 0.25 dB. The
+immediate near-cutoff transition remains visible in the plot; the stricter
+matched-guide checks begin 0.2 GHz above cutoff, while all propagating S21
+samples must remain within 0.25 dB of 0 dB. The runner then uses
 ``plot_snapshots.py`` to create combined linear and global-normalised dB
 ``|E|`` figures. It creates a magnitude/phase plot for every S-parameter CSV
 and invokes the bend-radius, lossy, and source-profile comparison helpers.
