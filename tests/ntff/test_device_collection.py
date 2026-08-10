@@ -286,8 +286,10 @@ class _FakeArray:
         self.gpudata = f"ptr:{name}"
         self.data = f"buffer:{name}"
         self.set_value = None
+        self.set_input_contiguous = None
 
     def set(self, value, **kwargs):
+        self.set_input_contiguous = np.asarray(value).flags.c_contiguous
         self.set_value = np.asarray(value).copy()
 
 
@@ -355,6 +357,8 @@ def test_opencl_dispatch_uses_split_configured_real_buffers():
         "buffer:outside_imag",
     )
     assert record.device["multiplier_real"].set_value.dtype == np.dtype("f8")
+    assert record.device["multiplier_real"].set_input_contiguous
+    assert record.device["multiplier_imag"].set_input_contiguous
 
 
 class _FakeMetalEncoder:

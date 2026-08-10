@@ -341,6 +341,19 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
+        if self.nrxcurrent:
+            self.store_current_outputs_dev = self.elwiseknl(
+                self.ctx,
+                knl_store_outputs.store_current_outputs["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
+                knl_store_outputs.store_current_outputs["func"].substitute(
+                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
+                "store_current_outputs",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
 
     def _set_src_knls(self):
         """Sources - initialises arrays on compute device, prepares kernel and
@@ -432,20 +445,6 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
-        if self.nrxcurrent:
-            self.store_current_outputs_dev = self.elwiseknl(
-                self.ctx,
-                knl_store_outputs.store_current_outputs["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
-                ),
-                knl_store_outputs.store_current_outputs["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
-                ),
-                "store_current_outputs",
-                preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
-            )
-
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on compute device, prepares kernel and
         gets kernel function.
@@ -466,6 +465,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             knl_snapshots.store_snapshot["func"].substitute(
                 {
                     "CUDA_IDX": "",
+                    "REAL": config.sim_config.dtypes["C_float_or_double"],
                     "NX_SNAPS": Snapshot.nx_max,
                     "NY_SNAPS": Snapshot.ny_max,
                     "NZ_SNAPS": Snapshot.nz_max,
@@ -491,6 +491,20 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
+            if self.nrxcurrent:
+                real = config.sim_config.dtypes["float_or_double"]
+                self.store_current_outputs_dev(
+                    np.int32(self.nrxcurrent),
+                    np.int32(iteration),
+                    self.rxcurrentinfo_dev,
+                    self.rxcurrents_dev,
+                    real(self.grid.dx),
+                    real(self.grid.dy),
+                    real(self.grid.dz),
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                )
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
