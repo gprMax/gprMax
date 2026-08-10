@@ -715,14 +715,14 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-use the CPU and CUDA solvers. Homogeneous angle/vector plane waves and layered
-axial plane waves support non-dispersive materials and multi-pole Debye,
-Lorentz, and Drude materials. Their auxiliary dispersive state uses the same
-real or complex precision selected for the main grid. A discrete plane wave
-must be added to the main scene, not to a subgrid. Its TFSF box may contain a
-complete subgrid; where the two regions overlap, the box must strictly enclose
-the subgrid's HSG outer coupling surface so that the TFSF correction stencil
-remains on the main grid.
+use the CPU, CUDA, and OpenCL solvers; Apple Metal is not currently supported.
+Homogeneous angle/vector plane waves and layered axial plane waves support
+non-dispersive materials and multi-pole Debye, Lorentz, and Drude materials.
+Their auxiliary dispersive state uses the same real or complex precision
+selected for the main grid. A discrete plane wave must be added to the main
+scene, not to a subgrid. Its TFSF box may contain a complete subgrid; where the
+two regions overlap, the box must strictly enclose the subgrid's HSG outer
+coupling surface so that the TFSF correction stencil remains on the main grid.
 
 Eigenmode Source
 ----------------
