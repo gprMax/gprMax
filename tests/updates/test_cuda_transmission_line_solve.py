@@ -47,11 +47,16 @@ def _scene():
 
 @pytest.mark.parametrize("backend", ["cuda", "opencl"])
 @pytest.mark.parametrize("precision", ["single", "double"])
-def test_device_transmission_line_matches_cpu(tmp_path, gpu_device, backend, precision):
+def test_device_transmission_line_matches_cpu(tmp_path, request, backend, precision):
     if backend == "cuda" and not HAS_CUDA:
         pytest.skip("No CUDA device/pycuda available")
     if backend == "opencl" and not HAS_OPENCL:
         pytest.skip("No OpenCL platform/pyopencl available")
+
+    if backend == "cuda":
+        device_options = {"gpu": [request.getfixturevalue("gpu_device")]}
+    else:
+        device_options = {"opencl": [request.getfixturevalue("opencl_device")]}
 
     cpu_path = tmp_path / f"cpu_tl_{precision}"
     device_path = tmp_path / f"{backend}_tl_{precision}"
@@ -68,7 +73,7 @@ def test_device_transmission_line_matches_cpu(tmp_path, gpu_device, backend, pre
         outputfile=device_path,
         hide_progress_bars=True,
         gpu_precision=precision,
-        **({"gpu": [gpu_device]} if backend == "cuda" else {"opencl": [0]}),
+        **device_options,
     )
 
     with h5py.File(str(cpu_path) + ".h5", "r") as output:
@@ -79,10 +84,7 @@ def test_device_transmission_line_matches_cpu(tmp_path, gpu_device, backend, pre
         cpu["valid"] = output["tls/tl1/valid_Zin"][:].astype(bool)
         cpu["Ez"] = output["rxs/rx1/Ez"][:]
     with h5py.File(str(device_path) + ".h5", "r") as output:
-        device = {
-            name: output[f"tls/tl1/{name}"][:]
-            for name in ("Vinc", "Iinc", "Vtotal", "Itotal")
-        }
+        device = {name: output[f"tls/tl1/{name}"][:] for name in ("Vinc", "Iinc", "Vtotal", "Itotal")}
         device["frequency"] = output["tls/tl1/frequency"][:]
         device["S11"] = output["tls/tl1/S11"][:]
         device["Zin"] = output["tls/tl1/Zin"][:]
