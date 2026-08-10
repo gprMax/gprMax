@@ -1300,10 +1300,10 @@ class DiscretePlaneWaveAngles(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        # Discrete plane waves are not yet available on Apple Metal.
+        if config.sim_config.general["solver"] == "metal":
             logger.exception(
-                f"{self.params_str()} cannot currently be used " + "with the OpenCL or Apple Metal-based solver. "
+                f"{self.params_str()} cannot currently be used " + "with the Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1459,10 +1459,10 @@ class DiscretePlaneWaveVector(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        # Discrete plane waves are not yet available on Apple Metal.
+        if config.sim_config.general["solver"] == "metal":
             logger.exception(
-                f"{self.params_str()} cannot currently be used " + "with the OpenCL or Apple Metal-based solver. "
+                f"{self.params_str()} cannot currently be used " + "with the Apple Metal-based solver. "
             )
             raise ValueError
 
@@ -1610,10 +1610,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
+        # Discrete plane waves are not yet available on Apple Metal.
+        if config.sim_config.general["solver"] == "metal":
             logger.exception(
-                f"{self.params_str()} cannot currently be used " + "with the OpenCL or Apple Metal-based solver. "
+                f"{self.params_str()} cannot currently be used " + "with the Apple Metal-based solver. "
             )
             raise ValueError
 

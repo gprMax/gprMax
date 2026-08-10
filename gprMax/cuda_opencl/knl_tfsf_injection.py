@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -20,7 +20,7 @@
 from string import Template
 
 # what is going on in this file (SUMMARY) -
-# TF/SF BOUNDARY INJECTION KERNELS - 
+# TF/SF BOUNDARY INJECTION KERNELS -
 
 # Ports- applyTFSFMagnetic(), applyTFSFMagnetic_axial(),
 #        applyTFSFElectric(), applyTFSFElectric_axial()
@@ -333,7 +333,7 @@ inject_std_xlow_H = {
     // coef_H_2 = updatecoeffsH[1] (DBx - same value, kept for clarity)
     // index = m_x*(x_start-Ox) + m_y*(j-Oy) + m_z*(k-Oz)
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -375,7 +375,7 @@ inject_std_xhigh_H = {
     //   Hy[i, j, k] += coef_H_yx * E_z[index]
     //   Hz[i, j, k] -= coef_H_zx * E_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -417,7 +417,7 @@ inject_std_ylow_H = {
     // coef_H_2 = updatecoeffsH[2] (DBy)
     // Thread t: i = t/NZ_FACE + x_start, k = t%NZ_FACE + z_start
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -451,7 +451,7 @@ inject_std_yhigh_H = {
     //   Hx[i, j, k] -= coef_H_xy * E_z[index]
     //   Hz[i, j, k] += coef_H_zy * E_x[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -494,7 +494,7 @@ inject_std_zlow_H = {
     // coef_H_2 = updatecoeffsH[3] (DBz)
     // Thread t: i = t/NY_FACE + x_start, j = t%NY_FACE + y_start
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -530,7 +530,7 @@ inject_std_zhigh_H = {
     //   Hy[i, j, k] -= coef_H_yz * E_x[index]
     //   Hx[i, j, k] += coef_H_xz * E_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -579,7 +579,7 @@ inject_std_xlow_E = {
     // coef_E_1 = updatecoeffsE[1] (CBx)
     // coef_E_2 = updatecoeffsE[1] (CBx)
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -618,7 +618,7 @@ inject_std_xhigh_E = {
     //   Ez[i, j, k] += coef_E_zx * H_y[index]
     //   Ey[i, j, k] -= coef_E_yx * H_z[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -661,7 +661,7 @@ inject_std_ylow_E = {
     // coef_E_1 = updatecoeffsE[2] (CBy)
     // coef_E_2 = updatecoeffsE[2] (CBy)
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -698,7 +698,7 @@ inject_std_yhigh_E = {
     //   Ez[i, j, k] -= coef_E_zy * H_x[index]
     //   Ex[i, j, k] += coef_E_xy * H_z[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -741,7 +741,7 @@ inject_std_zlow_E = {
     // coef_E_1 = updatecoeffsE[3] (CBz)
     // coef_E_2 = updatecoeffsE[3] (CBz)
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -774,7 +774,7 @@ inject_std_zhigh_E = {
     //   Ey[i, j, k] += coef_E_yz * H_x[index]
     //   Ex[i, j, k] -= coef_E_xz * H_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -820,7 +820,7 @@ inject_axial_xlow_H = {
     //   Hy[i-1,j,k] -= updatecoeffsH[GID[4,i-1,j,k], 1] * E_z[index]
     //   Hz[i-1,j,k] += updatecoeffsH[GID[5,i-1,j,k], 1] * E_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -854,7 +854,7 @@ inject_axial_xhigh_H = {
     //   Hy[i,j,k] += updatecoeffsH[GID[4,i,j,k], 1] * E_z[index]
     //   Hz[i,j,k] -= updatecoeffsH[GID[5,i,j,k], 1] * E_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -889,7 +889,7 @@ inject_axial_ylow_H = {
     //   Hx[i,j-1,k] += updatecoeffsH[GID[3,i,j-1,k], 2] * E_z[index]
     //   Hz[i,j-1,k] -= updatecoeffsH[GID[5,i,j-1,k], 2] * E_x[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -923,7 +923,7 @@ inject_axial_yhigh_H = {
     //   Hx[i,j,k] -= updatecoeffsH[GID[3,i,j,k], 2] * E_z[index]
     //   Hz[i,j,k] += updatecoeffsH[GID[5,i,j,k], 2] * E_x[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -958,7 +958,7 @@ inject_axial_zlow_H = {
     //   Hy[i,j,k-1] += updatecoeffsH[GID[4,i,j,k-1], 3] * E_x[index]
     //   Hx[i,j,k-1] -= updatecoeffsH[GID[3,i,j,k-1], 3] * E_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -992,7 +992,7 @@ inject_axial_zhigh_H = {
     //   Hy[i,j,k] -= updatecoeffsH[GID[4,i,j,k], 3] * E_x[index]
     //   Hx[i,j,k] += updatecoeffsH[GID[3,i,j,k], 3] * E_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -1035,7 +1035,7 @@ inject_axial_xlow_E = {
     //   Ez[i,j,k] -= updatecoeffsE[GID[2,i,j,k], 1] * H_y[index]
     //   Ey[i,j,k] += updatecoeffsE[GID[1,i,j,k], 1] * H_z[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -1070,7 +1070,7 @@ inject_axial_xhigh_E = {
     //   Ez[i,j,k] += updatecoeffsE[GID[2,i,j,k], 1] * H_y[index]
     //   Ey[i,j,k] -= updatecoeffsE[GID[1,i,j,k], 1] * H_z[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int j = t / NZ_FACE + y_start;
     int k = t % NZ_FACE + z_start;
@@ -1106,7 +1106,7 @@ inject_axial_ylow_E = {
     //   Ez[i,j,k] += updatecoeffsE[GID[2,i,j,k], 2] * H_x[index]
     //   Ex[i,j,k] -= updatecoeffsE[GID[1,i,j,k], 2] * H_z[index]  (note: GID[1] used in Cython)
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -1142,7 +1142,7 @@ inject_axial_yhigh_E = {
     //   Ez[i,j,k] -= updatecoeffsE[GID[2,i,j,k], 2] * H_x[index]
     //   Ex[i,j,k] += updatecoeffsE[GID[1,i,j,k], 2] * H_z[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int k = t % NZ_FACE + z_start;
@@ -1178,7 +1178,7 @@ inject_axial_zlow_E = {
     //   Ey[i,j,k] -= updatecoeffsE[GID[1,i,j,k], 3] * H_x[index]
     //   Ex[i,j,k] += updatecoeffsE[GID[0,i,j,k], 3] * H_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -1213,7 +1213,7 @@ inject_axial_zhigh_E = {
     //   Ey[i,j,k] += updatecoeffsE[GID[1,i,j,k], 3] * H_x[index]
     //   Ex[i,j,k] -= updatecoeffsE[GID[0,i,j,k], 3] * H_y[index]
 
-    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    $TFSF_IDX
 
     int i = t / NZ_FACE + x_start;
     int j = t % NZ_FACE + y_start;
@@ -1258,7 +1258,3 @@ AXIAL_E_KERNELS = [
     inject_axial_ylow_E, inject_axial_yhigh_E,
     inject_axial_zlow_E, inject_axial_zhigh_E,
 ]
-
-
-
-

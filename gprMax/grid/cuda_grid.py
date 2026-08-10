@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -115,10 +115,25 @@ class CUDAGrid(FDTDGrid):
         dpw.pml_rey_dev = self.gpuarray.to_gpu(dpw.pml_rey)
         dpw.pml_rez_dev = self.gpuarray.to_gpu(dpw.pml_rez)
 
+        real = dpw.E_fields.dtype
+        source_e = np.asarray(
+            dpw.waveformvalues_wholedt * dpw.projections[None, :3, None],
+            dtype=real,
+            order="C",
+        )
+        source_h = np.asarray(
+            dpw.waveformvalues_halfdt * dpw.projections[None, 3:, None],
+            dtype=real,
+            order="C",
+        )
+        if source_e.size > np.iinfo(np.int32).max:
+            raise ValueError("Plane-wave source arrays exceed the signed 32-bit index range.")
+        dpw.source_e_dev = self.gpuarray.to_gpu(source_e)
+        dpw.source_h_dev = self.gpuarray.to_gpu(source_h)
+
         # -Axial-only arrays (uploaded only when dpw.axial != 0)-
 
         if dpw.axial != 0:
-
             # Source 1D grid field arrays - shape [3, n]
             # Runs in background material, feeds into main 1D grid at origin_axial
             dpw.E_fields_s_dev = self.gpuarray.to_gpu(dpw.E_fields_s)

@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -89,6 +89,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.subs_func = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
             "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "TFSF_IDX": "int t = blockIdx.x * blockDim.x + threadIdx.x;",
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
             "NZ_FIELDS": self.grid.nz + 1,
@@ -513,7 +514,15 @@ class CUDAUpdates(Updates[CUDAGrid]):
             # Upload all 1D DPW arrays to GPU
             self.grid.htod_planewave_arrays(dpw)
 
-            # Standard (homogeneous) kernels 
+            bld = self._build_knl(
+                knl_planewave_updates.initialise_1d_source,
+                self.subs_name_args,
+                subs_pw,
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.initialise_1d_source_dev = knl.get_function("initialise_1d_source")
+
+            # Standard (homogeneous) kernels
             # Scalar coefficients passed as kernel args - no constant memory needed
 
             bld = self._build_knl(
@@ -575,7 +584,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 func_name = knl_dict["name"]
                 dpw.std_E_face_devs.append(knl.get_function(func_name))
 
-            # Axial kernels (only if dpw.axial != 0) 
+            # Axial kernels (only if dpw.axial != 0)
             # updatecoeffsH/E passed as pointer args - no constant memory, no 64KB limit
             if dpw.axial != 0:
 
@@ -1397,30 +1406,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
             bulk_size  = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
             pml_size   = int(np.ceil(dpw.pml_length / 256))
 
-            #  Source injection (initialize 1D grid source region) 
-            # Ports initializeMagneticFields() from plane_wave.pyx
-            # Sets H_fields[comp, r] = projections[3+comp] * waveformvalues_halfdt[iteration, comp, r]
-            # for r in [0, M) - the source region at start of 1D grid
+            # Source injection into the first M samples of the 1D grid. The
+            # projected waveform remains device-resident for the full solve.
             M_int = int(dpw.m[3])
             if M_int > 0:
-                wave_H = dpw.waveformvalues_halfdt[iteration]   # shape [3, M]
-                # Axial variant injects the source into the auxiliary source
-                # grid (H_fields_s), standard into the main 1D grid (H_fields)
-                # - matches initializeMagneticFields() call sites in plane_wave.pyx
                 target = dpw.H_fields_dev if dpw.axial == 0 else dpw.H_fields_s_dev
-                for comp in range(3):
-                    proj = dpw.projections[3 + comp]
-                    src_vals = (proj * wave_H[comp]).astype(
-                        config.sim_config.dtypes["float_or_double"]
-                    )
-                    # Write source values to first M positions of row `comp`.
-                    # Must compute the row offset manually — int(arr[comp].gpudata)
-                    # returns the base allocation address regardless of comp.
-                    row_ptr = int(target.gpudata) + comp * target.strides[0]
-                    self.drv.memcpy_htod(row_ptr, src_vals)
+                count = 3 * M_int
+                dpw.initialise_1d_source_dev(
+                    n,
+                    M,
+                    np.int32(iteration),
+                    target,
+                    dpw.source_h_dev,
+                    block=(256, 1, 1),
+                    grid=(int(np.ceil(count / 256)), 1, 1),
+                )
 
             if dpw.axial == 0:
-                #  Standard (homogeneous) magnetic 1D update 
+                #  Standard (homogeneous) magnetic 1D update
                 # Get background material coefficients
                 mat = self.grid.updatecoeffsH[dpw.material.numID]
                 DA  = REAL(mat[0])
@@ -1663,25 +1666,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
             bulk_size  = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
             pml_size   = int(np.ceil(dpw.pml_length / 256))
 
-            #  Source injection for electric fields
-            # Ports initializeElectricFields() from plane_wave.pyx
-            # Sets E_fields[comp, r] = projections[comp] * waveformvalues_wholedt[iteration+1, comp, r]
+            # Source injection into the first M samples of the 1D grid. The
+            # projected waveform remains device-resident for the full solve.
             M_int = int(dpw.m[3])
             if M_int > 0:
-                wave_E = dpw.waveformvalues_wholedt[iteration + 1]   # shape [3, M]
-                # Axial variant injects into the source grid (E_fields_s),
-                # standard into the main 1D grid (E_fields)
                 target = dpw.E_fields_dev if dpw.axial == 0 else dpw.E_fields_s_dev
-                for comp in range(3):
-                    proj = dpw.projections[comp]
-                    src_vals = (proj * wave_E[comp]).astype(
-                        config.sim_config.dtypes["float_or_double"]
-                    )
-                    row_ptr = int(target.gpudata) + comp * target.strides[0]
-                    self.drv.memcpy_htod(row_ptr, src_vals)
+                count = 3 * M_int
+                dpw.initialise_1d_source_dev(
+                    n,
+                    M,
+                    np.int32(iteration + 1),
+                    target,
+                    dpw.source_e_dev,
+                    block=(256, 1, 1),
+                    grid=(int(np.ceil(count / 256)), 1, 1),
+                )
 
             if dpw.axial == 0:
-                #  Standard (homogeneous) electric 1D update 
+                #  Standard (homogeneous) electric 1D update
                 mat = self.grid.updatecoeffsE[dpw.material.numID]
                 CA  = REAL(mat[0])
                 CBx = REAL(mat[1])

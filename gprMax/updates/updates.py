@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -80,6 +80,11 @@ class Updates(Generic[GridType], ABC):
         """Updates magnetic field components from sources."""
         pass
 
+    def update_plane_waves_magnetic(self, iteration: int) -> None:
+        """Advance auxiliary plane waves and apply magnetic TFSF corrections."""
+
+        pass
+
     @abstractmethod
     def update_electric_a(self) -> None:
         """Updates electric field components."""
@@ -100,6 +105,11 @@ class Updates(Generic[GridType], ABC):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
+        pass
+
+    def update_plane_waves_electric(self, iteration: int) -> None:
+        """Advance auxiliary plane waves and apply electric TFSF corrections."""
+
         pass
 
     @abstractmethod

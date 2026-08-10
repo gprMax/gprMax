@@ -22,6 +22,14 @@ def pytest_addoption(parser):
         metavar="INDEX",
         help="GPU device index used by tests marked 'gpu' (default: 0)",
     )
+    group.addoption(
+        "--opencl-device",
+        action="store",
+        type=int,
+        default=int(os.environ.get("GPRMAX_TEST_OPENCL", "0")),
+        metavar="INDEX",
+        help="OpenCL device index used by tests marked 'gpu' (default: 0)",
+    )
 
 
 @pytest.fixture
@@ -42,5 +50,26 @@ def gpu_device(request):
     if device >= device_count:
         pytest.skip(
             f"CUDA device {device} was requested but only {device_count} device(s) were found"
+        )
+    return device
+
+
+@pytest.fixture
+def opencl_device(request):
+    """Return the selected OpenCL device, or skip when it is unavailable."""
+
+    device = request.config.getoption("--opencl-device")
+    if device < 0:
+        pytest.fail("--opencl-device must be a non-negative integer")
+
+    try:
+        import pyopencl as cl
+
+        devices = [item for platform in cl.get_platforms() for item in platform.get_devices()]
+    except Exception as exc:
+        pytest.skip(f"OpenCL hardware is unavailable: {exc}")
+    if device >= len(devices):
+        pytest.skip(
+            f"OpenCL device {device} was requested but only " f"{len(devices)} device(s) were found"
         )
     return device

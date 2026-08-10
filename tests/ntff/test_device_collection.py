@@ -285,6 +285,9 @@ class _FakeArray:
     def __init__(self, name):
         self.gpudata = f"ptr:{name}"
         self.data = f"buffer:{name}"
+        self.base_data = self.data
+        self.offset = 0
+        self.dtype = np.dtype("f8")
         self.set_value = None
         self.set_input_contiguous = None
 
@@ -342,6 +345,7 @@ def test_opencl_dispatch_uses_split_configured_real_buffers():
     collector.kernel = lambda *args: calls.append(args)
     record = _dispatch_record()
     field = _FakeArray("field")
+    field.offset = 16
     multiplier = np.asarray([1 + 2j, 3 + 4j], dtype="c16")
 
     collector._accumulate(record, field, multiplier)
@@ -349,8 +353,9 @@ def test_opencl_dispatch_uses_split_configured_real_buffers():
     args = calls[0]
     assert args[0] is collector.queue
     assert args[5] == "buffer:inside_index"
-    assert args[9] == "buffer:field"
-    assert args[10:14] == (
+    assert args[9] == 2
+    assert args[10] == "buffer:field"
+    assert args[11:15] == (
         "buffer:inside_real",
         "buffer:inside_imag",
         "buffer:outside_real",

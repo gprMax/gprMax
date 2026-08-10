@@ -43,6 +43,7 @@ __kernel void accumulate_ntff(
     __global const int* restrict outside_index,
     __global const $REAL* restrict multiplier_real,
     __global const $REAL* restrict multiplier_imag,
+    int field_offset,
     __global const $REAL* restrict field,
     __global $REAL* inside_real, __global $REAL* inside_imag,
     __global $REAL* outside_real, __global $REAL* outside_imag)
@@ -67,8 +68,8 @@ kernel void accumulate_ntff(
     if (i < total) {
         int frequency = i / npatches;
         int patch = i - frequency * npatches;
-        $REAL inside_value = field[inside_index[patch]];
-        $REAL outside_value = field[outside_index[patch]];
+        $REAL inside_value = field[$FIELD_OFFSET + inside_index[patch]];
+        $REAL outside_value = field[$FIELD_OFFSET + outside_index[patch]];
         $REAL real_weight = multiplier_real[frequency];
         $REAL imag_weight = multiplier_imag[frequency];
         inside_real[i] += real_weight * inside_value;
@@ -99,7 +100,8 @@ def build_ntff_kernel_source(backend: str, c_real: str) -> str:
         index = ""
         preamble = "#include <metal_stdlib>\nusing namespace metal;\n"
 
-    body = accumulate_ntff["func"].substitute(REAL=c_real)
+    field_offset = "field_offset" if backend == "opencl" else "0"
+    body = accumulate_ntff["func"].substitute(REAL=c_real, FIELD_OFFSET=field_offset)
     return f"{preamble}{declaration}{{\n{index}{body}}}\n"
 
 
