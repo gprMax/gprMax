@@ -573,11 +573,16 @@ class OpenCLKSIRCollector(_DeviceKSIRCollector):
             record.device[name] = self.clarray.zeros(self.queue, record.total, self.real_dtype)
 
     def _accumulate(self, record, field, multiplier) -> None:
+        # ``multiplier`` is complex, so its ``.real`` and ``.imag`` views
+        # normally retain the interleaved complex stride. PyCUDA accepts
+        # those strided views, but ``pyopencl.array.Array.set`` requires a
+        # C-contiguous host array (enforced by recent PyOpenCL releases).
+        # Materialise the two scalar arrays before uploading them.
         record.device["multiplier_real"].set(
-            np.asarray(multiplier.real, dtype=self.real_dtype), queue=self.queue
+            np.ascontiguousarray(multiplier.real, dtype=self.real_dtype), queue=self.queue
         )
         record.device["multiplier_imag"].set(
-            np.asarray(multiplier.imag, dtype=self.real_dtype), queue=self.queue
+            np.ascontiguousarray(multiplier.imag, dtype=self.real_dtype), queue=self.queue
         )
         self.kernel(
             self.queue,
