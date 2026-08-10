@@ -53,7 +53,7 @@ jobs:
         run: python -u -c "import gprMax; from gprMax.fractals.fractal_surface import FractalSurface; print('imports ok')"
 
       - name: Run unit tests
-        run: python -u -m pytest tests/unit/ -v
+        run: python -u -m pytest tests_tobe_integrate/unit/ -v
         env:
           PYTHONUNBUFFERED: "1"
           PYTHONFAULTHANDLER: "1"

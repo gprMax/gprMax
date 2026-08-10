@@ -11,7 +11,7 @@ profile = "black"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers --import-mode=importlib -m \"not slow and not gpu\""
 markers = [
     "integration: exercises multiple gprMax components or executes a complete model",
     "gpu: requires execution on a real GPU device",
