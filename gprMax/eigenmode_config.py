@@ -256,6 +256,22 @@ class EigenmodeBandSpec:
         peak = float(np.max(magnitude, initial=0.0))
         if not np.isfinite(peak) or peak <= 0:
             raise ValueError(f'Eigenmode band {self.id!r} excitation has no finite spectral energy.')
+        # DC and Nyquist cannot carry a general complex modal coefficient and
+        # are discarded later by the runtime source. Exclude them here as
+        # well so they cannot expand automatic anchor coverage to 0 Hz or the
+        # temporal Nyquist limit. The runtime emits the single user-facing
+        # warning when either discarded bin is significant.
+        spectrum = np.array(spectrum, copy=True)
+        spectrum[0] = 0
+        if spectrum.size > 1:
+            spectrum[-1] = 0
+        magnitude = np.abs(spectrum)
+        peak = float(np.max(magnitude, initial=0.0))
+        if not np.isfinite(peak) or peak <= 0:
+            raise ValueError(
+                f'Eigenmode band {self.id!r} excitation has no usable positive-frequency '
+                'spectral energy after discarding DC and Nyquist.'
+            )
         significant = magnitude >= self.spectral_threshold * peak
         indices = np.flatnonzero(significant)
         if not indices.size:
@@ -287,12 +303,6 @@ class EigenmodeBandSpec:
             self.representative_frequency = self.fmin
             self.significant_range = (self.fmin, self.fmax)
             return
-
-        if significant[0] or significant[-1]:
-            raise ValueError(
-                f'Eigenmode band {self.id!r} excitation has significant DC or '
-                'Nyquist content. Use the automatic eigenmode bandpass waveform.'
-            )
 
         power = magnitude**2
         outside_requested = (frequencies < self.fmin) | (frequencies > self.fmax)

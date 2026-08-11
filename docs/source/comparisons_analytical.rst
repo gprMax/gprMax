@@ -16,6 +16,35 @@ they write plots, CSV data, a machine-readable summary, and a report containing
 the numerical acceptance checks. The large HDF5 solver files are reproducible
 working data and are not the analytical reference.
 
+TE10 transmission across cutoff
+===============================
+
+The :download:`partial-cutoff rectangular-waveguide model
+<../../testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in>`
+compares the generalized TE10 transmission coefficient with
+
+.. math::
+
+    S_{21}(f) = \exp[-j\beta(f)L],
+
+where the two modal reference planes are separated by :math:`L=12` mm. Below
+cutoff, :math:`\beta=-j\alpha`, so the field-amplitude magnitude decays as
+:math:`\exp(-\alpha L)` and its phase is zero. Above cutoff, the ideal
+magnitude is 0 dB and the unwrapped phase is :math:`-\beta L`.
+
+.. figure:: ../../testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff_s11_s21.png
+    :width: 850 px
+
+    gprMax and analytical TE10 transmission magnitude and phase across cutoff.
+    The shaded below-cutoff coefficients are generalized modal amplitudes, not
+    physical power waves.
+
+The retained 100-frequency result has maximum theory errors of 0.336 dB in
+magnitude and 2.441 degrees in phase. Seven samples lie below cutoff and
+remain finite generalized coefficients while their separate power-wave-valid
+flags are false. The comparison uses the integrated eigenmode-port result
+directly; it does not use auxiliary receiver-derived oracle traces.
+
 Hertzian dipole in free space
 =============================
 
@@ -331,6 +360,10 @@ Run the studies from the repository root, for example:
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
     python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
+    python -m gprMax \
+        testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in \
+        --hide-progress-bars
+    python testing/validation/rectangular_waveguide_partial_cutoff/plot_partial_cutoff.py
 
 Omit ``--gpu`` for CPU execution. The full-resolution plane-wave and sphere
 cases are long-running and are not part of the default pytest selection. See

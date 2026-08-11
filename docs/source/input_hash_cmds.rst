@@ -1517,15 +1517,18 @@ Consecutive anchors are checked using normalized modal-field overlap. If
 explicit multiple anchors show a severe mismatch, such as at a degeneracy or
 mode crossing, the run stops and recommends one explicit anchor. With
 ``auto``, a failure confined to a spectral guard outside the requested band
-trims that tail for every automatic port and uses the nearest retained modal
-profile for endpoint extrapolation. A failure in the requested band makes
-every automatic port warn and use one shared band-centre anchor.
+trims that tail only for the affected port and mode and uses its nearest
+retained modal profile for endpoint extrapolation. A failure in the requested
+band makes that port and mode warn and use its band-centre anchor. Candidate
+frequencies remain common, but retained masks and fallbacks are per port and
+per mode.
 
 #eigenmode_excitation:
 ----------------------
 
-Selects the single active port and mode after the band and ports have been
-defined:
+Optionally selects the single active port and mode after the band and ports
+have been defined. Omit this command only when every port is a passive virtual
+guide; such a model writes raw modal spectra but no S matrix:
 
 .. code-block:: none
 
@@ -1540,9 +1543,10 @@ defined:
   causal time that preserves its significant temporal support, leaving the
   remaining time window for propagation and ring-down.
 * A custom waveform identifier may be supplied instead. Its exact sampled
-  spectrum is checked before any modal solve. Significant DC or Nyquist
-  content, or more than one percent spectral power outside the requested band,
-  is an error that reports the measured range and recommends ``auto``.
+  spectrum is checked before any modal solve. Significant DC or Nyquist bins
+  are discarded with a warning. More than one percent spectral power outside
+  the requested band remains an error. Use a band-limited waveform, or select
+  ``auto`` to synthesize one automatically for a finite frequency band.
 * ``f1`` is an optional amplitude scale and is valid only with ``auto``.
 * ``c1`` optionally controls the waveform/DFT plot: ``y`` always writes it and
   ``n`` always suppresses it. If omitted, geometry-only runs write the plot and

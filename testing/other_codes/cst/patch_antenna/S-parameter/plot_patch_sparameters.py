@@ -1,4 +1,4 @@
-"""Plot the gprMax, CST FIT, and CST FEM patch-antenna S11 results."""
+"""Plot the gprMax, CST FIT, and CST FEM patch_antenna-antenna S11 results."""
 
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def plot_s11(
     axis.set(
         xlabel="Frequency (GHz)",
         ylabel="S11 magnitude (dB)",
-        title="SAB-derived patch antenna input reflection",
+        title="SAB-derived patch_antenna antenna input reflection",
     )
     axis.set_xlim(1.6, 3.2)
     axis.grid(True, alpha=0.3)

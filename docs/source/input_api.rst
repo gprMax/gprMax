@@ -492,8 +492,9 @@ Eigenmode band, ports, excitation, and virtual guides
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeExcitation
 
 An eigenmode model has one shared frequency band, one or more independently
-configured ports, and exactly one excitation. Ports do not repeat the DFT
-range or waveform:
+configured ports, and zero or one excitation. The excitation can be omitted
+when every port is a passive virtual guide; that form writes raw modal spectra
+but no S matrix. Ports do not repeat the DFT range or waveform:
 
 .. code-block:: python
 
@@ -544,9 +545,10 @@ The automatic excitation is a finite real band-pass pulse with independently
 adapted Gaussian-smoothed lower and upper edges. It is placed at the earliest
 causal time that retains its significant temporal support, maximizing the
 remaining propagation and ring-down interval. A custom ``Waveform`` ID can be
-supplied instead. gprMax checks its exact sampled spectrum and rejects
-significant DC/Nyquist content or more than one percent power outside the
-declared band, with a recommendation to use ``waveform='auto'``.
+supplied instead. gprMax checks its exact sampled spectrum, warns and discards
+significant DC/Nyquist bins, and rejects more than one percent power outside
+the declared band. Use a band-limited waveform, or select ``waveform='auto'``
+to synthesize one automatically for a finite frequency band.
 ``plot_waveform`` independently controls the single excitation waveform/DFT
 figure. ``True`` writes it, ``False`` suppresses it, and the default ``None``
 writes it only for geometry-only runs. Each port's ``plot_fields`` setting
@@ -554,9 +556,11 @@ continues to control only that port's modal-field figures.
 
 Severe tracking mismatch between explicit multiple anchors is an error that
 recommends one explicit anchor. With automatic anchors, a failure confined to
-an outer spectral guard trims that tail for every automatic port. A failure
-inside the requested band makes every automatic port warn and use one shared
-band-centre anchor; results far from it may be inaccurate. See
+an outer spectral guard trims that tail only for the affected port and mode.
+A failure inside the requested band makes that port and mode warn and use its
+band-centre anchor; results for that mode far from it may be inaccurate. The
+candidate frequencies remain common to all automatic ports, while the
+retained masks and fallbacks are resolved independently. See
 :doc:`eigenmode_port` for the complete workflow and outputs.
 
 Voltage Source

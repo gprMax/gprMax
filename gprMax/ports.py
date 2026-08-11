@@ -226,37 +226,86 @@ def evaluate_port_power_spectrum(
                 f"eigenmode port {output.output_id!r} has an inconsistent cross-power matrix"
             )
 
-        accepted_power = np.asarray(
-            modal_net_power_spectrum(
-                incident_modal,
-                outgoing_modal,
-                cross_power_matrix,
-            ),
-            dtype=real_dtype,
-        )
+        accepted_power = np.zeros(frequency.shape, dtype=real_dtype)
         incident_power = np.zeros(frequency.shape, dtype=real_dtype)
+        excitation_position = None
         if output.is_source:
             excitation_position = output.mode_indices.index(output.excitation_mode_index)
-            driven = np.zeros_like(incident_modal)
-            driven[excitation_position] = incident_modal[excitation_position]
-            incident_power = np.asarray(
-                modal_power_spectrum(driven, power_matrix),
-                dtype=real_dtype,
-            )
 
+        power_wave_valid_value = getattr(output, "power_wave_valid", None)
+        if power_wave_valid_value is None:
+            power_wave_valid_value = output.mode_power_valid
+        power_wave_valid = np.asarray(power_wave_valid_value, dtype=bool)
+        result_valid = np.asarray(output.result.valid, dtype=bool)
+        power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)
         modal_valid = (
-            np.asarray(output.result.valid, dtype=bool)
-            & np.asarray(output.mode_power_valid, dtype=bool).T
-            & np.asarray(output.power_matrix_valid, dtype=bool)[np.newaxis, :]
+            result_valid
+            & power_wave_valid.T
+            & power_matrix_valid[np.newaxis, :]
         )
-        finite = (
-            np.all(np.isfinite(incident_modal), axis=0)
-            & np.all(np.isfinite(outgoing_modal), axis=0)
-            & np.all(np.isfinite(power_matrix), axis=(1, 2))
-            & np.all(np.isfinite(cross_power_matrix), axis=(1, 2))
-            & np.isfinite(incident_power)
-            & np.isfinite(accepted_power)
-        )
+        physical_power_valid = np.zeros(frequency.shape, dtype=bool)
+        for frequency_index in range(frequency.size):
+            physical_modes = np.flatnonzero(power_wave_valid[frequency_index])
+            if (
+                physical_modes.size == 0
+                or not power_matrix_valid[frequency_index]
+                or not np.all(result_valid[physical_modes, frequency_index])
+            ):
+                continue
+            if (
+                excitation_position is not None
+                and not power_wave_valid[frequency_index, excitation_position]
+            ):
+                continue
+
+            incident = incident_modal[physical_modes, frequency_index]
+            outgoing = outgoing_modal[physical_modes, frequency_index]
+            physical_power_matrix = power_matrix[frequency_index][
+                np.ix_(physical_modes, physical_modes)
+            ]
+            physical_cross_power_matrix = cross_power_matrix[frequency_index][
+                np.ix_(physical_modes, physical_modes)
+            ]
+            if not (
+                np.all(np.isfinite(incident))
+                and np.all(np.isfinite(outgoing))
+                and np.all(np.isfinite(physical_power_matrix))
+                and np.all(np.isfinite(physical_cross_power_matrix))
+            ):
+                continue
+
+            total_electric = incident + outgoing
+            total_magnetic = incident - outgoing
+            accepted_value = np.real(
+                np.vdot(
+                    total_magnetic,
+                    physical_cross_power_matrix @ total_electric,
+                )
+            )
+            incident_value = 0.0
+            if excitation_position is not None:
+                local_excitation_position = int(
+                    np.flatnonzero(physical_modes == excitation_position)[0]
+                )
+                excitation_amplitude = incident[local_excitation_position]
+                incident_value = np.real(
+                    np.conj(excitation_amplitude)
+                    * physical_power_matrix[
+                        local_excitation_position,
+                        local_excitation_position,
+                    ]
+                    * excitation_amplitude
+                )
+            if not np.isfinite(accepted_value) or not np.isfinite(incident_value):
+                continue
+
+            accepted_power[frequency_index] = accepted_value
+            incident_power[frequency_index] = incident_value
+            physical_power_valid[frequency_index] = True
+
+        # Generalized coefficients are retained below cutoff for modal/S
+        # diagnostics, but they are not power waves and therefore do not
+        # participate in the adapter-level quadratic forms or validity check.
         nan_phasor = np.full(frequency.shape, np.nan + 1j * np.nan, dtype=complex_dtype)
         return PortPowerSpectrum(
             port_id=output.output_id,
@@ -269,7 +318,7 @@ def evaluate_port_power_spectrum(
             incident_power=incident_power,
             accepted_power=accepted_power,
             mesh_valid=_port_mesh_valid(output, grid, frequency),
-            terminal_valid=np.all(modal_valid, axis=0) & finite,
+            terminal_valid=physical_power_valid,
             representation="modal_power_waves",
             mode_indices=output.mode_indices,
             incident_modal_amplitudes=incident_modal,
