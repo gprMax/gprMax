@@ -203,6 +203,71 @@ def _multiple_windowed_scene():
     return scene
 
 
+def _equivalent_current_time_scene():
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(0.004,) * 3))
+    scene.add(gprMax.Domain(p1=(0.08,) * 3))
+    scene.add(gprMax.TimeWindow(time=3e-10))
+    scene.add(gprMax.PMLThickness(thickness=3))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
+    scene.add(
+        gprMax.HertzianDipole(
+            polarisation="z", p1=(0.04,) * 3, waveform_id="pulse"
+        )
+    )
+    scene.add(
+        gprMax.NTFFSurface(
+            p1=(0.028,) * 3,
+            p2=(0.052,) * 3,
+            id="surface",
+        )
+    )
+    far_field = gprMax.NTFFTimeFarField(
+        (0, 30, 90, 150, 180),
+        (0, 0, 0, 0, 0),
+        "surface",
+        id="transient",
+        outputs=("Etheta", "Ephi"),
+    )
+    scene.add(far_field)
+    return scene, far_field
+
+
+@pytest.mark.parametrize("precision,rtol", [("single", 3e-4), ("double", 2e-11)])
+def test_opencl_equivalent_current_time_matches_cpu(
+    tmp_path, opencl_device, precision, rtol
+):
+    cpu_scene, cpu_far = _equivalent_current_time_scene()
+    opencl_scene, opencl_far = _equivalent_current_time_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        outputfile=tmp_path / f"equivalent_time_cpu_{precision}",
+        hide_progress_bars=True,
+        cpu_precision=precision,
+    )
+    gprMax.run(
+        scenes=[opencl_scene],
+        outputfile=tmp_path / f"equivalent_time_opencl_{precision}",
+        hide_progress_bars=True,
+        opencl=[opencl_device],
+        gpu_precision=precision,
+    )
+
+    assert_allclose(opencl_far.result.times, cpu_far.result.times, rtol=0, atol=0)
+    scale = max(
+        np.max(np.abs(cpu_far.result.fields[component]))
+        for component in ("Etheta", "Ephi")
+    )
+    assert scale > 0
+    for component in ("Etheta", "Ephi"):
+        assert_allclose(
+            opencl_far.result.fields[component],
+            cpu_far.result.fields[component],
+            rtol=rtol,
+            atol=rtol * scale,
+        )
+
+
 @pytest.mark.parametrize(
     "name,scene_factory",
     [

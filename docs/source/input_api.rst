@@ -610,9 +610,11 @@ convolution treatment of Giannakis and Giannopoulos [GIA2014]_: every pole
 current is evaluated analytically at the electric half-step for a linearly
 varying voltage, rather than estimated by averaging its two integer-time
 values. State is stored only for placed terminals. Independent one-port
-networks are supported in 3-D, non-MPI CPU models, including within CPU
-subgrids. Coupled multiport admittance matrices are reserved for a later
-extension.
+networks are supported in 3-D, non-MPI models on the CPU, CUDA, OpenCL, and
+Metal solvers; terminals inside subgrids currently use the CPU solver. Device
+runs keep the network recurrence and field correction on the compute device
+and copy the completed histories back after the solve. Coupled multiport
+admittance matrices are reserved for a later extension.
 
 For :math:`Y=1/R`, ``NetworkExcitation`` and a conventional finite-resistance
 ``VoltageSource`` are the same discrete Thévenin source when their position,
@@ -777,7 +779,7 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-use the CPU, CUDA, and OpenCL solvers; Apple Metal is not currently supported.
+use the CPU, CUDA, OpenCL, and Apple Metal solvers.
 Homogeneous angle/vector plane waves and layered axial plane waves support
 non-dispersive materials and multi-pole Debye, Lorentz, and Drude materials.
 Their auxiliary dispersive state uses the same real or complex precision
@@ -1204,8 +1206,9 @@ Modified one-step transient far fields
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFTimeFarFieldArray
 
-These CPU-only classes implement the modified time-domain equivalent-current
-method of Giannopoulos *et al.* [GIAFF1997]_. Their ``times`` are reduced
+These classes implement the modified time-domain equivalent-current method of
+Giannopoulos *et al.* [GIAFF1997]_ on the CPU, CUDA, OpenCL, and Metal
+solvers. Their ``times`` are reduced
 times for range-normalized far fields, and only samples supported by every
 surface patch are returned. The time placement of both current derivatives is
 defined in :ref:`ntff-formulations`.

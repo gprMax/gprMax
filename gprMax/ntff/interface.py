@@ -1447,7 +1447,7 @@ class NTFFCompiledOutputs:
             group.attrs["range_normalized"] = True
             group.attrs["normalization"] = "r * field at reduced time t - r/c"
             group.attrs["interpolation"] = "linear"
-            group.attrs["solver"] = "cpu"
+            group.attrs["solver"] = monitor.device_backend or "cpu"
             group.attrs["collection_backend"] = monitor.collection_backend
             group.attrs["outputs"] = np.asarray(spec.outputs, dtype="S20")
             group.attrs["terminal_decay_threshold"] = result.terminal_decay_threshold
@@ -1715,12 +1715,6 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         )
     if config.get_model_config().mode != "3D":
         raise ValueError("the reusable NTFF interface currently supports only 3-D models")
-    if time_far_requests and config.sim_config.general["solver"] != "cpu":
-        raise ValueError(
-            "the 1997 equivalent-current time-domain transform currently supports "
-            "the CPU solver; device-resident kernels are the next implementation stage"
-        )
-
     for transform in transform_specs.values():
         if transform.surface_id not in surface_specs:
             raise ValueError(
@@ -2016,6 +2010,11 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             wave_speed=wave_speed,
             impedance=impedance,
             nthreads=config.get_model_config().ompthreads,
+            device_backend=(
+                config.sim_config.general["solver"]
+                if config.sim_config.general["solver"] in ("cuda", "opencl", "metal")
+                else None
+            ),
         )
         monitor.surfaces = compiled.surfaces
         monitor.closure = compiled.closure

@@ -421,8 +421,8 @@ class NetworkTerminal(GridUserObject):
         self.ID = id
 
     def build(self, grid: FDTDGrid):
-        if config.sim_config.general["solver"] != "cpu" or config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} currently supports only the non-MPI CPU solver")
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} does not yet support the MPI solver")
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models")
         if config.sim_config.args.geometry_fixed:
@@ -1149,15 +1149,6 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             self._log(grid, transmission_line, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # Metal uses the same kernel template, but its host buffer/launch
-        # lifecycle has not yet been enabled and verified.
-        if config.sim_config.general["solver"] == "metal":
-            raise ValueError(
-                f"{self.params_str()} cannot currently be used "
-                "with the Metal-based solver. Consider "
-                "using a #voltage_source instead."
-            )
-
         # A transmission line is a 3D-only source: its internal 1D line
         # model uses a "magic time step" (TransmissionLineUser.dl =
         # sqrt(3) * c * dt) derived from the 3D Courant condition. In 2D
@@ -1569,14 +1560,6 @@ class DiscretePlaneWaveAngles(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Discrete plane waves are not yet available on Apple Metal.
-        if config.sim_config.general["solver"] == "metal":
-            logger.exception(
-                f"{self.params_str()} cannot currently be used "
-                + "with the Apple Metal-based solver. "
-            )
-            raise ValueError
-
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(
@@ -1744,14 +1727,6 @@ class DiscretePlaneWaveVector(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Discrete plane waves are not yet available on Apple Metal.
-        if config.sim_config.general["solver"] == "metal":
-            logger.exception(
-                f"{self.params_str()} cannot currently be used "
-                + "with the Apple Metal-based solver. "
-            )
-            raise ValueError
-
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(
@@ -1906,14 +1881,6 @@ class DiscretePlaneWaveAxial(GridUserObject):
             precompute = self.kwargs["precompute"]
         except KeyError:
             precompute = True
-
-        # Discrete plane waves are not yet available on Apple Metal.
-        if config.sim_config.general["solver"] == "metal":
-            logger.exception(
-                f"{self.params_str()} cannot currently be used "
-                + "with the Apple Metal-based solver. "
-            )
-            raise ValueError
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
@@ -2092,10 +2059,6 @@ class EigenmodePort(GridUserObject):
             raise ValueError(f"{self.params_str()} currently supports only the main grid.")
         if grid.eigenmodeband is None:
             raise ValueError(f"{self.params_str()} requires one preceding EigenmodeBand.")
-        if config.sim_config.general["solver"] in ("cuda", "opencl", "metal"):
-            raise ValueError(
-                f"{self.params_str()} cannot currently be used with CUDA, OpenCL, or Metal."
-            )
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
         try:
@@ -2224,10 +2187,6 @@ class VirtualWaveguide(GridUserObject):
     def build(self, grid: FDTDGrid):
         if isinstance(grid, SubGridBaseGrid):
             raise ValueError(f"{self.params_str()} currently supports only the main grid.")
-        if config.sim_config.general["solver"] in ("cuda", "opencl", "metal"):
-            raise ValueError(
-                f"{self.params_str()} cannot currently be used with CUDA, OpenCL, or Metal."
-            )
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
 
@@ -2509,12 +2468,6 @@ class _EigenmodeSourceBuilder(GridUserObject):
         if plot_fields is not None:
             plot_fields = bool(plot_fields)
 
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
-            logger.exception(
-                f"{self.params_str()} cannot currently be used with the CUDA, OpenCL, or Apple Metal solver."
-            )
-            raise ValueError
-
         # MPI decomposes the grid across ranks, but the source plane's
         # bounds/plane-index validation below and the FDFD cross-section
         # extraction in EigenmodeSource.grid_init() both assume a single,
@@ -2742,10 +2695,6 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
             raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
 
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
-            raise ValueError(
-                f"{self.params_str()} cannot currently be used with the CUDA, OpenCL, or Apple Metal solver."
-            )
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
         if normal not in ("x", "y", "z") or direction not in ("+", "-"):
@@ -3997,8 +3946,8 @@ class SymmetryBoundary(GridUserObject):
     material during grid construction. A PMC boundary uses an image-theory
     ghost-node update for the on-wall tangential electric fields.
 
-    Nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and
-    Metal solvers. Dispersive PMC boundaries are currently CPU-only.
+    PEC and PMC boundaries, including PMC boundaries in dispersive models, are
+    supported by the CPU, CUDA, OpenCL, and Metal solvers.
     Symmetry boundaries are not supported in 2D mode, with MPI, or on a
     subgrid, although they may be used on the main grid of a model that
     contains subgrids.

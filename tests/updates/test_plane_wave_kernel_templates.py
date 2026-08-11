@@ -1,7 +1,22 @@
 """Backend-neutral plane-wave and OpenCL NTFF kernel-source regressions."""
 
+from types import SimpleNamespace
+
+import numpy as np
+
 from gprMax.cuda_opencl import knl_planewave_updates, knl_tfsf_injection
 from gprMax.cuda_opencl.knl_ntff import build_ntff_kernel_source
+from gprMax.grid.metal_grid import MetalBufferView
+from gprMax.updates.metal_plane_waves import _MetalElementwiseKernel
+
+
+def _plane_wave_kernel_specs(module):
+    return [
+        value
+        for value in vars(module).values()
+        if isinstance(value, dict)
+        and {"args_metal", "func"}.issubset(value)
+    ]
 
 
 def test_tfsf_kernels_use_backend_index_substitution():
@@ -39,6 +54,84 @@ def test_axial_opencl_kernels_receive_material_coefficients():
         arguments = getattr(knl_planewave_updates, name)["args_opencl"].template
         assert "matH" in arguments
         assert "matE" in arguments
+
+
+def test_all_plane_wave_templates_render_for_metal():
+    specs = _plane_wave_kernel_specs(knl_planewave_updates)
+    specs += (
+        knl_tfsf_injection.STANDARD_H_KERNELS
+        + knl_tfsf_injection.STANDARD_E_KERNELS
+        + knl_tfsf_injection.AXIAL_H_KERNELS
+        + knl_tfsf_injection.AXIAL_E_KERNELS
+    )
+
+    assert len(specs) > 24
+    for specification in specs:
+        declaration = specification["args_metal"].substitute(
+            {"REAL": "float", "COMPLEX": "metal::complex<float>"}
+        )
+        body = specification["func"].substitute(
+            {"CUDA_IDX": "", "TFSF_IDX": "int t = i;", "REAL": "float"}
+        )
+
+        assert "$" not in declaration
+        assert "$" not in body
+        assert "thread_position_in_grid" in declaration
+        assert "blockIdx" not in body
+
+
+class _FakeEncoder:
+    def __init__(self):
+        self.buffers = {}
+        self.scalars = {}
+        self.dispatched = None
+
+    def setComputePipelineState_(self, pipeline):
+        self.pipeline = pipeline
+
+    def setBuffer_offset_atIndex_(self, buffer, offset, index):
+        self.buffers[index] = (buffer, offset)
+
+    def setBytes_length_atIndex_(self, value, length, index):
+        self.scalars[index] = (bytes(value), length)
+
+    def dispatchThreads_threadsPerThreadgroup_(self, threads, group):
+        self.dispatched = (threads, group)
+
+    def endEncoding(self):
+        pass
+
+
+class _FakeCommand:
+    def __init__(self):
+        self.encoder = _FakeEncoder()
+
+    def computeCommandEncoder(self):
+        return self.encoder
+
+    def commit(self):
+        pass
+
+    def waitUntilCompleted(self):
+        pass
+
+
+def test_metal_plane_wave_adapter_preserves_buffer_offsets_and_scalar_types():
+    command = _FakeCommand()
+    owner = SimpleNamespace(
+        cmdqueue=SimpleNamespace(commandBuffer=lambda: command),
+        metal=SimpleNamespace(MTLSizeMake=lambda x, y, z: (x, y, z)),
+    )
+    pipeline = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 64)
+    kernel = _MetalElementwiseKernel(owner, pipeline)
+    raw_buffer = SimpleNamespace(contents=lambda: None, length=lambda: 128)
+    view = MetalBufferView(raw_buffer, 24)
+
+    kernel(np.int32(7), view, range=slice(0, 13))
+
+    assert command.encoder.scalars[0][1] == np.dtype(np.int32).itemsize
+    assert command.encoder.buffers[1] == (raw_buffer, 24)
+    assert command.encoder.dispatched == ((13, 1, 1), (13, 1, 1))
 
 
 def test_opencl_ntff_source_accepts_offset_field_views():

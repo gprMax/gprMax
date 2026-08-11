@@ -397,3 +397,155 @@ class RationalNetworkTerminal:
         self.voltage[iteration + 1] = -self.dl * field[self.xcoord, self.ycoord, self.zcoord]
         self.network_current[iteration] = current
         self.generator_voltage[iteration] = self.waveform_half[iteration]
+
+
+def rational_network_host_arrays(terminals, grid) -> dict[str, np.ndarray]:
+    """Pack independent rational terminals into backend-neutral arrays.
+
+    One device work-item owns one terminal and advances all of its pole
+    states serially. Complex recurrence coefficients are split into real and
+    imaginary arrays so the identical kernel body works on CUDA, OpenCL, and
+    Metal without relying on backend-specific complex ABIs.
+    """
+
+    count = len(terminals)
+    real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+    total_poles = sum(len(terminal.model.poles) for terminal in terminals)
+    if total_poles > np.iinfo(np.int32).max:
+        raise ValueError("rational-network pole state exceeds the signed 32-bit index range")
+    largest_terminal_stride = max(grid.iterations + 1, 7)
+    if count * largest_terminal_stride > np.iinfo(np.int32).max:
+        raise ValueError("rational-network histories exceed the signed 32-bit index range")
+
+    # x, y, z, polarisation, pole offset, pole count
+    info = np.zeros((count, 6), dtype=np.int32)
+    # dl, area, source coefficient, denominator, alpha, G, C
+    params = np.zeros((count, 7), dtype=real_dtype)
+    waveform_whole = np.zeros((count, grid.iterations + 1), dtype=real_dtype)
+    waveform_half = np.zeros((count, grid.iterations), dtype=real_dtype)
+    voltage = np.zeros((count, grid.iterations + 1), dtype=real_dtype)
+    current = np.zeros((count, grid.iterations), dtype=real_dtype)
+
+    # Device APIs do not consistently accept zero-byte buffers. A pole-free
+    # resistor/capacitor therefore carries one unused scalar allocation.
+    pole_storage = max(total_poles, 1)
+    coefficient_names = (
+        "exp_half",
+        "coeff_half_new",
+        "coeff_half_old",
+        "exp_full",
+        "coeff_full_new",
+        "coeff_full_old",
+    )
+    coefficients = {
+        f"{name}_{part}": np.zeros(pole_storage, dtype=real_dtype)
+        for name in coefficient_names
+        for part in ("real", "imag")
+    }
+    state_real = np.zeros(pole_storage, dtype=real_dtype)
+    state_imag = np.zeros(pole_storage, dtype=real_dtype)
+
+    offset = 0
+    polarisation_index = {"x": 0, "y": 1, "z": 2}
+    for index, terminal in enumerate(terminals):
+        pole_count = len(terminal.model.poles)
+        info[index] = (
+            terminal.xcoord,
+            terminal.ycoord,
+            terminal.zcoord,
+            polarisation_index[terminal.polarisation],
+            offset,
+            pole_count,
+        )
+        params[index] = (
+            terminal.dl,
+            terminal.area,
+            terminal.source_coefficient,
+            terminal.denominator,
+            terminal.alpha,
+            terminal.model.conductance,
+            terminal.model.capacitance,
+        )
+        waveform_whole[index] = terminal.waveform_whole
+        waveform_half[index] = terminal.waveform_half
+        voltage[index] = terminal.voltage
+        current[index] = terminal.network_current
+        if pole_count:
+            section = slice(offset, offset + pole_count)
+            for name in coefficient_names:
+                values = np.asarray(getattr(terminal, name))
+                coefficients[f"{name}_real"][section] = np.real(values)
+                coefficients[f"{name}_imag"][section] = np.imag(values)
+            state_real[section] = np.real(terminal.states)
+            state_imag[section] = np.imag(terminal.states)
+        offset += pole_count
+
+    return {
+        "info": info,
+        "params": params,
+        "waveform_whole": waveform_whole,
+        "waveform_half": waveform_half,
+        "voltage": voltage,
+        "current": current,
+        **coefficients,
+        "state_real": state_real,
+        "state_imag": state_imag,
+    }
+
+
+def htod_rational_network_arrays(terminals, grid, queue=None):
+    """Copy packed rational-network arrays to the active compute device."""
+
+    arrays = rational_network_host_arrays(terminals, grid)
+    solver = config.sim_config.general["solver"]
+    if solver == "cuda":
+        import pycuda.gpuarray as gpuarray
+
+        return {name: gpuarray.to_gpu(array) for name, array in arrays.items()}
+    if solver == "opencl":
+        import pyopencl.array as clarray
+
+        return {name: clarray.to_device(queue, array) for name, array in arrays.items()}
+    if solver == "metal":
+        dev = config.get_model_config().device["dev"]
+        return {
+            name: dev.newBufferWithBytes_length_options_(array.tobytes(), array.nbytes, 0)
+            for name, array in arrays.items()
+        }
+    raise ValueError(f"Unknown device solver {solver!r} for rational-network arrays.")
+
+
+def dtoh_rational_network_outputs(voltage, current, grid) -> None:
+    """Copy device terminal histories into their runtime terminal objects."""
+
+    voltage_shape = (len(grid.networkterminals), grid.iterations + 1)
+    current_shape = (len(grid.networkterminals), grid.iterations)
+    if config.sim_config.general["solver"] == "metal":
+        dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+
+        def metal_array(buffer, shape):
+            nbytes = int(np.prod(shape)) * dtype.itemsize
+            if buffer.length() != nbytes:
+                raise ValueError(
+                    "Rational-network Metal output buffer has the wrong size: "
+                    f"expected {nbytes} bytes, got {buffer.length()}."
+                )
+            return (
+                np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype)
+                .reshape(shape)
+                .copy()
+            )
+
+        voltage = metal_array(voltage, voltage_shape)
+        current = metal_array(current, current_shape)
+
+    if voltage.shape != voltage_shape or current.shape != current_shape:
+        raise ValueError(
+            "Rational-network device output shape does not match the grid: "
+            f"expected {voltage_shape} and {current_shape}, got "
+            f"{voltage.shape} and {current.shape}."
+        )
+    for index, terminal in enumerate(grid.networkterminals):
+        np.copyto(terminal.voltage, voltage[index], casting="same_kind")
+        np.copyto(terminal.network_current, current[index], casting="same_kind")
+        np.copyto(terminal.generator_voltage, terminal.waveform_half, casting="same_kind")

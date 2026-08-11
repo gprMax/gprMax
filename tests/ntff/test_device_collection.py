@@ -7,6 +7,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from gprMax.cuda_opencl.knl_ntff import (
+    build_equivalent_current_time_kernel_source,
     build_ntff_kernel_source,
     build_time_domain_ntff_kernel_source,
 )
@@ -258,6 +259,26 @@ def test_backend_kernel_sources_use_configured_real_type(backend, c_real, marker
     assert f"const {c_real}*" in source
     assert "inside_real[i] +=" in source
     assert "complex" not in source.lower()
+
+
+@pytest.mark.parametrize(
+    "backend,c_real,marker",
+    [
+        ("cuda", "float", "blockIdx.x"),
+        ("opencl", "double", "cl_khr_fp64"),
+        ("metal", "float", "thread_position_in_grid"),
+    ],
+)
+def test_equivalent_current_time_kernel_sources_are_backend_complete(
+    backend, c_real, marker
+):
+    source = build_equivalent_current_time_kernel_source(c_real, backend)
+
+    assert marker in source
+    assert "gather_equivalent_current_time" in source
+    assert "deposit_equivalent_current_time" in source
+    assert "current[patch * 3]" in source
+    assert "inverse_dt" in source
 
 
 @pytest.mark.parametrize(

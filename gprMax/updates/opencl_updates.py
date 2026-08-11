@@ -25,17 +25,28 @@ from jinja2 import Environment, PackageLoader
 
 from gprMax import config
 from gprMax.cuda_opencl import (
+    knl_eigenmode,
     knl_fields_updates,
     knl_magnetic_frill_source,
     knl_planewave_updates,
+    knl_rational_network,
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
     knl_symmetry_boundaries,
     knl_tfsf_injection,
     knl_transmission_line,
+    knl_virtual_waveguide,
+)
+from gprMax.eigenmode_device import (
+    eigenmode_source_envelopes,
+    finalise_device_eigenmode_monitors,
+    prepare_device_eigenmode_monitor,
+    prepare_device_eigenmode_source,
+    reanchor_device_eigenmode_monitor,
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import OpenCLCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
 from gprMax.snapshots import (
@@ -61,7 +72,7 @@ logger = logging.getLogger(__name__)
 class OpenCLUpdates(Updates[OpenCLGrid]):
     """Defines update functions for OpenCL-based solver."""
 
-    def __init__(self, G: OpenCLGrid):
+    def __init__(self, G: OpenCLGrid, shared=None):
         """
         Args:
             G: OpenCLGrid class describing a grid in a model.
@@ -73,11 +84,17 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
 
         # Select device, create context and command queue
-        self.dev = config.get_model_config().device["dev"]
-        self.ctx = self.cl.Context(devices=[self.dev])
-        self.queue = self.cl.CommandQueue(
-            self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE
-        )
+        if shared is None:
+            self.dev = config.get_model_config().device["dev"]
+            self.ctx = self.cl.Context(devices=[self.dev])
+            self.queue = self.cl.CommandQueue(
+                self.ctx,
+                properties=self.cl.command_queue_properties.PROFILING_ENABLE,
+            )
+        else:
+            self.dev = shared.dev
+            self.ctx = shared.ctx
+            self.queue = shared.queue
 
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
@@ -101,17 +118,27 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self._set_src_knls()
         if self.grid.transmissionlines:
             self._set_transmission_line_knls()
+        if self.grid.networkterminals:
+            self._set_rational_network_knl()
         if self.grid.magneticfrillsources:
             self._set_magnetic_frill_knl()
         if self.grid.snapshots:
             self._set_snapshot_knl()
         if self.grid.discreteplanewaves:
             self._set_planewave_knls()
+        if self.grid.eigenmodesources:
+            self._set_eigenmode_source_knls()
+        if self.grid.eigenmodeports:
+            self._set_eigenmode_monitor_knl()
         self.ntff_collector = None
         if self.grid.ntff_monitors:
             self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
             self.ntff_compiler_options = config.sim_config.devices["compiler_opts"]
             self.ntff_collector = OpenCLCombinedKSIRCollector(self)
+        if self.grid.virtual_waveguides:
+            self._set_virtual_waveguide_knls()
+        for guide in self.grid.virtual_waveguides:
+            guide.initialise_device(self)
 
     def _set_macros(self):
         """Common macros to be used in kernels."""
@@ -250,7 +277,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.grid.htod_dispersive_arrays(self.queue)
 
     def _set_symmetry_boundary_knl(self):
-        """Build the nondispersive PMC ghost-image boundary kernel."""
+        """Build normal or dispersive PMC ghost-image boundary kernels."""
         substitutions = {
             "CUDA_IDX": "",
             "REAL": config.sim_config.dtypes["C_float_or_double"],
@@ -261,6 +288,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             "NY_ID": self.grid.ID.shape[2],
             "NZ_ID": self.grid.ID.shape[3],
         }
+        substitutions.update(knl_symmetry_boundaries.nondispersive_substitutions())
         self.update_electric_pmc_dev = self.elwiseknl(
             self.ctx,
             knl_symmetry_boundaries.update_electric_pmc["args_opencl"].substitute(
@@ -271,6 +299,41 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
+        if config.get_model_config().materials["maxpoles"] > 0:
+            dispersive = dict(substitutions)
+            dispersive.update(
+                knl_symmetry_boundaries.dispersive_substitutions(
+                    config.sim_config.dtypes["C_float_or_double"]
+                )
+            )
+            arguments = {
+                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            }
+            self.update_electric_pmc_dispersive_dev = self.elwiseknl(
+                self.ctx,
+                knl_symmetry_boundaries.update_electric_pmc_dispersive[
+                    "args_opencl"
+                ].substitute(arguments),
+                knl_symmetry_boundaries.update_electric_pmc_dispersive["func"].substitute(
+                    dispersive
+                ),
+                "update_electric_pmc_dispersive",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
+            self.update_electric_pmc_dispersive_b_dev = self.elwiseknl(
+                self.ctx,
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b[
+                    "args_opencl"
+                ].substitute(arguments),
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b["func"].substitute(
+                    substitutions
+                ),
+                "update_electric_pmc_dispersive_b",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
 
     def _pmc_flags(self):
         boundaries = self.grid.symmetry_boundaries
@@ -497,6 +560,130 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 substitutions
             ),
             "update_transmission_line_electric",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _set_eigenmode_source_knls(self):
+        """Upload modal bases and compile device TF/SF source kernels."""
+
+        if not hasattr(self.grid, "updatecoeffsE_dev"):
+            self.grid.htod_mat_coeff_arrays(self.queue)
+        for source in self.grid.eigenmodesources:
+            prepare_device_eigenmode_source(source, "opencl", queue=self.queue)
+        arguments = {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+        }
+        self.update_eigenmode_magnetic_dev = self.elwiseknl(
+            self.ctx,
+            knl_eigenmode.update_eigenmode_magnetic["args_opencl"].substitute(arguments),
+            knl_eigenmode.update_eigenmode_magnetic["func"].substitute(substitutions),
+            "update_eigenmode_magnetic",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+        self.update_eigenmode_electric_dev = self.elwiseknl(
+            self.ctx,
+            knl_eigenmode.update_eigenmode_electric["args_opencl"].substitute(arguments),
+            knl_eigenmode.update_eigenmode_electric["func"].substitute(substitutions),
+            "update_eigenmode_electric",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _set_eigenmode_monitor_knl(self):
+        """Upload modal projection bases and compile the DFT kernel."""
+
+        for monitor in self.grid.eigenmodeports:
+            prepare_device_eigenmode_monitor(monitor, "opencl", queue=self.queue)
+        self.accumulate_eigenmode_dft_dev = self.elwiseknl(
+            self.ctx,
+            knl_eigenmode.accumulate_eigenmode_dft["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_eigenmode.accumulate_eigenmode_dft["func"].substitute(
+                {
+                    "CUDA_IDX": "",
+                    "METAL_DFT_PARAMETERS": "",
+                    "REAL": config.sim_config.dtypes["C_float_or_double"],
+                }
+            ),
+            "accumulate_eigenmode_dft",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _set_virtual_waveguide_knls(self):
+        """Compile aperture coupling kernels for auxiliary device grids."""
+
+        arguments = {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NX_FIELDS": self.grid.nx + 1,
+            "NY_FIELDS": self.grid.ny + 1,
+            "NZ_FIELDS": self.grid.nz + 1,
+        }
+        for specification, attribute, name in (
+            (
+                knl_virtual_waveguide.couple_magnetic,
+                "couple_virtual_magnetic_dev",
+                "couple_virtual_waveguide_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_magnetic,
+                "clear_virtual_magnetic_dev",
+                "clear_virtual_waveguide_rear_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.couple_electric,
+                "couple_virtual_electric_dev",
+                "couple_virtual_waveguide_electric",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_electric,
+                "clear_virtual_electric_dev",
+                "clear_virtual_waveguide_rear_electric",
+            ),
+        ):
+            setattr(
+                self,
+                attribute,
+                self.elwiseknl(
+                    self.ctx,
+                    specification["args_opencl"].substitute(arguments),
+                    specification["func"].substitute(substitutions),
+                    name,
+                    preamble=self.knl_common,
+                    options=config.sim_config.devices["compiler_opts"],
+                ),
+            )
+
+    def _set_rational_network_knl(self):
+        """Initialise sparse device-resident rational-network terminals."""
+
+        arrays = htod_rational_network_arrays(self.grid.networkterminals, self.grid, self.queue)
+        for name, array in arrays.items():
+            setattr(self, f"rn_{name}_dev", array)
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NY_RNINFO": 6,
+            "NY_RNPARAMS": 7,
+            "NY_RNWAVEWHOLE": self.grid.iterations + 1,
+            "NY_RNWAVEHALF": self.grid.iterations,
+            "NY_RNVOLTAGE": self.grid.iterations + 1,
+            "NY_RNCURRENT": self.grid.iterations,
+        }
+        self.update_rational_network_dev = self.elwiseknl(
+            self.ctx,
+            knl_rational_network.update_rational_network["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_rational_network.update_rational_network["func"].substitute(substitutions),
+            "update_rational_network",
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
@@ -1545,6 +1732,62 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if collector is not None:
             collector.observe_magnetic(iteration)
 
+    def observe_eigenmode_ports(self, iteration):
+        """Project modal port fields and accumulate DFTs on OpenCL."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        for monitor in self.grid.eigenmodeports:
+            if iteration != monitor._next_iteration:
+                raise RuntimeError(
+                    f"expected eigenmode DFT iteration {monitor._next_iteration}, "
+                    f"received {iteration}"
+                )
+            owner = monitor.owner
+            arrays = monitor.device_arrays
+            nf, nm = monitor.electric_dft.shape
+            self.accumulate_eigenmode_dft_dev(
+                np.int32(nf),
+                np.int32(nm),
+                np.int32(owner.normal_axis),
+                np.int32(1 if owner.direction == "+" else -1),
+                np.int32(monitor.magnetic_side),
+                np.int32(owner.transverse_start[0]),
+                np.int32(owner.transverse_start[1]),
+                np.int32(owner.transverse_stop[0]),
+                np.int32(owner.transverse_stop[1]),
+                np.int32(owner.plane_index),
+                real(self.grid.dt),
+                real(monitor.measure),
+                np.int32(monitor.handedness),
+                arrays["electric_phase_real"],
+                arrays["electric_phase_imag"],
+                arrays["magnetic_phase_real"],
+                arrays["magnetic_phase_imag"],
+                arrays["phase_step_real"],
+                arrays["phase_step_imag"],
+                arrays["conj_eu_real"],
+                arrays["conj_eu_imag"],
+                arrays["conj_ev_real"],
+                arrays["conj_ev_imag"],
+                arrays["conj_hu_real"],
+                arrays["conj_hu_imag"],
+                arrays["conj_hv_real"],
+                arrays["conj_hv_imag"],
+                arrays["electric_dft_real"],
+                arrays["electric_dft_imag"],
+                arrays["magnetic_dft_real"],
+                arrays["magnetic_dft_imag"],
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+                range=slice(0, nf),
+            )
+            monitor._next_iteration += 1
+            reanchor_device_eigenmode_monitor(monitor, self.grid, "opencl")
+
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -1620,6 +1863,144 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                     self.grid.Hz_dev,
                 )
 
+    def _launch_eigenmode_source(self, source, iteration, magnetic):
+        nu, nv = np.asarray(source.transverse_stop) - np.asarray(source.transverse_start)
+        npoints = int((nu + 1) * (nv + 1))
+        kernel = (
+            self.update_eigenmode_magnetic_dev if magnetic else self.update_eigenmode_electric_dev
+        )
+        profiles = source.device_electric_profiles if magnetic else source.device_magnetic_profiles
+        fields = (
+            (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+            if magnetic
+            else (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)
+        )
+        coefficients = self.grid.updatecoeffsH_dev if magnetic else self.grid.updatecoeffsE_dev
+        real = config.sim_config.dtypes["float_or_double"]
+        for basis, envelope in eigenmode_source_envelopes(source, self.grid, iteration, magnetic):
+            kernel(
+                np.int32(npoints),
+                np.int32(source.normal_axis),
+                np.int32(1 if source.direction == "+" else -1),
+                np.int32(source.transverse_start[0]),
+                np.int32(source.transverse_start[1]),
+                np.int32(source.transverse_stop[0]),
+                np.int32(source.transverse_stop[1]),
+                np.int32(source.plane_index),
+                np.int32(basis),
+                real(envelope),
+                profiles,
+                coefficients,
+                self.grid.ID_dev,
+                *fields,
+                range=slice(0, npoints),
+            )
+
+    def update_eigenmode_sources_magnetic(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, True)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_magnetic(guide, iteration)
+
+    def update_eigenmode_sources_electric(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, False)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_electric(guide, iteration)
+
+    def _virtual_scalars(self, guide, npoints):
+        aux = guide.aux_grid
+        return (
+            np.int32(npoints),
+            np.int32(guide.normal_axis),
+            np.int32(guide.direction_sign),
+            np.int32(guide.u0),
+            np.int32(guide.v0),
+            np.int32(guide.u1),
+            np.int32(guide.v1),
+            np.int32(guide.plane_index),
+            np.int32(aux.nx),
+            np.int32(aux.ny),
+            np.int32(aux.nz),
+        )
+
+    @staticmethod
+    def _virtual_launch(kernel, npoints, *arguments):
+        kernel(*arguments, range=slice(0, npoints))
+
+    def _update_virtual_waveguide_magnetic(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_magnetic()
+        child.update_magnetic_pml()
+        child.update_eigenmode_sources_magnetic(iteration)
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_h = (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+        aux_h = (
+            guide.aux_grid.Hx_dev,
+            guide.aux_grid.Hy_dev,
+            guide.aux_grid.Hz_dev,
+        )
+        self._virtual_launch(
+            self.couple_virtual_magnetic_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            *main_h,
+            *aux_h,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_magnetic_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            *main_h,
+            *aux_h,
+        )
+
+    def _update_virtual_waveguide_electric(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_electric_a()
+        child.update_electric_pml()
+        child.update_eigenmode_sources_electric(iteration)
+        child.update_electric_b()
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_fields = (
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            self.grid.Hx_dev,
+            self.grid.Hy_dev,
+            self.grid.Hz_dev,
+        )
+        aux_fields = (
+            guide.aux_grid.Ex_dev,
+            guide.aux_grid.Ey_dev,
+            guide.aux_grid.Ez_dev,
+            guide.aux_grid.Hx_dev,
+            guide.aux_grid.Hy_dev,
+            guide.aux_grid.Hz_dev,
+        )
+        self._virtual_launch(
+            self.couple_virtual_electric_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            guide.aux_grid.updatecoeffsE_dev,
+            guide.aux_grid.ID_dev,
+            *main_fields,
+            *aux_fields,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_electric_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            guide.aux_grid.Ex_dev,
+            guide.aux_grid.Ey_dev,
+            guide.aux_grid.Ez_dev,
+        )
+
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
@@ -1659,15 +2040,44 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             )
 
     def update_symmetry_boundaries_electric(self):
-        """Apply the nondispersive PMC ghost-image correction on OpenCL."""
+        """Apply the PMC ghost-image correction on OpenCL."""
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
-
-        self.update_electric_pmc_dev(
+        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        kernel = (
+            self.update_electric_pmc_dispersive_dev
+            if dispersive
+            else self.update_electric_pmc_dev
+        )
+        leading = [
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
+        ]
+        if dispersive:
+            leading.append(np.int32(config.get_model_config().materials["maxpoles"]))
+        arguments = [
+            *leading,
             *self._pmc_flags(),
+        ]
+        if dispersive:
+            arguments.extend(
+                [
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.updatecoeffsdispersive_dev,
+                    self.grid.Tx_dev,
+                    self.grid.Ty_dev,
+                    self.grid.Tz_dev,
+                ]
+            )
+        else:
+            arguments.extend([
             self.grid.ID_dev,
             self.grid.Ex_dev,
             self.grid.Ey_dev,
@@ -1675,6 +2085,23 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.grid.Hx_dev,
             self.grid.Hy_dev,
             self.grid.Hz_dev,
+            ])
+        kernel(*arguments)
+
+    def update_symmetry_boundaries_electric_b(self):
+        """Complete the dispersive PMC ADE update on OpenCL."""
+        if (
+            "pmc" not in self.grid.symmetry_boundaries.values()
+            or config.get_model_config().materials["maxpoles"] == 0
+        ):
+            return
+        self.update_electric_pmc_dispersive_b_dev(
+            np.int32(self.grid.nx), np.int32(self.grid.ny), np.int32(self.grid.nz),
+            np.int32(config.get_model_config().materials["maxpoles"]),
+            *self._pmc_flags(), self.grid.ID_dev, self.grid.Ex_dev,
+            self.grid.Ey_dev, self.grid.Ez_dev,
+            self.grid.updatecoeffsdispersive_dev, self.grid.Tx_dev,
+            self.grid.Ty_dev, self.grid.Tz_dev,
         )
 
     def update_electric_pml(self):
@@ -1763,6 +2190,41 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Tz_dev,
             )
 
+    def update_network_terminals(self, iteration):
+        """Apply sparse rational-network corrections entirely on OpenCL."""
+
+        if not self.grid.networkterminals:
+            return
+        self.update_rational_network_dev(
+            np.int32(len(self.grid.networkterminals)),
+            np.int32(iteration),
+            config.sim_config.dtypes["float_or_double"](self.grid.dt),
+            self.rn_info_dev,
+            self.rn_params_dev,
+            self.rn_waveform_whole_dev,
+            self.rn_waveform_half_dev,
+            self.rn_voltage_dev,
+            self.rn_current_dev,
+            self.rn_exp_half_real_dev,
+            self.rn_exp_half_imag_dev,
+            self.rn_coeff_half_new_real_dev,
+            self.rn_coeff_half_new_imag_dev,
+            self.rn_coeff_half_old_real_dev,
+            self.rn_coeff_half_old_imag_dev,
+            self.rn_exp_full_real_dev,
+            self.rn_exp_full_imag_dev,
+            self.rn_coeff_full_new_real_dev,
+            self.rn_coeff_full_new_imag_dev,
+            self.rn_coeff_full_old_real_dev,
+            self.rn_coeff_full_old_imag_dev,
+            self.rn_state_real_dev,
+            self.rn_state_imag_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            range=slice(0, len(self.grid.networkterminals)),
+        )
+
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
@@ -1792,6 +2254,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if collector is not None:
             collector.finalise()
 
+        if getattr(self.grid, "eigenmodeports", ()):
+            finalise_device_eigenmode_monitors(self.grid.eigenmodeports, "opencl")
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             currents = self.rxcurrents_dev.get() if self.nrxcurrent else None
@@ -1808,6 +2273,11 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if self.grid.transmissionlines:
             dtoh_transmission_line_outputs(
                 self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
+            )
+
+        if getattr(self.grid, "networkterminals", ()):
+            dtoh_rational_network_outputs(
+                self.rn_voltage_dev.get(), self.rn_current_dev.get(), self.grid
             )
 
         # Copy data from any snapshots back to correct snapshot objects

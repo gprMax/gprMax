@@ -72,11 +72,9 @@ class Solver:
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
             self.updates.update_magnetic_sources(iteration)
-            if isinstance(self.updates, CPUUpdates):
-                self.updates.update_eigenmode_sources_magnetic(iteration)
+            self.updates.update_eigenmode_sources_magnetic(iteration)
             self.updates.update_plane_waves_magnetic(iteration)
-            if isinstance(self.updates, CPUUpdates):
-                self.updates.observe_eigenmode_ports(iteration)
+            self.updates.observe_eigenmode_ports(iteration)
 
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
@@ -95,8 +93,7 @@ class Solver:
 
             self.updates.update_electric_pml()
             self.updates.update_electric_sources(iteration)
-            if isinstance(self.updates, CPUUpdates):
-                self.updates.update_eigenmode_sources_electric(iteration)
+            self.updates.update_eigenmode_sources_electric(iteration)
             self.updates.update_plane_waves_electric(iteration)
 
             # TODO: Increment iteration here if add Model to Solver

@@ -22,7 +22,6 @@ from gprMax.cython.virtual_waveguide import (
     couple_virtual_waveguide_electric,
     couple_virtual_waveguide_magnetic,
 )
-from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.updates.cpu_updates import CPUUpdates
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,11 @@ class VirtualWaveguide:
         self._validate()
         self.aux_grid = self._build_auxiliary_grid()
         self.aux_source = self._build_auxiliary_source()
-        self.aux_updates = CPUUpdates(self.aux_grid)
+        if self.aux_source is not None:
+            self.aux_grid.eigenmodesources.append(self.aux_source)
+        self.aux_updates = (
+            CPUUpdates(self.aux_grid) if config.sim_config.general["solver"] == "cpu" else None
+        )
 
         # A virtual split makes only the main-domain side of the H plane a
         # valid sampling plane. This is already the source-monitor policy;
@@ -59,11 +62,6 @@ class VirtualWaveguide:
         mode = config.get_model_config().mode
         if mode != "3D":
             raise ValueError("Virtual waveguides currently require a 3D model.")
-        if config.sim_config.general["solver"] != "cpu":
-            raise ValueError(
-                "Virtual waveguides currently require the CPU solver; GPU support "
-                "will follow the eigenmode-port GPU implementation."
-            )
         if config.sim_config.mpi:
             raise ValueError("Virtual waveguides do not yet support MPI.")
         if self.port.invariant_axis is not None:
@@ -86,6 +84,12 @@ class VirtualWaveguide:
                 "A virtual-waveguide cross-section must be at least two cells "
                 "along each transverse axis."
             )
+        int32_max = np.iinfo(np.int32).max
+        main_points = int(np.prod(np.asarray(self.main_grid.size, dtype=object) + 1))
+        auxiliary_size = [self.nu, self.nv, self.spec.length_cells]
+        auxiliary_points = int(np.prod(np.asarray(auxiliary_size, dtype=object) + 1))
+        if max(main_points, auxiliary_points, (self.nu + 1) * (self.nv + 1)) > int32_max:
+            raise ValueError("Virtual-waveguide device indexing exceeds the signed 32-bit range.")
 
         first_ids, second_ids = self._adjacent_component_ids()
         first_solid, second_solid = self._adjacent_solids()
@@ -186,7 +190,7 @@ class VirtualWaveguide:
 
     def _build_auxiliary_grid(self):
         main = self.main_grid
-        aux = FDTDGrid()
+        aux = type(main)()
         aux.name = f"virtual_waveguide_port_{self.spec.port}"
         aux.size[:] = 1
         aux.size[self.normal_axis] = self.spec.length_cells
@@ -242,13 +246,27 @@ class VirtualWaveguide:
         source.port_monitor = None
         return source
 
+    def initialise_device(self, parent_updates):
+        """Create the auxiliary solver in the parent's accelerator context."""
+
+        if self.aux_updates is not None:
+            return
+        self.aux_updates = type(parent_updates)(self.aux_grid, shared=parent_updates)
+        solver = config.sim_config.general["solver"]
+        if not hasattr(self.aux_grid, "updatecoeffsE_dev"):
+            if solver == "cuda":
+                self.aux_grid.htod_mat_coeff_arrays()
+            elif solver == "opencl":
+                self.aux_grid.htod_mat_coeff_arrays(parent_updates.queue)
+            else:
+                self.aux_grid.htod_material_arrays(parent_updates.dev)
+
     def update_magnetic(self, iteration):
         """Advance auxiliary H, apply modal injection, and join the aperture."""
 
         self.aux_updates.update_magnetic()
         self.aux_updates.update_magnetic_pml()
-        if self.aux_source is not None:
-            self.aux_source.update_eigenmode_magnetic(iteration, self.aux_grid)
+        self.aux_updates.update_eigenmode_sources_magnetic(iteration)
         couple_virtual_waveguide_magnetic(
             config.get_model_config().ompthreads,
             self.normal_axis,
@@ -271,8 +289,7 @@ class VirtualWaveguide:
 
         self.aux_updates.update_electric_a()
         self.aux_updates.update_electric_pml()
-        if self.aux_source is not None:
-            self.aux_source.update_eigenmode_electric(iteration, self.aux_grid)
+        self.aux_updates.update_eigenmode_sources_electric(iteration)
         self.aux_updates.update_electric_b()
         couple_virtual_waveguide_electric(
             config.get_model_config().ompthreads,

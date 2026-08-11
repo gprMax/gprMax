@@ -2730,6 +2730,22 @@ def dtoh_transmission_line_outputs(Vtotal, Itotal, G):
     """Copy device terminal histories into their transmission-line objects."""
 
     expected = (len(G.transmissionlines), G.iterations + 1)
+    general = getattr(config.sim_config, "general", {})
+    if general.get("solver") == "metal":
+        dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+        nbytes = int(np.prod(expected)) * dtype.itemsize
+
+        def metal_array(buffer):
+            if buffer.length() != nbytes:
+                raise ValueError(
+                    "Transmission-line Metal output buffer has the wrong size: "
+                    f"expected {nbytes} bytes, got {buffer.length()}."
+                )
+            return np.frombuffer(
+                buffer.contents().as_buffer(nbytes), dtype=dtype
+            ).reshape(expected).copy()
+
+        Vtotal, Itotal = metal_array(Vtotal), metal_array(Itotal)
     if Vtotal.shape != expected or Itotal.shape != expected:
         raise ValueError(
             "Transmission-line device output shape does not match the grid: "
