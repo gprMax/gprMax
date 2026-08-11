@@ -16,8 +16,8 @@ PEC. The retained comparison spans 1.6--3.2 GHz.
 
 Run from the repository root with::
 
-    conda run -n gprMax python -m gprMax testing/other_codes/cst/S-parameter/patch_antenna.in -outputfile testing/other_codes/cst/S-parameter/patch_antenna
-    conda run -n gprMax python testing/other_codes/cst/S-parameter/plot_patch_sparameters.py
+    conda run -n gprMax python -m gprMax testing/other_codes/cst/patch_antenna/S-parameter/patch_antenna.in -outputfile testing/other_codes/cst/patch_antenna/S-parameter/patch_antenna
+    conda run -n gprMax python testing/other_codes/cst/patch_antenna/S-parameter/plot_patch_sparameters.py
 
 The second command regenerates ``patch_s11.png`` and
 ``patch_sparameter_summary.json`` from the gprMax CSV and CST Touchstone
@@ -33,8 +33,8 @@ annotations to the figures.
 
 Run from the repository root with::
 
-    conda run -n gprMax python -m gprMax testing/other_codes/cst/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in -outputfile testing/other_codes/cst/farfield/patch_recentered_closed_ntff
-    conda run -n gprMax python testing/other_codes/cst/farfield/plot_patch_farfield_comparison.py
+    conda run -n gprMax python -m gprMax testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in -outputfile testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff
+    conda run -n gprMax python testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py
 
 The large gprMax HDF5 output and raw CST far-field exports are intentionally
 ignored. The input model, comparison script, plots, tabulated cuts, and summary

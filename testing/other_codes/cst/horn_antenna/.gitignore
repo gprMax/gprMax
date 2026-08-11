@@ -1,0 +1,14 @@
+# Large or regenerable solver outputs. Keep the compact extracted cuts in Git.
+*.h5
+*.vtkhdf
+horn_ff_*_cst_*ghz.txt
+!horn_farfield_principal_planes_cst.csv
+
+# Regenerable eigenmode diagnostic plots.
+*_EigenmodeExcitation.png
+*_Port*_Mode*.png
+
+# Superseded single-solver plots; retain the three-solver comparison figures.
+horn_antenna_farfield_cuts.png
+
+__pycache__/

@@ -193,24 +193,28 @@ def plot_cuts(
         pattern_axis.plot(
             theta,
             clipped_cst_fem,
-            color="#d55e00",
-            linewidth=2.2,
+            color="#cc79a7",
+            linewidth=2.4,
+            linestyle=(0, (2, 2)),
+            zorder=6,
             label="CST FEM (frequency-domain, adaptive mesh refinement)",
         )
         pattern_axis.plot(
             theta,
             clipped_gprmax,
             color="#0072b2",
-            linewidth=2.0,
-            linestyle="--",
+            linewidth=2.4,
+            linestyle="-",
+            zorder=3,
             label="gprMax closed NTFF",
         )
         pattern_axis.plot(
             theta,
             clipped_cst_fit,
-            color="#cc79a7",
-            linewidth=1.8,
-            linestyle=":",
+            color="#e69f00",
+            linewidth=2.4,
+            linestyle=(0, (5, 2)),
+            zorder=5,
             label="CST FIT (time-domain)",
         )
         pattern_axis.set_title(rf"$\phi={phi:g}^\circ$")
@@ -223,16 +227,19 @@ def plot_cuts(
         difference_axis.plot(
             theta,
             clipped_gprmax - clipped_cst_fem,
-            color="#009e73",
-            linewidth=1.7,
+            color="#cc79a7",
+            linewidth=2.4,
+            linestyle=(0, (2, 2)),
+            zorder=6,
             label="gprMax − CST FEM (adaptive mesh refinement)",
         )
         difference_axis.plot(
             theta,
             clipped_gprmax - clipped_cst_fit,
-            color="#cc79a7",
-            linewidth=1.5,
-            linestyle=":",
+            color="#e69f00",
+            linewidth=2.4,
+            linestyle=(0, (5, 2)),
+            zorder=5,
             label="gprMax − CST FIT",
         )
         difference_axis.set_xlim(0, 180)
@@ -296,24 +303,28 @@ def plot_polar_planes(
         axis.plot(
             cst_fem_angle,
             np.maximum(cst_fem, COMPARISON_FLOOR_DBI) - COMPARISON_FLOOR_DBI,
-            color="#d55e00",
-            linewidth=2.2,
+            color="#cc79a7",
+            linewidth=2.4,
+            linestyle=(0, (2, 2)),
+            zorder=6,
             label="CST FEM (frequency-domain, adaptive mesh refinement)",
         )
         axis.plot(
             gprmax_angle,
             np.maximum(gprmax, COMPARISON_FLOOR_DBI) - COMPARISON_FLOOR_DBI,
             color="#0072b2",
-            linewidth=2.0,
-            linestyle="--",
+            linewidth=2.4,
+            linestyle="-",
+            zorder=3,
             label="gprMax closed NTFF",
         )
         axis.plot(
             cst_fit_angle,
             np.maximum(cst_fit, COMPARISON_FLOOR_DBI) - COMPARISON_FLOOR_DBI,
-            color="#cc79a7",
-            linewidth=1.8,
-            linestyle=":",
+            color="#e69f00",
+            linewidth=2.4,
+            linestyle=(0, (5, 2)),
+            zorder=5,
             label="CST FIT (time-domain)",
         )
         axis.set_theta_zero_location("N")
