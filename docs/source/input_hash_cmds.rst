@@ -1129,6 +1129,82 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 * ``f4 f5`` are optional parameters. ``f4`` is a time delay in starting the source. ``f5`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f4 f5`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
+#rational_network:, #network_terminal:, #network_excitation:
+------------------------------------------------------------
+
+These commands connect a linear one-port network to one electric Yee edge.
+The reusable network model is expressed as a rational driving-point
+admittance
+
+.. math::
+
+    Y(s) = G + sC + \sum_{m=1}^{M}\frac{r_m}{s-p_m},
+
+where :math:`G` is the direct conductance, :math:`C` is the direct
+capacitance, and :math:`p_m` and :math:`r_m` are pole-residue pairs. The
+syntax is
+
+.. code-block:: none
+
+    #rational_network: str1 f1 f2 i1 [f3 f4 f5 f6 ...] [c1]
+    #network_terminal: c2 f7 f8 f9 str1 str2
+    #network_excitation: str2 str3 [f10 f11]
+
+* ``str1`` is the reusable network-model ID.
+* ``f1`` and ``f2`` are :math:`G` in siemens and :math:`C` in farads.
+* ``i1`` is the number of poles. Every pole then has four values:
+  ``pole_real pole_imag residue_real residue_imag``. Poles are in rad/s and
+  residues are in S/s. Non-real poles and residues must occur in conjugate
+  pairs so that the time-domain current is real.
+* ``c1`` is an optional ``y``/``n`` flag permitting an active model. It is
+  ``n`` by default. Passive models are checked over the FDTD band and all
+  poles must be stable.
+* ``c2`` is the terminal polarisation ``x``, ``y``, or ``z``; ``f7 f8 f9``
+  are its coordinates; and ``str2`` is its unique terminal ID.
+* ``str3`` is an existing waveform ID. The optional ``f10 f11`` pair gives
+  its start and stop times. Omitting ``#network_excitation`` creates a
+  passive load or receiving terminal.
+
+For common elements, a resistor uses :math:`G=1/R`, a capacitor uses the
+direct :math:`C` term, and an inductor uses :math:`p=0`, :math:`r=1/L`. A
+series :math:`RL` branch has :math:`p=-R/L` and :math:`r=1/L`. For example,
+a driven 50 Ohm terminal is
+
+.. code-block:: none
+
+    #waveform: ricker 1 2e9 pulse
+    #rational_network: source50 0.02 0 0
+    #network_terminal: z 0.05 0.05 0.02 source50 feed
+    #network_excitation: feed pulse
+    #network_port: feed 50 10
+
+The optional excitation is a Thévenin open-circuit voltage applied through
+the complete rational impedance. The arbitrary linear circuit-to-edge
+formulation follows [PER1999]_ and [CHE2007]_. gprMax improves the underlying
+classic PLRC time placement using the exponential recursive-convolution
+approach of Giannakis and Giannopoulos [GIA2014]_. In particular, every pole
+state is evaluated analytically at the electric half-step under a linearly
+varying terminal voltage; it is not estimated by averaging its two integer-
+time values. Each terminal stores only its own poles and applies one locally
+implicit edge correction, rather than allocating dispersive state throughout
+the mesh.
+
+A driven network with :math:`G=1/R`, no direct capacitance, and no poles is
+discretely identical to a finite-resistance ``#voltage_source`` having the
+same :math:`R`, waveform, position, and polarisation. A zero-resistance hard
+source is not equivalent.
+
+This implementation supports 3-D, non-MPI models on the CPU, CUDA, OpenCL,
+and Metal solvers and a nondispersive terminal edge; dispersive materials may
+exist elsewhere in the model. A terminal may be placed in a CPU subgrid, where
+it uses the fine spatial and temporal steps. On an accelerator the complete
+recurrence and local field correction remain device-resident during time
+stepping. Several independent terminals may be used, but a coupled multiport
+admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
+lumped-network formulation and :ref:`Analytical comparisons
+<rational-network-validation>` for a complete loaded-guide comparison.
+
+
 #voltage_source:
 ----------------
 
@@ -1154,7 +1230,7 @@ For example, to specify a y directed voltage source with an internal resistance 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, and OpenCL solvers; Metal support is not currently enabled. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, OpenCL, and Metal solvers. The syntax of the command is:
 
 .. code-block:: none
 
@@ -1572,7 +1648,8 @@ and output definitions.
 
 .. note::
 
-    * Eigenmode commands currently support only the main grid and CPU solver.
+    * Eigenmode commands support the main grid with the CPU, CUDA, OpenCL, and
+      Metal solvers, but not subgrids.
     * Eigenmode commands currently cannot be used with MPI.
 
 #virtual_waveguide:
@@ -1608,9 +1685,9 @@ but no S-parameters can be normalized without an active port.
 
 The port plane must be internal, locally uniform along the guide axis, and at
 least two cells wide in each transverse direction. The minimum guide length
-is ``i3 + i4 + 3`` cells. Virtual waveguides currently support 3D,
-non-dispersive guide cross-sections with the CPU solver only; MPI, subgrids,
-and GPU solvers are not yet supported.
+is ``i3 + i4 + 3`` cells. Virtual waveguides support 3D, non-dispersive guide
+cross-sections with the CPU, CUDA, OpenCL, and Metal solvers; MPI and subgrids
+are not yet supported.
 
 Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
 main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
@@ -1681,6 +1758,7 @@ The voltage source supplies the reference impedance :math:`Z_0`. For example:
     # Custom 75 Ohm hard-source reference; start/stop precede it positionally
     #voltage_source: z 0.070 0.050 0.020 0 source_wave 0 10e-9 75
     #rx_port: 0.070 0.050 0.020 ideal_feed_75
+
 
 For a finite-resistance source, the voltage-source resistance is the
 reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless
@@ -1778,6 +1856,30 @@ material are reported when the model is built.
       contaminate the spectrum. gprMax reports a tail-level warning rather
       than hiding or clipping the result.
 
+#network_port:
+--------------
+
+Requests time- and frequency-domain port quantities for an existing
+``#network_terminal``. The terminal ID is also the HDF5 port ID. The syntax is
+
+.. code-block:: none
+
+    #network_port: str1 [f1 [f2]]
+
+* ``str1`` is the network-terminal ID.
+* ``f1`` is the positive real power-wave reference impedance in ohms; it is
+  50 Ohms by default.
+* ``f2`` is the minimum number of cells per shortest material wavelength; it
+  is 10 by default. The literal ``nyquist`` retains the full native spectrum
+  with validity masks for research use.
+
+The output contains terminal voltage and current, incident and reflected
+power-wave spectra, ``S11``, ``Zin``, and ``Yin``. gprMax removes the
+background Yee-gap capacitance and conductance from the reported terminal
+current. A driven network obtains ``S11`` and incident power; an unexcited
+network remains useful as a passive measured port, for which ``Zin`` and
+``Yin`` are still available when numerically defined.
+
 #src_steps: and #rx_steps:
 --------------------------
 
@@ -1863,13 +1965,13 @@ The following conventions apply to every NTFF command:
   it cannot touch or cut the coupling region. Both time- and frequency-domain
   KSIR collection and frequency-domain equivalent-current collection are
   available with CPU, CUDA, OpenCL, and Metal. Equivalent-current transient
-  far fields currently require the CPU solver;
+  far fields are also available with all four local solvers;
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
-  iterations and are transferred to the host once, after the solve. CUDA is
-  hardware-qualified on the development server. OpenCL and Metal have source-
-  generation and dispatch coverage, but still require execution tests on
-  suitable hardware.
+  iterations and are transferred to the host once, after the solve. CUDA and
+  OpenCL are hardware-qualified on the development server. Metal has complete
+  source-generation and dispatch coverage, but still requires execution tests
+  on suitable Apple hardware.
 
 Directivity, gain, efficiency, and port normalisation are post-processing
 operations after the FDTD solve. Angular KSIR and equivalent-current
@@ -2248,8 +2350,9 @@ This prevents an incomplete retarded-time tail being mistaken for a physical
 late-time response. Increase ``#time_window`` if the stored terminal-decay
 test fails.
 
-The current implementation is CPU-only, requires a homogeneous lossless
-background and all six physical faces, and supports 3-D serial models. KSIR
+The current implementation supports the CPU, CUDA, OpenCL, and Metal solvers,
+requires a homogeneous lossless background and all six physical faces, and
+supports 3-D serial models. KSIR
 remains available for finite-distance time-domain points and for
 symmetry-completed surfaces.
 
@@ -2475,7 +2578,9 @@ simulated half. This KSIR workflow is supported by the local CPU, CUDA,
 OpenCL, and Metal solvers for nondispersive models. Equivalent-current
 transforms do not yet support symmetry image completion; physical faces can
 instead be omitted explicitly for an open frequency-domain Huygens surface.
-OpenCL and Metal still require end-to-end qualification on suitable hardware.
+OpenCL has end-to-end qualification on the development server. Metal has
+source-generation and dispatch coverage but still requires qualification on
+suitable Apple hardware.
 
 
 PML commands
@@ -2639,6 +2744,5 @@ For example:
 .. note::
 
     * The PML thickness on a symmetry face is set to zero automatically.
-    * PEC boundaries and nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and Metal solvers.
-    * PMC boundaries in models containing dispersive materials are currently CPU-only.
+    * PEC and PMC boundaries, including PMC boundaries in models containing dispersive materials, are supported by the CPU, CUDA, OpenCL, and Metal solvers.
     * Symmetry boundaries are not currently supported in 2D mode, with MPI, or on a subgrid. They may be used on the main grid of a model that contains subgrids.

@@ -63,20 +63,18 @@ class Solver:
         self.updates.time_start()
 
         for iteration in iterator:
-            #time loop at this point is at n
+            # time loop at this point is at n
             self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
             self.updates.observe_ntff_electric(iteration)
 
-            #time loop at this point is working at fields updated to be at n+1/2
+            # time loop at this point is working at fields updated to be at n+1/2
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
             self.updates.update_magnetic_sources(iteration)
-            if isinstance(self.updates, CPUUpdates):
-                self.updates.update_eigenmode_sources_magnetic(iteration)
+            self.updates.update_eigenmode_sources_magnetic(iteration)
             self.updates.update_plane_waves_magnetic(iteration)
-            if isinstance(self.updates, CPUUpdates):
-                self.updates.observe_eigenmode_ports(iteration)
+            self.updates.observe_eigenmode_ports(iteration)
 
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
@@ -86,7 +84,7 @@ class Solver:
 
             self.updates.observe_ntff_magnetic(iteration)
 
-            #time loop at this point is still at working on fields updated to be at n+1
+            # time loop at this point is still at working on fields updated to be at n+1
             self.updates.update_electric_a()
             # Apply the PMC ghost-image correction on the active local
             # backend. MPI symmetry is deliberately unsupported.
@@ -95,11 +93,10 @@ class Solver:
 
             self.updates.update_electric_pml()
             self.updates.update_electric_sources(iteration)
-            if isinstance(self.updates, CPUUpdates):
-                self.updates.update_eigenmode_sources_electric(iteration)
+            self.updates.update_eigenmode_sources_electric(iteration)
             self.updates.update_plane_waves_electric(iteration)
 
-           # TODO: Increment iteration here if add Model to Solver
+            # TODO: Increment iteration here if add Model to Solver
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_1()
 
@@ -109,6 +106,7 @@ class Solver:
                 self.updates.update_symmetry_boundaries_electric_b()
 
             self.updates.update_electric_b()
+            self.updates.update_network_terminals(iteration)
 
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_electric()

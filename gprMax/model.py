@@ -384,6 +384,13 @@ class Model:
             for frill in grid.magneticfrillsources:
                 frill.finalise_setup(grid)
 
+        # Rational networks are local terminal corrections. Bind their final
+        # Yee material/source coefficient and initialise sparse pole state only
+        # after grid.build() has completed.
+        for grid in grids:
+            for terminal in getattr(grid, "networkterminals", ()):
+                terminal.prepare(grid)
+
         # Voltage-source ports bind their receiver during scene processing,
         # but their effective edge material and update coefficient only exist
         # after grid.build() has completed.
@@ -556,9 +563,7 @@ class Model:
             # coefficients, silently truncating them (numpy raises only a
             # ComplexWarning on such an assignment, not an error).
             config.get_model_config().materials["drudelorentz"] = any(
-                "drude" in m.type or "lorentz" in m.type
-                for grid in grids
-                for m in grid.materials
+                "drude" in m.type or "lorentz" in m.type for grid in grids for m in grid.materials
             )
 
             # Set data type if any dispersive materials (must be done before memory checks)
@@ -578,17 +583,12 @@ class Model:
             # own flag rather than the global one.
 
     def _check_accelerator_symmetry_boundaries(self, grids: Sequence[FDTDGrid]):
-        """Reject accelerator PMC after material dispersion is resolved."""
-        solver = config.sim_config.general["solver"]
-        maxpoles = config.get_model_config().materials["maxpoles"]
-        has_pmc = any("pmc" in grid.symmetry_boundaries.values() for grid in grids)
+        """Reserved parity check after material dispersion is resolved."""
 
-        if solver in ("cuda", "opencl", "metal") and maxpoles > 0 and has_pmc:
-            raise ValueError(
-                "Dispersive PMC symmetry boundaries currently require the CPU "
-                "solver. PEC and nondispersive PMC symmetry are supported by "
-                "CUDA, OpenCL, and Apple Metal."
-            )
+        # All local backends now implement both phases of the dispersive PMC
+        # ADE update. Keep this hook because MPI symmetry remains deliberately
+        # rejected by the command builder and future backends may need an
+        # explicit capability check here.
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory

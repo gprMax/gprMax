@@ -132,6 +132,80 @@ def _equivalent_current_scene():
     return scene, transform, far_field
 
 
+def _equivalent_current_time_scene():
+    dl = 0.004
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.08, 0.08, 0.08)))
+    scene.add(gprMax.TimeWindow(time=3e-10))
+    scene.add(gprMax.PMLThickness(thickness=3))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
+    scene.add(
+        gprMax.HertzianDipole(
+            polarisation="z", p1=(0.04, 0.04, 0.04), waveform_id="pulse"
+        )
+    )
+    scene.add(
+        gprMax.NTFFSurface(
+            p1=(0.028, 0.028, 0.028),
+            p2=(0.052, 0.052, 0.052),
+            id="surface",
+        )
+    )
+    far_field = gprMax.NTFFTimeFarField(
+        (0, 30, 90, 150, 180),
+        (0, 0, 0, 0, 0),
+        "surface",
+        id="transient",
+        outputs=("Etheta", "Ephi"),
+    )
+    scene.add(far_field)
+    return scene, far_field
+
+
+@pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
+@pytest.mark.parametrize(
+    "precision,rtol",
+    [("single", 3e-4), ("double", 2e-11)],
+)
+def test_cuda_equivalent_current_time_far_fields_match_cpu(
+    tmp_path, gpu_device, precision, rtol
+):
+    cpu_scene, cpu_far = _equivalent_current_time_scene()
+    cuda_scene, cuda_far = _equivalent_current_time_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        outputfile=tmp_path / f"equivalent_time_cpu_{precision}",
+        hide_progress_bars=True,
+        cpu_precision=precision,
+    )
+    gprMax.run(
+        scenes=[cuda_scene],
+        outputfile=tmp_path / f"equivalent_time_cuda_{precision}",
+        hide_progress_bars=True,
+        gpu=[gpu_device],
+        gpu_precision=precision,
+    )
+
+    assert_allclose(cuda_far.result.times, cpu_far.result.times, rtol=0, atol=0)
+    field_scale = max(
+        np.max(np.abs(cpu_far.result.fields[component]))
+        for component in ("Etheta", "Ephi")
+    )
+    assert field_scale > 0
+    for component in ("Etheta", "Ephi"):
+        expected = cpu_far.result.fields[component]
+        assert_allclose(
+            cuda_far.result.fields[component],
+            expected,
+            rtol=rtol,
+            # The cross-polarised component is analytically zero for this
+            # axis-aligned dipole. Scale absolute round-off against the
+            # physical co-polar field rather than numerical cancellation.
+            atol=rtol * field_scale,
+        )
+
+
 def _plane_wave_rcs_scene():
     dl = 0.004
     scene = gprMax.Scene()

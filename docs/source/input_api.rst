@@ -575,6 +575,56 @@ Magnetic Dipole Source
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.MagneticDipole
 
+Rational lumped-network terminal
+--------------------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.RationalNetwork
+.. autoclass:: gprMax.user_objects.cmds_multiuse.NetworkTerminal
+.. autoclass:: gprMax.user_objects.cmds_multiuse.NetworkExcitation
+
+``RationalNetwork`` defines the reusable driving-point admittance
+
+.. math::
+
+    Y(s)=G+sC+\sum_m\frac{r_m}{s-p_m}.
+
+``NetworkTerminal`` places it on one electric Yee edge. It is passive unless
+a ``NetworkExcitation`` supplies a Thévenin open-circuit waveform. For
+example, a 50 Ohm driven port is
+
+.. code-block:: python
+
+    scene.add(gprMax.RationalNetwork(
+        id='source50', conductance=1 / 50, capacitance=0,
+    ))
+    scene.add(gprMax.NetworkTerminal(
+        p1=(0.05, 0.05, 0.02), polarisation='z',
+        network_id='source50', id='feed',
+    ))
+    scene.add(gprMax.NetworkExcitation(
+        terminal_id='feed', waveform_id='pulse',
+    ))
+
+An inductor is represented by ``poles=(0,)`` and ``residues=(1/L,)``;
+a series :math:`RL` branch uses ``poles=(-R/L,)`` and
+``residues=(1/L,)``. Complex terms must be supplied as conjugate pairs.
+The circuit-to-edge formulation follows the arbitrary linear lumped-network
+FDTD approaches of [PER1999]_ and [CHE2007]_. Their underlying classic PLRC
+time discretisation is improved here using the exponential recursive-
+convolution treatment of Giannakis and Giannopoulos [GIA2014]_: every pole
+current is evaluated analytically at the electric half-step for a linearly
+varying voltage, rather than estimated by averaging its two integer-time
+values. State is stored only for placed terminals. Independent one-port
+networks are supported in 3-D, non-MPI models on the CPU, CUDA, OpenCL, and
+Metal solvers; terminals inside subgrids currently use the CPU solver. Device
+runs keep the network recurrence and field correction on the compute device
+and copy the completed histories back after the solve. Coupled multiport
+admittance matrices are reserved for a later extension.
+
+For :math:`Y=1/R`, ``NetworkExcitation`` and a conventional finite-resistance
+``VoltageSource`` are the same discrete Thévenin source when their position,
+resistance, and waveform are identical. This equivalence does not apply to a
+zero-resistance hard voltage source.
+
 Transmission Line
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.TransmissionLine
@@ -733,7 +783,7 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-use the CPU, CUDA, and OpenCL solvers; Apple Metal is not currently supported.
+use the CPU, CUDA, OpenCL, and Apple Metal solvers.
 Homogeneous angle/vector plane waves and layered axial plane waves support
 non-dispersive materials and multi-pole Debye, Lorentz, and Drude materials.
 Their auxiliary dispersive state uses the same real or complex precision
@@ -843,6 +893,29 @@ The result is stored at
 ``/subgrids/<subgrid ID>/ports/<port ID>``. The source and port must belong to
 the same grid object so that their discretised coordinates, material edge,
 ``dl``, and ``dt`` are unambiguous.
+
+Rational-network S11 and input impedance
+-----------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.NetworkPort
+
+``NetworkPort`` requests the output for an existing ``NetworkTerminal``. Its
+terminal ID becomes the HDF5 port ID:
+
+.. code-block:: python
+
+    network_port = gprMax.NetworkPort(
+        terminal_id='feed', reference_impedance=50, spectrum_limit=10,
+    )
+    scene.add(network_port)
+
+After the solve, ``network_port.result`` contains aligned voltage/current
+histories and ``S11``, ``Zin``, and ``Yin`` spectra. The background Yee-gap
+capacitance and conductance are removed from terminal current. Omitting
+``NetworkExcitation`` leaves a passive measurable port; it has no meaningful
+source-normalised S11 but can still report impedance/admittance where the
+response is numerically defined. A port inside a Python API subgrid is written
+beneath ``/subgrids/<subgrid ID>/ports/<terminal ID>`` and uses that subgrid's
+fine ``dl`` and ``dt``.
 
 Source Steps
 ------------
@@ -1137,8 +1210,9 @@ Modified one-step transient far fields
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFTimeFarFieldArray
 
-These CPU-only classes implement the modified time-domain equivalent-current
-method of Giannopoulos *et al.* [GIAFF1997]_. Their ``times`` are reduced
+These classes implement the modified time-domain equivalent-current method of
+Giannopoulos *et al.* [GIAFF1997]_ on the CPU, CUDA, OpenCL, and Metal
+solvers. Their ``times`` are reduced
 times for range-normalized far fields, and only samples supported by every
 surface patch are returned. The time placement of both current derivatives is
 defined in :ref:`ntff-formulations`.

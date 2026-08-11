@@ -325,6 +325,72 @@ second, independent measurement (unlike its role with ``#voltage_source``);
 it can only override the ``spectrum_limit`` of this always-on automatic
 output.
 
+Rational-network port output
+----------------------------
+
+The ``#network_port`` command and ``NetworkPort`` Python object write a
+rational terminal beneath ``/ports/<terminal ID>``. The external-network
+current is defined positive from the FDTD gap into the network,
+
+.. math::
+
+    I_N(s)=Y(s)\left[V(s)-V_g(s)\right],
+    \qquad
+    Y(s)=G+sC+\sum_m\frac{r_m}{s-p_m}.
+
+Here :math:`V_g=0` for a passive terminal. For antenna and accepted-power
+calculations, the current entering the electromagnetic structure removes the
+numerical parallel Yee-gap admittance,
+
+.. math::
+
+    I_\mathrm{terminal}=-I_N-Y_\mathrm{gap}V,
+    \qquad
+    V^\pm=\frac{V\pm Z_0I_\mathrm{terminal}}{2}.
+
+For each rational term, :math:`\dot{x}_m=p_mx_m+r_mu`, where
+:math:`u=V-V_g`. Its value at any fraction :math:`\theta` of a time step is
+calculated without a finite-difference approximation to :math:`x_m`,
+
+.. math::
+
+    x_m^{n+\theta}=e^{\theta p_m\Delta t}x_m^n
+    +a_{m,\theta}u^{n+1}+b_{m,\theta}u^n,
+
+with the coefficients obtained from the exact convolution of an exponential
+pole with a linearly varying voltage. The implementation uses
+:math:`\theta=1/2` directly for the locally implicit Ampere update and
+:math:`\theta=1` to advance stored state. This is the relevant
+Giannakis--Giannopoulos improvement [GIA2014]_ to the classic PLRC
+lumped-network treatment of [PER1999]_ and [CHE2007]_: the half-step pole
+current is obtained directly rather than by averaging adjacent integer-time
+values.
+
+The reported quantities are :math:`S_{11}=V^-/V^+`,
+:math:`Z_\mathrm{in}=V/I_\mathrm{terminal}`, and
+:math:`Y_\mathrm{in}=I_\mathrm{terminal}/V`. Their validity is recorded
+separately, so a passive receiving port may retain valid impedance while its
+source-normalised S11 is invalid.
+
+The group stores ``poles`` and ``residues`` together with ``Conductance`` and
+``Capacitance``; time histories ``Vgenerator``, ``Vtotal``, and ``Inetwork``;
+frequency-domain ``Vgenerator_spectrum``, ``Vtotal_spectrum``,
+``Inetwork_spectrum``, ``Iterminal_spectrum``, ``Vincident_spectrum``, and
+``Vreflected_spectrum``; and the usual ``S11``, ``Zin``, ``Yin``, mesh,
+source, gap, and cells-per-wavelength validity datasets. The transform uses
+the engineering convention and all three histories are sampled at the
+electric half-step. ``NetworkModelID`` identifies the reusable model and
+``PortMode`` is ``rational_network``.
+
+The complete production update is compared with the exact reflection from
+series-RC and series-RLC sheets in a parallel-plate guide in
+:ref:`rational-network-validation`.
+
+A terminal owned by a subgrid is stored beneath
+``/subgrids/<subgrid ID>/ports/<terminal ID>`` using the subgrid's fine time
+and space increments.
+
+
 Voltage-source S11 and impedance output
 ---------------------------------------
 

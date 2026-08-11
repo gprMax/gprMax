@@ -12,6 +12,7 @@ from gprMax.sources import (
     dtoh_transmission_line_outputs,
     transmission_line_host_arrays,
 )
+from gprMax.updates.metal_updates import MetalUpdates
 
 
 def _line(polarisation="z", coord=(2, 3, 4)):
@@ -132,3 +133,82 @@ def test_transmission_line_template_substitutions_are_complete(backend, kernel):
 
     assert "$" not in arguments
     assert "$" not in body
+
+
+def test_metal_transmission_line_dispatch_preserves_kernel_contract(
+    float64_config,
+):
+    calls = []
+    updates = MetalUpdates.__new__(MetalUpdates)
+    updates._dispatch_1d = lambda pipeline, scalars, buffers, count: calls.append(
+        (pipeline, scalars, buffers, count)
+    )
+    updates.pso_transmission_line_magnetic = "magnetic_pipeline"
+    updates.pso_transmission_line_electric = "electric_pipeline"
+    updates.tl_line_coefficient = np.float64(0.25)
+    updates.tl_abc_coefficient = np.float64(-0.5)
+    for name in (
+        "info",
+        "resistance",
+        "waveform_half",
+        "waveform_whole",
+        "voltage",
+        "current",
+        "abcv0",
+        "abcv1",
+        "Vtotal",
+        "Itotal",
+    ):
+        setattr(updates, f"tl_{name}_dev", name)
+    updates.grid = SimpleNamespace(
+        transmissionlines=[object()],
+        magneticdipoles=[],
+        magneticfrillsources=[],
+        voltagesources=[],
+        hertziandipoles=[],
+        dx=0.001,
+        dy=0.002,
+        dz=0.003,
+        Hx_dev="Hx",
+        Hy_dev="Hy",
+        Hz_dev="Hz",
+        Ex_dev="Ex",
+        Ey_dev="Ey",
+        Ez_dev="Ez",
+        iteration=0,
+    )
+
+    updates.update_magnetic_sources(iteration=3)
+    updates.update_electric_sources(iteration=3)
+
+    assert [call[0] for call in calls] == [
+        "magnetic_pipeline",
+        "electric_pipeline",
+    ]
+    assert len(calls[0][1]) == 6
+    assert calls[0][2] == (
+        "info",
+        "resistance",
+        "waveform_half",
+        "voltage",
+        "current",
+        "Vtotal",
+        "Itotal",
+        "Hx",
+        "Hy",
+        "Hz",
+    )
+    assert len(calls[1][1]) == 7
+    assert calls[1][2] == (
+        "info",
+        "resistance",
+        "waveform_whole",
+        "voltage",
+        "current",
+        "abcv0",
+        "abcv1",
+        "Ex",
+        "Ey",
+        "Ez",
+    )
+    assert calls[0][3] == calls[1][3] == 1

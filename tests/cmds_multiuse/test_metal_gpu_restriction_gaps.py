@@ -1,20 +1,7 @@
-"""Regression tests: two GPU-restriction guards in
-gprMax/user_objects/cmds_multiuse.py listed "cuda"/"opencl" but omitted
-"metal" (Codex-reported), even though Metal has no support for either
-feature they gate:
+"""Regression tests for source and receiver parity across local solvers.
 
-1. TransmissionLine._validate_parameters() rejects transmission lines on
-   OpenCL and Metal until their host-side lifecycle is enabled. CUDA has a
-   device-resident implementation.
-2. Rx.build() applies the same allowable-output list to CUDA, OpenCL, and
-   Metal. Device solvers now support packed, requested-only Ix/Iy/Iz output,
-   so the current components must be accepted consistently on all four
-   solvers.
-
-Both are fixed by adding "metal" to the respective solver-name lists.
-Follows the established pattern (see tests/test_receivers_dtoh.py) of
-replacing config.sim_config wholesale to fake a non-CPU solver without
-needing real GPU/Metal hardware present.
+The tests replace ``config.sim_config`` so that command validation can be
+checked without requiring accelerator hardware.
 """
 from types import SimpleNamespace
 
@@ -32,19 +19,8 @@ def _set_solver(monkeypatch, solver):
     config.sim_config.em_consts = {"z0": 376.730313668}
 
 
-def test_transmission_line_rejected_on_unimplemented_metal_solver(monkeypatch):
-    _set_solver(monkeypatch, "metal")
-
-    tl = TransmissionLine(
-        p1=(0.01, 0.01, 0.01), polarisation="x", resistance=50, waveform_id="w"
-    )
-
-    with pytest.raises(ValueError, match="cannot currently be used"):
-        tl._validate_parameters(grid=None)
-
-
-@pytest.mark.parametrize("solver", ["cuda", "opencl"])
-def test_transmission_line_is_allowed_on_implemented_gpu_solvers(monkeypatch, solver):
+@pytest.mark.parametrize("solver", ["cpu", "cuda", "opencl", "metal"])
+def test_transmission_line_is_allowed_on_every_local_solver(monkeypatch, solver):
     _set_solver(monkeypatch, solver)
     monkeypatch.setattr(
         config,

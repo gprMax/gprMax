@@ -91,6 +91,7 @@ class EquivalentCurrentTimeMonitor:
         wave_speed,
         impedance,
         nthreads=1,
+        device_backend=None,
     ):
         self.name = name
         self.lower = np.asarray(lower, dtype=np.int64)
@@ -106,12 +107,18 @@ class EquivalentCurrentTimeMonitor:
         self.origin = np.asarray(origin, dtype=self.real_dtype)
         self.allow_external_sources = False
         self.managed_output = True
-        self.device_backend = None
+        if device_backend not in (None, "cuda", "opencl", "metal"):
+            raise ValueError("device_backend must be None, 'cuda', 'opencl', or 'metal'")
+        self.device_backend = device_backend
         self.collection_backend = (
-            "cython_openmp"
-            if _gather_equivalent_current_component is not None
-            and _deposit_equivalent_current_time is not None
-            else "numpy_fallback"
+            f"{device_backend}_device"
+            if device_backend is not None
+            else (
+                "cython_openmp"
+                if _gather_equivalent_current_component is not None
+                and _deposit_equivalent_current_time is not None
+                else "numpy_fallback"
+            )
         )
         if self.lower.shape != (3,) or self.upper.shape != (3,):
             raise ValueError("equivalent-current bounds must have shape (3,)")
@@ -177,10 +184,12 @@ class EquivalentCurrentTimeMonitor:
         self._time_origin_step = int(np.floor(np.min(shift))) - 2
         last_step = self.iterations - 1 + int(np.ceil(np.max(shift))) + 2
         self._raw_length = last_step - self._time_origin_step + 1
-        self._theta_output = np.zeros(
-            (self.directions.shape[0], self._raw_length), dtype=self.real_dtype
+        self._theta_output = (
+            np.zeros((self.directions.shape[0], self._raw_length), dtype=self.real_dtype)
+            if device_backend is None
+            else None
         )
-        self._phi_output = np.zeros_like(self._theta_output)
+        self._phi_output = None if self._theta_output is None else np.zeros_like(self._theta_output)
         self._complete_start_step = int(np.ceil(np.max(shift) + 1))
         self._complete_stop_step = int(np.floor(np.min(shift) + self.iterations - 1))
         if self._complete_stop_step < self._complete_start_step:
@@ -203,6 +212,11 @@ class EquivalentCurrentTimeMonitor:
         return self._result
 
     def _build_stencils(self):
+        # Surface coordinates and Yee offsets are stored in the configured
+        # field precision. A fixed 1e-9 tolerance is tighter than one ULP for
+        # typical single-precision grid coordinates and can reject an exactly
+        # aligned surface after division by ``spacing``.
+        alignment_tolerance = max(1e-9, 32 * np.finfo(self.real_dtype).eps)
         result = {}
         for component in ELECTRIC_COMPONENTS + MAGNETIC_COMPONENTS:
             component_axis = "xyz".index(component[1].lower())
@@ -217,9 +231,16 @@ class EquivalentCurrentTimeMonitor:
                 for axis in range(3):
                     sample_index = target[:, axis] / self.spacing[axis] - offset[axis]
                     nearest = np.rint(sample_index)
-                    if np.allclose(sample_index, nearest, rtol=0, atol=1e-9):
+                    if np.allclose(
+                        sample_index, nearest, rtol=0, atol=alignment_tolerance
+                    ):
                         shifts_by_axis.append((0.0,))
-                    elif np.allclose(np.abs(sample_index - nearest), 0.5, rtol=0, atol=1e-9):
+                    elif np.allclose(
+                        np.abs(sample_index - nearest),
+                        0.5,
+                        rtol=0,
+                        atol=alignment_tolerance,
+                    ):
                         shifts_by_axis.append((-0.5, 0.5))
                     else:
                         raise RuntimeError(f"cannot form symmetric {component} stencil")
@@ -228,7 +249,12 @@ class EquivalentCurrentTimeMonitor:
                     position = target + np.asarray(shifts) * self.spacing
                     indices_float = position / self.spacing - offset
                     indices = np.rint(indices_float).astype(np.int64)
-                    if not np.allclose(indices_float, indices, rtol=0, atol=1e-9):
+                    if not np.allclose(
+                        indices_float,
+                        indices,
+                        rtol=0,
+                        atol=alignment_tolerance,
+                    ):
                         raise RuntimeError(f"{component} stencil is not on Yee samples")
                     if np.any(indices < 0) or np.any(
                         indices >= np.asarray(self.field_shape)[np.newaxis, :]
@@ -330,6 +356,8 @@ class EquivalentCurrentTimeMonitor:
         return self.surface_material_id
 
     def observe_electric(self, iteration, Ex, Ey, Ez):
+        if self.device_backend is not None:
+            raise RuntimeError("device equivalent-current monitors are observed by the backend")
         if iteration != self._next_electric:
             raise ValueError(f"expected electric iteration {self._next_electric}, got {iteration}")
         electric = self._gather_vector(ELECTRIC_COMPONENTS, (Ex, Ey, Ez))
@@ -347,6 +375,8 @@ class EquivalentCurrentTimeMonitor:
         self._next_electric += 1
 
     def observe_magnetic(self, iteration, Hx, Hy, Hz):
+        if self.device_backend is not None:
+            raise RuntimeError("device equivalent-current monitors are observed by the backend")
         if iteration != self._next_magnetic:
             raise ValueError(f"expected magnetic iteration {self._next_magnetic}, got {iteration}")
         magnetic = self._gather_vector(MAGNETIC_COMPONENTS, (Hx, Hy, Hz))
@@ -363,11 +393,31 @@ class EquivalentCurrentTimeMonitor:
         self._previous_magnetic = electric_current
         self._next_magnetic += 1
 
+    def load_device_far_field_output(self, theta_output, phi_output):
+        """Install completed device traces before normal finalisation."""
+
+        if self.device_backend is None:
+            raise RuntimeError("CPU equivalent-current monitors cannot load device output")
+        expected = (self.directions.shape[0], self._raw_length)
+        theta_output = np.asarray(theta_output, dtype=self.real_dtype)
+        phi_output = np.asarray(phi_output, dtype=self.real_dtype)
+        if theta_output.shape != expected or phi_output.shape != expected:
+            raise ValueError(
+                "equivalent-current device output has the wrong shape: "
+                f"expected {expected}, got {theta_output.shape} and {phi_output.shape}"
+            )
+        self._theta_output = np.ascontiguousarray(theta_output)
+        self._phi_output = np.ascontiguousarray(phi_output)
+        self._next_electric = self.iterations
+        self._next_magnetic = self.iterations
+
     def finalise(self):
         if self._finalised:
             return
         if self._next_electric != self.iterations or self._next_magnetic != self.iterations:
             raise RuntimeError("equivalent-current monitor did not receive every time step")
+        if self._theta_output is None or self._phi_output is None:
+            raise RuntimeError("equivalent-current device output was not loaded")
         start = self._complete_start_step - self._time_origin_step
         stop = self._complete_stop_step - self._time_origin_step + 1
         scale = -1 / (4 * np.pi * self.wave_speed)

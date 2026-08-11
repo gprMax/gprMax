@@ -112,6 +112,26 @@ class Updates(Generic[GridType], ABC):
 
         pass
 
+    def update_eigenmode_sources_magnetic(self, iteration: int) -> None:
+        """Apply modal magnetic TF/SF corrections and virtual-guide coupling."""
+
+        pass
+
+    def update_eigenmode_sources_electric(self, iteration: int) -> None:
+        """Apply modal electric TF/SF corrections and virtual-guide coupling."""
+
+        pass
+
+    def observe_eigenmode_ports(self, iteration: int) -> None:
+        """Accumulate modal port DFTs."""
+
+        pass
+
+    def update_network_terminals(self, iteration: int) -> None:
+        """Apply sparse rational-network corrections to electric edges."""
+
+        pass
+
     @abstractmethod
     def update_electric_b(self) -> None:
         """If there are any dispersive materials do 2nd part of dispersive

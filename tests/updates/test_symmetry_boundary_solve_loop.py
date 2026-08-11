@@ -10,8 +10,127 @@ fields at a nearby receiver - not NaN, and not a degenerate all-zero result
 a trap this project has hit before with too-short time windows).
 """
 import numpy as np
+import h5py
+import pytest
+from numpy.testing import assert_allclose
 
 import gprMax
+
+
+def _dispersive_pmc_scene(kind):
+    dl = 1e-3
+    scene = gprMax.Scene()
+    scene.add(gprMax.OMPThreads(n=1))
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=2e-10))
+    scene.add(gprMax.SymmetryBoundary(face="x0", type="pmc"))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=1.5e10, id="w"))
+    scene.add(gprMax.Material(er=3, se=0.001, mr=1, sm=0, id="medium"))
+    if kind == "debye":
+        scene.add(
+            gprMax.AddDebyeDispersion(
+                poles=1,
+                er_delta=[2.0],
+                tau=[1e-11],
+                material_ids=["medium"],
+            )
+        )
+    else:
+        scene.add(
+            gprMax.AddLorentzDispersion(
+                poles=1,
+                er_delta=[2.0],
+                omega=[2e10],
+                delta=[5e9],
+                material_ids=["medium"],
+            )
+        )
+    scene.add(
+        gprMax.Box(
+            p1=(0.0, 0.0, 0.0),
+            p2=(0.02, 0.02, 0.02),
+            material_id="medium",
+        )
+    )
+    scene.add(
+        gprMax.HertzianDipole(
+            polarisation="z", p1=(0.0, 0.01, 0.01), waveform_id="w"
+        )
+    )
+    scene.add(gprMax.Rx(p1=(0.01, 0.01, 0.01)))
+    return scene
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+@pytest.mark.parametrize("kind", ["debye", "lorentz"])
+def test_cuda_dispersive_pmc_matches_cpu(tmp_path, gpu_device, kind):
+    outputs = {}
+    for backend in ("cpu", "cuda"):
+        path = tmp_path / f"pmc_{kind}_{backend}"
+        options = (
+            {"gpu": [gpu_device], "gpu_precision": "single"}
+            if backend == "cuda"
+            else {"cpu_precision": "single"}
+        )
+        gprMax.run(
+            scenes=[_dispersive_pmc_scene(kind)],
+            outputfile=path,
+            hide_progress_bars=True,
+            **options,
+        )
+        with h5py.File(path.with_suffix(".h5"), "r") as result:
+            outputs[backend] = {
+                component: result[f"rxs/rx1/{component}"][:]
+                for component in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
+            }
+
+    scale = max(np.max(np.abs(values)) for values in outputs["cpu"].values())
+    assert scale > 0
+    for component in outputs["cpu"]:
+        assert_allclose(
+            outputs["cuda"][component],
+            outputs["cpu"][component],
+            rtol=3e-4,
+            atol=3e-4 * scale,
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+@pytest.mark.parametrize("kind", ["debye", "lorentz"])
+def test_opencl_dispersive_pmc_matches_cpu(tmp_path, opencl_device, kind):
+    outputs = {}
+    for backend in ("cpu", "opencl"):
+        path = tmp_path / f"pmc_{kind}_{backend}"
+        options = (
+            {"opencl": [opencl_device], "gpu_precision": "single"}
+            if backend == "opencl"
+            else {"cpu_precision": "single"}
+        )
+        gprMax.run(
+            scenes=[_dispersive_pmc_scene(kind)],
+            outputfile=path,
+            hide_progress_bars=True,
+            **options,
+        )
+        with h5py.File(path.with_suffix(".h5"), "r") as result:
+            outputs[backend] = {
+                component: result[f"rxs/rx1/{component}"][:]
+                for component in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
+            }
+
+    scale = max(np.max(np.abs(values)) for values in outputs["cpu"].values())
+    assert scale > 0
+    for component in outputs["cpu"]:
+        assert_allclose(
+            outputs["opencl"][component],
+            outputs["cpu"][component],
+            rtol=3e-4,
+            atol=3e-4 * scale,
+        )
 
 
 def test_pmc_symmetry_boundary_solve_produces_finite_propagating_field(tmp_path):

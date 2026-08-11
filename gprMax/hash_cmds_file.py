@@ -237,10 +237,10 @@ def check_cmd_names(processedlines, checkessential=True):
     multiplecmds = {
         key: []
         for key in [
-            '#eigenmode_band',
-            '#eigenmode_port',
-            '#eigenmode_excitation',
-            '#virtual_waveguide',
+            "#eigenmode_band",
+            "#eigenmode_port",
+            "#eigenmode_excitation",
+            "#virtual_waveguide",
             "#geometry_view",
             "#geometry_objects_write",
             "#material",
@@ -251,6 +251,9 @@ def check_cmd_names(processedlines, checkessential=True):
             "#add_dispersion_lorentz",
             "#add_dispersion_drude",
             "#waveform",
+            "#rational_network",
+            "#network_terminal",
+            "#network_excitation",
             "#voltage_source",
             "#hertzian_dipole",
             "#magnetic_dipole",
@@ -262,6 +265,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx",
             "#rx_array",
             "#rx_port",
+            "#network_port",
             "#snapshot",
             "#ntff_surface",
             "#ntff_frequency",
