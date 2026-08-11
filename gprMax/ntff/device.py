@@ -26,6 +26,7 @@ import numpy as np
 import numpy.typing as npt
 
 from gprMax.cuda_opencl.knl_ntff import (
+    build_equivalent_current_time_kernel_source,
     build_ntff_kernel_source,
     build_time_domain_ntff_kernel_source,
 )
@@ -42,13 +43,21 @@ def _is_time_domain_monitor(monitor) -> bool:
     return hasattr(monitor, "load_device_component_output")
 
 
+def _is_equivalent_current_time_monitor(monitor) -> bool:
+    return hasattr(monitor, "load_device_far_field_output")
+
+
 def configure_ntff_monitors(grid, *, allow_time_domain: bool = False) -> None:
     """Perform backend-independent material validation before time stepping."""
 
     for monitor in grid.ntff_monitors:
         if _is_time_domain_monitor(monitor) and not allow_time_domain:
             raise ValueError("advanced-time KSIR requires a time-domain-capable device collector")
-        if not (_is_frequency_monitor(monitor) or _is_time_domain_monitor(monitor)):
+        if not (
+            _is_frequency_monitor(monitor)
+            or _is_time_domain_monitor(monitor)
+            or _is_equivalent_current_time_monitor(monitor)
+        ):
             raise TypeError("unrecognised NTFF monitor type")
         monitor.validate_materials(grid.ID, grid.IDlookup)
         configure_background = getattr(monitor, "configure_background", None)
@@ -508,8 +517,240 @@ class CUDATimeDomainKSIRCollector:
         return record.device["output"].get()
 
 
+@dataclass
+class _EquivalentCurrentTimeRecord:
+    monitor: object
+    npatches: int
+    ndirections: int
+    output_length: int
+    max_samples: int
+    device: Dict[str, object]
+    electric_observed: int = 0
+    magnetic_observed: int = 0
+
+
+class _EquivalentCurrentTimeCollector:
+    """Backend-neutral orchestration for the 1997 Love-current transform."""
+
+    _threads = 128
+
+    def _initialise_equivalent_records(self, backend: str) -> None:
+        self.records: List[_EquivalentCurrentTimeRecord] = []
+        limits = np.iinfo(np.int32)
+        for monitor in self.monitors:
+            if monitor.device_backend != backend:
+                raise ValueError(
+                    f"{backend} equivalent-current monitor is not configured for {backend}"
+                )
+            if monitor.real_dtype != self.real_dtype:
+                raise ValueError("equivalent-current monitor dtype does not match field dtype")
+            max_samples = max(
+                stencil.shape[0]
+                for component in ELECTRIC_COMPONENTS + MAGNETIC_COMPONENTS
+                for _, stencil in monitor._stencils[component]
+            )
+            record = _EquivalentCurrentTimeRecord(
+                monitor=monitor,
+                npatches=int(monitor.npatches),
+                ndirections=int(monitor.directions.shape[0]),
+                output_length=int(monitor._raw_length),
+                max_samples=int(max_samples),
+                device={},
+            )
+            sizes = (
+                record.npatches,
+                record.ndirections,
+                record.output_length,
+                record.npatches * record.ndirections,
+                record.ndirections * record.output_length,
+            )
+            if any(size > limits.max for size in sizes):
+                raise ValueError("equivalent-current time arrays exceed device int32 indexing")
+            metadata = self._equivalent_metadata(record)
+            self._allocate_equivalent(record, metadata)
+            self.records.append(record)
+
+    @staticmethod
+    def _packed_component_stencil(monitor, component: str, max_samples: int):
+        counts = np.zeros(monitor.npatches, dtype=np.int32)
+        indices = np.zeros((monitor.npatches, max_samples), dtype=np.int32)
+        limits = np.iinfo(np.int32)
+        for patch_indices, stencil in monitor._stencils[component]:
+            if np.any(stencil < limits.min) or np.any(stencil > limits.max):
+                raise ValueError("equivalent-current stencil exceeds device int32 indexing")
+            counts[patch_indices] = stencil.shape[0]
+            indices[patch_indices, : stencil.shape[0]] = stencil.T.astype(np.int32)
+        return counts, indices.ravel()
+
+    def _equivalent_metadata(self, record: _EquivalentCurrentTimeRecord):
+        monitor = record.monitor
+        result = {
+            "normals": np.ascontiguousarray(monitor.normals, dtype=self.real_dtype),
+            "area_weights": np.ascontiguousarray(
+                monitor.area_weights, dtype=self.real_dtype
+            ),
+            "electric_theta_basis": np.ascontiguousarray(
+                monitor.phi_basis, dtype=self.real_dtype
+            ),
+            "electric_phi_basis": np.ascontiguousarray(
+                -monitor.theta_basis, dtype=self.real_dtype
+            ),
+            "magnetic_theta_basis": np.ascontiguousarray(
+                monitor.theta_basis, dtype=self.real_dtype
+            ),
+            "magnetic_phi_basis": np.ascontiguousarray(
+                monitor.phi_basis, dtype=self.real_dtype
+            ),
+        }
+        for kind, components in (
+            ("electric", ELECTRIC_COMPONENTS),
+            ("magnetic", MAGNETIC_COMPONENTS),
+        ):
+            for axis, component in zip("xyz", components):
+                count, stencil = self._packed_component_stencil(
+                    monitor, component, record.max_samples
+                )
+                result[f"{kind}_count_{axis}"] = count
+                result[f"{kind}_stencil_{axis}"] = stencil
+        for kind, offset in (("electric", 0.5), ("magnetic", 0.0)):
+            integer_delay, fraction = monitor._delay_maps[offset]
+            if np.any(integer_delay < np.iinfo(np.int32).min) or np.any(
+                integer_delay > np.iinfo(np.int32).max
+            ):
+                raise ValueError("equivalent-current delay exceeds device int32 indexing")
+            result[f"{kind}_integer_delay"] = np.ascontiguousarray(
+                integer_delay.ravel(), dtype=np.int32
+            )
+            result[f"{kind}_fractional_delay"] = np.ascontiguousarray(
+                fraction.ravel(), dtype=self.real_dtype
+            )
+        return result
+
+    def _allocate_equivalent(self, record, metadata) -> None:
+        raise NotImplementedError
+
+    def _gather_equivalent(self, record, kind, target, scale) -> None:
+        raise NotImplementedError
+
+    def _deposit_equivalent(self, record, kind, sample_index, current, previous) -> None:
+        raise NotImplementedError
+
+    def _download_equivalent(self, record, name):
+        raise NotImplementedError
+
+    def _observe_equivalent(self, iteration: int, kind: str) -> None:
+        counter_name = f"{kind}_observed"
+        scale_name = "impedance" if kind == "magnetic" else None
+        for record in self.records:
+            expected = getattr(record, counter_name)
+            if iteration != expected:
+                raise ValueError(
+                    f"expected device equivalent-current {kind} iteration "
+                    f"{expected}, received {iteration}"
+                )
+            slot = iteration % 2
+            current = record.device[f"{kind}_current_{slot}"]
+            scale = record.monitor.impedance if scale_name else -1.0
+            self._gather_equivalent(record, kind, current, scale)
+            if iteration > 0:
+                previous = record.device[f"{kind}_current_{1 - slot}"]
+                sample_index = iteration if kind == "magnetic" else iteration - 1
+                self._deposit_equivalent(
+                    record, kind, sample_index, current, previous
+                )
+            setattr(record, counter_name, expected + 1)
+
+    def observe_electric(self, iteration: int) -> None:
+        self._observe_equivalent(iteration, "electric")
+
+    def observe_magnetic(self, iteration: int) -> None:
+        self._observe_equivalent(iteration, "magnetic")
+
+    def finalise(self) -> None:
+        for record in self.records:
+            if (
+                record.electric_observed != record.monitor.iterations
+                or record.magnetic_observed != record.monitor.iterations
+            ):
+                raise RuntimeError("equivalent-current device monitor missed time samples")
+            shape = (record.ndirections, record.output_length)
+            theta = self._download_equivalent(record, "output_theta").reshape(shape)
+            phi = self._download_equivalent(record, "output_phi").reshape(shape)
+            record.monitor.load_device_far_field_output(theta, phi)
+            record.monitor.finalise()
+
+
+class CUDAEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
+    """Device-resident 1997 Love-current transform on CUDA."""
+
+    def __init__(self, updates, monitors):
+        self.updates = updates
+        self.grid = updates.grid
+        self.monitors = list(monitors)
+        self.real_dtype = np.dtype(self.grid.Ex.dtype)
+        self.real_scalar = self.real_dtype.type
+        self.gpuarray = self.grid.gpuarray
+        source = build_equivalent_current_time_kernel_source(
+            updates.ntff_c_real, "cuda"
+        )
+        module = updates.source_module(
+            source, options=getattr(updates, "ntff_compiler_options", None)
+        )
+        self.gather_kernel = module.get_function("gather_equivalent_current_time")
+        self.deposit_kernel = module.get_function("deposit_equivalent_current_time")
+        self._initialise_equivalent_records("cuda")
+
+    def _allocate_equivalent(self, record, metadata) -> None:
+        for name, values in metadata.items():
+            record.device[name] = self.gpuarray.to_gpu(values)
+        for kind in ("electric", "magnetic"):
+            for slot in range(2):
+                record.device[f"{kind}_current_{slot}"] = self.gpuarray.empty(
+                    record.npatches * 3, self.real_dtype
+                )
+        for name in ("output_theta", "output_phi"):
+            record.device[name] = self.gpuarray.zeros(
+                record.ndirections * record.output_length, self.real_dtype
+            )
+
+    def _gather_equivalent(self, record, kind, target, scale) -> None:
+        d = record.device
+        fields = tuple(getattr(self.grid, f"{component}_dev") for component in (
+            ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS
+        ))
+        self.gather_kernel(
+            np.int32(record.npatches), np.int32(record.max_samples),
+            d[f"{kind}_count_x"].gpudata, d[f"{kind}_count_y"].gpudata,
+            d[f"{kind}_count_z"].gpudata, d[f"{kind}_stencil_x"].gpudata,
+            d[f"{kind}_stencil_y"].gpudata, d[f"{kind}_stencil_z"].gpudata,
+            d["normals"].gpudata, self.real_scalar(scale),
+            fields[0].gpudata, fields[1].gpudata, fields[2].gpudata,
+            target.gpudata, block=(self._threads, 1, 1),
+            grid=((record.npatches + self._threads - 1) // self._threads, 1, 1),
+        )
+
+    def _deposit_equivalent(self, record, kind, sample_index, current, previous) -> None:
+        d = record.device
+        self.deposit_kernel(
+            np.int32(record.ndirections), np.int32(record.npatches),
+            np.int32(record.output_length), np.int32(sample_index),
+            np.int32(record.monitor._time_origin_step),
+            self.real_scalar(1 / record.monitor.dt), current.gpudata,
+            previous.gpudata, d[f"{kind}_theta_basis"].gpudata,
+            d[f"{kind}_phi_basis"].gpudata,
+            d[f"{kind}_integer_delay"].gpudata,
+            d[f"{kind}_fractional_delay"].gpudata,
+            d["area_weights"].gpudata, d["output_theta"].gpudata,
+            d["output_phi"].gpudata, block=(self._threads, 1, 1),
+            grid=((record.ndirections + self._threads - 1) // self._threads, 1, 1),
+        )
+
+    def _download_equivalent(self, record, name):
+        return record.device[name].get()
+
+
 class CUDACombinedKSIRCollector:
-    """Dispatch frequency-domain and advanced-time monitors on CUDA."""
+    """Dispatch all NTFF monitors on CUDA."""
 
     def __init__(self, updates):
         configure_ntff_monitors(updates.grid, allow_time_domain=True)
@@ -519,6 +760,11 @@ class CUDACombinedKSIRCollector:
         time_monitors = [
             monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)
         ]
+        equivalent_time_monitors = [
+            monitor
+            for monitor in updates.grid.ntff_monitors
+            if _is_equivalent_current_time_monitor(monitor)
+        ]
         self.frequency = (
             CUDAKSIRCollector(updates, frequency_monitors, configure=False)
             if frequency_monitors
@@ -527,24 +773,35 @@ class CUDACombinedKSIRCollector:
         self.time_domain = (
             CUDATimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
         )
+        self.equivalent_time = (
+            CUDAEquivalentCurrentTimeCollector(updates, equivalent_time_monitors)
+            if equivalent_time_monitors
+            else None
+        )
 
     def observe_electric(self, iteration: int) -> None:
         if self.frequency is not None:
             self.frequency.observe_electric(iteration)
         if self.time_domain is not None:
             self.time_domain.observe_electric(iteration)
+        if self.equivalent_time is not None:
+            self.equivalent_time.observe_electric(iteration)
 
     def observe_magnetic(self, iteration: int) -> None:
         if self.frequency is not None:
             self.frequency.observe_magnetic(iteration)
         if self.time_domain is not None:
             self.time_domain.observe_magnetic(iteration)
+        if self.equivalent_time is not None:
+            self.equivalent_time.observe_magnetic(iteration)
 
     def finalise(self) -> None:
         if self.frequency is not None:
             self.frequency.finalise()
         if self.time_domain is not None:
             self.time_domain.finalise()
+        if self.equivalent_time is not None:
+            self.equivalent_time.finalise()
 
 
 class OpenCLKSIRCollector(_DeviceKSIRCollector):
@@ -720,8 +977,76 @@ class OpenCLTimeDomainKSIRCollector(CUDATimeDomainKSIRCollector):
         return record.device["output"].get(queue=self.queue)
 
 
+class OpenCLEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
+    """Device-resident 1997 Love-current transform on OpenCL."""
+
+    def __init__(self, updates, monitors):
+        self.updates = updates
+        self.grid = updates.grid
+        self.monitors = list(monitors)
+        self.real_dtype = np.dtype(self.grid.Ex.dtype)
+        self.real_scalar = self.real_dtype.type
+        self.clarray = self.grid.clarray
+        self.queue = updates.queue
+        source = build_equivalent_current_time_kernel_source(
+            updates.ntff_c_real, "opencl"
+        )
+        options = getattr(updates, "ntff_compiler_options", None)
+        program = updates.cl.Program(updates.ctx, source).build(options=options)
+        self.gather_kernel = program.gather_equivalent_current_time
+        self.deposit_kernel = program.deposit_equivalent_current_time
+        self._initialise_equivalent_records("opencl")
+
+    def _allocate_equivalent(self, record, metadata) -> None:
+        for name, values in metadata.items():
+            record.device[name] = self.clarray.to_device(self.queue, values)
+        for kind in ("electric", "magnetic"):
+            for slot in range(2):
+                record.device[f"{kind}_current_{slot}"] = self.clarray.empty(
+                    self.queue, record.npatches * 3, self.real_dtype
+                )
+        for name in ("output_theta", "output_phi"):
+            record.device[name] = self.clarray.zeros(
+                self.queue,
+                record.ndirections * record.output_length,
+                self.real_dtype,
+            )
+
+    def _gather_equivalent(self, record, kind, target, scale) -> None:
+        d = record.device
+        fields = tuple(getattr(self.grid, f"{component}_dev") for component in (
+            ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS
+        ))
+        self.gather_kernel(
+            self.queue, (record.npatches,), None,
+            np.int32(record.npatches), np.int32(record.max_samples),
+            d[f"{kind}_count_x"].data, d[f"{kind}_count_y"].data,
+            d[f"{kind}_count_z"].data, d[f"{kind}_stencil_x"].data,
+            d[f"{kind}_stencil_y"].data, d[f"{kind}_stencil_z"].data,
+            d["normals"].data, self.real_scalar(scale), fields[0].data,
+            fields[1].data, fields[2].data, target.data,
+        )
+
+    def _deposit_equivalent(self, record, kind, sample_index, current, previous) -> None:
+        d = record.device
+        self.deposit_kernel(
+            self.queue, (record.ndirections,), None,
+            np.int32(record.ndirections), np.int32(record.npatches),
+            np.int32(record.output_length), np.int32(sample_index),
+            np.int32(record.monitor._time_origin_step),
+            self.real_scalar(1 / record.monitor.dt), current.data, previous.data,
+            d[f"{kind}_theta_basis"].data, d[f"{kind}_phi_basis"].data,
+            d[f"{kind}_integer_delay"].data,
+            d[f"{kind}_fractional_delay"].data, d["area_weights"].data,
+            d["output_theta"].data, d["output_phi"].data,
+        )
+
+    def _download_equivalent(self, record, name):
+        return record.device[name].get(queue=self.queue)
+
+
 class OpenCLCombinedKSIRCollector:
-    """Dispatch frequency-domain and advanced-time monitors on OpenCL."""
+    """Dispatch all NTFF monitors on OpenCL."""
 
     def __init__(self, updates):
         configure_ntff_monitors(updates.grid, allow_time_domain=True)
@@ -731,6 +1056,11 @@ class OpenCLCombinedKSIRCollector:
         time_monitors = [
             monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)
         ]
+        equivalent_time_monitors = [
+            monitor
+            for monitor in updates.grid.ntff_monitors
+            if _is_equivalent_current_time_monitor(monitor)
+        ]
         self.frequency = (
             OpenCLKSIRCollector(updates, frequency_monitors, configure=False)
             if frequency_monitors
@@ -739,24 +1069,35 @@ class OpenCLCombinedKSIRCollector:
         self.time_domain = (
             OpenCLTimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
         )
+        self.equivalent_time = (
+            OpenCLEquivalentCurrentTimeCollector(updates, equivalent_time_monitors)
+            if equivalent_time_monitors
+            else None
+        )
 
     def observe_electric(self, iteration: int) -> None:
         if self.frequency is not None:
             self.frequency.observe_electric(iteration)
         if self.time_domain is not None:
             self.time_domain.observe_electric(iteration)
+        if self.equivalent_time is not None:
+            self.equivalent_time.observe_electric(iteration)
 
     def observe_magnetic(self, iteration: int) -> None:
         if self.frequency is not None:
             self.frequency.observe_magnetic(iteration)
         if self.time_domain is not None:
             self.time_domain.observe_magnetic(iteration)
+        if self.equivalent_time is not None:
+            self.equivalent_time.observe_magnetic(iteration)
 
     def finalise(self) -> None:
         if self.frequency is not None:
             self.frequency.finalise()
         if self.time_domain is not None:
             self.time_domain.finalise()
+        if self.equivalent_time is not None:
+            self.equivalent_time.finalise()
 
 
 class MetalKSIRCollector(_DeviceKSIRCollector):
@@ -812,7 +1153,10 @@ class MetalKSIRCollector(_DeviceKSIRCollector):
             record.device["outside_imag"],
         )
         for index, buffer in enumerate(buffers):
-            encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+            if hasattr(buffer, "buffer") and hasattr(buffer, "offset"):
+                encoder.setBuffer_offset_atIndex_(buffer.buffer, buffer.offset, index)
+            else:
+                encoder.setBuffer_offset_atIndex_(buffer, 0, index)
         encoder.dispatchThreads_threadsPerThreadgroup_(
             self.metal.MTLSizeMake(record.total, 1, 1),
             self.metal.MTLSizeMake(
@@ -992,8 +1336,129 @@ class MetalTimeDomainKSIRCollector(CUDATimeDomainKSIRCollector):
         ).copy()
 
 
+class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
+    """Device-resident 1997 Love-current transform on Apple Metal."""
+
+    def __init__(self, updates, monitors):
+        self.updates = updates
+        self.grid = updates.grid
+        self.monitors = list(monitors)
+        self.real_dtype = np.dtype(self.grid.Ex.dtype)
+        self.real_scalar = self.real_dtype.type
+        self.dev = updates.dev
+        self.queue = updates.cmdqueue
+        self.metal = updates.metal
+        self.storage = getattr(self.grid, "storage", 0)
+        source = build_equivalent_current_time_kernel_source(
+            updates.ntff_c_real, "metal"
+        )
+        library, error = self.dev.newLibraryWithSource_options_error_(
+            source, updates.opts, None
+        )
+        if library is None:
+            raise RuntimeError(f"Failed to compile Metal equivalent-current NTFF: {error}")
+        gather = library.newFunctionWithName_("gather_equivalent_current_time")
+        deposit = library.newFunctionWithName_("deposit_equivalent_current_time")
+        self.gather_pipeline = self.dev.newComputePipelineStateWithFunction_error_(
+            gather, None
+        )[0]
+        self.deposit_pipeline = self.dev.newComputePipelineStateWithFunction_error_(
+            deposit, None
+        )[0]
+        self._initialise_equivalent_records("metal")
+
+    def _buffer(self, values):
+        contiguous = np.ascontiguousarray(values)
+        return self.dev.newBufferWithBytes_length_options_(
+            contiguous, contiguous.nbytes, self.storage
+        )
+
+    @staticmethod
+    def _set_scalar(encoder, index, value):
+        scalar = np.asarray(value)
+        encoder.setBytes_length_atIndex_(scalar.tobytes(), scalar.nbytes, index)
+
+    def _finish(self, command, encoder, pipeline, count):
+        encoder.dispatchThreads_threadsPerThreadgroup_(
+            self.metal.MTLSizeMake(int(count), 1, 1),
+            self.metal.MTLSizeMake(
+                min(int(count), pipeline.maxTotalThreadsPerThreadgroup()), 1, 1
+            ),
+        )
+        encoder.endEncoding()
+        command.commit()
+        command.waitUntilCompleted()
+
+    def _allocate_equivalent(self, record, metadata) -> None:
+        for name, values in metadata.items():
+            record.device[name] = self._buffer(values)
+        empty = np.empty(record.npatches * 3, dtype=self.real_dtype)
+        for kind in ("electric", "magnetic"):
+            for slot in range(2):
+                record.device[f"{kind}_current_{slot}"] = self._buffer(empty)
+        zeros = np.zeros(
+            record.ndirections * record.output_length, dtype=self.real_dtype
+        )
+        record.device["output_theta"] = self._buffer(zeros)
+        record.device["output_phi"] = self._buffer(zeros)
+
+    def _gather_equivalent(self, record, kind, target, scale) -> None:
+        d = record.device
+        fields = tuple(getattr(self.grid, f"{component}_dev") for component in (
+            ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS
+        ))
+        command = self.queue.commandBuffer()
+        encoder = command.computeCommandEncoder()
+        encoder.setComputePipelineState_(self.gather_pipeline)
+        self._set_scalar(encoder, 0, np.int32(record.npatches))
+        self._set_scalar(encoder, 1, np.int32(record.max_samples))
+        for index, buffer in enumerate(
+            (
+                d[f"{kind}_count_x"], d[f"{kind}_count_y"],
+                d[f"{kind}_count_z"], d[f"{kind}_stencil_x"],
+                d[f"{kind}_stencil_y"], d[f"{kind}_stencil_z"], d["normals"],
+            ),
+            start=2,
+        ):
+            encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+        self._set_scalar(encoder, 9, self.real_scalar(scale))
+        for index, buffer in enumerate((*fields, target), start=10):
+            encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+        self._finish(command, encoder, self.gather_pipeline, record.npatches)
+
+    def _deposit_equivalent(self, record, kind, sample_index, current, previous) -> None:
+        d = record.device
+        command = self.queue.commandBuffer()
+        encoder = command.computeCommandEncoder()
+        encoder.setComputePipelineState_(self.deposit_pipeline)
+        scalars = (
+            np.int32(record.ndirections), np.int32(record.npatches),
+            np.int32(record.output_length), np.int32(sample_index),
+            np.int32(record.monitor._time_origin_step),
+            self.real_scalar(1 / record.monitor.dt),
+        )
+        for index, value in enumerate(scalars):
+            self._set_scalar(encoder, index, value)
+        buffers = (
+            current, previous, d[f"{kind}_theta_basis"],
+            d[f"{kind}_phi_basis"], d[f"{kind}_integer_delay"],
+            d[f"{kind}_fractional_delay"], d["area_weights"],
+            d["output_theta"], d["output_phi"],
+        )
+        for index, buffer in enumerate(buffers, start=6):
+            encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+        self._finish(command, encoder, self.deposit_pipeline, record.ndirections)
+
+    def _download_equivalent(self, record, name):
+        count = record.ndirections * record.output_length
+        nbytes = count * self.real_dtype.itemsize
+        return np.frombuffer(
+            record.device[name].contents().as_buffer(nbytes), dtype=self.real_dtype
+        ).copy()
+
+
 class MetalCombinedKSIRCollector:
-    """Dispatch frequency-domain and advanced-time monitors on Metal."""
+    """Dispatch all NTFF monitors on Metal."""
 
     def __init__(self, updates):
         configure_ntff_monitors(updates.grid, allow_time_domain=True)
@@ -1003,6 +1468,11 @@ class MetalCombinedKSIRCollector:
         time_monitors = [
             monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)
         ]
+        equivalent_time_monitors = [
+            monitor
+            for monitor in updates.grid.ntff_monitors
+            if _is_equivalent_current_time_monitor(monitor)
+        ]
         self.frequency = (
             MetalKSIRCollector(updates, frequency_monitors, configure=False)
             if frequency_monitors
@@ -1011,21 +1481,32 @@ class MetalCombinedKSIRCollector:
         self.time_domain = (
             MetalTimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
         )
+        self.equivalent_time = (
+            MetalEquivalentCurrentTimeCollector(updates, equivalent_time_monitors)
+            if equivalent_time_monitors
+            else None
+        )
 
     def observe_electric(self, iteration: int) -> None:
         if self.frequency is not None:
             self.frequency.observe_electric(iteration)
         if self.time_domain is not None:
             self.time_domain.observe_electric(iteration)
+        if self.equivalent_time is not None:
+            self.equivalent_time.observe_electric(iteration)
 
     def observe_magnetic(self, iteration: int) -> None:
         if self.frequency is not None:
             self.frequency.observe_magnetic(iteration)
         if self.time_domain is not None:
             self.time_domain.observe_magnetic(iteration)
+        if self.equivalent_time is not None:
+            self.equivalent_time.observe_magnetic(iteration)
 
     def finalise(self) -> None:
         if self.frequency is not None:
             self.frequency.finalise()
         if self.time_domain is not None:
             self.time_domain.finalise()
+        if self.equivalent_time is not None:
+            self.equivalent_time.finalise()

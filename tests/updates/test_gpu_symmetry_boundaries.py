@@ -6,7 +6,13 @@ import numpy as np
 import pytest
 
 from gprMax import config
-from gprMax.cuda_opencl.knl_symmetry_boundaries import update_electric_pmc
+from gprMax.cuda_opencl.knl_symmetry_boundaries import (
+    dispersive_substitutions,
+    nondispersive_substitutions,
+    update_electric_pmc,
+    update_electric_pmc_dispersive,
+    update_electric_pmc_dispersive_b,
+)
 from gprMax.model import Model
 from gprMax.updates.cuda_updates import CUDAUpdates
 from gprMax.updates.metal_updates import MetalUpdates
@@ -24,7 +30,7 @@ from gprMax.user_objects.cmds_multiuse import SymmetryBoundary
 )
 def test_pmc_kernel_templates_cover_faces_and_edges(backend, marker):
     declaration = update_electric_pmc[f"args_{backend}"].substitute(REAL="float")
-    body = update_electric_pmc["func"].substitute(
+    substitutions = dict(
         REAL="float",
         CUDA_IDX=(
             "int i = blockIdx.x * blockDim.x + threadIdx.x;"
@@ -38,6 +44,8 @@ def test_pmc_kernel_templates_cover_faces_and_edges(backend, marker):
         NY_ID=6,
         NZ_ID=7,
     )
+    substitutions.update(nondispersive_substitutions())
+    body = update_electric_pmc["func"].substitute(substitutions)
 
     source = declaration + body
     assert marker in source
@@ -47,6 +55,42 @@ def test_pmc_kernel_templates_cover_faces_and_edges(backend, marker):
     assert "PMC_X0" in source and "PMC_XMAX" in source
     assert "PMC_Y0" in source and "PMC_YMAX" in source
     assert "PMC_Z0" in source and "PMC_ZMAX" in source
+
+
+@pytest.mark.parametrize("backend", ["cuda", "opencl", "metal"])
+def test_dispersive_pmc_templates_include_two_phase_ade_update(backend):
+    arguments = {"REAL": "float", "COMPLEX": "float"}
+    substitutions = {
+        "REAL": "float",
+        "CUDA_IDX": (
+            "int i = blockIdx.x * blockDim.x + threadIdx.x;"
+            if backend == "cuda"
+            else ""
+        ),
+        "NX_FIELDS": 5,
+        "NY_FIELDS": 6,
+        "NZ_FIELDS": 7,
+        "NX_ID": 5,
+        "NY_ID": 6,
+        "NZ_ID": 7,
+        "NX_T": 5,
+        "NY_T": 6,
+        "NZ_T": 7,
+    }
+    phase_a = dict(substitutions)
+    phase_a.update(dispersive_substitutions("float"))
+    source_a = update_electric_pmc_dispersive[f"args_{backend}"].substitute(
+        arguments
+    ) + update_electric_pmc_dispersive["func"].substitute(phase_a)
+    source_b = update_electric_pmc_dispersive_b[f"args_{backend}"].substitute(
+        arguments
+    ) + update_electric_pmc_dispersive_b["func"].substitute(substitutions)
+
+    assert "MAXPOLES" in source_a and "MAXPOLES" in source_b
+    assert "GPRMAX_CREAL" in source_a
+    assert "GPRMAX_CADD" in source_a
+    assert "GPRMAX_CSUB" in source_b
+    assert "$DISP_" not in source_a and "$PHI_" not in source_a
 
 
 def _command_grid():
@@ -85,7 +129,7 @@ def test_nondispersive_gpu_symmetry_command_is_accepted(
 
 
 @pytest.mark.parametrize("solver", ["cuda", "opencl", "metal"])
-def test_dispersive_gpu_pmc_is_rejected_after_material_resolution(
+def test_dispersive_gpu_pmc_is_accepted_after_material_resolution(
     monkeypatch, solver
 ):
     monkeypatch.setattr(
@@ -102,8 +146,8 @@ def test_dispersive_gpu_pmc_is_rejected_after_material_resolution(
     grid = _command_grid()
     SymmetryBoundary(face="x0", type="pmc").build(grid)
 
-    with pytest.raises(ValueError, match="Dispersive PMC"):
-        Model.__new__(Model)._check_accelerator_symmetry_boundaries([grid])
+    Model.__new__(Model)._check_accelerator_symmetry_boundaries([grid])
+    assert grid.symmetry_boundaries == {"x0": "pmc"}
 
 
 class _FakeCUDAArray:
@@ -127,7 +171,12 @@ def _dispatch_grid():
     )
 
 
-def test_cuda_pmc_dispatch_uses_canonical_face_flag_order():
+def test_cuda_pmc_dispatch_uses_canonical_face_flag_order(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(materials={"maxpoles": 0}),
+    )
     updates = CUDAUpdates.__new__(CUDAUpdates)
     updates.grid = _dispatch_grid()
     calls = []
@@ -152,7 +201,12 @@ def test_cuda_pmc_dispatch_uses_canonical_face_flag_order():
     assert kwargs == {"block": (64, 1, 1), "grid": (2, 1, 1)}
 
 
-def test_opencl_pmc_dispatch_uses_device_arrays():
+def test_opencl_pmc_dispatch_uses_device_arrays(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(materials={"maxpoles": 0}),
+    )
     updates = OpenCLUpdates.__new__(OpenCLUpdates)
     updates.grid = _dispatch_grid()
     calls = []
@@ -190,6 +244,11 @@ def test_opencl_pmc_kernel_builder_substitutes_real_type(monkeypatch):
             dtypes={"C_float_or_double": "float"},
             devices={"compiler_opts": []},
         ),
+    )
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(materials={"maxpoles": 0}),
     )
 
     updates._set_symmetry_boundary_knl()
@@ -241,7 +300,12 @@ class _FakeMetalCommand:
         self.waited = True
 
 
-def test_metal_pmc_dispatch_uses_expected_scalar_and_buffer_slots():
+def test_metal_pmc_dispatch_uses_expected_scalar_and_buffer_slots(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(materials={"maxpoles": 0}),
+    )
     updates = MetalUpdates.__new__(MetalUpdates)
     updates.grid = _dispatch_grid()
     updates.grid.tptg = "threads"

@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <http://www.gnu.org/licenses/>.
 
-"""Runtime kernels for device-resident frequency- and time-domain KSIR."""
+"""Runtime kernels for device-resident KSIR and Love-current transforms."""
 
 from string import Template
 
@@ -352,3 +352,204 @@ def build_time_domain_ntff_kernel_source(c_real: str, backend: str = "cuda") -> 
         f"{preamble}\n{gather_declaration}{{\n{gather_body}}}\n"
         f"{deposit_declaration}{{\n{deposit_body}}}\n"
     )
+
+
+_EQUIVALENT_CURRENT_GATHER_ARGS = {
+    "cuda": Template(
+        """
+extern "C" __global__ void gather_equivalent_current_time(
+    int npatches, int max_samples,
+    const int* __restrict__ count_x,
+    const int* __restrict__ count_y,
+    const int* __restrict__ count_z,
+    const int* __restrict__ stencil_x,
+    const int* __restrict__ stencil_y,
+    const int* __restrict__ stencil_z,
+    const $REAL* __restrict__ normals,
+    $REAL scale,
+    const $REAL* __restrict__ field_x,
+    const $REAL* __restrict__ field_y,
+    const $REAL* __restrict__ field_z,
+    $REAL* current)
+"""
+    ),
+    "opencl": Template(
+        """
+__kernel void gather_equivalent_current_time(
+    int npatches, int max_samples,
+    __global const int* restrict count_x,
+    __global const int* restrict count_y,
+    __global const int* restrict count_z,
+    __global const int* restrict stencil_x,
+    __global const int* restrict stencil_y,
+    __global const int* restrict stencil_z,
+    __global const $REAL* restrict normals,
+    $REAL scale,
+    __global const $REAL* restrict field_x,
+    __global const $REAL* restrict field_y,
+    __global const $REAL* restrict field_z,
+    __global $REAL* current)
+"""
+    ),
+    "metal": Template(
+        """
+kernel void gather_equivalent_current_time(
+    device const int& npatches, device const int& max_samples,
+    device const int* count_x,
+    device const int* count_y,
+    device const int* count_z,
+    device const int* stencil_x,
+    device const int* stencil_y,
+    device const int* stencil_z,
+    device const $REAL* normals,
+    device const $REAL& scale,
+    device const $REAL* field_x,
+    device const $REAL* field_y,
+    device const $REAL* field_z,
+    device $REAL* current,
+    uint patch [[thread_position_in_grid]])
+"""
+    ),
+}
+
+
+_EQUIVALENT_CURRENT_GATHER_BODY = Template(
+    r"""
+    $INDEX
+    if (patch < npatches) {
+        $REAL values[3] = {($REAL)0, ($REAL)0, ($REAL)0};
+        int offset = patch * max_samples;
+        for (int sample = 0; sample < count_x[patch]; sample++)
+            values[0] += field_x[stencil_x[offset + sample]];
+        for (int sample = 0; sample < count_y[patch]; sample++)
+            values[1] += field_y[stencil_y[offset + sample]];
+        for (int sample = 0; sample < count_z[patch]; sample++)
+            values[2] += field_z[stencil_z[offset + sample]];
+        if (count_x[patch] > 0) values[0] /= ($REAL)count_x[patch];
+        if (count_y[patch] > 0) values[1] /= ($REAL)count_y[patch];
+        if (count_z[patch] > 0) values[2] /= ($REAL)count_z[patch];
+        $REAL nx = normals[patch * 3];
+        $REAL ny = normals[patch * 3 + 1];
+        $REAL nz = normals[patch * 3 + 2];
+        current[patch * 3] = scale * (ny * values[2] - nz * values[1]);
+        current[patch * 3 + 1] = scale * (nz * values[0] - nx * values[2]);
+        current[patch * 3 + 2] = scale * (nx * values[1] - ny * values[0]);
+    }
+"""
+)
+
+
+_EQUIVALENT_CURRENT_DEPOSIT_ARGS = {
+    "cuda": Template(
+        """
+extern "C" __global__ void deposit_equivalent_current_time(
+    int ndirections, int npatches, int output_length,
+    int sample_index, int time_origin_step, $REAL inverse_dt,
+    const $REAL* __restrict__ current,
+    const $REAL* __restrict__ previous,
+    const $REAL* __restrict__ theta_basis,
+    const $REAL* __restrict__ phi_basis,
+    const int* __restrict__ integer_delay,
+    const $REAL* __restrict__ fractional_delay,
+    const $REAL* __restrict__ area_weights,
+    $REAL* output_theta, $REAL* output_phi)
+"""
+    ),
+    "opencl": Template(
+        """
+__kernel void deposit_equivalent_current_time(
+    int ndirections, int npatches, int output_length,
+    int sample_index, int time_origin_step, $REAL inverse_dt,
+    __global const $REAL* restrict current,
+    __global const $REAL* restrict previous,
+    __global const $REAL* restrict theta_basis,
+    __global const $REAL* restrict phi_basis,
+    __global const int* restrict integer_delay,
+    __global const $REAL* restrict fractional_delay,
+    __global const $REAL* restrict area_weights,
+    __global $REAL* output_theta,
+    __global $REAL* output_phi)
+"""
+    ),
+    "metal": Template(
+        """
+kernel void deposit_equivalent_current_time(
+    device const int& ndirections, device const int& npatches,
+    device const int& output_length, device const int& sample_index,
+    device const int& time_origin_step, device const $REAL& inverse_dt,
+    device const $REAL* current,
+    device const $REAL* previous,
+    device const $REAL* theta_basis,
+    device const $REAL* phi_basis,
+    device const int* integer_delay,
+    device const $REAL* fractional_delay,
+    device const $REAL* area_weights,
+    device $REAL* output_theta,
+    device $REAL* output_phi,
+    uint direction [[thread_position_in_grid]])
+"""
+    ),
+}
+
+
+_EQUIVALENT_CURRENT_DEPOSIT_BODY = Template(
+    r"""
+    $INDEX
+    if (direction < ndirections) {
+        int basis = direction * 3;
+        int delay = direction * npatches;
+        int output = direction * output_length;
+        for (int patch = 0; patch < npatches; patch++) {
+            int vector = patch * 3;
+            $REAL dx = (current[vector] - previous[vector]) * inverse_dt;
+            $REAL dy = (current[vector + 1] - previous[vector + 1]) * inverse_dt;
+            $REAL dz = (current[vector + 2] - previous[vector + 2]) * inverse_dt;
+            $REAL theta_value = dx * theta_basis[basis]
+                + dy * theta_basis[basis + 1] + dz * theta_basis[basis + 2];
+            $REAL phi_value = dx * phi_basis[basis]
+                + dy * phi_basis[basis + 1] + dz * phi_basis[basis + 2];
+            int destination = sample_index + integer_delay[delay + patch]
+                - time_origin_step;
+            $REAL fraction = fractional_delay[delay + patch];
+            $REAL area = area_weights[patch];
+            output_theta[output + destination] +=
+                (($REAL)1 - fraction) * area * theta_value;
+            output_theta[output + destination + 1] +=
+                fraction * area * theta_value;
+            output_phi[output + destination] +=
+                (($REAL)1 - fraction) * area * phi_value;
+            output_phi[output + destination + 1] += fraction * area * phi_value;
+        }
+    }
+"""
+)
+
+
+def build_equivalent_current_time_kernel_source(c_real: str, backend: str) -> str:
+    """Render the 1997 Love-current gather and delayed-deposition kernels."""
+
+    if c_real not in ("float", "double"):
+        raise ValueError("c_real must be 'float' or 'double'")
+    if backend not in ("cuda", "opencl", "metal"):
+        raise ValueError("backend must be 'cuda', 'opencl', or 'metal'")
+    if backend == "cuda":
+        preamble = ""
+        gather_index = "int patch = blockIdx.x * blockDim.x + threadIdx.x;"
+        deposit_index = "int direction = blockIdx.x * blockDim.x + threadIdx.x;"
+    elif backend == "opencl":
+        preamble = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" if c_real == "double" else ""
+        gather_index = "int patch = get_global_id(0);"
+        deposit_index = "int direction = get_global_id(0);"
+    else:
+        preamble = "#include <metal_stdlib>\nusing namespace metal;\n"
+        gather_index = ""
+        deposit_index = ""
+    gather = _EQUIVALENT_CURRENT_GATHER_ARGS[backend].substitute(REAL=c_real)
+    gather_body = _EQUIVALENT_CURRENT_GATHER_BODY.substitute(
+        REAL=c_real, INDEX=gather_index
+    )
+    deposit = _EQUIVALENT_CURRENT_DEPOSIT_ARGS[backend].substitute(REAL=c_real)
+    deposit_body = _EQUIVALENT_CURRENT_DEPOSIT_BODY.substitute(
+        REAL=c_real, INDEX=deposit_index
+    )
+    return f"{preamble}{gather}{{\n{gather_body}}}\n{deposit}{{\n{deposit_body}}}\n"

@@ -1194,12 +1194,14 @@ discretely identical to a finite-resistance ``#voltage_source`` having the
 same :math:`R`, waveform, position, and polarisation. A zero-resistance hard
 source is not equivalent.
 
-This initial implementation supports 3-D, non-MPI CPU models and a
-nondispersive terminal edge; dispersive materials may exist elsewhere in the
-model. A terminal may be placed in a CPU subgrid, where it uses the fine
-spatial and temporal steps. Several independent terminals may be used, but a
-coupled multiport admittance matrix is not yet supported. See [CHE2007]_ for
-the general PLRC lumped-network formulation and :ref:`Analytical comparisons
+This implementation supports 3-D, non-MPI models on the CPU, CUDA, OpenCL,
+and Metal solvers and a nondispersive terminal edge; dispersive materials may
+exist elsewhere in the model. A terminal may be placed in a CPU subgrid, where
+it uses the fine spatial and temporal steps. On an accelerator the complete
+recurrence and local field correction remain device-resident during time
+stepping. Several independent terminals may be used, but a coupled multiport
+admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
+lumped-network formulation and :ref:`Analytical comparisons
 <rational-network-validation>` for a complete loaded-guide comparison.
 
 
@@ -1228,7 +1230,7 @@ For example, to specify a y directed voltage source with an internal resistance 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, and OpenCL solvers; Metal support is not currently enabled. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, OpenCL, and Metal solvers. The syntax of the command is:
 
 .. code-block:: none
 
@@ -1642,7 +1644,8 @@ and output definitions.
 
 .. note::
 
-    * Eigenmode commands currently support only the main grid and CPU solver.
+    * Eigenmode commands support the main grid with the CPU, CUDA, OpenCL, and
+      Metal solvers, but not subgrids.
     * Eigenmode commands currently cannot be used with MPI.
 
 #virtual_waveguide:
@@ -1678,9 +1681,9 @@ but no S-parameters can be normalized without an active port.
 
 The port plane must be internal, locally uniform along the guide axis, and at
 least two cells wide in each transverse direction. The minimum guide length
-is ``i3 + i4 + 3`` cells. Virtual waveguides currently support 3D,
-non-dispersive guide cross-sections with the CPU solver only; MPI, subgrids,
-and GPU solvers are not yet supported.
+is ``i3 + i4 + 3`` cells. Virtual waveguides support 3D, non-dispersive guide
+cross-sections with the CPU, CUDA, OpenCL, and Metal solvers; MPI and subgrids
+are not yet supported.
 
 Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
 main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
@@ -1958,13 +1961,13 @@ The following conventions apply to every NTFF command:
   it cannot touch or cut the coupling region. Both time- and frequency-domain
   KSIR collection and frequency-domain equivalent-current collection are
   available with CPU, CUDA, OpenCL, and Metal. Equivalent-current transient
-  far fields currently require the CPU solver;
+  far fields are also available with all four local solvers;
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
-  iterations and are transferred to the host once, after the solve. CUDA is
-  hardware-qualified on the development server. OpenCL and Metal have source-
-  generation and dispatch coverage, but still require execution tests on
-  suitable hardware.
+  iterations and are transferred to the host once, after the solve. CUDA and
+  OpenCL are hardware-qualified on the development server. Metal has complete
+  source-generation and dispatch coverage, but still requires execution tests
+  on suitable Apple hardware.
 
 Directivity, gain, efficiency, and port normalisation are post-processing
 operations after the FDTD solve. Angular KSIR and equivalent-current
@@ -2343,8 +2346,9 @@ This prevents an incomplete retarded-time tail being mistaken for a physical
 late-time response. Increase ``#time_window`` if the stored terminal-decay
 test fails.
 
-The current implementation is CPU-only, requires a homogeneous lossless
-background and all six physical faces, and supports 3-D serial models. KSIR
+The current implementation supports the CPU, CUDA, OpenCL, and Metal solvers,
+requires a homogeneous lossless background and all six physical faces, and
+supports 3-D serial models. KSIR
 remains available for finite-distance time-domain points and for
 symmetry-completed surfaces.
 
@@ -2570,7 +2574,9 @@ simulated half. This KSIR workflow is supported by the local CPU, CUDA,
 OpenCL, and Metal solvers for nondispersive models. Equivalent-current
 transforms do not yet support symmetry image completion; physical faces can
 instead be omitted explicitly for an open frequency-domain Huygens surface.
-OpenCL and Metal still require end-to-end qualification on suitable hardware.
+OpenCL has end-to-end qualification on the development server. Metal has
+source-generation and dispatch coverage but still requires qualification on
+suitable Apple hardware.
 
 
 PML commands
@@ -2734,6 +2740,5 @@ For example:
 .. note::
 
     * The PML thickness on a symmetry face is set to zero automatically.
-    * PEC boundaries and nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and Metal solvers.
-    * PMC boundaries in models containing dispersive materials are currently CPU-only.
+    * PEC and PMC boundaries, including PMC boundaries in models containing dispersive materials, are supported by the CPU, CUDA, OpenCL, and Metal solvers.
     * Symmetry boundaries are not currently supported in 2D mode, with MPI, or on a subgrid. They may be used on the main grid of a model that contains subgrids.

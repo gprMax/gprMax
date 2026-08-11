@@ -283,8 +283,9 @@ VTK-HDF geometry before running the more expensive 3D model. Then run:
    python -m gprMax examples/features/eigenmode_ports/example_3_antenna_and_farfield/horn_antenna.in -outputfile examples/features/eigenmode_ports/example_3_antenna_and_farfield/horn_antenna
    python examples/features/eigenmode_ports/example_3_antenna_and_farfield/plot_results.py
 
-Eigenmode sources currently require the CPU solver. Do not add ``-gpu`` to
-this simulation command.
+The example may also be run with CUDA, OpenCL, or Metal by selecting the
+corresponding accelerator option. The FDFD setup remains a host-side setup
+step; modal injection and monitoring then run on the selected compute device.
 The plotting script writes three figures:
 
 * ``horn_sparameters.png`` shows input reflection over 8--12 GHz;
@@ -366,13 +367,14 @@ The HDF5 file then contains raw incident and outgoing modal spectra, but no
 S-parameters are formed because no incident source spectrum exists for
 normalization.
 
-Virtual waveguides are an experimental CPU feature. They currently require a
-3D internal port plane, a locally uniform and non-dispersive cross-section,
-and at least two cells along each transverse axis. MPI, subgrids, CUDA,
-OpenCL, and Metal are rejected. Use convergence tests for guide length, PML
-thickness, source clearance, mesh resolution, and NTFF-surface position before
-using quantitative results. GPU support is intended to follow a fully
-device-resident eigenmode-port implementation.
+Virtual waveguides are experimental. They run on the CPU, CUDA, OpenCL, and
+Metal solvers and keep both the auxiliary-grid fields and aperture coupling on
+the selected compute device throughout time stepping. They currently require
+a 3D internal port plane, a locally uniform and non-dispersive cross-section,
+and at least two cells along each transverse axis. MPI and subgrids are not yet
+supported. Use convergence tests for guide length, PML thickness, source
+clearance, mesh resolution, and NTFF-surface position before using
+quantitative results.
 
 How automatic excitation and frequency anchors work
 ====================================================
@@ -939,7 +941,7 @@ profiles used by the FDTD injection carry positive real-profile power.
 
 ``EigenmodeSource`` samples component materials from the mode's live invariant
 layer, supplies the corresponding PEC/PMC masks, and maps the returned line
-profiles back into the thin 3D Yee arrays used by the CPU update kernels.
+profiles back into the thin 3D Yee arrays used by the FDTD source kernels.
 The TM source uses the single live invariant layer; the TE source uses the
 shared interior layer of its two-cell invariant thickness. Inactive components
 and TE outer boundary planes are explicitly zero.
@@ -1886,7 +1888,8 @@ For reliable broadband excitation:
 * compare forward and backward modal power or receiver phase when reflections
   and mode purity matter.
 
-The current implementation is CPU-only and cannot be used with MPI. Material
-dispersion is sampled at each anchor frequency, but interpolation between
-anchors remains piecewise linear; additional anchors are the normal way to
-resolve stronger frequency dependence.
+Eigenmode injection and modal monitoring run on the CPU, CUDA, OpenCL, and
+Metal solvers, but cannot yet be used with MPI. Material dispersion is sampled
+at each anchor frequency, but interpolation between anchors remains piecewise
+linear; additional anchors are the normal way to resolve stronger frequency
+dependence.

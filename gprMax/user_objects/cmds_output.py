@@ -311,8 +311,8 @@ class NetworkPort(OutputUserObject):
         return self._monitor.result
 
     def build(self, model: Model, grid: FDTDGrid):
-        if config.sim_config.general["solver"] != "cpu" or config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} currently supports only the non-MPI CPU solver.")
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} does not yet support the MPI solver.")
         if config.sim_config.args.geometry_fixed:
             raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
         if config.get_model_config().mode != "3D":
