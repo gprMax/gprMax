@@ -15,6 +15,62 @@ def _field_set(values):
     return [values.copy(), np.zeros_like(values), np.zeros_like(values)]
 
 
+def _trace_source(monkeypatch, *, modal_power=1.0):
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            em_consts={
+                "z0": 376.730313668,
+                "c": 299792458.0,
+            },
+            dtypes={"float_or_double": np.float64},
+        ),
+    )
+    source = EigenmodeSource(None)
+    source.start = 0.0
+    source.normal_axis = 0
+    source.spectral_threshold = 1e-3
+    source.anchor_complex_neff = np.ones(2, dtype=np.complex128)
+    modal_fields = [
+        np.ones((1, 1), dtype=np.complex128),
+        np.zeros((1, 1), dtype=np.complex128),
+        np.zeros((1, 1), dtype=np.complex128),
+    ]
+    source.anchor_modal_e = [
+        [field.copy() for field in modal_fields],
+        [field.copy() for field in modal_fields],
+    ]
+    source.anchor_modal_h = [
+        [field.copy() for field in modal_fields],
+        [field.copy() for field in modal_fields],
+    ]
+    source._modal_cross_power = lambda electric, magnetic, grid: modal_power
+    source.waveform = Waveform()
+    source.waveform.type = "ricker"
+    source.waveform.amp = 1.0
+    source.waveform.freq = 5e9
+    grid = SimpleNamespace(
+        iterations=2048,
+        dt=1e-12,
+        dl=np.asarray([0.5e-3, 0.5e-3, 0.5e-3]),
+    )
+    return source, grid
+
+
+def _set_tagged_power_anchors(source):
+    def fields(value):
+        field = np.full((1, 1), value, dtype=np.complex128)
+        zero = np.zeros_like(field)
+        return [field, zero.copy(), zero.copy()]
+
+    source.anchor_modal_e = [fields(0.0), fields(1.0)]
+    source.anchor_modal_h = [fields(0.0), fields(1.0)]
+    source._modal_cross_power = lambda electric, magnetic, grid: (
+        electric[0][0, 0] * np.conj(magnetic[0][0, 0])
+    )
+
+
 def test_broadband_anchor_phase_alignment_is_phase_invariant(monkeypatch):
     monkeypatch.setattr(
         config,
@@ -141,47 +197,9 @@ def test_broadband_invalid_anchor_norm_raises(monkeypatch):
         source._align_and_validate_anchors(anchor_e, anchor_h, (1e9, 2e9))
 
 
-def test_broadband_quality_safeguards_warn_and_continue(monkeypatch):
-    monkeypatch.setattr(
-        config,
-        "sim_config",
-        SimpleNamespace(
-            em_consts={
-                "z0": 376.730313668,
-                "c": 299792458.0,
-            },
-            dtypes={"float_or_double": np.float64},
-        ),
-    )
-    source = EigenmodeSource(None)
-    source.start = 0.0
-    source.normal_axis = 0
-    source.spectral_threshold = 1e-3
+def test_broadband_anchor_coverage_warns_and_continues(monkeypatch):
+    source, grid = _trace_source(monkeypatch)
     source.spectrum_coverage_policy = "warn"
-    source.anchor_complex_neff = np.ones(2, dtype=np.complex128)
-    modal_fields = [
-        np.ones((1, 1), dtype=np.complex128),
-        np.zeros((1, 1), dtype=np.complex128),
-        np.zeros((1, 1), dtype=np.complex128),
-    ]
-    source.anchor_modal_e = [
-        [field.copy() for field in modal_fields],
-        [field.copy() for field in modal_fields],
-    ]
-    source.anchor_modal_h = [
-        [field.copy() for field in modal_fields],
-        [field.copy() for field in modal_fields],
-    ]
-    source._modal_cross_power = lambda electric, magnetic, grid: 0.0
-    source.waveform = Waveform()
-    source.waveform.type = "ricker"
-    source.waveform.amp = 1.0
-    source.waveform.freq = 5e9
-    grid = SimpleNamespace(
-        iterations=2048,
-        dt=1e-12,
-        dl=np.asarray([0.5e-3, 0.5e-3, 0.5e-3]),
-    )
     warnings = []
     monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
 
@@ -189,9 +207,154 @@ def test_broadband_quality_safeguards_warn_and_continue(monkeypatch):
     output = "\n".join(warnings)
 
     assert "do not cover the significant waveform spectrum" in output
-    assert "fallback normalization" in output
     assert np.all(np.isfinite(source.broadband_e_envelopes))
     assert source.broadband_waveform_error < 1e-8
+
+
+def test_broadband_invalid_injected_modal_power_raises(monkeypatch):
+    source, grid = _trace_source(monkeypatch, modal_power=0.0)
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid modal power affects .* injected FFT bin",
+    ):
+        source._prepare_broadband_time_traces(grid, (0.1e9, 25e9))
+
+
+@pytest.mark.parametrize("sample", (np.nan, np.inf, -np.inf))
+def test_broadband_nonfinite_waveform_sample_raises(sample):
+    source = EigenmodeSource(None)
+    source.waveform = SimpleNamespace(
+        calculate_value=lambda time, dt: sample,
+    )
+    grid = SimpleNamespace(iterations=8, dt=1e-12)
+
+    with pytest.raises(ValueError, match="contains non-finite samples"):
+        source._prepare_broadband_time_traces(grid, (1e9, 2e9))
+
+
+def test_broadband_zero_spectral_energy_raises():
+    source = EigenmodeSource(None)
+    source.waveform = SimpleNamespace(
+        calculate_value=lambda time, dt: 0.0,
+    )
+    grid = SimpleNamespace(iterations=8, dt=1e-12)
+
+    with pytest.raises(ValueError, match="zero or non-finite spectral energy"):
+        source._prepare_broadband_time_traces(grid, (1e9, 2e9))
+
+
+@pytest.mark.parametrize(
+    "samples",
+    (np.ones(8), (-1.0) ** np.arange(8)),
+    ids=("dc", "nyquist"),
+)
+@pytest.mark.parametrize("single_frequency_iq", (False, True))
+def test_eigenmode_iq_significant_dc_or_nyquist_warns_and_discards(
+    monkeypatch,
+    single_frequency_iq,
+    samples,
+):
+    source, _ = _trace_source(monkeypatch)
+    source.waveform = SimpleNamespace(
+        calculate_value=lambda time, dt: float(samples[int(round(time / dt))]),
+    )
+    source.spectrum_coverage_policy = "allow"
+    warnings = []
+    monkeypatch.setattr(sources_module.logger, "warning", warnings.append)
+    grid = SimpleNamespace(iterations=8, dt=1.0, dl=np.ones(3))
+
+    source._prepare_broadband_time_traces(
+        grid,
+        (1 / 16, 7 / 16),
+        single_frequency_iq=single_frequency_iq,
+    )
+
+    warning = "\n".join(warnings)
+    assert "significant DC or Nyquist content" in warning
+    assert "will be discarded" in warning
+    assert "band-limited waveform" in warning
+    assert "waveform='auto'" in warning
+    assert np.all(np.isfinite(source.broadband_e_envelopes))
+    assert np.all(np.isfinite(source.broadband_h_envelopes))
+    assert source.broadband_waveform_error > 0
+
+
+def test_broadband_invalid_anchor_weight_partition_raises(monkeypatch):
+    source, grid = _trace_source(monkeypatch)
+    source._linear_anchor_weights = lambda bins, anchors: np.zeros(
+        (len(anchors), len(bins)),
+        dtype=np.float64,
+    )
+
+    with pytest.raises(RuntimeError, match="do not form a partition of unity"):
+        source._prepare_broadband_time_traces(grid, (0.1e9, 25e9))
+
+
+def test_broadband_modal_power_ignores_bins_not_injected(monkeypatch):
+    source, _ = _trace_source(monkeypatch)
+    sample_count = 8
+    padded_count = 16
+    samples = np.zeros(sample_count, dtype=np.float64)
+    samples[0] = 1.0
+    samples[4] -= 1.0
+    spectrum = np.fft.rfft(samples, n=padded_count)
+    zero_spectrum_index = 4
+    assert spectrum[zero_spectrum_index] == 0.0
+
+    source.waveform = SimpleNamespace(
+        calculate_value=lambda time, dt: float(samples[int(round(time / dt))]),
+    )
+    grid = SimpleNamespace(
+        iterations=sample_count,
+        dt=1.0,
+        dl=np.ones(3),
+    )
+    frequencies = (1 / padded_count, 7 / padded_count)
+    _set_tagged_power_anchors(source)
+
+    def weights(bin_frequencies, anchors):
+        result = np.zeros((2, bin_frequencies.size), dtype=np.float64)
+        result[1] = 1.0
+        result[:, (0, zero_spectrum_index, bin_frequencies.size - 1)] = np.asarray(
+            [[1.0], [0.0]]
+        )
+        return result
+
+    source._linear_anchor_weights = weights
+
+    source._prepare_broadband_time_traces(grid, frequencies)
+
+    assert np.all(np.isfinite(source.broadband_e_envelopes))
+    assert np.all(np.isfinite(source.broadband_h_envelopes))
+
+
+def test_broadband_modal_power_ignores_discarded_endpoint_bins(monkeypatch):
+    source, grid = _trace_source(monkeypatch)
+    sample_count = grid.iterations
+    padded_count = 1 << int(np.ceil(np.log2(2 * sample_count)))
+    times = np.arange(sample_count, dtype=np.float64) * grid.dt
+    samples = np.asarray(
+        [source.waveform.calculate_value(time, grid.dt) for time in times]
+    )
+    magnitude = np.abs(np.fft.rfft(samples, n=padded_count))
+    peak = float(np.max(magnitude))
+    assert 0 < magnitude[0] < source.spectral_threshold * peak
+    assert 0 < magnitude[-1] < source.spectral_threshold * peak
+    _set_tagged_power_anchors(source)
+
+    def weights(bin_frequencies, anchors):
+        result = np.zeros((2, bin_frequencies.size), dtype=np.float64)
+        result[1] = 1.0
+        result[:, (0, bin_frequencies.size - 1)] = np.asarray([[1.0], [0.0]])
+        return result
+
+    source._linear_anchor_weights = weights
+
+    source._prepare_broadband_time_traces(grid, (0.1e9, 25e9))
+
+    assert np.all(np.isfinite(source.broadband_e_envelopes))
+    assert np.all(np.isfinite(source.broadband_h_envelopes))
 
 
 def test_linear_anchor_weights_are_local_and_sum_to_one():

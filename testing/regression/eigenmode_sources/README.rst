@@ -10,38 +10,29 @@ deliberately broader and more repetitive than the curated user examples in
 Directory layout
 ================
 
-``cases/straight_waveguide``
+``straight_waveguide``
     Broadband-driven straight-guide checks: 2D TM and TE dielectric slabs,
     plus 3D rectangular and cylindrical PEC waveguides. The cylindrical guide
     deliberately requests automatic anchors for a degenerate modal pair; a
     severe tracking mismatch should warn and fall back to one band-centre
     anchor. The common DFT still covers 45--65 GHz. The expected
     fundamental-mode S21 is approximately 0 dB and S11 is very small.
-    The partial-cutoff rectangular case places seven of 100 DFT bins below
-    the TE10 cutoff and supplies explicit anchors immediately on either side.
-    Those seven bins must have invalid/NaN power-wave S-parameters. The first
-    few propagating bins resolve the near-cutoff transition; farther above
-    cutoff, S11 is low and S21 is approximately 0 dB. Its case-specific plot
-    also separates forward and backward TE10 field
-    amplitudes from paired point receivers, so dashed generalized S11/S21
-    traces show evanescent reflection and transmission below cutoff without
-    treating them as real power waves.
 
-``cases/bending_waveguide``
+``bending_waveguide``
     Broadband 2D TM and TE 90-degree curved dielectric bends made from
     annular cylindrical sectors. Each polarisation has 15, 30, and 100 mm
     centreline-radius cases. The larger radius is expected to improve
     fundamental-mode S21.
 
-``cases/loss_comparison``
+``loss_comparison``
     Matched broadband non-lossy and lossy 2D TM slab runs. The lossy guide
     should have lower S21.
 
-``cases/broadband_vs_single_frequency``
+``broadband_vs_single_frequency``
     The same broadband waveform injected using either multi-frequency modal
     anchors or only the 3 GHz modal profile.
 
-``cases/grid_spacing``
+``grid_spacing``
     A 3D rectangular PEC waveguide repeated at 0.20, 0.10, and 0.05 mm cubic
     spacing. The physical geometry, 1 mm PML thickness, port positions,
     frequency range, and time window remain fixed. The comparison helper plots
@@ -52,6 +43,11 @@ Directory layout
     Previous development runs moved out of the maintained matrix. This
     directory is intentionally ignored by Git and is not discovered by the
     default runner.
+
+The TE10 partial-cutoff model compares directly with an analytical solution,
+so it belongs to the separate
+``testing/validation/rectangular_waveguide_partial_cutoff`` validation rather
+than this behavioural regression matrix.
 
 Each model defines its DFT range once with ``#eigenmode_band``. Every
 ``#eigenmode_port`` then supplies a unique port number, plane, direction,
@@ -91,21 +87,15 @@ From the repository root, with the gprMax environment active, run:
 
    python testing/regression/eigenmode_sources/run_all.py
 
-The runner discovers every ``.in`` file beneath ``cases``, executes it, and
+The runner discovers every ``.in`` file beneath this directory except those
+under ``legacy``, executes it, and
 checks the requested physical trends before plotting. Straight guides require
 fundamental S21 within 0.75 dB of 0 dB and S11 below -20 dB; curved-bend mean
 fundamental S21 must improve monotonically with radius and by at least 2 dB
 from the 15 mm to the 100 mm case;
 the lossy guide must transmit at least 3 dB less than the non-lossy guide; and
 multi-anchor broadband injection must stay closer to 0 dB than the
-single-profile result. The partial-cutoff guide additionally samples 100
-uniformly spaced DFT points, with seven below analytical TE10 cutoff. Every
-cutoff bin must be invalid with NaN power-wave S-parameters and every sampled
-bin above cutoff must be valid. Its generalized cutoff-region S21 must follow
-the analytical :math:`\exp(-\alpha L)` field attenuation within 0.25 dB. The
-immediate near-cutoff transition remains visible in the plot; the stricter
-matched-guide checks begin 0.2 GHz above cutoff, while all propagating S21
-samples must remain within 0.25 dB of 0 dB. The runner then uses
+single-profile result. The runner then uses
 ``plot_snapshots.py`` to create combined linear and global-normalised dB
 ``|E|`` figures. It creates a magnitude/phase plot for every S-parameter CSV
 and invokes the bend-radius, lossy, and source-profile comparison helpers.
@@ -125,7 +115,7 @@ For example, to list only the straight-guide cases that would run:
 .. code-block:: console
 
    python testing/regression/eigenmode_sources/run_all.py \
-       --root testing/regression/eigenmode_sources/cases/straight_waveguide \
+       --root testing/regression/eigenmode_sources/straight_waveguide \
        --dry-run --skip-plots
 
 Generated ``.h5``, ``.csv``, ``.vtkhdf``, snapshot directories, and ``.png``

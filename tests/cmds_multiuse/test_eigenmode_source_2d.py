@@ -492,7 +492,7 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
 )
 def test_2d_regression_example_builds(tmp_path, relative_path, snapshot_count):
     source = (
-        REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / "cases" / relative_path
+        REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / relative_path
     )
     copied_input = tmp_path / source.name
     shutil.copyfile(source, copied_input)

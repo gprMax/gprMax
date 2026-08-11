@@ -18,6 +18,27 @@ GPRMAX_S11 = HERE / "patch_antenna_sparameters.csv"
 CST_FIT_S11 = HERE / "patch_s11_fit_cst.s1p"
 CST_FEM_S11 = HERE / "patch_s11_fem_cst.s1p"
 SUMMARY = HERE / "patch_sparameter_summary.json"
+SOLVER_STYLES = {
+    "gprMax": {
+        "color": "#0072b2",
+        "linestyle": "-",
+        "linewidth": 2.4,
+        "zorder": 3,
+    },
+    "CST FIT": {
+        "color": "#e69f00",
+        "linestyle": (0, (5, 2)),
+        "linewidth": 2.4,
+        "zorder": 5,
+    },
+    "CST FEM": {
+        "color": "#cc79a7",
+        "linestyle": (0, (2, 2)),
+        "linewidth": 2.4,
+        "zorder": 6,
+    },
+}
+PLOT_ORDER = ("gprMax", "CST FIT", "CST FEM")
 
 
 def read_gprmax_s11() -> tuple[np.ndarray, np.ndarray]:
@@ -56,9 +77,9 @@ def plot_s11(
     series: dict[str, tuple[np.ndarray, np.ndarray]],
 ) -> dict[str, tuple[float, float]]:
     minima: dict[str, tuple[float, float]] = {}
-    line_styles = {"gprMax": "-", "CST FIT": "--", "CST FEM": ":"}
     figure, axis = plt.subplots(figsize=(7.4, 4.8), constrained_layout=True)
-    for label, (frequency, s11_db) in series.items():
+    for label in PLOT_ORDER:
+        frequency, s11_db = series[label]
         minimum_index = int(np.nanargmin(s11_db))
         minimum_frequency = float(frequency[minimum_index])
         minimum_s11 = float(s11_db[minimum_index])
@@ -66,9 +87,8 @@ def plot_s11(
         (line,) = axis.plot(
             frequency * 1e-9,
             s11_db,
-            linewidth=2,
-            linestyle=line_styles[label],
             label=label,
+            **SOLVER_STYLES[label],
         )
         axis.plot(
             minimum_frequency * 1e-9,

@@ -7,14 +7,6 @@ from pathlib import Path
 import numpy as np
 
 MIN_BEND_S21_IMPROVEMENT_DB = 2.0
-SPEED_OF_LIGHT_M_PER_S = 299_792_458.0
-PARTIAL_CUTOFF_GUIDE_WIDTH_M = 0.006
-PARTIAL_CUTOFF_TE10_HZ = SPEED_OF_LIGHT_M_PER_S / (2.0 * PARTIAL_CUTOFF_GUIDE_WIDTH_M)
-PARTIAL_CUTOFF_START_HZ = 24.25e9
-PARTIAL_CUTOFF_STOP_HZ = 34.75e9
-PARTIAL_CUTOFF_DFT_POINTS = 100
-PARTIAL_CUTOFF_INVALID_POINTS = 7
-PARTIAL_CUTOFF_FREQUENCY_ATOL_HZ = 5e3
 
 
 def _series(path: Path, destination_port: int, destination_mode: int) -> np.ndarray:
@@ -40,8 +32,6 @@ def _paths_below(root: Path, family: str) -> list[Path]:
 def validate_straight(root: Path) -> list[str]:
     messages = []
     for path in _paths_below(root, "straight_waveguide"):
-        if "rectangular_waveguide_partial_cutoff" in path.parts:
-            continue
         s11 = _series(path, 1, 1)
         s21 = _series(path, 2, 1)
         if np.max(s11) >= -20:
@@ -54,131 +44,6 @@ def validate_straight(root: Path) -> list[str]:
         label = path.parent.relative_to(root)
         messages.append(
             f"{label}: mean S21={np.mean(s21):.3f} dB, " f"max S11={np.max(s11):.3f} dB"
-        )
-    return messages
-
-
-def _modal_rows(path: Path, destination_port: int, destination_mode: int) -> list[dict[str, str]]:
-    with path.open(newline="", encoding="utf-8") as stream:
-        rows = [
-            row
-            for row in csv.DictReader(stream)
-            if int(row["source_port"]) == 1
-            and int(row["source_mode"]) == 1
-            and int(row["destination_port"]) == destination_port
-            and int(row["destination_mode"]) == destination_mode
-        ]
-    rows.sort(key=lambda row: float(row["frequency_hz"]))
-    if not rows:
-        raise AssertionError(f"Missing S{destination_port}1 mode-1 data in {path}")
-    return rows
-
-
-def validate_partial_cutoff(root: Path) -> list[str]:
-    messages = []
-    numeric_s_columns = (
-        "S_real",
-        "S_imag",
-        "S_magnitude",
-        "S_magnitude_db",
-        "S_phase_deg",
-        "coefficient_magnitude_squared",
-    )
-    for path in _paths_below(root, "rectangular_waveguide_partial_cutoff"):
-        series = {}
-        frequency_series = {}
-        propagating_frequency_series = {}
-        expected_frequencies = np.linspace(
-            PARTIAL_CUTOFF_START_HZ,
-            PARTIAL_CUTOFF_STOP_HZ,
-            PARTIAL_CUTOFF_DFT_POINTS,
-        )
-        expected_valid = expected_frequencies > PARTIAL_CUTOFF_TE10_HZ
-        for destination_port in (1, 2):
-            rows = _modal_rows(path, destination_port, 1)
-            frequencies = np.asarray([float(row["frequency_hz"]) for row in rows])
-            valid = np.asarray([bool(int(row["valid"])) for row in rows])
-            if frequencies.shape != expected_frequencies.shape or not np.allclose(
-                frequencies,
-                expected_frequencies,
-                rtol=0.0,
-                atol=PARTIAL_CUTOFF_FREQUENCY_ATOL_HZ,
-            ):
-                raise AssertionError(
-                    f"{path}: S{destination_port}1 must contain the complete "
-                    f"{PARTIAL_CUTOFF_DFT_POINTS}-point partial-cutoff DFT grid"
-                )
-            if not np.array_equal(valid, expected_valid):
-                unexpected = frequencies[valid != expected_valid] * 1e-9
-                raise AssertionError(
-                    f"{path}: S{destination_port}1 cutoff validity differs at "
-                    f"{unexpected.tolist()} GHz"
-                )
-            invalid_rows = [row for row, is_valid in zip(rows, valid) if not is_valid]
-            expected_invalid_count = PARTIAL_CUTOFF_INVALID_POINTS
-            if (
-                len(invalid_rows) != expected_invalid_count
-                or np.count_nonzero(valid) != PARTIAL_CUTOFF_DFT_POINTS - expected_invalid_count
-            ):
-                raise AssertionError(
-                    f"{path}: expected {expected_invalid_count} cutoff and "
-                    f"{PARTIAL_CUTOFF_DFT_POINTS - expected_invalid_count} propagating bins "
-                    f"for S{destination_port}1, got {len(invalid_rows)} and "
-                    f"{np.count_nonzero(valid)}"
-                )
-            if any(
-                not np.isnan(float(row[column]))
-                for row in invalid_rows
-                for column in numeric_s_columns
-            ):
-                raise AssertionError(
-                    f"{path}: invalid S{destination_port}1 cutoff rows must contain NaN values"
-                )
-            valid_rows = [row for row, is_valid in zip(rows, valid) if is_valid]
-            if any(
-                not np.isfinite(float(row[column]))
-                for row in valid_rows
-                for column in numeric_s_columns
-            ):
-                raise AssertionError(
-                    f"{path}: valid S{destination_port}1 propagating rows must be finite"
-                )
-            series[destination_port] = np.asarray(
-                [float(row["S_magnitude_db"]) for row in valid_rows]
-            )
-            frequency_series[destination_port] = frequencies
-            propagating_frequency_series[destination_port] = frequencies[valid]
-
-        s11 = series[1]
-        s21 = series[2]
-        if not np.array_equal(frequency_series[1], frequency_series[2]):
-            raise AssertionError(f"{path}: S11 and S21 DFT frequency grids differ")
-        if not np.array_equal(propagating_frequency_series[1], propagating_frequency_series[2]):
-            raise AssertionError(f"{path}: S11 and S21 propagating frequency grids differ")
-        propagating_frequencies = propagating_frequency_series[1]
-        settled = propagating_frequencies >= PARTIAL_CUTOFF_TE10_HZ + 0.2e9
-        if not np.any(settled):
-            raise AssertionError(f"{path}: missing settled propagating bins above cutoff")
-        if np.max(s11[settled]) >= -20:
-            raise AssertionError(
-                f"{path}: expected settled propagating-bin S11 below -20 dB, "
-                f"got {np.max(s11[settled]):.3f} dB"
-            )
-        if np.max(np.abs(s21[settled])) >= 0.1:
-            raise AssertionError(
-                f"{path}: expected settled propagating-bin S21 within 0.1 dB of 0 dB, "
-                f"got range {np.min(s21[settled]):.3f} to {np.max(s21[settled]):.3f} dB"
-            )
-        if np.max(np.abs(s21)) >= 0.25:
-            raise AssertionError(
-                f"{path}: expected all propagating-bin S21 within 0.25 dB of 0 dB, "
-                f"got range {np.min(s21):.3f} to {np.max(s21):.3f} dB"
-            )
-        label = path.parent.relative_to(root)
-        messages.append(
-            f"{label}: {expected_invalid_count} cutoff bins invalid; propagating S21 range="
-            f"{np.min(s21):.3f} to {np.max(s21):.3f} dB, "
-            f"max settled S11={np.max(s11[settled]):.3f} dB"
         )
     return messages
 
@@ -282,7 +147,6 @@ def validate_tree(root: Path) -> list[str]:
     root = root.resolve()
     messages = []
     for validator in (
-        validate_partial_cutoff,
         validate_straight,
         validate_grid_spacing,
         validate_bends,

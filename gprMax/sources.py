@@ -302,7 +302,9 @@ class EigenmodeSource(Source):
         self.port_anchor_h = None
         self.port_anchor_neff = None
         self.port_anchor_mode_valid = None
+        self.port_anchor_mode_reference_valid = None
         self.port_anchor_mode_propagating = None
+        self.port_anchor_balanced_power = None
         self.port_mode_anchor_policies = None
         self.port_mode_solvers = None
         self.broadband_e_envelopes = None
@@ -386,20 +388,16 @@ class EigenmodeSource(Source):
             centre=True,
         )
         mode_indices = tuple(self.mode_indices)
-        if not mode_indices and self.mode_count is not None:
-            mode_indices = tuple(range(1, self.mode_count + 1))
-        if not mode_indices and self.mode_index is not None:
-            mode_indices = (self.mode_index,)
-        # Keep monkeypatched/upstream legacy solvers compatible when they do
-        # not expose a solved mode object. Production ports always populate
-        # both the solver and at least one monitored mode here.
-        if self.mode_solver is not None and mode_indices:
-            self._prepare_port_anchor_bank(
-                (frequency,),
-                (self.mode_solver,),
-                mode_indices,
-                forced_policies=tuple("auto_single_fallback" for _ in mode_indices),
+        if self.mode_solver is None or not mode_indices:
+            raise RuntimeError(
+                "Eigenmode fallback requires a solved mode and monitored mode indices."
             )
+        self._prepare_port_anchor_bank(
+            (frequency,),
+            (self.mode_solver,),
+            mode_indices,
+            forced_policies=("auto_single_fallback",) * len(mode_indices),
+        )
         self.resolved_anchor_policy = "auto_single_fallback"
         self._prepare_single_frequency_injection(G)
 
@@ -430,7 +428,9 @@ class EigenmodeSource(Source):
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
             anchor_mode_valid=self.port_anchor_mode_valid,
+            anchor_mode_reference_valid=self.port_anchor_mode_reference_valid,
             anchor_mode_propagating=self.port_anchor_mode_propagating,
+            anchor_balanced_power=self.port_anchor_balanced_power,
             mode_anchor_policies=self.port_mode_anchor_policies,
         )
         monitor.prepare(G)
@@ -640,6 +640,7 @@ class EigenmodeSource(Source):
         anchor_h = []
         anchor_neff = []
         propagating = np.empty((len(frequencies), len(mode_indices)), dtype=bool)
+        balanced_power = np.empty((len(frequencies), len(mode_indices)), dtype=np.float64)
         for frequency_position, solver in enumerate(solvers):
             frequency_e = []
             frequency_h = []
@@ -659,11 +660,44 @@ class EigenmodeSource(Source):
                 propagating[frequency_position, mode_position] = self._solver_mode_power_valid(
                     solver, mode_index
                 )
+                balanced_power_method = getattr(
+                    solver,
+                    "_calculate_mode_balanced_power",
+                    None,
+                )
+                if callable(balanced_power_method):
+                    balanced_power[frequency_position, mode_position] = float(
+                        balanced_power_method(mode_index - 1)
+                    )
+                else:
+                    # Compatibility fallback for older/downstream solvers.
+                    # This omits the common spatial measure, which cancels
+                    # when every candidate profile uses the same grid.
+                    em_consts = getattr(
+                        config.sim_config,
+                        "em_consts",
+                        config.SimulationConfig.em_consts,
+                    )
+                    impedance = float(em_consts["z0"])
+                    norm = 0.0
+                    reference_axes = (
+                        self.transverse_axes
+                        if self.transverse_axes is not None
+                        else range(len(electric))
+                    )
+                    for axis in reference_axes:
+                        field = electric[axis]
+                        norm += float(np.vdot(field, field).real)
+                    for axis in reference_axes:
+                        field = magnetic[axis]
+                        scaled = impedance * field
+                        norm += float(np.vdot(scaled, scaled).real)
+                    balanced_power[frequency_position, mode_position] = norm
             anchor_e.append(frequency_e)
             anchor_h.append(frequency_h)
             anchor_neff.append(frequency_neff)
 
-        valid, policies, overlaps = self._resolve_mode_anchor_masks(
+        valid, reference_valid, policies, overlaps = self._resolve_mode_anchor_masks(
             frequencies,
             solvers,
             mode_indices,
@@ -679,7 +713,9 @@ class EigenmodeSource(Source):
         self.port_anchor_h = anchor_h
         self.port_anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)
         self.port_anchor_mode_valid = valid
+        self.port_anchor_mode_reference_valid = reference_valid
         self.port_anchor_mode_propagating = propagating
+        self.port_anchor_balanced_power = balanced_power
         self.port_mode_anchor_policies = policies
         self.port_mode_solvers = solvers
         self.anchor_overlaps = overlaps
@@ -710,6 +746,7 @@ class EigenmodeSource(Source):
         automatic = self._automatic_anchor_policy()
         anchor_count = len(frequencies)
         valid = np.zeros_like(propagating, dtype=bool)
+        reference_valid = np.zeros_like(propagating, dtype=bool)
         overlaps = np.full(
             (max(anchor_count - 1, 0), len(mode_indices)),
             np.nan,
@@ -845,8 +882,10 @@ class EigenmodeSource(Source):
                     f"Eigenmode port {self.port_index} mode {mode_index} has "
                     "non-propagating anchor(s) that carry no forward real power: "
                     + "; ".join(details)
-                    + ". They will be excluded from modal interpolation and the "
-                    "corresponding non-propagating power-wave bins will be marked invalid."
+                    + ". They will be excluded from source synthesis and one-watt "
+                    "power interpolation, but successfully tracked profiles will be "
+                    "retained as monitor-only generalized references. The corresponding "
+                    "bins will remain invalid as physical power waves."
                 )
 
             if not usable:
@@ -888,6 +927,14 @@ class EigenmodeSource(Source):
                 fallback = True
 
             valid[usable, mode_position] = True
+            # The modal monitor may use every successfully tracked raw mode,
+            # including finite-normalized evanescent modes. Source synthesis
+            # remains restricted to ``valid`` (forward-power) anchors. A
+            # centre-only fallback must also collapse this reference bank so
+            # a mode rejected by the tracking guard cannot leak back into the
+            # monitor interpolation.
+            reference_indices = usable if fallback else retained
+            reference_valid[reference_indices, mode_position] = True
             policies.append(
                 self._anchor_policy_name(
                     automatic=automatic,
@@ -897,7 +944,7 @@ class EigenmodeSource(Source):
                 )
             )
 
-        return valid, tuple(policies), overlaps
+        return valid, reference_valid, tuple(policies), overlaps
 
     def _solve_broadband_eigenmode(self, G, frequencies):
         """Solve candidate anchors, resolve each mode, and synthesize the source."""
@@ -1393,16 +1440,48 @@ class EigenmodeSource(Source):
             dtype=np.float64,
         )
         if not np.all(np.isfinite(waveform)):
-            logger.warning(
-                "The broadband eigenmode source waveform contains non-finite samples. "
-                "Replacing them with zero and continuing."
+            raise ValueError(
+                "The broadband eigenmode source waveform contains non-finite samples."
             )
-            waveform = np.nan_to_num(waveform, nan=0.0, posinf=0.0, neginf=0.0)
         padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
         spectrum = np.fft.rfft(waveform, n=padded_count)
         bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
         spectrum_magnitude = np.abs(spectrum)
         peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            raise ValueError(
+                "The broadband eigenmode source waveform has zero or non-finite "
+                "spectral energy."
+            )
+
+        endpoint_significant = spectrum_magnitude[0] >= self.spectral_threshold * peak
+        if padded_count % 2 == 0:
+            endpoint_significant |= (
+                spectrum_magnitude[-1] >= self.spectral_threshold * peak
+            )
+        if endpoint_significant:
+            source_kind = (
+                "single-frequency eigenmode source using I/Q injection"
+                if single_frequency_iq
+                else "broadband eigenmode source"
+            )
+            logger.warning(
+                f"The {source_kind} waveform has significant DC or Nyquist content. "
+                "Those bins cannot carry a general complex modal coefficient and will be "
+                "discarded. Use a band-limited waveform; for a finite frequency band, "
+                "EigenmodeExcitation(..., waveform='auto') can synthesize one automatically."
+            )
+        spectrum = np.array(spectrum, copy=True)
+        spectrum[0] = 0
+        if padded_count % 2 == 0:
+            spectrum[-1] = 0
+        spectrum_magnitude = np.abs(spectrum)
+        peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            raise ValueError(
+                "The eigenmode source waveform has no usable positive-frequency spectral "
+                "energy after discarding DC and Nyquist."
+            )
         positive = bin_frequencies > 0
         positive_magnitude = spectrum_magnitude[positive]
         if positive_magnitude.size and np.any(positive_magnitude > 0):
@@ -1410,28 +1489,16 @@ class EigenmodeSource(Source):
             self.representative_frequency = float(bin_frequencies[positive][peak_index])
         else:
             self.representative_frequency = None
-        if not np.isfinite(peak) or peak <= 0:
-            logger.warning(
-                "The broadband eigenmode source waveform has no finite spectral "
-                "energy. Continuing with a zero-valued source."
-            )
 
-        significant = (
-            spectrum_magnitude >= self.spectral_threshold * peak
-            if np.isfinite(peak) and peak > 0
-            else np.zeros_like(spectrum_magnitude, dtype=bool)
-        )
+        significant = spectrum_magnitude >= self.spectral_threshold * peak
         significant_indices = np.flatnonzero(significant)
         if significant_indices.size == 0:
-            logger.warning(
-                "The broadband eigenmode source waveform has no significant FFT "
-                "bins. Continuing with endpoint mode extrapolation."
+            raise RuntimeError(
+                "Internal broadband eigenmode spectrum error: a finite non-zero "
+                "waveform spectrum has no significant FFT bins."
             )
-            significant_low = float("nan")
-            significant_high = float("nan")
-        else:
-            significant_low = float(bin_frequencies[significant_indices[0]])
-            significant_high = float(bin_frequencies[significant_indices[-1]])
+        significant_low = float(bin_frequencies[significant_indices[0]])
+        significant_high = float(bin_frequencies[significant_indices[-1]])
         if (
             not single_frequency_iq
             and significant_indices.size
@@ -1456,42 +1523,14 @@ class EigenmodeSource(Source):
                     "bandwidth, or use the single-frequency eigenmode source. Continuing by "
                     "using the nearest endpoint mode outside the anchor range."
                 )
-        if significant[0] or (padded_count % 2 == 0 and significant[-1]):
-            if single_frequency_iq:
-                logger.warning(
-                    "The single-frequency eigenmode source is using I/Q injection, but its "
-                    "waveform has significant DC or Nyquist content, where a general complex "
-                    "modal profile cannot be synthesized safely. Use a band-limited zero-mean "
-                    "waveform. Continuing after discarding the DC and Nyquist bins."
-                )
-            else:
-                logger.warning(
-                    "The broadband eigenmode source has significant DC or Nyquist content, where a "
-                    "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
-                    "band-limited zero-mean waveform or the single-frequency eigenmode source. "
-                    "Continuing after discarding the DC and Nyquist bins."
-                )
 
         weights = self._linear_anchor_weights(bin_frequencies, frequencies)
         partition = np.sum(weights, axis=0)
         if not np.allclose(partition, 1.0, rtol=0.0, atol=1e-14):
-            logger.warning(
+            raise RuntimeError(
                 "Internal broadband eigenmode interpolation error: anchor weights "
-                "do not form a partition of unity. Repairing the weights and continuing."
+                "do not form a partition of unity."
             )
-            usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
-            weights[:, usable] /= partition[usable]
-            for bin_index in np.flatnonzero(~usable):
-                nearest = int(
-                    np.argmin(
-                        np.abs(
-                            np.asarray(frequencies, dtype=np.float64) - bin_frequencies[bin_index]
-                        )
-                    )
-                )
-                weights[:, bin_index] = 0.0
-                weights[nearest, bin_index] = 1.0
-            partition = np.sum(weights, axis=0)
         anchor_count = len(frequencies)
         power_matrix = np.empty((anchor_count, anchor_count), dtype=np.complex128)
         for e_index in range(anchor_count):
@@ -1504,38 +1543,26 @@ class EigenmodeSource(Source):
         interpolated_power = np.real(
             np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
         )
-        active_bins = np.sum(weights, axis=0) > 0
-        invalid_power = active_bins & (
+        injected_bins = spectrum_magnitude > 0
+        injected_bins[0] = False
+        if padded_count % 2 == 0:
+            injected_bins[-1] = False
+        invalid_power = injected_bins & (
             ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
         )
         if np.any(invalid_power):
             invalid_indices = np.flatnonzero(invalid_power)
             bad_frequency = float(bin_frequencies[invalid_indices[0]])
             bad_power = float(interpolated_power[invalid_indices[0]])
-            logger.warning(
+            raise ValueError(
                 "Cannot normalize the interpolated broadband eigenmode at "
                 f"{bad_frequency:g} Hz: modal power is {bad_power:g}. Add an anchor near this "
                 "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
-                f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
+                f"Invalid modal power affects {invalid_indices.size} injected FFT bin(s)."
             )
-            finite_nonzero = (
-                invalid_power
-                & np.isfinite(interpolated_power)
-                & (np.abs(interpolated_power) > 1e-12)
-            )
-            interpolated_power[finite_nonzero] = np.abs(interpolated_power[finite_nonzero])
-            unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
-            if unresolved.size:
-                nearest = np.argmax(weights[:, unresolved], axis=0)
-                anchor_power = np.real(np.diag(power_matrix))[nearest]
-                interpolated_power[unresolved] = np.where(
-                    np.isfinite(anchor_power) & (np.abs(anchor_power) > 1e-12),
-                    np.abs(anchor_power),
-                    1.0,
-                )
 
         normalization = np.zeros_like(interpolated_power)
-        normalization[active_bins] = 1.0 / np.sqrt(interpolated_power[active_bins])
+        normalization[injected_bins] = 1.0 / np.sqrt(interpolated_power[injected_bins])
         omega = 2 * np.pi * bin_frequencies
         interpolated_neff = np.einsum("kn,k->n", weights, self.anchor_complex_neff, optimize=True)
         beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
@@ -2188,7 +2215,9 @@ class EigenmodeReceiver(EigenmodeSource):
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
             anchor_mode_valid=self.port_anchor_mode_valid,
+            anchor_mode_reference_valid=self.port_anchor_mode_reference_valid,
             anchor_mode_propagating=self.port_anchor_mode_propagating,
+            anchor_balanced_power=self.port_anchor_balanced_power,
             mode_anchor_policies=self.port_mode_anchor_policies,
         )
         monitor.prepare(G)
