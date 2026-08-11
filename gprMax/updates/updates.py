@@ -112,6 +112,11 @@ class Updates(Generic[GridType], ABC):
 
         pass
 
+    def update_network_terminals(self, iteration: int) -> None:
+        """Apply sparse rational-network corrections to electric edges."""
+
+        pass
+
     @abstractmethod
     def update_electric_b(self) -> None:
         """If there are any dispersive materials do 2nd part of dispersive

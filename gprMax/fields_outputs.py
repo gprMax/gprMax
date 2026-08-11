@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -113,13 +113,16 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     basegrp.attrs["nx_ny_nz"] = (grid.nx, grid.ny, grid.nz)
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
+    excited_network_terminals = [
+        terminal for terminal in getattr(grid, "networkterminals", ()) if terminal.excited
+    ]
     nsrc = len(
         grid.voltagesources
         + grid.hertziandipoles
         + grid.magneticdipoles
         + grid.transmissionlines
         + grid.magneticfrillsources
-    )
+    ) + len(excited_network_terminals)
     basegrp.attrs["nsrc"] = nsrc
     public_rxs = [rx for rx in grid.rxs if not getattr(rx, "internal", False)]
     basegrp.attrs["nrx"] = len(public_rxs)
@@ -139,7 +142,12 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         basegrp.attrs["interpolation"] = grid.interpolation
 
     # Create group for sources (except transmission lines); add type and positional data attributes
-    srclist = grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles
+    srclist = (
+        grid.voltagesources
+        + grid.hertziandipoles
+        + grid.magneticdipoles
+        + excited_network_terminals
+    )
     for srcindex, src in enumerate(srclist):
         grp = basegrp.create_group(f"srcs/src{str(srcindex + 1)}")
         grp.attrs["Type"] = type(src).__name__
@@ -151,9 +159,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     # line discretisation attributes; write arrays for line voltages and currents
     for tlindex, tl in enumerate(grid.transmissionlines):
         grp = basegrp.create_group("tls/tl" + str(tlindex + 1))
-        grp.attrs["Position"] = _global_position(
-            grid, tl.xcoord, tl.ycoord, tl.zcoord, is_subgrid
-        )
+        grp.attrs["Position"] = _global_position(grid, tl.xcoord, tl.ycoord, tl.zcoord, is_subgrid)
         grp.attrs["Resistance"] = tl.resistance
         grp.attrs["dl"] = tl.dl
         # Save incident voltage and current
@@ -211,9 +217,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
         if rx.ID:
             grp.attrs["Name"] = rx.ID
-        grp.attrs["Position"] = _global_position(
-            grid, rx.xcoord, rx.ycoord, rx.zcoord, is_subgrid
-        )
+        grp.attrs["Position"] = _global_position(grid, rx.xcoord, rx.ycoord, rx.zcoord, is_subgrid)
 
         for output in rx.outputs:
             basegrp["rxs/rx" + str(rxindex + 1) + "/" + output] = rx.outputs[output]
@@ -222,9 +226,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     # may write themselves when they are not owned by a grouped writer.
     for monitor in getattr(grid, "ntff_monitors", ()):
         write_ntff = getattr(monitor, "write_hdf5", None)
-        if write_ntff is not None and not getattr(
-            monitor, "managed_output", False
-        ):
+        if write_ntff is not None and not getattr(monitor, "managed_output", False):
             write_ntff(basegrp)
     for writer in getattr(grid, "ntff_output_writers", ()):
         writer.write_hdf5(basegrp)

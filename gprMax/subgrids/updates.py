@@ -99,6 +99,13 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
     def update_magnetic_sources(self):
         return super().update_magnetic_sources(self.iteration)
 
+    def update_network_terminals(self):
+        """Update sparse terminals at the fine-grid electric time step."""
+
+        # update_electric_sources() has just advanced the shared fine-grid
+        # iteration counter, so the terminal history index is one behind it.
+        return super().update_network_terminals(self.iteration - 1)
+
     def hsg_1(self):
         """First half of the subgrid update. Takes the time step up to the main
         grid magnetic update.
@@ -121,6 +128,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             subgrid.update_electric_is(precursors)
             self.update_electric_sources()
             self.update_electric_b()
+            self.update_network_terminals()
             self.update_magnetic()
             self.update_magnetic_pml()
             precursors.interpolate_electric_in_time(m)
@@ -134,6 +142,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         subgrid.update_electric_is(precursors)
         self.update_electric_sources()
         self.update_electric_b()
+        self.update_network_terminals()
         subgrid.update_electric_os(G)
 
     def hsg_2(self):
@@ -163,6 +172,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             subgrid.update_electric_is(precursors)
             self.update_electric_sources()
             self.update_electric_b()
+            self.update_network_terminals()
 
         self.update_magnetic()
         self.update_magnetic_pml()

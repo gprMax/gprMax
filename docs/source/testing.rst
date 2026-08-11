@@ -124,8 +124,9 @@ Analytical validation
 =====================
 
 The higher-resolution drivers in ``testing/validation`` compare normal-incidence
-plane-wave reflection, Hertzian-dipole fields and antenna metrics, and PEC or
-dielectric sphere RCS with independent Fresnel, dipole, and Mie solutions.
+plane-wave reflection, Hertzian-dipole fields and antenna metrics, rational
+lumped-network reflection, and PEC or dielectric sphere RCS with independent
+Fresnel, dipole, circuit/TEM-guide, and Mie solutions.
 The dispersive studies compare exact pole-residue interface averaging with
 the non-averaged staircased representation for planar layers, homogeneous
 spheres, and a Debye-core/Lorentz-shell sphere.
@@ -135,6 +136,7 @@ human-readable report. Run, for example:
 .. code-block:: console
 
     $ python -m testing.validation.validate_hertzian_dipole --gpu 0
+    $ python -m testing.validation.validate_rational_network_literature
     $ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     $ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     $ python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd

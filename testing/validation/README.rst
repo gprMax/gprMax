@@ -16,6 +16,9 @@ The main validations are:
 * ``validate_fdfd_eigenmodes.py`` -- effective index of 1D PEC
   parallel-plate and dielectric slab modes, plus 2D rectangular and cylindrical
   PEC waveguide modes, against analytical dispersion;
+* ``validate_rational_network_literature.py`` -- elementary R, C, and L
+  terminal sheets and the series-RC/series-RLC loaded-guide examples of
+  Pereda et al. against their exact TEM reflection coefficients;
 * ``validate_dielectric_sphere_rcs.py`` -- broadband dielectric-sphere
   monostatic RCS against the homogeneous-sphere Mie series;
 * ``validate_debye_sphere_averaging.py`` -- three two-pole dispersive-soil
@@ -43,6 +46,7 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     python -m testing.validation.validate_hertzian_dipole --gpu 0
     python -m testing.validation.validate_fdfd_eigenmodes
+    python -m testing.validation.validate_rational_network_literature
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0

@@ -406,8 +406,7 @@ def _resolve_surface_closure(spec: NTFFSurfaceSpec, grid, real_dtype):
     if spec.omit_faces:
         if touches_symmetry:
             raise ValueError(
-                f"open Huygens surface {spec.surface_id!r} cannot also use "
-                "symmetry completion"
+                f"open Huygens surface {spec.surface_id!r} cannot also use " "symmetry completion"
             )
         policy = HuygensOpenSurface(spec.omit_faces)
     else:
@@ -687,6 +686,30 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                             f"{source.__class__.__name__} {source_id!r} on {grid_name} at "
                             f"({position[0]:g}, {position[1]:g}, {position[2]:g}) m"
                         )
+
+            for source in getattr(source_grid, "networkterminals", ()):
+                if not source.excited:
+                    continue
+                component = f"E{source.polarisation}"
+                local_position = np.asarray(source.coord, dtype=np.float64) + np.asarray(
+                    COMPONENT_OFFSETS[component], dtype=np.float64
+                )
+                if source_grid is model.G:
+                    position = local_position * np.asarray(source_grid.dl, dtype=np.float64)
+                else:
+                    position = np.asarray(
+                        source_grid.local_to_global(local_position), dtype=np.float64
+                    )
+                enclosed = np.all((position > lower) & (position < upper))
+                admitted = any(
+                    _box_enters_through_open_face(position, position, lower, upper, open_face)
+                    for open_face in open_faces
+                )
+                if not enclosed and not admitted:
+                    offenders.append(
+                        f"RationalNetworkTerminal {source.ID!r} on {grid_name} at "
+                        f"({position[0]:g}, {position[1]:g}, {position[2]:g}) m"
+                    )
 
             spacing = np.asarray(source_grid.dl, dtype=np.float64)
             for index, plane_wave in enumerate(getattr(source_grid, "discreteplanewaves", ())):
@@ -1575,9 +1598,7 @@ class NTFFCompiledOutputs:
                         port_group["incident"] = spectrum.incident_modal_amplitudes
                         port_group["outgoing"] = spectrum.outgoing_modal_amplitudes
                         port_group["power_matrix"] = spectrum.mode_power_matrix
-                        port_group["electric_cross_power_matrix"] = (
-                            spectrum.mode_cross_power_matrix
-                        )
+                        port_group["electric_cross_power_matrix"] = spectrum.mode_cross_power_matrix
                         port_group["valid"] = spectrum.modal_valid.astype(np.uint8)
             self._write_fields(group, result)
 
@@ -1798,12 +1819,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             )
         monitored_voltage_sources = set()
         voltage_sources = []
+        network_terminals = []
         nonport_sources = []
         for source_grid in (model.G, *model.subgrids):
             monitored_voltage_sources.update(
                 monitor.source for monitor in getattr(source_grid, "port_monitors", ())
             )
             voltage_sources.extend(getattr(source_grid, "voltagesources", ()))
+            network_terminals.extend(getattr(source_grid, "networkterminals", ()))
             nonport_sources.extend(getattr(source_grid, "hertziandipoles", ()))
             nonport_sources.extend(getattr(source_grid, "magneticdipoles", ()))
             nonport_sources.extend(getattr(source_grid, "discreteplanewaves", ()))
@@ -1818,8 +1841,25 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"found {len(unmonitored_voltage_sources)} unmonitored source(s)"
             )
 
+        unmonitored_network_sources = [
+            source
+            for source in network_terminals
+            if source.excited and source not in monitored_voltage_sources
+        ]
+        if unmonitored_network_sources:
+            raise ValueError(
+                "antenna gain requires a #network_port for every excited "
+                "#network_terminal; found "
+                f"{len(unmonitored_network_sources)} unmonitored source(s)"
+            )
+
         def source_is_active(source):
-            for name in ("waveformvalues_wholedt", "waveformvalues_halfdt"):
+            for name in (
+                "waveformvalues_wholedt",
+                "waveformvalues_halfdt",
+                "waveform_whole",
+                "waveform_half",
+            ):
                 values = getattr(source, name, None)
                 if values is not None and np.any(np.asarray(values) != 0):
                     return True
@@ -1873,8 +1913,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         closure = compiled_surfaces[transform.surface_id].closure
         if closure.image_count != 1:
             raise ValueError(
-                "equivalent-current NTFF does not yet support symmetry-completed "
-                "surfaces"
+                "equivalent-current NTFF does not yet support symmetry-completed " "surfaces"
             )
     for request in time_far_requests:
         closure = compiled_surfaces[request.surface_id].closure

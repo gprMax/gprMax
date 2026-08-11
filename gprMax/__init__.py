@@ -37,7 +37,6 @@ from .user_objects.cmds_geometry.thin_wire import ThinWire
 from .user_objects.cmds_geometry.triangle import Triangle
 from .user_objects.cmds_multiuse import (
     PMLCFS,
-    PMLSlab,
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
@@ -47,7 +46,6 @@ from .user_objects.cmds_multiuse import (
     EigenmodeBand,
     EigenmodeExcitation,
     EigenmodePort,
-    VirtualWaveguide,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
@@ -55,11 +53,16 @@ from .user_objects.cmds_multiuse import (
     Material,
     MaterialList,
     MaterialRange,
+    NetworkExcitation,
+    NetworkTerminal,
+    PMLSlab,
+    RationalNetwork,
     Rx,
     RxArray,
     SoilPeplinski,
     SymmetryBoundary,
     TransmissionLine,
+    VirtualWaveguide,
     VoltageSource,
     Waveform,
 )
@@ -76,6 +79,7 @@ from .user_objects.cmds_output import (
     KSIRTimeRx,
     KSIRTimeRxArray,
     KSIRTimeRxSpherical,
+    NetworkPort,
     NTFFAntennaPorts,
     NTFFFarField,
     NTFFFarFieldArray,
@@ -87,8 +91,8 @@ from .user_objects.cmds_output import (
     Snapshot,
 )
 from .user_objects.cmds_singleuse import (
-    DispersiveAveraging,
     Discretisation,
+    DispersiveAveraging,
     Domain,
     DomainMode,
     MagneticAveraging,

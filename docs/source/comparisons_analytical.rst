@@ -96,6 +96,55 @@ dispersion.
 
     Complex Fresnel comparison for the fresh-water and clay models.
 
+.. _rational-network-validation:
+
+Rational lumped networks in a parallel-plate guide
+===================================================
+
+The :download:`rational-network validation driver
+<../../testing/validation/validate_rational_network_literature.py>` uses the
+finite-width parallel-plate guide introduced by Pereda et al. [PER1999]_. Its
+width is :math:`a=15` mm, its plate separation is :math:`b=2` mm, and the
+1 mm Yee mesh gives 15 effective parallel paths, each containing two series
+electric edges. For a one-edge network impedance :math:`Z(\omega)`, the exact
+TEM quantities are therefore
+
+.. math::
+
+    Z_\mathrm{guide}=\eta_0\frac{b}{a},\qquad
+    Z_\mathrm{sheet}=\frac{2Z}{15},\qquad
+    \Gamma=-\frac{Z_\mathrm{guide}}
+                   {2Z_\mathrm{sheet}+Z_\mathrm{guide}}.
+
+The FDTD result is obtained from an empty-guide incident run and a loaded-guide
+run. The first reflected pulse is isolated, transformed using the engineering
+Fourier convention, and de-embedded to the sheet with the axial Yee numerical
+wavenumber. Separate resistor, capacitor, and inductor sheets exercise the
+direct :math:`G`, direct :math:`sC`, and zero-pole terms. The two literature
+cases exercise a real pole for a series RC network and a conjugate pole pair
+for a series RLC network.
+
+.. figure:: ../../images_shared/rational_network_pereda_1999_reflection.png
+    :width: 850 px
+
+    Production gprMax FDTD reflection (symbols) compared with the exact
+    continuous-time network result (lines) for the two examples of
+    [PER1999]_.
+
+From 1--30 GHz, the series-RC comparison has magnitude and phase RMS errors of
+0.0027 and 0.15 degrees; the series-RLC errors are 0.0057 and 0.37 degrees.
+The RC capacitance printed in [PER1999]_ is 0.02 pF, but both magnitude and
+phase curves published in that paper correspond to 0.2 pF; the latter value
+is used for the reproduced curve above.
+
+The arbitrary one-port coupling follows the lumped-network FDTD formulations
+of [PER1999]_ and [CHE2007]_. gprMax does not retain their classic PLRC time
+placement unchanged. Each partial-fraction term is advanced using the
+exponential recursive-convolution approach of Giannakis and Giannopoulos
+[GIA2014]_, evaluated directly at :math:`n+1/2` for a linearly varying
+terminal voltage. This avoids estimating the half-step network current by
+averaging adjacent integer-time pole currents.
+
 Hertzian-dipole pattern, directivity, and near field
 ====================================================
 
@@ -326,6 +375,7 @@ Run the studies from the repository root, for example:
     python -m testing.validation.validate_plane_wave_dispersive_halfspace --gpu 0
     python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     python -m testing.validation.validate_hertzian_dipole --gpu 0
+    python -m testing.validation.validate_rational_network_literature
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0

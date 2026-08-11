@@ -214,13 +214,17 @@ def evaluate_port_power_spectrum(
         if incident_modal.shape != outgoing_modal.shape:
             raise ValueError(f"eigenmode port {output.output_id!r} has inconsistent modal arrays")
         if incident_modal.shape != (len(output.mode_indices), frequency.size):
-            raise ValueError(f"eigenmode port {output.output_id!r} has inconsistent modal dimensions")
+            raise ValueError(
+                f"eigenmode port {output.output_id!r} has inconsistent modal dimensions"
+            )
         if power_matrix.shape != (
             frequency.size,
             len(output.mode_indices),
             len(output.mode_indices),
         ):
-            raise ValueError(f"eigenmode port {output.output_id!r} has an inconsistent power matrix")
+            raise ValueError(
+                f"eigenmode port {output.output_id!r} has an inconsistent power matrix"
+            )
         if cross_power_matrix.shape != power_matrix.shape:
             raise ValueError(
                 f"eigenmode port {output.output_id!r} has an inconsistent cross-power matrix"
@@ -358,6 +362,50 @@ def evaluate_port_power_spectrum(
             terminal_valid,
         )
 
+    if isinstance(output, RationalNetworkPortOutput):
+        result = output.result
+        terminal_voltage = engineering_dft(
+            result.total_voltage,
+            frequency,
+            grid.dt,
+            time_offset=0.5 * grid.dt,
+        )
+        network_current = engineering_dft(
+            result.network_current,
+            frequency,
+            grid.dt,
+            time_offset=0.5 * grid.dt,
+        )
+        omega_discrete = (2 / grid.dt) * np.tan(np.pi * frequency * grid.dt)
+        gap_admittance = np.asarray(
+            output.background_conductance + 1j * omega_discrete * output.gap_capacitance,
+            dtype=complex_dtype,
+        )
+        terminal_current = np.asarray(
+            -network_current - gap_admittance * terminal_voltage,
+            dtype=complex_dtype,
+        )
+        incident_voltage = np.asarray(
+            0.5 * (terminal_voltage + output.reference_impedance * terminal_current),
+            dtype=complex_dtype,
+        )
+        nyquist = np.isclose(
+            frequency,
+            1 / (2 * grid.dt),
+            rtol=64 * np.finfo(real_dtype).eps,
+            atol=0,
+        )
+        terminal_valid = ~(nyquist & (output.gap_capacitance != 0))
+        return _power_spectrum_result(
+            output,
+            grid,
+            frequency,
+            incident_voltage,
+            terminal_voltage,
+            terminal_current,
+            terminal_valid,
+        )
+
     if isinstance(output, TransmissionLinePortOutput):
         source = output.source
         incident_voltage = engineering_dft(source.Vinc, frequency, grid.dt)
@@ -458,8 +506,13 @@ def model_port_ids(model: "Model") -> tuple[str, ...]:
     references = []
     for grid in (model.G, *model.subgrids):
         local_ids = [monitor.output_id for monitor in getattr(grid, "port_monitors", ())]
-        local_ids.extend(f"tl{index}" for index, _ in enumerate(getattr(grid, "transmissionlines", ()), start=1))
-        local_ids.extend(f"frill{index}" for index, _ in enumerate(getattr(grid, "magneticfrillsources", ()), start=1))
+        local_ids.extend(
+            f"tl{index}" for index, _ in enumerate(getattr(grid, "transmissionlines", ()), start=1)
+        )
+        local_ids.extend(
+            f"frill{index}"
+            for index, _ in enumerate(getattr(grid, "magneticfrillsources", ()), start=1)
+        )
         local_ids.extend(monitor.output_id for monitor in getattr(grid, "eigenmodeports", ()))
         if len(set(local_ids)) != len(local_ids):
             location = "main grid" if grid is model.G else f"subgrid {grid.name!r}"
@@ -503,7 +556,8 @@ def validate_spectrum_limit(value) -> SpectrumLimit:
         raise ValueError("spectrum_limit must be a finite number or 'nyquist'")
     if value < MINIMUM_PHYSICAL_WAVELENGTH_CELLS:
         raise ValueError(
-            "numeric spectrum_limit must be at least " f"{MINIMUM_PHYSICAL_WAVELENGTH_CELLS:g} cells per wavelength"
+            "numeric spectrum_limit must be at least "
+            f"{MINIMUM_PHYSICAL_WAVELENGTH_CELLS:g} cells per wavelength"
         )
     return value
 
@@ -545,10 +599,14 @@ def _complex_relative_permittivity(material, frequencies):
     if not np.any(positive):
         return values
     if hasattr(material, "poles"):
-        values[positive] = np.asarray(material.calculate_er(frequencies[positive]), dtype=np.complex128)
+        values[positive] = np.asarray(
+            material.calculate_er(frequencies[positive]), dtype=np.complex128
+        )
     else:
         omega = 2 * np.pi * frequencies[positive]
-        values[positive] = material.er + material.se / (1j * omega * config.sim_config.em_consts["e0"])
+        values[positive] = material.er + material.se / (
+            1j * omega * config.sim_config.em_consts["e0"]
+        )
     return values
 
 
@@ -561,7 +619,9 @@ def _complex_relative_permeability(material, frequencies):
     positive = ~zero
     if np.any(positive):
         omega = 2 * np.pi * frequencies[positive]
-        values[positive] = material.mr + material.sm / (1j * omega * config.sim_config.em_consts["m0"])
+        values[positive] = material.mr + material.sm / (
+            1j * omega * config.sim_config.em_consts["m0"]
+        )
     return values
 
 
@@ -705,6 +765,329 @@ class VoltageSourcePortResult:
     tail_relative_db: float
 
 
+@dataclass(frozen=True)
+class RationalNetworkPortResult:
+    """Final time- and frequency-domain result for a rational network terminal."""
+
+    time: npt.NDArray[np.floating]
+    generator_voltage: npt.NDArray[np.floating]
+    total_voltage: npt.NDArray[np.floating]
+    network_current: npt.NDArray[np.floating]
+    frequency: npt.NDArray[np.floating]
+    generator_spectrum: npt.NDArray[np.complexfloating]
+    total_voltage_spectrum: npt.NDArray[np.complexfloating]
+    network_current_spectrum: npt.NDArray[np.complexfloating]
+    terminal_current_spectrum: npt.NDArray[np.complexfloating]
+    incident_voltage_spectrum: npt.NDArray[np.complexfloating]
+    reflected_voltage_spectrum: npt.NDArray[np.complexfloating]
+    s11: npt.NDArray[np.complexfloating]
+    zin: npt.NDArray[np.complexfloating]
+    yin: npt.NDArray[np.complexfloating]
+    source_valid: npt.NDArray[np.bool_]
+    mesh_valid: npt.NDArray[np.bool_]
+    gap_correction_valid: npt.NDArray[np.bool_]
+    valid_s11: npt.NDArray[np.bool_]
+    valid_zin: npt.NDArray[np.bool_]
+    valid_yin: npt.NDArray[np.bool_]
+    incident_relative_db: npt.NDArray[np.floating]
+    cells_per_minimum_wavelength: npt.NDArray[np.floating]
+    tail_relative_db: float
+
+
+class RationalNetworkPortOutput:
+    """Post-process a sparse rational-network terminal as an antenna port."""
+
+    def __init__(
+        self,
+        output_id: str,
+        terminal,
+        reference_impedance: float,
+        spectrum_limit: SpectrumLimit = DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+        owner=None,
+    ):
+        self.output_id = output_id
+        self.source = terminal
+        self.terminal = terminal
+        self.reference_impedance = float(reference_impedance)
+        self.spectrum_limit = validate_spectrum_limit(spectrum_limit)
+        self.owner = owner
+        self.result: Optional[RationalNetworkPortResult] = None
+        self.prepared = False
+        self.minimum_wavelength_cells = (
+            DEFAULT_MINIMUM_WAVELENGTH_CELLS
+            if self.spectrum_limit == "nyquist"
+            else float(self.spectrum_limit)
+        )
+        self.spectrum_limit_mode = (
+            "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        )
+        self.incident_floor_db = DEFAULT_INCIDENT_FLOOR_DB
+
+    def prepare(self, grid: "FDTDGrid") -> None:
+        if not self.terminal.prepared:
+            self.terminal.prepare(grid)
+        if not np.isfinite(self.reference_impedance) or self.reference_impedance <= 0:
+            raise ValueError(
+                f"network port {self.output_id!r} requires a finite, positive reference impedance"
+            )
+        if grid.iterations < 2:
+            raise ValueError(f"network port {self.output_id!r} requires at least two iterations")
+
+        self.dl = float(self.terminal.dl)
+        self.area = float(self.terminal.area)
+        self.background_relative_permittivity = float(
+            self.terminal.background_relative_permittivity
+        )
+        self.background_conductivity = float(self.terminal.background_conductivity)
+        self.gap_capacitance = (
+            config.sim_config.em_consts["e0"]
+            * self.background_relative_permittivity
+            * self.area
+            / self.dl
+        )
+        self.background_conductance = self.background_conductivity * self.area / self.dl
+
+        full_frequency = np.fft.rfftfreq(grid.iterations, d=grid.dt)
+        cells, limiting_material = minimum_wavelength_sampling(grid, full_frequency)
+        mesh_valid_full = cells >= self.minimum_wavelength_cells
+        positive_invalid = np.flatnonzero((full_frequency > 0) & ~mesh_valid_full)
+        if positive_invalid.size:
+            first_invalid = int(positive_invalid[0])
+            last_mesh_index = max(0, first_invalid - 1)
+            limiting_index = first_invalid
+        else:
+            last_mesh_index = full_frequency.size - 1
+            limiting_index = last_mesh_index
+        self._frequency_slice = (
+            slice(None) if self.spectrum_limit_mode == "nyquist" else slice(0, last_mesh_index + 1)
+        )
+        self._full_cells_per_wavelength = cells
+        self._full_mesh_valid = mesh_valid_full
+        self.nyquist_frequency = float(1 / (2 * grid.dt))
+        self.mesh_frequency_limit = float(full_frequency[last_mesh_index])
+        self.limiting_material = str(limiting_material[limiting_index])
+        self.independent_frequency_resolution = float(1 / (grid.iterations * grid.dt))
+        self.dt = float(grid.dt)
+        if hasattr(grid, "local_to_global"):
+            self.source_position = np.asarray(
+                grid.local_to_global(self.terminal.coord), dtype=np.float64
+            )
+        else:
+            self.source_position = np.asarray(
+                self.terminal.coord * np.asarray((grid.dx, grid.dy, grid.dz)),
+                dtype=np.float64,
+            )
+        self.prepared = True
+
+    def finalise(self, grid: "FDTDGrid") -> RationalNetworkPortResult:
+        if not self.prepared:
+            self.prepare(grid)
+        real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+        complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+        total_voltage = np.asarray(
+            0.5 * (self.terminal.voltage[:-1] + self.terminal.voltage[1:]),
+            dtype=real_dtype,
+        )
+        generator_voltage = np.asarray(self.terminal.generator_voltage, dtype=real_dtype)
+        network_current = np.asarray(self.terminal.network_current, dtype=real_dtype)
+        time = np.asarray(
+            (np.arange(grid.iterations, dtype=real_dtype) + real_dtype.type(0.5)) * grid.dt,
+            dtype=real_dtype,
+        )
+
+        frequency_full, total_voltage_full = engineering_rfft(
+            total_voltage, grid.dt, time_offset=0.5 * grid.dt
+        )
+        _, generator_full = engineering_rfft(generator_voltage, grid.dt, time_offset=0.5 * grid.dt)
+        _, network_current_full = engineering_rfft(
+            network_current, grid.dt, time_offset=0.5 * grid.dt
+        )
+        selection = self._frequency_slice
+        frequency = frequency_full[selection]
+        total_spectrum = total_voltage_full[selection]
+        generator_spectrum = generator_full[selection]
+        network_current_spectrum = network_current_full[selection]
+
+        omega_discrete = (2 / grid.dt) * np.tan(np.pi * frequency * grid.dt)
+        gap_admittance = np.asarray(
+            self.background_conductance + 1j * omega_discrete * self.gap_capacitance,
+            dtype=complex_dtype,
+        )
+        # Inetwork is positive from the FDTD gap into the external network.
+        # Iterminal enters the electromagnetic structure and has the numerical
+        # Yee-gap admittance removed.
+        terminal_current = np.asarray(
+            -network_current_spectrum - gap_admittance * total_spectrum,
+            dtype=complex_dtype,
+        )
+        incident_voltage = np.asarray(
+            0.5 * (total_spectrum + self.reference_impedance * terminal_current),
+            dtype=complex_dtype,
+        )
+        reflected_voltage = np.asarray(
+            0.5 * (total_spectrum - self.reference_impedance * terminal_current),
+            dtype=complex_dtype,
+        )
+        s11, s11_defined = _safe_complex_divide(reflected_voltage, incident_voltage, complex_dtype)
+        zin, zin_defined = _safe_complex_divide(total_spectrum, terminal_current, complex_dtype)
+        yin, yin_defined = _safe_complex_divide(terminal_current, total_spectrum, complex_dtype)
+
+        incident_magnitude = np.abs(incident_voltage)
+        incident_peak = float(np.max(incident_magnitude, initial=0.0))
+        incident_relative_db = np.full(frequency.shape, -np.inf, dtype=real_dtype)
+        if incident_peak > 0:
+            nonzero = incident_magnitude > 0
+            incident_relative_db[nonzero] = np.asarray(
+                20 * np.log10(incident_magnitude[nonzero] / incident_peak),
+                dtype=real_dtype,
+            )
+        source_valid = (
+            np.asarray(incident_relative_db >= self.incident_floor_db, dtype=bool)
+            if self.terminal.excited
+            else np.zeros(frequency.shape, dtype=bool)
+        )
+        mesh_valid = np.asarray(self._full_mesh_valid[selection], dtype=bool)
+        cells_per_wavelength = np.asarray(
+            self._full_cells_per_wavelength[selection], dtype=real_dtype
+        )
+        nyquist = np.isclose(
+            frequency,
+            1 / (2 * grid.dt),
+            rtol=64 * np.finfo(real_dtype).eps,
+            atol=0,
+        )
+        gap_correction_valid = ~(nyquist & (self.gap_capacitance != 0))
+        valid_s11 = mesh_valid & gap_correction_valid & source_valid & s11_defined
+        valid_zin = mesh_valid & gap_correction_valid & zin_defined
+        valid_yin = mesh_valid & gap_correction_valid & yin_defined
+
+        trace_peak = float(np.max(np.abs(total_voltage), initial=0.0))
+        tail_count = max(1, total_voltage.size // 20)
+        tail_peak = float(np.max(np.abs(total_voltage[-tail_count:]), initial=0.0))
+        if trace_peak > 0 and tail_peak > 0:
+            tail_relative_db = float(20 * np.log10(tail_peak / trace_peak))
+        elif tail_peak == 0:
+            tail_relative_db = float("-inf")
+        else:
+            tail_relative_db = float("nan")
+        if np.isfinite(tail_relative_db) and tail_relative_db > -40:
+            logger.warning(
+                f"NetworkPort {self.output_id!r}: the final 5% of the voltage trace "
+                f"reaches {tail_relative_db:.1f} dB relative to its peak; spectral "
+                "leakage may be significant."
+            )
+
+        self.result = RationalNetworkPortResult(
+            time=time,
+            generator_voltage=generator_voltage,
+            total_voltage=total_voltage,
+            network_current=network_current,
+            frequency=np.asarray(frequency, dtype=real_dtype),
+            generator_spectrum=np.asarray(generator_spectrum, dtype=complex_dtype),
+            total_voltage_spectrum=np.asarray(total_spectrum, dtype=complex_dtype),
+            network_current_spectrum=np.asarray(network_current_spectrum, dtype=complex_dtype),
+            terminal_current_spectrum=terminal_current,
+            incident_voltage_spectrum=incident_voltage,
+            reflected_voltage_spectrum=reflected_voltage,
+            s11=s11,
+            zin=zin,
+            yin=yin,
+            source_valid=source_valid,
+            mesh_valid=mesh_valid,
+            gap_correction_valid=np.asarray(gap_correction_valid, dtype=bool),
+            valid_s11=np.asarray(valid_s11, dtype=bool),
+            valid_zin=np.asarray(valid_zin, dtype=bool),
+            valid_yin=np.asarray(valid_yin, dtype=bool),
+            incident_relative_db=incident_relative_db,
+            cells_per_minimum_wavelength=cells_per_wavelength,
+            tail_relative_db=tail_relative_db,
+        )
+        return self.result
+
+    def write_hdf5(self, base_group) -> None:
+        if self.result is None:
+            raise RuntimeError(f"network port {self.output_id!r} has not been finalised")
+        result = self.result
+        real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+        complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+        ports_group = base_group.require_group("ports")
+        group = ports_group.create_group(self.output_id)
+        group.attrs["Name"] = self.output_id
+        group.attrs["Position"] = np.asarray(self.source_position, dtype=real_dtype)
+        group.attrs["GridPosition"] = np.asarray(self.terminal.coord, dtype=np.int32)
+        group.attrs["SourceType"] = "RationalNetworkTerminal"
+        group.attrs["PortMode"] = "rational_network"
+        group.attrs["NetworkModelID"] = self.terminal.model.ID
+        group.attrs["Polarisation"] = self.terminal.polarisation
+        group.attrs["CellLength"] = self.dl
+        group.attrs["ReferenceImpedance"] = self.reference_impedance
+        group.attrs["WaveformID"] = self.terminal.waveformID or ""
+        group.attrs["Conductance"] = self.terminal.model.conductance
+        group.attrs["Capacitance"] = self.terminal.model.capacitance
+        group.attrs["BackgroundMaterial"] = self.terminal.background_material_ID
+        group.attrs["BackgroundRelativePermittivity"] = self.background_relative_permittivity
+        group.attrs["BackgroundConductivity"] = self.background_conductivity
+        group.attrs["GapCapacitance"] = self.gap_capacitance
+        group.attrs["BackgroundConductance"] = self.background_conductance
+        group.attrs["GapCorrection"] = "discrete_parallel_admittance"
+        group.attrs["TimeSampleOffset"] = 0.5 * self.dt
+        group.attrs["Window"] = "rectangular"
+        group.attrs["IncidentFloorDB"] = self.incident_floor_db
+        group.attrs["SpectrumLimitMode"] = self.spectrum_limit_mode
+        group.attrs["MinimumWavelengthCells"] = self.minimum_wavelength_cells
+        group.attrs["MeshFrequencyLimit"] = self.mesh_frequency_limit
+        group.attrs["NyquistFrequency"] = self.nyquist_frequency
+        group.attrs["LimitingMaterial"] = self.limiting_material
+        group.attrs["IndependentFrequencyResolution"] = self.independent_frequency_resolution
+        group.attrs["FrequencyRange"] = np.asarray(
+            (result.frequency[0], result.frequency[-1]), dtype=real_dtype
+        )
+        valid_indices = np.flatnonzero(result.valid_s11)
+        valid_range = (
+            (result.frequency[valid_indices[0]], result.frequency[valid_indices[-1]])
+            if valid_indices.size
+            else (np.nan, np.nan)
+        )
+        group.attrs["ValidFrequencyRange"] = np.asarray(valid_range, dtype=real_dtype)
+        group.attrs["TailRelativeLevelDB"] = result.tail_relative_db
+        group.attrs["phasor_time_sign"] = PHASOR_TIME_DEPENDENCE
+        group.attrs["forward_transform_sign"] = FORWARD_TRANSFORM_KERNEL
+        group.attrs["real_dtype"] = real_dtype.name
+        group.attrs["complex_dtype"] = complex_dtype.name
+        group.create_dataset(
+            "poles", data=np.asarray(self.terminal.model.poles, dtype=complex_dtype)
+        )
+        group.create_dataset(
+            "residues", data=np.asarray(self.terminal.model.residues, dtype=complex_dtype)
+        )
+        datasets = {
+            "time": result.time,
+            "Vgenerator": result.generator_voltage,
+            "Vtotal": result.total_voltage,
+            "Inetwork": result.network_current,
+            "frequency": result.frequency,
+            "Vgenerator_spectrum": result.generator_spectrum,
+            "Vtotal_spectrum": result.total_voltage_spectrum,
+            "Inetwork_spectrum": result.network_current_spectrum,
+            "Iterminal_spectrum": result.terminal_current_spectrum,
+            "Vincident_spectrum": result.incident_voltage_spectrum,
+            "Vreflected_spectrum": result.reflected_voltage_spectrum,
+            "S11": result.s11,
+            "Zin": result.zin,
+            "Yin": result.yin,
+            "valid_S11": result.valid_s11.astype(np.uint8),
+            "valid_Zin": result.valid_zin.astype(np.uint8),
+            "valid_Yin": result.valid_yin.astype(np.uint8),
+            "source_valid": result.source_valid.astype(np.uint8),
+            "mesh_valid": result.mesh_valid.astype(np.uint8),
+            "gap_correction_valid": result.gap_correction_valid.astype(np.uint8),
+            "incident_relative_dB": result.incident_relative_db,
+            "cells_per_minimum_wavelength": result.cells_per_minimum_wavelength,
+        }
+        for name, values in datasets.items():
+            group.create_dataset(name, data=values)
+
+
 class VoltageSourcePortMonitor:
     """Bind terminal field receivers to one voltage source.
 
@@ -731,9 +1114,13 @@ class VoltageSourcePortMonitor:
         self.prepared = False
 
         self.minimum_wavelength_cells = (
-            DEFAULT_MINIMUM_WAVELENGTH_CELLS if spectrum_limit == "nyquist" else float(spectrum_limit)
+            DEFAULT_MINIMUM_WAVELENGTH_CELLS
+            if spectrum_limit == "nyquist"
+            else float(spectrum_limit)
         )
-        self.spectrum_limit_mode = "nyquist" if spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        self.spectrum_limit_mode = (
+            "nyquist" if spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        )
         self.incident_floor_db = DEFAULT_INCIDENT_FLOOR_DB
 
     @property
@@ -779,19 +1166,25 @@ class VoltageSourcePortMonitor:
             raise ValueError(f"RxPort {self.output_id!r} source material was not constructed")
         if getattr(self.source, "background_is_dispersive", False):
             raise ValueError(
-                f"RxPort {self.output_id!r} does not yet support a dispersive material " "on the voltage-source edge"
+                f"RxPort {self.output_id!r} does not yet support a dispersive material "
+                "on the voltage-source edge"
             )
 
         self.dl, self.area = self._edge_geometry(grid)
         self.reference_impedance = float(self.source.reference_impedance)
         if not np.isfinite(self.reference_impedance) or self.reference_impedance <= 0:
-            raise ValueError(f"RxPort {self.output_id!r} requires a finite, positive " "reference impedance")
+            raise ValueError(
+                f"RxPort {self.output_id!r} requires a finite, positive " "reference impedance"
+            )
         self.background_relative_permittivity = float(self.source.background_er)
         self.background_conductivity = float(self.source.background_se)
         if not np.isfinite(self.background_conductivity):
             raise ValueError(f"RxPort {self.output_id!r} cannot use a voltage source on a PEC edge")
         self.gap_capacitance = (
-            config.sim_config.em_consts["e0"] * self.background_relative_permittivity * self.area / self.dl
+            config.sim_config.em_consts["e0"]
+            * self.background_relative_permittivity
+            * self.area
+            / self.dl
         )
         self.background_conductance = self.background_conductivity * self.area / self.dl
 
@@ -799,7 +1192,9 @@ class VoltageSourcePortMonitor:
         source_material = grid.materials[source_material_id]
         dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
         if not self.hard_source:
-            added_conductance = (float(source_material.se) - self.background_conductivity) * self.area / self.dl
+            added_conductance = (
+                (float(source_material.se) - self.background_conductivity) * self.area / self.dl
+            )
             tolerance = 64 * np.finfo(dtype).eps
             if not np.isclose(
                 added_conductance,
@@ -808,14 +1203,19 @@ class VoltageSourcePortMonitor:
                 atol=tolerance / self.reference_impedance,
             ):
                 raise ValueError(
-                    f"RxPort {self.output_id!r} source-edge conductance is inconsistent " "with its source resistance"
+                    f"RxPort {self.output_id!r} source-edge conductance is inconsistent "
+                    "with its source resistance"
                 )
             if not np.isfinite(grid.updatecoeffsE[source_material_id, 4]) or np.isclose(
                 grid.updatecoeffsE[source_material_id, 4], 0
             ):
-                raise ValueError(f"RxPort {self.output_id!r} source is on an inactive electric edge")
+                raise ValueError(
+                    f"RxPort {self.output_id!r} source is on an inactive electric edge"
+                )
         elif f"I{self.source.polarisation}" not in self.receiver.outputs:
-            raise ValueError(f"RxPort {self.output_id!r} hard source has no terminal-current samples")
+            raise ValueError(
+                f"RxPort {self.output_id!r} hard source has no terminal-current samples"
+            )
 
         nsamples = grid.iterations - 1
         self.aligned_samples = nsamples
@@ -879,14 +1279,20 @@ class VoltageSourcePortMonitor:
             raise RuntimeError(f"RxPort {self.output_id!r} receiver history has the wrong length")
 
         integer_voltage = np.asarray(-self.dl * electric, dtype=real_dtype)
-        total_voltage = np.asarray(0.5 * (integer_voltage[:-1] + integer_voltage[1:]), dtype=real_dtype)
-        generator_voltage = np.asarray(self.source.waveformvalues_halfdt[: total_voltage.size], dtype=real_dtype)
+        total_voltage = np.asarray(
+            0.5 * (integer_voltage[:-1] + integer_voltage[1:]), dtype=real_dtype
+        )
+        generator_voltage = np.asarray(
+            self.source.waveformvalues_halfdt[: total_voltage.size], dtype=real_dtype
+        )
         time = np.asarray(
             (np.arange(total_voltage.size, dtype=real_dtype) + real_dtype.type(0.5)) * grid.dt,
             dtype=real_dtype,
         )
 
-        frequency_full, total_spectrum_full = engineering_rfft(total_voltage, grid.dt, time_offset=0.5 * grid.dt)
+        frequency_full, total_spectrum_full = engineering_rfft(
+            total_voltage, grid.dt, time_offset=0.5 * grid.dt
+        )
         generator_frequency, generator_spectrum_full = engineering_rfft(
             generator_voltage, grid.dt, time_offset=0.5 * grid.dt
         )
@@ -899,7 +1305,9 @@ class VoltageSourcePortMonitor:
         generator_spectrum = generator_spectrum_full[selection]
         incident_spectrum = np.asarray(0.5 * generator_spectrum, dtype=complex_dtype)
         reflected_source = np.asarray(total_spectrum - incident_spectrum, dtype=complex_dtype)
-        s11_source, source_defined = _safe_complex_divide(reflected_source, incident_spectrum, complex_dtype)
+        s11_source, source_defined = _safe_complex_divide(
+            reflected_source, incident_spectrum, complex_dtype
+        )
 
         incident_magnitude = np.abs(incident_spectrum)
         incident_peak = float(np.max(incident_magnitude, initial=0.0))
@@ -913,11 +1321,16 @@ class VoltageSourcePortMonitor:
 
         omega_discrete = (2 / grid.dt) * np.tan(np.pi * frequency * grid.dt)
         gap_correction = np.asarray(
-            self.reference_impedance * (self.background_conductance + 1j * omega_discrete * self.gap_capacitance),
+            self.reference_impedance
+            * (self.background_conductance + 1j * omega_discrete * self.gap_capacitance),
             dtype=complex_dtype,
         )
-        s11, gap_correction_valid = correct_s11_for_parallel_gap(s11_source, gap_correction, complex_dtype)
-        exact_nyquist_included = self.aligned_samples % 2 == 0 and frequency.size == frequency_full.size
+        s11, gap_correction_valid = correct_s11_for_parallel_gap(
+            s11_source, gap_correction, complex_dtype
+        )
+        exact_nyquist_included = (
+            self.aligned_samples % 2 == 0 and frequency.size == frequency_full.size
+        )
         if self.gap_capacitance != 0 and exact_nyquist_included:
             gap_correction_valid[-1] = False
             s11[-1] = np.nan + 1j * np.nan
@@ -927,7 +1340,9 @@ class VoltageSourcePortMonitor:
         yin, yin_defined = admittance_from_s11(s11, self.reference_impedance, complex_dtype)
 
         mesh_valid = np.asarray(self._full_mesh_valid[selection], dtype=bool)
-        cells_per_wavelength = np.asarray(self._full_cells_per_wavelength[selection], dtype=real_dtype)
+        cells_per_wavelength = np.asarray(
+            self._full_cells_per_wavelength[selection], dtype=real_dtype
+        )
         valid_s11 = mesh_valid & source_valid & gap_correction_valid
         valid_zin = valid_s11 & zin_defined
         valid_yin = valid_s11 & yin_defined
@@ -1039,7 +1454,9 @@ class VoltageSourcePortMonitor:
             grid.dt,
             complex_dtype,
         )
-        terminal_current = np.asarray(loop_spectrum - gap_admittance * total_spectrum, dtype=complex_dtype)
+        terminal_current = np.asarray(
+            loop_spectrum - gap_admittance * total_spectrum, dtype=complex_dtype
+        )
 
         incident_source = np.asarray(
             0.5 * (total_spectrum + self.reference_impedance * loop_spectrum),
@@ -1057,9 +1474,15 @@ class VoltageSourcePortMonitor:
             0.5 * (total_spectrum - self.reference_impedance * terminal_current),
             dtype=complex_dtype,
         )
-        s11_source, source_plane_defined = _safe_complex_divide(reflected_source, incident_source, complex_dtype)
-        s11, terminal_wave_defined = _safe_complex_divide(reflected_terminal, incident_spectrum, complex_dtype)
-        zin_source, zin_source_defined = _safe_complex_divide(total_spectrum, loop_spectrum, complex_dtype)
+        s11_source, source_plane_defined = _safe_complex_divide(
+            reflected_source, incident_source, complex_dtype
+        )
+        s11, terminal_wave_defined = _safe_complex_divide(
+            reflected_terminal, incident_spectrum, complex_dtype
+        )
+        zin_source, zin_source_defined = _safe_complex_divide(
+            total_spectrum, loop_spectrum, complex_dtype
+        )
         zin, zin_defined = _safe_complex_divide(total_spectrum, terminal_current, complex_dtype)
         yin, yin_defined = _safe_complex_divide(terminal_current, total_spectrum, complex_dtype)
 
@@ -1078,7 +1501,9 @@ class VoltageSourcePortMonitor:
         gap_correction_valid = np.ones(frequency.shape, dtype=bool)
 
         mesh_valid = np.asarray(self._full_mesh_valid[selection], dtype=bool)
-        cells_per_wavelength = np.asarray(self._full_cells_per_wavelength[selection], dtype=real_dtype)
+        cells_per_wavelength = np.asarray(
+            self._full_cells_per_wavelength[selection], dtype=real_dtype
+        )
         source_plane_valid = source_plane_defined & zin_source_defined
         valid_s11 = mesh_valid & source_valid & gap_correction_valid
         valid_zin = valid_s11 & zin_defined
@@ -1152,7 +1577,9 @@ class VoltageSourcePortMonitor:
         group.attrs["GapCapacitance"] = self.gap_capacitance
         group.attrs["BackgroundConductance"] = self.background_conductance
         group.attrs["GapCorrection"] = "discrete_parallel_admittance"
-        group.attrs["TimeSampleOffset"] = self.hard_voltage_time_offset if self.hard_source else 0.5 * self.dt
+        group.attrs["TimeSampleOffset"] = (
+            self.hard_voltage_time_offset if self.hard_source else 0.5 * self.dt
+        )
         if self.hard_source:
             group.attrs["CurrentTimeSampleOffset"] = self.hard_current_time_offset
             group.attrs["CurrentTimeAlignment"] = "explicit_fft_half_step_phase"
@@ -1164,7 +1591,9 @@ class VoltageSourcePortMonitor:
         group.attrs["MeshFrequencyLimit"] = self.mesh_frequency_limit
         group.attrs["LimitingMaterial"] = self.limiting_material
         group.attrs["IndependentFrequencyResolution"] = self.independent_frequency_resolution
-        group.attrs["FrequencyRange"] = np.asarray((result.frequency[0], result.frequency[-1]), dtype=real_dtype)
+        group.attrs["FrequencyRange"] = np.asarray(
+            (result.frequency[0], result.frequency[-1]), dtype=real_dtype
+        )
         valid_indices = np.flatnonzero(result.valid_s11)
         valid_range = (
             (result.frequency[valid_indices[0]], result.frequency[valid_indices[-1]])
@@ -1219,7 +1648,9 @@ class VoltageSourcePortMonitor:
 
         self.grid_dl = np.asarray((grid.dx, grid.dy, grid.dz), dtype=np.float64)
         if hasattr(grid, "local_to_global"):
-            self.source_position = np.asarray(grid.local_to_global(self.source.coord), dtype=np.float64)
+            self.source_position = np.asarray(
+                grid.local_to_global(self.source.coord), dtype=np.float64
+            )
         else:
             self.source_position = np.asarray(self.source.coord * self.grid_dl, dtype=np.float64)
         self.dt = float(grid.dt)
@@ -1280,9 +1711,13 @@ class TransmissionLinePortOutput:
         self.result: Optional[TransmissionLinePortResult] = None
         self.prepared = False
         self.minimum_wavelength_cells = (
-            DEFAULT_MINIMUM_WAVELENGTH_CELLS if self.spectrum_limit == "nyquist" else float(self.spectrum_limit)
+            DEFAULT_MINIMUM_WAVELENGTH_CELLS
+            if self.spectrum_limit == "nyquist"
+            else float(self.spectrum_limit)
         )
-        self.spectrum_limit_mode = "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        self.spectrum_limit_mode = (
+            "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        )
         self.incident_floor_db = DEFAULT_INCIDENT_FLOOR_DB
 
     @property
@@ -1293,7 +1728,9 @@ class TransmissionLinePortOutput:
         """Calculate the native frequency axis and mesh-valid output band."""
 
         if grid.iterations < 2:
-            raise ValueError(f"Transmission line {self.output_id!r} requires at least two iterations")
+            raise ValueError(
+                f"Transmission line {self.output_id!r} requires at least two iterations"
+            )
         if not np.isfinite(self.source.resistance) or self.source.resistance <= 0:
             raise ValueError(f"Transmission line {self.output_id!r} has an invalid resistance")
         if not np.isfinite(self.source.dl) or self.source.dl <= 0:
@@ -1371,18 +1808,26 @@ class TransmissionLinePortOutput:
         for name in ("Vinc", "Iinc", "Vtotal", "Itotal"):
             values = np.asarray(getattr(self.source, name), dtype=real_dtype)
             if values.ndim != 1 or values.size < self.nsamples:
-                raise RuntimeError(f"Transmission line {self.output_id!r} {name} history has " "the wrong length")
+                raise RuntimeError(
+                    f"Transmission line {self.output_id!r} {name} history has " "the wrong length"
+                )
             values = values[: self.nsamples]
             if not np.all(np.isfinite(values)):
-                raise RuntimeError(f"Transmission line {self.output_id!r} {name} history is not finite")
+                raise RuntimeError(
+                    f"Transmission line {self.output_id!r} {name} history is not finite"
+                )
             histories[name] = values
 
         frequency_full, incident_voltage_full = engineering_rfft(histories["Vinc"], grid.dt)
         _, total_voltage_full = engineering_rfft(histories["Vtotal"], grid.dt)
         # Index n stores I at (n - 1/2) dt. Applying the physical sample-time
         # offset here preserves all N samples and the voltage FFT grid.
-        _, incident_current_full = engineering_rfft(histories["Iinc"], grid.dt, time_offset=-0.5 * grid.dt)
-        _, total_current_full = engineering_rfft(histories["Itotal"], grid.dt, time_offset=-0.5 * grid.dt)
+        _, incident_current_full = engineering_rfft(
+            histories["Iinc"], grid.dt, time_offset=-0.5 * grid.dt
+        )
+        _, total_current_full = engineering_rfft(
+            histories["Itotal"], grid.dt, time_offset=-0.5 * grid.dt
+        )
 
         selection = self._frequency_slice
         frequency = frequency_full[selection]
@@ -1391,7 +1836,9 @@ class TransmissionLinePortOutput:
         incident_current = incident_current_full[selection]
         total_current = total_current_full[selection]
         reflected_voltage = np.asarray(total_voltage - incident_voltage, dtype=complex_dtype)
-        s11, source_defined = _safe_complex_divide(reflected_voltage, incident_voltage, complex_dtype)
+        s11, source_defined = _safe_complex_divide(
+            reflected_voltage, incident_voltage, complex_dtype
+        )
 
         incident_magnitude = np.abs(incident_voltage)
         incident_peak = float(np.max(incident_magnitude, initial=0.0))
@@ -1417,21 +1864,28 @@ class TransmissionLinePortOutput:
         reflected_from_current = np.full(frequency.shape, np.nan + 1j * np.nan, dtype=complex_dtype)
         inverse_half_cell_phase = np.conj(half_cell_phase)
         reflected_from_current[line_propagation_valid] = (
-            incident_voltage[line_propagation_valid] * inverse_half_cell_phase[line_propagation_valid]
+            incident_voltage[line_propagation_valid]
+            * inverse_half_cell_phase[line_propagation_valid]
             - self.reference_impedance * total_current[line_propagation_valid]
         ) * inverse_half_cell_phase[line_propagation_valid]
-        s11_current, s11_current_defined = _safe_complex_divide(reflected_from_current, incident_voltage, complex_dtype)
+        s11_current, s11_current_defined = _safe_complex_divide(
+            reflected_from_current, incident_voltage, complex_dtype
+        )
         terminal_current = np.asarray(
             (incident_voltage - reflected_from_current) / self.reference_impedance,
             dtype=complex_dtype,
         )
-        terminal_voltage_current = np.asarray(incident_voltage + reflected_from_current, dtype=complex_dtype)
+        terminal_voltage_current = np.asarray(
+            incident_voltage + reflected_from_current, dtype=complex_dtype
+        )
         zin_current, zin_current_defined = _safe_complex_divide(
             terminal_voltage_current, terminal_current, complex_dtype
         )
 
         mesh_valid = np.asarray(self._full_mesh_valid[selection], dtype=bool)
-        cells_per_wavelength = np.asarray(self._full_cells_per_wavelength[selection], dtype=real_dtype)
+        cells_per_wavelength = np.asarray(
+            self._full_cells_per_wavelength[selection], dtype=real_dtype
+        )
         valid_s11 = mesh_valid & source_valid
         valid_zin = valid_s11 & zin_defined
         valid_yin = valid_s11 & yin_defined
@@ -1516,7 +1970,9 @@ class TransmissionLinePortOutput:
         group.attrs["MeshFrequencyLimit"] = self.mesh_frequency_limit
         group.attrs["LimitingMaterial"] = self.limiting_material
         group.attrs["IndependentFrequencyResolution"] = self.independent_frequency_resolution
-        group.attrs["FrequencyRange"] = np.asarray((result.frequency[0], result.frequency[-1]), dtype=real_dtype)
+        group.attrs["FrequencyRange"] = np.asarray(
+            (result.frequency[0], result.frequency[-1]), dtype=real_dtype
+        )
         valid_indices = np.flatnonzero(result.valid_s11)
         valid_range = (
             (result.frequency[valid_indices[0]], result.frequency[valid_indices[-1]])
@@ -1652,9 +2108,13 @@ class MagneticFrillPortOutput:
         self.result: Optional[MagneticFrillPortResult] = None
         self.prepared = False
         self.minimum_wavelength_cells = (
-            DEFAULT_MINIMUM_WAVELENGTH_CELLS if self.spectrum_limit == "nyquist" else float(self.spectrum_limit)
+            DEFAULT_MINIMUM_WAVELENGTH_CELLS
+            if self.spectrum_limit == "nyquist"
+            else float(self.spectrum_limit)
         )
-        self.spectrum_limit_mode = "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        self.spectrum_limit_mode = (
+            "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
+        )
         self.incident_floor_db = DEFAULT_INCIDENT_FLOOR_DB
 
     @property
@@ -1665,7 +2125,9 @@ class MagneticFrillPortOutput:
         """Calculate the native frequency axis and mesh-valid output band."""
 
         if grid.iterations < 2:
-            raise ValueError(f"Magnetic frill source {self.output_id!r} requires at least two iterations")
+            raise ValueError(
+                f"Magnetic frill source {self.output_id!r} requires at least two iterations"
+            )
         if not np.isfinite(self.source.Z0) or self.source.Z0 <= 0:
             raise ValueError(f"Magnetic frill source {self.output_id!r} has an invalid Z0")
 
@@ -1725,18 +2187,29 @@ class MagneticFrillPortOutput:
         for name in ("Vinc", "Vtotal", "Itot"):
             values = np.asarray(getattr(self.source, name), dtype=real_dtype)
             if values.ndim != 1 or values.size < self.nsamples:
-                raise RuntimeError(f"Magnetic frill source {self.output_id!r} {name} history " "has the wrong length")
+                raise RuntimeError(
+                    f"Magnetic frill source {self.output_id!r} {name} history "
+                    "has the wrong length"
+                )
             values = values[: self.nsamples]
             if not np.all(np.isfinite(values)):
-                raise RuntimeError(f"Magnetic frill source {self.output_id!r} {name} history is not finite")
+                raise RuntimeError(
+                    f"Magnetic frill source {self.output_id!r} {name} history is not finite"
+                )
             histories[name] = values
 
         # Hyun equations (9)-(11): voltage is at integer time and Itot is
         # averaged from the adjacent magnetic half steps to the same time.
         time_offset = 0.0
-        frequency_full, incident_voltage_full = engineering_rfft(histories["Vinc"], grid.dt, time_offset=time_offset)
-        _, total_voltage_full = engineering_rfft(histories["Vtotal"], grid.dt, time_offset=time_offset)
-        _, total_current_full = engineering_rfft(histories["Itot"], grid.dt, time_offset=time_offset)
+        frequency_full, incident_voltage_full = engineering_rfft(
+            histories["Vinc"], grid.dt, time_offset=time_offset
+        )
+        _, total_voltage_full = engineering_rfft(
+            histories["Vtotal"], grid.dt, time_offset=time_offset
+        )
+        _, total_current_full = engineering_rfft(
+            histories["Itot"], grid.dt, time_offset=time_offset
+        )
 
         selection = self._frequency_slice
         frequency = frequency_full[selection]
@@ -1744,7 +2217,9 @@ class MagneticFrillPortOutput:
         total_voltage = total_voltage_full[selection]
         total_current = total_current_full[selection]
         reflected_voltage = np.asarray(total_voltage - incident_voltage, dtype=complex_dtype)
-        s11, source_defined = _safe_complex_divide(reflected_voltage, incident_voltage, complex_dtype)
+        s11, source_defined = _safe_complex_divide(
+            reflected_voltage, incident_voltage, complex_dtype
+        )
 
         incident_magnitude = np.abs(incident_voltage)
         incident_peak = float(np.max(incident_magnitude, initial=0.0))
@@ -1761,7 +2236,9 @@ class MagneticFrillPortOutput:
         yin, yin_defined = admittance_from_s11(s11, self.reference_impedance, complex_dtype)
 
         mesh_valid = np.asarray(self._full_mesh_valid[selection], dtype=bool)
-        cells_per_wavelength = np.asarray(self._full_cells_per_wavelength[selection], dtype=real_dtype)
+        cells_per_wavelength = np.asarray(
+            self._full_cells_per_wavelength[selection], dtype=real_dtype
+        )
         valid_s11 = mesh_valid & source_valid
         valid_zin = valid_s11 & zin_defined
         valid_yin = valid_s11 & yin_defined
@@ -1827,7 +2304,9 @@ class MagneticFrillPortOutput:
         group.attrs["MeshFrequencyLimit"] = self.mesh_frequency_limit
         group.attrs["LimitingMaterial"] = self.limiting_material
         group.attrs["IndependentFrequencyResolution"] = self.independent_frequency_resolution
-        group.attrs["FrequencyRange"] = np.asarray((result.frequency[0], result.frequency[-1]), dtype=real_dtype)
+        group.attrs["FrequencyRange"] = np.asarray(
+            (result.frequency[0], result.frequency[-1]), dtype=real_dtype
+        )
         valid_indices = np.flatnonzero(result.valid_s11)
         valid_range = (
             (result.frequency[valid_indices[0]], result.frequency[valid_indices[-1]])
