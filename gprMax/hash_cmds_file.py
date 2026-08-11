@@ -240,6 +240,7 @@ def check_cmd_names(processedlines, checkessential=True):
             '#eigenmode_band',
             '#eigenmode_port',
             '#eigenmode_excitation',
+            '#virtual_waveguide',
             "#geometry_view",
             "#geometry_objects_write",
             "#material",

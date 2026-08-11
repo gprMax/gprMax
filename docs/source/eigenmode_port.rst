@@ -319,6 +319,61 @@ enlarge the sampled NTFF faces while keeping them outside the PML, refine the
 mesh, and lengthen the time window. Change only one quantity per run so that a
 shift in S11 or the far field has a clear cause.
 
+Virtual waveguides for internal matched ports
+==============================================
+
+A direct eigenmode source normally needs a real guide behind its reference
+plane. That guide must continue to a domain PML, and an equivalent-current
+far-field surface generally omits the face crossed by the guide. A virtual
+waveguide provides a second option: the real guide stops at an internal port
+plane and a separate, axis-aligned FDTD guide continues behind it. This design
+is based on the auxiliary FDTD wave-port concept of Wang and Langdon
+[WAN2010]_, adapted to gprMax's Yee staggering, broadband eigenmode source,
+modal monitors, reusable PML profiles, and NTFF interfaces.
+
+For example:
+
+.. code-block:: none
+
+   #eigenmode_band: antenna_band 2e9 3e9 101
+   #eigenmode_port: 1 0.04 0.02 0.01 0.04 0.05 0.014 + 1 auto
+   #virtual_waveguide: 1 30 12 6
+   #eigenmode_excitation: 1 1 auto
+
+The direction and two transverse bounds come from port 1. The virtual guide
+contains 30 cells along that normal axis, its remote 12 cells are PML, and the
+source is separated from that PML by 6 clear cells. When the optional final
+argument names a reusable PML profile, the virtual termination uses that
+profile; otherwise it uses the model's global PML formulation and CFS terms.
+
+At every time step gprMax advances both Yee grids. The aperture shares the
+normal magnetic field and closes the two tangential electric-field curls with
+magnetic samples from opposite grids. Tangential E is then copied to the
+physical plane. This bidirectional coupling allows fields reflected by the
+antenna to enter the virtual guide, where guided content is absorbed. The
+modal source itself is moved from the main grid into the virtual guide, so it
+does not appear inside the antenna's NTFF integration volume.
+
+This construction permits a fully closed equivalent-current or Ramahi/KSIR
+surface around the physical antenna. It avoids the missing field contribution
+of an open Huygens face and keeps the artificial PML out of the radiating main
+domain. The surface must enclose the complete physical antenna, remain in its
+homogeneous exterior, and not intersect the port aperture.
+
+A virtual guide attached to an unexcited port is a passive matched termination.
+If every port is passive and virtual, ``#eigenmode_excitation`` may be omitted.
+The HDF5 file then contains raw incident and outgoing modal spectra, but no
+S-parameters are formed because no incident source spectrum exists for
+normalization.
+
+Virtual waveguides are an experimental CPU feature. They currently require a
+3D internal port plane, a locally uniform and non-dispersive cross-section,
+and at least two cells along each transverse axis. MPI, subgrids, CUDA,
+OpenCL, and Metal are rejected. Use convergence tests for guide length, PML
+thickness, source clearance, mesh resolution, and NTFF-surface position before
+using quantitative results. GPU support is intended to follow a fully
+device-resident eigenmode-port implementation.
+
 How automatic excitation and frequency anchors work
 ====================================================
 
@@ -596,11 +651,10 @@ cannot contribute to the same gain result.
 
 .. warning::
 
-   Eigenmode sources are incompatible with the Ramahi/KSIR formulation and
-   gprMax rejects any model that combines them. Use the frequency-domain
-   equivalent-current Huygens interface: ``#ntff_frequency`` with
-   ``#ntff_far_field`` or ``#ntff_far_field_array``, and add
-   ``#ntff_antenna_ports`` when gain or efficiency is required.
+   Direct eigenmode sources are incompatible with the Ramahi/KSIR formulation.
+   Use the frequency-domain equivalent-current Huygens interface, or attach a
+   virtual waveguide to move the impressed source outside the main grid. The
+   latter permits a closed KSIR or equivalent-current surface.
 
 Run and plot the example with:
 
@@ -1655,6 +1709,40 @@ For real-only sources, one real modal array per component is multiplied by the
 waveform value. For I/Q and broadband sources, each update sums all anchor and
 quadrature contributions prepared by the inverse FFT. In both cases, source
 activation is clipped to the configured waveform start and stop times.
+
+Virtual-guide aperture coupling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a virtual guide the TF/SF incident-mode correction is applied on an
+internal plane of the auxiliary grid rather than the main grid. Let
+:math:`w` be the port-normal coordinate and :math:`u,v` the transverse
+coordinates. At the main/auxiliary split the normal magnetic sample is shared,
+
+.. math::
+
+   H_w^{\mathrm{aux}}\big|_{\Gamma}
+   = H_w^{\mathrm{main}}\big|_{\Gamma},
+
+and the aperture updates for :math:`E_u` and :math:`E_v` use the ordinary Yee
+curl with the two normal-neighbour magnetic samples taken from different
+grids. In schematic form,
+
+.. math::
+
+   E_u^{n+1}\big|_{\Gamma}
+   &= C_A E_u^n\big|_{\Gamma}
+      + C_v\,\Delta_v H_w
+      - C_w\left(H_v^{\mathrm{aux}}-H_v^{\mathrm{main}}\right),\\
+   E_v^{n+1}\big|_{\Gamma}
+   &= C_A E_v^n\big|_{\Gamma}
+      + C_w\left(H_u^{\mathrm{aux}}-H_u^{\mathrm{main}}\right)
+      - C_u\,\Delta_u H_w.
+
+The signs reverse consistently for the opposite port direction. The updated
+tangential E samples are shared with the main-grid aperture, while the
+duplicate main-grid continuation behind the aperture is disconnected. The
+six axis/direction variants are implemented as compiled Cython kernels; no
+per-cell Python work occurs during time stepping.
 
 Modal Receivers, Direct DFT, and S-parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

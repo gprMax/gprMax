@@ -667,7 +667,12 @@ def finalise_eigenmode_ports(grid):
     sources = [port for port in grid.eigenmodeports if port.is_source]
     if not grid.eigenmodeports:
         return None
-    if len(sources) != 1:
+    # Passive-only virtual guides are useful matched modal loads and probes.
+    # Their incident/outgoing power waves are still meaningful and are written
+    # to HDF5, but an S matrix cannot be normalised without an active source.
+    if not sources:
+        return None
+    if len(sources) > 1:
         raise ValueError(
             "Eigenmode S-parameters require one and only one active eigenmode source; "
             f"found {len(sources)}."

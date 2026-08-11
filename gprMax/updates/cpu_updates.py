@@ -175,6 +175,8 @@ class CPUUpdates(Updates[GridType]):
         """Updates eigenmode source electric fields."""
         for source in self.grid.eigenmodesources:
             source.update_eigenmode_electric(iteration, self.grid)
+        for guide in self.grid.virtual_waveguides:
+            guide.update_electric(iteration)
 
      
 
@@ -202,6 +204,8 @@ class CPUUpdates(Updates[GridType]):
         """Updates eigenmode source magnetic fields."""
         for source in self.grid.eigenmodesources:
             source.update_eigenmode_magnetic(iteration, self.grid)
+        for guide in self.grid.virtual_waveguides:
+            guide.update_magnetic(iteration)
             
     def update_electric_a(self):
         """Updates electric field components."""

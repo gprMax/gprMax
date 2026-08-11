@@ -436,6 +436,12 @@ A run with one eigenmode source also writes
 ``<output>_sparameters.csv`` with one row per frequency, destination port,
 and destination mode.
 
+When every eigenmode port has a passive virtual waveguide and no
+``EigenmodeExcitation`` is defined, the same HDF5 groups contain the raw
+``incident`` and ``outgoing`` modal spectra. No ``S`` datasets or
+``<output>_sparameters.csv`` file are written because there is no active
+incident spectrum by which to normalize them.
+
 .. _output-ntff:
 
 NTFF field-transformation output
