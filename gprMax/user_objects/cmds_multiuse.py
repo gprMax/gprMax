@@ -20,6 +20,7 @@
 import inspect
 import logging
 import math
+import operator
 from os import PathLike
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -29,7 +30,12 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
-from gprMax.eigenmode_config import EigenmodeBandpassWaveform, EigenmodeBandSpec, EigenmodePortSpec
+from gprMax.eigenmode_config import (
+    EigenmodeBandpassWaveform,
+    EigenmodeBandSpec,
+    EigenmodePortSpec,
+    VirtualWaveguideSpec,
+)
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
@@ -1867,12 +1873,115 @@ class EigenmodePort(GridUserObject):
         )
 
 
+class VirtualWaveguide(GridUserObject):
+    """Terminate an eigenmode port with a bidirectionally coupled FDTD guide.
+
+    The guide repeats the material cross-section at the referenced
+    :class:`EigenmodePort`, couples both E and H fields at its aperture, and
+    terminates its remote end with a PML. It can contain the active modal
+    source or act as a passive matched receiver.
+
+    Args:
+        port: One-based eigenmode-port number.
+        length_cells: Total virtual-guide length in cells. Default 30.
+        pml_cells: PML thickness at the remote end. Default 12.
+        source_clearance_cells: Cells between an active internal source plane
+            and the PML. Default 6.
+        pml_profile: Optional reusable PML profile ID.
+    """
+
+    @property
+    def order(self):
+        return 22
+
+    @property
+    def hash(self):
+        return "#virtual_waveguide"
+
+    def __init__(
+        self,
+        port,
+        length_cells=30,
+        pml_cells=12,
+        source_clearance_cells=6,
+        pml_profile=None,
+    ):
+        super().__init__(
+            port=port,
+            length_cells=length_cells,
+            pml_cells=pml_cells,
+            source_clearance_cells=source_clearance_cells,
+            pml_profile=pml_profile,
+        )
+
+    def build(self, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
+        if config.sim_config.general["solver"] in ("cuda", "opencl", "metal"):
+            raise ValueError(
+                f"{self.params_str()} cannot currently be used with CUDA, OpenCL, or Metal."
+            )
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
+
+        def integer_parameter(name):
+            try:
+                value = operator.index(self.kwargs[name])
+            except TypeError as exc:
+                raise ValueError(f"{self.params_str()} {name} must be an integer.") from exc
+            if isinstance(self.kwargs[name], (bool, np.bool_)):
+                raise ValueError(f"{self.params_str()} {name} must be an integer.")
+            return value
+
+        port = integer_parameter("port")
+        length_cells = integer_parameter("length_cells")
+        pml_cells = integer_parameter("pml_cells")
+        clearance = integer_parameter("source_clearance_cells")
+        profile_id = self.kwargs.get("pml_profile")
+        if port not in grid.eigenmodeportdefs:
+            raise ValueError(f"{self.params_str()} references unknown eigenmode port {port}.")
+        if port in grid.virtual_waveguide_specs:
+            raise ValueError(f"Eigenmode port {port} already has a virtual waveguide.")
+        if length_cells < 1 or pml_cells < 1 or clearance < 1:
+            raise ValueError(f"{self.params_str()} cell counts must all be positive integers.")
+        if pml_cells < 2:
+            raise ValueError(f"{self.params_str()} pml_cells must be at least 2.")
+        minimum_length = pml_cells + clearance + 3
+        if length_cells < minimum_length:
+            raise ValueError(
+                f"{self.params_str()} length_cells must be at least pml_cells + "
+                f"source_clearance_cells + 3 ({minimum_length} for this request)."
+            )
+        if profile_id is not None:
+            profile_id = str(profile_id)
+            if not profile_id:
+                raise ValueError(f"{self.params_str()} pml_profile must not be empty.")
+            if profile_id not in grid.pmls["profiles"]:
+                raise ValueError(
+                    f"{self.params_str()} refers to unknown PML profile {profile_id!r}."
+                )
+
+        grid.virtual_waveguide_specs[port] = VirtualWaveguideSpec(
+            port=port,
+            length_cells=length_cells,
+            pml_cells=pml_cells,
+            source_clearance_cells=clearance,
+            profile_id=profile_id,
+        )
+        logger.info(
+            f"{self.grid_name(grid)}Virtual waveguide requested for eigenmode "
+            f"port {port}: length {length_cells}, PML {pml_cells}, source "
+            f"clearance {clearance} cell(s)"
+            + (f", PML profile {profile_id!r}." if profile_id else ".")
+        )
+
+
 class EigenmodeExcitation(GridUserObject):
     '''Attach the single active modal excitation to a defined port.'''
 
     @property
     def order(self):
-        return 22
+        return 23
 
     @property
     def hash(self):
@@ -2006,6 +2115,26 @@ def _validate_eigenmode_dft(label, start, stop, points):
         raise ValueError(f"{label} a one-point DFT requires equal start and stop.")
     if points > 1 and stop == start:
         raise ValueError(f"{label} a multi-point DFT requires stop greater than start.")
+
+
+def build_passive_virtual_eigenmode_ports(grid):
+    """Build monitor runtimes when every modal port is passive and virtual."""
+
+    band = grid.eigenmodeband
+    band.significant_range = (band.fmin, band.fmax)
+    band.representative_frequency = 0.5 * (band.fmin + band.fmax)
+    for port_number in sorted(grid.eigenmodeportdefs):
+        port = grid.eigenmodeportdefs[port_number]
+        port.resolve_anchors(band, is_source=False)
+        common = EigenmodeExcitation._runtime_plane_kwargs(port, band)
+        common.update({"mode_count": max(port.modes), "id": f"port{port.port}"})
+        _EigenmodeReceiverBuilder(**common).build(grid)
+        runtime = grid.eigenmodereceivers[-1]
+        runtime.mode_indices = port.modes
+        runtime.anchor_policy = port.anchor_policy
+        runtime.requested_anchor_policy = port.anchor_policy
+        runtime.resolved_anchor_policy = port.anchor_policy
+        runtime.fallback_frequency = band.representative_frequency
 
 
 class _EigenmodeSourceBuilder(GridUserObject):
@@ -2337,22 +2466,23 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         ):
             raise ValueError(f"{self.params_str()} in {domain_mode} mode must span the invariant axis.")
 
-        axis_name = "xyz"[normal_axis]
-        face = f"{axis_name}0" if direction == "+" else f"{axis_name}max"
-        pml_thickness = grid.pmls["thickness"][face]
-        adjacent_plane = pml_thickness if direction == "+" else grid.size[normal_axis] - pml_thickness
-        if pml_thickness == 0:
-            logger.warning(
-                f"Eigenmode receiver {port_id!r} is not next to a PML because the "
-                f"{face} face has zero PML thickness. Reflections beyond the port "
-                "can contaminate its S-parameters."
-            )
-        elif plane_index != adjacent_plane:
-            logger.warning(
-                f"Eigenmode receiver {port_id!r} is at plane {plane_index}, not next to the "
-                f"{face} PML interface at plane {adjacent_plane}. Reflections beyond the port "
-                "can contaminate its S-parameters."
-            )
+        if port_index not in grid.virtual_waveguide_specs:
+            axis_name = "xyz"[normal_axis]
+            face = f"{axis_name}0" if direction == "+" else f"{axis_name}max"
+            pml_thickness = grid.pmls["thickness"][face]
+            adjacent_plane = pml_thickness if direction == "+" else grid.size[normal_axis] - pml_thickness
+            if pml_thickness == 0:
+                logger.warning(
+                    f"Eigenmode receiver {port_id!r} is not next to a PML because the "
+                    f"{face} face has zero PML thickness. Reflections beyond the port "
+                    "can contaminate its S-parameters."
+                )
+            elif plane_index != adjacent_plane:
+                logger.warning(
+                    f"Eigenmode receiver {port_id!r} is at plane {plane_index}, not next to the "
+                    f"{face} PML interface at plane {adjacent_plane}. Reflections beyond the port "
+                    "can contaminate its S-parameters."
+                )
 
         receiver = EigenmodeReceiverUser(grid)
         receiver.normal = normal

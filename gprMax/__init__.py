@@ -47,6 +47,7 @@ from .user_objects.cmds_multiuse import (
     EigenmodeBand,
     EigenmodeExcitation,
     EigenmodePort,
+    VirtualWaveguide,
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,

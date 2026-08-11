@@ -160,6 +160,8 @@ class FDTDGrid:
         self.eigenmodesources: List[EigenmodeSource] = []
         self.eigenmodereceivers: List[EigenmodeReceiver] = []
         self.eigenmodeports = []
+        self.virtual_waveguide_specs = {}
+        self.virtual_waveguides = []
         self.rxs: List[Rx] = []
         self.port_monitors = []  # Source-bound S-parameter/impedance outputs
         self.snapshots = []  # List[Snapshot]
@@ -1077,11 +1079,22 @@ class FDTDGrid:
         if self.eigenmodeportdefs and self.eigenmodeband is None:
             raise ValueError('Eigenmode ports require exactly one EigenmodeBand.')
         if self.eigenmodeportdefs and self.eigenmodeexcitation is None:
-            raise ValueError('Eigenmode ports require exactly one EigenmodeExcitation.')
+            if set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs):
+                raise ValueError(
+                    "Eigenmode ports require exactly one EigenmodeExcitation, unless "
+                    "every port has a passive VirtualWaveguide."
+                )
+            from gprMax.user_objects.cmds_multiuse import (
+                build_passive_virtual_eigenmode_ports,
+            )
+
+            build_passive_virtual_eigenmode_ports(self)
         source_count = len(self.eigenmodesources)
-        if (source_count or self.eigenmodereceivers) and source_count != 1:
+        expected_sources = 0 if self.eigenmodeexcitation is None else 1
+        if (source_count or self.eigenmodereceivers) and source_count != expected_sources:
             raise ValueError(
-                "Eigenmode ports require one and only one eigenmode source on " f"{self.name}; found {source_count}."
+                f'Eigenmode ports require {expected_sources} eigenmode source(s) on '
+                f'{self.name}; found {source_count}.'
             )
         ports = [*self.eigenmodesources, *self.eigenmodereceivers]
         port_indices = [int(port.port_index) for port in ports]
@@ -1094,6 +1107,9 @@ class FDTDGrid:
         from gprMax.sources import initialise_eigenmode_ports
 
         initialise_eigenmode_ports(self)
+        from gprMax.virtual_waveguide import initialise_virtual_waveguides
+
+        initialise_virtual_waveguides(self)
 
     def _build_materials(self) -> None:
         """Calculate properties of materials in the grid.

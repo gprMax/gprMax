@@ -528,9 +528,13 @@ class Model:
                     "Vtotal/S11/Zin output with no error. Run a single model "
                     "instead."
                 )
-            if any(grid.eigenmodesources or grid.eigenmodereceivers for grid in grids):
+            if any(
+                grid.eigenmodesources or grid.eigenmodereceivers or grid.virtual_waveguide_specs
+                for grid in grids
+            ):
                 raise ValueError(
-                    "EigenmodeBand, EigenmodePort, and EigenmodeExcitation cannot "
+                    "EigenmodeBand, EigenmodePort, EigenmodeExcitation, and "
+                    "VirtualWaveguide cannot "
                     "be used with geometry_fixed when more "
                     "than one model is requested (n > 1) - their modal DFT "
                     "accumulators, recursive phase state, and derived "

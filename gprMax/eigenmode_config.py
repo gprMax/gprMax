@@ -359,3 +359,14 @@ class EigenmodePortSpec:
             + ', '.join(f'{value:g}' for value in self.resolved_anchors)
             + ' Hz.'
         )
+
+
+@dataclass(frozen=True)
+class VirtualWaveguideSpec:
+    """Deferred configuration for an independently terminated port guide."""
+
+    port: int
+    length_cells: int = 30
+    pml_cells: int = 12
+    source_clearance_cells: int = 6
+    profile_id: str | None = None

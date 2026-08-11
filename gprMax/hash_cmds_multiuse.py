@@ -44,6 +44,7 @@ from .user_objects.cmds_multiuse import (
     SoilPeplinski,
     SymmetryBoundary,
     TransmissionLine,
+    VirtualWaveguide,
     VoltageSource,
     Waveform,
 )
@@ -260,18 +261,29 @@ def process_multicmds(multicmds):
     eigenmode_band_cmds = multicmds.get('#eigenmode_band') or []
     eigenmode_port_cmds = multicmds.get('#eigenmode_port') or []
     eigenmode_excitation_cmds = multicmds.get('#eigenmode_excitation') or []
+    virtual_waveguide_cmds = multicmds.get('#virtual_waveguide') or []
     if eigenmode_port_cmds and len(eigenmode_band_cmds) != 1:
         raise ValueError(
             'Eigenmode ports require exactly one #eigenmode_band command; '
             f'found {len(eigenmode_band_cmds)}.'
         )
-    if eigenmode_port_cmds and len(eigenmode_excitation_cmds) != 1:
+    if eigenmode_port_cmds and len(eigenmode_excitation_cmds) > 1:
         raise ValueError(
-            'Eigenmode ports require exactly one #eigenmode_excitation command; '
+            'Eigenmode ports allow at most one #eigenmode_excitation command; '
             f'found {len(eigenmode_excitation_cmds)}.'
         )
     if eigenmode_excitation_cmds and not eigenmode_port_cmds:
         raise ValueError('#eigenmode_excitation requires at least one #eigenmode_port.')
+    if virtual_waveguide_cmds and not eigenmode_port_cmds:
+        raise ValueError('#virtual_waveguide requires at least one #eigenmode_port.')
+    if eigenmode_port_cmds and not eigenmode_excitation_cmds:
+        port_numbers = {int(command.split()[0]) for command in eigenmode_port_cmds}
+        virtual_numbers = {int(command.split()[0]) for command in virtual_waveguide_cmds}
+        if port_numbers != virtual_numbers:
+            raise ValueError(
+                'Eigenmode ports require exactly one #eigenmode_excitation, unless '
+                'every port has a passive #virtual_waveguide.'
+            )
 
     for cmdinstance in eigenmode_band_cmds:
         tmp = cmdinstance.split()
@@ -323,6 +335,24 @@ def process_multicmds(multicmds):
                 plot_fields=plot_fields,
             )
         )
+
+    for cmdinstance in virtual_waveguide_cmds:
+        tmp = cmdinstance.split()
+        if len(tmp) not in (1, 2, 3, 4, 5):
+            raise ValueError(
+                "#virtual_waveguide requires port [length_cells] [pml_cells] "
+                "[source_clearance_cells] [pml_profile]."
+            )
+        kwargs = {"port": int(tmp[0])}
+        if len(tmp) >= 2:
+            kwargs["length_cells"] = int(tmp[1])
+        if len(tmp) >= 3:
+            kwargs["pml_cells"] = int(tmp[2])
+        if len(tmp) >= 4:
+            kwargs["source_clearance_cells"] = int(tmp[3])
+        if len(tmp) == 5 and tmp[4].lower() != "none":
+            kwargs["pml_profile"] = tmp[4]
+        scene_objects.append(VirtualWaveguide(**kwargs))
 
     for cmdinstance in eigenmode_excitation_cmds:
         tmp = cmdinstance.split()

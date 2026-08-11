@@ -484,10 +484,11 @@ waveforms can drive local Hertzian or magnetic dipoles, voltage sources,
 transmission lines, and magnetic-frill sources. The discrete-plane-wave
 formulation currently requires a built-in analytic waveform.
 
-Eigenmode band, ports, and excitation
--------------------------------------
+Eigenmode band, ports, excitation, and virtual guides
+------------------------------------------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeBand
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodePort
+.. autoclass:: gprMax.user_objects.cmds_multiuse.VirtualWaveguide
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeExcitation
 
 An eigenmode model has one shared frequency band, one or more independently
@@ -517,6 +518,19 @@ range or waveform:
     ))
     scene.add(gprMax.EigenmodeExcitation(
         port=1, mode=1, waveform='auto', plot_waveform=True,
+    ))
+
+To terminate either reference plane inside the model, attach a virtual guide
+by port number. It inherits the port orientation and cross-section:
+
+.. code-block:: python
+
+    scene.add(gprMax.VirtualWaveguide(
+        port=1,
+        length_cells=30,
+        pml_cells=12,
+        source_clearance_cells=6,
+        pml_profile=None,
     ))
 
 ``modes`` is a strictly increasing tuple of one-based modes. A scalar value
@@ -724,22 +738,6 @@ scene, not to a subgrid. Its TFSF box may contain a complete subgrid; where the
 two regions overlap, the box must strictly enclose the subgrid's HSG outer
 coupling surface so that the TFSF correction stencil remains on the main grid.
 
-Eigenmode Source
-----------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeSource
-
-Eigenmode Receiver
-------------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeRx
-
-An eigenmode source solves and launches a selected mode while simultaneously
-acting as the first modal port. Additional eigenmode receivers measure
-reflection, transmission, and higher-order-mode conversion. Geometry-only
-builds write diagnostic modal-field plots so the selected mode can be checked
-before time stepping. See :ref:`eigenmode` for command examples, mode
-selection, broadband excitation, S-parameters, eigenmode-fed antenna results,
-and the complete formulation.
-
 Excitation File
 ---------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.ExcitationFile
@@ -931,10 +929,12 @@ class. Hash
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
-An eigenmode excitation cannot be combined with any of the ``KSIR*`` classes.
-Use ``NTFFFrequencyTransform``, ``NTFFFarField`` or
-``NTFFFarFieldArray``, and ``NTFFAntennaPorts`` for an eigenmode-fed
-antenna.
+A direct eigenmode excitation cannot be combined with any of the ``KSIR*``
+classes. When its active port has a ``VirtualWaveguide``, the impressed source
+is instead outside the main FDTD domain and either a closed KSIR surface or a
+closed equivalent-current surface may be used. Without a virtual guide, use
+``NTFFFrequencyTransform``, ``NTFFFarField`` or ``NTFFFarFieldArray``, and
+``NTFFAntennaPorts`` for an eigenmode-fed antenna.
 
 ``NTFFSurface(omit_faces=('x0', 'xmax'))`` creates an open frequency-domain
 Huygens surface. ``omit_faces`` accepts one to five distinct Cartesian face

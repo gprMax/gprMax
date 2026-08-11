@@ -1571,6 +1571,48 @@ and output definitions.
     * Eigenmode commands currently support only the main grid and CPU solver.
     * Eigenmode commands currently cannot be used with MPI.
 
+#virtual_waveguide:
+-------------------
+
+Replaces the continuation behind an eigenmode-port plane with a finite
+auxiliary FDTD waveguide terminated by a PML:
+
+.. code-block:: none
+
+    #virtual_waveguide: i1 [i2] [i3] [i4] [str1]
+
+* ``i1`` is the one-based number of an existing ``#eigenmode_port``.
+* ``i2`` is the total auxiliary-guide length in cells (default 30).
+* ``i3`` is the remote PML thickness in cells (default 12).
+* ``i4`` is the number of clear cells between an active modal source and the
+  PML (default 6).
+* ``str1`` optionally selects a reusable PML profile defined by named
+  ``#pml_formulation`` and ``#pml_cfs`` commands. Use ``None`` to retain the
+  global PML configuration while specifying all preceding positional values.
+
+The guide direction and cross-section are inherited from the referenced port.
+The material and Yee-component cross-section at the port is repeated through
+the auxiliary grid. The normal H field and tangential E fields are coupled in
+both directions at the aperture, so reflected modes enter the guide and are
+absorbed by its remote PML.
+
+If the referenced port is selected by ``#eigenmode_excitation``, the modal
+source is placed inside the auxiliary guide. Otherwise the guide is passive.
+All ports may be passive when every ``#eigenmode_port`` has a
+``#virtual_waveguide``; raw incident and outgoing modal spectra are then saved,
+but no S-parameters can be normalized without an active port.
+
+The port plane must be internal, locally uniform along the guide axis, and at
+least two cells wide in each transverse direction. The minimum guide length
+is ``i3 + i4 + 3`` cells. Virtual waveguides currently support 3D,
+non-dispersive guide cross-sections with the CPU solver only; MPI, subgrids,
+and GPU solvers are not yet supported.
+
+Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
+main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
+therefore enclose the antenna and its physical feed aperture without omitting
+a face. The integration surface must not intersect the virtual aperture.
+
 #rx:
 ----
 
@@ -2031,10 +2073,12 @@ creation order. The association is not required for electric or magnetic far
 fields, radiation intensity, RCS, or directivity. It is required when a
 far-field command asks for gain or efficiency.
 
-An eigenmode source cannot be used with any Ramahi/KSIR command. gprMax rejects
-that combination even when gain is not requested. Use the frequency-domain
-equivalent-current Huygens commands ``#ntff_frequency``, ``#ntff_far_field``
-or ``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
+A direct eigenmode source cannot be used with any Ramahi/KSIR command. When
+its active port has a ``#virtual_waveguide``, the source is moved outside the
+main FDTD domain and a closed KSIR or equivalent-current surface may be used.
+Without a virtual guide, use the frequency-domain equivalent-current Huygens
+commands ``#ntff_frequency``, ``#ntff_far_field`` or
+``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
 
 A port on a subgrid is named as ``subgrid_id/port_id``. For example,
 ``fine_grid/feed`` identifies an ``#rx_port`` called ``feed`` on subgrid
