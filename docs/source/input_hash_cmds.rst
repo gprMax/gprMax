@@ -1648,8 +1648,12 @@ and output definitions.
 
 .. note::
 
-    * Eigenmode commands support the main grid with the CPU, CUDA, OpenCL, and
-      Metal solvers, but not subgrids.
+    * Hash commands define eigenmode ports on the main grid, where the CPU,
+      CUDA, OpenCL, and Metal solvers are supported. Direct eigenmode ports may
+      also be added to an HSG subgrid through the Python API; they then use the
+      fine-grid material slice, spatial step, time step, and CPU update cycle.
+      The complete port stencil must remain strictly inside the subgrid working
+      region. See :doc:`eigenmode_port`.
     * Eigenmode commands currently cannot be used with MPI.
 
 #virtual_waveguide:
@@ -1685,9 +1689,11 @@ but no S-parameters can be normalized without an active port.
 
 The port plane must be internal, locally uniform along the guide axis, and at
 least two cells wide in each transverse direction. The minimum guide length
-is ``i3 + i4 + 3`` cells. Virtual waveguides support 3D, non-dispersive guide
-cross-sections with the CPU, CUDA, OpenCL, and Metal solvers; MPI and subgrids
-are not yet supported.
+is ``i3 + i4 + 3`` cells. Main-grid virtual waveguides support 3D,
+non-dispersive guide cross-sections with the CPU, CUDA, OpenCL, and Metal
+solvers. Through the Python API, a virtual waveguide may instead be attached
+to an HSG-subgrid port; it then inherits that subgrid's fine material slice,
+spatial and temporal steps, and CPU update cycle. MPI is not supported.
 
 Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
 main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
@@ -1921,6 +1927,11 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
+
+    The Python API can also add a snapshot to an HSG subgrid. Such a snapshot
+    uses the subgrid's finer spatial discretisation and time step, while its
+    file origin remains in the global model coordinate system. The hash
+    command above always defines a main-grid snapshot.
 
 Near-to-far-field transformation commands
 ==========================================
@@ -2717,9 +2728,12 @@ and overlaps with a native PML remain errors because they invalidate the
 current formulation.
 
 An automatically generated internal identifier is reported in the log. The
-feature is currently limited to the main 3D grid and is not available with MPI
-or on subgrids. Orthogonal PML slabs may overlap, as domain PMLs do at edges and
-corners.
+hash command defines a slab on the main 3D grid. With the Python API a slab may
+instead be added to an HSG subgrid, provided the complete slab lies inside its
+working region and does not overlap the HSG coupling or auxiliary-PML regions.
+Subgrid slabs use the CPU solver and the subgrid's finer spatial and temporal
+discretisation. The feature is not available with MPI. Orthogonal PML slabs may
+overlap, as domain PMLs do at edges and corners.
 
 
 #symmetry_boundary:

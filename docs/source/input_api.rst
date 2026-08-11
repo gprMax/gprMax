@@ -410,6 +410,11 @@ material-index geometry for insertion into another model:
         filename='reusable_geometry',
     ))
 
+A geometry view can be added to an HSG subgrid. Its points and VTK origin are
+written in the global model coordinate system, even though its material data
+are sampled from the fine local grid. ``GeometryObjectsWrite`` remains a
+main-grid operation.
+
 In a different scene, the saved geometry can be inserted at a chosen origin:
 
 .. code-block:: python
@@ -562,6 +567,41 @@ band-centre anchor; results for that mode far from it may be inaccurate. The
 candidate frequencies remain common to all automatic ports, while the
 retained masks and fallbacks are resolved independently. See
 :doc:`eigenmode_port` for the complete workflow and outputs.
+
+A direct eigenmode model may also be placed wholly inside one HSG subgrid.
+Add its band, ports, waveform (when one is used), and excitation to that same
+subgrid object. With ``autotranslate=True``, the plane coordinates remain
+global physical coordinates:
+
+.. code-block:: python
+
+    fine_grid.add(gprMax.Waveform(
+        wave_type='contsine', amp=1, freq=22e9, id='fine_wave',
+    ))
+    fine_grid.add(gprMax.EigenmodeBand(
+        id='fine_band', fmin=22e9, fmax=22e9, points=1,
+    ))
+    fine_grid.add(gprMax.EigenmodePort(
+        port=1,
+        p1=(0.045, 0.039, 0.039),
+        p2=(0.045, 0.051, 0.049),
+        direction='+', modes=(1,), anchors=(22e9,),
+    ))
+    fine_grid.add(gprMax.EigenmodeExcitation(
+        port=1, mode=1, waveform='fine_wave',
+    ))
+
+The FDFD solver samples the final component-resolved material slice of the
+fine Yee grid and uses its two transverse spatial steps. Injection and modal
+observation then run at every fine-grid time step. The complete plane and its
+adjacent staggered Yee stencil must lie strictly inside the subgrid working
+region; a plane touching the HSG coupling surface or entering its auxiliary
+or PML region is rejected. Ports cannot be divided between the main grid and
+a subgrid, or between different subgrids. ``VirtualWaveguide`` can be added
+to the same subgrid and referenced to one of its ports. The auxiliary guide
+then inherits the fine grid's spatial and temporal steps, material
+cross-section, update coefficients, and iteration count; it is not resampled
+from the coarse main grid.
 
 Voltage Source
 --------------
@@ -949,6 +989,11 @@ steps are applied between repeated model runs:
         dl=(0.002, 0.002, 0.002), time=2e-9,
         filename='fields_2ns', fileext='.h5', outputs=['Ez', 'Hy'],
     ))
+
+A snapshot can also be added to an HSG subgrid. It is sampled on every fine
+subgrid time step, uses the subgrid's spatial discretisation, and records its
+origin in the global model coordinate system. The requested time or iteration
+is interpreted against the owning subgrid's ``dt`` and iteration count.
 
 Reusable NTFF integration surface
 ---------------------------------
@@ -1367,6 +1412,8 @@ case-specific long-duration testing. The material cross-section must be
 invariant through the slab.
 
 When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
-``internal_pml_2``, and so on. Internal slabs currently support the CPU, CUDA,
-OpenCL, and Metal solvers on the main 3D grid; MPI and subgrids are not yet
-supported.
+``internal_pml_2``, and so on. Internal slabs support the CPU, CUDA, OpenCL,
+and Metal solvers on the main 3D grid. A slab may also be added to an HSG
+subgrid, where it uses the CPU solver and the fine-grid update cycle. A
+subgrid-owned slab must lie wholly within the working region: overlap with its
+HSG coupling or auxiliary-PML regions is rejected. MPI is not supported.

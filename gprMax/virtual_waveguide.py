@@ -22,6 +22,8 @@ from gprMax.cython.virtual_waveguide import (
     couple_virtual_waveguide_electric,
     couple_virtual_waveguide_magnetic,
 )
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.updates.cpu_updates import CPUUpdates
 
 logger = logging.getLogger(__name__)
@@ -190,7 +192,12 @@ class VirtualWaveguide:
 
     def _build_auxiliary_grid(self):
         main = self.main_grid
-        aux = type(main)()
+        # An HSG-owned guide follows the fine grid's numerical parameters but
+        # is an independent, ordinary auxiliary Yee grid. Constructing a
+        # second SubGridHSG would incorrectly require an HSG coupling region
+        # and a parent coarse grid around a guide that is deliberately
+        # detached from the physical domain.
+        aux = FDTDGrid() if isinstance(main, SubGridBaseGrid) else type(main)()
         aux.name = f"virtual_waveguide_port_{self.spec.port}"
         aux.size[:] = 1
         aux.size[self.normal_axis] = self.spec.length_cells

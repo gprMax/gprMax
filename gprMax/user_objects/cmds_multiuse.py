@@ -1999,8 +1999,6 @@ class EigenmodeBand(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
         if grid.eigenmodeband is not None:
             raise ValueError("Exactly one EigenmodeBand may be defined per grid.")
         try:
@@ -2055,8 +2053,6 @@ class EigenmodePort(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
         if grid.eigenmodeband is None:
             raise ValueError(f"{self.params_str()} requires one preceding EigenmodeBand.")
         if config.sim_config.mpi:
@@ -2185,8 +2181,6 @@ class VirtualWaveguide(GridUserObject):
         )
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
 
@@ -2281,8 +2275,6 @@ class EigenmodeExcitation(GridUserObject):
         return kwargs
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
         if grid.eigenmodeexcitation is not None:
             raise ValueError("Only one EigenmodeExcitation may be defined per grid.")
         if grid.eigenmodeband is None:
@@ -2407,6 +2399,74 @@ def build_passive_virtual_eigenmode_ports(grid):
         runtime.fallback_frequency = band.representative_frequency
 
 
+def _discretise_eigenmode_plane(
+    user_object,
+    grid,
+    normal_axis,
+    transverse_axes,
+    full_lower,
+    full_upper,
+):
+    """Map one global-coordinate modal plane onto its owning grid.
+
+    Main-grid coordinates have a zero local origin. HSG coordinates are still
+    supplied in the global model frame, so ``SubgridUserInput`` must translate
+    them past the fine grid's auxiliary padding. A modal plane is deliberately
+    more restricted than ordinary subgrid geometry: every staggered component
+    used by the FDFD slice, TF/SF correction, and modal monitor must remain
+    strictly inside the HSG working region and away from its coupling surface.
+    """
+
+    uip = user_object._create_uip(grid)
+    full_lower = np.asarray(
+        uip.resolve_inf_point(tuple(full_lower), role="lower"),
+        dtype=np.float64,
+    )
+    full_upper = np.asarray(
+        uip.resolve_inf_point(tuple(full_upper), role="upper"),
+        dtype=np.float64,
+    )
+    lower = np.asarray(uip.discretise_point(tuple(full_lower)), dtype=np.int32)
+    upper = np.asarray(uip.discretise_point(tuple(full_upper)), dtype=np.int32)
+    plane_index = int(lower[normal_axis])
+
+    if int(upper[normal_axis]) != plane_index:
+        raise ValueError(
+            f"{user_object.params_str()} modal-plane normal coordinates must map "
+            "to the same grid plane."
+        )
+
+    if isinstance(grid, SubGridBaseGrid):
+        inner = np.asarray(
+            (
+                grid.n_boundary_cells_x,
+                grid.n_boundary_cells_y,
+                grid.n_boundary_cells_z,
+            ),
+            dtype=np.int32,
+        )
+        outer = np.asarray(grid.size, dtype=np.int32) - inner
+
+        # E is sampled/updated on plane_index and H on plane_index or
+        # plane_index - 1. Transverse staggered components include both range
+        # endpoints. Keep this complete stencil off the HSG coupling surface.
+        stencil_lower = lower.copy()
+        stencil_upper = upper.copy()
+        stencil_lower[normal_axis] = plane_index - 1
+        stencil_upper[normal_axis] = plane_index
+        if np.any(stencil_lower <= inner) or np.any(stencil_upper >= outer):
+            working_lower = tuple(grid.local_to_global(inner))
+            working_upper = tuple(grid.local_to_global(outer))
+            raise ValueError(
+                f"{user_object.params_str()} eigenmode plane and its adjacent "
+                "Yee stencil must lie strictly inside the subgrid working region "
+                f"from {working_lower} m to {working_upper} m; it cannot touch "
+                "the HSG coupling surface or enter the auxiliary/PML region."
+            )
+
+    return full_lower, full_upper, lower, upper, plane_index
+
+
 class _EigenmodeSourceBuilder(GridUserObject):
     """Internal builder for the active plane defined by an EigenmodePort."""
 
@@ -2422,9 +2482,6 @@ class _EigenmodeSourceBuilder(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
-
         try:
             normal = self.kwargs["normal"]
             direction = self.kwargs["direction"]
@@ -2538,26 +2595,17 @@ class _EigenmodeSourceBuilder(GridUserObject):
         full_upper[normal_axis] = w
         full_lower[transverse_axes] = p1
         full_upper[transverse_axes] = p2
-        uip = self._create_uip(grid)
-        full_lower = np.asarray(
-            uip.resolve_inf_point(tuple(full_lower), role="lower"),
-            dtype=np.float64,
-        )
-        full_upper = np.asarray(
-            uip.resolve_inf_point(tuple(full_upper), role="upper"),
-            dtype=np.float64,
+        full_lower, full_upper, lower, upper, plane_index = _discretise_eigenmode_plane(
+            self,
+            grid,
+            normal_axis,
+            transverse_axes,
+            full_lower,
+            full_upper,
         )
         p1 = tuple(full_lower[transverse_axes])
         p2 = tuple(full_upper[transverse_axes])
         w = float(full_lower[normal_axis])
-
-        lower = np.zeros(3, dtype=np.int32)
-        upper = np.zeros(3, dtype=np.int32)
-        plane_index = int(round(w / grid.dl[normal_axis]))
-        lower[transverse_axes[0]] = int(round(p1[0] / grid.dl[transverse_axes[0]]))
-        lower[transverse_axes[1]] = int(round(p1[1] / grid.dl[transverse_axes[1]]))
-        upper[transverse_axes[0]] = int(round(p2[0] / grid.dl[transverse_axes[0]]))
-        upper[transverse_axes[1]] = int(round(p2[1] / grid.dl[transverse_axes[1]]))
 
         if plane_index < 0 or plane_index > grid.size[normal_axis]:
             logger.exception(
@@ -2656,9 +2704,6 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
-
         try:
             normal = self.kwargs["normal"]
             direction = self.kwargs["direction"]
@@ -2730,22 +2775,17 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         full_upper[normal_axis] = w
         full_lower[transverse_axes] = p1
         full_upper[transverse_axes] = p2
-        uip = self._create_uip(grid)
-        full_lower = np.asarray(
-            uip.resolve_inf_point(tuple(full_lower), role="lower"), dtype=np.float64
-        )
-        full_upper = np.asarray(
-            uip.resolve_inf_point(tuple(full_upper), role="upper"), dtype=np.float64
+        full_lower, full_upper, lower, upper, plane_index = _discretise_eigenmode_plane(
+            self,
+            grid,
+            normal_axis,
+            transverse_axes,
+            full_lower,
+            full_upper,
         )
         p1 = tuple(full_lower[transverse_axes])
         p2 = tuple(full_upper[transverse_axes])
         w = float(full_lower[normal_axis])
-        lower = np.zeros(3, dtype=np.int32)
-        upper = np.zeros(3, dtype=np.int32)
-        plane_index = int(round(w / grid.dl[normal_axis]))
-        for position, axis in enumerate(transverse_axes):
-            lower[axis] = int(round(p1[position] / grid.dl[axis]))
-            upper[axis] = int(round(p2[position] / grid.dl[axis]))
 
         if plane_index < 0 or plane_index > grid.size[normal_axis]:
             raise ValueError(f"{self.params_str()} receiver plane is outside the grid.")
@@ -2766,7 +2806,9 @@ class _EigenmodeReceiverBuilder(GridUserObject):
                 f"{self.params_str()} in {domain_mode} mode must span the invariant axis."
             )
 
-        if port_index not in grid.virtual_waveguide_specs:
+        if port_index not in grid.virtual_waveguide_specs and not isinstance(
+            grid, SubGridBaseGrid
+        ):
             axis_name = "xyz"[normal_axis]
             face = f"{axis_name}0" if direction == "+" else f"{axis_name}max"
             pml_thickness = grid.pmls["thickness"][face]
@@ -3814,7 +3856,7 @@ class PMLCFS(GridUserObject):
 
 
 class PMLSlab(GridUserObject):
-    """Place an experimental one-axis RIPML slab inside the main grid.
+    """Place an experimental one-axis RIPML slab inside a grid.
 
     ``p1`` and ``p2`` bound a rectangular region. ``maximum_face`` selects the
     local face at which complex stretching is greatest; the profile reduces
@@ -3825,7 +3867,8 @@ class PMLSlab(GridUserObject):
     faces coincident with the model boundary are omitted. The zero-stretch
     entrance remains open. Set ``build_pec=False`` to provide a custom or
     deliberately open enclosure. Exposed faces are then reported as warnings;
-    incomplete enclosures have no stability guarantee.
+    incomplete enclosures have no stability guarantee. A slab added to an HSG
+    subgrid must lie wholly within its working region.
     """
 
     FACE_TO_DIRECTION = {
@@ -3871,8 +3914,6 @@ class PMLSlab(GridUserObject):
 
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} cannot currently be used on a subgrid.")
         if config.get_model_config().mode.startswith("2D"):
             raise ValueError(f"{self.params_str()} cannot currently be used in 2D mode.")
         if maximum_face not in self.FACE_TO_DIRECTION:
@@ -3891,6 +3932,16 @@ class PMLSlab(GridUserObject):
             return
         if not np.all(upper > lower):
             raise ValueError(f"{self.params_str()} must have non-zero extent on all three axes.")
+        if isinstance(grid, SubGridBaseGrid):
+            inner = np.array(
+                [grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z]
+            )
+            outer = np.asarray(grid.size) - inner
+            if np.any(lower < inner) or np.any(upper > outer):
+                raise ValueError(
+                    f"{self.params_str()} must lie wholly inside the subgrid working region; "
+                    "it cannot overlap the HSG coupling or auxiliary PML regions."
+                )
 
         axis = "xyz".index(maximum_face[0])
         if upper[axis] - lower[axis] < 2:
@@ -3919,10 +3970,16 @@ class PMLSlab(GridUserObject):
             "build_pec": bool(build_pec),
             "generated_pec_faces": 0,
         }
+        if isinstance(grid, SubGridBaseGrid):
+            continuous_lower = grid.local_to_global(lower)
+            continuous_upper = grid.local_to_global(upper)
+        else:
+            continuous_lower = uip.discrete_to_continuous(lower)
+            continuous_upper = uip.discrete_to_continuous(upper)
         logger.info(
             f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
-            f"{tuple(uip.discrete_to_continuous(lower))}m to "
-            f"{tuple(uip.discrete_to_continuous(upper))}m, with maximum "
+            f"{tuple(continuous_lower)}m to "
+            f"{tuple(continuous_upper)}m, with maximum "
             f"stretching on its {maximum_face} face"
             + (
                 f", using profile '{profile_id}'"

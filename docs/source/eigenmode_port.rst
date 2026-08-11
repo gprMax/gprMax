@@ -332,6 +332,47 @@ enlarge the sampled NTFF faces while keeping them outside the PML, refine the
 mesh, and lengthen the time window. Change only one quantity per run so that a
 shift in S11 or the far field has a clear cause.
 
+Direct eigenmode ports inside an HSG subgrid
+=============================================
+
+The Python API can place a complete direct eigenmode model inside an HSG
+subgrid. Add the ``EigenmodeBand``, every related ``EigenmodePort``, the
+waveform when an explicit waveform is used, and the ``EigenmodeExcitation``
+to the same ``SubGridHSG`` object. With ``autotranslate=True``, port planes are
+still specified in global physical coordinates.
+
+The 2D FDFD problem is not solved on a resampled main-grid slice. gprMax reads
+the final component-resolved material IDs from the selected fine-grid Yee
+plane, including its staggered electric and magnetic component shapes, and
+uses the subgrid's two transverse spatial steps. Consequently, a refined
+subgrid can resolve both the guide cross-section and its modal field profile
+more finely than the surrounding main grid. Source injection and modal
+projection are then evaluated at every fine-grid time step.
+
+The complete modal aperture and its adjacent staggered Yee stencil must lie
+strictly inside the subgrid working region. In particular, the normal
+magnetic-field stencil reaches one plane behind the specified reference
+plane, and transverse staggered components include both aperture endpoints.
+gprMax rejects a placement when any of these samples touches the HSG coupling
+surface or enters the auxiliary/PML region. This avoids solving one modal
+problem while injecting it into a truncated or coupled aperture.
+
+Modal bands and S-parameter normalization are local to their owning grid. A
+set of associated ports therefore cannot be split between the main grid and a
+subgrid, or between separate subgrids. Fine-grid results are written beneath
+``/subgrids/<subgrid ID>/eigenmode_ports/portN`` and use the fine-grid
+``dx_dy_dz`` and ``dt`` metadata. The corresponding CSV filename is suffixed
+with ``_<subgrid ID>_sparameters.csv``.
+
+Direct subgrid eigenmode ports currently use the CPU HSG update cycle and are
+not supported with MPI. A ``VirtualWaveguide`` may be attached to a subgrid
+port. Its aperture is translated onto the fine local Yee grid, while its
+independent auxiliary guide inherits the subgrid's ``dx_dy_dz``, ``dt``,
+material cross-section, update coefficients, and fine iteration count. The
+complete physical aperture and its adjacent staggered stencil must satisfy
+the same strict working-region placement rule as a direct subgrid port.
+
+
 Virtual waveguides for internal matched ports
 ==============================================
 
@@ -379,14 +420,15 @@ The HDF5 file then contains raw incident and outgoing modal spectra, but no
 S-parameters are formed because no incident source spectrum exists for
 normalization.
 
-Virtual waveguides are experimental. They run on the CPU, CUDA, OpenCL, and
-Metal solvers and keep both the auxiliary-grid fields and aperture coupling on
-the selected compute device throughout time stepping. They currently require
+Virtual waveguides are experimental. On the main grid they run on the CPU,
+CUDA, OpenCL, and Metal solvers and keep both the auxiliary-grid fields and
+aperture coupling on the selected compute device throughout time stepping.
+They may also be attached through the Python API to a port owned by an HSG
+subgrid; that path uses the CPU fine-grid update cycle. They currently require
 a 3D internal port plane, a locally uniform and non-dispersive cross-section,
-and at least two cells along each transverse axis. MPI and subgrids are not yet
-supported. Use convergence tests for guide length, PML thickness, source
-clearance, mesh resolution, and NTFF-surface position before using
-quantitative results.
+and at least two cells along each transverse axis. MPI is not supported. Use
+convergence tests for guide length, PML thickness, source clearance, mesh
+resolution, and NTFF-surface position before using quantitative results.
 
 How automatic excitation and frequency anchors work
 ====================================================
