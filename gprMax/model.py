@@ -384,6 +384,13 @@ class Model:
             for frill in grid.magneticfrillsources:
                 frill.finalise_setup(grid)
 
+        # Rational networks are local terminal corrections. Bind their final
+        # Yee material/source coefficient and initialise sparse pole state only
+        # after grid.build() has completed.
+        for grid in grids:
+            for terminal in getattr(grid, "networkterminals", ()):
+                terminal.prepare(grid)
+
         # Voltage-source ports bind their receiver during scene processing,
         # but their effective edge material and update coefficient only exist
         # after grid.build() has completed.
@@ -556,9 +563,7 @@ class Model:
             # coefficients, silently truncating them (numpy raises only a
             # ComplexWarning on such an assignment, not an error).
             config.get_model_config().materials["drudelorentz"] = any(
-                "drude" in m.type or "lorentz" in m.type
-                for grid in grids
-                for m in grid.materials
+                "drude" in m.type or "lorentz" in m.type for grid in grids for m in grid.materials
             )
 
             # Set data type if any dispersive materials (must be done before memory checks)

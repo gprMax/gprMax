@@ -1129,6 +1129,80 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 * ``f4 f5`` are optional parameters. ``f4`` is a time delay in starting the source. ``f5`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f4 f5`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
+#rational_network:, #network_terminal:, #network_excitation:
+------------------------------------------------------------
+
+These commands connect a linear one-port network to one electric Yee edge.
+The reusable network model is expressed as a rational driving-point
+admittance
+
+.. math::
+
+    Y(s) = G + sC + \sum_{m=1}^{M}\frac{r_m}{s-p_m},
+
+where :math:`G` is the direct conductance, :math:`C` is the direct
+capacitance, and :math:`p_m` and :math:`r_m` are pole-residue pairs. The
+syntax is
+
+.. code-block:: none
+
+    #rational_network: str1 f1 f2 i1 [f3 f4 f5 f6 ...] [c1]
+    #network_terminal: c2 f7 f8 f9 str1 str2
+    #network_excitation: str2 str3 [f10 f11]
+
+* ``str1`` is the reusable network-model ID.
+* ``f1`` and ``f2`` are :math:`G` in siemens and :math:`C` in farads.
+* ``i1`` is the number of poles. Every pole then has four values:
+  ``pole_real pole_imag residue_real residue_imag``. Poles are in rad/s and
+  residues are in S/s. Non-real poles and residues must occur in conjugate
+  pairs so that the time-domain current is real.
+* ``c1`` is an optional ``y``/``n`` flag permitting an active model. It is
+  ``n`` by default. Passive models are checked over the FDTD band and all
+  poles must be stable.
+* ``c2`` is the terminal polarisation ``x``, ``y``, or ``z``; ``f7 f8 f9``
+  are its coordinates; and ``str2`` is its unique terminal ID.
+* ``str3`` is an existing waveform ID. The optional ``f10 f11`` pair gives
+  its start and stop times. Omitting ``#network_excitation`` creates a
+  passive load or receiving terminal.
+
+For common elements, a resistor uses :math:`G=1/R`, a capacitor uses the
+direct :math:`C` term, and an inductor uses :math:`p=0`, :math:`r=1/L`. A
+series :math:`RL` branch has :math:`p=-R/L` and :math:`r=1/L`. For example,
+a driven 50 Ohm terminal is
+
+.. code-block:: none
+
+    #waveform: ricker 1 2e9 pulse
+    #rational_network: source50 0.02 0 0
+    #network_terminal: z 0.05 0.05 0.02 source50 feed
+    #network_excitation: feed pulse
+    #network_port: feed 50 10
+
+The optional excitation is a Thévenin open-circuit voltage applied through
+the complete rational impedance. The arbitrary linear circuit-to-edge
+formulation follows [PER1999]_ and [CHE2007]_. gprMax improves the underlying
+classic PLRC time placement using the exponential recursive-convolution
+approach of Giannakis and Giannopoulos [GIA2014]_. In particular, every pole
+state is evaluated analytically at the electric half-step under a linearly
+varying terminal voltage; it is not estimated by averaging its two integer-
+time values. Each terminal stores only its own poles and applies one locally
+implicit edge correction, rather than allocating dispersive state throughout
+the mesh.
+
+A driven network with :math:`G=1/R`, no direct capacitance, and no poles is
+discretely identical to a finite-resistance ``#voltage_source`` having the
+same :math:`R`, waveform, position, and polarisation. A zero-resistance hard
+source is not equivalent.
+
+This initial implementation supports 3-D, non-MPI CPU models and a
+nondispersive terminal edge; dispersive materials may exist elsewhere in the
+model. A terminal may be placed in a CPU subgrid, where it uses the fine
+spatial and temporal steps. Several independent terminals may be used, but a
+coupled multiport admittance matrix is not yet supported. See [CHE2007]_ for
+the general PLRC lumped-network formulation and :ref:`Analytical comparisons
+<rational-network-validation>` for a complete loaded-guide comparison.
+
+
 #voltage_source:
 ----------------
 
@@ -1678,6 +1752,7 @@ The voltage source supplies the reference impedance :math:`Z_0`. For example:
     #voltage_source: z 0.070 0.050 0.020 0 source_wave 0 10e-9 75
     #rx_port: 0.070 0.050 0.020 ideal_feed_75
 
+
 For a finite-resistance source, the voltage-source resistance is the
 reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless
 ``f7`` is supplied. At the source plane, the known generator
@@ -1773,6 +1848,30 @@ material are reported when the model is built.
     * A time trace that has not decayed before the end of the model window can
       contaminate the spectrum. gprMax reports a tail-level warning rather
       than hiding or clipping the result.
+
+#network_port:
+--------------
+
+Requests time- and frequency-domain port quantities for an existing
+``#network_terminal``. The terminal ID is also the HDF5 port ID. The syntax is
+
+.. code-block:: none
+
+    #network_port: str1 [f1 [f2]]
+
+* ``str1`` is the network-terminal ID.
+* ``f1`` is the positive real power-wave reference impedance in ohms; it is
+  50 Ohms by default.
+* ``f2`` is the minimum number of cells per shortest material wavelength; it
+  is 10 by default. The literal ``nyquist`` retains the full native spectrum
+  with validity masks for research use.
+
+The output contains terminal voltage and current, incident and reflected
+power-wave spectra, ``S11``, ``Zin``, and ``Yin``. gprMax removes the
+background Yee-gap capacitance and conductance from the reported terminal
+current. A driven network obtains ``S11`` and incident power; an unexcited
+network remains useful as a passive measured port, for which ``Zin`` and
+``Yin`` are still available when numerically defined.
 
 #src_steps: and #rx_steps:
 --------------------------

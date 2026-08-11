@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -76,17 +76,13 @@ class CPUUpdates(Updates[GridType]):
         """Observe E at physical time ``iteration * dt``."""
 
         for monitor in self.grid.ntff_monitors:
-            monitor.observe_electric(
-                iteration, self.grid.Ex, self.grid.Ey, self.grid.Ez
-            )
+            monitor.observe_electric(iteration, self.grid.Ex, self.grid.Ey, self.grid.Ez)
 
     def observe_ntff_magnetic(self, iteration):
         """Observe H at physical time ``(iteration + 1/2) * dt``."""
 
         for monitor in self.grid.ntff_monitors:
-            monitor.observe_magnetic(
-                iteration, self.grid.Hx, self.grid.Hy, self.grid.Hz
-            )
+            monitor.observe_magnetic(iteration, self.grid.Hx, self.grid.Hy, self.grid.Hz)
 
     def observe_eigenmode_ports(self, iteration):
         """Project E(n) and H(n+1/2) and advance each modal DFT bin once."""
@@ -119,9 +115,7 @@ class CPUUpdates(Updates[GridType]):
     def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
         for source in (
-            self.grid.transmissionlines
-            + self.grid.magneticdipoles
-            + self.grid.magneticfrillsources
+            self.grid.transmissionlines + self.grid.magneticdipoles + self.grid.magneticfrillsources
         ):
             source.update_magnetic(
                 iteration,
@@ -132,7 +126,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.Hz,
                 self.grid,
             )
-            
+
     def update_plane_waves_electric(self, iteration):
         """Updates discrete plane wave sources for electric fields."""
         # Update the electric field components for the discrete plane wave
@@ -178,27 +172,25 @@ class CPUUpdates(Updates[GridType]):
         for guide in self.grid.virtual_waveguides:
             guide.update_electric(iteration)
 
-     
-
     def update_plane_waves_magnetic(self, iteration):
         """Updates discrete plane wave sources fr magnetic fields."""
         # Update the magnetic field components for the discrete plane wave
         for source in self.grid.discreteplanewaves:
             source.update_plane_wave_magnetic(
-                    config.get_model_config().ompthreads,
-                    self.grid.updatecoeffsE,
-                    self.grid.updatecoeffsH,
-                    self.grid.Ex,
-                    self.grid.Ey,
-                    self.grid.Ez,
-                    self.grid.Hx,
-                    self.grid.Hy,
-                    self.grid.Hz,
-                    iteration,
-                    self.grid,
-                    cythonize=True,
-                    precompute=True,
-                )
+                config.get_model_config().ompthreads,
+                self.grid.updatecoeffsE,
+                self.grid.updatecoeffsH,
+                self.grid.Ex,
+                self.grid.Ey,
+                self.grid.Ez,
+                self.grid.Hx,
+                self.grid.Hy,
+                self.grid.Hz,
+                iteration,
+                self.grid,
+                cythonize=True,
+                precompute=True,
+            )
 
     def update_eigenmode_sources_magnetic(self, iteration):
         """Updates eigenmode source magnetic fields."""
@@ -206,7 +198,7 @@ class CPUUpdates(Updates[GridType]):
             source.update_eigenmode_magnetic(iteration, self.grid)
         for guide in self.grid.virtual_waveguides:
             guide.update_magnetic(iteration)
-            
+
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
@@ -309,6 +301,12 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.Ey,
                 self.grid.Ez,
             )
+
+    def update_network_terminals(self, iteration):
+        """Apply locally implicit rational-network edge corrections."""
+
+        for terminal in getattr(self.grid, "networkterminals", ()):
+            terminal.update(iteration, self.grid)
 
     def set_dispersive_updates(self):
         """Sets dispersive update functions."""

@@ -8,10 +8,11 @@ from numpy.testing import assert_allclose
 
 import gprMax.config as config
 import gprMax.ports as ports
-from gprMax.ntff.conventions import engineering_dft
 from gprMax.eigenmode_ports import EigenmodePortMonitor, EigenmodePortResult
+from gprMax.ntff.conventions import engineering_dft
 from gprMax.ports import (
     MagneticFrillPortOutput,
+    RationalNetworkPortOutput,
     TransmissionLinePortOutput,
     VoltageSourcePortMonitor,
     evaluate_port_power_spectrum,
@@ -59,6 +60,19 @@ def _hard_voltage_port(total_voltage, loop_current, *, dt, resistance=50.0):
     output.hard_voltage_time_offset = dt
     output.hard_current_time_offset = 0.5 * dt
     return output, grid
+
+
+def _rational_network_port(total_voltage, network_current, *, dt, resistance=50.0):
+    terminal = SimpleNamespace()
+    output = RationalNetworkPortOutput("feed", terminal, resistance)
+    output.background_conductance = 0.0
+    output.gap_capacitance = 0.0
+    output.minimum_wavelength_cells = 10.0
+    output.result = SimpleNamespace(
+        total_voltage=np.asarray(total_voltage, dtype=np.float64),
+        network_current=np.asarray(network_current, dtype=np.float64),
+    )
+    return output, SimpleNamespace(dt=dt)
 
 
 def _eigenmode_port(*, is_source):
@@ -109,9 +123,9 @@ def test_eigenmode_port_power_uses_full_modal_matrix(monkeypatch, is_source):
     )
 
     spectrum = evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.0])
-    expected_accepted = modal_power_spectrum(monitor.result.incident, monitor.power_matrix) - modal_power_spectrum(
-        monitor.result.outgoing, monitor.power_matrix
-    )
+    expected_accepted = modal_power_spectrum(
+        monitor.result.incident, monitor.power_matrix
+    ) - modal_power_spectrum(monitor.result.outgoing, monitor.power_matrix)
 
     assert spectrum.representation == "modal_power_waves"
     assert_allclose(spectrum.accepted_power, expected_accepted)
@@ -151,9 +165,7 @@ def test_lossy_eigenmode_accepted_power_keeps_interference_term(monkeypatch):
 
     spectrum = evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.0])
     expected = np.real(
-        np.conj(incident - outgoing)
-        * monitor.electric_gram[0, 0, 0]
-        * (incident + outgoing)
+        np.conj(incident - outgoing) * monitor.electric_gram[0, 0, 0] * (incident + outgoing)
     )
     lossy_formula_without_interference = abs(incident) ** 2 - abs(outgoing) ** 2
 
@@ -240,11 +252,45 @@ def test_voltage_port_terminal_current_reproduces_gap_corrected_s11(monkeypatch)
     omega_discrete = (2 / dt) * np.tan(np.pi * frequency * dt)
     correction = output.reference_impedance * 1j * omega_discrete * output.gap_capacitance
     expected_s11, _ = ports.correct_s11_for_parallel_gap(source_s11, correction)
-    terminal_s11 = (result.terminal_voltage - output.reference_impedance * result.terminal_current) / (
-        result.terminal_voltage + output.reference_impedance * result.terminal_current
-    )
+    terminal_s11 = (
+        result.terminal_voltage - output.reference_impedance * result.terminal_current
+    ) / (result.terminal_voltage + output.reference_impedance * result.terminal_current)
 
     assert_allclose(terminal_s11, expected_s11, rtol=2e-13, atol=2e-13)
+
+
+def test_rational_network_port_uses_external_network_current_sign(monkeypatch):
+    dt = 1e-3
+    nsamples = 64
+    frequency = 1 / (nsamples * dt)
+    time = (np.arange(nsamples) + 0.5) * dt
+    voltage = 2.0 * np.cos(2 * np.pi * frequency * time + 0.2)
+    # Inetwork is defined from the FDTD gap into the external network, so a
+    # positive current entering the antenna is stored with the opposite sign.
+    terminal_current = 0.04 * np.cos(2 * np.pi * frequency * time - 0.1)
+    output, grid = _rational_network_port(
+        voltage,
+        -terminal_current,
+        dt=dt,
+    )
+    monkeypatch.setattr(
+        ports,
+        "_port_mesh_valid",
+        lambda output, grid, values: np.ones(values.shape, dtype=bool),
+    )
+
+    result = evaluate_port_power_spectrum(output, grid, [frequency])
+    expected_voltage = engineering_dft(voltage, [frequency], dt, time_offset=0.5 * dt)
+    expected_current = engineering_dft(
+        terminal_current,
+        [frequency],
+        dt,
+        time_offset=0.5 * dt,
+    )
+
+    assert_allclose(result.terminal_voltage, expected_voltage)
+    assert_allclose(result.terminal_current, expected_current)
+    assert result.accepted_power[0] > 0
 
 
 def test_hard_voltage_port_uses_time_aligned_loop_current(monkeypatch):
