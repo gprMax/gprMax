@@ -135,8 +135,11 @@ class Plate(RotatableMixin, GeometryUserObject):
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
-            notfound = [x for x in materialsrequested if x not in materials]
-            raise ValueError(f"{self.__str__()} material(s) {notfound} do not exist")
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            message = f"{self.__str__()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         # yz-plane plate
         if xs == xf:

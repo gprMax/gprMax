@@ -65,6 +65,15 @@ from gprMax.waveforms import Waveform as WaveformUser
 logger = logging.getLogger(__name__)
 
 
+def _require_complete_source_time_window(user_object, start, stop):
+    """Require conventional source start/stop limits to be supplied together."""
+
+    if (start is None) != (stop is None):
+        raise ValueError(
+            f"{user_object.params_str()} start and stop times must be supplied together"
+        )
+
+
 class ExcitationFile(GridUserObject):
     """Specify file containing amplitude values of custom waveforms.
 
@@ -646,6 +655,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
             )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
@@ -821,6 +831,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
             )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
@@ -1026,6 +1037,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
             )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
@@ -1184,6 +1196,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
@@ -1352,6 +1365,7 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
             )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
@@ -3183,6 +3197,29 @@ def _reject_perfect_conductor_dispersion(user_object, materials, formulation):
         raise ValueError(message)
 
 
+def _validate_dispersion_definition(user_object, poles, material_ids, **pole_parameters):
+    """Validate the common structure of an API dispersive-material request."""
+
+    try:
+        poles = operator.index(poles)
+    except TypeError as exc:
+        raise ValueError(f"{user_object.params_str()} requires an integer number of poles") from exc
+
+    if poles <= 0:
+        raise ValueError(f"{user_object.params_str()} requires a positive number of poles")
+    if not material_ids:
+        raise ValueError(f"{user_object.params_str()} requires at least one material identifier")
+
+    for name, values in pole_parameters.items():
+        if len(values) != poles:
+            raise ValueError(
+                f"{user_object.params_str()} requires exactly {poles} {name} value(s), "
+                "one for each pole"
+            )
+
+    return poles
+
+
 class AddDebyeDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
     multi-pole Debye formulation.
@@ -3222,17 +3259,23 @@ class AddDebyeDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least four parameters.")
             raise
 
-        if poles < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for number of poles.")
-            raise ValueError
+        poles = _validate_dispersion_definition(
+            self,
+            poles,
+            material_ids,
+            er_delta=er_delta,
+            tau=tau,
+        )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
-            notfound = [x for x in material_ids if x not in materials]
-            logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in material_ids if material_id not in found_ids]
+            message = f"{self.params_str()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         _reject_perfect_conductor_dispersion(self, materials, "Debye")
 
@@ -3311,17 +3354,24 @@ class AddLorentzDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least five parameters.")
             raise
 
-        if poles < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for number of poles.")
-            raise ValueError
+        poles = _validate_dispersion_definition(
+            self,
+            poles,
+            material_ids,
+            er_delta=er_delta,
+            omega=omega,
+            delta=delta,
+        )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
-            notfound = [x for x in material_ids if x not in materials]
-            logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in material_ids if material_id not in found_ids]
+            message = f"{self.params_str()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         _reject_perfect_conductor_dispersion(self, materials, "Lorentz")
 
@@ -3406,17 +3456,23 @@ class AddDrudeDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least four parameters.")
             raise
 
-        if poles < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for number of poles.")
-            raise ValueError
+        poles = _validate_dispersion_definition(
+            self,
+            poles,
+            material_ids,
+            omega=omega,
+            alpha=alpha,
+        )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
-            notfound = [x for x in material_ids if x not in materials]
-            logger.exception(f"{self.params_str()} material(s) {notfound} do not exist.")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in material_ids if material_id not in found_ids]
+            message = f"{self.params_str()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         _reject_perfect_conductor_dispersion(self, materials, "Drude")
 
@@ -3688,7 +3744,7 @@ class MaterialList(GridUserObject):
 
     @property
     def hash(self):
-        return "#material_range"
+        return "#material_list"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3785,17 +3841,23 @@ class PMLCFS(GridUserObject):
                 f"{self.params_str()} must have scaling type {','.join(CFSParameter.scalingdirections)}"
             )
             raise ValueError
+
+        if isinstance(sigmamax, str) and sigmamax.lower() == "none":
+            sigmamax = None
+
         if (
             float(alphamin) < 0
             or float(alphamax) < 0
             or float(kappamin) < 0
             or float(kappamax) < 0
             or float(sigmamin) < 0
+            or (sigmamax is not None and float(sigmamax) < 0)
         ):
-            logger.exception(
-                f"{self.params_str()} minimum and maximum scaling values must be greater than zero."
+            message = (
+                f"{self.params_str()} minimum and maximum scaling values must be zero or greater."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
 
         cfsalpha = CFSParameter()
         cfsalpha.ID = "alpha"
@@ -3814,8 +3876,6 @@ class PMLCFS(GridUserObject):
         cfssigma.scalingprofile = sigmascalingprofile
         cfssigma.scalingdirection = sigmascalingdirection
         cfssigma.min = float(sigmamin)
-        if sigmamax == "None":
-            sigmamax = None
         if sigmamax is not None:
             sigmamax = float(sigmamax)
         cfssigma.max = sigmamax

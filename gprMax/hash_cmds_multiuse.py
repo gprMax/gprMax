@@ -35,6 +35,7 @@ from .user_objects.cmds_multiuse import (
     ExcitationFile,
     HertzianDipole,
     MagneticDipole,
+    MagneticFrillSource,
     Material,
     MaterialList,
     MaterialRange,
@@ -311,8 +312,8 @@ def process_multicmds(multicmds):
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
-                    start=tmp[6],
-                    stop=tmp[7],
+                    start=float(tmp[6]),
+                    stop=float(tmp[7]),
                 )
             else:
                 logger.exception(
@@ -322,15 +323,43 @@ def process_multicmds(multicmds):
 
             scene_objects.append(tl)
 
+    cmdname = "#magnetic_frill_source"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) == 6:
+                frill = MagneticFrillSource(
+                    polarisation=tmp[0],
+                    p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
+                    zcoax=float(tmp[4]),
+                    waveform_id=tmp[5],
+                )
+            elif len(tmp) == 8:
+                frill = MagneticFrillSource(
+                    polarisation=tmp[0],
+                    p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
+                    zcoax=float(tmp[4]),
+                    waveform_id=tmp[5],
+                    start=float(tmp[6]),
+                    stop=float(tmp[7]),
+                )
+            else:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires six parameters, "
+                    "or eight parameters when start and stop times are supplied"
+                )
+
+            scene_objects.append(frill)
+
     cmdname = "#plane_wave_angles"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 10:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
+            if len(tmp) not in (10, 11, 13):
+                raise ValueError(
+                    f"'{cmdname}: {' '.join(tmp)}' requires ten parameters, 11 with a "
+                    "material ID, or 13 with a material ID and start/stop times"
                 )
-                raise ValueError
 
             if len(tmp) == 10:
                 plWave = DiscretePlaneWaveAngles(
@@ -363,12 +392,6 @@ def process_multicmds(multicmds):
                     start=float(tmp[11]),
                     stop=float(tmp[12]),
                 )
-            else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
-                raise ValueError
-
             scene_objects.append(plWave)
 
     eigenmode_band_cmds = multicmds.get("#eigenmode_band") or []
@@ -490,11 +513,11 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 10:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters"
+            if len(tmp) not in (11, 12, 14):
+                raise ValueError(
+                    f"'{cmdname}: {' '.join(tmp)}' requires 11 parameters, 12 with a "
+                    "material ID, or 14 with a material ID and start/stop times"
                 )
-                raise ValueError
 
             if len(tmp) == 11:
                 plWave = DiscretePlaneWaveVector(
@@ -524,28 +547,17 @@ def process_multicmds(multicmds):
                     start=float(tmp[12]),
                     stop=float(tmp[13]),
                 )
-            else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
-                raise ValueError
-
             scene_objects.append(plWave)
 
     cmdname = "#plane_wave_axial"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 9:
-                logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least nine parameters"
+            if len(tmp) not in (9, 11):
+                raise ValueError(
+                    f"'{cmdname}: {' '.join(tmp)}' requires nine parameters, or 11 "
+                    "with start/stop times"
                 )
-                raise ValueError
 
             if len(tmp) == 9:
                 plWave = DiscretePlaneWaveAxial(
@@ -565,12 +577,6 @@ def process_multicmds(multicmds):
                     start=float(tmp[9]),
                     stop=float(tmp[10]),
                 )
-            else:
-                logger.exception(
-                    "'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters"
-                )
-                raise ValueError
-
             scene_objects.append(plWave)
 
     cmdname = "#excitation_file"
@@ -582,7 +588,15 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             if len(tmp) > 1:
-                ex_file = ExcitationFile(filepath=tmp[0], kind=tmp[1], fill_value=tmp[2])
+                try:
+                    kind = int(tmp[1])
+                except ValueError:
+                    kind = tmp[1]
+                try:
+                    fill_value = float(tmp[2])
+                except ValueError:
+                    fill_value = tmp[2]
+                ex_file = ExcitationFile(filepath=tmp[0], kind=kind, fill_value=fill_value)
             else:
                 ex_file = ExcitationFile(filepath=tmp[0])
 
@@ -989,19 +1003,15 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-
-            if len(tmp) < 4:
+            poles = int(tmp[0]) if tmp else 0
+            required = 2 + 2 * poles
+            if poles <= 0 or len(tmp) < required:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least four parameters"
+                    f"'{cmdname}: {' '.join(tmp)}' requires a positive pole count, "
+                    "two values per pole, and at least one material identifier"
                 )
                 raise ValueError
 
-            poles = int(tmp[0])
             er_delta = []
             tau = []
             material_ids = tmp[(2 * poles) + 1 : len(tmp)]
@@ -1019,19 +1029,15 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-
-            if len(tmp) < 5:
+            poles = int(tmp[0]) if tmp else 0
+            required = 2 + 3 * poles
+            if poles <= 0 or len(tmp) < required:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least five parameters"
+                    f"'{cmdname}: {' '.join(tmp)}' requires a positive pole count, "
+                    "three values per pole, and at least one material identifier"
                 )
                 raise ValueError
 
-            poles = int(tmp[0])
             material_ids = tmp[(3 * poles) + 1 : len(tmp)]
             er_delta = []
             omega = []
@@ -1055,19 +1061,15 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-
-            if len(tmp) < 4:
+            poles = int(tmp[0]) if tmp else 0
+            required = 2 + 2 * poles
+            if poles <= 0 or len(tmp) < required:
                 logger.exception(
-                    "'"
-                    + cmdname
-                    + ": "
-                    + " ".join(tmp)
-                    + "'"
-                    + " requires at least four parameters"
+                    f"'{cmdname}: {' '.join(tmp)}' requires a positive pole count, "
+                    "two values per pole, and at least one material identifier"
                 )
                 raise ValueError
 
-            poles = int(tmp[0])
             material_ids = tmp[(2 * poles) + 1 : len(tmp)]
             omega = []
             alpha = []

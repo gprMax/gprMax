@@ -529,7 +529,7 @@ class OMPThreads(ModelUserObject):
 
     @property
     def hash(self):
-        return "#num_threads"
+        return "#omp_threads"
 
     def __init__(self, n: int):
         """Create an OMPThreads user object.

@@ -64,11 +64,18 @@ def process_singlecmds(singlecmds):
 
     # Number of threads for CPU-based (OpenMP) parallelised parts of code
     cmd = "#omp_threads"
-    if singlecmds[cmd] is not None:
-        tmp = tuple(int(x) for x in singlecmds[cmd].split())
+    legacy_cmd = "#num_threads"
+    if singlecmds[cmd] is not None and singlecmds[legacy_cmd] is not None:
+        message = f"{cmd} and its legacy alias {legacy_cmd} cannot both be specified"
+        logger.error(message)
+        raise ValueError(message)
+
+    selected_cmd = cmd if singlecmds[cmd] is not None else legacy_cmd
+    if singlecmds[selected_cmd] is not None:
+        tmp = tuple(int(x) for x in singlecmds[selected_cmd].split())
         if len(tmp) != 1:
             logger.exception(
-                f"{cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
+                f"{selected_cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
             )
             raise ValueError
 
@@ -129,7 +136,13 @@ def process_singlecmds(singlecmds):
 
     cmd = "#time_step_stability_factor"
     if singlecmds[cmd] is not None:
-        tmp = tuple(float(x) for x in singlecmds[cmd].split())
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            message = f"{cmd} requires exactly one parameter"
+            logger.error(message)
+            raise ValueError(message)
+
+        tmp = tuple(float(x) for x in tmp)
         tsf = TimeStepStabilityFactor(f=tmp[0])
         scene_objects.append(tsf)
 
