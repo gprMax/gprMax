@@ -378,6 +378,10 @@ class Snapshot(OutputUserObject):
                             '.vtkhdf' (default) or '.h5'
         outputs: optional list of outputs for receiver. It can be any
                     selection from Ex, Ey, Ez, Hx, Hy, or Hz.
+
+    A snapshot added to an HSG subgrid uses that grid's spatial and temporal
+    discretisation. Its output origin is expressed in global model
+    coordinates.
     """
 
     @property
@@ -424,9 +428,6 @@ class Snapshot(OutputUserObject):
         return start + step * np.ceil(size / step)
 
     def build(self, model: Model, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} do not add snapshots to subgrids.")
-
         uip = self._create_uip(grid)
         self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
         self.upper_bound = uip.resolve_inf_point(self.upper_bound, role="upper")

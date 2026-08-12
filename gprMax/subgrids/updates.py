@@ -90,14 +90,19 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         self.iteration = 0
 
     def store_outputs(self):
-        return super().store_outputs(self.iteration)
+        super().store_outputs(self.iteration)
+        super().store_snapshots(self.iteration)
 
     def update_electric_sources(self):
-        super().update_electric_sources(self.iteration)
+        iteration = self.iteration
+        super().update_electric_sources(iteration)
+        super().update_eigenmode_sources_electric(iteration)
         self.iteration += 1
 
     def update_magnetic_sources(self):
-        return super().update_magnetic_sources(self.iteration)
+        super().update_magnetic_sources(self.iteration)
+        super().update_eigenmode_sources_magnetic(self.iteration)
+        super().observe_eigenmode_ports(self.iteration)
 
     def update_network_terminals(self):
         """Update sparse terminals at the fine-grid electric time step."""

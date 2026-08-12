@@ -478,8 +478,11 @@ The frequency dataset and validity mask can be plotted directly:
 Eigenmode-port and S-parameter output
 -------------------------------------
 
-Each explicitly numbered eigenmode source or receiver is stored below
-``/eigenmode_ports/portN``. ``frequency`` contains the direct-DFT bins.
+Each explicitly numbered main-grid eigenmode source or receiver is stored
+below ``/eigenmode_ports/portN``. A direct port owned by an HSG subgrid is
+stored below ``/subgrids/<subgrid ID>/eigenmode_ports/portN`` and uses that
+grid's fine ``dx_dy_dz``, ``dt``, and iteration count. ``frequency`` contains
+the direct-DFT bins.
 ``incident`` and ``outgoing`` have shape ``(nmodes, nfrequencies)``, with
 rows ordered by the one-based ``ModeIndices`` attribute. ``S`` is the outgoing
 coefficient divided by the excited source-mode incident coefficient, so the
@@ -542,7 +545,9 @@ physical mask is also true.
 
 A run with one eigenmode source also writes
 ``<output>_sparameters.csv`` with one row per frequency, destination port,
-and destination mode.
+and destination mode. For a source in a subgrid the filename is
+``<output>_<subgrid ID>_sparameters.csv``. Ports in different owning grids are
+finalised independently and do not form one cross-grid S matrix.
 
 When every eigenmode port has a passive virtual waveguide and no
 ``EigenmodeExcitation`` is defined, the same HDF5 groups contain the raw
@@ -853,7 +858,7 @@ strictly enclose the complete subgrid coupling region.
 Snapshots
 ---------
 
-Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired.
+Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired. HDF5 snapshots include ``origin`` (global x, y, z coordinates), ``dx_dy_dz``, ``nx_ny_nz``, and ``time`` attributes. A snapshot owned by an HSG subgrid is sampled at the fine-grid time step and is still positioned in this global coordinate frame.
 
 .. tip::
     You can take advantage of our Python API to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x, y, z, dl, fn`` accordingly.
