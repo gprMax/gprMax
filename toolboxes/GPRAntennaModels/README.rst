@@ -13,6 +13,7 @@ The package features models of antennas similar to commercial GPR antennas. The 
 Manufacturer/Model       Dimensions    Resolution(s) Author/Contact                                                                                                                                                                                                            Attribution/Cite
 ======================== ============= ============= ========================================================================================================================================================================================================================= ================
 GSSI 1.5GHz (Model 5100) 170x108x45mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                                                                                                                                                 1,2
+GSSI 2GHz palm antenna   86x86x68mm    1mm           Ourania Patsia, Antonios Giannopoulos, and Iraklis Giannakis, The University of Edinburgh, UK                                                                                                                              4
 MALA 1.2GHz              184x109x46mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                                                                                                                                                 1
 GSSI 400MHz              300x300x170mm 2mm           Sam Stadler (sam.stadler@leibniz-liag.de), `Leibniz Institute for Applied Geophysics <https://www.leibniz-liag.de/en/research/methods/electromagnetic-methods/ground-penetrating-radar.html>`_, Germany                   3
 ======================== ============= ============= ========================================================================================================================================================================================================================= ================
@@ -24,6 +25,7 @@ GSSI 400MHz              300x300x170mm 2mm           Sam Stadler (sam.stadler@le
 1. Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
 2. Giannakis, I., Giannopoulos, A., & Warren, C. (2019). Realistic FDTD GPR antenna models optimised using a novel linear/non-linear Full Waveform Inversion. *IEEE Transactions on Geoscience and Remote Sensing*, 57(3), 1768-1778. (https://doi.org/10.1109/TGRS.2018.2869027)
 3. Stadler, S., & Igel, J. (2022). Developing realistic FDTD GPR antenna surrogates by means of particle swarm optimization. *IEEE Transactions on Antennas and Propagation*, 70(6), 4259-4272. (https://doi.org/10.1109/TAP.2022.3142335)
+4. Patsia, O., Giannopoulos, A., & Giannakis, I. (2024). Developing a realistic numerical equivalent of a GPR antenna transducer using global optimizers. *Near Surface Geophysics*, 22(2), 140-151. (https://doi.org/10.1002/nsg.12280)
 
 Package contents
 ================
@@ -36,7 +38,7 @@ Descriptions of how the models were created can be found in the aforementioned a
 How to use the package
 ======================
 
-The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 1mm or 2mm by setting the keyword argument, e.g. ``resolution=0.002``.
+The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The supported cubic spatial resolutions are listed in the table above and are selected with the keyword argument, e.g. ``resolution=0.002``.
 
 .. note::
 
