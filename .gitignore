@@ -38,6 +38,7 @@ examples/**/*.vtkhdf
 examples/features/eigenmode_ports/**/*.csv
 examples/features/eigenmode_ports/**/*.png
 examples/**/*_eigenmode_*.png
+toolboxes/STEPtoVoxel/examples/**/output/
 
 # Local eigenmode regression workspace
 eigensource_test_run/

@@ -40,6 +40,7 @@ gprMax User Guide
     inc_LandmineModels
     inc_Materials
     inc_STLtoVoxel
+    inc_STEPtoVoxel
     inc_Plotting
     inc_Utilities
 
