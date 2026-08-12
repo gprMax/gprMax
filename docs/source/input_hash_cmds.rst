@@ -229,6 +229,12 @@ Allows you to control how many OpenMP threads (usually the number of physical CP
 
 where ``i1`` is the number of OpenMP threads to use. If ``#omp_threads`` is not specified gprMax will first look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
 
+For compatibility with input files created for earlier versions of gprMax,
+``#num_threads: i1`` is accepted as an exact alias for ``#omp_threads: i1``.
+``#omp_threads`` is the preferred name because it distinguishes OpenMP CPU
+threads from other forms of parallel execution. Do not specify both commands
+in the same input file.
+
 
 .. _materials:
 

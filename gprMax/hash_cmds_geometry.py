@@ -41,6 +41,44 @@ from .utilities.utilities import round_value
 logger = logging.getLogger(__name__)
 
 
+def _validate_fractal_modifier_targets(geometry):
+    """Reject malformed or orphaned fractal-surface hash commands.
+
+    Fractal modifiers are constructed while processing their associated
+    ``#fractal_box``. Without this preliminary check, a modifier whose box ID
+    does not exist (or a malformed modifier when there are no fractal boxes)
+    is never visited and is silently discarded.
+    """
+
+    tokenised = [command.split() for command in geometry]
+    fractal_box_commands = [
+        tokens for tokens in tokenised if tokens and tokens[0] == "#fractal_box:"
+    ]
+    for tokens in fractal_box_commands:
+        if len(tokens) not in (14, 15, 16):
+            raise ValueError(f"'{' '.join(tokens)}' requires 13, 14, or 15 parameters")
+    fractal_box_ids = {tokens[13] for tokens in fractal_box_commands}
+    if len(fractal_box_ids) != len(fractal_box_commands):
+        raise ValueError("#fractal_box identifiers must be unique")
+
+    modifier_specs = {
+        "#add_surface_roughness:": ((13, 14), 12),
+        "#add_surface_water:": ((9,), 8),
+        "#add_grass:": ((12, 13), 11),
+    }
+
+    for tokens in tokenised:
+        if not tokens or tokens[0] not in modifier_specs:
+            continue
+        valid_lengths, target_index = modifier_specs[tokens[0]]
+        if len(tokens) not in valid_lengths:
+            expected = " or ".join(str(length - 1) for length in valid_lengths)
+            raise ValueError(f"'{' '.join(tokens)}' requires exactly {expected} parameter(s)")
+        target = tokens[target_index]
+        if target not in fractal_box_ids:
+            raise ValueError(f"'{tokens[0][:-1]}' cannot find #fractal_box with ID '{target}'")
+
+
 def process_geometrycmds(geometry):
     """Checks the validity of command parameters, creates instances of classes
         of parameters, and calls functions to directly set arrays solid, rigid
@@ -53,6 +91,7 @@ def process_geometrycmds(geometry):
         scene_objects: list that holds objects in scene.
     """
 
+    _validate_fractal_modifier_targets(geometry)
     scene_objects = []
 
     for object in geometry:
@@ -338,7 +377,7 @@ def process_geometrycmds(geometry):
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5:])
+                sphere = Sphere(p1=p1, r=r, material_ids=tmp[5:])
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -372,8 +411,8 @@ def process_geometrycmds(geometry):
                 )
 
             # Uniaxial anisotropic case
-            elif len(tmp) == 8:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7:])
+            elif len(tmp) == 10:
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:])
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")

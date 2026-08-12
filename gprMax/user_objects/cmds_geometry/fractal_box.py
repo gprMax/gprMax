@@ -162,6 +162,9 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 + "ID {mixing_model_id} does not exist"
             )
 
+        if any(volume.ID == ID for volume in grid.fractalvolumes):
+            raise ValueError(f"{self.__str__()} FractalBox ID {ID!r} is already in use")
+
         # grid.add_fractal_volume() already appends the new volume to
         # grid.fractalvolumes (and MPIGrid's override does the same) -
         # an extra `grid.fractalvolumes.append(self.volume)` used to sit

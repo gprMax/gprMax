@@ -71,7 +71,7 @@ class Model:
 
         # Set number of OpenMP threads to physical threads at this point to be
         # used with threaded model building methods, e.g. fractals. Can be
-        # changed by the user via #num_threads command in input file or via API
+        # changed by the user via #omp_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
 
