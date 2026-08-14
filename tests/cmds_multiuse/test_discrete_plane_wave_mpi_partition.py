@@ -82,3 +82,61 @@ def test_axial_profile_remaps_gathered_coefficients_to_dpw_local_ids():
         np.testing.assert_array_equal(dpw.ID[component, :3], first_id)
         np.testing.assert_array_equal(dpw.ID[component, 6:], last_id)
         np.testing.assert_array_equal(dpw.axial_updatecoeffsE[first_id], coeffs_e + component + 1)
+
+
+def test_axial_profile_zero_pads_mixed_rank_dispersive_orders(monkeypatch):
+    """Use the global pole width when rank-local averaged materials differ."""
+
+    n_prop = 4
+    coeffs_e = np.arange(5, dtype=np.float64)
+    coeffs_h = coeffs_e + 10
+    records = {}
+    for component in range(6):
+        for prop_idx in range(1, n_prop):
+            poles = 2 if prop_idx == 1 else 3
+            coeffs_d = np.arange(3 * poles, dtype=np.complex128) + 1j * component
+            records[("profile", component, prop_idx)] = (
+                coeffs_e,
+                coeffs_h,
+                coeffs_d,
+                poles,
+            )
+    source_material = SimpleNamespace(ID="source", poles=0)
+    far_material = SimpleNamespace(ID="far", poles=0)
+    records[("material", "source")] = source_material
+    records[("material", "far_pml")] = far_material
+
+    class _Comm:
+        @staticmethod
+        def allgather(_local):
+            return [records]
+
+    grid = SimpleNamespace(
+        updatecoeffsE=np.zeros((1, 5), dtype=np.float64),
+        updatecoeffsH=np.zeros((1, 5), dtype=np.float64),
+        updatecoeffsdispersive=np.zeros((1, 6), dtype=np.complex128),
+        comm=_Comm(),
+    )
+    grid.global_to_local_coordinate = lambda point: point
+    grid.within_bounds = lambda point: False
+
+    dpw = SimpleNamespace(
+        transverse_pos=[1, 1, 1],
+        origin_axial=2,
+        length=10,
+        ID=np.zeros((6, 10), dtype=np.uint32),
+    )
+    model_config = SimpleNamespace(materials={"dispersivedtype": np.complex128})
+    monkeypatch.setattr("gprMax.sources.config.get_model_config", lambda: model_config)
+
+    DiscretePlaneWave._build_mpi_axial_profile(dpw, grid, prop=0, n_prop=n_prop)
+
+    assert dpw.max_poles == 3
+    assert dpw.axial_updatecoeffsdispersive.shape == (6 * n_prop, 9)
+    for component in range(6):
+        two_pole_id = component * n_prop + 1
+        np.testing.assert_array_equal(
+            dpw.axial_updatecoeffsdispersive[two_pole_id, :6],
+            records[("profile", component, 1)][2],
+        )
+        np.testing.assert_array_equal(dpw.axial_updatecoeffsdispersive[two_pole_id, 6:], 0)

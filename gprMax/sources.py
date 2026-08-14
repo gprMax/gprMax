@@ -4551,10 +4551,20 @@ class DiscretePlaneWave(Source):
         self.axial_updatecoeffsH = np.zeros(
             (table_size, G.updatecoeffsH.shape[1]), dtype=G.updatecoeffsH.dtype
         )
-        if has_dispersion:
+        dispersive_rows = [
+            value[2]
+            for key, value in records.items()
+            if key[0] == "profile" and value[2] is not None
+        ]
+        max_dispersive_coeffs = max((row.size for row in dispersive_rows), default=0)
+        if max_dispersive_coeffs % 3:
+            raise RuntimeError(
+                "Axial DPW dispersive coefficient rows must contain three values per pole."
+            )
+        if max_dispersive_coeffs:
             self.axial_updatecoeffsdispersive = np.zeros(
-                (table_size, G.updatecoeffsdispersive.shape[1]),
-                dtype=G.updatecoeffsdispersive.dtype,
+                (table_size, max_dispersive_coeffs),
+                dtype=config.get_model_config().materials["dispersivedtype"],
             )
         else:
             self.axial_updatecoeffsdispersive = None
@@ -4567,7 +4577,7 @@ class DiscretePlaneWave(Source):
                 self.axial_updatecoeffsE[compact_id] = coeffs_e
                 self.axial_updatecoeffsH[compact_id] = coeffs_h
                 if coeffs_d is not None:
-                    self.axial_updatecoeffsdispersive[compact_id] = coeffs_d
+                    self.axial_updatecoeffsdispersive[compact_id, : coeffs_d.size] = coeffs_d
                 max_poles = max(max_poles, poles)
 
             first_id = component * n_prop + 1
@@ -4579,8 +4589,8 @@ class DiscretePlaneWave(Source):
 
         self.material = records[("material", "source")]
         self.materialPML = records[("material", "far_pml")]
-        self.max_poles = max_poles
-        self.dispersive = max_poles > 0
+        self.max_poles = max(max_poles, max_dispersive_coeffs // 3)
+        self.dispersive = self.max_poles > 0
 
     def calculate_waveform_values(self, G, cythonize=True):
         """Calculates all waveform values for source for duration of simulation.
