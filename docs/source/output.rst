@@ -566,6 +566,11 @@ NTFF field-transformation output
 Reusable KSIR and equivalent-current outputs are stored in the normal model
 file under their surface and transform IDs:
 
+MPI domain-decomposition runs use this same schema and write the completed
+datasets from the coordinator rank. A ``collection_backend`` value beginning
+with ``mpi_`` records that the integration surface was partitioned between
+ranks; it does not change field normalisation or array ordering.
+
 .. code-block:: none
 
     /ntff/<surface_id>/

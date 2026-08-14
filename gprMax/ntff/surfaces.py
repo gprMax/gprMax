@@ -20,11 +20,10 @@
 """Yee-aligned closed surfaces for the KSIR NTFF formulation."""
 
 from dataclasses import dataclass
-from typing import Dict, Mapping, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import numpy.typing as npt
-
 
 COMPONENTS = ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
 """Field components supported by the Cartesian KSIR formulation."""
@@ -74,6 +73,7 @@ class KSIRSurfaceFace:
     area_weights: npt.NDArray[np.floating]
     normal_spacing: float
     field_shape: Tuple[int, int, int]
+    global_patch_indices: Optional[npt.NDArray[np.int64]] = None
 
     @property
     def npatches(self) -> int:
@@ -190,8 +190,7 @@ def _build_face(
     normal_axis, normal_sign = _FACE_SPECS[face_id]
     tangential_axes = tuple(axis for axis in range(3) if axis != normal_axis)
     tangential_ranges = [
-        _component_index_range(lower[axis], upper[axis], offsets[axis])
-        for axis in tangential_axes
+        _component_index_range(lower[axis], upper[axis], offsets[axis]) for axis in tangential_axes
     ]
     tangential_mesh = np.meshgrid(*tangential_ranges, indexing="ij")
     npatches = tangential_mesh[0].size

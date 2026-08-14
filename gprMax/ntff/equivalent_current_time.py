@@ -92,12 +92,20 @@ class EquivalentCurrentTimeMonitor:
         impedance,
         nthreads=1,
         device_backend=None,
+        mpi_grid=None,
     ):
         self.name = name
         self.lower = np.asarray(lower, dtype=np.int64)
         self.upper = np.asarray(upper, dtype=np.int64)
         self.spacing = np.asarray(spacing, dtype=real_dtype)
-        self.field_shape = tuple(int(value) for value in field_shape)
+        self.global_field_shape = tuple(int(value) for value in field_shape)
+        self.mpi_grid = mpi_grid
+        self.mpi_comm = None if mpi_grid is None else mpi_grid.comm
+        self.field_shape = (
+            self.global_field_shape
+            if mpi_grid is None
+            else tuple(int(value + 1) for value in mpi_grid.size)
+        )
         self.dt = float(dt)
         self.iterations = int(iterations)
         self.real_dtype = np.dtype(real_dtype)
@@ -120,6 +128,10 @@ class EquivalentCurrentTimeMonitor:
                 else "numpy_fallback"
             )
         )
+        if self.mpi_comm is not None:
+            if self.device_backend is not None:
+                raise ValueError("MPI NTFF collection is available with the CPU solver")
+            self.collection_backend = f"mpi_{self.collection_backend}"
         if self.lower.shape != (3,) or self.upper.shape != (3,):
             raise ValueError("equivalent-current bounds must have shape (3,)")
         if np.any(self.upper <= self.lower):
@@ -166,10 +178,28 @@ class EquivalentCurrentTimeMonitor:
             normals.append(face_normals)
             areas.append(face_areas)
             normal_axes.append(np.full(face_positions.shape[0], normal_axis, dtype=np.int8))
-        self.positions = _readonly(np.concatenate(positions), self.real_dtype)
-        self.normals = _readonly(np.concatenate(normals), self.real_dtype)
-        self.area_weights = _readonly(np.concatenate(areas), self.real_dtype)
-        self.normal_axes = _readonly(np.concatenate(normal_axes), np.int8)
+        positions = np.concatenate(positions)
+        normals = np.concatenate(normals)
+        areas = np.concatenate(areas)
+        normal_axes = np.concatenate(normal_axes)
+        if self.mpi_grid is not None:
+            anchor = np.floor(positions / self.spacing).astype(np.int32)
+            positive = normals[np.arange(normals.shape[0]), normal_axes] > 0
+            anchor[np.flatnonzero(positive), normal_axes[positive]] -= 1
+            owners = np.fromiter(
+                (self.mpi_grid.get_rank_from_coordinate(item) for item in anchor),
+                dtype=np.int32,
+                count=anchor.shape[0],
+            )
+            keep = owners == self.mpi_grid.rank
+            positions = positions[keep]
+            normals = normals[keep]
+            areas = areas[keep]
+            normal_axes = normal_axes[keep]
+        self.positions = _readonly(positions, self.real_dtype)
+        self.normals = _readonly(normals, self.real_dtype)
+        self.area_weights = _readonly(areas, self.real_dtype)
+        self.normal_axes = _readonly(normal_axes, np.int8)
         self.npatches = self.positions.shape[0]
         self._stencils = self._build_stencils()
         self._gather_buffer = np.empty(self.npatches, dtype=self.real_dtype)
@@ -181,8 +211,16 @@ class EquivalentCurrentTimeMonitor:
             0.0: self._delay_map(shift, 0.0),
             0.5: self._delay_map(shift, 0.5),
         }
-        self._time_origin_step = int(np.floor(np.min(shift))) - 2
-        last_step = self.iterations - 1 + int(np.ceil(np.max(shift))) + 2
+        local_minimum = float(np.min(shift)) if self.npatches else np.inf
+        local_maximum = float(np.max(shift)) if self.npatches else -np.inf
+        if self.mpi_comm is not None:
+            bounds = self.mpi_comm.allgather((local_minimum, local_maximum))
+            local_minimum = min(item[0] for item in bounds)
+            local_maximum = max(item[1] for item in bounds)
+        if not np.isfinite(local_minimum) or not np.isfinite(local_maximum):
+            raise RuntimeError("MPI equivalent-current surface has no owned patches")
+        self._time_origin_step = int(np.floor(local_minimum)) - 2
+        last_step = self.iterations - 1 + int(np.ceil(local_maximum)) + 2
         self._raw_length = last_step - self._time_origin_step + 1
         self._theta_output = (
             np.zeros((self.directions.shape[0], self._raw_length), dtype=self.real_dtype)
@@ -190,8 +228,8 @@ class EquivalentCurrentTimeMonitor:
             else None
         )
         self._phi_output = None if self._theta_output is None else np.zeros_like(self._theta_output)
-        self._complete_start_step = int(np.ceil(np.max(shift) + 1))
-        self._complete_stop_step = int(np.floor(np.min(shift) + self.iterations - 1))
+        self._complete_start_step = int(np.ceil(local_maximum + 1))
+        self._complete_stop_step = int(np.floor(local_minimum + self.iterations - 1))
         if self._complete_stop_step < self._complete_start_step:
             raise ValueError(
                 "time window is too short to contain one complete retarded surface history"
@@ -231,9 +269,7 @@ class EquivalentCurrentTimeMonitor:
                 for axis in range(3):
                     sample_index = target[:, axis] / self.spacing[axis] - offset[axis]
                     nearest = np.rint(sample_index)
-                    if np.allclose(
-                        sample_index, nearest, rtol=0, atol=alignment_tolerance
-                    ):
+                    if np.allclose(sample_index, nearest, rtol=0, atol=alignment_tolerance):
                         shifts_by_axis.append((0.0,))
                     elif np.allclose(
                         np.abs(sample_index - nearest),
@@ -256,6 +292,8 @@ class EquivalentCurrentTimeMonitor:
                         atol=alignment_tolerance,
                     ):
                         raise RuntimeError(f"{component} stencil is not on Yee samples")
+                    if self.mpi_grid is not None:
+                        indices -= np.asarray(self.mpi_grid.lower_extent, dtype=np.int64)
                     if np.any(indices < 0) or np.any(
                         indices >= np.asarray(self.field_shape)[np.newaxis, :]
                     ):
@@ -346,7 +384,13 @@ class EquivalentCurrentTimeMonitor:
             component_ids = ids[id_lookup[component]].ravel()
             for _, stencil in self._stencils[component]:
                 sampled.append(component_ids[stencil.ravel()])
-        unique = np.unique(np.concatenate(sampled))
+        if self.mpi_comm is not None:
+            from .mpi import distributed_unique
+
+            local = np.concatenate(sampled) if sampled else np.empty(0, dtype=np.int64)
+            unique = distributed_unique(local, self.mpi_comm)
+        else:
+            unique = np.unique(np.concatenate(sampled))
         if unique.size != 1:
             raise ValueError(
                 "equivalent-current surface must lie in one material; "
@@ -418,6 +462,19 @@ class EquivalentCurrentTimeMonitor:
             raise RuntimeError("equivalent-current monitor did not receive every time step")
         if self._theta_output is None or self._phi_output is None:
             raise RuntimeError("equivalent-current device output was not loaded")
+        if self.mpi_comm is not None:
+            from mpi4py import MPI
+
+            coordinator = self.mpi_comm.Get_rank() == 0
+            theta = np.empty_like(self._theta_output) if coordinator else None
+            phi = np.empty_like(self._phi_output) if coordinator else None
+            self.mpi_comm.Reduce(self._theta_output, theta, op=MPI.SUM, root=0)
+            self.mpi_comm.Reduce(self._phi_output, phi, op=MPI.SUM, root=0)
+            if not coordinator:
+                self._finalised = True
+                return
+            self._theta_output = theta
+            self._phi_output = phi
         start = self._complete_start_step - self._time_origin_step
         stop = self._complete_stop_step - self._time_origin_step + 1
         scale = -1 / (4 * np.pi * self.wave_speed)
