@@ -4147,10 +4147,10 @@ class SymmetryBoundary(GridUserObject):
     ghost-node update for the on-wall tangential electric fields.
 
     PEC and PMC boundaries, including PMC boundaries in dispersive models, are
-    supported by the CPU, CUDA, OpenCL, and Metal solvers.
-    Symmetry boundaries are not supported in 2D mode, with MPI, or on a
-    subgrid, although they may be used on the main grid of a model that
-    contains subgrids.
+    supported by the CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU
+    solvers. Symmetry boundaries are not supported in 2D mode or on a subgrid,
+    although they may be used on the main grid of a model that contains
+    subgrids.
 
     Attributes:
         face: One of ``x0``, ``y0``, ``z0``, ``xmax``, ``ymax``, or ``zmax``.
@@ -4191,10 +4191,6 @@ class SymmetryBoundary(GridUserObject):
             logger.exception(
                 f"{self.params_str()} type must be one of {', '.join(self.VALID_TYPES)}."
             )
-            raise ValueError
-
-        if config.sim_config.mpi:
-            logger.exception(f"{self.params_str()} cannot currently be used with MPI.")
             raise ValueError
 
         if config.get_model_config().mode.startswith("2D"):

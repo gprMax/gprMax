@@ -586,8 +586,7 @@ class Model:
         """Reserved parity check after material dispersion is resolved."""
 
         # All local backends now implement both phases of the dispersive PMC
-        # ADE update. Keep this hook because MPI symmetry remains deliberately
-        # rejected by the command builder and future backends may need an
+        # ADE update. Keep this hook because future backends may need an
         # explicit capability check here.
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):

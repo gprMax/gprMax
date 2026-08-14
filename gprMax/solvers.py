@@ -92,9 +92,8 @@ class Solver:
             # time loop at this point is still at working on fields updated to be at n+1
             self.updates.update_electric_a()
             # Apply the PMC ghost-image correction on the active local
-            # backend. MPI symmetry is deliberately unsupported.
-            if not isinstance(self.updates, MPIUpdates):
-                self.updates.update_symmetry_boundaries_electric()
+            # backend. MPI ranks dispatch only their owned global faces.
+            self.updates.update_symmetry_boundaries_electric()
 
             self.updates.update_electric_pml()
             self.updates.update_electric_sources(iteration)
@@ -107,8 +106,7 @@ class Solver:
 
             # Complete the dispersive PMC correction after PML and sources,
             # mirroring the bulk dispersive update's A/B split.
-            if not isinstance(self.updates, MPIUpdates):
-                self.updates.update_symmetry_boundaries_electric_b()
+            self.updates.update_symmetry_boundaries_electric_b()
 
             self.updates.update_electric_b()
             self.updates.update_network_terminals(iteration)
