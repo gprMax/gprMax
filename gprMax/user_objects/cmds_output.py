@@ -63,6 +63,27 @@ from gprMax.utilities.utilities import round_int
 logger = logging.getLogger(__name__)
 
 
+def _reserve_mpi_port_output_id(
+    grid: FDTDGrid, requested: Optional[str], owner: OutputUserObject
+) -> str:
+    """Reserve one output ID consistently while every MPI rank parses the scene."""
+
+    used = grid.mpi_port_output_ids
+    if requested is None:
+        index = 1
+        while f"port{index}" in used:
+            index += 1
+        output_id = f"port{index}"
+    else:
+        validate_identifier("port output ID", requested)
+        output_id = requested
+    if output_id in used:
+        raise ValueError(f"port output ID {output_id!r} is already in use.")
+    used.append(output_id)
+    grid.mpi_port_output_owners[output_id] = owner
+    return output_id
+
+
 class RxPort(OutputUserObject):
     """Calculate S11 and input impedance at a one-edge voltage source.
 
@@ -125,8 +146,6 @@ class RxPort(OutputUserObject):
         raise RuntimeError("RxPort result is not available until the model has solved")
 
     def _validate_context(self, grid):
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} does not yet support MPI.")
         if config.sim_config.args.geometry_fixed:
             raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
         if config.get_model_config().mode != "3D":
@@ -136,6 +155,9 @@ class RxPort(OutputUserObject):
 
     def build(self, model: Model, grid: FDTDGrid):
         self._validate_context(grid)
+        mpi_output_id = (
+            _reserve_mpi_port_output_id(grid, self.ID, self) if config.sim_config.mpi else None
+        )
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
         point_within_grid, coord = uip.check_src_rx_point(self.point, self.params_str())
@@ -171,14 +193,20 @@ class RxPort(OutputUserObject):
             raise ValueError(f"{self.params_str()} source already has an RxPort output.")
 
         if self.ID is None:
-            used = {monitor.output_id for monitor in grid.port_monitors}
-            index = 1
-            while f"port{index}" in used:
-                index += 1
-            output_id = f"port{index}"
+            if mpi_output_id is not None:
+                output_id = mpi_output_id
+            else:
+                used = {monitor.output_id for monitor in grid.port_monitors}
+                index = 1
+                while f"port{index}" in used:
+                    index += 1
+                output_id = f"port{index}"
         else:
-            validate_identifier("RxPort ID", self.ID)
-            output_id = self.ID
+            if mpi_output_id is not None:
+                output_id = mpi_output_id
+            else:
+                validate_identifier("RxPort ID", self.ID)
+                output_id = self.ID
         if any(monitor.output_id == output_id for monitor in grid.port_monitors):
             raise ValueError(f"{self.params_str()} output ID is already in use.")
 
@@ -311,24 +339,15 @@ class NetworkPort(OutputUserObject):
         return self._monitor.result
 
     def build(self, model: Model, grid: FDTDGrid):
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} does not yet support the MPI solver.")
         if config.sim_config.args.geometry_fixed:
             raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
         validate_identifier("NetworkPort terminal ID", self.terminal_id)
-        terminal = next(
-            (item for item in grid.networkterminals if item.ID == self.terminal_id), None
-        )
-        if terminal is None:
+        if self.terminal_id not in grid.networkterminal_specs:
             raise ValueError(
                 f"{self.params_str()} there is no network terminal with ID {self.terminal_id!r}."
             )
-        if terminal.output is not None:
-            raise ValueError(f"{self.params_str()} terminal already has a NetworkPort output.")
-        if any(monitor.output_id == self.terminal_id for monitor in grid.port_monitors):
-            raise ValueError(f"{self.params_str()} output ID is already in use.")
         if not np.isfinite(self.reference_impedance) or self.reference_impedance <= 0:
             raise ValueError(
                 f"{self.params_str()} reference impedance must be finite and positive."
@@ -342,6 +361,22 @@ class NetworkPort(OutputUserObject):
                 "per shortest material wavelength; values below 10 may have "
                 "significant spatial-dispersion error."
             )
+        if config.sim_config.mpi:
+            _reserve_mpi_port_output_id(grid, self.terminal_id, self)
+        elif any(monitor.output_id == self.terminal_id for monitor in grid.port_monitors):
+            raise ValueError(f"{self.params_str()} output ID is already in use.")
+        terminal = next(
+            (item for item in grid.networkterminals if item.ID == self.terminal_id), None
+        )
+        if terminal is None:
+            # MPI point objects are instantiated only on their owning rank.
+            if config.sim_config.mpi:
+                return
+            raise RuntimeError(
+                f"{self.params_str()} terminal definition was not instantiated"
+            )
+        if terminal.output is not None:
+            raise ValueError(f"{self.params_str()} terminal already has a NetworkPort output.")
 
         monitor = RationalNetworkPortOutput(
             self.terminal_id,

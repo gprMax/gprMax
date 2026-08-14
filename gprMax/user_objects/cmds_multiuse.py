@@ -430,8 +430,6 @@ class NetworkTerminal(GridUserObject):
         self.ID = id
 
     def build(self, grid: FDTDGrid):
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} does not yet support the MPI solver")
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models")
         if config.sim_config.args.geometry_fixed:
@@ -441,7 +439,7 @@ class NetworkTerminal(GridUserObject):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z")
         if not self.ID or "/" in self.ID or "\x00" in self.ID:
             raise ValueError(f"{self.params_str()} ID must be a non-empty HDF5 path component")
-        if any(terminal.ID == self.ID for terminal in grid.networkterminals):
+        if self.ID in grid.networkterminal_specs:
             raise ValueError(f"{self.params_str()} terminal ID is already in use")
         try:
             model = grid.rationalnetworkmodels[self.network_id]
@@ -452,6 +450,11 @@ class NetworkTerminal(GridUserObject):
 
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
+        grid.networkterminal_specs[self.ID] = {
+            "polarisation": self.polarisation,
+            "network_id": self.network_id,
+            "point": tuple(float(value) for value in self.point),
+        }
         point_within_grid, coord = uip.check_src_rx_point(self.point, self.params_str())
         if not point_within_grid:
             return
@@ -498,17 +501,34 @@ class NetworkExcitation(GridUserObject):
         self.stop = stop
 
     def build(self, grid: FDTDGrid):
-        terminal = next(
-            (item for item in grid.networkterminals if item.ID == self.terminal_id), None
-        )
-        if terminal is None:
+        if self.terminal_id not in grid.networkterminal_specs:
             raise ValueError(
                 f"{self.params_str()} there is no network terminal with ID {self.terminal_id!r}"
+            )
+        if self.terminal_id in grid.networkexcitation_specs:
+            raise ValueError(
+                f"{self.params_str()} network terminal {self.terminal_id!r} "
+                "already has an excitation"
             )
         if not any(waveform.ID == self.waveform_id for waveform in grid.waveforms):
             raise ValueError(
                 f"{self.params_str()} there is no waveform with ID {self.waveform_id!r}"
             )
+        grid.networkexcitation_specs[self.terminal_id] = {
+            "waveform_id": self.waveform_id,
+            "start": self.start,
+            "stop": self.stop,
+        }
+        terminal = next(
+            (item for item in grid.networkterminals if item.ID == self.terminal_id), None
+        )
+        if terminal is None:
+            # In an MPI model the active terminal exists only on its owning
+            # rank. The replicated specification above is sufficient on all
+            # other ranks.
+            if config.sim_config.mpi:
+                return
+            raise RuntimeError(f"{self.params_str()} terminal definition was not instantiated")
         terminal.set_excitation(self.waveform_id, self.start, self.stop)
         logger.info(
             self.grid_name(grid) + f"Network terminal {self.terminal_id!r} excited by waveform "
@@ -1325,21 +1345,33 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if point_within_grid:
-            self._validate_parameters(grid)
+        self._validate_parameters(grid)
+        if config.sim_config.mpi:
+            global_coord = np.asarray(uip.discretise_static_point(self.point), dtype=np.int32)
+            global_index = len(grid.magneticfrill_specs) + 1
+            grid.magneticfrill_specs.append(
+                {
+                    "coord": tuple(int(value) for value in global_coord),
+                    "polarisation": self.polarisation,
+                    "index": global_index,
+                }
+            )
+            frill_source = self._create_magnetic_frill_source(grid, discretised_point)
+            frill_source.mpi_global_coord = global_coord
+            frill_source.mpi_global_index = global_index
+            frill_source.mpi_primary_rank = int(grid.get_rank_from_coordinate(global_coord))
+            frill_source.mpi_primary = bool(point_within_grid)
+            grid.add_source(frill_source)
+            if point_within_grid:
+                position = uip.round_to_grid_static_point(self.point)
+                self._log(grid, frill_source, *position)
+        elif point_within_grid:
             frill_source = self._create_magnetic_frill_source(grid, discretised_point)
             grid.add_source(frill_source)
             position = uip.round_to_grid_static_point(self.point)
             self._log(grid, frill_source, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # MPI is rejected because a feed stencil cannot be split across rank
-        # boundaries. A subgrid is safe: the frill, attached thin wire,
-        # material rows, field stencil, and time histories all belong to the
-        # same fine grid and are advanced by its CPU updater.
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} does not support MPI.")
-
         # 2D mode rejected outright - the feed point's four surrounding H
         # components have no meaningful reduction to a 2D TM/TE invariant-
         # axis model at all.

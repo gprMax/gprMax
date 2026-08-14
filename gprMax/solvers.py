@@ -78,6 +78,7 @@ class Solver:
 
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
+                self.updates.update_magnetic_edge_devices(iteration)
 
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()

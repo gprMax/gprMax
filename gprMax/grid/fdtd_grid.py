@@ -153,11 +153,18 @@ class FDTDGrid:
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines: List[TransmissionLine] = []
         self.magneticfrillsources: List[MagneticFrillSource] = []
+        self.magneticfrill_specs = []
         # Rational lumped networks are sparse terminal devices rather than
         # sources or mesh materials. Definitions are reusable; each terminal
         # owns only the states associated with its selected electric edge.
         self.rationalnetworkmodels = {}
         self.networkterminals = []
+        # MPI ranks parse the same scene but instantiate a point terminal only
+        # on its owning rank. These replicated definitions let later
+        # excitation/output commands validate and bind by terminal ID on every
+        # rank without duplicating the active edge device.
+        self.networkterminal_specs = {}
+        self.networkexcitation_specs = {}
         self.discreteplanewaves: List[DiscretePlaneWave] = []
         self.eigenmodeband = None
         self.eigenmodeportdefs = {}
@@ -169,6 +176,11 @@ class FDTDGrid:
         self.virtual_waveguides = []
         self.rxs: List[Rx] = []
         self.port_monitors = []  # Source-bound S-parameter/impedance outputs
+        # Every MPI rank parses the same output commands, so this replicated
+        # registry allocates globally consistent automatic port IDs before a
+        # point object is reduced to its single owning rank.
+        self.mpi_port_output_ids = []
+        self.mpi_port_output_owners = {}
         self.snapshots = []  # List[Snapshot]
         self.ntff_monitors = []  # Time- and frequency-domain NTFF monitors
         # Reusable NTFF surface definitions are registered by user objects,
@@ -742,6 +754,9 @@ class FDTDGrid:
 
         if not self.thinwires:
             return
+        if hasattr(self, "comm"):
+            self._build_thin_wires_mpi()
+            return
 
         electric_builders = {"x": build_edge_x, "y": build_edge_y, "z": build_edge_z}
         magnetic_builders = {
@@ -806,6 +821,117 @@ class FDTDGrid:
                         raise ValueError(
                             f"{wire} has a PMC magnetic component in its surrounding "
                             f"stencil at {(x, y, z)}."
+                        )
+                    radial_axis = self._thin_wire_h_radial_axis(wire.wire_axis, component_h)
+                    material_h = self._thin_wire_material(
+                        wire,
+                        background_h,
+                        role=component_h,
+                        radial_axis=radial_axis,
+                    )
+                    magnetic_builders[component_h](x, y, z, material_h.numID, self.rigidH, self.ID)
+
+    def _build_thin_wires_mpi(self) -> None:
+        """Build globally registered thin-wire components on their owning ranks."""
+
+        electric_builders = {"x": build_edge_x, "y": build_edge_y, "z": build_edge_z}
+        magnetic_builders = {
+            "Hx": build_magnetic_edge_x,
+            "Hy": build_magnetic_edge_y,
+            "Hz": build_magnetic_edge_z,
+        }
+        electric_components = {"x": "Ex", "y": "Ey", "z": "Ez"}
+        occupied_e = {}
+        occupied_h = {}
+        global_size = np.asarray(self.global_size, dtype=np.int32)
+
+        def owned_local(global_coord):
+            local = self.global_to_local_coordinate(np.asarray(global_coord, dtype=np.int32))
+            return local if self.within_bounds(local) else None
+
+        def global_h_targets(axis, i, j, k):
+            targets = {
+                "x": (("Hy", i, j, k - 1), ("Hy", i, j, k), ("Hz", i, j - 1, k), ("Hz", i, j, k)),
+                "y": (("Hx", i, j, k - 1), ("Hx", i, j, k), ("Hz", i - 1, j, k), ("Hz", i, j, k)),
+                "z": (("Hy", i - 1, j, k), ("Hy", i, j, k), ("Hx", i, j - 1, k), ("Hx", i, j, k)),
+            }[axis]
+            nx, ny, nz = (int(value) for value in global_size)
+            active_ranges = {
+                "Hx": ((0, nx + 1), (0, ny), (0, nz)),
+                "Hy": ((0, nx), (0, ny + 1), (0, nz)),
+                "Hz": ((0, nx), (0, ny), (0, nz + 1)),
+            }
+            for component, x, y, z in targets:
+                ranges = active_ranges[component]
+                if all(low <= value < high for value, (low, high) in zip((x, y, z), ranges)):
+                    yield component, (x, y, z)
+
+        for wire in self.thinwires:
+            start = np.asarray(wire.global_start, dtype=np.int32)
+            stop = np.asarray(wire.global_stop, dtype=np.int32)
+            axis_index = "xyz".index(wire.wire_axis)
+            for index, axis in enumerate("xyz"):
+                if index == axis_index:
+                    continue
+                if int(start[index]) in (0, int(global_size[index])):
+                    raise ValueError(
+                        f"{wire} lies on transverse global domain face {axis}; "
+                        "MPI symmetry boundaries are not supported."
+                    )
+
+            component_e = electric_components[wire.wire_axis]
+            component_e_index = self.IDlookup[component_e]
+            signature = (wire.wire_axis, wire.radius)
+            for position in range(int(start[axis_index]), int(stop[axis_index])):
+                global_e = start.copy()
+                global_e[axis_index] = position
+
+                local_e = owned_local(global_e)
+                if local_e is not None:
+                    i, j, k = (int(value) for value in local_e)
+                    if self.within_pml(local_e):
+                        raise ValueError(
+                            f"{wire} enters a PML at global grid position "
+                            f"{tuple(int(value) for value in global_e)}."
+                        )
+                    e_key = (component_e, i, j, k)
+                    previous_e = occupied_e.get(e_key)
+                    if previous_e is not None and previous_e != signature:
+                        raise ValueError(
+                            "Thin-wire electric edges overlap with different axes or radii."
+                        )
+                    occupied_e[e_key] = signature
+                    background_e = self.materials[int(self.ID[component_e_index, i, j, k])]
+                    material_e = self._thin_wire_material(wire, background_e, role=component_e)
+                    electric_builders[wire.wire_axis](
+                        i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID
+                    )
+
+                gi, gj, gk = (int(value) for value in global_e)
+                for component_h, global_h in global_h_targets(wire.wire_axis, gi, gj, gk):
+                    local_h = owned_local(global_h)
+                    if local_h is None:
+                        continue
+                    x, y, z = (int(value) for value in local_h)
+                    if self.within_pml(local_h):
+                        raise ValueError(
+                            f"{wire} has a surrounding magnetic component inside a PML "
+                            f"at global grid position {global_h}."
+                        )
+                    h_key = (component_h, x, y, z)
+                    previous_h = occupied_h.get(h_key)
+                    if previous_h is not None and previous_h != signature:
+                        raise ValueError(
+                            "Thin-wire magnetic stencils overlap with different axes or radii; "
+                            "sub-cell wire junctions are not yet supported."
+                        )
+                    occupied_h[h_key] = signature
+                    component_h_index = self.IDlookup[component_h]
+                    background_h = self.materials[int(self.ID[component_h_index, x, y, z])]
+                    if background_h.ID == "pmc" or background_h.sm == float("inf"):
+                        raise ValueError(
+                            f"{wire} has a PMC magnetic component in its surrounding stencil "
+                            f"at global grid position {global_h}."
                         )
                     radial_axis = self._thin_wire_h_radial_axis(wire.wire_axis, component_h)
                     material_h = self._thin_wire_material(

@@ -401,6 +401,9 @@ subgrid's spatial step, time step, iteration count, material edge, and field
 histories. For a finite-resistance source, its resistance is the reference
 impedance :math:`Z_0`; the source-plane reflection coefficient is calculated
 from the known generator voltage and sampled total gap voltage.
+In a domain-decomposed MPI model the same schema is written after source,
+receiver, and port histories have been gathered on the coordinator. All
+``Position`` and ``GridPosition`` metadata use the global main-grid frame.
 For a zero-resistance hard source, :math:`Z_0` is supplied by the voltage
 source (50 Ohms by default) and
 the terminal quantities are calculated from the prescribed voltage and

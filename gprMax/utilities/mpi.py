@@ -20,6 +20,27 @@ class Dir(IntEnum):
     POS = 1
 
 
+def mpi_datatype_for_dtype(dtype: npt.DTypeLike) -> MPI.Datatype:
+    """Return the MPI datatype matching a supported gprMax field dtype."""
+
+    numpy_dtype = np.dtype(dtype)
+    supported_dtypes = (np.dtype(np.float32), np.dtype(np.float64))
+    if numpy_dtype not in supported_dtypes:
+        raise TypeError(
+            "MPI field data require a float32 or float64 dtype; "
+            f"got {numpy_dtype}"
+        )
+
+    mpi_dtype = MPI.Datatype.fromcode(numpy_dtype.char)
+    if mpi_dtype.Get_size() != numpy_dtype.itemsize:
+        raise RuntimeError(
+            "The MPI datatype size does not match the configured gprMax "
+            f"dtype ({mpi_dtype.Get_size()} != {numpy_dtype.itemsize})"
+        )
+
+    return mpi_dtype
+
+
 def get_neighbours(comm: MPI.Cartcomm) -> npt.NDArray[np.int32]:
     neighbours = np.full((3, 2), -1, dtype=np.int32)
     neighbours[Dim.X] = comm.Shift(direction=Dim.X, disp=1)

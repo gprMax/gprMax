@@ -23,7 +23,7 @@ import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
 
-from gprMax.utilities.mpi import Dir
+from gprMax.utilities.mpi import Dir, mpi_datatype_for_dtype
 
 
 def calculate_starts_and_subshape(
@@ -65,11 +65,15 @@ def create_mpi_type(
     negative_offset: npt.NDArray[np.int32],
     positive_offset: npt.NDArray[np.int32],
     dirs: npt.NDArray[np.int32],
+    dtype: npt.DTypeLike,
     sending: bool = False,
 ) -> MPI.Datatype:
     starts, subshape = calculate_starts_and_subshape(
         shape, negative_offset, positive_offset, dirs, sending
     )
-    mpi_type = MPI.FLOAT.Create_subarray(shape.tolist(), subshape.tolist(), starts.tolist())
+    mpi_dtype = mpi_datatype_for_dtype(dtype)
+    mpi_type = mpi_dtype.Create_subarray(
+        shape.tolist(), subshape.tolist(), starts.tolist()
+    )
     mpi_type.Commit()
     return mpi_type

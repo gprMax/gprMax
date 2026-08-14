@@ -3321,6 +3321,10 @@ class MagneticFrillSource(Source):
         Args:
             G: FDTDGrid class describing a grid in a model.
         """
+        if hasattr(G, "comm") and hasattr(self, "mpi_global_coord"):
+            self._finalise_setup_mpi(G)
+            return
+
         i, j, k = self.xcoord, self.ycoord, self.zcoord
         if G.within_pml(np.array([i, j, k], dtype=np.int32)):
             raise ValueError(
@@ -3392,6 +3396,146 @@ class MagneticFrillSource(Source):
         self._mirror1 = at1 and face1_pmc
         self._mirror2 = at2 and face2_pmc
         self._prepare_drive_terms(G)
+
+    def _finalise_setup_mpi(self, G):
+        """Prepare a frill whose four H edges may span several MPI ranks."""
+
+        from mpi4py import MPI
+
+        local_error = None
+        if self.mpi_primary:
+            try:
+                if G.within_pml(self.coord):
+                    raise ValueError(f"{self.ID} feed point lies inside a PML.")
+                global_coord = np.asarray(self.mpi_global_coord, dtype=np.int32)
+                transverse = {
+                    "x": (1, 2),
+                    "y": (0, 2),
+                    "z": (0, 1),
+                }[self.polarisation]
+                if any(global_coord[axis] == 0 for axis in transverse):
+                    raise ValueError(
+                        f"{self.ID} lies on a transverse global domain-minimum "
+                        "boundary; MPI symmetry boundaries are not supported."
+                    )
+                self._validate_geometry(G)
+            except Exception as exc:
+                local_error = f"rank {G.comm.rank}: {exc}"
+
+        errors = [error for error in G.comm.allgather(local_error) if error is not None]
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        self.inner_radius = float(
+            G.comm.bcast(
+                self.inner_radius if self.mpi_primary else None,
+                root=self.mpi_primary_rank,
+            )
+        )
+        self._mirror1 = False
+        self._mirror2 = False
+
+        local_error = None
+        try:
+            local_g = self._prepare_drive_terms_mpi(G)
+        except Exception as exc:
+            local_error = f"rank {G.comm.rank}: {exc}"
+            local_g = 0.0
+        errors = [error for error in G.comm.allgather(local_error) if error is not None]
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        self._G_coeff = float(G.comm.allreduce(local_g, op=MPI.SUM))
+        if not np.isfinite(self._G_coeff) or self._G_coeff <= 0:
+            raise ValueError(
+                f"{self.ID} produced invalid distributed feed-cell "
+                f"self-admittance G={self._G_coeff!r}."
+            )
+        self._previous_half_current = 0.0
+        if self.mpi_primary:
+            logger.info(
+                f"{self.ID}: distributed Hyun feed cell uses attached thin-wire "
+                f"radius a={self.inner_radius:g}m and self-admittance "
+                f"G={self._G_coeff:g}S."
+            )
+
+    def _prepare_drive_terms_mpi(self, G):
+        """Build only the frill H-edge terms owned by this MPI rank."""
+
+        i, j, k = (int(value) for value in self.mpi_global_coord)
+        dx, dy, dz = G.dx, G.dy, G.dz
+        axial_step = {"x": dx, "y": dy, "z": dz}[self.polarisation]
+        pairs = {
+            "x": (
+                ("Hy", ((i, j, k), -dy, -1), ((i, j, k - 1), dy, 1), "z"),
+                ("Hz", ((i, j, k), dz, 1), ((i, j - 1, k), -dz, -1), "y"),
+            ),
+            "y": (
+                ("Hx", ((i, j, k), dx, 1), ((i, j, k - 1), -dx, -1), "z"),
+                ("Hz", ((i, j, k), -dz, -1), ((i - 1, j, k), dz, 1), "x"),
+            ),
+            "z": (
+                ("Hy", ((i, j, k), dy, 1), ((i - 1, j, k), -dy, -1), "x"),
+                ("Hx", ((i, j, k), -dx, -1), ((i, j - 1, k), dx, 1), "y"),
+            ),
+        }[self.polarisation]
+        radial_steps = {"x": dx, "y": dy, "z": dz}
+        terms = []
+        for component, plus, minus, radial_axis in pairs:
+            for coordinates, current_weight, source_sign in (plus, minus):
+                global_coord = np.asarray(coordinates, dtype=np.int32)
+                local_coord = G.global_to_local_coordinate(global_coord)
+                if not G.within_bounds(local_coord):
+                    continue
+                x, y, z = (int(value) for value in local_coord)
+                material_numID = int(G.ID[G.IDlookup[component], x, y, z])
+                material = G.materials[material_numID]
+                correct_wire_row = (
+                    material.type == "thin-wire"
+                    and getattr(material, "thin_wire_axis", None) == self.polarisation
+                    and getattr(material, "thin_wire_role", None) == component
+                    and np.isclose(
+                        material.thin_wire_radius,
+                        self.inner_radius,
+                        rtol=1e-12,
+                        atol=0.0,
+                    )
+                    and getattr(material, "thin_wire_radial_axis", None) == radial_axis
+                )
+                if not correct_wire_row:
+                    raise ValueError(
+                        f"{self.ID} feed stencil component {component} at global "
+                        f"coordinate {coordinates} is not part of the attached thin wire."
+                    )
+                factor_f = float(material.thin_wire_factors["F"])
+                source_gain = (
+                    source_sign
+                    * G.updatecoeffsH[material_numID, 4]
+                    * factor_f
+                    / (axial_step * radial_steps[radial_axis])
+                )
+                terms.append((component, x, y, z, float(current_weight), float(source_gain)))
+
+        registry = getattr(G, "_magnetic_frill_drive_edges", {})
+        drive_edges = {(term[0], term[1], term[2], term[3]) for term in terms}
+        overlap = next(
+            (
+                (edge, registry[edge])
+                for edge in drive_edges
+                if edge in registry and registry[edge] is not self
+            ),
+            None,
+        )
+        if overlap is not None:
+            edge, owner = overlap
+            raise ValueError(
+                f"{self.ID} has an overlapping magnetic feed edge {edge} with "
+                f"{owner.ID}; a coupled multiport formulation is required."
+            )
+        registry.update({edge: self for edge in drive_edges})
+        G._magnetic_frill_drive_edges = registry
+        self._drive_terms = terms
+        return float(sum(term[-2] * term[-1] for term in terms))
 
     def _prepare_drive_terms(self, G):
         """Precompute Hyun's Cartesian feed stencil and self-admittance."""
@@ -3517,8 +3661,22 @@ class MagneticFrillSource(Source):
             Hx, Hy, Hz: memory view of array of magnetic field values.
             G: FDTDGrid class describing a grid in a model.
         """
-        self.Vinc[iteration] = 0.5 * self.waveformvalues_wholedt[iteration]
         current_bulk = self._calculate_Itot_frill(Hx, Hy, Hz)
+        self._advance_magnetic_frill(iteration, current_bulk, Hx, Hy, Hz)
+
+    def update_magnetic_mpi(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
+        """Advance a distributed frill from the sum of rank-local loop terms."""
+
+        from mpi4py import MPI
+
+        local_current = self._calculate_Itot_frill(Hx, Hy, Hz)
+        current_bulk = G.comm.allreduce(local_current, op=MPI.SUM)
+        self._advance_magnetic_frill(iteration, current_bulk, Hx, Hy, Hz)
+
+    def _advance_magnetic_frill(self, iteration, current_bulk, Hx, Hy, Hz):
+        """Apply the common implicit terminal relation and local H deposits."""
+
+        self.Vinc[iteration] = 0.5 * self.waveformvalues_wholedt[iteration]
         zeta = self._G_coeff * self.Z0
         current_new = (
             current_bulk

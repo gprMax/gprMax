@@ -378,8 +378,8 @@ class Model:
         # symmetry, validate the PEC ground plane, and precompute their
         # feed-cell recurrence here. This needs final material coefficients
         # and symmetry boundaries, which do not exist during scene parsing.
-        # MPI use is rejected by the source builder; a frill can belong to a
-        # CPU subgrid and is then prepared against that fine grid.
+        # On MPI grids a frill is replicated so its four-edge feed stencil can
+        # span ranks; on a CPU subgrid it is prepared against that fine grid.
         for grid in grids:
             for frill in grid.magneticfrillsources:
                 frill.finalise_setup(grid)

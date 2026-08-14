@@ -100,10 +100,9 @@ def test_accelerator_solvers_are_accepted(monkeypatch, solver):
     _frill()._validate_parameters(_fake_grid())
 
 
-def test_rejected_with_mpi(monkeypatch):
+def test_allowed_with_mpi(monkeypatch):
     _set_solver(monkeypatch, "cpu", mpi=True)
-    with pytest.raises(ValueError, match="MPI"):
-        _frill()._validate_parameters(_fake_grid())
+    _frill()._validate_parameters(_fake_grid())
 
 
 def test_main_grid_frill_is_accepted_when_model_contains_subgrid(monkeypatch):
