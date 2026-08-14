@@ -19,6 +19,8 @@
 
 import itertools
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -68,6 +70,10 @@ class MPIGrid(FDTDGrid):
 
         self.send_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
         self.recv_halo_map = np.empty((3, 2), dtype=MPI.Datatype)
+        self.send_halo_map.fill(MPI.DATATYPE_NULL)
+        self.recv_halo_map.fill(MPI.DATATYPE_NULL)
+        self._halo_maps_initialised = False
+        self._halo_maps_freed = False
         self.send_requests: List[MPI.Request] = []
         self.recv_requests: List[MPI.Request] = []
 
@@ -380,6 +386,73 @@ class MPIGrid(FDTDGrid):
         self.networkterminals = self.gather_coord_objects(self.networkterminals)
         self.port_monitors = self.gather_objects(self.port_monitors)
 
+    @contextmanager
+    def gathered_output_state(self) -> Iterator[None]:
+        """Temporarily expose globally gathered objects for output writing.
+
+        ``gather_grid_objects`` converts coordinates to the global frame and,
+        on the coordinator, replaces each rank-local list with the gathered
+        list. Output writing also temporarily presents the global grid size.
+        Those mutations are harmless when a grid is immediately discarded,
+        but corrupt the next solve when ``geometry_fixed`` reuses the grid.
+
+        Preserve the rank-local runtime state and restore it after output has
+        been written. The ``finally`` block also protects reuse if output
+        finalisation or HDF5 writing raises an exception.
+        """
+
+        coordinate_list_names = (
+            "rxs",
+            "voltagesources",
+            "magneticdipoles",
+            "hertziandipoles",
+            "transmissionlines",
+            "magneticfrillsources",
+            "networkterminals",
+        )
+        object_list_names = coordinate_list_names + ("port_monitors",)
+        local_lists = {name: getattr(self, name) for name in object_list_names}
+        local_coordinates = [
+            (item, item.coord) for name in coordinate_list_names for item in local_lists[name]
+        ]
+        local_size = self.size
+
+        try:
+            self.gather_grid_objects()
+            yield
+        finally:
+            self.size = local_size
+            for item, coordinate in local_coordinates:
+                item.coord = coordinate
+            for name, objects in local_lists.items():
+                setattr(self, name, objects)
+
+    def reduce_eigenmode_ports(self):
+        """Sum distributed modal DFT projections onto the coordinator.
+
+        Eigenmode bases and Gram matrices are identical on every rank, while
+        each rank accumulates only the cells it owns on a modal plane. Reduce
+        the two complex overlap histories once after time stepping; no modal
+        collective is needed inside the FDTD iteration.
+        """
+
+        signatures = tuple(
+            (port.port_index, port.output_id, tuple(port.mode_indices))
+            for port in self.eigenmodeports
+        )
+        all_signatures = self.comm.allgather(signatures)
+        if any(value != signatures for value in all_signatures):
+            raise RuntimeError("MPI ranks constructed inconsistent eigenmode-port monitors.")
+
+        for port in self.eigenmodeports:
+            electric = np.empty_like(port.electric_dft) if self.is_coordinator() else None
+            magnetic = np.empty_like(port.magnetic_dft) if self.is_coordinator() else None
+            self.comm.Reduce(port.electric_dft, electric, op=MPI.SUM, root=self.COORDINATOR_RANK)
+            self.comm.Reduce(port.magnetic_dft, magnetic, op=MPI.SUM, root=self.COORDINATOR_RANK)
+            if self.is_coordinator():
+                port.electric_dft = electric
+                port.magnetic_dft = magnetic
+
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
         """Perform a halo swap in the specifed dimension and direction.
 
@@ -483,6 +556,34 @@ class MPIGrid(FDTDGrid):
         if self.recv_requests:
             MPI.Request.Waitall(self.recv_requests)
             self.recv_requests = []
+
+    def free_halo_maps(self) -> None:
+        """Release committed MPI datatypes when this grid is retired.
+
+        The derived datatypes describe non-contiguous field-array halo faces
+        and must remain valid for the complete lifetime of the grid. In
+        particular, a geometry-fixed series reuses them on every model run,
+        so solver-level cleanup would free them too early. The owning
+        ``MPIContext`` calls this method only before discarding an ordinary
+        grid or after the final geometry-fixed run.
+
+        Cleanup is idempotent so a future error-handling path can safely call
+        it without risking a second ``MPI_Type_free`` operation.
+        """
+
+        if not self._halo_maps_initialised or self._halo_maps_freed:
+            return
+
+        self.complete_halo_swaps()
+        for dim in Dim:
+            for direction in Dir:
+                for halo_maps in (self.send_halo_map, self.recv_halo_map):
+                    datatype = halo_maps[dim][direction]
+                    if datatype != MPI.DATATYPE_NULL:
+                        datatype.Free()
+                        halo_maps[dim][direction] = MPI.DATATYPE_NULL
+
+        self._halo_maps_freed = True
 
     def _prepare_pml(self, pml: MPIPML) -> MPIPML:
         """Attach the communicator associated with the slab normal."""
@@ -676,10 +777,14 @@ class MPIGrid(FDTDGrid):
     def set_halo_map(self):
         """Create MPI DataTypes for field array halo exchanges."""
 
+        if self._halo_maps_initialised and not self._halo_maps_freed:
+            self.free_halo_maps()
+        self.send_halo_map.fill(MPI.DATATYPE_NULL)
+        self.recv_halo_map.fill(MPI.DATATYPE_NULL)
+        self._halo_maps_initialised = True
+        self._halo_maps_freed = False
         size = (self.size + 1).tolist()
-        field_mpi_dtype = mpi_datatype_for_dtype(
-            config.sim_config.dtypes["float_or_double"]
-        )
+        field_mpi_dtype = mpi_datatype_for_dtype(config.sim_config.dtypes["float_or_double"])
 
         for dim in Dim:
             halo_size = (self.size + 1 - np.sum(self.neighbours >= 0, axis=1)).tolist()

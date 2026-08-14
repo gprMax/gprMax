@@ -539,6 +539,13 @@ by port number. It inherits the port orientation and cross-section:
         pml_profile=None,
     ))
 
+Direct ports and virtual guides support domain-decomposed MPI CPU models. The
+modal material slice is reconstructed from the distributed component values,
+so rank-local IDs for averaged materials are not assumed to be globally
+interchangeable. Direct TF/SF injection is ownership-clipped. For a virtual
+guide, every rank advances the same compact auxiliary grid and exchanges only
+the three H-field sheets required at its aperture.
+
 ``modes`` is a strictly increasing tuple of one-based modes. A scalar value
 ``N`` is shorthand for modes 1 through ``N``. All ports using ``'auto'``
 receive one common anchor list covering both the shared DFT band and the

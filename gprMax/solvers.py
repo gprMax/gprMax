@@ -74,11 +74,15 @@ class Solver:
             self.updates.update_magnetic_sources(iteration)
             self.updates.update_eigenmode_sources_magnetic(iteration)
             self.updates.update_plane_waves_magnetic(iteration)
-            self.updates.observe_eigenmode_ports(iteration)
 
             if isinstance(self.updates, MPIUpdates):
                 self.updates.halo_swap_magnetic()
                 self.updates.update_magnetic_edge_devices(iteration)
+                # Modal H projections interpolate across transverse Yee
+                # edges. Observe only after the current H halos are available.
+                self.updates.observe_eigenmode_ports(iteration)
+            else:
+                self.updates.observe_eigenmode_ports(iteration)
 
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()

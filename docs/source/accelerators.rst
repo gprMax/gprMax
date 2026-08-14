@@ -90,6 +90,13 @@ partitioned by Yee-component ownership. Axial layered profiles are assembled
 once during model construction, so plane waves add no source-specific
 communication to the timestep loop.
 
+Eigenmode ports can also span MPI subdomains. Their component-resolved modal
+cross-sections are assembled once during construction, TF/SF source terms are
+partitioned by field ownership, and the modal spectra are reduced only at
+finalisation. A virtual waveguide replicates its compact auxiliary Yee grid on
+each rank and performs one aperture-sized magnetic-field collective per time
+step to preserve bidirectional coupling.
+
 .. figure:: ../../images_shared/mpi_domain_decomposition.png
     :width: 80%
     :align: center

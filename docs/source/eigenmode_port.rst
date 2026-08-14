@@ -426,9 +426,15 @@ aperture coupling on the selected compute device throughout time stepping.
 They may also be attached through the Python API to a port owned by an HSG
 subgrid; that path uses the CPU fine-grid update cycle. They currently require
 a 3D internal port plane, a locally uniform and non-dispersive cross-section,
-and at least two cells along each transverse axis. MPI is not supported. Use
-convergence tests for guide length, PML thickness, source clearance, mesh
-resolution, and NTFF-surface position before using quantitative results.
+and at least two cells along each transverse axis. Domain-decomposed MPI CPU
+models are supported. Every rank advances an identical copy of the small
+auxiliary guide; after each main-grid magnetic halo exchange, one collective
+operation assembles the three aperture H sheets needed for the bidirectional
+coupling. Main-grid E and H writes remain partitioned by Yee-component
+ownership. This communication scales with the aperture area rather than the
+model volume. Use convergence tests for guide length, PML thickness, source
+clearance, mesh resolution, and NTFF-surface position before using
+quantitative results.
 
 How automatic excitation and frequency anchors work
 ====================================================
@@ -2174,7 +2180,10 @@ For reliable broadband excitation:
   and mode purity matter.
 
 Eigenmode injection and modal monitoring run on the CPU, CUDA, OpenCL, and
-Metal solvers, but cannot yet be used with MPI. Material dispersion is sampled
-at each anchor frequency, but interpolation between anchors remains piecewise
+Metal solvers. Domain-decomposed MPI CPU models are also supported: the modal
+material plane is assembled collectively during model construction, each rank
+applies only its owned TF/SF corrections, and the small distributed modal DFT
+arrays are reduced once after time stepping. Material dispersion is sampled at
+each anchor frequency, but interpolation between anchors remains piecewise
 linear; additional anchors are the normal way to resolve stronger frequency
 dependence.

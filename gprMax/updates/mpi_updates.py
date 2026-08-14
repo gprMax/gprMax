@@ -58,7 +58,7 @@ class MPIUpdates(CPUUpdates[MPIGrid]):
             )
 
     def update_magnetic_edge_devices(self, iteration):
-        """Sample transmission-line currents from synchronised H fields."""
+        """Complete devices that require synchronised magnetic fields."""
 
         for source in self.grid.transmissionlines:
             source.update_magnetic(
@@ -70,6 +70,8 @@ class MPIUpdates(CPUUpdates[MPIGrid]):
                 self.grid.Hz,
                 self.grid,
             )
+        for guide in getattr(self.grid, "virtual_waveguides", ()):
+            guide.complete_magnetic_mpi()
 
     def finalise(self):
         """Complete the last halo exchange before MPI/Python teardown."""

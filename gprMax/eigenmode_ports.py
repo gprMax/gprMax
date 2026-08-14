@@ -32,6 +32,8 @@ except ImportError:  # Source-tree fallback before extensions are rebuilt.
         u1,
         v1,
         plane_index,
+        owned_lower,
+        owned_upper,
         dt,
         measure,
         handedness,
@@ -52,44 +54,97 @@ except ImportError:  # Source-tree fallback before extensions are rebuilt.
         Hz,
     ):
         hplane = plane_index if direction_sign * magnetic_side > 0 else plane_index - 1
+        plane_owned = owned_lower[normal_axis] <= plane_index < owned_upper[normal_axis]
+        if normal_axis == 0:
+            sample_u0 = max(u0, owned_lower[1])
+            sample_u1 = min(u1, owned_upper[1])
+            sample_v0 = max(v0, owned_lower[2])
+            sample_v1 = min(v1, owned_upper[2])
+        elif normal_axis == 1:
+            sample_u0 = max(u0, owned_lower[0])
+            sample_u1 = min(u1, owned_upper[0])
+            sample_v0 = max(v0, owned_lower[2])
+            sample_v1 = min(v1, owned_upper[2])
+        else:
+            sample_u0 = max(u0, owned_lower[0])
+            sample_u1 = min(u1, owned_upper[0])
+            sample_v0 = max(v0, owned_lower[1])
+            sample_v1 = min(v1, owned_upper[1])
+
+        if not plane_owned:
+            sample_u1 = sample_u0
+            sample_v1 = sample_v0
+        sample_u1 = max(sample_u0, sample_u1)
+        sample_v1 = max(sample_v0, sample_v1)
+
         if normal_axis == 0:
             measured_eu = 0.5 * (
-                Ey[plane_index, u0:u1, v0:v1] + Ey[plane_index, u0:u1, v0 + 1 : v1 + 1]
+                Ey[plane_index, sample_u0:sample_u1, sample_v0:sample_v1]
+                + Ey[plane_index, sample_u0:sample_u1, sample_v0 + 1 : sample_v1 + 1]
             )
             measured_ev = 0.5 * (
-                Ez[plane_index, u0:u1, v0:v1] + Ez[plane_index, u0 + 1 : u1 + 1, v0:v1]
+                Ez[plane_index, sample_u0:sample_u1, sample_v0:sample_v1]
+                + Ez[plane_index, sample_u0 + 1 : sample_u1 + 1, sample_v0:sample_v1]
             )
-            measured_hu = 0.5 * (Hy[hplane, u0:u1, v0:v1] + Hy[hplane, u0 + 1 : u1 + 1, v0:v1])
-            measured_hv = 0.5 * (Hz[hplane, u0:u1, v0:v1] + Hz[hplane, u0:u1, v0 + 1 : v1 + 1])
+            measured_hu = 0.5 * (
+                Hy[hplane, sample_u0:sample_u1, sample_v0:sample_v1]
+                + Hy[hplane, sample_u0 + 1 : sample_u1 + 1, sample_v0:sample_v1]
+            )
+            measured_hv = 0.5 * (
+                Hz[hplane, sample_u0:sample_u1, sample_v0:sample_v1]
+                + Hz[hplane, sample_u0:sample_u1, sample_v0 + 1 : sample_v1 + 1]
+            )
         elif normal_axis == 1:
             measured_eu = 0.5 * (
-                Ex[u0:u1, plane_index, v0:v1] + Ex[u0:u1, plane_index, v0 + 1 : v1 + 1]
+                Ex[sample_u0:sample_u1, plane_index, sample_v0:sample_v1]
+                + Ex[sample_u0:sample_u1, plane_index, sample_v0 + 1 : sample_v1 + 1]
             )
             measured_ev = 0.5 * (
-                Ez[u0:u1, plane_index, v0:v1] + Ez[u0 + 1 : u1 + 1, plane_index, v0:v1]
+                Ez[sample_u0:sample_u1, plane_index, sample_v0:sample_v1]
+                + Ez[sample_u0 + 1 : sample_u1 + 1, plane_index, sample_v0:sample_v1]
             )
-            measured_hu = 0.5 * (Hx[u0:u1, hplane, v0:v1] + Hx[u0 + 1 : u1 + 1, hplane, v0:v1])
-            measured_hv = 0.5 * (Hz[u0:u1, hplane, v0:v1] + Hz[u0:u1, hplane, v0 + 1 : v1 + 1])
+            measured_hu = 0.5 * (
+                Hx[sample_u0:sample_u1, hplane, sample_v0:sample_v1]
+                + Hx[sample_u0 + 1 : sample_u1 + 1, hplane, sample_v0:sample_v1]
+            )
+            measured_hv = 0.5 * (
+                Hz[sample_u0:sample_u1, hplane, sample_v0:sample_v1]
+                + Hz[sample_u0:sample_u1, hplane, sample_v0 + 1 : sample_v1 + 1]
+            )
         else:
             measured_eu = 0.5 * (
-                Ex[u0:u1, v0:v1, plane_index] + Ex[u0:u1, v0 + 1 : v1 + 1, plane_index]
+                Ex[sample_u0:sample_u1, sample_v0:sample_v1, plane_index]
+                + Ex[sample_u0:sample_u1, sample_v0 + 1 : sample_v1 + 1, plane_index]
             )
             measured_ev = 0.5 * (
-                Ey[u0:u1, v0:v1, plane_index] + Ey[u0 + 1 : u1 + 1, v0:v1, plane_index]
+                Ey[sample_u0:sample_u1, sample_v0:sample_v1, plane_index]
+                + Ey[sample_u0 + 1 : sample_u1 + 1, sample_v0:sample_v1, plane_index]
             )
-            measured_hu = 0.5 * (Hx[u0:u1, v0:v1, hplane] + Hx[u0 + 1 : u1 + 1, v0:v1, hplane])
-            measured_hv = 0.5 * (Hy[u0:u1, v0:v1, hplane] + Hy[u0:u1, v0 + 1 : v1 + 1, hplane])
+            measured_hu = 0.5 * (
+                Hx[sample_u0:sample_u1, sample_v0:sample_v1, hplane]
+                + Hx[sample_u0 + 1 : sample_u1 + 1, sample_v0:sample_v1, hplane]
+            )
+            measured_hv = 0.5 * (
+                Hy[sample_u0:sample_u1, sample_v0:sample_v1, hplane]
+                + Hy[sample_u0:sample_u1, sample_v0 + 1 : sample_v1 + 1, hplane]
+            )
+        local_u = slice(sample_u0 - u0, sample_u1 - u0)
+        local_v = slice(sample_v0 - v0, sample_v1 - v0)
+        local_conj_eu = conj_eu[:, :, local_u, local_v]
+        local_conj_ev = conj_ev[:, :, local_u, local_v]
+        local_conj_hu = conj_hu[:, :, local_u, local_v]
+        local_conj_hv = conj_hv[:, :, local_u, local_v]
         factor = 0.5 * handedness * measure * dt
         electric_overlap = factor * (
-            np.einsum("uv,fmuv->fm", measured_eu, conj_hv, optimize=True)
-            - np.einsum("uv,fmuv->fm", measured_ev, conj_hu, optimize=True)
+            np.einsum("uv,fmuv->fm", measured_eu, local_conj_hv, optimize=True)
+            - np.einsum("uv,fmuv->fm", measured_ev, local_conj_hu, optimize=True)
         )
         magnetic_overlap = (
             factor
             * direction_sign
             * (
-                np.einsum("fmuv,uv->fm", conj_eu, measured_hv, optimize=True)
-                - np.einsum("fmuv,uv->fm", conj_ev, measured_hu, optimize=True)
+                np.einsum("fmuv,uv->fm", local_conj_eu, measured_hv, optimize=True)
+                - np.einsum("fmuv,uv->fm", local_conj_ev, measured_hu, optimize=True)
             )
         )
         electric_dft += electric_phase[:, np.newaxis] * electric_overlap
@@ -196,11 +251,7 @@ def _solve_conditioned_gram(
         condition_number = float(singular_values[0] / singular_values[-1])
         return solution, np.ones(size, dtype=bool), condition_number
 
-    if (
-        not np.any(retained)
-        or not np.any(power_coordinates)
-        or not np.any(~power_coordinates)
-    ):
+    if not np.any(retained) or not np.any(power_coordinates) or not np.any(~power_coordinates):
         return failed
 
     discarded_right_vectors = right_vectors_h[~retained]
@@ -220,13 +271,9 @@ def _solve_conditioned_gram(
         (retained_left.conj().T @ right_hand_side) / singular_values[retained]
     )
     ambiguity = np.sqrt(np.sum(np.abs(discarded_right_vectors) ** 2, axis=0))
-    stable = np.isfinite(ambiguity) & (
-        ambiguity <= CONDITION_RELATIVE_ERROR_BUDGET
-    )
+    stable = np.isfinite(ambiguity) & (ambiguity <= CONDITION_RELATIVE_ERROR_BUDGET)
     retained_singular_values = singular_values[retained]
-    condition_number = float(
-        np.max(retained_singular_values) / np.min(retained_singular_values)
-    )
+    condition_number = float(np.max(retained_singular_values) / np.min(retained_singular_values))
     return solution, stable, condition_number
 
 
@@ -528,9 +575,7 @@ class EigenmodePortMonitor:
                 self.frequency.astype(np.float64),
                 self.anchor_frequencies[usable_anchors],
             )
-            reference_anchors = np.flatnonzero(
-                self.anchor_mode_reference_valid[:, mode_position]
-            )
+            reference_anchors = np.flatnonzero(self.anchor_mode_reference_valid[:, mode_position])
             evanescent_reference_mask = (
                 self.anchor_mode_reference_valid[:, mode_position]
                 & ~self.anchor_mode_propagating[:, mode_position]
@@ -575,11 +620,11 @@ class EigenmodePortMonitor:
                     if bins.size == 0:
                         continue
                     run_anchors = np.arange(start, stop + 1)
-                    reference_weights[mode_position][np.ix_(run_anchors, bins)] = (
-                        self.owner._linear_anchor_weights(
-                            nominal_frequency[bins],
-                            self.anchor_frequencies[run_anchors],
-                        )
+                    reference_weights[mode_position][
+                        np.ix_(run_anchors, bins)
+                    ] = self.owner._linear_anchor_weights(
+                        nominal_frequency[bins],
+                        self.anchor_frequencies[run_anchors],
                     )
             elif within_candidate_bins.size:
                 # Compatibility path for a bank containing only propagating
@@ -707,8 +752,7 @@ class EigenmodePortMonitor:
                 self.hu[frequency_index, mode_position] = hu
                 self.hv[frequency_index, mode_position] = hv
                 self.neff[frequency_index, mode_position] = np.sum(
-                    mode_weights[:, frequency_index]
-                    * self.anchor_neff[:, mode_position]
+                    mode_weights[:, frequency_index] * self.anchor_neff[:, mode_position]
                 )
 
         self.eu = np.ascontiguousarray(self.eu)
@@ -786,6 +830,16 @@ class EigenmodePortMonitor:
                 f"expected eigenmode DFT iteration {self._next_iteration}, " f"received {iteration}"
             )
         real_signature = config.sim_config.dtypes["C_float_or_double"]
+        owned_lower = getattr(
+            self.owner,
+            "tfsf_owned_lower",
+            np.zeros(3, dtype=np.int32),
+        )
+        owned_upper = getattr(
+            self.owner,
+            "tfsf_owned_upper",
+            np.asarray(grid.Ex.shape, dtype=np.int32),
+        )
         accumulate_eigenmode_dft[f"{real_signature}|{real_signature} complex"](
             config.get_model_config().ompthreads,
             self.owner.normal_axis,
@@ -796,6 +850,8 @@ class EigenmodePortMonitor:
             self.owner.transverse_stop[0],
             self.owner.transverse_stop[1],
             self.owner.plane_index,
+            owned_lower,
+            owned_upper,
             grid.dt,
             self.measure,
             self.handedness,
@@ -894,15 +950,10 @@ class EigenmodePortMonitor:
             a = np.zeros(active_modes.size, dtype=np.complex128)
             a[usable] = (
                 magnetic_coeff[usable]
-                + backward_phase[frequency_index, active_modes][usable]
-                * electric_coeff[usable]
+                + backward_phase[frequency_index, active_modes][usable] * electric_coeff[usable]
             ) / denominator[usable]
             b = electric_coeff - a
-            coefficient_valid = (
-                usable
-                & np.isfinite(a)
-                & np.isfinite(b)
-            )
+            coefficient_valid = usable & np.isfinite(a) & np.isfinite(b)
             valid_modes = active_modes[coefficient_valid]
             incident[valid_modes, frequency_index] = a[coefficient_valid]
             outgoing[valid_modes, frequency_index] = b[coefficient_valid]
@@ -938,7 +989,10 @@ class EigenmodePortMonitor:
         group.attrs["Direction"] = self.owner.direction
         group.attrs["Normal"] = self.owner.normal
         group.attrs["ModeIndices"] = self.mode_indices
-        group.attrs["PlaneIndex"] = self.owner.plane_index
+        global_plane_index = getattr(self.owner, "global_plane_index", None)
+        group.attrs["PlaneIndex"] = (
+            self.owner.plane_index if global_plane_index is None else global_plane_index
+        )
         group.attrs["PhaseReanchorInterval"] = DFT_PHASE_REANCHOR_INTERVAL
         group.attrs["RequestedAnchorPolicy"] = self.owner.requested_anchor_policy
         group.attrs["ResolvedAnchorPolicy"] = self.owner.resolved_anchor_policy
@@ -954,9 +1008,7 @@ class EigenmodePortMonitor:
         group["incident"] = self.result.incident
         group["outgoing"] = self.result.outgoing
         group["valid"] = self.result.valid.astype(np.uint8)
-        group["generalized_valid"] = _generalized_result_valid(self.result).astype(
-            np.uint8
-        )
+        group["generalized_valid"] = _generalized_result_valid(self.result).astype(np.uint8)
         group["condition_number"] = self.result.condition_number
         group["electric_cross_power_matrix"] = self.electric_gram
         group["power_matrix"] = self.power_matrix
@@ -997,10 +1049,9 @@ def finalise_eigenmode_ports(grid):
             raise ValueError("All eigenmode ports must use identical DFT frequency bins.")
     source_mode_position = source.mode_indices.index(source.excitation_mode_index)
     denominator = source.result.incident[source_mode_position]
-    source_generalized_result_valid = (
-        _generalized_result_valid(source.result)[source_mode_position]
-        & np.isfinite(denominator)
-    )
+    source_generalized_result_valid = _generalized_result_valid(source.result)[
+        source_mode_position
+    ] & np.isfinite(denominator)
     source_power_wave_valid_value = getattr(source, "power_wave_valid", None)
     if source_power_wave_valid_value is None:
         source_power_wave_valid_value = source.mode_power_valid
@@ -1035,8 +1086,7 @@ def finalise_eigenmode_ports(grid):
             where=source_ratio_valid[np.newaxis, :],
         )
         port.s_generalized_valid = (
-            _generalized_result_valid(port.result)
-            & source_ratio_valid[np.newaxis, :]
+            _generalized_result_valid(port.result) & source_ratio_valid[np.newaxis, :]
         )
         port_power_wave_valid_value = getattr(port, "power_wave_valid", None)
         if port_power_wave_valid_value is None:

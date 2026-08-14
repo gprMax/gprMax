@@ -1,6 +1,7 @@
 import csv
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import h5py
 import numpy as np
@@ -271,10 +272,11 @@ def test_2d_pmc_mode_enforces_magnetic_wall_and_injects(tmp_path):
         assert np.max(np.abs(handle["rxs/rx1/Hz"][...])) > 0
 
 
-def test_eigenmode_port_rejected_with_mpi(monkeypatch):
+def test_eigenmode_port_definition_is_available_with_mpi(monkeypatch):
     monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
     config.sim_config.general = {"solver": "cpu"}
     config.sim_config.mpi = True
+    config.sim_config.get_model_config = lambda: SimpleNamespace(mode="2D TMz")
     grid = FDTDGrid()
     grid.eigenmodeband = object()
     port = gprMax.EigenmodePort(
@@ -284,8 +286,51 @@ def test_eigenmode_port_rejected_with_mpi(monkeypatch):
         direction="+",
         modes=(1,),
     )
-    with pytest.raises(ValueError, match="MPI"):
-        port.build(grid)
+    port.build(grid)
+    assert grid.eigenmodeportdefs[1].port == 1
+
+
+def test_mpi_receiver_pml_check_uses_global_boundary_thickness(monkeypatch, caplog):
+    """An interior rank's zero local PML must not cause a false warning."""
+
+    from gprMax.user_objects.cmds_multiuse import _EigenmodeReceiverBuilder
+
+    monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
+    config.sim_config.general = {"solver": "cpu"}
+    config.sim_config.mpi = True
+    config.sim_config.get_model_config = lambda: SimpleNamespace(mode="2D TMz")
+
+    grid = FDTDGrid()
+    grid.size = np.asarray((100, 40, 1), dtype=np.int32)
+    grid.global_size = grid.size.copy()
+    grid.lower_extent = np.zeros(3, dtype=np.int32)
+    grid.negative_halo_offset = np.zeros(3, dtype=np.int32)
+    grid.dl = np.asarray((1e-3, 1e-3, 1e-3))
+    grid.dt = 1e-12
+    grid.iterations = 100
+    grid.timewindow = grid.dt * grid.iterations
+    grid.pmls["thickness"]["xmax"] = 0
+    grid.comm = SimpleNamespace(allgather=lambda value: [value, 10])
+    grid.is_coordinator = lambda: True
+
+    receiver = _EigenmodeReceiverBuilder(
+        normal="x",
+        direction="-",
+        p1=(0.005, 0),
+        p2=(0.035, INF),
+        w=0.09,
+        mode_count=1,
+        port_index=2,
+        id="port2",
+        dft_start=5e9,
+        dft_stop=5e9,
+        dft_points=1,
+        frequency=5e9,
+    )
+    with caplog.at_level("WARNING"):
+        receiver.build(grid)
+
+    assert not any("Eigenmode receiver" in record.message for record in caplog.records)
 
 
 def test_2d_eigenmode_normal_cannot_be_invariant_axis(tmp_path):
@@ -491,9 +536,7 @@ def test_2d_eigenmode_builds_for_every_invariant_axis(tmp_path, mode, invariant_
     ],
 )
 def test_2d_regression_example_builds(tmp_path, relative_path, snapshot_count):
-    source = (
-        REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / relative_path
-    )
+    source = REPOSITORY_ROOT / "testing" / "regression" / "eigenmode_sources" / relative_path
     copied_input = tmp_path / source.name
     shutil.copyfile(source, copied_input)
 
