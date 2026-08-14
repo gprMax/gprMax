@@ -3737,6 +3737,10 @@ class DiscretePlaneWave(Source):
         self.origin[0] = 0
         self.origin[1] = 0
         self.origin[2] = 0
+        self.tfsf_origin = self.origin
+        self.tfsf_corners = None
+        self.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        self.tfsf_owned_upper = np.zeros(3, dtype=np.int32)
         self.length = 0
         # self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
         self.projections = np.zeros(
@@ -3899,12 +3903,15 @@ class DiscretePlaneWave(Source):
         # Store the absolute value of max(m_x, m_y, m_z) in the last element of the array
         self.m[3] = self.max_m
 
+        domain_size = np.asarray(getattr(G, "global_size", (G.nx, G.ny, G.nz)), dtype=np.int32)
         if self.m[0] < 0:
-            self.origin[0] = G.nx + 1
+            self.origin[0] = domain_size[0] + 1
         if self.m[1] < 0:
-            self.origin[1] = G.ny + 1
+            self.origin[1] = domain_size[1] + 1
         if self.m[2] < 0:
-            self.origin[2] = G.nz + 1
+            self.origin[2] = domain_size[2] + 1
+
+        self._configure_tfsf_partition(G)
 
         # Calculate ds that is needed for sourcing the 1D array. This is the spatial step of the 1D DPW grid.
         # For axial propagation this is simply the grid step in the direction of propagation.
@@ -3936,9 +3943,9 @@ class DiscretePlaneWave(Source):
         # Total length of the 1D grid if not axial propagation
         if self.axial == 0:
             self.length = (
-                np.abs(self.m[0]) * (G.nx + 1)
-                + np.abs(self.m[1]) * (G.ny + 1)
-                + np.abs(self.m[2]) * (G.nz + 1)
+                np.abs(self.m[0]) * (domain_size[0] + 1)
+                + np.abs(self.m[1]) * (domain_size[1] + 1)
+                + np.abs(self.m[2]) * (domain_size[2] + 1)
                 + self.pml_length
                 + buffercells
             )
@@ -3946,9 +3953,9 @@ class DiscretePlaneWave(Source):
         else:
             buffercells = self.buffercells_axial
             self.length = (
-                np.abs(self.m[0]) * (G.nx + 1)
-                + np.abs(self.m[1]) * (G.ny + 1)
-                + np.abs(self.m[2]) * (G.nz + 1)
+                np.abs(self.m[0]) * (domain_size[0] + 1)
+                + np.abs(self.m[1]) * (domain_size[1] + 1)
+                + np.abs(self.m[2]) * (domain_size[2] + 1)
                 + 2 * self.pml_length
                 + buffercells
             )
@@ -4102,6 +4109,29 @@ class DiscretePlaneWave(Source):
         if self.axial == 0:
             self._get_pml_parameters(G)
 
+    def _configure_tfsf_partition(self, G):
+        """Create rank-local TFSF coordinates while retaining global metadata.
+
+        Every MPI rank evolves the same small auxiliary 1-D DPW. Only TFSF
+        corrections whose target Yee component is owned by that rank are
+        applied; halo exchange then supplies the neighbouring copies. This
+        avoids per-timestep communication of the auxiliary wave.
+        """
+
+        if hasattr(G, "global_size"):
+            offset = np.asarray(G.lower_extent, dtype=np.int32)
+            self.tfsf_origin = np.asarray(self.origin - offset, dtype=np.int32)
+            self.tfsf_corners = np.asarray(self.corners, dtype=np.int32).copy()
+            self.tfsf_corners[:3] -= offset
+            self.tfsf_corners[3:] -= offset
+            self.tfsf_owned_lower = np.asarray(G.negative_halo_offset, dtype=np.int32)
+            self.tfsf_owned_upper = np.asarray(G.size, dtype=np.int32)
+        else:
+            self.tfsf_origin = np.asarray(self.origin, dtype=np.int32).copy()
+            self.tfsf_corners = np.asarray(self.corners, dtype=np.int32).copy()
+            self.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+            self.tfsf_owned_upper = np.asarray((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int32)
+
     def _validate_2d_projections(self):
         """Validates the polarisation of the plane wave against the active 2D
         mode (no-op in 3D).
@@ -4170,30 +4200,38 @@ class DiscretePlaneWave(Source):
             # zero (pec) row additionally pins them at zero against
             # roundoff.
             prop = self.axial - 1  # 0/1/2 = x/y/z
-            n_prop = (G.nx, G.ny, G.nz)[prop]
-            pos = list(self.transverse_pos)
+            n_prop = int(getattr(G, "global_size", (G.nx, G.ny, G.nz))[prop])
 
-            def _gid(component, prop_idx):
-                pos[prop] = prop_idx
-                return G.ID[(component, *pos)]
+            if hasattr(G, "global_size"):
+                self._build_mpi_axial_profile(G, prop, n_prop)
+                sampled_dispersive_materials = None
+            else:
+                pos = list(self.transverse_pos)
 
-            for c in range(6):
-                # Leading 1D buffer/PML region: extend the first grid cell's profile
-                for idx in range(self.origin_axial + 1):
-                    self.ID[c, idx] = _gid(c, 1)
-                # Main grid profile
-                for idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
-                    self.ID[c, idx] = _gid(c, idx - self.origin_axial)
-                # Trailing 1D PML region: extend the last grid cell's profile
-                for idx in range(n_prop + self.origin_axial, self.length):
-                    self.ID[c, idx] = _gid(c, n_prop - 1)
+                def _gid(component, prop_idx):
+                    pos[prop] = prop_idx
+                    return G.ID[(component, *pos)]
 
-            sampled_material_ids = set(np.unique(self.ID))
-            sampled_dispersive_materials = [
-                material
-                for material in G.materials
-                if material.numID in sampled_material_ids and getattr(material, "poles", 0) > 0
-            ]
+                for c in range(6):
+                    # Leading 1D buffer/PML region: extend the first grid cell's profile
+                    for idx in range(self.origin_axial + 1):
+                        self.ID[c, idx] = _gid(c, 1)
+                    # Main grid profile
+                    for idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
+                        self.ID[c, idx] = _gid(c, idx - self.origin_axial)
+                    # Trailing 1D PML region: extend the last grid cell's profile
+                    for idx in range(n_prop + self.origin_axial, self.length):
+                        self.ID[c, idx] = _gid(c, n_prop - 1)
+
+                sampled_material_ids = set(np.unique(self.ID))
+                sampled_dispersive_materials = [
+                    material
+                    for material in G.materials
+                    if material.numID in sampled_material_ids and getattr(material, "poles", 0) > 0
+                ]
+                self.axial_updatecoeffsE = G.updatecoeffsE
+                self.axial_updatecoeffsH = G.updatecoeffsH
+                self.axial_updatecoeffsdispersive = getattr(G, "updatecoeffsdispersive", None)
 
             # Get the background material near the origin (used for the
             # speed and impedance of the DPW) and near the far PML (used
@@ -4208,17 +4246,18 @@ class DiscretePlaneWave(Source):
             # cell-centred extents too: a TM invariant axis is 1 cell
             # (index 0) and a TE one is 2 cells (index 1, the live
             # interior layer).
-            pos_solid = list(self.transverse_pos)
+            if not hasattr(G, "global_size"):
+                pos_solid = list(self.transverse_pos)
 
-            pos_solid[prop] = 2
-            self.material = next(
-                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
-            )
+                pos_solid[prop] = 2
+                self.material = next(
+                    (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+                )
 
-            pos_solid[prop] = n_prop - 2
-            self.materialPML = next(
-                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
-            )
+                pos_solid[prop] = n_prop - 2
+                self.materialPML = next(
+                    (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+                )
 
             # Reference material properties for the source-side auxiliary
             # grid. All Debye, Lorentz, and Drude pole dynamics are handled
@@ -4255,11 +4294,12 @@ class DiscretePlaneWave(Source):
                     self.materialPML.er * self.materialPML.mr
                 )  # Speed in the material
 
-            self.dispersive = bool(sampled_dispersive_materials)
-            self.max_poles = max(
-                (material.poles for material in sampled_dispersive_materials),
-                default=0,
-            )
+            if sampled_dispersive_materials is not None:
+                self.dispersive = bool(sampled_dispersive_materials)
+                self.max_poles = max(
+                    (material.poles for material in sampled_dispersive_materials),
+                    default=0,
+                )
 
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
@@ -4304,7 +4344,7 @@ class DiscretePlaneWave(Source):
 
             self._get_pml_parameters(G)
 
-            print(
+            logger.info(
                 f"Discrete Plane Wave has been initialized "
                 + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({self.projections[0]:.4f}, {self.projections[1]:.4f}, {self.projections[2]:.4f}, {self.projections[3]:.4f}, {self.projections[4]:.4f}, {self.projections[5]:.4f})"
                 + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
@@ -4324,6 +4364,105 @@ class DiscretePlaneWave(Source):
                 self.Px_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
                 self.Py_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
                 self.Pz_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+
+    def _build_mpi_axial_profile(self, G, prop, n_prop):
+        """Assemble an axial DPW coefficient profile on every MPI rank.
+
+        Compound material numeric IDs are local to a rank. Therefore the
+        profile communicates the actual update-coefficient rows and remaps
+        them to a compact DPW-local table, rather than communicating IDs that
+        could address a different material on another rank. This collective
+        is performed once during model construction; the 1-D time stepping is
+        then completely local and replicated.
+        """
+
+        local_records = {}
+        transverse = np.asarray(self.transverse_pos, dtype=np.int32)
+        has_dispersion = hasattr(G, "updatecoeffsdispersive")
+
+        for prop_idx in range(1, n_prop):
+            global_pos = transverse.copy()
+            global_pos[prop] = prop_idx
+            local_pos = G.global_to_local_coordinate(global_pos)
+            if not G.within_bounds(local_pos):
+                continue
+
+            for component in range(6):
+                material_numid = int(G.ID[(component, *local_pos)])
+                material = next(item for item in G.materials if item.numID == material_numid)
+                local_records[("profile", component, prop_idx)] = (
+                    np.asarray(G.updatecoeffsE[material_numid]).copy(),
+                    np.asarray(G.updatecoeffsH[material_numid]).copy(),
+                    (
+                        np.asarray(G.updatecoeffsdispersive[material_numid]).copy()
+                        if has_dispersion
+                        else None
+                    ),
+                    int(getattr(material, "poles", 0)),
+                )
+
+        for label, prop_idx in (("source", 2), ("far_pml", n_prop - 2)):
+            global_pos = transverse.copy()
+            global_pos[prop] = prop_idx
+            local_pos = G.global_to_local_coordinate(global_pos)
+            if G.within_bounds(local_pos):
+                material_numid = int(G.solid[tuple(local_pos)])
+                local_records[("material", label)] = next(
+                    item for item in G.materials if item.numID == material_numid
+                )
+
+        records = {}
+        for rank_records in G.comm.allgather(local_records):
+            for key, value in rank_records.items():
+                if key in records:
+                    raise RuntimeError(f"Axial DPW profile coordinate {key} has multiple owners.")
+                records[key] = value
+
+        expected = 6 * (n_prop - 1)
+        actual = sum(key[0] == "profile" for key in records)
+        if actual != expected:
+            raise RuntimeError(
+                f"Axial DPW profile is incomplete: received {actual} of {expected} "
+                "component samples."
+            )
+
+        table_size = 6 * n_prop
+        self.axial_updatecoeffsE = np.zeros(
+            (table_size, G.updatecoeffsE.shape[1]), dtype=G.updatecoeffsE.dtype
+        )
+        self.axial_updatecoeffsH = np.zeros(
+            (table_size, G.updatecoeffsH.shape[1]), dtype=G.updatecoeffsH.dtype
+        )
+        if has_dispersion:
+            self.axial_updatecoeffsdispersive = np.zeros(
+                (table_size, G.updatecoeffsdispersive.shape[1]),
+                dtype=G.updatecoeffsdispersive.dtype,
+            )
+        else:
+            self.axial_updatecoeffsdispersive = None
+
+        max_poles = 0
+        for component in range(6):
+            for prop_idx in range(1, n_prop):
+                compact_id = component * n_prop + prop_idx
+                coeffs_e, coeffs_h, coeffs_d, poles = records[("profile", component, prop_idx)]
+                self.axial_updatecoeffsE[compact_id] = coeffs_e
+                self.axial_updatecoeffsH[compact_id] = coeffs_h
+                if coeffs_d is not None:
+                    self.axial_updatecoeffsdispersive[compact_id] = coeffs_d
+                max_poles = max(max_poles, poles)
+
+            first_id = component * n_prop + 1
+            last_id = component * n_prop + n_prop - 1
+            self.ID[component, : self.origin_axial + 1] = first_id
+            for aux_idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
+                self.ID[component, aux_idx] = component * n_prop + aux_idx - self.origin_axial
+            self.ID[component, n_prop + self.origin_axial :] = last_id
+
+        self.material = records[("material", "source")]
+        self.materialPML = records[("material", "far_pml")]
+        self.max_poles = max_poles
+        self.dispersive = max_poles > 0
 
     def calculate_waveform_values(self, G, cythonize=True):
         """Calculates all waveform values for source for duration of simulation.
@@ -4442,6 +4581,7 @@ class DiscretePlaneWave(Source):
                 self.Iz_s,
                 updatecoeffsE[:, :],
                 updatecoeffsH[:, :],
+                self.axial_updatecoeffsH,
                 self.ID,
                 G.ID,
                 self.pml_rex,
@@ -4466,8 +4606,10 @@ class DiscretePlaneWave(Source):
                 self.waveformvalues_wholedt[:, :, :],
                 self.waveformvalues_halfdt[:, :, :],
                 self.m,
-                self.origin,
-                self.corners,
+                self.tfsf_origin,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
                 precompute,
                 iteration,
                 G.dt,
@@ -4512,8 +4654,10 @@ class DiscretePlaneWave(Source):
                     self.waveformvalues_wholedt[:, :, :],
                     self.waveformvalues_halfdt[:, :, :],
                     self.m,
-                    self.origin,
-                    self.corners,
+                    self.tfsf_origin,
+                    self.tfsf_corners,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     precompute,
                     iteration,
                     G.dt,
@@ -4569,6 +4713,7 @@ class DiscretePlaneWave(Source):
                 self.Iz_s,
                 updatecoeffsE[:, :],
                 updatecoeffsH[:, :],
+                self.axial_updatecoeffsE,
                 self.ID,
                 G.ID,
                 self.pml_rex,
@@ -4593,8 +4738,10 @@ class DiscretePlaneWave(Source):
                 self.waveformvalues_wholedt[:, :, :],
                 self.waveformvalues_halfdt[:, :, :],
                 self.m,
-                self.origin,
-                self.corners,
+                self.tfsf_origin,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
                 precompute,
                 iteration,
                 G.dt,
@@ -4639,8 +4786,10 @@ class DiscretePlaneWave(Source):
                     self.waveformvalues_wholedt[:, :, :],
                     self.waveformvalues_halfdt[:, :, :],
                     self.m,
-                    self.origin,
-                    self.corners,
+                    self.tfsf_origin,
+                    self.tfsf_corners,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     precompute,
                     iteration,
                     G.dt,
@@ -4704,6 +4853,8 @@ class DiscretePlaneWave(Source):
                 updatecoeffsE[:, :],
                 updatecoeffsH[:, :],
                 updatecoeffsdispersive[:, :],
+                self.axial_updatecoeffsE,
+                self.axial_updatecoeffsdispersive,
                 self.ID,
                 G.ID,
                 self.max_poles,
@@ -4729,8 +4880,10 @@ class DiscretePlaneWave(Source):
                 self.waveformvalues_wholedt[:, :, :],
                 self.waveformvalues_halfdt[:, :, :],
                 self.m,
-                self.origin,
-                self.corners,
+                self.tfsf_origin,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
                 precompute,
                 iteration,
                 G.dt,
@@ -4780,8 +4933,10 @@ class DiscretePlaneWave(Source):
                     self.waveformvalues_wholedt[:, :, :],
                     self.waveformvalues_halfdt[:, :, :],
                     self.m,
-                    self.origin,
-                    self.corners,
+                    self.tfsf_origin,
+                    self.tfsf_corners,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     precompute,
                     iteration,
                     G.dt,
