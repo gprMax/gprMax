@@ -372,9 +372,7 @@ class NetworkPort(OutputUserObject):
             # MPI point objects are instantiated only on their owning rank.
             if config.sim_config.mpi:
                 return
-            raise RuntimeError(
-                f"{self.params_str()} terminal definition was not instantiated"
-            )
+            raise RuntimeError(f"{self.params_str()} terminal definition was not instantiated")
         if terminal.output is not None:
             raise ValueError(f"{self.params_str()} terminal already has a NetworkPort output.")
 
@@ -623,8 +621,6 @@ def _check_ksir_interface_context(user_object, grid):
             f"{user_object.params_str()} must be defined on the main grid; "
             "its closed surface may enclose complete subgrids."
         )
-    if config.sim_config.mpi:
-        raise ValueError(f"{user_object.params_str()} does not yet support MPI.")
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
         raise ValueError(
             f"{user_object.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
@@ -779,6 +775,13 @@ class NTFFSurface(OutputUserObject):
         lower, upper = uip.check_output_object_bounds(
             self.lower_bound, self.upper_bound, self.params_str()
         )
+        # Main-grid user coordinates are translated into each rank's local
+        # frame during MPI parsing. NTFF surfaces are global objects which
+        # are partitioned only after the Yee grid has been built, so retain
+        # one identical global definition on every rank.
+        if hasattr(grid, "global_size"):
+            lower = grid.local_to_global_coordinate(lower)
+            upper = grid.local_to_global_coordinate(upper)
         origin = None
         if self.origin is not None:
             values = np.asarray(self.origin, dtype=config.sim_config.dtypes["float_or_double"])

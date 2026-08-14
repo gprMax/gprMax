@@ -398,9 +398,13 @@ class _CompiledSurface:
 def _resolve_surface_closure(spec: NTFFSurfaceSpec, grid, real_dtype):
     lower = np.asarray(spec.lower)
     upper = np.asarray(spec.upper)
+    domain_size = np.asarray(getattr(grid, "global_size", grid.size))
     touches_symmetry = any(
         (face.endswith("0") and lower["xyz".index(face[0])] == 0)
-        or (face.endswith("max") and upper["xyz".index(face[0])] == grid.size["xyz".index(face[0])])
+        or (
+            face.endswith("max")
+            and upper["xyz".index(face[0])] == domain_size["xyz".index(face[0])]
+        )
         for face in grid.symmetry_boundaries
     )
     if spec.omit_faces:
@@ -416,7 +420,7 @@ def _resolve_surface_closure(spec: NTFFSurfaceSpec, grid, real_dtype):
         grid.symmetry_boundaries,
         spec.lower,
         spec.upper,
-        grid.size,
+        domain_size,
         grid.dl,
         real_dtype=real_dtype,
     )
@@ -449,11 +453,20 @@ def surface_reference_origin(spec: NTFFSurfaceSpec, grid, real_dtype) -> npt.NDA
 
 
 def _surface_pml_limits(grid) -> tuple[tuple[int, int], ...]:
-    pml = grid.pmls["thickness"]
+    pml = dict(grid.pmls["thickness"])
+    if hasattr(grid, "comm"):
+        gathered = grid.comm.allgather(pml)
+        pml = {
+            face: max(int(item[face]) for item in gathered)
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
+        }
+        size = np.asarray(grid.global_size, dtype=np.int64)
+    else:
+        size = np.asarray((grid.nx, grid.ny, grid.nz), dtype=np.int64)
     return (
-        (pml["x0"], grid.nx if pml["xmax"] == 0 else grid.nx - pml["xmax"] - 1),
-        (pml["y0"], grid.ny if pml["ymax"] == 0 else grid.ny - pml["ymax"] - 1),
-        (pml["z0"], grid.nz if pml["zmax"] == 0 else grid.nz - pml["zmax"] - 1),
+        (pml["x0"], size[0] if pml["xmax"] == 0 else size[0] - pml["xmax"] - 1),
+        (pml["y0"], size[1] if pml["ymax"] == 0 else size[1] - pml["ymax"] - 1),
+        (pml["z0"], size[2] if pml["zmax"] == 0 else size[2] - pml["zmax"] - 1),
     )
 
 
@@ -483,9 +496,15 @@ def _surface_material_id(surfaces: Mapping, closure, grid) -> int:
             if np.any(keep):
                 sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
                 sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
-    if not sampled_ids:
+    if hasattr(grid, "comm"):
+        from gprMax.ntff.mpi import distributed_unique
+
+        local = np.concatenate(sampled_ids) if sampled_ids else np.empty(0, dtype=np.int64)
+        unique = distributed_unique(local, grid.comm)
+    elif not sampled_ids:
         raise ValueError("NTFF surface has no off-symmetry samples for material validation")
-    unique = np.unique(np.concatenate(sampled_ids))
+    else:
+        unique = np.unique(np.concatenate(sampled_ids))
     if unique.size != 1:
         raise ValueError(f"NTFF surface straddles multiple material IDs: {unique.tolist()}")
     return int(unique[0])
@@ -670,6 +689,8 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                         COMPONENT_OFFSETS[component], dtype=np.float64
                     )
                     if source_grid is model.G:
+                        if hasattr(source_grid, "global_size"):
+                            local_position = source_grid.local_to_global_coordinate(local_position)
                         position = local_position * np.asarray(source_grid.dl, dtype=np.float64)
                     else:
                         position = np.asarray(
@@ -695,6 +716,8 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                     COMPONENT_OFFSETS[component], dtype=np.float64
                 )
                 if source_grid is model.G:
+                    if hasattr(source_grid, "global_size"):
+                        local_position = source_grid.local_to_global_coordinate(local_position)
                     position = local_position * np.asarray(source_grid.dl, dtype=np.float64)
                 else:
                     position = np.asarray(
@@ -730,10 +753,22 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                 transverse_axes = np.asarray(source.transverse_axes, dtype=np.intp)
                 local_lower = np.zeros(3, dtype=np.float64)
                 local_upper = np.zeros(3, dtype=np.float64)
-                local_lower[source.normal_axis] = source.plane_index
-                local_upper[source.normal_axis] = source.plane_index
-                local_lower[transverse_axes] = source.transverse_start
-                local_upper[transverse_axes] = source.transverse_stop
+                if source_grid is model.G and hasattr(source_grid, "global_size"):
+                    plane_index = getattr(source, "global_plane_index", source.plane_index)
+                    transverse_start = getattr(
+                        source, "global_transverse_start", source.transverse_start
+                    )
+                    transverse_stop = getattr(
+                        source, "global_transverse_stop", source.transverse_stop
+                    )
+                else:
+                    plane_index = source.plane_index
+                    transverse_start = source.transverse_start
+                    transverse_stop = source.transverse_stop
+                local_lower[source.normal_axis] = plane_index
+                local_upper[source.normal_axis] = plane_index
+                local_lower[transverse_axes] = transverse_start
+                local_upper[transverse_axes] = transverse_stop
                 if source_grid is model.G:
                     box_lower = local_lower * spacing
                     box_upper = local_upper * spacing
@@ -755,6 +790,11 @@ def validate_ntff_source_enclosure(model, grid) -> None:
                         f"{tuple(box_lower)} m to {tuple(box_upper)} m"
                     )
 
+        if hasattr(grid, "comm"):
+            offenders = [
+                item for rank_offenders in grid.comm.allgather(offenders) for item in rank_offenders
+            ]
+            offenders = list(dict.fromkeys(offenders))
         if offenders:
             details = "; ".join(offenders)
             raise ValueError(
@@ -1707,8 +1747,6 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             "(#ntff_frequency, #ntff_far_field or #ntff_far_field_array, and "
             "#ntff_antenna_ports when gain is requested) instead"
         )
-    if config.sim_config.mpi:
-        raise ValueError("the reusable NTFF interface does not yet support MPI")
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
         raise ValueError(
             "the reusable NTFF interface supports CPU, CUDA, OpenCL, and Metal solvers"
@@ -1871,7 +1909,9 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
     needed_surface_ids.update(item.surface_id for item in time_requests)
     needed_surface_ids.update(item.surface_id for item in time_far_requests)
     real_dtype = config.sim_config.dtypes["float_or_double"]
-    field_shape = tuple(int(value + 1) for value in grid.size)
+    mpi_grid = grid if hasattr(grid, "comm") else None
+    global_size = grid.global_size if mpi_grid is not None else grid.size
+    field_shape = tuple(int(value + 1) for value in global_size)
     compiled_surfaces = {}
     for surface_id in needed_surface_ids:
         spec = surface_specs[surface_id]
@@ -1902,6 +1942,18 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             origin=origin,
             pml_limits=limits,
         )
+
+    if mpi_grid is not None:
+        from gprMax.ntff.mpi import localise_surfaces
+
+        local_surfaces = {
+            surface_id: localise_surfaces(compiled.surfaces, grid)
+            for surface_id, compiled in compiled_surfaces.items()
+        }
+    else:
+        local_surfaces = {
+            surface_id: compiled.surfaces for surface_id, compiled in compiled_surfaces.items()
+        }
 
     for transform in equivalent_transform_specs.values():
         closure = compiled_surfaces[transform.surface_id].closure
@@ -1955,7 +2007,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             writer.time_bindings[request.key] = (None, slice(offset, stop))
             offset = stop
         point_array = _readonly(np.concatenate(points), real_dtype)
-        selected_surfaces = {item: compiled.surfaces[item] for item in dependencies}
+        selected_surfaces = {item: local_surfaces[surface_id][item] for item in dependencies}
         _, wave_speed, _ = _background_properties(selected_surfaces, compiled.closure, grid)
         monitor = KSIRTimeDomainMonitor(
             f"_ksir_time_{surface_id}_{group_index}",
@@ -1973,6 +2025,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 else None
             ),
             closure=compiled.closure,
+            mpi_comm=None if mpi_grid is None else grid.comm,
         )
         monitor.managed_output = True
         grid.ntff_monitors.append(monitor)
@@ -1994,7 +2047,9 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             stop = offset + request.theta.size
             writer.time_far_bindings[request.key] = (None, slice(offset, stop))
             offset = stop
-        _, wave_speed, impedance = _background_properties(compiled.surfaces, compiled.closure, grid)
+        _, wave_speed, impedance = _background_properties(
+            local_surfaces[surface_id], compiled.closure, grid
+        )
         monitor = EquivalentCurrentTimeMonitor(
             f"_ntff_time_far_{surface_id}_{group_index}",
             compiled.spec.lower,
@@ -2015,6 +2070,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 if config.sim_config.general["solver"] in ("cuda", "opencl", "metal")
                 else None
             ),
+            mpi_grid=mpi_grid,
         )
         monitor.surfaces = compiled.surfaces
         monitor.closure = compiled.closure
@@ -2036,7 +2092,9 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 for component in component_dependencies(request.outputs):
                     if component not in dependencies:
                         dependencies.append(component)
-        selected_surfaces = {item: compiled.surfaces[item] for item in dependencies}
+        selected_surfaces = {
+            item: local_surfaces[transform.surface_id][item] for item in dependencies
+        }
         monitor = KSIRFrequencyDomainMonitor(
             f"_ntff_frequency_{transform_id}",
             selected_surfaces,
@@ -2054,12 +2112,19 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             save_surface_dft=transform.save_surface_dft,
             exterior_index_bounds=compiled.pml_limits,
             closure=compiled.closure,
+            mpi_comm=None if mpi_grid is None else grid.comm,
+            mpi_grid=mpi_grid,
+            global_surfaces=(
+                None
+                if mpi_grid is None
+                else {item: compiled.surfaces[item] for item in dependencies}
+            ),
         )
         if transform.formulation == "equivalent_current" and compiled.closure.omitted_faces:
             monitor.external_source_faces = compiled.closure.omitted_faces
         _associate_plane_wave(
             monitor,
-            selected_surfaces,
+            {item: compiled.surfaces[item] for item in dependencies},
             np.asarray(compiled.spec.lower),
             np.asarray(compiled.spec.upper),
             grid,

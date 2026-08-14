@@ -1999,20 +1999,26 @@ The following conventions apply to every NTFF command:
   stencil. A closed surface must enclose the radiating source or the complete
   TFSF box and scatterer. An open Huygens surface instead permits an impressed
   source outside only through one of its omitted faces;
-* the implementation currently requires a three-dimensional serial model and
-  does not support MPI or geometry-fixed reuse. NTFF commands are main-grid
-  objects, but their closed surface may contain complete subgrids. A surface
-  that overlaps a subgrid must strictly enclose its HSG outer coupling surface;
-  it cannot touch or cut the coupling region. Both time- and frequency-domain
-  KSIR collection and frequency-domain equivalent-current collection are
-  available with CPU, CUDA, OpenCL, and Metal. Equivalent-current transient
-  far fields are also available with all four local solvers;
+* the implementation requires a three-dimensional model and does not support
+  geometry-fixed reuse. NTFF commands are main-grid objects, but their closed
+  surface may contain complete subgrids. A surface that overlaps a subgrid
+  must strictly enclose its HSG outer coupling surface; it cannot touch or cut
+  the coupling region. Both time- and frequency-domain KSIR collection and
+  frequency-domain equivalent-current collection are available with the
+  serial CPU, CUDA, OpenCL, Metal, and MPI domain-decomposition solvers.
+  Equivalent-current transient far fields are available with the same
+  solvers. MPI uses the CPU field-update backend;
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
   iterations and are transferred to the host once, after the solve. CUDA and
   OpenCL are hardware-qualified on the development server. Metal has complete
   source-generation and dispatch coverage, but still requires execution tests
-  on suitable Apple hardware.
+  on suitable Apple hardware. With MPI, every surface patch is sampled by the
+  rank which owns its inside Yee sample; the neighbouring outside sample is
+  read from the normal one-cell halo. There is therefore no additional NTFF
+  communication inside the FDTD iteration. Compact time histories are reduced
+  and frequency-domain surface phasors are assembled on the coordinator after
+  time stepping, before the normal HDF5 output is written.
 
 Directivity, gain, efficiency, and port normalisation are post-processing
 operations after the FDTD solve. Angular KSIR and equivalent-current

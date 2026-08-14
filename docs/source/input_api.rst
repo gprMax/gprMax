@@ -1097,6 +1097,13 @@ strictly enclose that outer surface. Sources and scatterers inside the subgrid
 then contribute through the normal HSG field exchange. A disjoint subgrid is
 permitted. NTFF surfaces cannot be defined inside a subgrid.
 
+The same interface is available with MPI domain decomposition. Surface patches
+are distributed between ranks and use the existing field halos, while the
+completed results retain the same HDF5 schema as a serial run. MPI NTFF does
+not introduce a surface collective during each FDTD iteration; accumulated
+time histories or frequency-domain phasors are combined once at finalisation.
+Geometry-fixed reuse remains unsupported.
+
 The following example reuses one surface for an exact time-domain point and a
 frequency-domain radiation pattern. Python keyword arguments replace the
 positional optional parameters used by the equivalent hash commands.

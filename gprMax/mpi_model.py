@@ -254,6 +254,7 @@ class MPIModel(Model):
                 or self.G.networkterminals
                 or self.G.port_monitors
                 or self.G.eigenmodeports
+                or self.G.ntff_output_writers
             ):
                 self.G.size = self.G.global_size
                 from gprMax.eigenmode_ports import finalise_eigenmode_ports

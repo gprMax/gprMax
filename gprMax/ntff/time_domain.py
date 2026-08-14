@@ -231,8 +231,12 @@ class _ComponentAccumulator:
         self._fractional_delay = np.ascontiguousarray(
             delay - self._integer_delay, dtype=self.real_dtype
         )
-        self.minimum_delay_steps = np.min(delay, axis=1)
-        self.maximum_integer_delay_steps = np.max(self._integer_delay, axis=1)
+        if surface.npatches:
+            self.minimum_delay_steps = np.min(delay, axis=1)
+            self.maximum_integer_delay_steps = np.max(self._integer_delay, axis=1)
+        else:
+            self.minimum_delay_steps = np.full(points.shape[0], np.inf)
+            self.maximum_integer_delay_steps = np.full(points.shape[0], -np.inf)
         self._inside_indices = np.ascontiguousarray(
             np.concatenate([face.inside_flat_indices for face in self.surface.faces]),
             dtype=np.int64,
@@ -274,6 +278,8 @@ class _ComponentAccumulator:
                 f"field shape {values_array.shape} does not match surface field shape "
                 f"{self.surface.field_shape}"
             )
+        if self.surface.npatches == 0:
+            return self._surface_buffer.copy(), self._derivative_buffer.copy()
         if _gather_time_domain_surface is not None:
             flat = np.ascontiguousarray(values_array, dtype=self.real_dtype).ravel()
             _gather_time_domain_surface(
@@ -305,6 +311,10 @@ class _ComponentAccumulator:
     ) -> None:
         if sample_index != self._last_deposited + 1:
             raise RuntimeError("KSIR samples must be deposited exactly once in time order")
+
+        if self.surface.npatches == 0:
+            self._last_deposited = sample_index
+            return
 
         if _deposit_time_domain_surface is not None:
             _deposit_time_domain_surface(
@@ -423,6 +433,7 @@ class KSIRTimeDomainMonitor:
         time_origin: str = "simulation",
         device_backend: str | None = None,
         closure: ResolvedKSIRClosure | None = None,
+        mpi_comm=None,
     ):
         if not name:
             raise ValueError("KSIR monitor name must not be empty")
@@ -468,6 +479,7 @@ class KSIRTimeDomainMonitor:
         self.nthreads = int(nthreads)
         self.time_origin = time_origin
         self.device_backend = device_backend
+        self.mpi_comm = mpi_comm
         if device_backend is None:
             self.collection_backend = (
                 "cython_openmp"
@@ -477,6 +489,10 @@ class KSIRTimeDomainMonitor:
             )
         else:
             self.collection_backend = f"{device_backend}_device"
+        if self.mpi_comm is not None:
+            if self.device_backend is not None:
+                raise ValueError("MPI NTFF collection is available with the CPU solver")
+            self.collection_backend = f"mpi_{self.collection_backend}"
         self.components = components
         self.surfaces = MappingProxyType(dict(surfaces))
         self.closure = closure or ResolvedKSIRClosure("closed", (), (), True, True)
@@ -541,6 +557,13 @@ class KSIRTimeDomainMonitor:
             ),
             axis=0,
         )
+        if self.mpi_comm is not None:
+            delay_values = self.mpi_comm.allgather((minimum_delay, maximum_integer_delay))
+            minimum_delay = np.min(np.stack([item[0] for item in delay_values]), axis=0)
+            maximum_integer_delay = np.max(np.stack([item[1] for item in delay_values]), axis=0)
+        if not np.all(np.isfinite(minimum_delay)) or not np.all(np.isfinite(maximum_integer_delay)):
+            raise RuntimeError("MPI KSIR surface has no owned patches")
+        maximum_integer_delay = maximum_integer_delay.astype(np.int64)
         if self.time_origin == "first_arrival":
             time_origin_steps = np.floor(minimum_delay).astype(np.int64)
         else:
@@ -600,11 +623,17 @@ class KSIRTimeDomainMonitor:
                 if np.any(keep):
                     sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
                     sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
-        if not sampled_ids:
+        if self.mpi_comm is not None:
+            from .mpi import distributed_unique
+
+            local = np.concatenate(sampled_ids) if sampled_ids else np.empty(0, dtype=np.int64)
+            unique_ids = distributed_unique(local, self.mpi_comm)
+        elif not sampled_ids:
             raise ValueError(
                 f"KSIR monitor {self.name!r} has no off-symmetry samples " "for material validation"
             )
-        unique_ids = np.unique(np.concatenate(sampled_ids))
+        else:
+            unique_ids = np.unique(np.concatenate(sampled_ids))
         if unique_ids.size != 1:
             raise ValueError(
                 f"KSIR monitor {self.name!r} surface straddles multiple material IDs: "
@@ -649,6 +678,25 @@ class KSIRTimeDomainMonitor:
                 accumulator.finalise()
         elif any(accumulator.output is None for accumulator in self._accumulators.values()):
             raise RuntimeError("not all device KSIR component outputs were loaded")
+
+        if self.mpi_comm is not None:
+            from mpi4py import MPI
+
+            coordinator = self.mpi_comm.Get_rank() == 0
+            for accumulator in self._accumulators.values():
+                reduced = np.empty_like(accumulator.output) if coordinator else None
+                self.mpi_comm.Reduce(
+                    accumulator.output,
+                    reduced,
+                    op=MPI.SUM,
+                    root=0,
+                )
+                if coordinator:
+                    reduced.setflags(write=False)
+                    accumulator.output = reduced
+            if not coordinator:
+                self._finalised = True
+                return
 
         times = self.dt * np.arange(self.output_length, dtype=self.real_dtype)
         times.setflags(write=False)
