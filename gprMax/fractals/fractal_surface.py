@@ -214,8 +214,9 @@ class FractalSurface:
         # Take the real part (numerical errors can give rise to an imaginary part)
         #  of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        self.fractalsurface = np.real(fftpack.ifftn(self.fractalsurface)).astype(
-            config.sim_config.dtypes["float_or_double"], copy=False
+        self.fractalsurface = np.ascontiguousarray(
+            np.real(fftpack.ifftn(self.fractalsurface)),
+            dtype=config.sim_config.dtypes["float_or_double"],
         )
         # Scale the fractal volume according to requested range
         fractalmin = np.amin(self.fractalsurface)
@@ -429,7 +430,9 @@ class MPIFractalSurface(FractalSurface):
         # Take the real part (numerical errors can give rise to an imaginary part)
         #  of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        A = np.real(A).astype(config.sim_config.dtypes["float_or_double"], copy=False)
+        A = np.ascontiguousarray(
+            np.real(A), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Allreduce to get min and max values in the fractal surface
         min_value = np.array(np.amin(A), dtype=config.sim_config.dtypes["float_or_double"])
@@ -508,7 +511,12 @@ class MPIFractalSurface(FractalSurface):
                 )
             ):
                 mpi_type = create_mpi_type(
-                    A_shape, -negative_offset, -positive_offset, dirs, sending=True
+                    A_shape,
+                    -negative_offset,
+                    -positive_offset,
+                    dirs,
+                    A.dtype,
+                    sending=True,
                 )
 
                 logger.debug(
@@ -524,7 +532,13 @@ class MPIFractalSurface(FractalSurface):
                     dirs == Dir.NONE,
                 )
             ):
-                mpi_type = create_mpi_type(local_shape, negative_offset, positive_offset, dirs)
+                mpi_type = create_mpi_type(
+                    local_shape,
+                    negative_offset,
+                    positive_offset,
+                    dirs,
+                    self.fractalsurface.dtype,
+                )
 
                 logger.debug(
                     f"Receiving fractal surface from rank {rank}, MPI type={mpi_type.decode()}"

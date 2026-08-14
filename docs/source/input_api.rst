@@ -654,9 +654,12 @@ convolution treatment of Giannakis and Giannopoulos [GIA2014]_: every pole
 current is evaluated analytically at the electric half-step for a linearly
 varying voltage, rather than estimated by averaging its two integer-time
 values. State is stored only for placed terminals. Independent one-port
-networks are supported in 3-D, non-MPI models on the CPU, CUDA, OpenCL, and
-Metal solvers; terminals inside subgrids currently use the CPU solver. Device
-runs keep the network recurrence and field correction on the compute device
+rational networks are supported in 3-D on the CPU, CUDA, OpenCL, and Metal
+solvers, including domain-decomposed MPI CPU models; terminals inside
+subgrids currently use the CPU solver. An MPI terminal is advanced only on
+the rank that owns its electric edge, and its histories are gathered for port
+post-processing. Device runs keep the network recurrence and field correction
+on the compute device
 and copy the completed histories back after the solve. Coupled multiport
 admittance matrices are reserved for a later extension.
 
@@ -729,8 +732,11 @@ resulting aperture remains sub-cell. For example:
     ))
 
 The corrected formulation is supported by the CPU, CUDA, OpenCL, and Metal
-solvers. It is also supported inside a CPU ``SubGridHSG``. Add the waveform,
-PEC ground plane, thin wire, and magnetic frill to the same subgrid object,
+solvers and by domain-decomposed MPI CPU models. Its four magnetic feed edges
+may cross internal MPI rank boundaries; symmetry-boundary completion is not
+supported with MPI. It is also supported inside a CPU ``SubGridHSG``. Add the
+waveform, PEC ground plane, thin wire, and magnetic frill to the same subgrid
+object,
 using the same global-coordinate convention as other subgrid sources when
 ``autotranslate=True``:
 
@@ -907,6 +913,12 @@ arrays that are stored under ``/ports/feed`` in the model HDF5 file. For a
 hard source, gprMax obtains terminal current from the surrounding magnetic-
 field loop and accounts explicitly for the half-step phase difference from
 the integer-time voltage during transformation.
+
+``RxPort`` also supports domain-decomposed MPI CPU models. The owning rank
+stores the voltage history; hard-source current loops may cross internal rank
+faces because magnetic halos are synchronised before sampling. Histories are
+gathered and transformed once on the coordinator rank, while ``port.result``
+is rebound to that final result for Python API use.
 
 An ``RxPort`` may also be placed inside a ``SubGridHSG``. Add the waveform,
 voltage source, and port to the same subgrid object; the port is then sampled

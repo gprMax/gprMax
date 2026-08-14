@@ -872,6 +872,29 @@ class RationalNetworkPortOutput:
         )
         self.incident_floor_db = DEFAULT_INCIDENT_FLOOR_DB
 
+    def rebind_after_mpi_gather(self, grid: "FDTDGrid") -> None:
+        """Reconnect the gathered output to its coordinator-side terminal."""
+
+        terminals = [
+            terminal
+            for terminal in getattr(grid, "networkterminals", ())
+            if terminal.ID == self.output_id
+        ]
+        if len(terminals) != 1:
+            raise RuntimeError(
+                f"NetworkPort {self.output_id!r} could not uniquely rebind its MPI "
+                f"terminal ({len(terminals)} terminal(s))"
+            )
+        self.terminal = terminals[0]
+        self.source = self.terminal
+        self.terminal.output = self
+        # Coordinates have been converted to global indices by the terminal
+        # gather; replace the owner-rank-local position cached by prepare().
+        self.source_position = np.asarray(
+            self.terminal.coord * np.asarray((grid.dx, grid.dy, grid.dz)),
+            dtype=np.float64,
+        )
+
     def prepare(self, grid: "FDTDGrid") -> None:
         if not self.terminal.prepared:
             self.terminal.prepare(grid)
@@ -1175,6 +1198,38 @@ class VoltageSourcePortMonitor:
     @property
     def component(self):
         return f"E{self.source.polarisation}"
+
+    def rebind_after_mpi_gather(self, grid: "FDTDGrid") -> None:
+        """Reconnect gathered monitor state to the coordinator's grid objects."""
+
+        receivers = [
+            receiver
+            for receiver in grid.rxs
+            if getattr(receiver, "internal", False)
+            and getattr(receiver, "port_id", None) == self.output_id
+        ]
+        sources = [
+            source
+            for source in grid.voltagesources
+            if source.polarisation == self.source.polarisation
+            and np.array_equal(source.coord, self.source.coord)
+        ]
+        if len(receivers) != 1 or len(sources) != 1:
+            raise RuntimeError(
+                f"RxPort {self.output_id!r} could not uniquely rebind its MPI "
+                f"receiver/source ({len(receivers)} receiver(s), {len(sources)} source(s))"
+            )
+        self.receiver = receivers[0]
+        self.source = sources[0]
+        self.source_index = grid.voltagesources.index(self.source) + 1
+        # ``gather_coord_objects`` has converted the rebound source coordinate
+        # to the global MPI-grid index. ``source_position`` may previously have
+        # been cached while preparing the monitor on its owning rank, where the
+        # same coordinate was rank-local.
+        self.source_position = np.asarray(
+            self.source.coord * np.asarray((grid.dx, grid.dy, grid.dz)),
+            dtype=np.float64,
+        )
 
     def _edge_geometry(self, grid):
         if self.source.polarisation == "x":

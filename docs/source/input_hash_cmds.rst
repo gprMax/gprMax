@@ -698,8 +698,11 @@ For example, a z-directed wire of radius 0.1 mm is specified by:
 
 The wire may lie on a transverse domain face only when that face is a PMC
 symmetry boundary. A wire and its surrounding magnetic stencil must not touch
-a PML region. Thin wires in 2D models, MPI models, and overlapping sub-cell
-wire junctions are not currently supported. The charge-based end-cap treatment
+a PML region. MPI domain decomposition is supported: each electric edge and
+each member of the surrounding magnetic stencil is constructed on its owning
+rank, including a stencil that crosses an internal rank boundary. Thin wires
+in 2D models and overlapping sub-cell wire junctions are not currently
+supported. The charge-based end-cap treatment
 from [MAK2002]_ is not implemented, so an isolated open end retains the usual
 staircasing/electrically-long end error; the improved straight-section update
 is used up to the final wire edge. No special runtime solver is used: the
@@ -1200,11 +1203,14 @@ discretely identical to a finite-resistance ``#voltage_source`` having the
 same :math:`R`, waveform, position, and polarisation. A zero-resistance hard
 source is not equivalent.
 
-This implementation supports 3-D, non-MPI models on the CPU, CUDA, OpenCL,
-and Metal solvers and a nondispersive terminal edge; dispersive materials may
-exist elsewhere in the model. A terminal may be placed in a CPU subgrid, where
-it uses the fine spatial and temporal steps. On an accelerator the complete
-recurrence and local field correction remain device-resident during time
+This implementation supports 3-D models on the CPU, CUDA, OpenCL, and Metal
+solvers, including domain-decomposed MPI CPU models, and a nondispersive
+terminal edge; dispersive materials may exist elsewhere in the model. In an
+MPI model the sparse terminal state is advanced only by the rank that owns its
+electric edge, then gathered for final port processing. A terminal may be
+placed in a CPU subgrid, where it uses the fine spatial and temporal steps. On
+an accelerator the complete recurrence and local field correction remain
+device-resident during time
 stepping. Several independent terminals may be used, but a coupled multiport
 admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
 lumped-network formulation and :ref:`Analytical comparisons
@@ -1278,7 +1284,10 @@ There is no explicit one-dimensional line, no absorbing boundary, and no
 equivalent magnetic surface current entering Faraday's law at the four Yee
 magnetic-field components immediately surrounding the feed point. The
 corrected Hyun feed-cell formulation is supported by the CPU, CUDA, OpenCL,
-and Metal solvers. The syntax is:
+and Metal solvers, and by domain-decomposed MPI CPU models. In MPI, the four
+magnetic feed edges may cross internal rank boundaries: their Ampere-loop
+terms are combined before the common terminal state is advanced, and each
+field deposit is applied by its owning rank. The syntax is:
 
 .. code-block:: none
 
@@ -1454,6 +1463,9 @@ objects (including the waveform) to the same subgrid object.
     * Two frill sources may not share a surrounding H edge. Such adjacent or
       duplicate feeds form a coupled feed-cell system and cannot be advanced
       as independent scalar terminal relations.
+    * MPI symmetry boundaries remain unsupported. An MPI frill and its thin
+      wire may cross internal rank boundaries, but must not rely on symmetry
+      completion at an outer domain face.
     * This source is a "Path A" (through-ground-plane, continuous-conductor)
       feed model. It is not intended for a dipole/bow-tie style gap feed
       (:math:`E_z \neq 0` at the feed) - use ``#voltage_source`` for that case.
@@ -1770,6 +1782,12 @@ The voltage source supplies the reference impedance :math:`Z_0`. For example:
     # Custom 75 Ohm hard-source reference; start/stop precede it positionally
     #voltage_source: z 0.070 0.050 0.020 0 source_wave 0 10e-9 75
     #rx_port: 0.070 0.050 0.020 ideal_feed_75
+
+``#rx_port`` is supported in domain-decomposed MPI CPU models. The source and
+its internal field monitor belong to one rank; for a hard source, magnetic
+halos are synchronised before the next current sample so an Ampere loop may
+cross an internal rank face or corner. Port histories are gathered and the
+frequency-domain quantities are calculated once on the coordinator rank.
 
 
 For a finite-resistance source, the voltage-source resistance is the

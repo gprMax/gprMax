@@ -34,11 +34,12 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
 from gprMax.sources import Source
-from gprMax.utilities.mpi import Dim, Dir
+from gprMax.utilities.mpi import Dim, Dir, mpi_datatype_for_dtype
 
 logger = logging.getLogger(__name__)
 
 CoordType = TypeVar("CoordType", bound=Union[Rx, Source])
+ObjectType = TypeVar("ObjectType")
 
 
 class MPIGrid(FDTDGrid):
@@ -350,6 +351,16 @@ class MPIGrid(FDTDGrid):
         else:
             return objects
 
+    def gather_objects(self, objects: List[ObjectType]) -> List[ObjectType]:
+        """Gather non-coordinate runtime objects on the coordinator rank."""
+
+        gathered_objects: Optional[List[List[ObjectType]]] = self.comm.gather(
+            objects, root=self.COORDINATOR_RANK
+        )
+        if gathered_objects is not None:
+            return list(itertools.chain(*gathered_objects))
+        return objects
+
     def gather_grid_objects(self):
         """Gather sources and receivers."""
 
@@ -358,6 +369,16 @@ class MPIGrid(FDTDGrid):
         self.magneticdipoles = self.gather_coord_objects(self.magneticdipoles)
         self.hertziandipoles = self.gather_coord_objects(self.hertziandipoles)
         self.transmissionlines = self.gather_coord_objects(self.transmissionlines)
+        primary_frills = [
+            source for source in self.magneticfrillsources if getattr(source, "mpi_primary", True)
+        ]
+        self.magneticfrillsources = self.gather_coord_objects(primary_frills)
+        if self.is_coordinator():
+            self.magneticfrillsources.sort(
+                key=lambda source: getattr(source, "mpi_global_index", 0)
+            )
+        self.networkterminals = self.gather_coord_objects(self.networkterminals)
+        self.port_monitors = self.gather_objects(self.port_monitors)
 
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
         """Perform a halo swap in the specifed dimension and direction.
@@ -447,6 +468,22 @@ class MPIGrid(FDTDGrid):
             self.recv_requests[0].Waitall(self.recv_requests)
             self.recv_requests = []
 
+    def complete_halo_swaps(self) -> None:
+        """Complete requests left by the final nonblocking halo exchange.
+
+        A normal timestep waits for the previous field sends at the start of
+        the opposite-field halo exchange. The final electric exchange has no
+        following magnetic exchange, so its sends must be completed explicitly
+        before MPI finalisation.
+        """
+
+        if self.send_requests:
+            MPI.Request.Waitall(self.send_requests)
+            self.send_requests = []
+        if self.recv_requests:
+            MPI.Request.Waitall(self.recv_requests)
+            self.recv_requests = []
+
     def _prepare_pml(self, pml: MPIPML) -> MPIPML:
         """Attach the communicator associated with the slab normal."""
         if pml.direction[0] == "x":
@@ -484,7 +521,7 @@ class MPIGrid(FDTDGrid):
 
         # Cast from bool to int to avoid issue with numpy>2.3
         self.negative_halo_offset = self.negative_halo_offset.astype(int)
-        
+
         if pml.ID[0] == "x":
             o1 = self.negative_halo_offset[1]
             o2 = self.negative_halo_offset[2]
@@ -642,6 +679,9 @@ class MPIGrid(FDTDGrid):
         """Create MPI DataTypes for field array halo exchanges."""
 
         size = (self.size + 1).tolist()
+        field_mpi_dtype = mpi_datatype_for_dtype(
+            config.sim_config.dtypes["float_or_double"]
+        )
 
         for dim in Dim:
             halo_size = (self.size + 1 - np.sum(self.neighbours >= 0, axis=1)).tolist()
@@ -650,18 +690,26 @@ class MPIGrid(FDTDGrid):
 
             if self.has_neighbour(dim, Dir.NEG):
                 start[dim] = 1
-                self.send_halo_map[dim][Dir.NEG] = MPI.FLOAT.Create_subarray(size, halo_size, start)
+                self.send_halo_map[dim][Dir.NEG] = field_mpi_dtype.Create_subarray(
+                    size, halo_size, start
+                )
                 start[dim] = 0
-                self.recv_halo_map[dim][Dir.NEG] = MPI.FLOAT.Create_subarray(size, halo_size, start)
+                self.recv_halo_map[dim][Dir.NEG] = field_mpi_dtype.Create_subarray(
+                    size, halo_size, start
+                )
 
                 self.send_halo_map[dim][Dir.NEG].Commit()
                 self.recv_halo_map[dim][Dir.NEG].Commit()
 
             if self.has_neighbour(dim, Dir.POS):
                 start[dim] = size[dim] - 2
-                self.send_halo_map[dim][Dir.POS] = MPI.FLOAT.Create_subarray(size, halo_size, start)
+                self.send_halo_map[dim][Dir.POS] = field_mpi_dtype.Create_subarray(
+                    size, halo_size, start
+                )
                 start[dim] = size[dim] - 1
-                self.recv_halo_map[dim][Dir.POS] = MPI.FLOAT.Create_subarray(size, halo_size, start)
+                self.recv_halo_map[dim][Dir.POS] = field_mpi_dtype.Create_subarray(
+                    size, halo_size, start
+                )
 
                 self.send_halo_map[dim][Dir.POS].Commit()
                 self.recv_halo_map[dim][Dir.POS].Commit()
