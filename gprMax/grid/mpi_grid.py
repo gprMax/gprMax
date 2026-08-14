@@ -603,7 +603,6 @@ class MPIGrid(FDTDGrid):
                     self.hertziandipoles,
                     self.magneticdipoles,
                     self.transmissionlines,
-                    self.discreteplanewaves,
                     self.rxs,
                 ),
             )
@@ -660,7 +659,6 @@ class MPIGrid(FDTDGrid):
             self.hertziandipoles = filter_items(self.hertziandipoles)
             self.magneticdipoles = filter_items(self.magneticdipoles)
             self.transmissionlines = filter_items(self.transmissionlines)
-            self.discreteplanewaves = filter_items(self.discreteplanewaves)
             self.rxs = filter_items(self.rxs)
 
     def has_neighbour(self, dim: Dim, dir: Dir) -> bool:

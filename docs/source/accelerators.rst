@@ -84,6 +84,12 @@ Run one of the 2D test models:
 
 The ``--mpi`` argument passed to gprMax takes three integers to define the number of MPI processes in the x, y, and z dimensions to form a cartesian grid. The product of these three numbers shoud equal the number of MPI ranks. In this case ``2 x 2 x 1 = 4``.
 
+Discrete plane waves can span MPI subdomains. Their small one-dimensional DPW
+state is replicated on every rank, and the TFSF surface corrections are
+partitioned by Yee-component ownership. Axial layered profiles are assembled
+once during model construction, so plane waves add no source-specific
+communication to the timestep loop.
+
 .. figure:: ../../images_shared/mpi_domain_decomposition.png
     :width: 80%
     :align: center

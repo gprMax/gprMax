@@ -837,6 +837,12 @@ selected for the main grid. A discrete plane wave must be added to the main
 scene, not to a subgrid. Its TFSF box may contain a complete subgrid; where the
 two regions overlap, the box must strictly enclose the subgrid's HSG outer
 coupling surface so that the TFSF correction stencil remains on the main grid.
+MPI domain decomposition is supported. The auxiliary one-dimensional wave is
+replicated on every rank, and each rank applies only the TFSF corrections for
+the Yee components that it owns. For an axial plane wave, the layered material
+profile is assembled once from the distributed grid's actual update
+coefficients, including multi-pole dispersive coefficients; no additional
+plane-wave communication occurs during timestepping.
 
 Excitation File
 ---------------
