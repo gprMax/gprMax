@@ -265,6 +265,8 @@ class EigenmodeSource(Source):
         self.domain_polarization = None
         self.transverse_start = None
         self.transverse_stop = None
+        self.global_transverse_start = None
+        self.global_transverse_stop = None
         self.mode_index = None
         self.mode_count = None
         self.mode_indices = ()
@@ -277,6 +279,10 @@ class EigenmodeSource(Source):
         self.spectral_threshold = 1e-3
         self.spectrum_coverage_policy = "error"
         self.plane_index = None
+        self.global_plane_index = None
+        self.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        self.tfsf_owned_upper = np.zeros(3, dtype=np.int32)
+        self.mpi_coordinator = True
         self.complex_eps_r_uu = None
         self.complex_eps_r_vv = None
         self.complex_eps_r_ww = None
@@ -366,12 +372,13 @@ class EigenmodeSource(Source):
 
     def _fallback_to_single_anchor(self, G, mismatch):
         frequency = float(self.fallback_frequency)
-        logger.warning(
-            f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
-            f"will therefore use a single modal anchor at {frequency:g} Hz. The "
-            "modal field and S-parameters may be inaccurate toward frequencies "
-            "far from this anchor."
-        )
+        if self.mpi_coordinator:
+            logger.warning(
+                f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
+                f"will therefore use a single modal anchor at {frequency:g} Hz. The "
+                "modal field and S-parameters may be inaccurate toward frequencies "
+                "far from this anchor."
+            )
         self.frequency = frequency
         self.frequencies = (frequency,)
         self.mode_solvers = None
@@ -502,10 +509,11 @@ class EigenmodeSource(Source):
         residual = self._align_tangential_mode_for_real_injection()
         self._store_real_modal_fields()
         if residual <= self.COMPLEX_PROFILE_TOLERANCE:
-            logger.info(
-                "Single-frequency eigenmode tangential complex-profile residual "
-                f"is {residual:.3e}; using real-only injection."
-            )
+            if self.mpi_coordinator:
+                logger.info(
+                    "Single-frequency eigenmode tangential complex-profile residual "
+                    f"is {residual:.3e}; using real-only injection."
+                )
             return
 
         self.uses_quadrature = True
@@ -518,11 +526,12 @@ class EigenmodeSource(Source):
         self.anchor_complex_neff = np.asarray([complex(self.complex_neff)], dtype=np.complex128)
         self.anchor_overlaps = np.empty(0, dtype=np.float64)
         self.mode_solvers = [self.mode_solver]
-        logger.info(
-            "Single-frequency eigenmode tangential complex-profile residual "
-            f"is {residual:.3e}, above the {self.COMPLEX_PROFILE_TOLERANCE:.3e} "
-            "tolerance; using in-phase/quadrature injection."
-        )
+        if self.mpi_coordinator:
+            logger.info(
+                "Single-frequency eigenmode tangential complex-profile residual "
+                f"is {residual:.3e}, above the {self.COMPLEX_PROFILE_TOLERANCE:.3e} "
+                "tolerance; using in-phase/quadrature injection."
+            )
         self._prepare_broadband_time_traces(
             G,
             (self.frequency,),
@@ -779,6 +788,7 @@ class EigenmodeSource(Source):
                             frequencies[second],
                             mode_index,
                             f"Eigenmode port {self.port_index}",
+                            coordinator=self.mpi_coordinator,
                         )
                     except EigenmodeAnchorMismatchError as exc:
                         mismatch = exc
@@ -810,14 +820,15 @@ class EigenmodeSource(Source):
                     ]
                     if trimmed != retained:
                         detail = mismatch.detail.rstrip(" .")
-                        logger.warning(
-                            f"{detail}, within the {side} spectral guard outside "
-                            f"the requested {band_low:g} to {band_high:g} Hz "
-                            f"band. Automatic eigenmode port {self.port_index} "
-                            f"mode {mode_index} will retain broadband tracking "
-                            f"from {endpoint:g} Hz and use that endpoint modal "
-                            "profile across the trimmed significant-spectrum tail."
-                        )
+                        if self.mpi_coordinator:
+                            logger.warning(
+                                f"{detail}, within the {side} spectral guard outside "
+                                f"the requested {band_low:g} to {band_high:g} Hz "
+                                f"band. Automatic eigenmode port {self.port_index} "
+                                f"mode {mode_index} will retain broadband tracking "
+                                f"from {endpoint:g} Hz and use that endpoint modal "
+                                "profile across the trimmed significant-spectrum tail."
+                            )
                         retained = trimmed
                         guard_trimmed = True
                         continue
@@ -830,13 +841,14 @@ class EigenmodeSource(Source):
                     centre=True,
                 )
                 detail = mismatch.detail.rstrip(" .")
-                logger.warning(
-                    f"{detail}. Automatic eigenmode port {self.port_index} mode "
-                    f"{mode_index} will therefore use only the centre-frequency "
-                    f"anchor at {frequencies[centre]:g} Hz. Its modal "
-                    "decomposition and S-parameters may be inaccurate toward "
-                    "frequencies far from this anchor."
-                )
+                if self.mpi_coordinator:
+                    logger.warning(
+                        f"{detail}. Automatic eigenmode port {self.port_index} mode "
+                        f"{mode_index} will therefore use only the centre-frequency "
+                        f"anchor at {frequencies[centre]:g} Hz. Its modal "
+                        "decomposition and S-parameters may be inaccurate toward "
+                        "frequencies far from this anchor."
+                    )
                 retained = [centre]
                 fallback = True
                 break
@@ -878,15 +890,16 @@ class EigenmodeSource(Source):
                         f"{frequencies[index]:g} Hz (neff={neff!s}, "
                         f"raw power={raw_power!s}, metric={metric:g})"
                     )
-                logger.warning(
-                    f"Eigenmode port {self.port_index} mode {mode_index} has "
-                    "non-propagating anchor(s) that carry no forward real power: "
-                    + "; ".join(details)
-                    + ". They will be excluded from source synthesis and one-watt "
-                    "power interpolation, but successfully tracked profiles will be "
-                    "retained as monitor-only generalized references. The corresponding "
-                    "bins will remain invalid as physical power waves."
-                )
+                if self.mpi_coordinator:
+                    logger.warning(
+                        f"Eigenmode port {self.port_index} mode {mode_index} has "
+                        "non-propagating anchor(s) that carry no forward real power: "
+                        + "; ".join(details)
+                        + ". They will be excluded from source synthesis and one-watt "
+                        "power interpolation, but successfully tracked profiles will be "
+                        "retained as monitor-only generalized references. The corresponding "
+                        "bins will remain invalid as physical power waves."
+                    )
 
             if not usable:
                 if automatic:
@@ -917,12 +930,13 @@ class EigenmodeSource(Source):
                     frequencies[centre],
                     centre=True,
                 )
-                logger.warning(
-                    f"Eigenmode port {self.port_index} mode {mode_index} has "
-                    "disconnected propagating anchor ranges. It will use only "
-                    f"the centre-frequency anchor at {frequencies[centre]:g} Hz "
-                    "instead of interpolating across a non-propagating gap."
-                )
+                if self.mpi_coordinator:
+                    logger.warning(
+                        f"Eigenmode port {self.port_index} mode {mode_index} has "
+                        "disconnected propagating anchor ranges. It will use only "
+                        f"the centre-frequency anchor at {frequencies[centre]:g} Hz "
+                        "instead of interpolating across a non-propagating gap."
+                    )
                 usable = [centre]
                 fallback = True
 
@@ -1036,6 +1050,7 @@ class EigenmodeSource(Source):
                         frequencies[frequency_index],
                         mode_index,
                         f"Eigenmode port {self.port_index}",
+                        coordinator=self.mpi_coordinator,
                     )
                 previous_e = electric
                 previous_h = magnetic
@@ -1261,6 +1276,7 @@ class EigenmodeSource(Source):
         second_frequency,
         mode_index,
         context,
+        coordinator=True,
     ):
         """Apply the fixed warning and error limits for adjacent anchors."""
         description = (
@@ -1280,7 +1296,7 @@ class EigenmodeSource(Source):
                 overlap=float(magnitude),
                 context=context,
             )
-        if magnitude < cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:
+        if coordinator and magnitude < cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:
             logger.warning(
                 f"{description}, below the warning threshold "
                 f"{cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:.6f}. The run will "
@@ -1305,6 +1321,7 @@ class EigenmodeSource(Source):
                 frequencies[index],
                 self.mode_index,
                 "Broadband eigenmode source",
+                coordinator=self.mpi_coordinator,
             )
 
             phase_aligned = np.isfinite(magnitude) and magnitude > 1e-300
@@ -1312,15 +1329,16 @@ class EigenmodeSource(Source):
             anchor_e[index] = [field * phase_factor for field in anchor_e[index]]
             anchor_h[index] = [field * phase_factor for field in anchor_h[index]]
             overlaps.append(magnitude)
-            logger.info(
-                f"Eigenmode anchor overlap {magnitude:.6f} between "
-                f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
-                + (
-                    "the latter anchor was phase-aligned."
-                    if phase_aligned
-                    else "its phase was left unchanged."
+            if self.mpi_coordinator:
+                logger.info(
+                    f"Eigenmode anchor overlap {magnitude:.6f} between "
+                    f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
+                    + (
+                        "the latter anchor was phase-aligned."
+                        if phase_aligned
+                        else "its phase was left unchanged."
+                    )
                 )
-            )
         return overlaps
 
     @staticmethod
@@ -1440,9 +1458,7 @@ class EigenmodeSource(Source):
             dtype=np.float64,
         )
         if not np.all(np.isfinite(waveform)):
-            raise ValueError(
-                "The broadband eigenmode source waveform contains non-finite samples."
-            )
+            raise ValueError("The broadband eigenmode source waveform contains non-finite samples.")
         padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
         spectrum = np.fft.rfft(waveform, n=padded_count)
         bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
@@ -1450,27 +1466,25 @@ class EigenmodeSource(Source):
         peak = float(np.max(spectrum_magnitude))
         if not np.isfinite(peak) or peak <= 0:
             raise ValueError(
-                "The broadband eigenmode source waveform has zero or non-finite "
-                "spectral energy."
+                "The broadband eigenmode source waveform has zero or non-finite " "spectral energy."
             )
 
         endpoint_significant = spectrum_magnitude[0] >= self.spectral_threshold * peak
         if padded_count % 2 == 0:
-            endpoint_significant |= (
-                spectrum_magnitude[-1] >= self.spectral_threshold * peak
-            )
+            endpoint_significant |= spectrum_magnitude[-1] >= self.spectral_threshold * peak
         if endpoint_significant:
             source_kind = (
                 "single-frequency eigenmode source using I/Q injection"
                 if single_frequency_iq
                 else "broadband eigenmode source"
             )
-            logger.warning(
-                f"The {source_kind} waveform has significant DC or Nyquist content. "
-                "Those bins cannot carry a general complex modal coefficient and will be "
-                "discarded. Use a band-limited waveform; for a finite frequency band, "
-                "EigenmodeExcitation(..., waveform='auto') can synthesize one automatically."
-            )
+            if self.mpi_coordinator:
+                logger.warning(
+                    f"The {source_kind} waveform has significant DC or Nyquist content. "
+                    "Those bins cannot carry a general complex modal coefficient and will be "
+                    "discarded. Use a band-limited waveform; for a finite frequency band, "
+                    "EigenmodeExcitation(..., waveform='auto') can synthesize one automatically."
+                )
         spectrum = np.array(spectrum, copy=True)
         spectrum[0] = 0
         if padded_count % 2 == 0:
@@ -1514,7 +1528,7 @@ class EigenmodeSource(Source):
                     "use EigenmodeExcitation with waveform='auto' for a validated "
                     "bandpass spectrum."
                 )
-            if self.spectrum_coverage_policy == "warn":
+            if self.spectrum_coverage_policy == "warn" and self.mpi_coordinator:
                 logger.warning(
                     "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
                     f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
@@ -1631,7 +1645,7 @@ class EigenmodeSource(Source):
             self.broadband_modal_h_real,
             self.broadband_modal_h_imag,
         ) = split_fields(self.anchor_modal_h)
-        if single_frequency_iq:
+        if single_frequency_iq and self.mpi_coordinator:
             logger.info(
                 "Prepared single-frequency I/Q eigenmode source with "
                 f"{sample_count} time samples and significant waveform coverage "
@@ -1639,7 +1653,7 @@ class EigenmodeSource(Source):
                 "waveform reconstruction relative peak error is "
                 f"{reconstruction_error:.3e}."
             )
-        else:
+        elif self.mpi_coordinator:
             logger.info(
                 f"Prepared broadband eigenmode source with {anchor_count} anchors, "
                 f"{sample_count} time samples, and significant waveform coverage from "
@@ -1662,7 +1676,7 @@ class EigenmodeSource(Source):
         return bool(self.plot_waveform)
 
     def _plot_eigenmode_fields(self):
-        if not self._should_plot_eigenmode_fields():
+        if not self.mpi_coordinator or not self._should_plot_eigenmode_fields():
             return
 
         input_path = config.sim_config.input_file_path
@@ -1688,7 +1702,7 @@ class EigenmodeSource(Source):
 
     def _plot_eigenmode_excitation(self, G):
         """Write the single excitation waveform and its exact port-bin DFT."""
-        if not self._should_plot_eigenmode_excitation():
+        if not self.mpi_coordinator or not self._should_plot_eigenmode_excitation():
             return
 
         sample_count = int(G.iterations)
@@ -1724,6 +1738,9 @@ class EigenmodeSource(Source):
 
     def _extract_local_complex_property_tensors(self, G, electric):
         """Return local uu, vv, ww complex er or mu_r arrays on the Yee slice."""
+        if hasattr(G, "global_size"):
+            return self._extract_mpi_complex_property_tensors(G, electric)
+
         field_kind = "E" if electric else "H"
         component_ids = []
         local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
@@ -1742,6 +1759,58 @@ class EigenmodeSource(Source):
             )
 
         return tuple(material_values[ids].copy() for ids in component_ids)
+
+    def _extract_mpi_complex_property_tensors(self, G, electric):
+        """Assemble one complete modal material slice on every MPI rank.
+
+        Compound material numeric IDs are rank-local. Communicate evaluated
+        constitutive values rather than those IDs so every rank solves the
+        same FDFD cross-section without per-timestep communication.
+        """
+
+        from mpi4py import MPI
+
+        field_kind = "E" if electric else "H"
+        local_to_global = (*self.transverse_axes, self.normal_axis)
+        materials_by_id = {material.numID: material for material in G.materials}
+        tensors = []
+
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            shape = self._expected_local_field_shapes(field_kind)[local_axis]
+            local_values = np.zeros(shape, dtype=np.complex128)
+            local_count = np.zeros(shape, dtype=np.int32)
+
+            for u, v in np.ndindex(shape):
+                coordinate = np.zeros(3, dtype=np.int32)
+                coordinate[self.normal_axis] = self.global_plane_index
+                coordinate[self.transverse_axes[0]] = self.global_transverse_start[0] + u
+                coordinate[self.transverse_axes[1]] = self.global_transverse_start[1] + v
+                if G.get_rank_from_coordinate(coordinate) != G.rank:
+                    continue
+                local_coordinate = G.global_to_local_coordinate(coordinate)
+                material_id = int(G.ID[(component, *local_coordinate)])
+                material = materials_by_id[material_id]
+                local_values[u, v] = (
+                    self._complex_er(material) if electric else self._complex_mur(material)
+                )
+                local_count[u, v] = 1
+
+            values = np.empty_like(local_values)
+            count = np.empty_like(local_count)
+            G.comm.Allreduce(local_values, values, op=MPI.SUM)
+            G.comm.Allreduce(local_count, count, op=MPI.SUM)
+            if np.any(count != 1):
+                missing = int(np.count_nonzero(count == 0))
+                duplicate = int(np.count_nonzero(count > 1))
+                raise RuntimeError(
+                    "MPI eigenmode material slice has invalid ownership for "
+                    f"component {component}: {missing} missing and {duplicate} "
+                    "duplicate sample(s)."
+                )
+            tensors.append(values)
+
+        return tuple(tensors)
 
     def _transverse_cell_shape(self):
         u0, v0 = self.transverse_start
@@ -1833,6 +1902,9 @@ class EigenmodeSource(Source):
 
     def _slice_cell_constraint_mask(self, G, electric):
         """Return source-cross-section cells occupied by PEC or PMC."""
+        if hasattr(G, "global_size"):
+            return self._mpi_cell_constraint_mask(G, electric)
+
         u0, v0 = self.transverse_start
         u1, v1 = self.transverse_stop
         normal_indices = [
@@ -1858,6 +1930,42 @@ class EigenmodeSource(Source):
                 ids = G.solid[u0:u1, v0:v1, n]
             cell_constraint_mask |= material_is_constrained[ids]
         return cell_constraint_mask
+
+    def _mpi_cell_constraint_mask(self, G, electric):
+        """Assemble the PEC/PMC cell mask adjacent to an MPI modal plane."""
+
+        from mpi4py import MPI
+
+        nu, nv = self._transverse_cell_shape()
+        local_mask = np.zeros((nu, nv), dtype=np.uint8)
+        materials_by_id = {material.numID: material for material in G.materials}
+        normal_indices = tuple(
+            index
+            for index in (self.global_plane_index - 1, self.global_plane_index)
+            if 0 <= index < G.global_size[self.normal_axis]
+        )
+
+        for u in range(nu):
+            for v in range(nv):
+                for normal_index in normal_indices:
+                    coordinate = np.zeros(3, dtype=np.int32)
+                    coordinate[self.normal_axis] = normal_index
+                    coordinate[self.transverse_axes[0]] = self.global_transverse_start[0] + u
+                    coordinate[self.transverse_axes[1]] = self.global_transverse_start[1] + v
+                    if G.get_rank_from_coordinate(coordinate) != G.rank:
+                        continue
+                    local_coordinate = G.global_to_local_coordinate(coordinate)
+                    material_id = int(G.solid[tuple(local_coordinate)])
+                    material = materials_by_id[material_id]
+                    property_value = (
+                        self._complex_er(material) if electric else self._complex_mur(material)
+                    )
+                    if not np.isfinite(property_value):
+                        local_mask[u, v] = 1
+
+        mask = np.empty_like(local_mask)
+        G.comm.Allreduce(local_mask, mask, op=MPI.MAX)
+        return mask.astype(bool)
 
     def _complex_er(self, material):
         omega = 2 * np.pi * self.frequency
@@ -1898,6 +2006,8 @@ class EigenmodeSource(Source):
             self.transverse_stop[0],
             self.transverse_stop[1],
             self.plane_index,
+            self.tfsf_owned_lower,
+            self.tfsf_owned_upper,
             config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
             self.modal_e_real[0],
             self.modal_e_real[1],
@@ -1930,6 +2040,8 @@ class EigenmodeSource(Source):
             self.transverse_stop[0],
             self.transverse_stop[1],
             self.plane_index,
+            self.tfsf_owned_lower,
+            self.tfsf_owned_upper,
             config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
             self.modal_h_real[0],
             self.modal_h_real[1],
@@ -1965,6 +2077,8 @@ class EigenmodeSource(Source):
                     self.transverse_stop[0],
                     self.transverse_stop[1],
                     self.plane_index,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     dtype(envelope),
                     modal_fields[0],
                     modal_fields[1],
@@ -2000,6 +2114,8 @@ class EigenmodeSource(Source):
                     self.transverse_stop[0],
                     self.transverse_stop[1],
                     self.plane_index,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     dtype(envelope),
                     modal_fields[0],
                     modal_fields[1],
@@ -2770,9 +2886,11 @@ def dtoh_transmission_line_outputs(Vtotal, Itotal, G):
                     "Transmission-line Metal output buffer has the wrong size: "
                     f"expected {nbytes} bytes, got {buffer.length()}."
                 )
-            return np.frombuffer(
-                buffer.contents().as_buffer(nbytes), dtype=dtype
-            ).reshape(expected).copy()
+            return (
+                np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype)
+                .reshape(expected)
+                .copy()
+            )
 
         Vtotal, Itotal = metal_array(Vtotal), metal_array(Itotal)
     if Vtotal.shape != expected or Itotal.shape != expected:

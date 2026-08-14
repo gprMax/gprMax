@@ -2097,8 +2097,6 @@ class EigenmodePort(GridUserObject):
     def build(self, grid: FDTDGrid):
         if grid.eigenmodeband is None:
             raise ValueError(f"{self.params_str()} requires one preceding EigenmodeBand.")
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
         try:
             port = int(self.kwargs["port"])
             p1 = tuple(float(value) for value in self.kwargs["p1"])
@@ -2223,9 +2221,6 @@ class VirtualWaveguide(GridUserObject):
         )
 
     def build(self, grid: FDTDGrid):
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
-
         def integer_parameter(name):
             try:
                 value = operator.index(self.kwargs[name])
@@ -2460,16 +2455,37 @@ def _discretise_eigenmode_plane(
     """
 
     uip = user_object._create_uip(grid)
-    full_lower = np.asarray(
-        uip.resolve_inf_point(tuple(full_lower), role="lower"),
-        dtype=np.float64,
-    )
-    full_upper = np.asarray(
-        uip.resolve_inf_point(tuple(full_upper), role="upper"),
-        dtype=np.float64,
-    )
-    lower = np.asarray(uip.discretise_point(tuple(full_lower)), dtype=np.int32)
-    upper = np.asarray(uip.discretise_point(tuple(full_upper)), dtype=np.int32)
+    if hasattr(grid, "global_size"):
+        mode = config.get_model_config().mode
+
+        def resolve_global_inf(point, role):
+            resolved = list(point)
+            for axis, value in enumerate(point):
+                if not math.isinf(value):
+                    continue
+                if not mode.startswith("2D"):
+                    raise ValueError(
+                        f"{user_object.params_str()} 'inf' coordinates require a 2D model."
+                    )
+                extent = float(grid.global_size[axis] * grid.dl[axis])
+                resolved[axis] = 0.0 if role == "lower" else extent
+            return tuple(resolved)
+
+        full_lower = np.asarray(resolve_global_inf(full_lower, "lower"), dtype=np.float64)
+        full_upper = np.asarray(resolve_global_inf(full_upper, "upper"), dtype=np.float64)
+        lower = np.asarray(uip.discretise_static_point(tuple(full_lower)), dtype=np.int32)
+        upper = np.asarray(uip.discretise_static_point(tuple(full_upper)), dtype=np.int32)
+    else:
+        full_lower = np.asarray(
+            uip.resolve_inf_point(tuple(full_lower), role="lower"),
+            dtype=np.float64,
+        )
+        full_upper = np.asarray(
+            uip.resolve_inf_point(tuple(full_upper), role="upper"),
+            dtype=np.float64,
+        )
+        lower = np.asarray(uip.discretise_point(tuple(full_lower)), dtype=np.int32)
+        upper = np.asarray(uip.discretise_point(tuple(full_upper)), dtype=np.int32)
     plane_index = int(lower[normal_axis])
 
     if int(upper[normal_axis]) != plane_index:
@@ -2507,6 +2523,39 @@ def _discretise_eigenmode_plane(
             )
 
     return full_lower, full_upper, lower, upper, plane_index
+
+
+def _configure_eigenmode_runtime_coordinates(
+    runtime,
+    grid,
+    lower,
+    upper,
+    plane_index,
+    transverse_axes,
+):
+    """Store authoritative global port geometry and rank-local coordinates."""
+
+    global_start = np.asarray(lower[transverse_axes], dtype=np.int32)
+    global_stop = np.asarray(upper[transverse_axes], dtype=np.int32)
+    runtime.global_transverse_start = global_start
+    runtime.global_transverse_stop = global_stop
+    runtime.global_plane_index = int(plane_index)
+
+    if hasattr(grid, "global_size"):
+        offset = np.asarray(grid.lower_extent, dtype=np.int32)
+        runtime.transverse_start = global_start - offset[transverse_axes]
+        runtime.transverse_stop = global_stop - offset[transverse_axes]
+        runtime.plane_index = int(plane_index - offset[runtime.normal_axis])
+        runtime.tfsf_owned_lower = np.asarray(grid.negative_halo_offset, dtype=np.int32)
+        runtime.tfsf_owned_upper = np.asarray(grid.size, dtype=np.int32)
+        runtime.mpi_coordinator = bool(grid.is_coordinator())
+    else:
+        runtime.transverse_start = global_start.copy()
+        runtime.transverse_stop = global_stop.copy()
+        runtime.plane_index = int(plane_index)
+        runtime.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        runtime.tfsf_owned_upper = np.asarray(grid.size + 1, dtype=np.int32)
+        runtime.mpi_coordinator = True
 
 
 class _EigenmodeSourceBuilder(GridUserObject):
@@ -2566,14 +2615,6 @@ class _EigenmodeSourceBuilder(GridUserObject):
             raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
         if plot_fields is not None:
             plot_fields = bool(plot_fields)
-
-        # MPI decomposes the grid across ranks, but the source plane's
-        # bounds/plane-index validation below and the FDFD cross-section
-        # extraction in EigenmodeSource.grid_init() both assume a single,
-        # whole grid with globally-valid coordinates. Neither is currently
-        # rank-aware, so reject MPI outright until that support is added.
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
 
         if normal not in ["x", "y", "z"]:
             logger.exception(f"{self.params_str()} normal must be x, y, or z.")
@@ -2649,7 +2690,8 @@ class _EigenmodeSourceBuilder(GridUserObject):
         p2 = tuple(full_upper[transverse_axes])
         w = float(full_lower[normal_axis])
 
-        if plane_index < 0 or plane_index > grid.size[normal_axis]:
+        domain_size = np.asarray(getattr(grid, "global_size", grid.size), dtype=np.int32)
+        if plane_index < 0 or plane_index > domain_size[normal_axis]:
             logger.exception(
                 f"{self.params_str()} normal source plane coordinate is outside the grid."
             )
@@ -2662,7 +2704,7 @@ class _EigenmodeSourceBuilder(GridUserObject):
             )
 
         if np.any(lower[transverse_axes] < 0) or np.any(
-            upper[transverse_axes] > grid.size[transverse_axes]
+            upper[transverse_axes] > domain_size[transverse_axes]
         ):
             logger.exception(f"{self.params_str()} transverse source bounds are outside the grid.")
             raise ValueError
@@ -2674,7 +2716,7 @@ class _EigenmodeSourceBuilder(GridUserObject):
             raise ValueError
 
         if invariant_axis is not None and (
-            lower[invariant_axis] != 0 or upper[invariant_axis] != grid.size[invariant_axis]
+            lower[invariant_axis] != 0 or upper[invariant_axis] != domain_size[invariant_axis]
         ):
             logger.exception(
                 f"{self.params_str()} in {mode} mode must span the complete "
@@ -2697,9 +2739,14 @@ class _EigenmodeSourceBuilder(GridUserObject):
             source.domain_polarization = "TM"
         elif mode.startswith("2D TE"):
             source.domain_polarization = "TE"
-        source.transverse_start = lower[transverse_axes].copy()
-        source.transverse_stop = upper[transverse_axes].copy()
-        source.plane_index = plane_index
+        _configure_eigenmode_runtime_coordinates(
+            source,
+            grid,
+            lower,
+            upper,
+            plane_index,
+            transverse_axes,
+        )
         source.mode_index = mode_index
         source.mode_count = mode_count
         source.port_index = port_index
@@ -2782,8 +2829,6 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
             raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
 
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
         if normal not in ("x", "y", "z") or direction not in ("+", "-"):
             raise ValueError(f"{self.params_str()} requires normal x/y/z and direction +/-.")
         if mode_count < 1:
@@ -2829,41 +2874,46 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         p2 = tuple(full_upper[transverse_axes])
         w = float(full_lower[normal_axis])
 
-        if plane_index < 0 or plane_index > grid.size[normal_axis]:
+        domain_size = np.asarray(getattr(grid, "global_size", grid.size), dtype=np.int32)
+        if plane_index < 0 or plane_index > domain_size[normal_axis]:
             raise ValueError(f"{self.params_str()} receiver plane is outside the grid.")
         if direction == "+" and plane_index < 1:
             raise ValueError(
                 f"{self.params_str()} positive-direction receiver needs a lower H plane."
             )
         if np.any(lower[transverse_axes] < 0) or np.any(
-            upper[transverse_axes] > grid.size[transverse_axes]
+            upper[transverse_axes] > domain_size[transverse_axes]
         ):
             raise ValueError(f"{self.params_str()} transverse bounds are outside the grid.")
         if np.any(lower[transverse_axes] >= upper[transverse_axes]):
             raise ValueError(f"{self.params_str()} lower bounds must be less than upper bounds.")
         if invariant_axis is not None and (
-            lower[invariant_axis] != 0 or upper[invariant_axis] != grid.size[invariant_axis]
+            lower[invariant_axis] != 0 or upper[invariant_axis] != domain_size[invariant_axis]
         ):
             raise ValueError(
                 f"{self.params_str()} in {domain_mode} mode must span the invariant axis."
             )
 
-        if port_index not in grid.virtual_waveguide_specs and not isinstance(
-            grid, SubGridBaseGrid
-        ):
+        if port_index not in grid.virtual_waveguide_specs and not isinstance(grid, SubGridBaseGrid):
             axis_name = "xyz"[normal_axis]
             face = f"{axis_name}0" if direction == "+" else f"{axis_name}max"
             pml_thickness = grid.pmls["thickness"][face]
+            if hasattr(grid, "global_size"):
+                # Interior MPI ranks deliberately have zero thickness on
+                # their local faces. Recover the physical boundary value
+                # before comparing a globally indexed modal plane.
+                pml_thickness = max(grid.comm.allgather(pml_thickness))
             adjacent_plane = (
-                pml_thickness if direction == "+" else grid.size[normal_axis] - pml_thickness
+                pml_thickness if direction == "+" else domain_size[normal_axis] - pml_thickness
             )
-            if pml_thickness == 0:
+            report_warning = not hasattr(grid, "is_coordinator") or grid.is_coordinator()
+            if pml_thickness == 0 and report_warning:
                 logger.warning(
                     f"Eigenmode receiver {port_id!r} is not next to a PML because the "
                     f"{face} face has zero PML thickness. Reflections beyond the port "
                     "can contaminate its S-parameters."
                 )
-            elif plane_index != adjacent_plane:
+            elif plane_index != adjacent_plane and report_warning:
                 logger.warning(
                     f"Eigenmode receiver {port_id!r} is at plane {plane_index}, not next to the "
                     f"{face} PML interface at plane {adjacent_plane}. Reflections beyond the port "
@@ -2885,9 +2935,14 @@ class _EigenmodeReceiverBuilder(GridUserObject):
             receiver.domain_polarization = "TM"
         elif domain_mode.startswith("2D TE"):
             receiver.domain_polarization = "TE"
-        receiver.transverse_start = lower[transverse_axes].copy()
-        receiver.transverse_stop = upper[transverse_axes].copy()
-        receiver.plane_index = plane_index
+        _configure_eigenmode_runtime_coordinates(
+            receiver,
+            grid,
+            lower,
+            upper,
+            plane_index,
+            transverse_axes,
+        )
         receiver.mode_count = mode_count
         receiver.mode_indices = mode_indices
         receiver.frequency = frequencies[0]

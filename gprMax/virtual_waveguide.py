@@ -20,9 +20,11 @@ import numpy as np
 import gprMax.config as config
 from gprMax.cython.virtual_waveguide import (
     couple_virtual_waveguide_electric,
+    couple_virtual_waveguide_electric_aperture,
     couple_virtual_waveguide_magnetic,
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import process_materials
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -39,11 +41,24 @@ class VirtualWaveguide:
         self.normal_axis = int(port.normal_axis)
         self.direction_sign = 1 if port.direction == "+" else -1
         self.transverse_axes = tuple(int(value) for value in port.transverse_axes)
-        self.plane_index = int(port.plane_index)
-        self.u0, self.v0 = (int(value) for value in port.transverse_start)
-        self.u1, self.v1 = (int(value) for value in port.transverse_stop)
+        self.mpi = hasattr(main_grid, "global_size")
+        if self.mpi:
+            self.plane_index = int(port.global_plane_index)
+            self.u0, self.v0 = (int(value) for value in port.global_transverse_start)
+            self.u1, self.v1 = (int(value) for value in port.global_transverse_stop)
+        else:
+            self.plane_index = int(port.plane_index)
+            self.u0, self.v0 = (int(value) for value in port.transverse_start)
+            self.u1, self.v1 = (int(value) for value in port.transverse_stop)
         self.nu = self.u1 - self.u0
         self.nv = self.v1 - self.v0
+        self._mpi_materials = None
+        self._mpi_adjacent_solid = None
+        self._mpi_adjacent_ids = None
+        self._mpi_component_ids = None
+        self._mpi_solid_ids = None
+        self._mpi_h_local = None
+        self._mpi_h_global = None
 
         self._validate()
         self.aux_grid = self._build_auxiliary_grid()
@@ -64,8 +79,6 @@ class VirtualWaveguide:
         mode = config.get_model_config().mode
         if mode != "3D":
             raise ValueError("Virtual waveguides currently require a 3D model.")
-        if config.sim_config.mpi:
-            raise ValueError("Virtual waveguides do not yet support MPI.")
         if self.port.invariant_axis is not None:
             raise ValueError("Virtual waveguides do not support a 2D eigenmode port.")
         if self.spec.pml_cells < 2:
@@ -78,7 +91,10 @@ class VirtualWaveguide:
                 "Virtual-waveguide length must be at least PML cells + source "
                 f"clearance + 3 cells ({minimum_length} cells for this request)."
             )
-        normal_cells = int(self.main_grid.size[self.normal_axis])
+        domain_size = np.asarray(
+            getattr(self.main_grid, "global_size", self.main_grid.size), dtype=np.int32
+        )
+        normal_cells = int(domain_size[self.normal_axis])
         if not 1 <= self.plane_index < normal_cells:
             raise ValueError("A virtual-waveguide aperture must be an internal Yee plane.")
         if self.nu < 2 or self.nv < 2:
@@ -87,11 +103,14 @@ class VirtualWaveguide:
                 "along each transverse axis."
             )
         int32_max = np.iinfo(np.int32).max
-        main_points = int(np.prod(np.asarray(self.main_grid.size, dtype=object) + 1))
+        main_points = int(np.prod(np.asarray(domain_size, dtype=object) + 1))
         auxiliary_size = [self.nu, self.nv, self.spec.length_cells]
         auxiliary_points = int(np.prod(np.asarray(auxiliary_size, dtype=object) + 1))
         if max(main_points, auxiliary_points, (self.nu + 1) * (self.nv + 1)) > int32_max:
             raise ValueError("Virtual-waveguide device indexing exceeds the signed 32-bit range.")
+
+        if self.mpi:
+            self._prepare_mpi_cross_section()
 
         first_ids, second_ids = self._adjacent_component_ids()
         first_solid, second_solid = self._adjacent_solids()
@@ -105,9 +124,10 @@ class VirtualWaveguide:
             )
 
         material_ids = np.unique(self._component_cross_section())
+        materials = self._mpi_materials if self.mpi else self.main_grid.materials
         dispersive = [
             material.ID
-            for material in self.main_grid.materials
+            for material in materials
             if material.numID in material_ids and getattr(material, "poles", 0) > 0
         ]
         if dispersive:
@@ -117,6 +137,8 @@ class VirtualWaveguide:
             )
 
     def _adjacent_solids(self):
+        if self.mpi:
+            return self._mpi_adjacent_solid
         grid = self.main_grid
         p = self.plane_index
         if self.normal_axis == 0:
@@ -135,6 +157,8 @@ class VirtualWaveguide:
         )
 
     def _adjacent_component_ids(self):
+        if self.mpi:
+            return self._mpi_adjacent_ids
         grid = self.main_grid
         p = self.plane_index
         # Perimeter IDs may deliberately contain zero-thickness PEC connector
@@ -156,6 +180,8 @@ class VirtualWaveguide:
         )
 
     def _component_cross_section(self):
+        if self.mpi:
+            return self._mpi_component_ids
         grid = self.main_grid
         p = self.plane_index
         if self.normal_axis == 0:
@@ -165,6 +191,8 @@ class VirtualWaveguide:
         return grid.ID[:, self.u0 : self.u1 + 1, self.v0 : self.v1 + 1, p]
 
     def _solid_cross_section(self):
+        if self.mpi:
+            return self._mpi_solid_ids
         grid = self.main_grid
         # The detached side is represented by the auxiliary guide.
         cell = self.plane_index if self.direction_sign < 0 else self.plane_index - 1
@@ -173,6 +201,112 @@ class VirtualWaveguide:
         if self.normal_axis == 1:
             return grid.solid[self.u0 : self.u1, cell, self.v0 : self.v1]
         return grid.solid[self.u0 : self.u1, self.v0 : self.v1, cell]
+
+    def _prepare_mpi_cross_section(self):
+        """Collect one global material cross-section on every rank.
+
+        Numeric IDs for dielectric-smoothed materials are local to an MPI
+        rank. Build a deterministic catalogue keyed by material name, then
+        communicate the catalogue indices at the aperture. The auxiliary
+        guide is consequently identical on every rank even when the modal
+        plane crosses several partitions.
+        """
+
+        from mpi4py import MPI
+
+        grid = self.main_grid
+        local_catalogue = {material.ID: material for material in grid.materials}
+        catalogues = grid.comm.allgather(local_catalogue)
+        catalogue = {}
+        for rank_catalogue in catalogues:
+            for material_id, material in rank_catalogue.items():
+                catalogue.setdefault(material_id, material)
+
+        def material_sort_key(material_id):
+            material = catalogue[material_id]
+            return (
+                bool(material.is_compound_material()),
+                material.numID if not material.is_compound_material() else 0,
+                material_id,
+            )
+
+        material_names = sorted(catalogue, key=material_sort_key)
+        material_index = {name: index for index, name in enumerate(material_names)}
+        self._mpi_materials = []
+        for index, name in enumerate(material_names):
+            material = copy.deepcopy(catalogue[name])
+            material.numID = index
+            self._mpi_materials.append(material)
+
+        local_materials = {material.numID: material for material in grid.materials}
+
+        def collect(component, normal_index, u_start, v_start, shape):
+            local_values = np.zeros(shape, dtype=np.int64)
+            local_count = np.zeros(shape, dtype=np.int8)
+            for u in range(shape[0]):
+                for v in range(shape[1]):
+                    coordinate = np.zeros(3, dtype=np.int32)
+                    coordinate[self.normal_axis] = normal_index
+                    coordinate[self.transverse_axes[0]] = u_start + u
+                    coordinate[self.transverse_axes[1]] = v_start + v
+                    if grid.get_rank_from_coordinate(coordinate) != grid.rank:
+                        continue
+                    local_coordinate = grid.global_to_local_coordinate(coordinate)
+                    if component is None:
+                        numeric_id = int(grid.solid[tuple(local_coordinate)])
+                    else:
+                        numeric_id = int(grid.ID[(component, *local_coordinate)])
+                    name = local_materials[numeric_id].ID
+                    local_values[u, v] = material_index[name] + 1
+                    local_count[u, v] = 1
+
+            values = np.empty_like(local_values)
+            count = np.empty_like(local_count)
+            grid.comm.Allreduce(local_values, values, op=MPI.SUM)
+            grid.comm.Allreduce(local_count, count, op=MPI.SUM)
+            if np.any(count != 1):
+                raise RuntimeError(
+                    "MPI virtual-waveguide cross-section samples must have exactly one owner."
+                )
+            return (values - 1).astype(np.uint32)
+
+        component_shape = (self.nu + 1, self.nv + 1)
+        component_ids = np.empty((6, *component_shape), dtype=np.uint32)
+        for component in range(6):
+            component_ids[component] = collect(
+                component, self.plane_index, self.u0, self.v0, component_shape
+            )
+        self._mpi_component_ids = component_ids
+
+        interior_shape = (self.nu - 1, self.nv - 1)
+        adjacent_ids = []
+        for normal_index in (self.plane_index - 1, self.plane_index):
+            ids = np.empty((6, *interior_shape), dtype=np.uint32)
+            for component in range(6):
+                ids[component] = collect(
+                    component,
+                    normal_index,
+                    self.u0 + 1,
+                    self.v0 + 1,
+                    interior_shape,
+                )
+            adjacent_ids.append(ids)
+        self._mpi_adjacent_ids = tuple(adjacent_ids)
+
+        solid_shape = (self.nu, self.nv)
+        self._mpi_adjacent_solid = tuple(
+            collect(None, normal_index, self.u0, self.v0, solid_shape)
+            for normal_index in (self.plane_index - 1, self.plane_index)
+        )
+        detached_cell = self.plane_index if self.direction_sign < 0 else self.plane_index - 1
+        self._mpi_solid_ids = collect(None, detached_cell, self.u0, self.v0, solid_shape)
+
+        h_points = self.nu * self.nv
+        h_points += (self.nu + 1) * self.nv
+        h_points += self.nu * (self.nv + 1)
+        dtype = config.sim_config.dtypes["float_or_double"]
+        self._mpi_h_local = np.zeros(h_points, dtype=dtype)
+        self._mpi_h_global = np.zeros(h_points, dtype=dtype)
 
     def _resolve_pml_profile(self):
         grid = self.main_grid
@@ -197,7 +331,7 @@ class VirtualWaveguide:
         # second SubGridHSG would incorrectly require an HSG coupling region
         # and a parent coarse grid around a guide that is deliberately
         # detached from the physical domain.
-        aux = FDTDGrid() if isinstance(main, SubGridBaseGrid) else type(main)()
+        aux = FDTDGrid() if self.mpi or isinstance(main, SubGridBaseGrid) else type(main)()
         aux.name = f"virtual_waveguide_port_{self.spec.port}"
         aux.size[:] = 1
         aux.size[self.normal_axis] = self.spec.length_cells
@@ -207,7 +341,7 @@ class VirtualWaveguide:
         aux.dt = main.dt
         aux.iterations = main.iterations
         aux.timewindow = main.timewindow
-        aux.materials = main.materials
+        aux.materials = copy.deepcopy(self._mpi_materials) if self.mpi else main.materials
 
         formulation, cfs = self._resolve_pml_profile()
         aux.pmls["formulation"] = formulation
@@ -233,11 +367,18 @@ class VirtualWaveguide:
         aux._build_pmls()
         aux._terminate_pmls_with_pec()
         aux.initialise_field_arrays()
-        aux.updatecoeffsE = np.array(main.updatecoeffsE, copy=True)
-        aux.updatecoeffsH = np.array(main.updatecoeffsH, copy=True)
-        if config.get_model_config().materials["maxpoles"] > 0:
-            aux.initialise_dispersive_arrays()
-            aux.updatecoeffsdispersive = np.array(main.updatecoeffsdispersive, copy=True)
+        if self.mpi:
+            aux.initialise_std_update_coeff_arrays()
+            if config.get_model_config().materials["maxpoles"] > 0:
+                aux.initialise_dispersive_arrays()
+                aux.initialise_dispersive_update_coeff_array()
+            process_materials(aux)
+        else:
+            aux.updatecoeffsE = np.array(main.updatecoeffsE, copy=True)
+            aux.updatecoeffsH = np.array(main.updatecoeffsH, copy=True)
+            if config.get_model_config().materials["maxpoles"] > 0:
+                aux.initialise_dispersive_arrays()
+                aux.updatecoeffsdispersive = np.array(main.updatecoeffsdispersive, copy=True)
         return aux
 
     def _build_auxiliary_source(self):
@@ -250,6 +391,11 @@ class VirtualWaveguide:
         source.plane_index = (
             distance if self.direction_sign < 0 else self.spec.length_cells - distance
         )
+        source.global_plane_index = source.plane_index
+        source.global_transverse_start = np.asarray((0, 0), dtype=np.int32)
+        source.global_transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
+        source.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        source.tfsf_owned_upper = np.asarray(self.aux_grid.size + 1, dtype=np.int32)
         source.port_monitor = None
         return source
 
@@ -268,12 +414,254 @@ class VirtualWaveguide:
             else:
                 self.aux_grid.htod_material_arrays(parent_updates.dev)
 
+    def _mpi_owned_global_bounds(self):
+        lower = np.asarray(
+            self.main_grid.lower_extent + self.main_grid.negative_halo_offset,
+            dtype=np.int32,
+        )
+        upper = np.asarray(
+            self.main_grid.lower_extent + self.main_grid.size,
+            dtype=np.int32,
+        )
+        return lower, upper
+
+    def _mpi_component_sheet(self, component, normal_index, u_points, v_points, output):
+        """Pack the locally owned part of one global H sheet."""
+
+        lower, upper = self._mpi_owned_global_bounds()
+        if not lower[self.normal_axis] <= normal_index < upper[self.normal_axis]:
+            return
+        global_u0 = max(self.u0, int(lower[self.transverse_axes[0]]))
+        global_u1 = min(self.u0 + u_points, int(upper[self.transverse_axes[0]]))
+        global_v0 = max(self.v0, int(lower[self.transverse_axes[1]]))
+        global_v1 = min(self.v0 + v_points, int(upper[self.transverse_axes[1]]))
+        if global_u0 >= global_u1 or global_v0 >= global_v1:
+            return
+
+        local_slices = [slice(None)] * 3
+        local_slices[self.normal_axis] = (
+            normal_index - self.main_grid.lower_extent[self.normal_axis]
+        )
+        local_slices[self.transverse_axes[0]] = slice(
+            global_u0 - self.main_grid.lower_extent[self.transverse_axes[0]],
+            global_u1 - self.main_grid.lower_extent[self.transverse_axes[0]],
+        )
+        local_slices[self.transverse_axes[1]] = slice(
+            global_v0 - self.main_grid.lower_extent[self.transverse_axes[1]],
+            global_v1 - self.main_grid.lower_extent[self.transverse_axes[1]],
+        )
+        output[
+            global_u0 - self.u0 : global_u1 - self.u0,
+            global_v0 - self.v0 : global_v1 - self.v0,
+        ] = (self.main_grid.Hx, self.main_grid.Hy, self.main_grid.Hz,)[component][
+            tuple(local_slices)
+        ]
+
+    def _collect_mpi_aperture_magnetic_fields(self):
+        """All-reduce the three H sheets needed by the aperture update."""
+
+        from mpi4py import MPI
+
+        normal_points = self.nu * self.nv
+        u_points = (self.nu + 1) * self.nv
+        normal = self._mpi_h_local[:normal_points].reshape(self.nu, self.nv)
+        h_u = self._mpi_h_local[normal_points : normal_points + u_points].reshape(
+            self.nu + 1, self.nv
+        )
+        h_v = self._mpi_h_local[normal_points + u_points :].reshape(self.nu, self.nv + 1)
+        self._mpi_h_local.fill(0)
+        self._mpi_component_sheet(self.normal_axis, self.plane_index, self.nu, self.nv, normal)
+        cross_plane = self.plane_index - 1 if self.direction_sign < 0 else self.plane_index
+        self._mpi_component_sheet(self.transverse_axes[0], cross_plane, self.nu + 1, self.nv, h_u)
+        self._mpi_component_sheet(self.transverse_axes[1], cross_plane, self.nu, self.nv + 1, h_v)
+        self.main_grid.comm.Allreduce(self._mpi_h_local, self._mpi_h_global, op=MPI.SUM)
+        normal = self._mpi_h_global[:normal_points].reshape(self.nu, self.nv)
+        h_u = self._mpi_h_global[normal_points : normal_points + u_points].reshape(
+            self.nu + 1, self.nv
+        )
+        h_v = self._mpi_h_global[normal_points + u_points :].reshape(self.nu, self.nv + 1)
+        return normal, h_u, h_v
+
+    def _set_auxiliary_normal_magnetic(self, values):
+        aperture = 0 if self.direction_sign < 0 else int(self.aux_grid.size[self.normal_axis])
+        slices = [slice(None)] * 3
+        slices[self.normal_axis] = aperture
+        slices[self.transverse_axes[0]] = slice(0, self.nu)
+        slices[self.transverse_axes[1]] = slice(0, self.nv)
+        (self.aux_grid.Hx, self.aux_grid.Hy, self.aux_grid.Hz)[self.normal_axis][
+            tuple(slices)
+        ] = values
+
+    def _write_mpi_component_sheet(self, component, normal_index, u_points, v_points, values):
+        """Write an auxiliary aperture sheet to locally owned main fields."""
+
+        lower, upper = self._mpi_owned_global_bounds()
+        if not lower[self.normal_axis] <= normal_index < upper[self.normal_axis]:
+            return
+        global_u0 = max(self.u0, int(lower[self.transverse_axes[0]]))
+        global_u1 = min(self.u0 + u_points, int(upper[self.transverse_axes[0]]))
+        global_v0 = max(self.v0, int(lower[self.transverse_axes[1]]))
+        global_v1 = min(self.v0 + v_points, int(upper[self.transverse_axes[1]]))
+        if global_u0 >= global_u1 or global_v0 >= global_v1:
+            return
+
+        local_slices = [slice(None)] * 3
+        local_slices[self.normal_axis] = (
+            normal_index - self.main_grid.lower_extent[self.normal_axis]
+        )
+        local_slices[self.transverse_axes[0]] = slice(
+            global_u0 - self.main_grid.lower_extent[self.transverse_axes[0]],
+            global_u1 - self.main_grid.lower_extent[self.transverse_axes[0]],
+        )
+        local_slices[self.transverse_axes[1]] = slice(
+            global_v0 - self.main_grid.lower_extent[self.transverse_axes[1]],
+            global_v1 - self.main_grid.lower_extent[self.transverse_axes[1]],
+        )
+        (self.main_grid.Ex, self.main_grid.Ey, self.main_grid.Ez)[component][
+            tuple(local_slices)
+        ] = values[
+            global_u0 - self.u0 : global_u1 - self.u0,
+            global_v0 - self.v0 : global_v1 - self.v0,
+        ]
+
+    def _clear_mpi_component_box(
+        self, fields, component, normal_start, normal_stop, u_points, v_points
+    ):
+        """Clear the owned intersection of a detached rear-field box."""
+
+        lower, upper = self._mpi_owned_global_bounds()
+        starts = np.zeros(3, dtype=np.int32)
+        stops = np.zeros(3, dtype=np.int32)
+        starts[self.normal_axis] = normal_start
+        stops[self.normal_axis] = normal_stop
+        starts[self.transverse_axes[0]] = self.u0
+        stops[self.transverse_axes[0]] = self.u0 + u_points
+        starts[self.transverse_axes[1]] = self.v0
+        stops[self.transverse_axes[1]] = self.v0 + v_points
+        starts = np.maximum(starts, lower)
+        stops = np.minimum(stops, upper)
+        if np.any(starts >= stops):
+            return
+        slices = tuple(
+            slice(
+                int(starts[axis] - self.main_grid.lower_extent[axis]),
+                int(stops[axis] - self.main_grid.lower_extent[axis]),
+            )
+            for axis in range(3)
+        )
+        fields[component][slices] = 0
+
+    def _clear_mpi_rear_magnetic(self):
+        fields = (self.main_grid.Hx, self.main_grid.Hy, self.main_grid.Hz)
+        domain_stop = int(self.main_grid.global_size[self.normal_axis]) + 1
+        if self.direction_sign < 0:
+            normal_start = (self.plane_index + 1, self.plane_index, self.plane_index)
+            normal_stop = (domain_stop, domain_stop - 1, domain_stop - 1)
+        else:
+            normal_start = (0, 0, 0)
+            normal_stop = (self.plane_index, self.plane_index, self.plane_index)
+
+        component_points = {
+            self.normal_axis: (self.nu, self.nv),
+            self.transverse_axes[0]: (self.nu + 1, self.nv),
+            self.transverse_axes[1]: (self.nu, self.nv + 1),
+        }
+        for component, (u_points, v_points) in component_points.items():
+            index = (
+                0
+                if component == self.normal_axis
+                else 1
+                if component == self.transverse_axes[0]
+                else 2
+            )
+            self._clear_mpi_component_box(
+                fields,
+                component,
+                normal_start[index],
+                normal_stop[index],
+                u_points,
+                v_points,
+            )
+
+    def _clear_mpi_rear_electric(self):
+        fields = (self.main_grid.Ex, self.main_grid.Ey, self.main_grid.Ez)
+        domain_stop = int(self.main_grid.global_size[self.normal_axis]) + 1
+        if self.direction_sign < 0:
+            normal_start = self.plane_index + 1
+            normal_stops = (domain_stop, domain_stop, domain_stop)
+        else:
+            normal_start = 0
+            normal_stops = (
+                self.plane_index - 1,
+                self.plane_index,
+                self.plane_index,
+            )
+        component_points = {
+            self.normal_axis: (self.nu + 1, self.nv + 1),
+            self.transverse_axes[0]: (self.nu, self.nv + 1),
+            self.transverse_axes[1]: (self.nu + 1, self.nv),
+        }
+        for component, (u_points, v_points) in component_points.items():
+            index = (
+                0
+                if component == self.normal_axis
+                else 1
+                if component == self.transverse_axes[0]
+                else 2
+            )
+            self._clear_mpi_component_box(
+                fields,
+                component,
+                normal_start,
+                normal_stops[index],
+                u_points,
+                v_points,
+            )
+
+    def _deposit_mpi_aperture_electric(self):
+        aperture = 0 if self.direction_sign < 0 else int(self.aux_grid.size[self.normal_axis])
+        inside = 0 if self.direction_sign < 0 else aperture - 1
+        aux_fields = (self.aux_grid.Ex, self.aux_grid.Ey, self.aux_grid.Ez)
+
+        def aux_sheet(component, normal_index, u_points, v_points):
+            slices = [slice(None)] * 3
+            slices[self.normal_axis] = normal_index
+            slices[self.transverse_axes[0]] = slice(0, u_points)
+            slices[self.transverse_axes[1]] = slice(0, v_points)
+            return aux_fields[component][tuple(slices)]
+
+        self._write_mpi_component_sheet(
+            self.transverse_axes[0],
+            self.plane_index,
+            self.nu,
+            self.nv + 1,
+            aux_sheet(self.transverse_axes[0], aperture, self.nu, self.nv + 1),
+        )
+        self._write_mpi_component_sheet(
+            self.transverse_axes[1],
+            self.plane_index,
+            self.nu + 1,
+            self.nv,
+            aux_sheet(self.transverse_axes[1], aperture, self.nu + 1, self.nv),
+        )
+        main_normal_index = self.plane_index if self.direction_sign < 0 else self.plane_index - 1
+        self._write_mpi_component_sheet(
+            self.normal_axis,
+            main_normal_index,
+            self.nu + 1,
+            self.nv + 1,
+            aux_sheet(self.normal_axis, inside, self.nu + 1, self.nv + 1),
+        )
+
     def update_magnetic(self, iteration):
         """Advance auxiliary H, apply modal injection, and join the aperture."""
 
         self.aux_updates.update_magnetic()
         self.aux_updates.update_magnetic_pml()
         self.aux_updates.update_eigenmode_sources_magnetic(iteration)
+        if self.mpi:
+            self._clear_mpi_rear_magnetic()
+            return
         couple_virtual_waveguide_magnetic(
             config.get_model_config().ompthreads,
             self.normal_axis,
@@ -291,6 +679,14 @@ class VirtualWaveguide:
             self.aux_grid.Hz,
         )
 
+    def complete_magnetic_mpi(self):
+        """Join the auxiliary H plane after the main MPI halo exchange."""
+
+        if not self.mpi:
+            return
+        normal, _, _ = self._collect_mpi_aperture_magnetic_fields()
+        self._set_auxiliary_normal_magnetic(normal)
+
     def update_electric(self, iteration):
         """Advance auxiliary E and close its curl with main-grid H."""
 
@@ -298,6 +694,31 @@ class VirtualWaveguide:
         self.aux_updates.update_electric_pml()
         self.aux_updates.update_eigenmode_sources_electric(iteration)
         self.aux_updates.update_electric_b()
+        if self.mpi:
+            normal_points = self.nu * self.nv
+            u_points = (self.nu + 1) * self.nv
+            h_u = self._mpi_h_global[normal_points : normal_points + u_points].reshape(
+                self.nu + 1, self.nv
+            )
+            h_v = self._mpi_h_global[normal_points + u_points :].reshape(self.nu, self.nv + 1)
+            couple_virtual_waveguide_electric_aperture(
+                config.get_model_config().ompthreads,
+                self.normal_axis,
+                self.direction_sign,
+                self.aux_grid.updatecoeffsE,
+                self.aux_grid.ID,
+                h_u,
+                h_v,
+                self.aux_grid.Ex,
+                self.aux_grid.Ey,
+                self.aux_grid.Ez,
+                self.aux_grid.Hx,
+                self.aux_grid.Hy,
+                self.aux_grid.Hz,
+            )
+            self._deposit_mpi_aperture_electric()
+            self._clear_mpi_rear_electric()
+            return
         couple_virtual_waveguide_electric(
             config.get_model_config().ompthreads,
             self.normal_axis,

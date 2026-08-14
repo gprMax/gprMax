@@ -34,6 +34,8 @@ def test_cython_dft_updates_every_bin_once_per_time_step(real_dtype, complex_dty
     phase_step = np.asarray((1j, -1), dtype=complex_dtype)
     electric_dft = np.zeros((2, 1), dtype=complex_dtype)
     magnetic_dft = np.zeros((2, 1), dtype=complex_dtype)
+    owned_lower = np.zeros(3, dtype=np.int32)
+    owned_upper = np.asarray(field_shape, dtype=np.int32)
     real_signature = "float" if real_dtype is np.float32 else "double"
     kernel = accumulate_eigenmode_dft[f"{real_signature}|{real_signature} complex"]
 
@@ -48,6 +50,8 @@ def test_cython_dft_updates_every_bin_once_per_time_step(real_dtype, complex_dty
             1,
             1,
             1,
+            owned_lower,
+            owned_upper,
             real_dtype(0.1),
             real_dtype(1),
             1,
@@ -523,9 +527,7 @@ def test_monitor_uses_nearest_tracked_endpoint_outside_candidate_range(monkeypat
         anchor_frequencies=np.asarray([1e9, 2e9, 3e9, 4e9]),
         anchor_e=[[fields_[0] for fields_ in anchor] for anchor in anchor_fields],
         anchor_h=[[fields_[1] for fields_ in anchor] for anchor in anchor_fields],
-        anchor_neff=np.asarray(
-            [[10.0, 20.0], [0.4, -0.5j], [-0.3j, 0.6], [30.0, 40.0]]
-        ),
+        anchor_neff=np.asarray([[10.0, 20.0], [0.4, -0.5j], [-0.3j, 0.6], [30.0, 40.0]]),
         anchor_mode_valid=np.asarray(
             [[False, False], [True, False], [False, True], [False, False]]
         ),

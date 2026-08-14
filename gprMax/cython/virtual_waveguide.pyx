@@ -380,3 +380,124 @@ cpdef void couple_virtual_waveguide_electric(
                 for u in range(nu + 1):
                     for v in range(nv):
                         main_Ey[u0 + u, v0 + v, k] = 0
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+cpdef void couple_virtual_waveguide_electric_aperture(
+    int nthreads,
+    int normal_axis,
+    int direction_sign,
+    float_or_double[:, ::1] updatecoeffsE,
+    np.uint32_t[:, :, :, ::1] aux_ID,
+    float_or_double[:, ::1] main_Hu,
+    float_or_double[:, ::1] main_Hv,
+    float_or_double[:, :, ::1] aux_Ex,
+    float_or_double[:, :, ::1] aux_Ey,
+    float_or_double[:, :, ::1] aux_Ez,
+    float_or_double[:, :, ::1] aux_Hx,
+    float_or_double[:, :, ::1] aux_Hy,
+    float_or_double[:, :, ::1] aux_Hz,
+):
+    """Close an MPI virtual-guide aperture from compact global H sheets.
+
+    ``main_Hu`` and ``main_Hv`` are the magnetic components parallel to
+    the first and second transverse axes, respectively. They are assembled
+    collectively after the main-grid H halo exchange.
+    """
+
+    cdef Py_ssize_t u, v
+    cdef int aperture, inside, material
+    cdef int nu = main_Hv.shape[0]
+    cdef int nv = main_Hu.shape[1]
+    cdef float_or_double cross_field
+
+    if normal_axis == 0:
+        aperture = 0 if direction_sign < 0 else aux_Ex.shape[0] - 1
+        inside = 0 if direction_sign < 0 else aperture - 1
+        for u in prange(nu, nogil=True, schedule="static", num_threads=nthreads):
+            for v in range(1, nv):
+                material = aux_ID[1, aperture, u, v]
+                if direction_sign < 0:
+                    cross_field = aux_Hz[0, u, v] - main_Hv[u, v]
+                else:
+                    cross_field = main_Hv[u, v] - aux_Hz[inside, u, v]
+                aux_Ey[aperture, u, v] = (
+                    updatecoeffsE[material, 0] * aux_Ey[aperture, u, v]
+                    + updatecoeffsE[material, 3]
+                    * (aux_Hx[aperture, u, v] - aux_Hx[aperture, u, v - 1])
+                    - updatecoeffsE[material, 1] * cross_field
+                )
+        for u in prange(1, nu, nogil=True, schedule="static", num_threads=nthreads):
+            for v in range(nv):
+                material = aux_ID[2, aperture, u, v]
+                if direction_sign < 0:
+                    cross_field = aux_Hy[0, u, v] - main_Hu[u, v]
+                else:
+                    cross_field = main_Hu[u, v] - aux_Hy[inside, u, v]
+                aux_Ez[aperture, u, v] = (
+                    updatecoeffsE[material, 0] * aux_Ez[aperture, u, v]
+                    + updatecoeffsE[material, 1] * cross_field
+                    - updatecoeffsE[material, 2]
+                    * (aux_Hx[aperture, u, v] - aux_Hx[aperture, u - 1, v])
+                )
+
+    elif normal_axis == 1:
+        aperture = 0 if direction_sign < 0 else aux_Ey.shape[1] - 1
+        inside = 0 if direction_sign < 0 else aperture - 1
+        for u in prange(nu, nogil=True, schedule="static", num_threads=nthreads):
+            for v in range(1, nv):
+                material = aux_ID[0, u, aperture, v]
+                if direction_sign < 0:
+                    cross_field = aux_Hz[u, 0, v] - main_Hv[u, v]
+                else:
+                    cross_field = main_Hv[u, v] - aux_Hz[u, inside, v]
+                aux_Ex[u, aperture, v] = (
+                    updatecoeffsE[material, 0] * aux_Ex[u, aperture, v]
+                    + updatecoeffsE[material, 2] * cross_field
+                    - updatecoeffsE[material, 3]
+                    * (aux_Hy[u, aperture, v] - aux_Hy[u, aperture, v - 1])
+                )
+        for u in prange(1, nu, nogil=True, schedule="static", num_threads=nthreads):
+            for v in range(nv):
+                material = aux_ID[2, u, aperture, v]
+                if direction_sign < 0:
+                    cross_field = aux_Hx[u, 0, v] - main_Hu[u, v]
+                else:
+                    cross_field = main_Hu[u, v] - aux_Hx[u, inside, v]
+                aux_Ez[u, aperture, v] = (
+                    updatecoeffsE[material, 0] * aux_Ez[u, aperture, v]
+                    + updatecoeffsE[material, 1]
+                    * (aux_Hy[u, aperture, v] - aux_Hy[u - 1, aperture, v])
+                    - updatecoeffsE[material, 2] * cross_field
+                )
+
+    else:
+        aperture = 0 if direction_sign < 0 else aux_Ez.shape[2] - 1
+        inside = 0 if direction_sign < 0 else aperture - 1
+        for u in prange(nu, nogil=True, schedule="static", num_threads=nthreads):
+            for v in range(1, nv):
+                material = aux_ID[0, u, v, aperture]
+                if direction_sign < 0:
+                    cross_field = aux_Hy[u, v, 0] - main_Hv[u, v]
+                else:
+                    cross_field = main_Hv[u, v] - aux_Hy[u, v, inside]
+                aux_Ex[u, v, aperture] = (
+                    updatecoeffsE[material, 0] * aux_Ex[u, v, aperture]
+                    + updatecoeffsE[material, 2]
+                    * (aux_Hz[u, v, aperture] - aux_Hz[u, v - 1, aperture])
+                    - updatecoeffsE[material, 3] * cross_field
+                )
+        for u in prange(1, nu, nogil=True, schedule="static", num_threads=nthreads):
+            for v in range(nv):
+                material = aux_ID[1, u, v, aperture]
+                if direction_sign < 0:
+                    cross_field = aux_Hx[u, v, 0] - main_Hu[u, v]
+                else:
+                    cross_field = main_Hu[u, v] - aux_Hx[u, v, inside]
+                aux_Ey[u, v, aperture] = (
+                    updatecoeffsE[material, 0] * aux_Ey[u, v, aperture]
+                    + updatecoeffsE[material, 3] * cross_field
+                    - updatecoeffsE[material, 1]
+                    * (aux_Hz[u, v, aperture] - aux_Hz[u - 1, v, aperture])
+                )

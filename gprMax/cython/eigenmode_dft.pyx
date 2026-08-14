@@ -15,6 +15,14 @@ from cython.parallel import prange
 from gprMax.config cimport float_or_double, float_or_double_complex
 
 
+cdef inline int _imax(int a, int b) noexcept nogil:
+    return a if a > b else b
+
+
+cdef inline int _imin(int a, int b) noexcept nogil:
+    return a if a < b else b
+
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cpdef void accumulate_eigenmode_dft(
@@ -27,6 +35,8 @@ cpdef void accumulate_eigenmode_dft(
     int u1,
     int v1,
     int plane_index,
+    int[:] owned_lower,
+    int[:] owned_upper,
     float_or_double dt,
     float_or_double measure,
     int handedness,
@@ -54,6 +64,35 @@ cpdef void accumulate_eigenmode_dft(
     cdef float_or_double eu_value, ev_value, hu_value, hv_value
     cdef float_or_double factor = 0.5 * handedness * measure * dt
     cdef float_or_double_complex electric_sum, magnetic_sum
+    cdef int sample_u0, sample_v0, sample_u1, sample_v1
+    cdef bint plane_owned
+
+    if normal_axis == 0:
+        plane_owned = owned_lower[0] <= plane_index < owned_upper[0]
+        sample_u0 = _imax(u0, owned_lower[1])
+        sample_u1 = _imin(u1, owned_upper[1])
+        sample_v0 = _imax(v0, owned_lower[2])
+        sample_v1 = _imin(v1, owned_upper[2])
+    elif normal_axis == 1:
+        plane_owned = owned_lower[1] <= plane_index < owned_upper[1]
+        sample_u0 = _imax(u0, owned_lower[0])
+        sample_u1 = _imin(u1, owned_upper[0])
+        sample_v0 = _imax(v0, owned_lower[2])
+        sample_v1 = _imin(v1, owned_upper[2])
+    else:
+        plane_owned = owned_lower[2] <= plane_index < owned_upper[2]
+        sample_u0 = _imax(u0, owned_lower[0])
+        sample_u1 = _imin(u1, owned_upper[0])
+        sample_v0 = _imax(v0, owned_lower[1])
+        sample_v1 = _imin(v1, owned_upper[1])
+
+    if not plane_owned:
+        sample_u1 = sample_u0
+        sample_v1 = sample_v0
+    if sample_u1 < sample_u0:
+        sample_u1 = sample_u0
+    if sample_v1 < sample_v0:
+        sample_v1 = sample_v0
 
     for frequency in prange(
         nf, nogil=True, schedule="static", num_threads=nthreads
@@ -61,8 +100,8 @@ cpdef void accumulate_eigenmode_dft(
         for mode in range(nm):
             electric_sum = 0
             magnetic_sum = 0
-            for u in range(u0, u1):
-                for v in range(v0, v1):
+            for u in range(sample_u0, sample_u1):
+                for v in range(sample_v0, sample_v1):
                     if normal_axis == 0:
                         eu_value = 0.5 * (Ey[plane_index, u, v] + Ey[plane_index, u, v + 1])
                         ev_value = 0.5 * (Ez[plane_index, u, v] + Ez[plane_index, u + 1, v])

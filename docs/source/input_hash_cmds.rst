@@ -1672,7 +1672,10 @@ and output definitions.
       fine-grid material slice, spatial step, time step, and CPU update cycle.
       The complete port stencil must remain strictly inside the subgrid working
       region. See :doc:`eigenmode_port`.
-    * Eigenmode commands currently cannot be used with MPI.
+    * Domain-decomposed MPI CPU models are supported. Modal material slices
+      are assembled collectively once, TF/SF corrections are restricted to
+      locally owned Yee components, and modal DFT projections are reduced at
+      finalisation.
 
 #virtual_waveguide:
 -------------------
@@ -1711,7 +1714,10 @@ is ``i3 + i4 + 3`` cells. Main-grid virtual waveguides support 3D,
 non-dispersive guide cross-sections with the CPU, CUDA, OpenCL, and Metal
 solvers. Through the Python API, a virtual waveguide may instead be attached
 to an HSG-subgrid port; it then inherits that subgrid's fine material slice,
-spatial and temporal steps, and CPU update cycle. MPI is not supported.
+spatial and temporal steps, and CPU update cycle. Domain-decomposed MPI CPU
+models are supported. The compact auxiliary guide is replicated, while one
+aperture-sized collective communicates the three required H sheets after each
+magnetic halo exchange.
 
 Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
 main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
