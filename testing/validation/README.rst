@@ -25,7 +25,10 @@ The main validations are:
   spheres with and without dispersive interface averaging, compared with
   the homogeneous dispersive-sphere Mie series;
 * ``validate_pec_sphere_rcs.py`` -- broadband PEC-sphere monostatic RCS
-  against the Mie series; and
+  against the Mie series;
+* ``fmcw/validate_paper_multilayer.py`` -- the short-pulse FMCW correction
+  sequence of Eide *et al.* over 150--1200 MHz, compared with the exact
+  normal-incidence reflection from a lossless multilayer; and
 * ``rectangular_waveguide_partial_cutoff`` -- generalized TE10 transmission
   magnitude and phase across cutoff, compared with the analytical
   :math:`S_{21}=\exp(-j\beta L)` response.
@@ -71,6 +74,7 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
+    python -m testing.validation.fmcw.validate_paper_multilayer --gpu 0
     python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
     python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
     python -m gprMax \

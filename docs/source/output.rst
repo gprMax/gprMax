@@ -184,7 +184,8 @@ their two staggered histories as ``samples_whole`` and ``samples_half``;
 reference.
 
 This timing-aware source schema is used by the :ref:`SFCW toolbox <sfcw>` and
-is also available for other file-based deconvolution and post-processing.
+the :ref:`FMCW toolbox <fmcw>`, and is also available for other file-based
+deconvolution and post-processing.
 
 Within each individual ``tl`` group are the following attributes:
 

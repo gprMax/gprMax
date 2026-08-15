@@ -42,6 +42,7 @@ gprMax User Guide
     inc_STLtoVoxel
     inc_STEPtoVoxel
     inc_SFCW
+    inc_FMCW
     inc_Plotting
     inc_Utilities
 
