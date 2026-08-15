@@ -1,0 +1,11 @@
+#title: PEC box crossing MPI partitions
+#domain: 0.040 0.040 0.040
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-10
+#pml_cells: 3
+
+#waveform: ricker 1 1e10 pulse
+#hertzian_dipole: z 0.008 0.020 0.020 pulse
+#rx: 0.032 0.020 0.020
+
+#box: 0.015 0.012 0.012 0.025 0.028 0.028 pec
