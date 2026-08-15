@@ -42,9 +42,9 @@ The model HDF5 file contains the authoritative arrays directly under
 
 .. code-block:: console
 
-    python -m toolboxes.Plotting.plot_antenna_params \
+    python -m toolboxes.Plotting.plot_port \
         examples/antennas/wire_dipole/antenna_wire_dipole_fs.h5 \
-        --port feed --fmin 0.5e9 --fmax 1.5e9 --tmax 10e-9
+        --port feed --fmin 0.5e9 --fmax 1.5e9 --tmax 10e-9 --save
 
 The ``--port`` option may be omitted when the file contains exactly one port.
 For direct access:
@@ -63,19 +63,27 @@ For direct access:
 
     s11_db = 20 * np.log10(np.abs(s11[valid]))
 
+The saved filenames include the full port path. This prevents a second port in
+the same model from overwriting the first port's figures.
+
 .. _antenna_wire_dipole_fs_port_signals:
 
-.. figure:: ../../images_shared/antenna_wire_dipole_fs_port_signals.png
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_ports_feed_signals.png
     :width: 700px
 
     Available voltage histories and spectra. No current panel is created because a resistive voltage-source port does not require or store a current history.
 
 .. _antenna_wire_dipole_fs_port_params:
 
-.. figure:: ../../images_shared/antenna_wire_dipole_fs_port_params.png
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_ports_feed_parameters.png
     :width: 700px
 
     Stored S11, input impedance, and input admittance for the voltage-source port.
+
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_ports_feed_validity.png
+    :width: 700px
+
+    Frequency-validity masks and the source-band and mesh-resolution diagnostics from which they are constructed.
 
 For a thin centre-fed dipole, first resonance normally occurs when its length
 is approximately :math:`0.47\lambda` to :math:`0.48\lambda`, depending on wire

@@ -1,0 +1,31 @@
+{
+  "method": "causal discrete convolution of a stored one-sample FDTD impulse response",
+  "precision": "double",
+  "impulse_runtime_seconds": 0.6393051389604807,
+  "waveforms": {
+    "ricker_500MHz": {
+      "type": "ricker",
+      "frequency_hz": 500000000.0,
+      "direct_runtime_seconds": 0.672375027090311,
+      "source_maximum_relative_error": 1.1103505161785822e-16,
+      "receiver_maximum_relative_error": 1.3521512224214902e-14,
+      "receiver_relative_l2_error": 1.047206730824549e-14
+    },
+    "gaussian_350MHz": {
+      "type": "gaussian",
+      "frequency_hz": 350000000.0,
+      "direct_runtime_seconds": 0.6039477661252022,
+      "source_maximum_relative_error": 3.7154450931299675e-92,
+      "receiver_maximum_relative_error": 3.0838386407802647e-14,
+      "receiver_relative_l2_error": 3.175887997061076e-14
+    },
+    "gaussiandotnorm_450MHz": {
+      "type": "gaussiandotnorm",
+      "frequency_hz": 450000000.0,
+      "direct_runtime_seconds": 0.6075669564306736,
+      "source_maximum_relative_error": 0.0,
+      "receiver_maximum_relative_error": 1.0975075231385807e-14,
+      "receiver_relative_l2_error": 1.020517347301877e-14
+    }
+  }
+}

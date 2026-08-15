@@ -176,6 +176,8 @@ the update look-ahead sample removed. ``SampleInterval`` and
 ``TimeSampleOffset`` define the physical time of sample :math:`n` as
 :math:`t_n=n\Delta t+t_0`; ``DrivingQuantity``, ``Units``, ``SpatialScale``,
 ``UpdateLattice``, and waveform attributes describe the excitation. A
+``WaveformEvaluationTimeOffset`` attribute separately records the time used
+to evaluate the waveform function for source sample :math:`n`. A
 resistive voltage source and Hertzian electric dipole, for example, use
 :math:`t_0=\Delta t/2`, while a hard voltage source is imposed on
 :math:`E^{n+1}` and uses :math:`t_0=\Delta t`. Transmission-line sources store
@@ -183,9 +185,10 @@ their two staggered histories as ``samples_whole`` and ``samples_half``;
 ``samples`` is a non-duplicating HDF5 link to the whole-step generator-voltage
 reference.
 
-This timing-aware source schema is used by the :ref:`SFCW toolbox <sfcw>` and
-the :ref:`FMCW toolbox <fmcw>`, and is also available for other file-based
-deconvolution and post-processing.
+This timing-aware source schema is used by the
+:ref:`impulse-response waveform-synthesis toolbox <impulse_response>`, the
+:ref:`SFCW toolbox <sfcw>`, and the :ref:`FMCW toolbox <fmcw>`, and is also
+available for other file-based deconvolution and post-processing.
 
 Within each individual ``tl`` group are the following attributes:
 
@@ -514,6 +517,18 @@ The frequency dataset and validity mask can be plotted directly:
     plt.plot(frequency[valid], 20 * np.log10(np.abs(s11[valid])))
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'$|S_{11}|$ [dB]')
+
+For routine inspection, the port plotter reads these stored values and their
+diagnostics directly, and can save PNG, PDF, or SVG figures without repeating
+the terminal calculation:
+
+.. code-block:: console
+
+    python -m toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
+
+The same command supports rational-network, transmission-line, and
+magnetic-frill port groups, including ports owned by subgrids. Multiple
+``--port`` options may be supplied, or omitted to plot every discovered port.
 
 Eigenmode-port and S-parameter output
 -------------------------------------

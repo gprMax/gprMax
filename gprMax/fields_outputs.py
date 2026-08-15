@@ -87,15 +87,18 @@ def _write_source_excitation(group, source, grid):
         if source.resistance == 0:
             samples = source.waveformvalues_wholedt[:iterations]
             time_offset = dt
+            evaluation_time_offset = 0.0
             quantity = "imposed_gap_voltage"
             lattice = "electric"
         else:
             samples = source.waveformvalues_halfdt[:iterations]
             time_offset = 0.5 * dt
+            evaluation_time_offset = 0.5 * dt
             quantity = "generator_voltage"
             lattice = "electric_half_step"
         _create_sample_dataset(excitation, "samples", samples)
         excitation.attrs["TimeSampleOffset"] = time_offset
+        excitation.attrs["WaveformEvaluationTimeOffset"] = evaluation_time_offset
         excitation.attrs["DrivingQuantity"] = quantity
         excitation.attrs["Units"] = "V"
         excitation.attrs["SpatialScale"] = 1.0
@@ -106,6 +109,7 @@ def _write_source_excitation(group, source, grid):
     if source_type == "HertzianDipole":
         _create_sample_dataset(excitation, "samples", source.waveformvalues_halfdt[:iterations])
         excitation.attrs["TimeSampleOffset"] = 0.5 * dt
+        excitation.attrs["WaveformEvaluationTimeOffset"] = 0.5 * dt
         excitation.attrs["DrivingQuantity"] = "electric_current"
         excitation.attrs["Units"] = "A"
         excitation.attrs["SpatialScale"] = float(source.dl)
@@ -117,6 +121,7 @@ def _write_source_excitation(group, source, grid):
     if source_type == "MagneticDipole":
         _create_sample_dataset(excitation, "samples", source.waveformvalues_wholedt[:iterations])
         excitation.attrs["TimeSampleOffset"] = 0.0
+        excitation.attrs["WaveformEvaluationTimeOffset"] = 0.0
         excitation.attrs["DrivingQuantity"] = "magnetic_dipole_waveform"
         excitation.attrs["Units"] = ""
         excitation.attrs["SpatialScale"] = 1.0
@@ -126,6 +131,7 @@ def _write_source_excitation(group, source, grid):
     if source_type == "RationalNetworkTerminal":
         _create_sample_dataset(excitation, "samples", source.waveform_half[:iterations])
         excitation.attrs["TimeSampleOffset"] = 0.5 * dt
+        excitation.attrs["WaveformEvaluationTimeOffset"] = 0.5 * dt
         excitation.attrs["DrivingQuantity"] = "generator_voltage"
         excitation.attrs["Units"] = "V"
         excitation.attrs["SpatialScale"] = 1.0
@@ -152,6 +158,7 @@ def _write_dual_lattice_source_excitation(group, source, grid, source_type):
     excitation.attrs["Units"] = "V"
     excitation.attrs["UpdateLattice"] = "dual"
     excitation.attrs["TimeSampleOffset"] = 0.0
+    excitation.attrs["WaveformEvaluationTimeOffset"] = 0.0
     excitation.attrs["SpatialScale"] = 1.0
     for key, value in _waveform_metadata(grid, source.waveformID).items():
         excitation.attrs[key] = value
@@ -176,6 +183,7 @@ def _write_frill_source_excitation(group, source, grid):
     excitation.attrs["SchemaVersion"] = SOURCE_EXCITATION_SCHEMA_VERSION
     excitation.attrs["SampleInterval"] = float(grid.dt)
     excitation.attrs["TimeSampleOffset"] = 0.0
+    excitation.attrs["WaveformEvaluationTimeOffset"] = 0.0
     excitation.attrs["SourceType"] = type(source).__name__
     excitation.attrs["SourceStartTime"] = float(source.start)
     excitation.attrs["SourceStopTime"] = float(source.stop)

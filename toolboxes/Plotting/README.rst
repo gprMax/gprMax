@@ -49,56 +49,64 @@ where:
 * ``outputfile`` is the name of output file including the path
 * ``rx-component`` is the name of the receiver output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
 
-plot_antenna_params.py
-----------------------
+plot_port.py
+------------
 
 This module is the terminal-output counterpart to ``plot_Ascan.py``. An A-scan
 plots local field or Ampere-loop samples from ``/rxs``; this module plots the
-source-terminal quantities stored by voltage-source ports, transmission lines,
-and magnetic frills. It reads the S11, impedance, and admittance that gprMax
-has already calculated and does not reconstruct them from voltage and current.
+authoritative source-terminal quantities already calculated by gprMax. It
+supports voltage-source ports, rational-network ports, transmission lines,
+magnetic-frill ports, and ports inside subgrids. It does not repeat the S11 or
+input-impedance calculation during plotting.
 
-The signal figure is adaptive. It plots only histories and spectra present in
-the selected HDF5 group. For example, a resistive voltage-source port has
-generator and total voltage but no current history, a hard-source port adds its
-Ampere-loop current, and a transmission line has incident and total voltage
-and current. Missing quantities are omitted rather than estimated.
-
-If the file contains one terminal output it is selected automatically:
+Run it with:
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_antenna_params outputfile
+    python -m toolboxes.Plotting.plot_port outputfile --save
 
-where ``outputfile`` is the name of output file including the path.
-
-Use ``--port ID`` to select one when several ports are present. For example:
-
-.. code-block:: none
-
-    python -m toolboxes.Plotting.plot_antenna_params outputfile --port feed
-
-``--fmin`` and ``--fmax`` optionally limit the displayed port-frequency range
-in Hz. ``--tmin`` and ``--tmax`` similarly limit displayed histories in
-seconds. The stored data and validity masks are not changed. ``--params-only``
-suppresses the adaptive signal figure, and ``--list-ports`` prints every
-discoverable terminal HDF5 path, including ports inside subgrids.
-
-Legacy transmission-line output remains supported. In that mode the module
-plots incident and total line voltage/current histories and can optionally
-calculate s21 using a second line or a field receiver. The corresponding
-optional arguments are:
-
-* ``--tltx-num`` is the number of the transmission line (default is one) for the transmitter antenna. Transmission lines are numbered (starting at one) in the order they appear in the input file.
-* ``--tlrx-num`` is the number of the transmission line (default is None) for the receiver antenna (for a s21 parameter). Transmission lines are numbered (starting at one) in the order they appear in the input file.
-* ``--rx-num`` is the number of the receiver output (default is None) for the receiver antenna (for a s21 parameter). Receivers are numbered (starting at one) in the order they appear in the input file.
-* ``--rx-component`` is the electric field component (``Ex``, ``Ey`` or ``Ez``) of the receiver output for the receiver antenna (for a s21 parameter).
-
-For example to plot the input impedance, s11 and s21 parameters from a simulation with transmitter and receiver antennas that are attached to transmission lines (the transmission line feeding the transmitter appears first in the input file, and the transmission line attached to the receiver antenna appears after it).
+All stored ports are plotted by default. Use a repeatable ``--port`` option to
+select one or more port IDs or complete HDF5 paths:
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_antenna_params outputfile --tltx-num 1 --tlrx-num 2
+    python -m toolboxes.Plotting.plot_port outputfile \
+        --port feed --port subgrids/fine_grid/ports/feed2 --save
+
+Every port receives uniquely named parameter and signal figures, so plots from
+the same model cannot overwrite one another. ``--output-dir`` selects their
+directory; ``--format`` accepts ``png``, ``pdf``, or ``svg``; and ``--dpi``
+controls raster resolution. Without ``--save`` the figures are displayed
+interactively.
+
+The parameter figure plots stored complex S11, input impedance, and input
+admittance using their respective validity masks. Transmission-line
+current-deembedding checks and voltage-source uncorrected source-plane values
+are included when present. Invalid finite research values are hidden by
+default; ``--show-invalid`` displays them as grey dotted lines. ``--validity``
+adds a figure showing the stored source-band, mesh, gap-correction, and
+line-propagation masks. It also plots the incident spectrum relative to its
+peak and the cells per minimum wavelength when those diagnostics are stored,
+together with the thresholds used to construct the masks.
+
+The signal figure adapts to the available schema. It can include generator,
+incident, reflected, and total voltage; incident, terminal, Ampere-loop, and
+network currents; and their stored spectra. Missing quantities are not
+estimated. ``--parameters-only`` suppresses this figure. ``--fmin`` and
+``--fmax`` limit displayed frequencies in hertz, while ``--tmin`` and
+``--tmax`` limit histories in seconds. Axes are automatically presented in
+suitable engineering units.
+
+``--list-ports`` prints all discoverable paths. The internal plotting data
+model stores a collection of named S-parameter traces. It currently contains
+S11 because local gprMax terminal outputs are one-port results; it can accept
+additional Sij traces when an authoritative multiport output schema is added.
+
+The former ``plot_antenna_params`` entry point remains as a compatibility
+alias for the new plotter. Its legacy reconstruction of S11, Zin, and a
+voltage/field transfer ratio labelled S21 has been retired. That calculation
+did not include the present source, mesh, gap, and discrete-line validity
+corrections, and a field-to-source ratio is not a power-wave S-parameter.
 
 
 .. _waveforms:

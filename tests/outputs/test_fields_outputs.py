@@ -128,6 +128,7 @@ def test_hertzian_source_excitation_preserves_half_step_samples(tmp_path):
         excitation = file["srcs/src1/excitation"]
         np.testing.assert_array_equal(excitation["samples"], (1.0, 0.0, 0.0))
         assert excitation.attrs["TimeSampleOffset"] == 0.5e-12
+        assert excitation.attrs["WaveformEvaluationTimeOffset"] == 0.5e-12
         assert excitation.attrs["DrivingQuantity"] == "electric_current"
         assert excitation.attrs["SpatialScale"] == 0.002
 
@@ -156,6 +157,7 @@ def test_hard_voltage_source_records_applied_electric_time(tmp_path):
     with h5py.File(output, "r") as file:
         excitation = file["srcs/src1/excitation"]
         assert excitation.attrs["TimeSampleOffset"] == grid.dt
+        assert excitation.attrs["WaveformEvaluationTimeOffset"] == 0.0
         assert excitation.attrs["DrivingQuantity"] == "imposed_gap_voltage"
 
 
@@ -191,4 +193,5 @@ def test_transmission_line_excitation_exposes_whole_step_scalar_reference(tmp_pa
         excitation = file["tls/tl1/excitation"]
         assert excitation["samples"].id == excitation["samples_whole"].id
         assert excitation.attrs["TimeSampleOffset"] == 0.0
+        assert excitation.attrs["WaveformEvaluationTimeOffset"] == 0.0
         assert excitation["samples_half"].attrs["TimeSampleOffset"] == grid.dt / 2
