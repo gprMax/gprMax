@@ -22,6 +22,7 @@ from typing import List, Sequence
 import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.mpi_model import MPIModel
@@ -181,7 +182,11 @@ class Scene:
         """
         from gprMax.user_objects.cmds_geometry.plate import Plate
 
-        limits = (grid.nx, grid.ny, grid.nz)
+        limits = (
+            tuple(grid.global_size)
+            if isinstance(grid, MPIGrid)
+            else (grid.nx, grid.ny, grid.nz)
+        )
         for spec in grid.pmls["internal_specs"]:
             if not spec.build_pec:
                 continue

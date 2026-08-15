@@ -103,6 +103,12 @@ touch the selected global face. Physical domain-edge corrections are similarly
 restricted to ranks that touch both adjoining global faces, so internal halo
 seams retain the ordinary distributed Yee update.
 
+Internal one-axis PML slabs may cross MPI partitions in any direction. Their
+global CFS grading is sliced between participating ranks without restarting at
+a partition, and only rank-local PML history arrays are allocated. The normal
+field-halo exchanges join the corrected fields, so these slabs introduce no
+additional per-timestep MPI collective.
+
 .. figure:: ../../images_shared/mpi_domain_decomposition.png
     :width: 80%
     :align: center

@@ -251,6 +251,9 @@ class PML:
         formulation=None,
         cfs=None,
         profile_id=None,
+        profile_offset=0,
+        profile_thickness=None,
+        profile_updates_terminal_e_plane=None,
     ):
         """
         Args:
@@ -273,6 +276,7 @@ class PML:
         self.maximum_face = maximum_face
         self.profile_id = profile_id
         self.formulation = formulation or self.G.pmls["formulation"]
+        self.profile_offset = int(profile_offset)
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
@@ -287,6 +291,15 @@ class PML:
         elif self.direction[0] == "z":
             self.d = self.G.dz
             self.thickness = self.nz
+
+        self.profile_thickness = (
+            self.thickness if profile_thickness is None else int(profile_thickness)
+        )
+        self.profile_updates_terminal_e_plane = profile_updates_terminal_e_plane
+        if self.profile_offset < 0:
+            raise ValueError("PML profile offset must be non-negative.")
+        if self.profile_thickness < self.profile_offset + self.thickness:
+            raise ValueError("Local PML extent falls outside its global profile thickness.")
 
         # Automatic sigma maxima depend on the slab spacing and underlying
         # material. Each slab therefore needs its own CFS parameter objects;
@@ -405,10 +418,26 @@ class PML:
             logger.debug(
                 f"PML {self.ID}: sigma.max set to {cfs.sigma.max} for {'first' if x == 0 else 'second'} order CFS parameter"
             )
-            endpoint = self._updates_terminal_e_plane()
-            Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha, endpoint)
-            Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa, endpoint)
-            Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma, endpoint)
+            profile_endpoint = self._profile_updates_terminal_e_plane()
+            Ealpha, Halpha = cfs.calculate_values(
+                self.profile_thickness, cfs.alpha, profile_endpoint
+            )
+            Ekappa, Hkappa = cfs.calculate_values(
+                self.profile_thickness, cfs.kappa, profile_endpoint
+            )
+            Esigma, Hsigma = cfs.calculate_values(
+                self.profile_thickness, cfs.sigma, profile_endpoint
+            )
+
+            start = self.profile_offset
+            e_stop = start + electric_thickness
+            h_stop = start + self.thickness
+            Ealpha = Ealpha[start:e_stop]
+            Ekappa = Ekappa[start:e_stop]
+            Esigma = Esigma[start:e_stop]
+            Halpha = Halpha[start:h_stop]
+            Hkappa = Hkappa[start:h_stop]
+            Hsigma = Hsigma[start:h_stop]
 
             # Define different parameters depending on PML formulation
             if self.formulation == "HORIPML":
@@ -467,6 +496,12 @@ class PML:
             "zminus": self.zs > 0,
             "zplus": self.zf < self.G.nz,
         }[self.direction]
+
+    def _profile_updates_terminal_e_plane(self):
+        """Return whether the complete slab profile contains its terminal E plane."""
+        if self.profile_updates_terminal_e_plane is None:
+            return self._updates_terminal_e_plane()
+        return bool(self.profile_updates_terminal_e_plane)
 
     def _electric_update_bounds(self):
         """Return bounds including an embedded slab's terminal E plane."""
