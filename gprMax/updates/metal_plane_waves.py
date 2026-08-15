@@ -18,6 +18,14 @@ from gprMax.grid.metal_grid import MetalBufferView
 from gprMax.updates.opencl_updates import OpenCLUpdates
 
 
+def _render_planewave_kernel_source(specification, knl_common, c_real, c_complex):
+    """Render a shared plane-wave kernel for Metal."""
+
+    declaration = specification["args_metal"].substitute({"REAL": c_real, "COMPLEX": c_complex})
+    body = specification["func"].substitute({"CUDA_IDX": "", "TFSF_IDX": "", "REAL": c_real})
+    return f"{knl_common}\n{declaration}{{\n{body}}}\n"
+
+
 class _MetalElementwiseKernel:
     """Small callable matching the PyOpenCL ElementwiseKernel launch API."""
 
@@ -48,9 +56,7 @@ class _MetalElementwiseKernel:
                 encoder.setBuffer_offset_atIndex_(view[0], view[1], index)
             else:
                 scalar = np.asarray(argument)
-                encoder.setBytes_length_atIndex_(
-                    scalar.tobytes(), scalar.dtype.itemsize, index
-                )
+                encoder.setBytes_length_atIndex_(scalar.tobytes(), scalar.dtype.itemsize, index)
         encoder.dispatchThreads_threadsPerThreadgroup_(
             self.owner.metal.MTLSizeMake(count, 1, 1),
             self.owner.metal.MTLSizeMake(
@@ -85,19 +91,13 @@ class MetalPlaneWaveController(OpenCLUpdates):
         except KeyError:
             pass
         c_real = config.sim_config.dtypes["C_float_or_double"]
-        declaration = specification["args_metal"].substitute(
-            {
-                "REAL": c_real,
-                "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
-            }
+        source = _render_planewave_kernel_source(
+            specification,
+            self.knl_common,
+            c_real,
+            config.get_model_config().materials["dispersiveCdtype"],
         )
-        body = specification["func"].substitute(
-            {"CUDA_IDX": "", "TFSF_IDX": "int t = i;", "REAL": c_real}
-        )
-        source = f"{self.knl_common}\n{declaration}{{\n{body}}}\n"
-        library, error = self.dev.newLibraryWithSource_options_error_(
-            source, self.opts, None
-        )
+        library, error = self.dev.newLibraryWithSource_options_error_(source, self.opts, None)
         if library is None:
             raise RuntimeError(f"Failed to compile Metal plane-wave kernel {name}: {error}")
         function = library.newFunctionWithName_(name)

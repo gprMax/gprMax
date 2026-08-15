@@ -1,5 +1,6 @@
 """Backend-neutral plane-wave and OpenCL NTFF kernel-source regressions."""
 
+import re
 from types import SimpleNamespace
 
 import numpy as np
@@ -7,16 +8,31 @@ import numpy as np
 from gprMax.cuda_opencl import knl_planewave_updates, knl_tfsf_injection
 from gprMax.cuda_opencl.knl_ntff import build_ntff_kernel_source
 from gprMax.grid.metal_grid import MetalBufferView
-from gprMax.updates.metal_plane_waves import _MetalElementwiseKernel
+from gprMax.updates.metal_plane_waves import (
+    _MetalElementwiseKernel,
+    _render_planewave_kernel_source,
+)
 
 
 def _plane_wave_kernel_specs(module):
     return [
         value
         for value in vars(module).values()
-        if isinstance(value, dict)
-        and {"args_metal", "func"}.issubset(value)
+        if isinstance(value, dict) and {"args_metal", "func"}.issubset(value)
     ]
+
+
+def _metal_parameter_names(declaration):
+    """Return the parameter names from a rendered Metal kernel declaration."""
+
+    parameters = declaration[declaration.find("(") + 1 : declaration.rfind(")")]
+    names = []
+    for parameter in parameters.split(","):
+        parameter = re.sub(r"\[\[.*?\]\]", "", parameter).strip()
+        match = re.search(r"([A-Za-z_]\w*)\s*$", parameter)
+        assert match is not None, f"Could not parse Metal parameter: {parameter}"
+        names.append(match.group(1))
+    return names
 
 
 def test_tfsf_kernels_use_backend_index_substitution():
@@ -70,14 +86,22 @@ def test_all_plane_wave_templates_render_for_metal():
         declaration = specification["args_metal"].substitute(
             {"REAL": "float", "COMPLEX": "metal::complex<float>"}
         )
-        body = specification["func"].substitute(
-            {"CUDA_IDX": "", "TFSF_IDX": "int t = i;", "REAL": "float"}
+        body = specification["func"].substitute({"CUDA_IDX": "", "TFSF_IDX": "", "REAL": "float"})
+        source = _render_planewave_kernel_source(
+            specification, "", "float", "metal::complex<float>"
         )
 
+        parameter_names = _metal_parameter_names(declaration)
+
+        assert source == f"\n{declaration}{{\n{body}}}\n"
         assert "$" not in declaration
         assert "$" not in body
         assert "thread_position_in_grid" in declaration
         assert "blockIdx" not in body
+        assert len(parameter_names) == len(set(parameter_names))
+        if "$TFSF_IDX" in specification["func"].template:
+            assert parameter_names.count("t") == 1
+            assert "int t =" not in body
 
 
 class _FakeEncoder:
