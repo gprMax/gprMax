@@ -27,6 +27,10 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``nports`` is the number of voltage-source S11/impedance outputs.
 - ``neigenmodeports`` is the number of eigenmode source/receiver port
   monitors.
+- ``SourceExcitationSchemaVersion`` identifies the schema used for exact
+  source histories stored below local source groups.
+- ``ReceiverTimingSchemaVersion`` identifies the schema used for receiver
+  dataset time offsets.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
 (``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
@@ -56,6 +60,11 @@ further groups for each named or numbered output.
             src1/
                 Type
                 Position
+                ID
+                GridPosition
+                Polarisation
+                excitation/
+                    samples
             src2/
                 ...
 
@@ -132,6 +141,8 @@ Within each individual ``rx`` group are the following attributes:
 
 * ``Name`` is the name of the receiver if specified. Otherwise 'Rx(x,y,z)', where x,y,z is the position of the receiver, is used.
 * ``Position`` is the x, y, z position (in metres) of the receiver in the model.
+* ``GridPosition`` is the integer x, y, z position of the receiver on its
+  owning grid.
 
 Within each individual ``rx`` group can be the following datasets:
 
@@ -145,10 +156,35 @@ Within each individual ``rx`` group can be the following datasets:
 * ``Iy`` is an optional array containing the time history (for the model time window) of the values of the y component of current (calculated around a single cell loop) at that receiver position.
 * ``Iz`` is an optional array containing the time history (for the model time window) of the values of the z component of current (calculated around a single cell loop) at that receiver position.
 
+Every receiver component dataset has ``SampleInterval``, ``TimeSampleOffset``,
+and ``Quantity`` attributes. Electric fields have ``TimeSampleOffset=0`` and
+represent :math:`E^n`. Magnetic fields and magnetic-loop currents have
+``TimeSampleOffset=-\Delta t/2`` and represent :math:`H^{n-1/2}` at stored
+sample index :math:`n`. These explicit physical times are important when
+combining electric and magnetic quantities or deconvolving a source.
+
 Within each individual ``src`` group are the following attributes:
 
 * ``Type`` is the type of source, e.g. Hertzian dipole, voltage source etc...
 * ``Position`` is the x, y, z position (in metres) of the source in the model.
+* ``ID``, ``GridPosition``, and ``Polarisation`` identify the source and its
+  electric or magnetic Yee component.
+
+Each supported local source also contains an ``excitation`` group. Its
+``samples`` dataset is the exact scalar history consumed by the solver, with
+the update look-ahead sample removed. ``SampleInterval`` and
+``TimeSampleOffset`` define the physical time of sample :math:`n` as
+:math:`t_n=n\Delta t+t_0`; ``DrivingQuantity``, ``Units``, ``SpatialScale``,
+``UpdateLattice``, and waveform attributes describe the excitation. A
+resistive voltage source and Hertzian electric dipole, for example, use
+:math:`t_0=\Delta t/2`, while a hard voltage source is imposed on
+:math:`E^{n+1}` and uses :math:`t_0=\Delta t`. Transmission-line sources store
+their two staggered histories as ``samples_whole`` and ``samples_half``;
+``samples`` is a non-duplicating HDF5 link to the whole-step generator-voltage
+reference.
+
+This timing-aware source schema is used by the :ref:`SFCW toolbox <sfcw>` and
+is also available for other file-based deconvolution and post-processing.
 
 Within each individual ``tl`` group are the following attributes:
 
