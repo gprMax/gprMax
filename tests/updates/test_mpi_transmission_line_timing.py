@@ -61,10 +61,12 @@ def test_solver_samples_mpi_transmission_lines_after_magnetic_halo():
         "update_magnetic_edge_devices",
         "observe_ntff_magnetic",
         "update_electric_a",
+        "update_symmetry_boundaries_electric",
         "update_electric_pml",
         "update_electric_sources",
         "update_eigenmode_sources_electric",
         "update_plane_waves_electric",
+        "update_symmetry_boundaries_electric_b",
         "update_electric_b",
         "update_network_terminals",
         "halo_swap_electric",
@@ -79,6 +81,12 @@ def test_solver_samples_mpi_transmission_lines_after_magnetic_halo():
     assert calls.index("update_magnetic_sources") < calls.index("halo_swap_magnetic")
     assert calls.index("halo_swap_magnetic") < calls.index("update_magnetic_edge_devices")
     assert calls.index("update_magnetic_edge_devices") < calls.index("update_electric_a")
+    assert calls.index("update_electric_a") < calls.index("update_symmetry_boundaries_electric")
+    assert calls.index("update_symmetry_boundaries_electric") < calls.index("update_electric_pml")
+    assert calls.index("update_plane_waves_electric") < calls.index(
+        "update_symmetry_boundaries_electric_b"
+    )
+    assert calls.index("update_symmetry_boundaries_electric_b") < calls.index("update_electric_b")
 
 
 def test_mpi_finalise_completes_last_halo_exchange():

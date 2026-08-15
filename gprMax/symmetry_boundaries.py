@@ -142,6 +142,10 @@ from gprMax.cython.symmetry_boundaries_dispersive import (
     update_symmetry_boundary_electric_dispersive_z0,
     update_symmetry_boundary_electric_dispersive_zmax,
 )
+
+# Keep the complex aliases grouped with their real-valued counterparts; the
+# generated symbol names deliberately exceed the formatter's line length.
+# isort: off
 from gprMax.cython.symmetry_boundaries_dispersive_complex import (
     update_symmetry_boundary_electric_dispersive_b_Ex_Y0_Z0 as _c_update_symmetry_boundary_electric_dispersive_b_Ex_Y0_Z0,
     update_symmetry_boundary_electric_dispersive_b_Ex_Y0_ZMax as _c_update_symmetry_boundary_electric_dispersive_b_Ex_Y0_ZMax,
@@ -180,6 +184,8 @@ from gprMax.cython.symmetry_boundaries_dispersive_complex import (
     update_symmetry_boundary_electric_dispersive_z0 as _c_update_symmetry_boundary_electric_dispersive_z0,
     update_symmetry_boundary_electric_dispersive_zmax as _c_update_symmetry_boundary_electric_dispersive_zmax,
 )
+
+# isort: on
 
 _FACE_UPDATE_FUNCS = {
     "x0": update_symmetry_boundary_electric_x0,
@@ -289,15 +295,36 @@ _EDGE_TABLE_DISPERSIVE_COMPLEX = (
     ("x0", "y0", _c_update_symmetry_boundary_electric_dispersive_Ez_X0_Y0, "Ez", "Hx", "Hy"),
     ("x0", "ymax", _c_update_symmetry_boundary_electric_dispersive_Ez_X0_YMax, "Ez", "Hx", "Hy"),
     ("xmax", "y0", _c_update_symmetry_boundary_electric_dispersive_Ez_XMax_Y0, "Ez", "Hx", "Hy"),
-    ("xmax", "ymax", _c_update_symmetry_boundary_electric_dispersive_Ez_XMax_YMax, "Ez", "Hx", "Hy"),
+    (
+        "xmax",
+        "ymax",
+        _c_update_symmetry_boundary_electric_dispersive_Ez_XMax_YMax,
+        "Ez",
+        "Hx",
+        "Hy",
+    ),
     ("x0", "z0", _c_update_symmetry_boundary_electric_dispersive_Ey_X0_Z0, "Ey", "Hx", "Hz"),
     ("x0", "zmax", _c_update_symmetry_boundary_electric_dispersive_Ey_X0_ZMax, "Ey", "Hx", "Hz"),
     ("xmax", "z0", _c_update_symmetry_boundary_electric_dispersive_Ey_XMax_Z0, "Ey", "Hx", "Hz"),
-    ("xmax", "zmax", _c_update_symmetry_boundary_electric_dispersive_Ey_XMax_ZMax, "Ey", "Hx", "Hz"),
+    (
+        "xmax",
+        "zmax",
+        _c_update_symmetry_boundary_electric_dispersive_Ey_XMax_ZMax,
+        "Ey",
+        "Hx",
+        "Hz",
+    ),
     ("y0", "z0", _c_update_symmetry_boundary_electric_dispersive_Ex_Y0_Z0, "Ex", "Hy", "Hz"),
     ("y0", "zmax", _c_update_symmetry_boundary_electric_dispersive_Ex_Y0_ZMax, "Ex", "Hy", "Hz"),
     ("ymax", "z0", _c_update_symmetry_boundary_electric_dispersive_Ex_YMax_Z0, "Ex", "Hy", "Hz"),
-    ("ymax", "zmax", _c_update_symmetry_boundary_electric_dispersive_Ex_YMax_ZMax, "Ex", "Hy", "Hz"),
+    (
+        "ymax",
+        "zmax",
+        _c_update_symmetry_boundary_electric_dispersive_Ex_YMax_ZMax,
+        "Ex",
+        "Hy",
+        "Hz",
+    ),
 )
 
 _EDGE_TABLE_DISPERSIVE_B_COMPLEX = (
@@ -345,7 +372,11 @@ def build_symmetry_boundary_edges(grid) -> list:
     for face_a, face_b, func, e_attr, h1_attr, h2_attr in _EDGE_TABLE:
         a_pmc = face_is_pmc[face_a]
         b_pmc = face_is_pmc[face_b]
-        if a_pmc or b_pmc:
+        if (
+            (a_pmc or b_pmc)
+            and grid.touches_global_face(face_a)
+            and grid.touches_global_face(face_b)
+        ):
             edges.append((func, a_pmc, b_pmc, e_attr, h1_attr, h2_attr))
 
     return edges
@@ -378,7 +409,11 @@ def build_symmetry_boundary_edges_dispersive(grid) -> list:
     for face_a, face_b, func, e_attr, h1_attr, h2_attr in table:
         a_pmc = face_is_pmc[face_a]
         b_pmc = face_is_pmc[face_b]
-        if a_pmc or b_pmc:
+        if (
+            (a_pmc or b_pmc)
+            and grid.touches_global_face(face_a)
+            and grid.touches_global_face(face_b)
+        ):
             edges.append((func, a_pmc, b_pmc, _t_attr(e_attr), e_attr, h1_attr, h2_attr))
 
     return edges
@@ -405,7 +440,11 @@ def build_symmetry_boundary_edges_dispersive_b(grid) -> list:
     for face_a, face_b, func, e_attr in table:
         a_pmc = face_is_pmc[face_a]
         b_pmc = face_is_pmc[face_b]
-        if a_pmc or b_pmc:
+        if (
+            (a_pmc or b_pmc)
+            and grid.touches_global_face(face_a)
+            and grid.touches_global_face(face_b)
+        ):
             edges.append((func, _t_attr(e_attr), e_attr))
 
     return edges
@@ -420,12 +459,13 @@ def update_symmetry_boundaries_electric_normal(grid) -> None:
     Args:
         grid: FDTDGrid class describing a grid in a model.
     """
-    if not grid.symmetry_boundaries:
+    local_boundaries = grid.get_local_symmetry_boundaries()
+    if not local_boundaries:
         return
 
     nthreads = config.get_model_config().ompthreads
 
-    for face, kind in grid.symmetry_boundaries.items():
+    for face, kind in local_boundaries.items():
         if kind != "pmc":
             continue
 
@@ -474,7 +514,8 @@ def update_symmetry_boundaries_electric_dispersive(grid) -> None:
     Args:
         grid: FDTDGrid class describing a grid in a model.
     """
-    if not grid.symmetry_boundaries:
+    local_boundaries = grid.get_local_symmetry_boundaries()
+    if not local_boundaries:
         return
 
     nthreads = config.get_model_config().ompthreads
@@ -485,7 +526,7 @@ def update_symmetry_boundaries_electric_dispersive(grid) -> None:
         else _FACE_UPDATE_FUNCS_DISPERSIVE
     )
 
-    for face, kind in grid.symmetry_boundaries.items():
+    for face, kind in local_boundaries.items():
         if kind != "pmc":
             continue
 
@@ -509,7 +550,15 @@ def update_symmetry_boundaries_electric_dispersive(grid) -> None:
             grid.Hz,
         )
 
-    for func, a_pmc, b_pmc, t_attr, e_attr, h1_attr, h2_attr in grid.symmetry_boundary_edges_dispersive:
+    for (
+        func,
+        a_pmc,
+        b_pmc,
+        t_attr,
+        e_attr,
+        h1_attr,
+        h2_attr,
+    ) in grid.symmetry_boundary_edges_dispersive:
         func(
             grid.nx,
             grid.ny,
@@ -540,7 +589,8 @@ def update_symmetry_boundaries_electric_dispersive_b(grid) -> None:
     Args:
         grid: FDTDGrid class describing a grid in a model.
     """
-    if not grid.symmetry_boundaries:
+    local_boundaries = grid.get_local_symmetry_boundaries()
+    if not local_boundaries:
         return
 
     nthreads = config.get_model_config().ompthreads
@@ -551,7 +601,7 @@ def update_symmetry_boundaries_electric_dispersive_b(grid) -> None:
         else _FACE_UPDATE_FUNCS_DISPERSIVE_B
     )
 
-    for face, kind in grid.symmetry_boundaries.items():
+    for face, kind in local_boundaries.items():
         if kind != "pmc":
             continue
 

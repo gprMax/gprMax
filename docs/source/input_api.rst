@@ -740,10 +740,10 @@ resulting aperture remains sub-cell. For example:
 
 The corrected formulation is supported by the CPU, CUDA, OpenCL, and Metal
 solvers and by domain-decomposed MPI CPU models. Its four magnetic feed edges
-may cross internal MPI rank boundaries; symmetry-boundary completion is not
-supported with MPI. It is also supported inside a CPU ``SubGridHSG``. Add the
-waveform, PEC ground plane, thin wire, and magnetic frill to the same subgrid
-object,
+may cross internal MPI rank boundaries, and PMC image completion is supported
+at minimum-face symmetry corners. It is also supported inside a CPU
+``SubGridHSG``. Add the waveform, PEC ground plane, thin wire, and magnetic
+frill to the same subgrid object,
 using the same global-coordinate convention as other subgrid sources when
 ``autotranslate=True``:
 
@@ -1354,6 +1354,10 @@ Symmetry Boundary
 .. code-block:: python
 
     scene.add(gprMax.SymmetryBoundary(face='x0', type='pmc'))
+
+Domain-decomposed MPI CPU models support the same PEC and PMC boundaries.
+Only ranks touching a selected global face construct and update it, and
+domain-edge corrections are not applied at internal MPI seams.
 
 PML Properties
 --------------

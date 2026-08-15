@@ -774,6 +774,39 @@ class MPIGrid(FDTDGrid):
         """
         return self.neighbours[dim][dir] >= 0
 
+    @staticmethod
+    def _symmetry_face_dimension_direction(face: str) -> Tuple[Dim, Dir]:
+        """Map a domain-face name to its Cartesian dimension and side."""
+
+        dimensions = {"x": Dim.X, "y": Dim.Y, "z": Dim.Z}
+        try:
+            dimension = dimensions[face[0]]
+        except (IndexError, KeyError) as exc:
+            raise ValueError(f"Unknown symmetry boundary face '{face}'") from exc
+        direction = Dir.NEG if face.endswith("0") else Dir.POS
+        return dimension, direction
+
+    def touches_global_face(self, face: str) -> bool:
+        """Return whether this rank touches a named global domain face."""
+
+        dimension, direction = self._symmetry_face_dimension_direction(face)
+        return not self.has_neighbour(dimension, direction)
+
+    def get_local_symmetry_boundaries(self) -> dict:
+        """Return declared symmetry faces owned by this MPI rank.
+
+        ``symmetry_boundaries`` remains the complete global declaration on
+        every rank because source and NTFF validation use that semantic
+        information. Only construction and per-iteration field dispatch use
+        this rank-local subset.
+        """
+
+        return {
+            face: boundary_type
+            for face, boundary_type in self.symmetry_boundaries.items()
+            if self.touches_global_face(face)
+        }
+
     def set_halo_map(self):
         """Create MPI DataTypes for field array halo exchanges."""
 

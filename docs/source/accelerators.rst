@@ -97,6 +97,12 @@ finalisation. A virtual waveguide replicates its compact auxiliary Yee grid on
 each rank and performs one aperture-sized magnetic-field collective per time
 step to preserve bidirectional coupling.
 
+PEC and PMC symmetry boundaries may be used on MPI domain faces. Boundary
+construction and the PMC ghost-image update are dispatched only on ranks that
+touch the selected global face. Physical domain-edge corrections are similarly
+restricted to ranks that touch both adjoining global faces, so internal halo
+seams retain the ordinary distributed Yee update.
+
 .. figure:: ../../images_shared/mpi_domain_decomposition.png
     :width: 80%
     :align: center

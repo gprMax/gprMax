@@ -3526,15 +3526,44 @@ class MagneticFrillSource(Source):
                 if G.within_pml(self.coord):
                     raise ValueError(f"{self.ID} feed point lies inside a PML.")
                 global_coord = np.asarray(self.mpi_global_coord, dtype=np.int32)
-                transverse = {
-                    "x": (1, 2),
-                    "y": (0, 2),
-                    "z": (0, 1),
-                }[self.polarisation]
-                if any(global_coord[axis] == 0 for axis in transverse):
+                i, j, k = (int(value) for value in global_coord)
+                gx, gy, gz = (int(value) for value in G.global_size)
+                axis_faces = {
+                    "x": ("z0", "y0", "zmax", "ymax", k == 0, j == 0, k == gz, j == gy),
+                    "y": ("z0", "x0", "zmax", "xmax", k == 0, i == 0, k == gz, i == gx),
+                    "z": ("x0", "y0", "xmax", "ymax", i == 0, j == 0, i == gx, j == gy),
+                }
+                (
+                    face1,
+                    face2,
+                    maxface1,
+                    maxface2,
+                    at1,
+                    at2,
+                    atmax1,
+                    atmax2,
+                ) = axis_faces[self.polarisation]
+                face1_pmc = G.symmetry_boundaries.get(face1) == "pmc"
+                face2_pmc = G.symmetry_boundaries.get(face2) == "pmc"
+                if at1 and not face1_pmc:
                     raise ValueError(
-                        f"{self.ID} lies on a transverse global domain-minimum "
-                        "boundary; MPI symmetry boundaries are not supported."
+                        f"{self.ID} feed point sits at global domain face {face1} "
+                        "without a PMC symmetry boundary."
+                    )
+                if at2 and not face2_pmc:
+                    raise ValueError(
+                        f"{self.ID} feed point sits at global domain face {face2} "
+                        "without a PMC symmetry boundary."
+                    )
+                if atmax1 and G.symmetry_boundaries.get(maxface1) == "pmc":
+                    raise ValueError(
+                        f"{self.ID} at a {maxface1}-type symmetry corner is not yet "
+                        "supported; only minimum-face symmetry corners are available."
+                    )
+                if atmax2 and G.symmetry_boundaries.get(maxface2) == "pmc":
+                    raise ValueError(
+                        f"{self.ID} at a {maxface2}-type symmetry corner is not yet "
+                        "supported; only minimum-face symmetry corners are available."
                     )
                 self._validate_geometry(G)
             except Exception as exc:
@@ -3550,8 +3579,21 @@ class MagneticFrillSource(Source):
                 root=self.mpi_primary_rank,
             )
         )
-        self._mirror1 = False
-        self._mirror2 = False
+        global_coord = np.asarray(self.mpi_global_coord, dtype=np.int32)
+        transverse_axes = {"x": (2, 1), "y": (2, 0), "z": (0, 1)}[self.polarisation]
+        minimum_faces = {
+            "x": ("z0", "y0"),
+            "y": ("z0", "x0"),
+            "z": ("x0", "y0"),
+        }[self.polarisation]
+        self._mirror1 = bool(
+            global_coord[transverse_axes[0]] == 0
+            and G.symmetry_boundaries.get(minimum_faces[0]) == "pmc"
+        )
+        self._mirror2 = bool(
+            global_coord[transverse_axes[1]] == 0
+            and G.symmetry_boundaries.get(minimum_faces[1]) == "pmc"
+        )
 
         local_error = None
         try:
@@ -3585,22 +3627,25 @@ class MagneticFrillSource(Source):
         axial_step = {"x": dx, "y": dy, "z": dz}[self.polarisation]
         pairs = {
             "x": (
-                ("Hy", ((i, j, k), -dy, -1), ((i, j, k - 1), dy, 1), "z"),
-                ("Hz", ((i, j, k), dz, 1), ((i, j - 1, k), -dz, -1), "y"),
+                ("Hy", ((i, j, k), -dy, -1), ((i, j, k - 1), dy, 1), "z", self._mirror1),
+                ("Hz", ((i, j, k), dz, 1), ((i, j - 1, k), -dz, -1), "y", self._mirror2),
             ),
             "y": (
-                ("Hx", ((i, j, k), dx, 1), ((i, j, k - 1), -dx, -1), "z"),
-                ("Hz", ((i, j, k), -dz, -1), ((i - 1, j, k), dz, 1), "x"),
+                ("Hx", ((i, j, k), dx, 1), ((i, j, k - 1), -dx, -1), "z", self._mirror1),
+                ("Hz", ((i, j, k), -dz, -1), ((i - 1, j, k), dz, 1), "x", self._mirror2),
             ),
             "z": (
-                ("Hy", ((i, j, k), dy, 1), ((i - 1, j, k), -dy, -1), "x"),
-                ("Hx", ((i, j, k), -dx, -1), ((i, j - 1, k), dx, 1), "y"),
+                ("Hy", ((i, j, k), dy, 1), ((i - 1, j, k), -dy, -1), "x", self._mirror1),
+                ("Hx", ((i, j, k), -dx, -1), ((i, j - 1, k), dx, 1), "y", self._mirror2),
             ),
         }[self.polarisation]
         radial_steps = {"x": dx, "y": dy, "z": dz}
         terms = []
-        for component, plus, minus, radial_axis in pairs:
-            for coordinates, current_weight, source_sign in (plus, minus):
+        for component, plus, minus, radial_axis, mirrored in pairs:
+            edges = (plus,) if mirrored else (plus, minus)
+            for edge_index, (coordinates, current_weight, source_sign) in enumerate(edges):
+                if mirrored and edge_index == 0:
+                    current_weight *= 2
                 global_coord = np.asarray(coordinates, dtype=np.int32)
                 local_coord = G.global_to_local_coordinate(global_coord)
                 if not G.within_bounds(local_coord):

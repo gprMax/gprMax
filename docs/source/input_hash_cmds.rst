@@ -1463,9 +1463,9 @@ objects (including the waveform) to the same subgrid object.
     * Two frill sources may not share a surrounding H edge. Such adjacent or
       duplicate feeds form a coupled feed-cell system and cannot be advanced
       as independent scalar terminal relations.
-    * MPI symmetry boundaries remain unsupported. An MPI frill and its thin
-      wire may cross internal rank boundaries, but must not rely on symmetry
-      completion at an outer domain face.
+    * MPI symmetry boundaries are supported. A frill and its thin wire may
+      cross internal rank boundaries or use PMC image completion at supported
+      minimum-face symmetry corners.
     * This source is a "Path A" (through-ground-plane, continuous-conductor)
       feed model. It is not intended for a dipole/bow-tie style gap feed
       (:math:`E_z \neq 0` at the feed) - use ``#voltage_source`` for that case.
@@ -2794,5 +2794,13 @@ For example:
 .. note::
 
     * The PML thickness on a symmetry face is set to zero automatically.
-    * PEC and PMC boundaries, including PMC boundaries in models containing dispersive materials, are supported by the CPU, CUDA, OpenCL, and Metal solvers.
-    * Symmetry boundaries are not currently supported in 2D mode, with MPI, or on a subgrid. They may be used on the main grid of a model that contains subgrids.
+    * PEC and PMC boundaries, including PMC boundaries in models containing
+      dispersive materials, are supported by the CPU, CUDA, OpenCL, Metal, and
+      domain-decomposed MPI CPU solvers.
+    * In MPI models, each face is constructed and updated only by ranks that
+      touch that global domain face. Domain-edge corrections are likewise
+      restricted to ranks touching both physical faces; internal rank seams
+      are not treated as symmetry edges.
+    * Symmetry boundaries are not currently supported in 2D mode or on a
+      subgrid. They may be used on the main grid of a model that contains
+      subgrids.

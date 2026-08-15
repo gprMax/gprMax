@@ -873,10 +873,18 @@ class FDTDGrid:
             for index, axis in enumerate("xyz"):
                 if index == axis_index:
                     continue
-                if int(start[index]) in (0, int(global_size[index])):
+                coordinate = int(start[index])
+                if coordinate == 0:
+                    face = f"{axis}0"
+                elif coordinate == int(global_size[index]):
+                    face = f"{axis}max"
+                else:
+                    continue
+                if self.symmetry_boundaries.get(face) != "pmc":
                     raise ValueError(
-                        f"{wire} lies on transverse global domain face {axis}; "
-                        "MPI symmetry boundaries are not supported."
+                        f"{wire} lies on transverse global domain face {face}; "
+                        "a thin wire can lie on a transverse wall only when "
+                        "that face is declared as a PMC symmetry boundary."
                     )
 
             component_e = electric_components[wire.wire_axis]
@@ -1154,17 +1162,33 @@ class FDTDGrid:
 
     def _build_symmetry_boundaries(self) -> None:
         """Apply PEC faces and resolve the per-iteration PMC edge dispatch."""
-        if not self.symmetry_boundaries:
+        local_boundaries = self.get_local_symmetry_boundaries()
+        if not local_boundaries:
             return
 
         pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
-        for face, boundary_type in self.symmetry_boundaries.items():
+        for face, boundary_type in local_boundaries.items():
             if boundary_type == "pec":
                 self._force_pec_tangential_e(face, pec_numid)
 
         self.symmetry_boundary_edges = build_symmetry_boundary_edges(self)
         self.symmetry_boundary_edges_dispersive = build_symmetry_boundary_edges_dispersive(self)
         self.symmetry_boundary_edges_dispersive_b = build_symmetry_boundary_edges_dispersive_b(self)
+
+    def get_local_symmetry_boundaries(self) -> dict:
+        """Return symmetry faces that belong to this grid.
+
+        A serial grid owns every global domain face. ``MPIGrid`` overrides
+        this method so an internal rank boundary is never mistaken for a
+        physical PEC/PMC symmetry plane.
+        """
+
+        return self.symmetry_boundaries
+
+    def touches_global_face(self, face: str) -> bool:
+        """Return whether this grid touches a named global domain face."""
+
+        return True
 
     def _force_pec_tangential_e(self, face: str, pec_numid: int) -> None:
         """Force the two tangential E-component IDs on a domain face to PEC."""
