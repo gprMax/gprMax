@@ -23,6 +23,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
 
 from ._version import __version__
@@ -251,6 +252,9 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
         f.attrs["rxsteps"] = model.rxsteps
         write_hd5_data(f, model.G)
 
+        if config.sim_config.study is not None:
+            config.sim_config.study.write_hdf5(f)
+
         # Write meta data and data for any subgrids
         sg_rxs = [True for sg in model.subgrids if sg.rxs]
         sg_tls = [True for sg in model.subgrids if sg.transmissionlines]
@@ -333,6 +337,8 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp = basegrp.create_group(f"srcs/src{str(srcindex + 1)}")
         grp.attrs["Type"] = type(src).__name__
         grp.attrs["ID"] = str(src.ID)
+        if getattr(src, "study_id", None):
+            grp.attrs["StudyID"] = src.study_id
         grp.attrs["GridPosition"] = np.asarray(src.coord, dtype=np.int32)
         grp.attrs["Polarisation"] = str(src.polarisation or "")
         grp.attrs["Position"] = _global_position(
@@ -408,6 +414,8 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
         if rx.ID:
             grp.attrs["Name"] = rx.ID
+        if getattr(rx, "study_id", None):
+            grp.attrs["StudyID"] = rx.study_id
         grp.attrs["Position"] = _global_position(grid, rx.xcoord, rx.ycoord, rx.zcoord, is_subgrid)
         grp.attrs["GridPosition"] = np.asarray(rx.coord, dtype=np.int32)
 

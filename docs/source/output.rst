@@ -38,9 +38,23 @@ voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
 Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
 further groups for each named or numbered output.
 
+Reusable parameter studies add a root ``study`` group. Its attributes are
+``Type``, ``CaseID``, ``CaseIndex`` (one based), ``CaseCount``,
+``GeometryReused``, and, for CSV studies, ``SourcePath``. The ``source``
+dataset preserves the complete CSV text. ``definition`` stores the normalised
+full study as JSON, while ``resolved_case`` contains the post-validation values
+actually applied to every study-managed object, including baseline receivers
+and implicitly disabled sources.
+Study-managed source and receiver groups also carry a ``StudyID`` attribute,
+which provides an unambiguous link back to the case table.
+
 .. code-block:: none
 
     /
+        study/ [optional]
+            source [CSV studies]
+            definition
+            resolved_case
         rxs/
             rx1/
                 Name

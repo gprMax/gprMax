@@ -374,6 +374,13 @@ class Model:
         for grid in grids:
             grid.update_sources_and_recievers()
 
+        # A Study supplies absolute per-case state after the legacy linear
+        # src/rx stepping hooks. This ordering makes Study authoritative and,
+        # because it restores its captured baseline first, prevents changes
+        # leaking from one reused-geometry run into the next.
+        if config.sim_config.study is not None:
+            config.sim_config.study.apply_case(self)
+
         # Magnetic-frill sources bind the attached thin-wire radius, resolve
         # symmetry, validate the PEC ground plane, and precompute their
         # feed-cell recurrence here. This needs final material coefficients

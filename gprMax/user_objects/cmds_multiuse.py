@@ -887,6 +887,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         h.ID = f"{h.__class__.__name__}({x},{y},{z})"
+        h.study_id = getattr(self, "_study_id", None)
         h.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
@@ -1084,6 +1085,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         m.ID = f"{m.__class__.__name__}({x},{y},{z})"
+        m.study_id = getattr(self, "_study_id", None)
         m.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
@@ -3021,6 +3023,7 @@ class Rx(RotatableMixin, GridUserObject):
             r.ID = f"{r.__class__.__name__}({x},{y},{z})"
         else:
             r.ID = self.id
+        r.study_id = getattr(self, "_study_id", None)
 
         if self.outputs is None:
             self.outputs = RxUser.defaultoutputs

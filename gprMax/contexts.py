@@ -121,6 +121,8 @@ class Context:
         if not model_config.reuse_geometry():
             scene = self._get_scene(model_num)
             self.model = self._create_model()
+            if config.sim_config.study is not None:
+                config.sim_config.study.bind_scene(scene)
             scene.create_internal_objects(self.model)
         else:
             # model_config is freshly created every call (unlike self.model,
@@ -241,6 +243,8 @@ class MPIContext(Context):
         if not model_config.reuse_geometry():
             self.model = self._create_model()
             scene = self._get_scene(model_num)
+            if config.sim_config.study is not None:
+                config.sim_config.study.bind_scene(scene)
             scene.create_internal_objects(self.model)
         else:
             # model_config is freshly created every call (unlike self.model,
