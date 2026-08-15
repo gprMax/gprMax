@@ -177,11 +177,13 @@ def merge_files(outputfiles, merged_outputfile=None, removefiles=False):
                     for name, value in source_rx.attrs.items():
                         destination_rx.attrs[name] = value
                     for output, dataset in source_rx.items():
-                        destination_rx.create_dataset(
+                        merged_dataset = destination_rx.create_dataset(
                             output,
                             shape=(dataset.shape[0], len(outputfiles)),
                             dtype=dataset.dtype,
                         )
+                        for name, value in dataset.attrs.items():
+                            merged_dataset.attrs[name] = value
 
             for index, outputfile in enumerate(outputfiles):
                 with h5py.File(outputfile, "r") as source:

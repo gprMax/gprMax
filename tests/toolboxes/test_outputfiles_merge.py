@@ -19,7 +19,9 @@ def _write_output(filename, offset=0, iterations=3):
         receiver = output.create_group("rxs/rx1")
         receiver.attrs["Name"] = "surface"
         receiver.attrs["Position"] = (1.0, 2.0, 3.0)
-        receiver.create_dataset("Ez", data=np.arange(iterations) + offset)
+        field = receiver.create_dataset("Ez", data=np.arange(iterations) + offset)
+        field.attrs["SampleInterval"] = 1e-10
+        field.attrs["TimeSampleOffset"] = 0.0
 
         subgrid = output.create_group("subgrids/fine")
         subgrid.attrs["Iterations"] = 2 * iterations
@@ -44,6 +46,8 @@ def test_merge_preserves_receiver_metadata_and_subgrid_outputs(tmp_path):
     with h5py.File(merged, "r") as output:
         assert output["rxs/rx1"].attrs["Name"] == "surface"
         np.testing.assert_array_equal(output["rxs/rx1"].attrs["Position"], [1, 2, 3])
+        assert output["rxs/rx1/Ez"].attrs["SampleInterval"] == 1e-10
+        assert output["rxs/rx1/Ez"].attrs["TimeSampleOffset"] == 0.0
 
 
 def test_merge_rejects_inconsistent_iterations(tmp_path):
