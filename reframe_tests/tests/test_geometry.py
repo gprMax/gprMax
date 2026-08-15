@@ -45,6 +45,7 @@ class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
             "box_full_model",
             "box_half_model",
             "box_rigid",
+            "box_pec_cross_partition",
             "box_single_rank",
             "box_outside_pml",
             "box_single_rank_outside_pml",
@@ -114,6 +115,13 @@ class TestEdgeGeometryAntennaModel(AntennaModelMixin, GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     sourcesdir = "src/geometry_tests/edge_geometry"
     model = parameter(["antenna_wire_dipole_fs"])
+
+
+@rfm.simple_test
+class TestMagneticEdgeGeometry(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometry", "magnetic_edge"}
+    sourcesdir = "src/geometry_tests/magnetic_edge_geometry"
+    model = parameter(["magnetic_edge_cross_partition"])
 
 
 @rfm.simple_test
@@ -277,6 +285,13 @@ class TestEdgeGeometryAntennaModelMpi(MpiMixin, TestEdgeGeometryAntennaModel):
     tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     test_dependency = TestEdgeGeometryAntennaModel
+
+
+@rfm.simple_test
+class TestMagneticEdgeGeometryMpi(MpiMixin, TestMagneticEdgeGeometry):
+    tags = {"test", "mpi", "geometry", "magnetic_edge"}
+    mpi_layout = parameter([[2, 1, 1], [1, 2, 1], [1, 1, 2]])
+    test_dependency = TestMagneticEdgeGeometry
 
 
 @rfm.simple_test
