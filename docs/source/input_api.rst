@@ -144,6 +144,68 @@ Dispersive Averaging
 --------------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.DispersiveAveraging
 
+Reusable parameter studies
+--------------------------
+
+A :class:`gprMax.Study` runs an ordered set of source and receiver states while
+reusing one built geometry. It is intended for arbitrary GPR acquisition
+patterns and is the foundation for later multiport, antenna-array, and
+plane-wave studies. Every case restores the original object state before its
+overrides are applied, so parameters cannot accidentally accumulate between
+runs.
+
+The initial implementation supports top-level
+:class:`gprMax.HertzianDipole`, :class:`gprMax.MagneticDipole`, and
+:class:`gprMax.Rx` objects on the main grid. A state can refer directly to its
+Python object or use its deterministic ID. Sources omitted from a case are
+inactive; receivers omitted from a case keep their original position and are
+recorded.
+
+.. code-block:: python
+
+    source = gprMax.HertzianDipole(
+        polarisation='z', p1=(0.10, 0.05, 0.03), waveform_id='pulse'
+    )
+    receiver = gprMax.Rx(p1=(0.14, 0.05, 0.03), id='measurement')
+    scene.add(source)
+    scene.add(receiver)
+
+    study = gprMax.GPRStudy([
+        gprMax.StudyCase('trace_1', [
+            gprMax.ObjectState(source, position=(0.10, 0.05, 0.03), scale=1.0),
+            gprMax.ObjectState(receiver, position=(0.14, 0.05, 0.03)),
+        ]),
+        gprMax.StudyCase('trace_2', [
+            gprMax.ObjectState(source, position=(0.102, 0.052, 0.03), scale=0.8),
+            gprMax.ObjectState('measurement', position=(0.145, 0.052, 0.03)),
+        ]),
+    ])
+
+    gprMax.run(scenes=[scene], study=study, outputfile='survey')
+
+The available source overrides are ``active``, ``position``,
+``waveform_id``, ``start``, ``stop``, and the dimensionless amplitude
+``scale``. Receivers currently accept ``position`` and ``record=True``. The
+study determines the run count automatically; pass ``i=N`` to restart at the
+one-based case number ``N``. For a text input model the equivalent
+``#study`` command reads the same information from CSV.
+
+.. autoclass:: gprMax.studies.Study
+    :members: from_csv
+
+.. autoclass:: gprMax.studies.GPRStudy
+
+.. autoclass:: gprMax.studies.StudyCase
+
+.. autoclass:: gprMax.studies.ObjectState
+
+.. note::
+
+    MPI/task-farm studies, subgrid study objects, stateful ports, plane waves,
+    and eigenmode sources are not enabled in this first stage. Their cached
+    fields, transforms, and derived setup must be reset or rebuilt explicitly;
+    gprMax rejects them instead of reusing stale state.
+
 Typical general settings are added directly to the scene:
 
 .. code-block:: python

@@ -1932,6 +1932,62 @@ Provides a simple method to allow you to move the location of all simple sources
 
     * ``#src_steps`` and ``#rx_steps`` are not suitable for moving sources which have associated geometry, e.g. antenna models.
 
+#study:
+-------
+
+Runs a sequence of source/receiver cases while building the model geometry
+only once. This is the general counterpart to ``#src_steps`` and
+``#rx_steps``: positions need not follow a regular increment, individual
+sources can be activated or scaled, and every output file records the exact
+case that produced it. The syntax is:
+
+.. code-block:: none
+
+    #study: gpr file1
+
+``file1`` is a CSV table. Its path is resolved relative to the main input
+file. The required columns are ``case_id`` and ``object_id``. The optional
+columns are ``active``, ``x_m``, ``y_m``, ``z_m``, ``waveform_id``,
+``start_s``, ``stop_s``, ``scale``, and ``record``. Blank cells mean "use the
+object's baseline value". All three position columns must be supplied
+together and contain absolute coordinates in metres.
+
+For example:
+
+.. code-block:: text
+
+    case_id,object_id,active,x_m,y_m,z_m,waveform_id,start_s,stop_s,scale,record
+    trace_1,hertzian_dipole_1,true,0.100,0.050,0.030,,,,1,
+    trace_1,rx_1,,0.140,0.050,0.030,,,,,true
+    trace_2,hertzian_dipole_1,true,0.102,0.052,0.030,,,,0.8,
+    trace_2,rx_1,,0.145,0.052,0.030,,,,,true
+
+Objects receive deterministic IDs from their order of appearance within each
+object family: ``hertzian_dipole_1``, ``hertzian_dipole_2``,
+``magnetic_dipole_1``, and ``rx_1``. An explicit ``#rx`` identifier is also
+accepted as an alias. A source listed in a case is active by default; a source
+omitted from that case, or listed with ``active=false``, is inactive. A
+receiver omitted from a case remains at its baseline position and is still
+recorded. ``record=false`` is reserved for future selective-output support and
+is currently rejected rather than silently ignored.
+
+The number of CSV cases determines the number of model runs, so ``-n`` is not
+required. ``-i N`` restarts at case ``N`` and retains absolute output numbering.
+The original geometry, materials, PMLs, and grid allocation are reused, but
+field arrays and receiver histories are reset before every case. Each output
+contains a ``/study`` group with the case ID, resolved parameters, and a copy
+of the CSV source.
+
+.. note::
+
+    The first implementation supports top-level ``#hertzian_dipole``,
+    ``#magnetic_dipole``, and ``#rx`` objects on the main grid. MPI domain
+    decomposition, task farming, subgrid objects, plane waves, voltage and
+    transmission-line sources, rational/frill ports, and eigenmode objects are
+    rejected until their family-specific state reset and rebuild hooks are
+    implemented. This explicit restriction prevents contaminated results from
+    persistent source or transform state.
+
 #snapshot:
 ----------
 

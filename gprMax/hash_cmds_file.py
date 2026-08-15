@@ -229,6 +229,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#src_steps",
             "#rx_steps",
             "#output_dir",
+            "#study",
         ],
         None,
     )
