@@ -37,6 +37,7 @@ from gprMax.eigenmode_config import (
     VirtualWaveguideSpec,
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
@@ -4011,7 +4012,9 @@ class PMLSlab(GridUserObject):
     entrance remains open. Set ``build_pec=False`` to provide a custom or
     deliberately open enclosure. Exposed faces are then reported as warnings;
     incomplete enclosures have no stability guarantee. A slab added to an HSG
-    subgrid must lie wholly within its working region.
+    subgrid must lie wholly within its working region. Domain-decomposed MPI
+    CPU models may partition a slab normally or transversely; every rank stores
+    only its local PML history while retaining the complete global CFS profile.
     """
 
     FACE_TO_DIRECTION = {
@@ -4055,8 +4058,6 @@ class PMLSlab(GridUserObject):
                 number += 1
                 ID = f"internal_pml_{number}"
 
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
         if config.get_model_config().mode.startswith("2D"):
             raise ValueError(f"{self.params_str()} cannot currently be used in 2D mode.")
         if maximum_face not in self.FACE_TO_DIRECTION:
@@ -4071,7 +4072,13 @@ class PMLSlab(GridUserObject):
 
         uip = self._create_uip(grid)
         within_grid, lower, upper = uip.check_box_points(p1, p2, self.__str__())
-        if not within_grid:
+        if isinstance(grid, MPIGrid):
+            # Every rank retains the same immutable global declaration. Local
+            # clipping is deferred until PML construction, where the global
+            # CFS depth can be preserved across rank boundaries.
+            lower = uip.discretise_static_point(p1)
+            upper = uip.discretise_static_point(p2)
+        elif not within_grid:
             return
         if not np.all(upper > lower):
             raise ValueError(f"{self.params_str()} must have non-zero extent on all three axes.")

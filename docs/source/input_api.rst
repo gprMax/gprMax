@@ -1452,4 +1452,14 @@ When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
 and Metal solvers on the main 3D grid. A slab may also be added to an HSG
 subgrid, where it uses the CPU solver and the fine-grid update cycle. A
 subgrid-owned slab must lie wholly within the working region: overlap with its
-HSG coupling or auxiliary-PML regions is rejected. MPI is not supported.
+HSG coupling or auxiliary-PML regions is rejected.
+
+Domain-decomposed MPI CPU models are supported. The user declaration remains
+in global coordinates and may cross normal or transverse rank boundaries.
+Each participating rank allocates only its local PML history arrays, but its
+coefficient slice is taken from the complete global CFS profile so a partition
+does not restart the grading. The ordinary field-halo exchanges join these
+local corrections; no additional slab-specific communication is required per
+timestep. Automatic PEC enclosure, collective material-extrusion checks,
+custom profiles, and use as a replacement for a disabled boundary PML retain
+their serial behaviour.

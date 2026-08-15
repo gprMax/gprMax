@@ -1,0 +1,23 @@
+#title: Internal MRIPML slab crossing an MPI partition
+#domain: 0.040 0.040 0.040
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-10
+#pml_cells: 4
+#omp_threads: 1
+
+#pml_formulation: MRIPML custom_load
+#pml_cfs: linear reverse 0 0.02 quadratic forward 1 2 quadratic forward 0 0.18 custom_load
+#pml_cfs: linear reverse 0 0.06 quadratic forward 1 1.4 cubic forward 0 0.09 custom_load
+
+#waveform: ricker 1 8e9 pulse
+
+#plate: 0.028 0.012 0.012 0.035 0.012 0.028 pec
+#plate: 0.028 0.028 0.012 0.035 0.028 0.028 pec
+#plate: 0.028 0.012 0.012 0.035 0.028 0.012 pec
+#plate: 0.028 0.012 0.028 0.035 0.028 0.028 pec
+
+#pml_slab: 0.008 0.012 0.012 0.028 0.028 0.028 x0 custom_load
+#hertzian_dipole: y 0.033 0.020 0.020 pulse
+#rx: 0.032 0.020 0.020
+#rx: 0.030 0.020 0.020
+#rx: 0.026 0.020 0.020

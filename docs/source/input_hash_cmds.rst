@@ -2768,8 +2768,15 @@ hash command defines a slab on the main 3D grid. With the Python API a slab may
 instead be added to an HSG subgrid, provided the complete slab lies inside its
 working region and does not overlap the HSG coupling or auxiliary-PML regions.
 Subgrid slabs use the CPU solver and the subgrid's finer spatial and temporal
-discretisation. The feature is not available with MPI. Orthogonal PML slabs may
-overlap, as domain PMLs do at edges and corners.
+discretisation. Domain-decomposed MPI CPU models are also supported. A slab may
+cross any number of rank boundaries. Its CFS grading is evaluated over the
+complete global thickness and sliced consistently between ranks, while each
+rank allocates only the PML history arrays for its local part. Consequently,
+the timestep loop needs no slab-specific communication in addition to the
+normal electric- and magnetic-field halo exchanges. Automatic PEC enclosure,
+material-extrusion validation, custom profiles, and boundary-replacement slabs
+have the same behaviour as in serial models. Orthogonal PML slabs may overlap,
+as domain PMLs do at edges and corners.
 
 
 #symmetry_boundary:

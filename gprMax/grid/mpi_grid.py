@@ -21,6 +21,7 @@ import itertools
 import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from typing import List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -33,7 +34,7 @@ from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.fractals.fractal_surface import MPIFractalSurface
 from gprMax.fractals.fractal_volume import MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.pml import MPIPML, PML
+from gprMax.pml import InternalPMLSpec, MPIPML, PML
 from gprMax.receivers import Rx
 from gprMax.sources import Source
 from gprMax.utilities.mpi import Dim, Dir, mpi_datatype_for_dtype
@@ -54,6 +55,9 @@ class MPIGrid(FDTDGrid):
         self.x_comm = comm.Sub([False, True, True])
         self.y_comm = comm.Sub([True, False, True])
         self.z_comm = comm.Sub([True, True, False])
+        self.x_line_comm = comm.Sub([True, False, False])
+        self.y_line_comm = comm.Sub([False, True, False])
+        self.z_line_comm = comm.Sub([False, False, True])
         self.pml_comm = MPI.COMM_NULL
 
         self.mpi_tasks = np.array(self.comm.dims, dtype=np.int32)
@@ -597,6 +601,388 @@ class MPIGrid(FDTDGrid):
 
         return pml
 
+    @staticmethod
+    def _internal_pml_bounds(spec: InternalPMLSpec) -> Tuple[np.ndarray, np.ndarray]:
+        return (
+            np.asarray((spec.xs, spec.ys, spec.zs), dtype=np.int32),
+            np.asarray((spec.xf, spec.yf, spec.zf), dtype=np.int32),
+        )
+
+    def _localise_internal_pml_spec(
+        self, spec: InternalPMLSpec
+    ) -> Tuple[InternalPMLSpec, int, int, bool] | None:
+        """Clip a global internal-PML declaration to this rank's array.
+
+        The local array includes its negative halo. Retaining that one-cell
+        overlap is intentional: it lets the rank on the positive side of a
+        partition own an internal slab's terminal electric plane, exactly as
+        it owns the ordinary Yee electric field on that partition.
+        """
+
+        global_lower, global_upper = self._internal_pml_bounds(spec)
+        local_global_lower = np.maximum(global_lower, self.lower_extent)
+        local_global_upper = np.minimum(global_upper, self.upper_extent)
+        if np.any(local_global_lower >= local_global_upper):
+            return None
+
+        local_lower = local_global_lower - self.lower_extent
+        local_upper = local_global_upper - self.lower_extent
+        local_spec = replace(
+            spec,
+            xs=int(local_lower[0]),
+            xf=int(local_upper[0]),
+            ys=int(local_lower[1]),
+            yf=int(local_upper[1]),
+            zs=int(local_lower[2]),
+            zf=int(local_upper[2]),
+        )
+
+        axis = "xyz".index(spec.maximum_face[0])
+        global_thickness = int(global_upper[axis] - global_lower[axis])
+        if spec.direction.endswith("plus"):
+            profile_offset = int(local_global_lower[axis] - global_lower[axis])
+        else:
+            profile_offset = int(global_upper[axis] - local_global_upper[axis])
+
+        maximum_coordinate = (
+            global_lower[axis] if spec.maximum_face.endswith("0") else global_upper[axis]
+        )
+        profile_endpoint = maximum_coordinate not in (0, self.global_size[axis])
+        return local_spec, profile_offset, global_thickness, profile_endpoint
+
+    def _construct_local_internal_pml(
+        self,
+        global_spec: InternalPMLSpec,
+        local_spec: InternalPMLSpec,
+        profile_offset: int,
+        profile_thickness: int,
+        profile_endpoint: bool,
+    ) -> MPIPML:
+        formulation, cfs = self._resolve_internal_pml_profile(global_spec)
+        return self._new_pml(
+            ID=global_spec.ID,
+            direction=global_spec.direction,
+            xs=local_spec.xs,
+            xf=local_spec.xf,
+            ys=local_spec.ys,
+            yf=local_spec.yf,
+            zs=local_spec.zs,
+            zf=local_spec.zf,
+            internal=True,
+            maximum_face=global_spec.maximum_face,
+            formulation=formulation,
+            cfs=cfs,
+            profile_id=global_spec.profile_id,
+            profile_offset=profile_offset,
+            profile_thickness=profile_thickness,
+            profile_updates_terminal_e_plane=profile_endpoint,
+        )
+
+    def _calculate_average_internal_pml_material_properties(
+        self, spec: InternalPMLSpec
+    ) -> Tuple[float, float]:
+        """Collectively average a global slab's zero-stretch entrance face."""
+
+        ers = np.asarray([material.er for material in self.materials])
+        mrs = np.asarray([material.mr for material in self.materials])
+        lower, upper = self._internal_pml_bounds(spec)
+        axis = "xyz".index(spec.maximum_face[0])
+        entrance = upper[axis] - 1 if spec.direction.endswith("minus") else lower[axis]
+
+        owned_lower = self.lower_extent + self.negative_halo_offset.astype(np.int32)
+        owned_upper = self.upper_extent
+        transverse_lower = np.maximum(lower, owned_lower)
+        transverse_upper = np.minimum(upper, owned_upper)
+
+        local_count = 0
+        local_er = 0.0
+        local_mr = 0.0
+        if (
+            owned_lower[axis] <= entrance < owned_upper[axis]
+            and all(
+                transverse_lower[dimension] < transverse_upper[dimension]
+                for dimension in Dim
+                if dimension != axis
+            )
+        ):
+            local_lower = transverse_lower - self.lower_extent
+            local_upper = transverse_upper - self.lower_extent
+            entrance_local = int(entrance - self.lower_extent[axis])
+            if axis == Dim.X:
+                solid = self.solid[
+                    entrance_local,
+                    local_lower[Dim.Y] : local_upper[Dim.Y],
+                    local_lower[Dim.Z] : local_upper[Dim.Z],
+                ]
+            elif axis == Dim.Y:
+                solid = self.solid[
+                    local_lower[Dim.X] : local_upper[Dim.X],
+                    entrance_local,
+                    local_lower[Dim.Z] : local_upper[Dim.Z],
+                ]
+            else:
+                solid = self.solid[
+                    local_lower[Dim.X] : local_upper[Dim.X],
+                    local_lower[Dim.Y] : local_upper[Dim.Y],
+                    entrance_local,
+                ]
+
+            n1, n2 = solid.shape
+            local_count = n1 * n2
+            local_er, local_mr = pml_sum_er_mr(
+                n1,
+                n2,
+                config.get_model_config().ompthreads,
+                solid,
+                ers,
+                mrs,
+            )
+
+        count = self.comm.allreduce(local_count, MPI.SUM)
+        total_er = self.comm.allreduce(local_er, MPI.SUM)
+        total_mr = self.comm.allreduce(local_mr, MPI.SUM)
+        if count == 0:
+            raise RuntimeError(f"Internal PML slab '{spec.ID}' has no distributed entrance cells.")
+        return total_er / count, total_mr / count
+
+    def _build_pmls(self) -> None:
+        """Build native PMLs, then rank-local shards of global internal slabs."""
+
+        global_specs = self.pmls["internal_specs"]
+        self.pmls["internal_specs"] = []
+        try:
+            super()._build_pmls()
+        finally:
+            self.pmls["internal_specs"] = global_specs
+
+        for global_spec in global_specs:
+            averageer, averagemr = self._calculate_average_internal_pml_material_properties(
+                global_spec
+            )
+            localised = self._localise_internal_pml_spec(global_spec)
+            if localised is None:
+                continue
+            local_spec, offset, thickness, endpoint = localised
+            pml = self._construct_local_internal_pml(
+                global_spec,
+                local_spec,
+                offset,
+                thickness,
+                endpoint,
+            )
+            pml.calculate_update_coeffs(averageer, averagemr)
+            self.pmls["slabs"].append(pml)
+
+    def _terminate_pmls_with_pec(self) -> None:
+        """Apply PML terminal PEC planes only on their owning global ranks."""
+
+        pml_faces = [face for face, thickness in self.pmls["thickness"].items() if thickness]
+        for spec in self.pmls["internal_specs"]:
+            axis = "xyz".index(spec.maximum_face[0])
+            lower, upper = self._internal_pml_bounds(spec)
+            maximum_coordinate = (
+                lower[axis] if spec.maximum_face.endswith("0") else upper[axis]
+            )
+            if maximum_coordinate in (0, self.global_size[axis]) and self.touches_global_face(
+                spec.maximum_face
+            ):
+                pml_faces.append(spec.maximum_face)
+
+        if not pml_faces:
+            return
+        pec_numid = next(material.numID for material in self.materials if material.ID == "pec")
+        for face in pml_faces:
+            self._force_pec_tangential_e(face, pec_numid)
+
+    def _internal_pml_line_comm(self, axis: int) -> MPI.Cartcomm:
+        return (self.x_line_comm, self.y_line_comm, self.z_line_comm)[axis]
+
+    def _validate_internal_pml_material_extrusion(self, spec: InternalPMLSpec) -> None:
+        """Collectively require a constant material cross-section along a slab."""
+
+        lower, upper = self._internal_pml_bounds(spec)
+        axis = "xyz".index(spec.maximum_face[0])
+        owned_lower = self.lower_extent + self.negative_halo_offset.astype(np.int32)
+        owned_upper = self.upper_extent
+        overlap_lower = np.maximum(lower, owned_lower)
+        overlap_upper = np.minimum(upper, owned_upper)
+        transverse_axes = tuple(dimension for dimension in Dim if dimension != axis)
+        cross_shape = tuple(
+            max(0, int(overlap_upper[dimension] - overlap_lower[dimension]))
+            for dimension in transverse_axes
+        )
+
+        local_min = np.full(cross_shape, np.iinfo(np.uint32).max, dtype=np.uint32)
+        local_max = np.zeros(cross_shape, dtype=np.uint32)
+        if (
+            all(size > 0 for size in cross_shape)
+            and overlap_lower[axis] < overlap_upper[axis]
+        ):
+            local_lower = overlap_lower - self.lower_extent
+            local_upper = overlap_upper - self.lower_extent
+            volume = self.solid[
+                local_lower[Dim.X] : local_upper[Dim.X],
+                local_lower[Dim.Y] : local_upper[Dim.Y],
+                local_lower[Dim.Z] : local_upper[Dim.Z],
+            ]
+            local_min = np.min(volume, axis=axis)
+            local_max = np.max(volume, axis=axis)
+
+        mismatch = False
+        if local_min.size:
+            global_min = np.empty_like(local_min)
+            global_max = np.empty_like(local_max)
+            line_comm = self._internal_pml_line_comm(axis)
+            line_comm.Allreduce(local_min, global_min, op=MPI.MIN)
+            line_comm.Allreduce(local_max, global_max, op=MPI.MAX)
+            mismatch = bool(np.any(global_min != global_max))
+
+        if self.comm.allreduce(mismatch, op=MPI.LOR):
+            raise ValueError(
+                f"Internal PML slab '{spec.ID}' requires a material cross-section that is "
+                "constant along its absorption direction."
+            )
+
+    def _distributed_pml_surface_is_pec(
+        self,
+        spec: InternalPMLSpec,
+        normal: str,
+        coordinate: int,
+        pec_numids: np.ndarray,
+    ) -> bool:
+        """Collectively test the owned pieces of one global slab surface."""
+
+        local_ok = True
+        localised = self._localise_internal_pml_spec(spec)
+        if localised is not None:
+            local_spec = localised[0]
+            dimension = "xyz".index(normal)
+            local_coordinate = int(coordinate - self.lower_extent[dimension])
+            owns_coordinate = 0 <= local_coordinate < self.size[dimension] or (
+                local_coordinate == self.size[dimension]
+                and not self.has_neighbour(Dim(dimension), Dir.POS)
+            )
+            if owns_coordinate:
+                local_ok = self._pml_surface_is_pec(
+                    local_spec,
+                    normal,
+                    local_coordinate,
+                    pec_numids,
+                )
+        return bool(self.comm.allreduce(local_ok, op=MPI.LAND))
+
+    def _validate_internal_pmls(self) -> None:
+        """Collectively validate global internal slabs after local geometry build."""
+
+        specs = self.pmls["internal_specs"]
+        if not specs:
+            return
+
+        pec_numids = np.asarray(
+            [material.numID for material in self.materials if material.is_pec],
+            dtype=np.uint32,
+        )
+        limits = dict(zip("xyz", self.global_size))
+        boundary_thickness = {
+            face: self.comm.allreduce(thickness, op=MPI.MAX)
+            for face, thickness in self.pmls["thickness"].items()
+        }
+
+        for index, spec in enumerate(specs):
+            axis = spec.maximum_face[0]
+            axis_index = "xyz".index(axis)
+            lower_bounds, upper_bounds = self._internal_pml_bounds(spec)
+            lower = lower_bounds[axis_index]
+            upper = upper_bounds[axis_index]
+
+            for other in specs[:index]:
+                if other.maximum_face[0] == axis and self._pml_boxes_overlap(spec, other):
+                    raise ValueError(
+                        f"Internal PML slabs '{spec.ID}' and '{other.ID}' overlap along "
+                        f"their common {axis}-axis absorption direction."
+                    )
+
+            for face in (f"{axis}0", f"{axis}max"):
+                thickness = boundary_thickness[face]
+                if not thickness:
+                    continue
+                native_lower = 0 if face.endswith("0") else limits[axis] - thickness
+                native_upper = thickness if face.endswith("0") else limits[axis]
+                if lower < native_upper and upper > native_lower:
+                    raise ValueError(
+                        f"Internal PML slab '{spec.ID}' overlaps the native {face} PML. "
+                        f"Set that boundary's #pml_cells value to zero or move the slab."
+                    )
+
+            self._validate_internal_pml_material_extrusion(spec)
+
+            lateral_faces = {
+                "x": (("y", spec.ys), ("y", spec.yf), ("z", spec.zs), ("z", spec.zf)),
+                "y": (("x", spec.xs), ("x", spec.xf), ("z", spec.zs), ("z", spec.zf)),
+                "z": (("x", spec.xs), ("x", spec.xf), ("y", spec.ys), ("y", spec.yf)),
+            }[axis]
+            enclosure_warnings = []
+            for normal, coordinate in lateral_faces:
+                if coordinate in (0, limits[normal]):
+                    continue
+                if not self._distributed_pml_surface_is_pec(
+                    spec, normal, coordinate, pec_numids
+                ):
+                    message = (
+                        f"Internal PML slab '{spec.ID}' has an exposed transverse {normal}="
+                        f"{coordinate} face. Enclose it with a continuous Yee-aligned PEC wall "
+                        "or extend that face to the model boundary; exposed transverse "
+                        "truncation can be numerically unstable."
+                    )
+                    enclosure_warnings.append(message)
+                    logger.warning(message)
+
+            maximum_coordinate = lower if spec.maximum_face.endswith("0") else upper
+            maximum_on_boundary = maximum_coordinate in (0, limits[axis])
+            if not maximum_on_boundary and not self._distributed_pml_surface_is_pec(
+                spec, axis, maximum_coordinate, pec_numids
+            ):
+                message = (
+                    f"Internal PML slab '{spec.ID}' must have a PEC backing on its "
+                    f"maximum-stretch face ({spec.maximum_face}) or end at the model boundary; "
+                    "open maximum-stretch terminations can be numerically unstable."
+                )
+                enclosure_warnings.append(message)
+                logger.warning(message)
+
+            transverse_full = {
+                "x": spec.ys == 0
+                and spec.yf == self.global_size[Dim.Y]
+                and spec.zs == 0
+                and spec.zf == self.global_size[Dim.Z],
+                "y": spec.xs == 0
+                and spec.xf == self.global_size[Dim.X]
+                and spec.zs == 0
+                and spec.zf == self.global_size[Dim.Z],
+                "z": spec.xs == 0
+                and spec.xf == self.global_size[Dim.X]
+                and spec.ys == 0
+                and spec.yf == self.global_size[Dim.Y],
+            }[axis]
+            classification = (
+                "boundary-replacement"
+                if maximum_on_boundary and transverse_full
+                else "internal-absorber"
+            )
+            formulation, cfs = self._resolve_internal_pml_profile(spec)
+            record = self.pmls["internal_registry"][spec.ID]
+            record.update(
+                classification=classification,
+                formulation=formulation,
+                order=len(cfs),
+                enclosure_complete=not enclosure_warnings,
+                enclosure_warnings=tuple(enclosure_warnings),
+            )
+            logger.info(
+                f"Internal PML slab '{spec.ID}' validated as {classification} "
+                f"({formulation}, order {len(cfs)})."
+            )
+
     def _calculate_average_pml_material_properties(self, pml: MPIPML) -> Tuple[float, float]:
         """Calculate average material properties for the provided PML.
 
@@ -914,10 +1300,26 @@ class MPIGrid(FDTDGrid):
         Returns:
             within_pml: True if the point is within a PML.
         """
-        # within_pml check will only be valid if the point is also
-        # within the local grid
-        return (
-            super().within_pml(local_point)
-            and all(local_point >= self.negative_halo_offset)
-            and all(local_point <= self.size)
+        if not (
+            all(local_point >= self.negative_halo_offset) and all(local_point <= self.size)
+        ):
+            return False
+
+        within_boundary_pml = (
+            local_point[Dim.X] < self.pmls["thickness"]["x0"]
+            or local_point[Dim.X] > self.nx - self.pmls["thickness"]["xmax"]
+            or local_point[Dim.Y] < self.pmls["thickness"]["y0"]
+            or local_point[Dim.Y] > self.ny - self.pmls["thickness"]["ymax"]
+            or local_point[Dim.Z] < self.pmls["thickness"]["z0"]
+            or local_point[Dim.Z] > self.nz - self.pmls["thickness"]["zmax"]
+        )
+        if within_boundary_pml:
+            return True
+
+        global_point = self.local_to_global_coordinate(local_point)
+        return any(
+            spec.xs <= global_point[Dim.X] <= spec.xf
+            and spec.ys <= global_point[Dim.Y] <= spec.yf
+            and spec.zs <= global_point[Dim.Z] <= spec.zf
+            for spec in self.pmls["internal_specs"]
         )
