@@ -111,7 +111,6 @@ def run_3d(A, D, weighting, v1, ox=0, oy=0, oz=0, gx=None, gy=None, gz=None):
 
 
 class TestGenerateFractal2D:
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14 compiler incompatibility")
     def test_matches_the_reference_formula(self):
         A = random_complex((8, 8))
         weighting = [1.0, 1.0]
@@ -127,7 +126,6 @@ class TestGenerateFractal2D:
         out = run_2d(A, 0.0, [1.0, 1.0], [4.0, 4.0])
         assert np.allclose(out, A)
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild")
     def test_centre_cell_uses_the_zero_norm_fallback(self):
         # With gx = 8 the shift is sx = 4, so cell i = 4 maps to position
         # 0. Placing v1 at the origin makes rr == 0 there, hence B == 0,
@@ -136,14 +134,12 @@ class TestGenerateFractal2D:
         out = run_2d(A, 1.0, [1.0, 1.0], [0.0, 0.0])
         assert out[4, 4] == pytest.approx(1.0 / 0.9)
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild")
     def test_only_the_centre_cell_uses_the_fallback(self):
         A = np.ones((8, 8), dtype=np.complex128)
         out = run_2d(A, 1.0, [1.0, 1.0], [0.0, 0.0])
         fallback = np.isclose(np.abs(out), 1.0 / 0.9)
         assert set(map(tuple, np.argwhere(fallback))) == {(4, 4)}
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild")
     def test_higher_dimension_suppresses_high_frequencies_harder(self):
         # The shift puts DC at index 0 and the highest frequency at index
         # n // 2 (which maps to position 0, furthest from v1 at the
@@ -155,7 +151,6 @@ class TestGenerateFractal2D:
         far = (8, 8)
         assert abs(high[far]) < abs(low[far])
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_weighting_stretches_the_distance_metric_per_axis(self):
         A = np.ones((8, 8), dtype=np.complex128)
         isotropic = run_2d(A, 2.0, [1.0, 1.0], [4.0, 4.0])
@@ -178,7 +173,6 @@ class TestGenerateFractal2D:
         out = run_2d(block, 1.5, weighting, v1, ox=4, oy=2, gx=8, gy=8)
         assert np.allclose(out, full[4:8, 2:6])
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_non_square_arrays(self):
         A = random_complex((4, 10))
         weighting = [1.0, 1.0]
@@ -200,7 +194,6 @@ class TestGenerateFractal2D:
 
 
 class TestGenerateFractal3D:
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14 compiler incompatibility")
     def test_matches_the_reference_formula(self):
         A = random_complex((6, 6, 6))
         weighting = [1.0, 1.0, 1.0]
@@ -214,20 +207,17 @@ class TestGenerateFractal3D:
         out = run_3d(A, 0.0, [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
         assert np.allclose(out, A)
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild")
     def test_centre_cell_uses_the_zero_norm_fallback(self):
         A = np.ones((8, 8, 8), dtype=np.complex128)
         out = run_3d(A, 1.0, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0])
         assert out[4, 4, 4] == pytest.approx(1.0 / 0.9)
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild")
     def test_only_the_centre_cell_uses_the_fallback(self):
         A = np.ones((8, 8, 8), dtype=np.complex128)
         out = run_3d(A, 1.0, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0])
         fallback = np.isclose(np.abs(out), 1.0 / 0.9)
         assert set(map(tuple, np.argwhere(fallback))) == {(4, 4, 4)}
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild")
     def test_higher_dimension_suppresses_high_frequencies_harder(self):
         A = np.ones((8, 8, 8), dtype=np.complex128)
         v1 = [4.0, 4.0, 4.0]
@@ -246,7 +236,6 @@ class TestGenerateFractal3D:
         out = run_3d(block, 1.5, weighting, v1, ox=2, oy=0, oz=4, gx=8, gy=8, gz=8)
         assert np.allclose(out, full[2:6, 0:4, 4:8])
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_non_cubic_arrays(self):
         A = random_complex((3, 5, 7))
         weighting = [1.0, 1.0, 1.0]
@@ -254,7 +243,6 @@ class TestGenerateFractal3D:
         out = run_3d(A, 1.2, weighting, v1)
         assert np.allclose(out, reference_3d(A, 0, 0, 0, 3, 5, 7, 1.2, weighting, v1))
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_weighting_scales_each_axis_independently(self):
         A = np.ones((8, 8, 8), dtype=np.complex128)
         weighting = [1.0, 2.0, 3.0]
@@ -267,3 +255,6 @@ class TestGenerateFractal3D:
         before = A.copy()
         run_3d(A, 1.5, [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
         assert np.array_equal(A, before)
+
+
+pytestmark = pytest.mark.unit
