@@ -73,10 +73,7 @@ class ReadGeometryObject(AbstractContextManager):
         )
         self.target_invariant_size = target_invariant_size
 
-        if (
-            invariant_axis is not None
-            and self.file_invariant_size != target_invariant_size
-        ):
+        if invariant_axis is not None and self.file_invariant_size != target_invariant_size:
             # Decouple the *write* region's size on this axis from the
             # file's own (read) size - the actual resizing of the read
             # arrays happens in _resize_cell_axis()/_resize_edge_axis(),
@@ -192,6 +189,72 @@ class ReadGeometryObject(AbstractContextManager):
         mapped = self.material_id_map[safe_indices]
         return np.where(data < 0, existing, mapped)
 
+    def _read_spatial_dataset(
+        self,
+        dataset: h5py.Dataset,
+        *,
+        component_axis: bool = False,
+        edge_based: bool = False,
+    ) -> npt.NDArray:
+        """Read exactly the portion of a geometry dataset owned by this rank.
+
+        MPI grid arrays include the negative interface halo when values are
+        assigned, so ``get_3d_read_slice`` is deliberately used rather than
+        the non-overlapping output slice. For 2D TM/TE conversion the array
+        must first be resized globally, after which the same rank-local slice
+        is applied.
+        """
+        mismatch = (
+            self.invariant_axis is not None
+            and self.file_invariant_size != self.target_invariant_size
+        )
+        if mismatch:
+            array = dataset[:]
+            if edge_based:
+                array = self._resize_edge_axis(array, int(component_axis))
+            else:
+                array = self._resize_cell_axis(array, int(component_axis))
+            if isinstance(self.grid_view, MPIGridView):
+                spatial = self.grid_view.get_3d_read_slice(upper_bound_exclusive=not edge_based)
+                return np.ascontiguousarray(array[(..., *spatial)])
+            return array
+
+        if isinstance(self.grid_view, MPIGridView):
+            spatial = self.grid_view.get_3d_read_slice(upper_bound_exclusive=not edge_based)
+            return np.ascontiguousarray(dataset[(..., *spatial)])
+        return dataset[:]
+
+    def _get_assignment_region(
+        self, array: npt.NDArray, *, edge_based: bool = False
+    ) -> npt.NDArray:
+        """Return existing values for the exact region set by ``GridView``.
+
+        This differs from ``get_solid``/``get_ID`` on a non-leading MPI rank:
+        setters include its negative interface halo, which is also present in
+        the geometry file read slice.
+        """
+        assert self.grid_view is not None
+        spatial = tuple(
+            self.grid_view.setter_slice(axis, upper_bound_exclusive=not edge_based)
+            for axis in range(3)
+        )
+        return np.ascontiguousarray(array[(..., *spatial)])
+
+    def get_local_data_start(self) -> Optional[npt.NDArray[np.int32]]:
+        """Return the local cell coordinate corresponding to ``get_data()[0,0,0]``.
+
+        Legacy/external geometry files without rigid and component-ID arrays
+        are rebuilt voxel by voxel. On MPI ranks, the returned data may begin
+        in a negative interface halo rather than at the object's original
+        local start, so the builder must use this matching coordinate.
+        """
+        if self.grid_view is None:
+            return None
+        return np.array(
+            [self.grid_view.setter_slice(axis).start for axis in range(3)],
+            dtype=np.int32,
+        )
+
     def __enter__(self):
         return self
 
@@ -242,21 +305,14 @@ class ReadGeometryObject(AbstractContextManager):
 
         data = self.file_handler["/data"]
         assert isinstance(data, h5py.Dataset)
-        # A full, native-shape read - there is no partial-region reading
-        # support in this class (the read region always equals the file's
-        # own extent), so this is equivalent to the previous grid-view-
-        # sliced read whenever there's no invariant-axis mismatch, and
-        # correctly generalises when there is one (_resize_cell_axis()
-        # below then adapts it to the target's own size).
-        data = data[:]
-        data = self._resize_cell_axis(data, spatial_axis_offset=0)
+        data = self._read_spatial_dataset(data)
 
         # Should be int16 to allow for -1 which indicates background, i.e.
         # don't build anything, but AustinMan/Woman maybe uint16
         if data.dtype != "int16":
             data = data.astype("int16")
 
-        existing = self.grid_view.get_solid()
+        existing = self._get_assignment_region(self.grid_view.grid.solid)
         self.grid_view.set_solid(self._remap(data, existing))
 
     def get_data(self) -> Optional[npt.NDArray[np.int16]]:
@@ -271,8 +327,7 @@ class ReadGeometryObject(AbstractContextManager):
 
         data = self.file_handler["/data"]
         assert isinstance(data, h5py.Dataset)
-        data = data[:]
-        data = self._resize_cell_axis(data, spatial_axis_offset=0)
+        data = self._read_spatial_dataset(data)
 
         # Should be int16 to allow for -1 which indicates background, i.e.
         # don't build anything, but AustinMan/Woman maybe uint16
@@ -291,7 +346,7 @@ class ReadGeometryObject(AbstractContextManager):
         rigidE = self.file_handler["/rigidE"]
         assert isinstance(rigidE, h5py.Dataset)
 
-        rigidE = self._resize_cell_axis(rigidE[:], spatial_axis_offset=1)
+        rigidE = self._read_spatial_dataset(rigidE, component_axis=True)
         self.grid_view.set_rigidE(rigidE)
 
     def read_rigidH(self):
@@ -301,7 +356,7 @@ class ReadGeometryObject(AbstractContextManager):
         rigidH = self.file_handler["/rigidH"]
         assert isinstance(rigidH, h5py.Dataset)
 
-        rigidH = self._resize_cell_axis(rigidH[:], spatial_axis_offset=1)
+        rigidH = self._read_spatial_dataset(rigidH, component_axis=True)
         self.grid_view.set_rigidH(rigidH)
 
     def read_ID(self):
@@ -311,6 +366,6 @@ class ReadGeometryObject(AbstractContextManager):
         ID = self.file_handler["/ID"]
         assert isinstance(ID, h5py.Dataset)
 
-        data = self._resize_edge_axis(ID[:], spatial_axis_offset=1)
-        existing = self.grid_view.get_ID(force_refresh=True)
+        data = self._read_spatial_dataset(ID, component_axis=True, edge_based=True)
+        existing = self._get_assignment_region(self.grid_view.grid.ID, edge_based=True)
         self.grid_view.set_ID(self._remap(data, existing))

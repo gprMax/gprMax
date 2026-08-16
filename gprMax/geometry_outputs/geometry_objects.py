@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -140,6 +140,41 @@ class MPIGeometryObject(GeometryObject[MPIGrid]):
     def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
         return MPIGridView
 
+    def _merge_negative_rigid_halos(
+        self, output: np.ndarray, grid_array: np.ndarray, tag_base: int
+    ) -> np.ndarray:
+        """Merge rigid flags built in a neighbour's negative cell halo.
+
+        Geometry primitives are built independently on every MPI rank. An
+        object exactly on an internal rank face can therefore set one of the
+        redundant rigid markers in the upper rank's negative halo, while the
+        corresponding cell is written to HDF5 by the lower rank. Component
+        IDs already have node ownership rules; cell-based rigid arrays need
+        this one-plane maximum reduction before their non-overlapping write.
+        """
+        for dimension in range(3):
+            negative, positive = self.grid_view.comm.Shift(dimension, 1)
+            send_plane = None
+            if negative != MPI.PROC_NULL:
+                spatial = [self.grid_view.getter_slice(axis) for axis in range(3)]
+                start = self.grid_view.start[dimension] - self.grid_view.step[dimension]
+                spatial[dimension] = slice(start, start + 1)
+                send_plane = np.ascontiguousarray(grid_array[(..., *spatial)])
+
+            received = self.grid_view.comm.sendrecv(
+                sendobj=send_plane,
+                dest=negative,
+                sendtag=tag_base + dimension,
+                source=positive,
+                recvtag=tag_base + dimension,
+            )
+            if received is not None:
+                target = [slice(None)] * output.ndim
+                target[output.ndim - 3 + dimension] = slice(-1, None)
+                np.maximum(output[tuple(target)], received, out=output[tuple(target)])
+
+        return output
+
     def write_hdf5(self, title: str, pbar: tqdm):
         """Writes a geometry objects file in HDF5 format.
 
@@ -155,6 +190,9 @@ class MPIGeometryObject(GeometryObject[MPIGrid]):
         data = self.grid_view.get_solid().astype(np.int16)
         rigidE = self.grid_view.get_rigidE()
         rigidH = self.grid_view.get_rigidH()
+
+        rigidE = self._merge_negative_rigid_halos(rigidE, self.grid.rigidE, 4100)
+        rigidH = self._merge_negative_rigid_halos(rigidH, self.grid.rigidH, 4200)
 
         ID = self.grid_view.map_to_view_materials(ID)
         data = self.grid_view.map_to_view_materials(data)

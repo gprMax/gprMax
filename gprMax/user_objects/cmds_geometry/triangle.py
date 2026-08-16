@@ -112,6 +112,19 @@ class Triangle(RotatableMixin, GeometryUserObject):
 
         # Check whether points are valid against grid
         dp1, dp2, dp3 = uip.check_tri_points(up1, up2, up3, self.__str__())
+
+        # Reject coincident or collinear vertices after discretisation. A
+        # geometrically valid triangle can collapse when its vertices round to
+        # the same grid line, and silently producing an empty object hides that
+        # modelling error.
+        normal_vector = np.cross(dp2 - dp1, dp3 - dp1)
+        if not np.any(normal_vector):
+            message = (
+                f"{self.__str__()} the vertices must define a non-degenerate "
+                "triangle after discretisation."
+            )
+            logger.error(message)
+            raise ValueError(message)
         # Convert points to metres
         x1, y1, z1 = uip.discrete_to_continuous(dp1)
         x2, y2, z2 = uip.discrete_to_continuous(dp2)
@@ -159,7 +172,9 @@ class Triangle(RotatableMixin, GeometryUserObject):
 
         if len(materials) != len(materialsrequested):
             found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
             message = f"{self.__str__()} material(s) {notfound} do not exist"
             logger.error(message)
             raise ValueError(message)

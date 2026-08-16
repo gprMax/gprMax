@@ -357,7 +357,11 @@ class TestMpiVariant:
         overridden."""
         assert issubclass(MPIGeometryObject, GeometryObject)
         overrides = {n for n in MPIGeometryObject.__dict__ if not n.startswith("__")}
-        assert overrides <= {"GRID_VIEW_TYPE", "write_hdf5"}
+        assert overrides <= {
+            "GRID_VIEW_TYPE",
+            "_merge_negative_rigid_halos",
+            "write_hdf5",
+        }
 
     def test_uses_an_mpi_grid_view(self, make_mpi_grid, make_materials):
         """Expects ``MPIGridView``, so each rank exports its own share."""
@@ -375,6 +379,19 @@ class TestMpiVariant:
         grid.materials = make_materials(2)
         obj = MPIGeometryObject(grid, 0, 0, 0, 8, 8, 8, "mpi")
         assert obj.solidsize == 512 * 4
+
+    def test_rigid_halo_merge_is_part_of_parallel_export(self):
+        """The parallel writer must reconcile redundant rigid markers.
+
+        Actual multi-rank round trips are exercised by the MPI integration
+        suite. Keep a small source-level guard here because ordinary pytest
+        installations commonly use an h5py build without parallel HDF5.
+        """
+        import inspect
+
+        source = inspect.getsource(MPIGeometryObject.write_hdf5)
+        assert "_merge_negative_rigid_halos(rigidE" in source
+        assert "_merge_negative_rigid_halos(rigidH" in source
 
     def test_the_parallel_write_needs_parallel_hdf5(self):
         """Expects ``MPIGeometryObject.write_hdf5`` to open with

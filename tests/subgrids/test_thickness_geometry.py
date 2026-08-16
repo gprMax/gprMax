@@ -47,6 +47,7 @@ def test_thickness_geometry_builds_in_off_origin_subgrid(tmp_path):
         outputfile=tmp_path / "off_origin_thickness_geometry",
         geometry_only=True,
         subgrid=True,
+        autotranslate=True,
         hide_progress_bars=True,
     )
 

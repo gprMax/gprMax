@@ -179,7 +179,9 @@ class GeometryObjectsRead(GeometryUserObject):
             with h5py.File(geofile, "r") as check_file:
                 file_invariant_size = check_file["/data"].shape[invariant_axis]
             if file_invariant_size != target_invariant_size:
-                action = "broadcasting" if file_invariant_size < target_invariant_size else "reducing"
+                action = (
+                    "broadcasting" if file_invariant_size < target_invariant_size else "reducing"
+                )
                 logger.info(
                     f"{self.__str__()} imported file has {file_invariant_size} cell(s) on the "
                     f"invariant axis but this model ({mode}) needs {target_invariant_size} - "
@@ -220,17 +222,17 @@ class GeometryObjectsRead(GeometryUserObject):
                 # further offset is needed here.
                 data = f.get_data()
                 if data is not None:
+                    data_start = f.get_local_data_start()
+                    assert data_start is not None
                     averaging = False
-                    is_pec_lookup = np.array(
-                        [m.is_pec for m in grid.materials], dtype=np.uint8
-                    )
+                    is_pec_lookup = np.array([m.is_pec for m in grid.materials], dtype=np.uint8)
                     is_averagable_lookup = np.array(
                         [m.averagable for m in grid.materials], dtype=np.uint8
                     )
                     build_voxels_from_array(
-                        discretised_p1[0],
-                        discretised_p1[1],
-                        discretised_p1[2],
+                        data_start[0],
+                        data_start[1],
+                        data_start[2],
                         0,
                         averaging,
                         is_pec_lookup,

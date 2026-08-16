@@ -21,6 +21,7 @@
 import numpy as np
 
 cimport numpy as np
+from libc.math cimport ceil, cos, sin
 
 np.seterr(divide='raise')
 
@@ -40,10 +41,10 @@ from gprMax.utilities.utilities import round_value
 
 
 cpdef bint are_clockwise(
-    float v1x,
-    float v1y,
-    float v2x,
-    float v2y
+    double v1x,
+    double v1y,
+    double v2x,
+    double v2y
 ):
     """Find if vector 2 is clockwise relative to vector 1.
 
@@ -58,9 +59,9 @@ cpdef bint are_clockwise(
 
 
 cpdef bint is_within_radius(
-    float vx,
-    float vy,
-    float radius
+    double vx,
+    double vy,
+    double radius
 ):
     """Check if the point is within a given radius of the centre of the circle.
 
@@ -76,13 +77,13 @@ cpdef bint is_within_radius(
 
 
 cpdef bint is_inside_sector(
-    float px,
-    float py,
-    float ctrx,
-    float ctry,
-    float sectorstartangle,
-    float sectorangle,
-    float radius
+    double px,
+    double py,
+    double ctrx,
+    double ctry,
+    double sectorstartangle,
+    double sectorangle,
+    double radius
 ):
     """For a point to be inside a circular sector, it has to meet the following tests:
         It has to be positioned anti-clockwise from the start "arm" of the sector
@@ -102,12 +103,12 @@ cpdef bint is_inside_sector(
         (boolean)
     """
 
-    cdef float sectorstart1, sectorstart2, sectorend1, sectorend2, relpoint1, relpoint2
+    cdef double sectorstart1, sectorstart2, sectorend1, sectorend2, relpoint1, relpoint2
 
-    sectorstart1 = radius * np.cos(sectorstartangle)
-    sectorstart2 = radius * np.sin(sectorstartangle)
-    sectorend1 = radius * np.cos(sectorstartangle + sectorangle)
-    sectorend2 = radius * np.sin(sectorstartangle + sectorangle)
+    sectorstart1 = radius * cos(sectorstartangle)
+    sectorstart2 = radius * sin(sectorstartangle)
+    sectorend1 = radius * cos(sectorstartangle + sectorangle)
+    sectorend2 = radius * sin(sectorstartangle + sectorangle)
     relpoint1 = px - ctrx
     relpoint2 = py - ctry
 
@@ -482,20 +483,20 @@ cpdef void build_voxel(
 
 
 cpdef void build_triangle(
-    float x1,
-    float y1,
-    float z1,
-    float x2,
-    float y2,
-    float z2,
-    float x3,
-    float y3,
-    float z3,
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double x3,
+    double y3,
+    double z3,
     str normal,
-    float thickness,
-    float dx,
-    float dy,
-    float dz,
+    double thickness,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
@@ -528,52 +529,44 @@ cpdef void build_triangle(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int i1, i2, j1, j2, sign, levelcells, thicknesscells
-    cdef float area, s, t
+    cdef int i1, i2, j1, j2, levelcells, thicknesscells
+    cdef int u1, v1, u2, v2, u3, v3
+    cdef double bu, bv, cu, cv, qu, qv, denominator, s, t
 
-    # Calculate a bounding box for the triangle
+    # Work from snapped cell indices and relative coordinates. This avoids
+    # subtracting large absolute floating-point coordinates, so translating an
+    # otherwise identical object into an MPI rank or subgrid cannot change
+    # which cell centres lie inside the triangle.
     if normal == 'x':
-        area = 0.5 * (-z2 * y3 + z1 * (-y2 + y3) + y1 * (z2 - z3) + y2 * z3)
-        i1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
-        i2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
-        j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
-        j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
+        u1, u2, u3 = round_value(y1 / dy), round_value(y2 / dy), round_value(y3 / dy)
+        v1, v2, v3 = round_value(z1 / dz), round_value(z2 / dz), round_value(z3 / dz)
+        i1, i2 = min(u1, u2, u3) - 1, max(u1, u2, u3) + 1
+        j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
-
-        # Bound to the size of the grid
-        if i2 > solid.shape[1]:
-            i2 = solid.shape[1]
-        if j2 > solid.shape[2]:
-            j2 = solid.shape[2]
+        bu, bv = (u2 - u1) * dy, (v2 - v1) * dz
+        cu, cv = (u3 - u1) * dy, (v3 - v1) * dz
+        i2, j2 = min(i2, solid.shape[1]), min(j2, solid.shape[2])
     elif normal == 'y':
-        area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
-        i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
-        i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
-        j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
-        j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
+        u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
+        v1, v2, v3 = round_value(z1 / dz), round_value(z2 / dz), round_value(z3 / dz)
+        i1, i2 = min(u1, u2, u3) - 1, max(u1, u2, u3) + 1
+        j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
-
-        # Bound to the size of the grid
-        if i2 > solid.shape[0]:
-            i2 = solid.shape[0]
-        if j2 > solid.shape[2]:
-            j2 = solid.shape[2]
+        bu, bv = (u2 - u1) * dx, (v2 - v1) * dz
+        cu, cv = (u3 - u1) * dx, (v3 - v1) * dz
+        i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[2])
     elif normal == 'z':
-        area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
-        i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
-        i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
-        j1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
-        j2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
+        u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
+        v1, v2, v3 = round_value(y1 / dy), round_value(y2 / dy), round_value(y3 / dy)
+        i1, i2 = min(u1, u2, u3) - 1, max(u1, u2, u3) + 1
+        j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
-
-        # Bound to the size of the grid
-        if i2 > solid.shape[0]:
-            i2 = solid.shape[0]
-        if j2 > solid.shape[1]:
-            j2 = solid.shape[1]
+        bu, bv = (u2 - u1) * dx, (v2 - v1) * dy
+        cu, cv = (u3 - u1) * dx, (v3 - v1) * dy
+        i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[1])
 
     # Bound to the start of the grid
     if i1 < 0:
@@ -581,31 +574,25 @@ cpdef void build_triangle(
     if j1 < 0:
         j1 = 0
 
-    sign = np.sign(area)
+    denominator = bu * cv - bv * cu
+    if denominator == 0:
+        return
 
     for i in range(i1, i2):
         for j in range(j1, j2):
-
-            # Calculate the areas of the 3 triangles defined by the 3 vertices
-            # of the main triangle and the point under test.
             if normal == 'x':
-                ir = (i + 0.5) * dy
-                jr = (j + 0.5) * dz
-                s = sign * (z1 * y3 - y1 * z3 + (z3 - z1) * ir + (y1 - y3) * jr);
-                t = sign * (y1 * z2 - z1 * y2 + (z1 - z2) * ir + (y2 - y1) * jr);
+                qu, qv = (i + 0.5 - u1) * dy, (j + 0.5 - v1) * dz
             elif normal == 'y':
-                ir = (i + 0.5) * dx
-                jr = (j + 0.5) * dz
-                s = sign * (z1 * x3 - x1 * z3 + (z3 - z1) * ir + (x1 - x3) * jr);
-                t = sign * (x1 * z2 - z1 * x2 + (z1 - z2) * ir + (x2 - x1) * jr);
+                qu, qv = (i + 0.5 - u1) * dx, (j + 0.5 - v1) * dz
             elif normal == 'z':
-                ir = (i + 0.5) * dx
-                jr = (j + 0.5) * dy
-                s = sign * (y1 * x3 - x1 * y3 + (y3 - y1) * ir + (x1 - x3) * jr);
-                t = sign * (x1 * y2 - y1 * x2 + (y1 - y2) * ir + (x2 - x1) * jr);
+                qu, qv = (i + 0.5 - u1) * dx, (j + 0.5 - v1) * dy
 
-            # If these conditions are true then point is inside triangle
-            if s > 0 and t > 0 and (s + t) < 2 * area * sign:
+            s = (qu * cv - qv * cu) / denominator
+            t = (bu * qv - bv * qu) / denominator
+
+            # Preserve the historical strict-edge convention: cells whose
+            # centres lie exactly on an edge are not filled.
+            if s > 0 and t > 0 and (s + t) < 1:
                 if thicknesscells == 0:
                     if normal == 'x':
                         build_face_yz(levelcells, i, j, numIDy, numIDz,
@@ -633,17 +620,17 @@ cpdef void build_triangle(
 
 
 cpdef void build_cylindrical_sector(
-    float ctr1,
-    float ctr2,
-    float level,
-    float sectorstartangle,
-    float sectorangle,
-    float radius,
+    double ctr1,
+    double ctr2,
+    double level,
+    double sectorstartangle,
+    double sectorangle,
+    double radius,
     str normal,
-    float thickness,
-    float dx,
-    float dy,
-    float dz,
+    double thickness,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
@@ -683,15 +670,17 @@ cpdef void build_cylindrical_sector(
     """
 
     cdef Py_ssize_t x, y, z
-    cdef int x1, x2, y1, y2, z1, z2, thicknesscells
+    cdef int x1, x2, y1, y2, z1, z2, thicknesscells, ctr1cell, ctr2cell
+    cdef int radiuscells1, radiuscells2
+    cdef double rel1, rel2
 
     if normal == 'x':
         # Angles are defined from zero degrees on the positive y-axis going
         # towards positive z-axis.
-        y1 = round_value((ctr1 - radius)/dy)
-        y2 = round_value((ctr1 + radius)/dy)
-        z1 = round_value((ctr2 - radius)/dz)
-        z2 = round_value((ctr2 + radius)/dz)
+        ctr1cell, ctr2cell = round_value(ctr1 / dy), round_value(ctr2 / dz)
+        radiuscells1, radiuscells2 = <int>ceil(radius / dy), <int>ceil(radius / dz)
+        y1, y2 = ctr1cell - radiuscells1 - 1, ctr1cell + radiuscells1 + 1
+        z1, z2 = ctr2cell - radiuscells2 - 1, ctr2cell + radiuscells2 + 1
         levelcells = round_value(level / dx)
         thicknesscells = round_value(thickness / dx)
 
@@ -707,8 +696,8 @@ cpdef void build_cylindrical_sector(
 
         for y in range(y1, y2):
             for z in range(z1, z2):
-                if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1,
-                                    ctr2, sectorstartangle, sectorangle, radius):
+                rel1, rel2 = (y + 0.5 - ctr1cell) * dy, (z + 0.5 - ctr2cell) * dz
+                if is_inside_sector(rel1, rel2, 0, 0, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_yz(levelcells, y, z, numIDy, numIDz,
                                       rigidE, rigidH, ID)
@@ -721,10 +710,10 @@ cpdef void build_cylindrical_sector(
     elif normal == 'y':
         # Angles are defined from zero degrees on the positive x-axis going
         # towards positive z-axis.
-        x1 = round_value((ctr1 - radius)/dx)
-        x2 = round_value((ctr1 + radius)/dx)
-        z1 = round_value((ctr2 - radius)/dz)
-        z2 = round_value((ctr2 + radius)/dz)
+        ctr1cell, ctr2cell = round_value(ctr1 / dx), round_value(ctr2 / dz)
+        radiuscells1, radiuscells2 = <int>ceil(radius / dx), <int>ceil(radius / dz)
+        x1, x2 = ctr1cell - radiuscells1 - 1, ctr1cell + radiuscells1 + 1
+        z1, z2 = ctr2cell - radiuscells2 - 1, ctr2cell + radiuscells2 + 1
         levelcells = round_value(level / dy)
         thicknesscells = round_value(thickness / dy)
 
@@ -740,8 +729,8 @@ cpdef void build_cylindrical_sector(
 
         for x in range(x1, x2):
             for z in range(z1, z2):
-                if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1,
-                                    ctr2, sectorstartangle, sectorangle, radius):
+                rel1, rel2 = (x + 0.5 - ctr1cell) * dx, (z + 0.5 - ctr2cell) * dz
+                if is_inside_sector(rel1, rel2, 0, 0, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_xz(x, levelcells, z, numIDx, numIDz,
                                       rigidE, rigidH, ID)
@@ -754,10 +743,10 @@ cpdef void build_cylindrical_sector(
     elif normal == 'z':
         # Angles are defined from zero degrees on the positive x-axis going
         # towards positive y-axis.
-        x1 = round_value((ctr1 - radius)/dx)
-        x2 = round_value((ctr1 + radius)/dx)
-        y1 = round_value((ctr2 - radius)/dy)
-        y2 = round_value((ctr2 + radius)/dy)
+        ctr1cell, ctr2cell = round_value(ctr1 / dx), round_value(ctr2 / dy)
+        radiuscells1, radiuscells2 = <int>ceil(radius / dx), <int>ceil(radius / dy)
+        x1, x2 = ctr1cell - radiuscells1 - 1, ctr1cell + radiuscells1 + 1
+        y1, y2 = ctr2cell - radiuscells2 - 1, ctr2cell + radiuscells2 + 1
         levelcells = round_value(level / dz)
         thicknesscells = round_value(thickness / dz)
 
@@ -773,8 +762,8 @@ cpdef void build_cylindrical_sector(
 
         for x in range(x1, x2):
             for y in range(y1, y2):
-                if is_inside_sector(x * dx + 0.5 * dx, y * dy + 0.5 * dy, ctr1,
-                                    ctr2, sectorstartangle, sectorangle, radius):
+                rel1, rel2 = (x + 0.5 - ctr1cell) * dx, (y + 0.5 - ctr2cell) * dy
+                if is_inside_sector(rel1, rel2, 0, 0, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_xy(x, y, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
@@ -887,16 +876,16 @@ cpdef void build_box(
 
 
 cpdef void build_cylinder(
-    float x1,
-    float y1,
-    float z1,
-    float x2,
-    float y2,
-    float z2,
-    float r,
-    float dx,
-    float dy,
-    float dz,
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double r,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
@@ -927,183 +916,51 @@ cpdef void build_cylinder(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf, xc, yc, zc
-    cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2
-    cdef float theta1, theta2, distance1, distance2
-    cdef bint build, x_align, y_align, z_align
-    cdef np.ndarray f1f2, f2f1, f1pt, f2pt
+    cdef int xs, xf, ys, yf, zs, zf
+    cdef int ix1, iy1, iz1, ix2, iy2, iz2
+    cdef int rx, ry, rz
+    cdef double ax, ay, az, axis2, qx, qy, qz, projection, t
+    cdef double radial2, radius2
 
-    # Check if cylinder is aligned with an axis
-    x_align = y_align = z_align = 0
-    # x-aligned
-    if (round_value(y1 / dy) == round_value(y2 / dy) and
-        round_value(z1 / dz) == round_value(z2 / dz)):
-        x_align = 1
+    ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
+    ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
+    ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
+    axis2 = ax * ax + ay * ay + az * az
+    if axis2 == 0:
+        return
 
-    # y-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(z1 / dz) == round_value(z2 / dz)):
-        y_align = 1
+    rx, ry, rz = <int>ceil(r / dx), <int>ceil(r / dy), <int>ceil(r / dz)
+    xs, xf = max(0, min(ix1, ix2) - rx - 1), min(solid.shape[0], max(ix1, ix2) + rx + 1)
+    ys, yf = max(0, min(iy1, iy2) - ry - 1), min(solid.shape[1], max(iy1, iy2) + ry + 1)
+    zs, zf = max(0, min(iz1, iz2) - rz - 1), min(solid.shape[2], max(iz1, iz2) + rz + 1)
+    radius2 = r * r
 
-    # z-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(y1 / dy) == round_value(y2 / dy)):
-        z_align = 1
-
-    # Calculate a bounding box for the cylinder
-    if x1 < x2:
-        if x_align:
-            xs = round_value(x1 / dx)
-            xf = round_value(x2 / dx)
-        else:
-            xs = round_value((x1 - r) / dx) - 1
-            xf = round_value((x2 + r) / dx) + 1
-    else:
-        if x_align:
-            xs = round_value(x2 / dx)
-            xf = round_value(x1 / dx)
-        else:
-            xs = round_value((x2 - r) / dx) - 1
-            xf = round_value((x1 + r) / dx) + 1
-    if y1 < y2:
-        if y_align:
-            ys = round_value(y1 / dy)
-            yf = round_value(y2 / dy)
-        else:
-            ys = round_value((y1 - r) / dy) - 1
-            yf = round_value((y2 + r) / dy) + 1
-    else:
-        if y_align:
-            ys = round_value(y2 / dy)
-            yf = round_value(y1 / dy)
-        else:
-            ys = round_value((y2 - r) / dy) - 1
-            yf = round_value((y1 + r) / dy) + 1
-    if z1 < z2:
-        if z_align:
-            zs = round_value(z1 / dz)
-            zf = round_value(z2 / dz)
-        else:
-            zs = round_value((z1 - r) / dz) - 1
-            zf = round_value((z2 + r) / dz) + 1
-    else:
-        if z_align:
-            zs = round_value(z2 / dz)
-            zf = round_value(z1 / dz)
-        else:
-            zs = round_value((z2 - r) / dz) - 1
-            zf = round_value((z1 + r) / dz) + 1
-
-    # Set bounds to domain if they outside
-    if xs < 0:
-        xs = 0
-    if xf > solid.shape[0]:
-        xf = solid.shape[0]
-    if ys < 0:
-        ys = 0
-    if yf > solid.shape[1]:
-        yf = solid.shape[1]
-    if zs < 0:
-        zs = 0
-    if zf > solid.shape[2]:
-        zf = solid.shape[2]
-
-    # x-aligned cylinder
-    if x_align:
+    for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= r:
-                    for i in range(xs, xf):
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, pec_x, pec_y, pec_z,
-                                    solid, rigidE, rigidH, ID)
-    # y-aligned cylinder
-    elif y_align:
-        for i in range(xs, xf):
-            for k in range(zs, zf):
-                if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= r:
-                    for j in range(ys, yf):
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, pec_x, pec_y, pec_z,
-                                    solid, rigidE, rigidH, ID)
-    # z-aligned cylinder
-    elif z_align:
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= r:
-                    for k in range(zs, zf):
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, pec_x, pec_y, pec_z,
-                                    solid, rigidE, rigidH, ID)
-
-    # Not aligned with any axis
-    else:
-        # Vectors between centres of cylinder faces
-        f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
-        f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
-
-        # Magnitudes
-        f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
-        f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
-
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                for k in range(zs, zf):
-                    # Build flag - default false, set to True if point is in cylinder
-                    build = 0
-                    # Vector from centre of first cylinder face to test point
-                    f1pt = np.array([i * dx + 0.5 * dx - x1,
-                                     j * dy + 0.5 * dy - y1,
-                                     k * dz + 0.5 * dz - z1], dtype=np.float32)
-                    # Vector from centre of second cylinder face to test point
-                    f2pt = np.array([i * dx + 0.5 * dx - x2,
-                                     j * dy + 0.5 * dy - y2,
-                                     k * dz + 0.5 * dz - z2], dtype=np.float32)
-                    # Magnitudes
-                    f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
-                    f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
-                    # Dot products
-                    dot1 = np.dot(f1f2, f1pt)
-                    dot2 = np.dot(f2f1, f2pt)
-
-                    if f1ptmag == 0 or f2ptmag == 0:
-                        build = 1
-                    else:
-                        factor1 = dot1 / (f1f2mag * f1ptmag)
-                        factor2 = dot2 / (f2f1mag * f2ptmag)
-                        # Catch cases where either factor1 or factor2 are 1
-                        try:
-                            theta1 = np.arccos(factor1)
-                        except FloatingPointError:
-                            theta1 = 0
-                        try:
-                            theta2 = np.arccos(factor2)
-                        except FloatingPointError:
-                            theta2 = 0
-                        distance1 = f1ptmag * np.sin(theta1)
-                        distance2 = f2ptmag * np.sin(theta2)
-                        if ((distance1 <= r or distance2 <= r) and
-                            theta1 <= np.pi/2 and theta2 <= np.pi/2):
-                            build = 1
-
-                    if build:
+                qx, qy, qz = (i + 0.5 - ix1) * dx, (j + 0.5 - iy1) * dy, (k + 0.5 - iz1) * dz
+                projection = qx * ax + qy * ay + qz * az
+                t = projection / axis2
+                if 0 <= t <= 1:
+                    radial2 = qx * qx + qy * qy + qz * qz - projection * projection / axis2
+                    if radial2 <= radius2:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, pec_x, pec_y, pec_z,
                                     solid, rigidE, rigidH, ID)
 
 
 cpdef void build_cone(
-    float x1,
-    float y1,
-    float z1,
-    float x2,
-    float y2,
-    float z2,
-    float r1,
-    float r2,
-    float dx,
-    float dy,
-    float dz,
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double r1,
+    double r2,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
@@ -1135,184 +992,35 @@ cpdef void build_cone(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf, xs_bound, xf_bound, ys_bound, yf_bound, zs_bound, zf_bound
-    cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2
-    cdef float theta1, theta2, distance1, distance2, R1, R2
-    cdef float height, distance_axis_1, distance_axis_2
-    cdef bint build, x_align, y_align, z_align
-    cdef np.ndarray f1f2, f2f1, f1pt, f2pt
-    cdef float Rmax
+    cdef int xs, xf, ys, yf, zs, zf
+    cdef int ix1, iy1, iz1, ix2, iy2, iz2
+    cdef int rx, ry, rz
+    cdef double ax, ay, az, axis2, qx, qy, qz, projection, t
+    cdef double radial2, radius, Rmax
 
-    Rmax = np.amax([r1, r2])
+    ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
+    ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
+    ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
+    axis2 = ax * ax + ay * ay + az * az
+    if axis2 == 0:
+        return
 
-    # Check if cone is aligned with an axis
-    x_align = y_align = z_align = 0
-    # x-aligned
-    if (round_value(y1 / dy) == round_value(y2 / dy) and
-        round_value(z1 / dz) == round_value(z2 / dz)):
-        x_align = 1
+    Rmax = max(r1, r2)
+    rx, ry, rz = <int>ceil(Rmax / dx), <int>ceil(Rmax / dy), <int>ceil(Rmax / dz)
+    xs, xf = max(0, min(ix1, ix2) - rx - 1), min(solid.shape[0], max(ix1, ix2) + rx + 1)
+    ys, yf = max(0, min(iy1, iy2) - ry - 1), min(solid.shape[1], max(iy1, iy2) + ry + 1)
+    zs, zf = max(0, min(iz1, iz2) - rz - 1), min(solid.shape[2], max(iz1, iz2) + rz + 1)
 
-    # y-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(z1 / dz) == round_value(z2 / dz)):
-        y_align = 1
-
-    # z-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(y1 / dy) == round_value(y2 / dy)):
-        z_align = 1
-
-    # Calculate a bounding box for the cone
-    if x1 < x2:
-        if x_align:
-            xs = round_value(x1 / dx)
-            xf = round_value(x2 / dx)
-        else:
-            xs = round_value((x1 - Rmax) / dx) - 1
-            xf = round_value((x2 + Rmax) / dx) + 1
-    else:
-        if x_align:
-            xs = round_value(x2 / dx)
-            xf = round_value(x1 / dx)
-        else:
-            xs = round_value((x2 - Rmax) / dx) - 1
-            xf = round_value((x1 + Rmax) / dx) + 1
-    if y1 < y2:
-        if y_align:
-            ys = round_value(y1 / dy)
-            yf = round_value(y2 / dy)
-        else:
-            ys = round_value((y1 - Rmax) / dy) - 1
-            yf = round_value((y2 + Rmax) / dy) + 1
-    else:
-        if y_align:
-            ys = round_value(y2 / dy)
-            yf = round_value(y1 / dy)
-        else:
-            ys = round_value((y2 - Rmax) / dy) - 1
-            yf = round_value((y1 + Rmax) / dy) + 1
-    if z1 < z2:
-        if z_align:
-            zs = round_value(z1 / dz)
-            zf = round_value(z2 / dz)
-        else:
-            zs = round_value((z1 - Rmax) / dz) - 1
-            zf = round_value((z2 + Rmax) / dz) + 1
-    else:
-        if z_align:
-            zs = round_value(z2 / dz)
-            zf = round_value(z1 / dz)
-        else:
-            zs = round_value((z2 - Rmax) / dz) - 1
-            zf = round_value((z1 + Rmax) / dz) + 1
-
-    xs_bound = xs
-    xf_bound = xf
-    ys_bound = ys
-    yf_bound = yf
-    zs_bound = zs
-    zf_bound = zf
-
-    # Set bounds to domain if they outside
-    if xs_bound < 0:
-        xs_bound = 0
-    if xf_bound > solid.shape[0]:
-        xf_bound = solid.shape[0]
-    if ys_bound < 0:
-        ys_bound = 0
-    if yf_bound > solid.shape[1]:
-        yf_bound = solid.shape[1]
-    if zs_bound < 0:
-        zs_bound = 0
-    if zf_bound > solid.shape[2]:
-        zf_bound = solid.shape[2]
-
-    # x-aligned cone
-    if x_align:
-        for j in range(ys_bound, yf_bound):
-            for k in range(zs_bound, zf_bound):
-                for i in range(xs_bound, xf_bound):
-                    if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i- xs)/(xf-xs))*(r2-r1) + r1:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, pec_x, pec_y, pec_z,
-                                    solid, rigidE, rigidH, ID)
-    # y-aligned cone
-    elif y_align:
-        for i in range(xs_bound, xf_bound):
-            for k in range(zs_bound, zf_bound):
-                for j in range(ys_bound, yf_bound):
-                    if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((j-ys)/(yf-ys))*(r2-r1) + r1:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, pec_x, pec_y, pec_z,
-                                    solid, rigidE, rigidH, ID)
-    # z-aligned cone
-    elif z_align:
-        for i in range(xs_bound, xf_bound):
-            for j in range(ys_bound, yf_bound):
-                for k in range(zs_bound, zf_bound):
-                    if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= ((k-zs)/(zf-zs))*(r2-r1) + r1:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, pec_x, pec_y, pec_z,
-                                    solid, rigidE, rigidH, ID)
-
-    # Not aligned with any axis
-    else:
-        # Vectors between centres of cone faces
-        f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
-        f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
-
-        # Magnitudes
-        f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
-        f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
-
-        height = f1f2mag
-
-        for i in range(xs_bound, xf_bound):
-            for j in range(ys_bound, yf_bound):
-                for k in range(zs_bound, zf_bound):
-                    # Build flag - default false, set to True if point is in cone
-                    build = 0
-                    # Vector from centre of first cone face to test point
-                    f1pt = np.array([i * dx + 0.5 * dx - x1,
-                                     j * dy + 0.5 * dy - y1,
-                                     k * dz + 0.5 * dz - z1], dtype=np.float32)
-                    # Vector from centre of second cone face to test point
-                    f2pt = np.array([i * dx + 0.5 * dx - x2,
-                                     j * dy + 0.5 * dy - y2,
-                                     k * dz + 0.5 * dz - z2], dtype=np.float32)
-                    # Magnitudes
-                    f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
-                    f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
-                    # Dot products
-                    dot1 = np.dot(f1f2, f1pt)
-                    dot2 = np.dot(f2f1, f2pt)
-
-                    if f1ptmag == 0 or f2ptmag == 0:
-                        build = 1
-                    else:
-                        factor1 = dot1 / (f1f2mag * f1ptmag)
-                        factor2 = dot2 / (f2f1mag * f2ptmag)
-                        # Catch cases where either factor1 or factor2 are 1
-                        try:
-                            theta1 = np.arccos(factor1)
-                        except FloatingPointError:
-                            theta1 = 0
-                        try:
-                            theta2 = np.arccos(factor2)
-                        except FloatingPointError:
-                            theta2 = 0
-                        distance1 = f1ptmag * np.sin(theta1)
-                        distance2 = f2ptmag * np.sin(theta2)
-                        distance_axis_1 = f1ptmag * np.cos(theta1)
-                        distance_axis_2 = f2ptmag * np.cos(theta2)
-                        R1 = r1
-                        R2 = r2
-
-                        if ((distance1 <= (distance_axis_1/height)*(R2 - R1) + R1 or distance2 <= (distance_axis_2/height)*(R1 - R2) + R2) and
-                            theta1 <= np.pi/2 and theta2 <= np.pi/2):
-                            build = 1
-
-                    if build:
+    for i in range(xs, xf):
+        for j in range(ys, yf):
+            for k in range(zs, zf):
+                qx, qy, qz = (i + 0.5 - ix1) * dx, (j + 0.5 - iy1) * dy, (k + 0.5 - iz1) * dz
+                projection = qx * ax + qy * ay + qz * az
+                t = projection / axis2
+                if 0 <= t <= 1:
+                    radius = r1 + t * (r2 - r1)
+                    radial2 = qx * qx + qy * qy + qz * qz - projection * projection / axis2
+                    if radial2 <= radius * radius:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, pec_x, pec_y, pec_z,
                                     solid, rigidE, rigidH, ID)
@@ -1322,10 +1030,10 @@ cpdef void build_sphere(
     int xc,
     int yc,
     int zc,
-    float r,
-    float dx,
-    float dy,
-    float dz,
+    double r,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
@@ -1355,15 +1063,14 @@ cpdef void build_sphere(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf
+    cdef int xs, xf, ys, yf, zs, zf, rx, ry, rz
+    cdef double qx, qy, qz
 
     # Calculate a bounding box for sphere
-    xs = round_value(((xc * dx) - r) / dx) - 1
-    xf = round_value(((xc * dx) + r) / dx) + 1
-    ys = round_value(((yc * dy) - r) / dy) - 1
-    yf = round_value(((yc * dy) + r) / dy) + 1
-    zs = round_value(((zc * dz) - r) / dz) - 1
-    zf = round_value(((zc * dz) + r) / dz) + 1
+    rx, ry, rz = <int>ceil(r / dx), <int>ceil(r / dy), <int>ceil(r / dz)
+    xs, xf = xc - rx - 1, xc + rx + 1
+    ys, yf = yc - ry - 1, yc + ry + 1
+    zs, zf = zc - rz - 1, zc + rz + 1
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1382,9 +1089,8 @@ cpdef void build_sphere(
     for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                if (np.sqrt((i + 0.5 - xc)**2 * dx**2 +
-                            (j + 0.5 - yc)**2 * dy**2 +
-                            (k + 0.5 - zc)**2 * dz**2) <= r):
+                qx, qy, qz = (i + 0.5 - xc) * dx, (j + 0.5 - yc) * dy, (k + 0.5 - zc) * dz
+                if qx * qx + qy * qy + qz * qz <= r * r:
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 averaging, pec_x, pec_y, pec_z,
                                 solid, rigidE, rigidH, ID)
@@ -1394,12 +1100,12 @@ cpdef void build_ellipsoid(
     int xc,
     int yc,
     int zc,
-    float xr,
-    float yr,
-    float zr,
-    float dx,
-    float dy,
-    float dz,
+    double xr,
+    double yr,
+    double zr,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
@@ -1431,15 +1137,14 @@ cpdef void build_ellipsoid(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf
+    cdef int xs, xf, ys, yf, zs, zf, rxcells, rycells, rzcells
+    cdef double qx, qy, qz
 
-    # Calculate a bounding box for sphere
-    xs = round_value(((xc * dx) - xr) / dx) - 1
-    xf = round_value(((xc * dx) + xr) / dx) + 1
-    ys = round_value(((yc * dy) - yr) / dy) - 1
-    yf = round_value(((yc * dy) + yr) / dy) + 1
-    zs = round_value(((zc * dz) - zr) / dz) - 1
-    zf = round_value(((zc * dz) + zr) / dz) + 1
+    # Calculate an origin-independent bounding box.
+    rxcells, rycells, rzcells = <int>ceil(xr / dx), <int>ceil(yr / dy), <int>ceil(zr / dz)
+    xs, xf = xc - rxcells - 1, xc + rxcells + 1
+    ys, yf = yc - rycells - 1, yc + rycells + 1
+    zs, zf = zc - rzcells - 1, zc + rzcells + 1
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1458,9 +1163,8 @@ cpdef void build_ellipsoid(
     for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                if (((i + 0.5 - xc)**2 * dx**2)/xr**2 +
-                            ((j + 0.5 - yc)**2 * dy**2)/yr**2 +
-                            ((k + 0.5 - zc)**2 * dz**2)/zr**2 <= 1):
+                qx, qy, qz = (i + 0.5 - xc) * dx, (j + 0.5 - yc) * dy, (k + 0.5 - zc) * dz
+                if (qx * qx) / (xr * xr) + (qy * qy) / (yr * yr) + (qz * qz) / (zr * zr) <= 1:
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 averaging, pec_x, pec_y, pec_z,
                                 solid, rigidE, rigidH, ID)

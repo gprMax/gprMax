@@ -239,6 +239,15 @@ class TestReadData:
         assert data.shape == (3, 3, 3)
         assert not np.any(g.solid)
 
+    def test_get_data_reports_the_matching_local_start(self, geometry_file, target_grid):
+        """The fallback voxel builder must place the first returned cell at
+        the reader's assignment start (which can differ on an MPI rank)."""
+        g = target_grid()
+        start = np.array([2, 3, 4], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, start, ID_MAP) as r:
+            r.get_data()
+            np.testing.assert_array_equal(r.get_local_data_start(), start)
+
     def test_get_data_applies_the_material_map(self, geometry_file, target_grid):
         """Expects the remapped values — ``get_data`` applies
         ``material_id_map``, unlike the old ``num_existing_materials``

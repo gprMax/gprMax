@@ -571,8 +571,8 @@ class TestBuildCylinder:
 
 class TestBuildCone:
     def test_z_aligned_cone_shrinks_layer_by_layer(self, grid_arrays):
-        # Radius interpolates from 2.5 cells at z-cell 2 to 0.5 cells at
-        # z-cell 6, giving per-layer radii 2.5 / 2.0 / 1.5 / 1.0.
+        # Radius is evaluated at each cell centre, giving per-layer radii
+        # 2.25 / 1.75 / 1.25 / 0.75 cells.
         g = grid_arrays()
         build_cone(
             5 * DL,
@@ -601,12 +601,11 @@ class TestBuildCone:
         )
 
         layer_counts = {k: np.count_nonzero(g.solid[:, :, k]) for k in range(8)}
-        assert layer_counts == {0: 0, 1: 0, 2: 16, 3: 16, 4: 16, 5: 16, 6: 0, 7: 0}
+        assert layer_counts == {0: 0, 1: 0, 2: 16, 3: 12, 4: 4, 5: 4, 6: 0, 7: 0}
         # The widest layer is the full 4x4 block around the axis...
         assert nonzero_set(g.solid[:, :, 2]) == {(i, j) for i in range(3, 7) for j in range(3, 7)}
-        # The narrowest layer is the full 4x4 block (upstream change:
-        # cone radius interpolation now fills all active layers uniformly).
-        assert len(nonzero_set(g.solid[:, :, 5])) == 16
+        # The narrowest layer is the 2x2 block immediately around the axis.
+        assert nonzero_set(g.solid[:, :, 5]) == {(i, j) for i in range(4, 6) for j in range(4, 6)}
 
     def test_equal_radii_reduce_to_a_cylinder(self, grid_arrays):
         r = 1.5 * DL
@@ -739,7 +738,7 @@ class TestBuildCone:
         )
 
         layer_counts = [np.count_nonzero(g.solid[i, :, :]) for i in range(8)]
-        assert layer_counts == [0, 0, 16, 16, 16, 16, 0, 0]
+        assert layer_counts == [0, 0, 16, 12, 4, 4, 0, 0]
 
 
 class TestBuildCylindricalSector:
