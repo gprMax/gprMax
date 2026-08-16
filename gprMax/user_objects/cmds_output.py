@@ -146,8 +146,13 @@ class RxPort(OutputUserObject):
         raise RuntimeError("RxPort result is not available until the model has solved")
 
     def _validate_context(self, grid):
-        if config.sim_config.args.geometry_fixed:
-            raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
+        if (
+            config.sim_config.args.geometry_fixed
+            and getattr(config.sim_config.study, "type", None) != "port"
+        ):
+            raise ValueError(
+                f"{self.params_str()} does not support geometry-fixed runs outside a PortStudy."
+            )
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
         if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):

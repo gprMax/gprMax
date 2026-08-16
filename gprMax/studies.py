@@ -17,11 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Reusable-geometry parameter studies.
+"""Reusable-geometry parameter and finite-resistance multiport studies.
 
-The first implementation deliberately supports only stateless local sources
-and ordinary receivers. Stateful ports, plane waves, and eigenmode objects
-need family-specific reset/rebuild hooks before they can safely participate.
+General GPR studies manage stateless local sources and ordinary receivers.
+Port studies additionally manage source-bound voltage-port monitors and
+assemble their frequency-domain response after the reused solves.
 """
 
 from __future__ import annotations
@@ -35,7 +35,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, Sequence, Union
 
+import h5py
 import numpy as np
+import numpy.typing as npt
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +204,8 @@ class Study:
             case_rows.setdefault(case_id, []).append(ObjectState(object_id, **parameters))
 
         cases = [StudyCase(case_id, states) for case_id, states in case_rows.items()]
+        if str(type).strip().lower() == "port":
+            return PortStudy(cases, source_path=path, source_text=text)
         return cls(type, cases, source_path=path, source_text=text)
 
     def bind_scene(self, scene) -> None:
@@ -225,6 +229,7 @@ class Study:
         )
 
         supported = (
+            (VoltageSource, "voltage_source"),
             (HertzianDipole, "hertzian_dipole"),
             (MagneticDipole, "magnetic_dipole"),
             (Rx, "rx"),
@@ -234,7 +239,6 @@ class Study:
         reference_ids: dict[int, str] = {}
         all_objects = list(scene.grid_objects) + list(scene.output_objects)
         unsupported_excitation_types = (
-            VoltageSource,
             TransmissionLine,
             MagneticFrillSource,
             NetworkExcitation,
@@ -252,7 +256,14 @@ class Study:
             raise ValueError(
                 "This study stage cannot safely manage source type(s): "
                 f"{', '.join(sorted(set(unsupported)))}. It currently supports only "
-                "HertzianDipole and MagneticDipole excitations."
+                "voltage sources, HertzianDipole, and MagneticDipole excitations."
+            )
+        if self.type != "port" and any(
+            isinstance(user_object, VoltageSource) for user_object in all_objects
+        ):
+            raise ValueError(
+                "VoltageSource reuse is available through PortStudy so its fixed terminal "
+                "resistance and source-bound RxPort are validated together."
             )
         for object_type, prefix in supported:
             index = 0
@@ -276,8 +287,8 @@ class Study:
 
         if not registry:
             raise ValueError(
-                "The study scene contains no supported objects. The first implementation "
-                "supports HertzianDipole, MagneticDipole, and Rx objects."
+                "The study scene contains no supported objects. Studies currently support "
+                "VoltageSource, HertzianDipole, MagneticDipole, and Rx objects."
             )
 
         for case in self.cases:
@@ -306,11 +317,16 @@ class Study:
                     )
                 case_seen.add(study_id)
                 state.object = study_id
-                allowed = (
-                    _RECEIVER_PARAMETERS
-                    if isinstance(registry[study_id], Rx)
-                    else _SOURCE_PARAMETERS
-                )
+                if isinstance(registry[study_id], Rx):
+                    allowed = _RECEIVER_PARAMETERS
+                elif isinstance(registry[study_id], VoltageSource):
+                    # A finite-resistance source changes the electric-edge
+                    # update coefficients during geometry construction. Its
+                    # position and resistance are therefore immutable in a
+                    # reused model; only the generator drive may vary.
+                    allowed = _SOURCE_PARAMETERS - {"position"}
+                else:
+                    allowed = _SOURCE_PARAMETERS
                 unknown = set(state.parameters) - allowed
                 if unknown:
                     raise ValueError(
@@ -416,7 +432,9 @@ class Study:
 
     def _runtime_registry(self, model) -> dict[str, Any]:
         registry: dict[str, Any] = {}
-        objects = model.G.hertziandipoles + model.G.magneticdipoles + model.G.rxs
+        objects = (
+            model.G.voltagesources + model.G.hertziandipoles + model.G.magneticdipoles + model.G.rxs
+        )
         for item in objects:
             study_id = getattr(item, "study_id", None)
             if study_id:
@@ -521,18 +539,35 @@ class Study:
 
     def _resample_source(self, grid, source, scale: float) -> None:
         waveform = next(w for w in grid.waveforms if w.ID == source.waveformID)
-        values = np.zeros(grid.iterations + 1, dtype=grid.Ex.dtype)
-        half_step = source.waveformvalues_halfdt is not None
-        for iteration in range(grid.iterations + 1):
-            time = grid.dt * iteration
-            if source.start <= time <= source.stop:
-                evaluation_time = time - source.start + (0.5 * grid.dt if half_step else 0.0)
-                values[iteration] = scale * waveform.calculate_value(evaluation_time, grid.dt)
-        if half_step:
-            source.waveformvalues_halfdt = values
-        else:
-            source.waveformvalues_wholedt = values
+        if source.waveformvalues_halfdt is not None:
+            half_values = np.zeros(grid.iterations + 1, dtype=grid.Ex.dtype)
+            for iteration in range(grid.iterations + 1):
+                time = grid.dt * iteration
+                if source.start <= time <= source.stop:
+                    half_values[iteration] = scale * waveform.calculate_value(
+                        time - source.start + 0.5 * grid.dt,
+                        grid.dt,
+                    )
+            source.waveformvalues_halfdt = half_values
+        if source.waveformvalues_wholedt is not None:
+            whole_values = np.zeros(grid.iterations + 1, dtype=grid.Ex.dtype)
+            for iteration in range(grid.iterations + 1):
+                time = grid.dt * iteration
+                if source.start <= time <= source.stop:
+                    whole_values[iteration] = scale * waveform.calculate_value(
+                        time - source.start,
+                        grid.dt,
+                    )
+            source.waveformvalues_wholedt = whole_values
         source.study_scale = scale
+
+    def collect_case(self, model) -> None:
+        """Collect derived results after a case has solved."""
+
+    def finalise(self):
+        """Finalise any study-level result after all requested cases."""
+
+        return None
 
 
 class GPRStudy(Study):
@@ -540,6 +575,405 @@ class GPRStudy(Study):
 
     def __init__(self, cases: Sequence[StudyCase]):
         super().__init__("gpr", cases)
+
+
+@dataclass(frozen=True)
+class PortStudyResult:
+    """Assembled source-plane and gap-corrected multiport S parameters."""
+
+    frequency: npt.NDArray[np.floating]
+    port_ids: tuple[str, ...]
+    source_ids: tuple[str, ...]
+    case_ids: tuple[str, ...]
+    reference_impedance: npt.NDArray[np.floating]
+    gap_correction: npt.NDArray[np.complexfloating]
+    s_source: npt.NDArray[np.complexfloating]
+    s: npt.NDArray[np.complexfloating]
+    valid_s_source: npt.NDArray[np.bool_]
+    valid_s: npt.NDArray[np.bool_]
+    output_file: Path
+
+
+class PortStudy(Study):
+    """One-active-port-per-case finite-resistance voltage-source study."""
+
+    supported_types = ("port",)
+
+    def __init__(
+        self,
+        cases: Sequence[StudyCase],
+        *,
+        source_path: Optional[Union[str, Path]] = None,
+        source_text: Optional[str] = None,
+    ):
+        super().__init__(
+            "port",
+            cases,
+            source_path=source_path,
+            source_text=source_text,
+        )
+        self._case_drive_ids: list[str] = []
+        self._port_source_ids: tuple[str, ...] = ()
+        self._port_ids: tuple[str, ...] = ()
+        self._port_monitors: dict[str, Any] = {}
+        self._columns: dict[str, dict[str, Any]] = {}
+        self._current_port_column: Optional[dict[str, Any]] = None
+        self._aggregate_output_path: Optional[Path] = None
+        self.result: Optional[PortStudyResult] = None
+
+    def reset_runtime(self) -> None:
+        super().reset_runtime()
+        self._case_drive_ids = []
+        self._port_source_ids = ()
+        self._port_ids = ()
+        self._port_monitors.clear()
+        self._columns.clear()
+        self._current_port_column = None
+        self._aggregate_output_path = None
+        self.result = None
+
+    def bind_scene(self, scene) -> None:
+        """Validate the fixed finite-resistance port topology and drive cases."""
+
+        super().bind_scene(scene)
+        from gprMax.user_objects.cmds_multiuse import HertzianDipole, MagneticDipole, VoltageSource
+        from gprMax.user_objects.cmds_output import RxPort
+
+        other_sources = [
+            study_id
+            for study_id, user_object in self.registry.items()
+            if isinstance(user_object, (HertzianDipole, MagneticDipole))
+        ]
+        if other_sources:
+            raise ValueError(
+                "PortStudy cases may contain only finite-resistance VoltageSource "
+                f"excitations; remove {', '.join(other_sources)}."
+            )
+        voltage_ids = [
+            study_id
+            for study_id, user_object in self.registry.items()
+            if isinstance(user_object, VoltageSource)
+        ]
+        if not voltage_ids:
+            raise ValueError("PortStudy requires at least one finite-resistance VoltageSource.")
+        for study_id in voltage_ids:
+            source = self.registry[study_id]
+            if not np.isfinite(source.resistance) or source.resistance <= 0:
+                raise ValueError(
+                    f"PortStudy source '{study_id}' must have a finite resistance greater "
+                    "than zero; hard voltage sources are not matched passive ports."
+                )
+
+        rx_ports = [
+            user_object for user_object in scene.output_objects if isinstance(user_object, RxPort)
+        ]
+        if len(rx_ports) != len(voltage_ids):
+            raise ValueError(
+                "PortStudy requires exactly one RxPort at every VoltageSource; found "
+                f"{len(rx_ports)} RxPort object(s) for {len(voltage_ids)} source(s)."
+            )
+
+        drive_ids: list[str] = []
+        for case in self.cases:
+            active = []
+            for state in case.states:
+                study_id = str(state.object)
+                if study_id not in voltage_ids:
+                    continue
+                scale = float(state.parameters.get("scale", 1.0))
+                if state.parameters.get("active") is not False and scale != 0:
+                    active.append(study_id)
+            if len(active) != 1:
+                raise ValueError(
+                    f"PortStudy case '{case.id}' must explicitly drive exactly one "
+                    f"VoltageSource; found {len(active)}. Omitted sources remain passive."
+                )
+            drive_ids.append(active[0])
+        if len(set(drive_ids)) != len(drive_ids):
+            raise ValueError("PortStudy must drive every voltage port in exactly one case.")
+        if set(drive_ids) != set(voltage_ids):
+            missing = ", ".join(study_id for study_id in voltage_ids if study_id not in drive_ids)
+            raise ValueError(f"PortStudy has no driven case for: {missing}.")
+        self._case_drive_ids = drive_ids
+
+    def apply_case(self, model) -> None:
+        for monitor in getattr(model.G, "port_monitors", ()):
+            reset = getattr(monitor, "reset_run_state", None)
+            if reset is not None:
+                reset()
+        super().apply_case(model)
+        self._bind_runtime_ports(model)
+
+        import gprMax.config as config
+
+        drive_id = self._case_drive_ids[config.sim_config.current_model]
+        resolved = self._current_resolved_case or {}
+        active = [
+            study_id
+            for study_id in self._port_source_ids
+            if resolved.get("objects", {}).get(study_id, {}).get("active", False)
+        ]
+        if active != [drive_id]:
+            raise RuntimeError(
+                f"PortStudy case '{resolved.get('case_id', '')}' resolved active ports "
+                f"{active}, expected [{drive_id!r}]."
+            )
+        self._current_drive_id = drive_id
+
+    def _bind_runtime_ports(self, model) -> None:
+        if self._port_monitors:
+            return
+        from gprMax.user_objects.cmds_multiuse import VoltageSource
+
+        voltage_ids = tuple(
+            study_id
+            for study_id, user_object in self.registry.items()
+            if isinstance(user_object, VoltageSource)
+        )
+        monitors = {}
+        for monitor in getattr(model.G, "port_monitors", ()):
+            study_id = getattr(monitor.source, "study_id", None)
+            if study_id in voltage_ids:
+                if study_id in monitors:
+                    raise ValueError(f"PortStudy source '{study_id}' has more than one RxPort.")
+                monitors[study_id] = monitor
+        if set(monitors) != set(voltage_ids):
+            missing = ", ".join(study_id for study_id in voltage_ids if study_id not in monitors)
+            raise ValueError(f"PortStudy has no source-bound RxPort for: {missing}.")
+        port_ids = tuple(monitors[study_id].output_id for study_id in voltage_ids)
+        if len(port_ids) != len(set(port_ids)):
+            raise ValueError("PortStudy RxPort output IDs must be unique.")
+        self._port_source_ids = voltage_ids
+        self._port_ids = port_ids
+        self._port_monitors = monitors
+
+    def collect_case(self, model) -> None:
+        """Collect one power-normalised source-plane S-matrix column."""
+
+        import gprMax.config as config
+
+        self._bind_runtime_ports(model)
+        drive_id = self._current_drive_id
+        drive_index = self._port_source_ids.index(drive_id)
+        ordered = [self._port_monitors[study_id] for study_id in self._port_source_ids]
+        results = [monitor.result for monitor in ordered]
+        if any(result is None for result in results):
+            raise RuntimeError("PortStudy results were collected before every RxPort finalised.")
+
+        frequency = np.asarray(results[0].frequency)
+        for port_id, result in zip(self._port_ids[1:], results[1:]):
+            if not np.array_equal(result.frequency, frequency):
+                raise ValueError(
+                    f"PortStudy port '{port_id}' has a different frequency axis; use the "
+                    "same spectrum_limit for every RxPort."
+                )
+
+        complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+        real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+        impedances = np.asarray(
+            [monitor.reference_impedance for monitor in ordered], dtype=real_dtype
+        )
+        drive_incident = np.asarray(results[drive_index].incident_spectrum, dtype=complex_dtype)
+        drive_valid = np.asarray(results[drive_index].source_valid, dtype=bool)
+        column = np.full((frequency.size, len(ordered)), np.nan + 1j * np.nan, dtype=complex_dtype)
+        valid_column = np.zeros(column.shape, dtype=bool)
+        for output_index, result in enumerate(results):
+            ratio, defined = _safe_divide(
+                np.asarray(result.reflected_source_spectrum, dtype=complex_dtype),
+                drive_incident,
+                complex_dtype,
+            )
+            ratio *= np.sqrt(impedances[drive_index] / impedances[output_index])
+            column[:, output_index] = ratio
+            valid_column[:, output_index] = (
+                defined & drive_valid & np.asarray(result.mesh_valid, dtype=bool)
+            )
+
+        gap_correction = np.stack(
+            [np.asarray(result.gap_correction, dtype=complex_dtype) for result in results], axis=1
+        )
+        # Scalar S11 validity on an unexcited port is false by definition,
+        # but the port's gap admittance remains perfectly well defined and
+        # is required for the matrix correction. Build this mask from the
+        # gap data itself and exclude only the exact discrete Nyquist pole.
+        gap_valid = np.logical_and.reduce(
+            [np.isfinite(result.gap_correction) for result in results]
+        )
+        for monitor in ordered:
+            if monitor.gap_capacitance != 0:
+                gap_valid &= ~np.isclose(
+                    frequency,
+                    monitor.nyquist_frequency,
+                    rtol=64 * np.finfo(real_dtype).eps,
+                    atol=0,
+                )
+        case_index = config.sim_config.current_model
+        case_data = {
+            "case_id": self.cases[case_index].id,
+            "case_index": case_index,
+            "drive_id": drive_id,
+            "drive_port_id": self._port_ids[drive_index],
+            "frequency": np.asarray(frequency, dtype=real_dtype),
+            "reference_impedance": impedances,
+            "gap_correction": gap_correction,
+            "gap_valid": gap_valid,
+            "column": column,
+            "valid_column": valid_column,
+        }
+        self._columns[drive_id] = case_data
+        self._current_port_column = case_data
+        if self._aggregate_output_path is None:
+            model_config = config.get_model_config()
+            base = Path(model_config.output_file_path)
+            suffix = model_config.appendmodelnumber
+            if suffix and base.name.endswith(suffix):
+                base = base.with_name(base.name[: -len(suffix)])
+            self._aggregate_output_path = base.with_name(base.name + "_study").with_suffix(".h5")
+
+    def write_hdf5(self, h5file) -> None:
+        super().write_hdf5(h5file)
+        if self._current_port_column is None:
+            raise RuntimeError("PortStudy case data was not collected before HDF5 output.")
+        data = self._current_port_column
+        group = h5file["study"].create_group("port_response")
+        group.attrs["DrivenSourceID"] = data["drive_id"]
+        group.attrs["DrivenPortID"] = data["drive_port_id"]
+        group.attrs["MatrixConvention"] = "S[frequency, output_port, input_port]"
+        group.create_dataset("port_ids", data=np.asarray(self._port_ids, dtype="S"))
+        group.create_dataset("source_ids", data=np.asarray(self._port_source_ids, dtype="S"))
+        group.create_dataset("frequency", data=data["frequency"])
+        group.create_dataset("reference_impedance", data=data["reference_impedance"])
+        group.create_dataset("gap_correction_c", data=data["gap_correction"])
+        group.create_dataset("S_source_column", data=data["column"])
+        group.create_dataset("valid_S_source_column", data=data["valid_column"].astype(np.uint8))
+        group.create_dataset("gap_correction_valid", data=data["gap_valid"].astype(np.uint8))
+        if self._aggregate_output_path is not None:
+            group.attrs["AggregateOutput"] = str(self._aggregate_output_path)
+
+    def finalise(self) -> Optional[PortStudyResult]:
+        """Assemble, gap-correct, store, and expose the multiport S matrix."""
+
+        if not self._columns or self._aggregate_output_path is None:
+            return None
+        first = next(iter(self._columns.values()))
+        frequency = first["frequency"]
+        nfrequency = frequency.size
+        nports = len(self._port_source_ids)
+        complex_dtype = first["column"].dtype
+        s_source = np.full((nfrequency, nports, nports), np.nan + 1j * np.nan, dtype=complex_dtype)
+        valid_source = np.zeros(s_source.shape, dtype=bool)
+        case_ids = [""] * nports
+        if len(self._columns) < nports and self._aggregate_output_path.exists():
+            with h5py.File(self._aggregate_output_path, "r") as previous:
+                previous_ports = tuple(item.decode() for item in previous["port_ids"][...])
+                previous_sources = tuple(item.decode() for item in previous["source_ids"][...])
+                compatible = (
+                    previous.attrs.get("StudyType", "") == "port"
+                    and previous_ports == self._port_ids
+                    and previous_sources == self._port_source_ids
+                    and np.array_equal(previous["frequency"][...], frequency)
+                    and np.allclose(
+                        previous["reference_impedance"][...],
+                        first["reference_impedance"],
+                    )
+                    and np.allclose(
+                        previous["gap_correction_c"][...],
+                        first["gap_correction"],
+                        equal_nan=True,
+                    )
+                )
+                if not compatible:
+                    raise ValueError(
+                        f"Existing PortStudy output '{self._aggregate_output_path}' is not "
+                        "compatible with this restarted study. Remove or rename it, or use "
+                        "a different output base."
+                    )
+                s_source[...] = previous["S_source"][...]
+                valid_source[...] = previous["valid_S_source"][...].astype(bool)
+                case_ids = [item.decode() for item in previous["case_ids"][...]]
+        for input_index, source_id in enumerate(self._port_source_ids):
+            data = self._columns.get(source_id)
+            if data is None:
+                continue
+            if not np.array_equal(data["frequency"], frequency):
+                raise RuntimeError("PortStudy collected inconsistent frequency axes.")
+            if not np.allclose(data["gap_correction"], first["gap_correction"], equal_nan=True):
+                raise RuntimeError("PortStudy gap correction changed between reused runs.")
+            s_source[:, :, input_index] = data["column"]
+            valid_source[:, :, input_index] = data["valid_column"]
+            case_ids[input_index] = data["case_id"]
+
+        if not all(case_ids):
+            missing_ports = ", ".join(
+                self._port_ids[index] for index, case_id in enumerate(case_ids) if not case_id
+            )
+            logger.warning(
+                "PortStudy output is incomplete; no compatible prior aggregate supplied "
+                f"columns for: {missing_ports}. Corrected matrix values remain invalid."
+            )
+
+        from gprMax.ports import correct_smatrix_for_parallel_gaps
+
+        s_corrected, matrix_valid = correct_smatrix_for_parallel_gaps(
+            s_source,
+            first["gap_correction"],
+            complex_dtype,
+        )
+        matrix_valid &= first["gap_valid"] & np.all(valid_source, axis=(1, 2))
+        valid_corrected = np.broadcast_to(
+            matrix_valid[:, np.newaxis, np.newaxis], s_source.shape
+        ).copy()
+        s_corrected[~valid_corrected] = np.nan + 1j * np.nan
+
+        self.result = PortStudyResult(
+            frequency=np.asarray(frequency),
+            port_ids=self._port_ids,
+            source_ids=self._port_source_ids,
+            case_ids=tuple(case_ids),
+            reference_impedance=np.asarray(first["reference_impedance"]),
+            gap_correction=np.asarray(first["gap_correction"]),
+            s_source=s_source,
+            s=s_corrected,
+            valid_s_source=valid_source,
+            valid_s=valid_corrected,
+            output_file=self._aggregate_output_path,
+        )
+        self._write_aggregate_hdf5()
+        logger.info(f"Written PortStudy output file: {self._aggregate_output_path.name}\n")
+        return self.result
+
+    def _write_aggregate_hdf5(self) -> None:
+        if self.result is None:
+            return
+        from gprMax._version import __version__
+        from gprMax.ntff.conventions import FORWARD_TRANSFORM_KERNEL, PHASOR_TIME_DEPENDENCE
+
+        result = self.result
+        with h5py.File(result.output_file, "w") as output:
+            output.attrs["gprMax"] = __version__
+            output.attrs["StudyType"] = self.type
+            output.attrs["MatrixConvention"] = "S[frequency, output_port, input_port]"
+            output.attrs["WaveNormalisation"] = "power_wave_real_reference_impedance"
+            output.attrs["GapCorrection"] = "multiport_diagonal_shunt_admittance"
+            output.attrs["phasor_time_sign"] = PHASOR_TIME_DEPENDENCE
+            output.attrs["forward_transform_sign"] = FORWARD_TRANSFORM_KERNEL
+            output.attrs["CasesCompleted"] = sum(bool(case_id) for case_id in result.case_ids)
+            output.attrs["CaseCount"] = len(self.cases)
+            output.attrs["Complete"] = all(bool(case_id) for case_id in result.case_ids)
+            if self.source_path is not None:
+                output.attrs["SourcePath"] = str(self.source_path)
+            if self.source_text is not None:
+                output.create_dataset("source", data=self.source_text)
+            output.create_dataset("frequency", data=result.frequency)
+            output.create_dataset("port_ids", data=np.asarray(result.port_ids, dtype="S"))
+            output.create_dataset("source_ids", data=np.asarray(result.source_ids, dtype="S"))
+            output.create_dataset("case_ids", data=np.asarray(result.case_ids, dtype="S"))
+            output.create_dataset("reference_impedance", data=result.reference_impedance)
+            output.create_dataset("gap_correction_c", data=result.gap_correction)
+            output.create_dataset("S_source", data=result.s_source)
+            output.create_dataset("S", data=result.s)
+            output.create_dataset("valid_S_source", data=result.valid_s_source.astype(np.uint8))
+            output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
 
 
 def preflight_study_args(args) -> Optional[Study]:
@@ -563,6 +997,8 @@ def preflight_study_args(args) -> Optional[Study]:
         raise ValueError("Studies do not yet support MPI task farming.")
     if getattr(args, "mpi", None) is not None:
         raise ValueError("Studies do not yet support MPI domain decomposition.")
+    if isinstance(study, PortStudy) and getattr(args, "geometry_only", False):
+        raise ValueError("PortStudy requires a field solve and cannot use geometry_only.")
     scenes = getattr(args, "scenes", None)
     if scenes is not None and len(scenes) != 1:
         raise ValueError("A study requires exactly one reusable Scene.")
@@ -656,6 +1092,22 @@ def _parse_finite_float(value: str, path: Path, line: int, name: str) -> float:
     if not math.isfinite(result):
         raise ValueError(f"Study CSV '{path}', line {line}: {name} must be finite.")
     return result
+
+
+def _safe_divide(numerator, denominator, complex_dtype):
+    """Complex division retaining a separate algebraic validity mask."""
+
+    numerator = np.asarray(numerator, dtype=complex_dtype)
+    denominator = np.asarray(denominator, dtype=complex_dtype)
+    magnitude = np.abs(denominator)
+    finite = np.isfinite(denominator)
+    scale = float(np.max(magnitude[finite], initial=0.0))
+    threshold = np.finfo(np.empty((), dtype=complex_dtype).real.dtype).eps * scale
+    valid = finite & (magnitude > threshold)
+    result = np.full(numerator.shape, np.nan + 1j * np.nan, dtype=complex_dtype)
+    np.divide(numerator, denominator, out=result, where=valid)
+    valid &= np.isfinite(result)
+    return result, valid
 
 
 def _jsonable(value: Any) -> Any:

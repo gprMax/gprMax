@@ -154,7 +154,7 @@ plane-wave studies. Every case restores the original object state before its
 overrides are applied, so parameters cannot accidentally accumulate between
 runs.
 
-The initial implementation supports top-level
+General GPR studies support top-level
 :class:`gprMax.HertzianDipole`, :class:`gprMax.MagneticDipole`, and
 :class:`gprMax.Rx` objects on the main grid. A state can refer directly to its
 Python object or use its deterministic ID. Sources omitted from a case are
@@ -195,16 +195,92 @@ one-based case number ``N``. For a text input model the equivalent
 
 .. autoclass:: gprMax.studies.GPRStudy
 
+Finite-resistance voltage-port studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`gprMax.PortStudy` calculates a complete multiport S matrix without
+rebuilding the antenna geometry. Every finite-resistance
+:class:`gprMax.VoltageSource` remains on its original electric edge in every
+case. Exactly one source is driven, while omitted sources have zero generator
+voltage but retain their resistance and therefore act as passive matched
+terminations. Every source must have a coincident, uniquely named
+:class:`gprMax.RxPort`.
+
+.. code-block:: python
+
+    port1_source = gprMax.VoltageSource(
+        p1=(0.040, 0.050, 0.030), polarisation='z', resistance=50,
+        waveform_id='pulse'
+    )
+    port2_source = gprMax.VoltageSource(
+        p1=(0.060, 0.050, 0.030), polarisation='z', resistance=50,
+        waveform_id='pulse'
+    )
+    scene.add(port1_source)
+    scene.add(port2_source)
+    scene.add(gprMax.RxPort(p1=(0.040, 0.050, 0.030), id='port1'))
+    scene.add(gprMax.RxPort(p1=(0.060, 0.050, 0.030), id='port2'))
+
+    study = gprMax.PortStudy([
+        gprMax.StudyCase('drive_port1', [
+            gprMax.ObjectState(port1_source, scale=1.0),
+        ]),
+        gprMax.StudyCase('drive_port2', [
+            gprMax.ObjectState(port2_source, scale=1.0),
+        ]),
+    ])
+
+    results = gprMax.run(scenes=[scene], study=study, outputfile='array')
+    smatrix = results['study'].s
+
+The returned and stored matrix uses
+``S[frequency, output_port, input_port]``. Voltage waves are converted to
+power-wave normalisation, so ports may use different positive real reference
+impedances. The individual source gaps contain numerical background
+capacitance and conductance. These are removed from the complete admittance
+matrix:
+
+.. math::
+
+    \begin{aligned}
+    \overline{\mathbf{Y}}_{\mathrm{s}}
+      &= (\mathbf{I}-\mathbf{S}_{\mathrm{s}})
+         (\mathbf{I}+\mathbf{S}_{\mathrm{s}})^{-1}, \\
+    \overline{\mathbf{Y}}
+      &= \overline{\mathbf{Y}}_{\mathrm{s}}
+         - \operatorname{diag}(Z_{0,p}Y_{\mathrm{gap},p}), \\
+    \mathbf{S}
+      &= (\mathbf{I}+\overline{\mathbf{Y}})^{-1}
+         (\mathbf{I}-\overline{\mathbf{Y}}).
+    \end{aligned}
+
+This matrix operation is important: applying the scalar one-port correction
+independently to off-diagonal elements is not mathematically valid. The
+per-case files contain the raw source-plane column, and ``array_study.h5``
+contains both ``S_source`` and the corrected ``S`` matrix. Restarting with
+``i=N`` reuses compatible columns already present in this aggregate file.
+
+Source position and resistance are immutable because both affect the built
+electric-edge material. The permitted case parameters are ``active``,
+``waveform_id``, ``start``, ``stop``, and ``scale``. Hard voltage sources are
+rejected because zero drive would impose a zero electric field rather than a
+matched passive termination.
+
+.. autoclass:: gprMax.studies.PortStudy
+
+.. autoclass:: gprMax.studies.PortStudyResult
+
 .. autoclass:: gprMax.studies.StudyCase
 
 .. autoclass:: gprMax.studies.ObjectState
 
 .. note::
 
-    MPI/task-farm studies, subgrid study objects, stateful ports, plane waves,
-    and eigenmode sources are not enabled in this first stage. Their cached
-    fields, transforms, and derived setup must be reset or rebuilt explicitly;
-    gprMax rejects them instead of reusing stale state.
+    MPI/task-farm studies, subgrid study objects, transmission lines, rational
+    networks, magnetic-frill sources, plane waves, and eigenmode sources are
+    not yet enabled. Their cached fields, transforms, and derived setup must be
+    reset or rebuilt explicitly; gprMax rejects them instead of reusing stale
+    state.
 
 Typical general settings are added directly to the scene:
 

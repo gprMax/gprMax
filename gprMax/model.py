@@ -655,6 +655,9 @@ class Model:
             finalise_transmission_line_ports(grid)
             finalise_magnetic_frill_ports(grid)
 
+        if config.sim_config.study is not None:
+            config.sim_config.study.collect_case(self)
+
         # Write output data to file if they are any receivers in any grids
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
