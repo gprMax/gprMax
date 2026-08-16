@@ -354,6 +354,8 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp.attrs["Resistance"] = tl.resistance
         grp.attrs["dl"] = tl.dl
         grp.attrs["ID"] = str(tl.ID)
+        if getattr(tl, "study_id", None):
+            grp.attrs["StudyID"] = tl.study_id
         grp.attrs["GridPosition"] = np.asarray(tl.coord, dtype=np.int32)
         # Save incident voltage and current
         grp["Vinc"] = tl.Vinc
@@ -383,6 +385,8 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         grp.attrs["CurrentTimeApproximation"] = "average"
         grp.attrs["FeedSelfAdmittance"] = frill._G_coeff
         grp.attrs["ID"] = str(frill.ID)
+        if getattr(frill, "study_id", None):
+            grp.attrs["StudyID"] = frill.study_id
         grp.attrs["GridPosition"] = np.asarray(frill.coord, dtype=np.int32)
         # The two faces transverse to Polarisation, in the fixed order used
         # throughout MagneticFrillSource.finalise_setup()/update_magnetic()

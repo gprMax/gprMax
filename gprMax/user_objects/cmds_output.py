@@ -146,12 +146,12 @@ class RxPort(OutputUserObject):
         raise RuntimeError("RxPort result is not available until the model has solved")
 
     def _validate_context(self, grid):
-        if (
-            config.sim_config.args.geometry_fixed
-            and getattr(config.sim_config.study, "type", None) != "port"
-        ):
+        if config.sim_config.args.geometry_fixed and getattr(
+            config.sim_config.study, "type", None
+        ) not in ("port", "source"):
             raise ValueError(
-                f"{self.params_str()} does not support geometry-fixed runs outside a PortStudy."
+                f"{self.params_str()} does not support geometry-fixed runs outside a "
+                "PortStudy or SourceStudy."
             )
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
@@ -344,7 +344,11 @@ class NetworkPort(OutputUserObject):
         return self._monitor.result
 
     def build(self, model: Model, grid: FDTDGrid):
-        if config.sim_config.args.geometry_fixed:
+        from gprMax.studies import SourceStudy
+
+        if config.sim_config.args.geometry_fixed and not isinstance(
+            config.sim_config.study, SourceStudy
+        ):
             raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
@@ -631,9 +635,9 @@ def _check_ksir_interface_context(user_object, grid):
             f"{user_object.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
         )
     if config.sim_config.args.geometry_fixed:
-        from gprMax.studies import PlaneWaveStudy
+        from gprMax.studies import PlaneWaveStudy, SourceStudy
 
-        if not isinstance(config.sim_config.study, PlaneWaveStudy):
+        if not isinstance(config.sim_config.study, (PlaneWaveStudy, SourceStudy)):
             raise ValueError(f"{user_object.params_str()} does not support geometry-fixed runs.")
     if config.get_model_config().mode != "3D":
         raise ValueError(f"{user_object.params_str()} currently supports only 3-D models.")

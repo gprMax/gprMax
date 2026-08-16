@@ -1946,12 +1946,14 @@ case that produced it. The syntax is:
     #study: gpr file1
 
 The study type may be ``gpr`` for irregular source/receiver acquisition,
-``port`` for a finite-resistance voltage-source S-parameter study, or
-``eigenmode`` for a modal-port S-parameter study, or ``plane_wave`` for an
-angular TFSF/RCS study:
+``source`` for fixed-topology stateful terminal sources, ``port`` for a
+finite-resistance voltage-source S-parameter study, ``eigenmode`` for a
+modal-port S-parameter study, or ``plane_wave`` for an angular TFSF/RCS
+study:
 
 .. code-block:: none
 
+    #study: source file1
     #study: port file1
     #study: eigenmode file1
     #study: plane_wave file1
@@ -1984,6 +1986,32 @@ declarative NTFF accumulators for each row, while retaining the main model
 geometry. NTFF observation directions also remain fixed: request all angles
 needed across the cases in the input file and select the appropriate direction
 from each numbered output file.
+
+A ``source`` study manages main-grid ``#transmission_line``,
+``#magnetic_frill_source``, and ``#network_excitation`` commands. Their
+deterministic IDs are ``transmission_line_1``, ``magnetic_frill_source_1``,
+and ``network_excitation_1`` (and so on within each family). Positions,
+impedances, thin-wire/coax geometry, and rational-network definitions are
+fixed. The CSV may vary ``active``, ``waveform_id``, ``start_s``, ``stop_s``,
+and ``scale``. For example:
+
+.. code-block:: text
+
+    case_id,object_id,active,waveform_id,start_s,stop_s,scale
+    full_drive,transmission_line_1,true,pulse,0,4e-9,1
+    half_drive,transmission_line_1,true,pulse,0,4e-9,0.5
+    passive,transmission_line_1,false,,,,
+
+Any number of listed sources may be active in a case. An omitted or inactive
+source keeps its physical terminal and acts as a passive termination with
+zero generator drive. gprMax resets the terminal's internal field, recurrence,
+history, and derived port state before every case. Declarative NTFF outputs
+are also rebuilt with pristine accumulators. ``source`` studies are therefore
+suitable for comparing multiple-feed antenna excitations, but do not
+calculate a complete S matrix; use ``port`` or ``eigenmode`` for that purpose.
+The normal CPU, CUDA, OpenCL, and Metal implementations are available.
+Stateful sources inside subgrids, MPI, and task farming are not currently
+supported by this study type.
 
 For example:
 

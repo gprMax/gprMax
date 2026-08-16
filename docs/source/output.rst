@@ -46,12 +46,20 @@ full study as JSON, while ``resolved_case`` contains the post-validation values
 actually applied to every study-managed object, including baseline receivers
 and implicitly disabled sources.
 Study-managed source and receiver groups also carry a ``StudyID`` attribute,
-which provides an unambiguous link back to the case table.
+including the ``tls`` and ``frills`` groups used by a source study. This
+provides an unambiguous link back to the case table.
 
 For a plane-wave study, ``resolved_case`` records the requested case together
 with the actual rationalised propagation angles and integer DPW mapping. Each
 case remains an ordinary numbered model output; no aggregate matrix is needed
 because RCS patterns from different illuminations are independent results.
+
+For a source study, ``resolved_case`` records every stateful terminal,
+including sources omitted from the sparse case table. ``active=false`` and
+``scale=0`` identify a passive physical termination rather than an object
+removed from the model. Transmission-line, magnetic-frill, rational-network,
+receiver, port, and declarative NTFF datasets in each numbered file contain
+only that case's reset state.
 
 Every case in a finite-resistance voltage-port study additionally contains
 ``study/port_response``. ``DrivenSourceID`` and ``DrivenPortID`` identify its

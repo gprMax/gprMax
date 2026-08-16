@@ -997,6 +997,11 @@ class RationalNetworkPortOutput:
             )
         self.prepared = True
 
+    def reset_run_state(self) -> None:
+        """Clear derived output before a reused-geometry source-study case."""
+
+        self.result = None
+
     def finalise(self, grid: "FDTDGrid") -> RationalNetworkPortResult:
         if not self.prepared:
             self.prepare(grid)

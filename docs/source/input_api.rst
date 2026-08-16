@@ -195,6 +195,66 @@ one-based case number ``N``. For a text input model the equivalent
 
 .. autoclass:: gprMax.studies.GPRStudy
 
+Fixed-topology terminal-source studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`gprMax.SourceStudy` reuses a model containing stateful terminal
+sources. It supports main-grid :class:`gprMax.TransmissionLine`,
+:class:`gprMax.MagneticFrillSource`, and
+:class:`gprMax.NetworkExcitation` objects. Their positions and physical
+definitions remain fixed, but each case may change ``waveform_id``, ``start``,
+``stop``, and the dimensionless generator ``scale``. ``active=false`` is
+equivalent to zero generator drive.
+
+This is deliberately different from an S-parameter study: any number of
+terminals may be active in one case, which is useful for phased-array and
+multiple-feed antenna patterns. A source omitted from a case is not removed.
+Its transmission-line resistance, coaxial-frill termination, or rational
+network remains coupled to the Yee grid as a passive load.
+
+.. code-block:: python
+
+    scene.add(gprMax.RationalNetwork(id='load50', conductance=1 / 50))
+    scene.add(gprMax.NetworkTerminal(
+        p1=(0.040, 0.050, 0.030), polarisation='z',
+        network_id='load50', id='port1'
+    ))
+    scene.add(gprMax.NetworkTerminal(
+        p1=(0.060, 0.050, 0.030), polarisation='z',
+        network_id='load50', id='port2'
+    ))
+    feed1 = gprMax.NetworkExcitation('port1', 'pulse')
+    feed2 = gprMax.NetworkExcitation('port2', 'pulse')
+    scene.add(feed1)
+    scene.add(feed2)
+
+    study = gprMax.SourceStudy([
+        gprMax.StudyCase('feed_1_only', [
+            gprMax.ObjectState(feed1, scale=1),
+        ]),
+        gprMax.StudyCase('equal_feeds', [
+            gprMax.ObjectState(feed1, scale=1),
+            gprMax.ObjectState(feed2, scale=1),
+        ]),
+        gprMax.StudyCase('weighted_feeds', [
+            gprMax.ObjectState(feed1, scale=1),
+            gprMax.ObjectState(feed2, scale=-1),
+        ]),
+    ])
+
+    gprMax.run(scenes=[scene], study=study, outputfile='fed_array')
+
+Before every case gprMax reconstructs the selected source waveform and clears
+all transmission-line voltage/current and ABC state, magnetic-frill recurrence
+and histories, rational-network pole state, receiver histories, and derived
+port results. Declarative NTFF monitors are recompiled with new accumulators,
+so every case may safely produce an independent antenna pattern. SourceStudy
+uses the normal CPU, CUDA, OpenCL, or Metal implementation of each terminal.
+It does not currently support source objects inside a subgrid, MPI execution,
+or task farming.
+
+.. autoclass:: gprMax.studies.SourceStudy
+
 Finite-resistance voltage-port studies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -416,12 +476,11 @@ direction from each case file.
 
 .. note::
 
-    MPI/task-farm studies, transmission lines, rational networks,
-    magnetic-frill sources are not yet enabled. General GPR study objects
-    remain main-grid only. Eigenmode studies support the owning main grid or
-    subgrid and reset direct and virtual-waveguide modal state explicitly.
-    Plane-wave studies use a main-grid TFSF source but may enclose complete
-    subgrids.
+    MPI/task-farm studies are not yet enabled. General GPR and SourceStudy
+    objects remain main-grid only. Eigenmode studies support the owning main
+    grid or subgrid and reset direct and virtual-waveguide modal state
+    explicitly. Plane-wave studies use a main-grid TFSF source but may enclose
+    complete subgrids.
 
 Typical general settings are added directly to the scene:
 

@@ -193,6 +193,7 @@ class RationalNetworkTerminal:
         self.stop = 0.0
         self.output = None
         self.prepared = False
+        self.study_scale = 1.0
 
     @property
     def xcoord(self) -> int:
@@ -218,6 +219,35 @@ class RationalNetworkTerminal:
         self.waveformID = waveform_id
         self.start = 0.0 if start is None else float(start)
         self.stop = np.inf if stop is None else float(stop)
+
+    def configure_study_excitation(self, grid, waveform_id, start, stop, scale) -> None:
+        """Replace only the generator drive while retaining terminal topology."""
+
+        if not any(waveform.ID == waveform_id for waveform in grid.waveforms):
+            raise ValueError(
+                f"network terminal {self.ID!r} study drive references unknown "
+                f"waveform {waveform_id!r}"
+            )
+        start = float(start)
+        stop = min(float(stop), float(grid.timewindow))
+        scale = float(scale)
+        if not np.isfinite(scale):
+            raise ValueError(f"network terminal {self.ID!r} study scale must be finite")
+        if start < 0 or stop <= start:
+            raise ValueError(
+                f"network terminal {self.ID!r} study drive requires "
+                "0 <= start < stop <= the model time window"
+            )
+
+        self.waveformID = waveform_id
+        self.start = start
+        self.stop = stop
+        self.study_scale = scale
+        if self.prepared:
+            self._prepare_waveform(grid)
+            self.reset()
+        if self.output is not None:
+            self.output.result = None
 
     def _edge_geometry(self, grid) -> tuple[float, float]:
         if self.polarisation == "x":
@@ -350,6 +380,8 @@ class RationalNetworkTerminal:
                 self.waveform_half[iteration] = waveform.calculate_value(
                     half_time - self.start, grid.dt
                 )
+        self.waveform_whole *= self.study_scale
+        self.waveform_half *= self.study_scale
 
     def reset(self) -> None:
         """Return all dynamic network state and histories to rest."""
