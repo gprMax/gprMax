@@ -24,6 +24,7 @@ from .studies import (
     GPRStudy,
     ModalWeight,
     ObjectState,
+    PlaneWaveStudy,
     PortStudy,
     PortStudyResult,
     Study,

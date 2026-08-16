@@ -48,6 +48,11 @@ and implicitly disabled sources.
 Study-managed source and receiver groups also carry a ``StudyID`` attribute,
 which provides an unambiguous link back to the case table.
 
+For a plane-wave study, ``resolved_case`` records the requested case together
+with the actual rationalised propagation angles and integer DPW mapping. Each
+case remains an ordinary numbered model output; no aggregate matrix is needed
+because RCS patterns from different illuminations are independent results.
+
 Every case in a finite-resistance voltage-port study additionally contains
 ``study/port_response``. ``DrivenSourceID`` and ``DrivenPortID`` identify its
 input port; ``S_source_column`` contains the power-normalised raw source-plane
@@ -912,6 +917,12 @@ spectrum produces ``NaN`` RCS. Very small incident values are mathematically
 non-zero but can give unreliable results, so the requested frequencies should
 remain within the useful excitation bandwidth.
 
+When a frequency transform is associated with a plane wave, its
+``plane_wave`` subgroup stores the source index, TFSF corners, waveform and
+material IDs, actual angles, polarisation, rational integer mapping, start and
+stop times, and the incident-field reference positions. This metadata is the
+authoritative description of the illumination used for that transform.
+
 For plotting in dBsm, convert the stored values explicitly:
 
 .. code-block:: python
@@ -928,7 +939,9 @@ Here ``theta`` and ``phi`` in the same group define the observation direction.
 Monostatic RCS is the value in the direction opposite to plane-wave
 propagation; all other directions are bistatic RCS. Use separate simulations
 for different incident plane waves because selecting an association does not
-separate simultaneously accumulated scattered fields.
+separate simultaneously accumulated scattered fields. A
+:class:`gprMax.PlaneWaveStudy` automates those separate illuminations while
+reusing the unchanged Yee geometry.
 
 Exact finite-distance KSIR time-domain fields retain the complete raw retarded
 buffer and have shape ``(npoints, max(valid_lengths))``. Its final bins may contain only part of the
