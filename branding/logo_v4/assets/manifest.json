@@ -1,0 +1,160 @@
+{
+  "source": "gprmax_v4_logo_2048px.png",
+  "source_pixels": [
+    2048,
+    571
+  ],
+  "print_dpi": 300,
+  "assets": [
+    {
+      "file": "gprmax_v4_logo_2048px.png",
+      "background": "transparent",
+      "pixels": [
+        2048,
+        571
+      ],
+      "print_width_cm_at_300dpi": 17.339733333333335,
+      "sha256": "0b4def352588679c435287418f0a4bfbb4581d37f9b52473c2e919093aede1a2"
+    },
+    {
+      "file": "gprmax_v4_logo_2048px_on_white.png",
+      "background": "white",
+      "pixels": [
+        2048,
+        571
+      ],
+      "print_width_cm_at_300dpi": 17.339733333333335,
+      "sha256": "7ce0c2a0a6b21643c112b4f654f53a8d0f678ba77e42c113eee67b9547a0e4df"
+    },
+    {
+      "file": "gprmax_v4_logo_2048px_on_dark.png",
+      "background": "dark",
+      "pixels": [
+        2048,
+        571
+      ],
+      "print_width_cm_at_300dpi": 17.339733333333335,
+      "sha256": "8e1b3ad00b5bfe9802d28db834c1bd97239e123cd3ad2d15025dcd6cd15b6d81"
+    },
+    {
+      "file": "gprmax_v4_logo_1024px.png",
+      "background": "transparent",
+      "pixels": [
+        1024,
+        286
+      ],
+      "print_width_cm_at_300dpi": 8.669866666666667,
+      "sha256": "84934ef4167cbd2e324eac5194b818718fe9286c77e790ae4fd4fe7a31e03727"
+    },
+    {
+      "file": "gprmax_v4_logo_1024px_on_white.png",
+      "background": "white",
+      "pixels": [
+        1024,
+        286
+      ],
+      "print_width_cm_at_300dpi": 8.669866666666667,
+      "sha256": "ce4ed3fe3455856e8334171d9c644b9f79734da28bdaad2aa2dec5bb07ce6324"
+    },
+    {
+      "file": "gprmax_v4_logo_1024px_on_dark.png",
+      "background": "dark",
+      "pixels": [
+        1024,
+        286
+      ],
+      "print_width_cm_at_300dpi": 8.669866666666667,
+      "sha256": "42cef25b9125743aa0e92d0b6e3a94377d9321b2754b45aeb32884800c99277e"
+    },
+    {
+      "file": "gprmax_v4_logo_512px.png",
+      "background": "transparent",
+      "pixels": [
+        512,
+        143
+      ],
+      "print_width_cm_at_300dpi": 4.334933333333334,
+      "sha256": "befbebdb42edfa5e66a5b06450354831762710b1b1a111a7c35371c3eb7c39ed"
+    },
+    {
+      "file": "gprmax_v4_logo_512px_on_white.png",
+      "background": "white",
+      "pixels": [
+        512,
+        143
+      ],
+      "print_width_cm_at_300dpi": 4.334933333333334,
+      "sha256": "fcf4883b7105bd8251fc9a19a82f0c2404788bfc51ed43f5bbe185cbed0bfcdf"
+    },
+    {
+      "file": "gprmax_v4_logo_512px_on_dark.png",
+      "background": "dark",
+      "pixels": [
+        512,
+        143
+      ],
+      "print_width_cm_at_300dpi": 4.334933333333334,
+      "sha256": "fbe365477a0f83141a8727f99c17e647a4a10a73d31e086a4a2542d97485b21f"
+    },
+    {
+      "file": "gprmax_v4_logo_400px.png",
+      "background": "transparent",
+      "pixels": [
+        400,
+        112
+      ],
+      "print_width_cm_at_300dpi": 3.3866666666666667,
+      "sha256": "99dcfd88c1f16cd429906c34f461ff879ae001c4b76fcd5449d220ad6b576e10"
+    },
+    {
+      "file": "gprmax_v4_logo_400px_on_white.png",
+      "background": "white",
+      "pixels": [
+        400,
+        112
+      ],
+      "print_width_cm_at_300dpi": 3.3866666666666667,
+      "sha256": "80509740a7d47f239d0aa9b2a8ea2844cd682fe4fb23694df91d2d745b470dfc"
+    },
+    {
+      "file": "gprmax_v4_logo_400px_on_dark.png",
+      "background": "dark",
+      "pixels": [
+        400,
+        112
+      ],
+      "print_width_cm_at_300dpi": 3.3866666666666667,
+      "sha256": "55fc2512e46cfb0a83d8c607b2b587c94f917aa6320d4789917de818e8448852"
+    },
+    {
+      "file": "gprmax_v4_logo_256px.png",
+      "background": "transparent",
+      "pixels": [
+        256,
+        71
+      ],
+      "print_width_cm_at_300dpi": 2.167466666666667,
+      "sha256": "ec626cf968aa2b8ae444894180960743d2b072c596c7b9fc5e86373bd7b14f74"
+    },
+    {
+      "file": "gprmax_v4_logo_256px_on_white.png",
+      "background": "white",
+      "pixels": [
+        256,
+        71
+      ],
+      "print_width_cm_at_300dpi": 2.167466666666667,
+      "sha256": "a83032b9067d2c18e2da3aa3c6fcf3f93340a4f4f3668ef31a1e6d95421b83ee"
+    },
+    {
+      "file": "gprmax_v4_logo_256px_on_dark.png",
+      "background": "dark",
+      "pixels": [
+        256,
+        71
+      ],
+      "print_width_cm_at_300dpi": 2.167466666666667,
+      "sha256": "abc3b77aa6558ffa252d20e38a03fd01826da4f167a62f50cfa9e6df12ad3699"
+    }
+  ]
+}

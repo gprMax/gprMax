@@ -40,6 +40,10 @@ examples/features/eigenmode_ports/**/*.png
 examples/**/*_eigenmode_*.png
 toolboxes/STEPtoVoxel/examples/**/output/
 
+# Raw logo simulation outputs (the snapshot is approximately 1.7 GB)
+branding/logo_v4/model/*.out
+branding/logo_v4/model/*_snaps/
+
 # Local eigenmode regression workspace
 eigensource_test_run/
 

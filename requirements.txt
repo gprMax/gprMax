@@ -12,6 +12,7 @@ mpi4py
 numpy
 numpy-stl
 pandas
+pillow
 pre-commit
 psutil
 pytest>=7

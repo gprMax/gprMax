@@ -39,6 +39,7 @@ Package overview
 .. code-block:: none
 
     gprMax/
+        branding/
         docs/
         examples/
         gprMax/
@@ -57,6 +58,7 @@ Package overview
         requirements.txt
         setup.py
 
+* ``branding/`` contains the reproducible FDTD model, generation tools, and prebuilt assets for the gprMax logo.
 * ``docs/`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
 * ``examples/`` is a sub-package where example input files and models are stored.
 * ``gprMax/`` is the main package. Within this package, the main module is ``gprMax.py``

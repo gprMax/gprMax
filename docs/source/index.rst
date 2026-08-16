@@ -9,6 +9,7 @@ gprMax User Guide
     inc_README
     features
     gprmodelling
+    branding
     faqs
 
 

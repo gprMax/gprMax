@@ -5,6 +5,7 @@ include MANIFEST.in
 
 # All source files
 recursive-include examples *
+recursive-include branding *
 recursive-include gprMax *
 recursive-include testing *
 recursive-include toolboxes *

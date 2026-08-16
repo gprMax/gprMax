@@ -1,0 +1,172 @@
+{
+  "input_file": "gprmax_v4_logo_3x.in",
+  "grid_spacing_m": 8.333333333333333e-05,
+  "grid_cells": [
+    12000,
+    6000
+  ],
+  "physical_domain_m": [
+    1.0,
+    0.5
+  ],
+  "free_space_cells": 10666982,
+  "rectangles": 9724,
+  "sources": [
+    {
+      "name": "g1",
+      "glyph": "g",
+      "point": [
+        2136,
+        3672
+      ],
+      "amplitude": 2.076331,
+      "frequency": 10000000000.0,
+      "start": 0,
+      "stop": 5e-09
+    },
+    {
+      "name": "g2",
+      "glyph": "g",
+      "point": [
+        1101,
+        2631
+      ],
+      "amplitude": 2.076331,
+      "frequency": 10000000000.0,
+      "start": 0,
+      "stop": 5e-09
+    },
+    {
+      "name": "p1",
+      "glyph": "p",
+      "point": [
+        2844,
+        2535
+      ],
+      "amplitude": 2.974881,
+      "frequency": 10000000000.0,
+      "start": 0,
+      "stop": 5e-09
+    },
+    {
+      "name": "r1",
+      "glyph": "r",
+      "point": [
+        4665,
+        2616
+      ],
+      "amplitude": 1.268562,
+      "frequency": 10000000000.0,
+      "start": 0,
+      "stop": 5e-09
+    },
+    {
+      "name": "M1",
+      "glyph": "M",
+      "point": [
+        7317,
+        2046
+      ],
+      "amplitude": 0.941482,
+      "frequency": 12000000000.0,
+      "start": 0,
+      "stop": 7e-09
+    },
+    {
+      "name": "M2",
+      "glyph": "M",
+      "point": [
+        5979,
+        2031
+      ],
+      "amplitude": 0.941482,
+      "frequency": 12000000000.0,
+      "start": 0,
+      "stop": 7e-09
+    },
+    {
+      "name": "a1",
+      "glyph": "a",
+      "point": [
+        9099,
+        2937
+      ],
+      "amplitude": 2.053664,
+      "frequency": 12000000000.0,
+      "start": 0,
+      "stop": 3e-09
+    },
+    {
+      "name": "x1",
+      "glyph": "x",
+      "point": [
+        10410,
+        2913
+      ],
+      "amplitude": 0.898925,
+      "frequency": 12000000000.0,
+      "start": 0,
+      "stop": 5e-09
+    }
+  ],
+  "refinement": 3,
+  "font_file": "fonts/IBMPlexSans-Bold.ttf",
+  "font_size_pixels": 2988,
+  "glyphs": [
+    {
+      "character": "g",
+      "bounds_indices": [
+        819,
+        1855,
+        2413,
+        4360
+      ]
+    },
+    {
+      "character": "p",
+      "bounds_indices": [
+        2609,
+        2121,
+        4092,
+        4324
+      ]
+    },
+    {
+      "character": "r",
+      "bounds_indices": [
+        4426,
+        2157,
+        5362,
+        3726
+      ]
+    },
+    {
+      "character": "M",
+      "bounds_indices": [
+        5657,
+        1640,
+        7645,
+        3726
+      ]
+    },
+    {
+      "character": "a",
+      "bounds_indices": [
+        7975,
+        2121,
+        9485,
+        3762
+      ]
+    },
+    {
+      "character": "x",
+      "bounds_indices": [
+        9627,
+        2157,
+        11194,
+        3726
+      ]
+    }
+  ],
+  "amplitude_calibration": "Per-glyph RMS field calibrated on the official 3x model"
+}
