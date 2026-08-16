@@ -349,8 +349,20 @@ class MainGridUserInput(UserInput[GridType]):
         else:
             raise ValueError("Dimension should have value x, y, or z")
 
+        # ``lower_point`` and ``upper_point`` use zero-valued coordinates
+        # outside the requested dimension only as carriers for the scalar
+        # extent. Those placeholder coordinates are not part of the object.
+        # In an offset subgrid they translate to negative local indices, so
+        # passing the whole carrier point to ``within_bounds`` can reject a
+        # valid thickness in an unrelated dimension. Use a valid local anchor
+        # for the transverse coordinates and retain only the requested-axis
+        # coordinate. This also preserves MPIGrid.within_bounds' conversion
+        # back to global coordinates.
+        bounds_point = np.zeros_like(upper_point)
+        bounds_point[index] = upper_point[index]
+
         try:
-            self.grid.within_bounds(upper_point)
+            self.grid.within_bounds(bounds_point)
         except ValueError:
             raise ValueError(
                 f"'{cmd_str}' extends beyond the size of the model in the {dimension} dimension"
