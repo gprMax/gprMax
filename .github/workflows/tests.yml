@@ -50,7 +50,9 @@ jobs:
       - name: Configure Linux MPI transport
         if: runner.os == 'Linux'
         shell: bash
-        run: echo "FI_PROVIDER=shm" >> "$GITHUB_ENV"
+        run: |
+          echo "FI_PROVIDER=shm" >> "$GITHUB_ENV"
+          echo "UCX_TLS=self,sm" >> "$GITHUB_ENV"
 
       - name: Install gprMax and test dependencies
         run: |

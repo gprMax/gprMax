@@ -531,7 +531,9 @@ cpdef void build_triangle(
     cdef Py_ssize_t i, j, k
     cdef int i1, i2, j1, j2, levelcells, thicknesscells
     cdef int u1, v1, u2, v2, u3, v3
-    cdef double bu, bv, cu, cv, qu, qv, denominator, s, t
+    cdef long long bu, bv, cu, cv, qu2, qv2
+    cdef long long denominator, s_num2, t_num2
+    cdef bint inside
 
     # Work from snapped cell indices and relative coordinates. This avoids
     # subtracting large absolute floating-point coordinates, so translating an
@@ -544,8 +546,6 @@ cpdef void build_triangle(
         j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
-        bu, bv = (u2 - u1) * dy, (v2 - v1) * dz
-        cu, cv = (u3 - u1) * dy, (v3 - v1) * dz
         i2, j2 = min(i2, solid.shape[1]), min(j2, solid.shape[2])
     elif normal == 'y':
         u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
@@ -554,8 +554,6 @@ cpdef void build_triangle(
         j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
-        bu, bv = (u2 - u1) * dx, (v2 - v1) * dz
-        cu, cv = (u3 - u1) * dx, (v3 - v1) * dz
         i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[2])
     elif normal == 'z':
         u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
@@ -564,8 +562,6 @@ cpdef void build_triangle(
         j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
-        bu, bv = (u2 - u1) * dx, (v2 - v1) * dy
-        cu, cv = (u3 - u1) * dx, (v3 - v1) * dy
         i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[1])
 
     # Bound to the start of the grid
@@ -574,25 +570,40 @@ cpdef void build_triangle(
     if j1 < 0:
         j1 = 0
 
+    # Barycentric tests are performed entirely in snapped integer grid
+    # coordinates. Scaling either in-plane axis by its cell spacing is an
+    # affine transformation and therefore leaves these coordinates unchanged.
+    # This also makes the zero-area test exact on every compiler/architecture.
+    bu, bv = u2 - u1, v2 - v1
+    cu, cv = u3 - u1, v3 - v1
     denominator = bu * cv - bv * cu
     if denominator == 0:
         return
 
     for i in range(i1, i2):
         for j in range(j1, j2):
-            if normal == 'x':
-                qu, qv = (i + 0.5 - u1) * dy, (j + 0.5 - v1) * dz
-            elif normal == 'y':
-                qu, qv = (i + 0.5 - u1) * dx, (j + 0.5 - v1) * dz
-            elif normal == 'z':
-                qu, qv = (i + 0.5 - u1) * dx, (j + 0.5 - v1) * dy
-
-            s = (qu * cv - qv * cu) / denominator
-            t = (bu * qv - bv * qu) / denominator
+            # Twice the cell-centre offset avoids representing 0.5 in
+            # floating point. Numerators consequently share a denominator of
+            # 2 * ``denominator``.
+            qu2, qv2 = 2 * i + 1 - 2 * u1, 2 * j + 1 - 2 * v1
+            s_num2 = qu2 * cv - qv2 * cu
+            t_num2 = bu * qv2 - bv * qu2
+            if denominator > 0:
+                inside = (
+                    s_num2 > 0
+                    and t_num2 > 0
+                    and s_num2 + t_num2 < 2 * denominator
+                )
+            else:
+                inside = (
+                    s_num2 < 0
+                    and t_num2 < 0
+                    and s_num2 + t_num2 > 2 * denominator
+                )
 
             # Preserve the historical strict-edge convention: cells whose
             # centres lie exactly on an edge are not filled.
-            if s > 0 and t > 0 and (s + t) < 1:
+            if inside:
                 if thicknesscells == 0:
                     if normal == 'x':
                         build_face_yz(levelcells, i, j, numIDy, numIDz,
