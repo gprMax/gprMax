@@ -884,6 +884,22 @@ class EigenmodePortMonitor:
                 self.magnetic_phase.dtype,
             )
 
+    def reset_run_state(self, grid):
+        """Clear DFT, recursive phase, and derived state for a reused run."""
+
+        self.electric_dft.fill(0)
+        self.magnetic_dft.fill(0)
+        self.electric_phase[:] = _dft_phase_at_time(self.frequency, 0.0, self.electric_phase.dtype)
+        self.magnetic_phase[:] = _dft_phase_at_time(
+            self.frequency, 0.5 * grid.dt, self.magnetic_phase.dtype
+        )
+        self._next_iteration = 0
+        self.result = None
+        self.s_parameters = None
+        self.s_valid = None
+        self.s_generalized_valid = None
+        self.s_power_wave_valid = None
+
     def finalise(self, grid):
         nf, nm = self.electric_dft.shape
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])

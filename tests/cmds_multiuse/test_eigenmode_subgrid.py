@@ -8,7 +8,6 @@ import gprMax
 import gprMax.model as model_mod
 from gprMax.subgrids.subgrid_hsg import SubGridHSG
 
-
 FREQUENCY = 12e9
 
 
@@ -159,9 +158,7 @@ def _subgrid_scene(
             virtual_waveguide=virtual_waveguide,
         )
     else:
-        subgrid.add(
-            gprMax.Waveform(wave_type="contsine", amp=1, freq=FREQUENCY, id="wave")
-        )
+        subgrid.add(gprMax.Waveform(wave_type="contsine", amp=1, freq=FREQUENCY, id="wave"))
         subgrid.add(
             gprMax.EigenmodeBand(
                 id="band",
@@ -295,9 +292,7 @@ def test_subgrid_eigenmode_plane_cannot_touch_coupling_surface(tmp_path, p1, p2)
 
 @pytest.mark.integration
 @pytest.mark.parametrize("normal_axis", range(3), ids=("x", "y", "z"))
-def test_subgrid_virtual_waveguide_inherits_fine_grid(
-    monkeypatch, tmp_path, normal_axis
-):
+def test_subgrid_virtual_waveguide_inherits_fine_grid(monkeypatch, tmp_path, normal_axis):
     captured = _capture_built_grids(monkeypatch)
 
     gprMax.run(
@@ -356,9 +351,7 @@ def test_subgrid_virtual_waveguide_inherits_fine_grid(
 
 
 @pytest.mark.integration
-def test_subgrid_virtual_waveguide_transient_matches_uniform_fine_grid(
-    monkeypatch, tmp_path
-):
+def test_subgrid_virtual_waveguide_transient_matches_uniform_fine_grid(monkeypatch, tmp_path):
     captured = _capture_built_grids(monkeypatch, uniform_source_stop_iteration=3)
     fine_iterations = 6
     gprMax.run(
@@ -399,9 +392,7 @@ def test_subgrid_virtual_waveguide_transient_matches_uniform_fine_grid(
 
 
 @pytest.mark.integration
-def test_subgrid_transient_modal_response_matches_uniform_fine_grid(
-    monkeypatch, tmp_path
-):
+def test_subgrid_transient_modal_response_matches_uniform_fine_grid(monkeypatch, tmp_path):
     """Compare identical fine updates before a boundary return can arrive."""
 
     # An HSG run performs ``ratio`` fine updates per main iteration but all
@@ -444,9 +435,7 @@ def test_subgrid_transient_modal_response_matches_uniform_fine_grid(
     )
     outer = np.asarray(fine_grid.size) - inner
     cell_slices = tuple(slice(int(start), int(stop)) for start, stop in zip(inner, outer))
-    component_slices = tuple(
-        slice(int(start), int(stop + 1)) for start, stop in zip(inner, outer)
-    )
+    component_slices = tuple(slice(int(start), int(stop + 1)) for start, stop in zip(inner, outer))
     np.testing.assert_array_equal(fine_grid.solid[cell_slices], uniform_grid.solid)
     np.testing.assert_array_equal(
         fine_grid.ID[(slice(None), *component_slices)],
@@ -490,9 +479,7 @@ def test_subgrid_transient_modal_response_matches_uniform_fine_grid(
 
 @pytest.mark.integration
 @pytest.mark.parametrize("virtual_waveguide", (False, True), ids=("direct", "virtual"))
-def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(
-    tmp_path, virtual_waveguide
-):
+def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(tmp_path, virtual_waveguide):
     scene, subgrid_object = _subgrid_scene(
         timewindow=5e-10,
         virtual_waveguide=virtual_waveguide,
@@ -519,32 +506,112 @@ def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(
         assert np.max(np.abs(group["port1/incident"][...])) > 0
 
     fine_grid = subgrid_object.subgrid
-    assert all(
-        port._next_iteration == fine_grid.iterations for port in fine_grid.eigenmodeports
-    )
-    assert max(
-        float(np.max(np.abs(field)))
-        for field in (
-            fine_grid.Ex,
-            fine_grid.Ey,
-            fine_grid.Ez,
-            fine_grid.Hx,
-            fine_grid.Hy,
-            fine_grid.Hz,
+    assert all(port._next_iteration == fine_grid.iterations for port in fine_grid.eigenmodeports)
+    assert (
+        max(
+            float(np.max(np.abs(field)))
+            for field in (
+                fine_grid.Ex,
+                fine_grid.Ey,
+                fine_grid.Ez,
+                fine_grid.Hx,
+                fine_grid.Hy,
+                fine_grid.Hz,
+            )
         )
-    ) > 0
+        > 0
+    )
     if virtual_waveguide:
         assert len(fine_grid.virtual_waveguides) == 1
         guide = fine_grid.virtual_waveguides[0]
         assert guide.aux_grid.iterations == fine_grid.iterations
-        assert max(
-            float(np.max(np.abs(field)))
-            for field in (
-                guide.aux_grid.Ex,
-                guide.aux_grid.Ey,
-                guide.aux_grid.Ez,
-                guide.aux_grid.Hx,
-                guide.aux_grid.Hy,
-                guide.aux_grid.Hz,
+        assert (
+            max(
+                float(np.max(np.abs(field)))
+                for field in (
+                    guide.aux_grid.Ex,
+                    guide.aux_grid.Ey,
+                    guide.aux_grid.Ez,
+                    guide.aux_grid.Hx,
+                    guide.aux_grid.Hy,
+                    guide.aux_grid.Hz,
+                )
             )
-        ) > 0
+            > 0
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("virtual_waveguide", (False, True), ids=("direct", "virtual"))
+def test_subgrid_eigenmode_study_switches_modal_source(tmp_path, virtual_waveguide):
+    """A reusable modal study may be owned wholly by one fine grid."""
+
+    scene, subgrid_object = _subgrid_scene(
+        timewindow=5e-10,
+        virtual_waveguide=virtual_waveguide,
+    )
+    # The reusable study requires a complete channel schedule, so add a
+    # second port to the helper's fine-grid model when it was not requested
+    # by the original source-only fixture.
+    if not any(
+        isinstance(item, gprMax.EigenmodePort) and item.kwargs["port"] == 2
+        for item in subgrid_object.children_grid
+    ):
+        offset = np.full(3, 0.03)
+        subgrid_object.add(
+            gprMax.EigenmodePort(
+                port=2,
+                p1=tuple(np.asarray((0.024, 0.009, 0.009)) + offset),
+                p2=tuple(np.asarray((0.024, 0.021, 0.019)) + offset),
+                direction="-",
+                modes=(1,),
+                anchors=(FREQUENCY,),
+                plot_fields=False,
+            )
+        )
+    if virtual_waveguide and not any(
+        isinstance(item, gprMax.VirtualWaveguide) and item.kwargs["port"] == 2
+        for item in subgrid_object.children_grid
+    ):
+        subgrid_object.add(
+            gprMax.VirtualWaveguide(
+                port=2,
+                length_cells=12,
+                pml_cells=4,
+                source_clearance_cells=3,
+            )
+        )
+    excitation = next(
+        item
+        for item in subgrid_object.children_grid
+        if isinstance(item, gprMax.EigenmodeExcitation)
+    )
+    study = gprMax.EigenmodeStudy(
+        [
+            gprMax.StudyCase(
+                f"drive_port{port}",
+                [gprMax.ObjectState(excitation, port=port, mode=1)],
+            )
+            for port in (1, 2)
+        ]
+    )
+    outputfile = tmp_path / f"subgrid_study_{'virtual' if virtual_waveguide else 'direct'}"
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=outputfile,
+        subgrid=True,
+        autotranslate=True,
+        cpu_precision="double",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert study.result.s.shape[1:] == (2, 2)
+    assert study.result.generalized_valid_s.any()
+    for case_index in (1, 2):
+        with h5py.File(tmp_path / f"{outputfile.name}{case_index}.h5") as output:
+            assert "subgrids/fine_grid/eigenmode_ports/port1" in output
+            assert "study/eigenmode_response" in output
+    fine_grid = subgrid_object.subgrid
+    assert len(fine_grid.virtual_waveguides) == (2 if virtual_waveguide else 0)

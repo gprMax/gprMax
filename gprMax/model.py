@@ -542,7 +542,9 @@ class Model:
                     "Vtotal/S11/Zin output with no error. Run a single model "
                     "instead."
                 )
-            if any(
+            from gprMax.studies import EigenmodeStudy
+
+            if not isinstance(config.sim_config.study, EigenmodeStudy) and any(
                 grid.eigenmodesources or grid.eigenmodereceivers or grid.virtual_waveguide_specs
                 for grid in grids
             ):

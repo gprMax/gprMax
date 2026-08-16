@@ -270,17 +270,94 @@ matched passive termination.
 
 .. autoclass:: gprMax.studies.PortStudyResult
 
+Eigenmode-port studies and array synthesis
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An :class:`gprMax.EigenmodeStudy` constructs the complete modal S matrix by
+exciting one declared ``(port, mode)`` channel per case. The geometry, Yee
+arrays, FDFD modal solutions, phase-aligned anchor fields, and modal power
+normalisation are prepared once. Between cases gprMax clears the main and
+virtual-waveguide fields, PML histories, modal DFT accumulators, recursive DFT
+phases, and derived S data before selecting the next cached modal basis.
+
+Every declared mode on every :class:`gprMax.EigenmodePort` must appear in
+exactly one case. This deliberate one-active-channel policy gives ordinary
+S-parameters; exciting several ports in one solve would yield only the active
+relation :math:`b(f)=S(f)a(f)`, not all columns of :math:`S`.
+
+.. code-block:: python
+
+    excitation = gprMax.EigenmodeExcitation(
+        port=1, mode=1, waveform='auto', plot_waveform=False
+    )
+    scene.add(excitation)
+
+    study = gprMax.EigenmodeStudy([
+        gprMax.StudyCase('p1m1', [
+            gprMax.ObjectState(excitation, port=1, mode=1),
+        ]),
+        gprMax.StudyCase('p2m1', [
+            gprMax.ObjectState(excitation, port=2, mode=1),
+        ]),
+    ])
+
+    results = gprMax.run(scenes=[scene], study=study, outputfile='array')
+    modal_s = results['study'].s
+
+The matrix convention is
+``S[frequency, output_channel, input_channel]``. ``channel_ports`` and
+``channel_modes`` define both channel axes. Physical power-wave and
+generalized-coefficient validity masks are stored separately, so an
+evanescent generalized coefficient is never mistaken for a propagating power
+wave. Compatible columns in an existing ``<output>_study.h5`` are retained
+when restarting with ``i=N``.
+
+Embedded far fields from the individual cases can be combined without a new
+FDTD solve. A :class:`gprMax.ModalWeight` supports either a constant phase
+shifter, a true time delay, or both:
+
+.. code-block:: python
+
+    weights = results['study'].excitation_weights([
+        gprMax.ModalWeight(port=1, mode=1, power=1, phase_deg=0),
+        gprMax.ModalWeight(port=2, mode=1, power=1, phase_deg=90),
+    ])
+    outgoing = results['study'].outgoing([
+        gprMax.ModalWeight(port=1, mode=1, power=1),
+    ])
+    field = gprMax.combine_embedded_modal_responses(embedded_fields, weights)
+
+Here ``power`` is incident modal power in watts, so the power-wave magnitude
+is its square root. With the engineering Fourier convention a constant phase
+uses :math:`\exp(+j\phi)`, whereas a delay uses
+:math:`\exp(-j2\pi f\tau)`. Constant phase produces ordinary narrowband
+beam steering and beam squint; true time delay preserves steering over
+bandwidth. ``embedded_fields`` is a complex array whose first axis is
+frequency and whose selected channel axis follows ``channel_ports`` and
+``channel_modes``.
+
+.. autoclass:: gprMax.studies.EigenmodeStudy
+
+.. autoclass:: gprMax.studies.EigenmodeStudyResult
+    :members: excitation_weights, outgoing
+
+.. autoclass:: gprMax.studies.ModalWeight
+
+.. autofunction:: gprMax.studies.modal_array_weights
+
+.. autofunction:: gprMax.studies.combine_embedded_modal_responses
+
 .. autoclass:: gprMax.studies.StudyCase
 
 .. autoclass:: gprMax.studies.ObjectState
 
 .. note::
 
-    MPI/task-farm studies, subgrid study objects, transmission lines, rational
-    networks, magnetic-frill sources, plane waves, and eigenmode sources are
-    not yet enabled. Their cached fields, transforms, and derived setup must be
-    reset or rebuilt explicitly; gprMax rejects them instead of reusing stale
-    state.
+    MPI/task-farm studies, transmission lines, rational networks,
+    magnetic-frill sources, and plane waves are not yet enabled. General GPR
+    study objects remain main-grid only. Eigenmode studies support the owning
+    main grid or subgrid and reset direct and virtual-waveguide modal state
+    explicitly.
 
 Typical general settings are added directly to the scene:
 
