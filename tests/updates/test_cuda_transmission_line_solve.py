@@ -1,4 +1,4 @@
-"""End-to-end CUDA/CPU parity for a device-resident transmission line."""
+"""End-to-end CPU/GPU parity for a device-resident transmission line."""
 
 import h5py
 import numpy as np
@@ -16,6 +16,13 @@ try:
     HAS_CUDA = _cuda_driver.Device.count() > 0
 except Exception:
     HAS_CUDA = False
+
+try:
+    import pyopencl as _cl
+
+    HAS_OPENCL = bool(_cl.get_platforms())
+except Exception:
+    HAS_OPENCL = False
 
 
 def _scene():
@@ -38,11 +45,21 @@ def _scene():
     return scene
 
 
-@pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
+@pytest.mark.parametrize("backend", ["cuda", "opencl"])
 @pytest.mark.parametrize("precision", ["single", "double"])
-def test_cuda_transmission_line_matches_cpu(tmp_path, gpu_device, precision):
+def test_device_transmission_line_matches_cpu(tmp_path, request, backend, precision):
+    if backend == "cuda" and not HAS_CUDA:
+        pytest.skip("No CUDA device/pycuda available")
+    if backend == "opencl" and not HAS_OPENCL:
+        pytest.skip("No OpenCL platform/pyopencl available")
+
+    if backend == "cuda":
+        device_options = {"gpu": [request.getfixturevalue("gpu_device")]}
+    else:
+        device_options = {"opencl": [request.getfixturevalue("opencl_device")]}
+
     cpu_path = tmp_path / f"cpu_tl_{precision}"
-    cuda_path = tmp_path / f"cuda_tl_{precision}"
+    device_path = tmp_path / f"{backend}_tl_{precision}"
     gprMax.run(
         scenes=[_scene()],
         n=1,
@@ -53,10 +70,10 @@ def test_cuda_transmission_line_matches_cpu(tmp_path, gpu_device, precision):
     gprMax.run(
         scenes=[_scene()],
         n=1,
-        outputfile=cuda_path,
+        outputfile=device_path,
         hide_progress_bars=True,
-        gpu=[gpu_device],
         gpu_precision=precision,
+        **device_options,
     )
 
     with h5py.File(str(cpu_path) + ".h5", "r") as output:
@@ -66,33 +83,33 @@ def test_cuda_transmission_line_matches_cpu(tmp_path, gpu_device, precision):
         cpu["Zin"] = output["tls/tl1/Zin"][:]
         cpu["valid"] = output["tls/tl1/valid_Zin"][:].astype(bool)
         cpu["Ez"] = output["rxs/rx1/Ez"][:]
-    with h5py.File(str(cuda_path) + ".h5", "r") as output:
-        cuda = {name: output[f"tls/tl1/{name}"][:] for name in ("Vinc", "Iinc", "Vtotal", "Itotal")}
-        cuda["frequency"] = output["tls/tl1/frequency"][:]
-        cuda["S11"] = output["tls/tl1/S11"][:]
-        cuda["Zin"] = output["tls/tl1/Zin"][:]
-        cuda["valid"] = output["tls/tl1/valid_Zin"][:].astype(bool)
-        cuda["Ez"] = output["rxs/rx1/Ez"][:]
+    with h5py.File(str(device_path) + ".h5", "r") as output:
+        device = {name: output[f"tls/tl1/{name}"][:] for name in ("Vinc", "Iinc", "Vtotal", "Itotal")}
+        device["frequency"] = output["tls/tl1/frequency"][:]
+        device["S11"] = output["tls/tl1/S11"][:]
+        device["Zin"] = output["tls/tl1/Zin"][:]
+        device["valid"] = output["tls/tl1/valid_Zin"][:].astype(bool)
+        device["Ez"] = output["rxs/rx1/Ez"][:]
 
     assert np.max(np.abs(cpu["Vtotal"])) > 1e-3
     for name in ("Vinc", "Iinc", "Vtotal", "Itotal", "Ez"):
         scale = max(float(np.max(np.abs(cpu[name]))), 1e-12)
-        assert np.isfinite(cuda[name]).all()
+        assert np.isfinite(device[name]).all()
         tolerance = 2e-5 if precision == "single" else 2e-12
-        assert_allclose(cuda[name], cpu[name], rtol=tolerance, atol=tolerance * scale)
+        assert_allclose(device[name], cpu[name], rtol=tolerance, atol=tolerance * scale)
 
-    assert_allclose(cuda["frequency"], cpu["frequency"], rtol=0, atol=0)
-    valid = cpu["valid"] & cuda["valid"]
+    assert_allclose(device["frequency"], cpu["frequency"], rtol=0, atol=0)
+    valid = cpu["valid"] & device["valid"]
     assert valid.any()
     tolerance = 4e-5 if precision == "single" else 4e-12
-    assert_allclose(cuda["S11"][valid], cpu["S11"][valid], rtol=tolerance, atol=tolerance)
+    assert_allclose(device["S11"][valid], cpu["S11"][valid], rtol=tolerance, atol=tolerance)
     impedance_scale = max(float(np.max(np.abs(cpu["Zin"][valid]))), 1.0)
     # Near an open circuit, Zin = Z0(1 + S11)/(1 - S11) amplifies a small
     # single-precision S11 difference. Keep the tighter comparison on S11
     # above and allow the corresponding conditioning in this secondary value.
     impedance_tolerance = 2e-4 if precision == "single" else 4e-12
     assert_allclose(
-        cuda["Zin"][valid],
+        device["Zin"][valid],
         cpu["Zin"][valid],
         rtol=impedance_tolerance,
         atol=impedance_tolerance * impedance_scale,

@@ -1,0 +1,125 @@
+{
+  "requested_frequency_hz": 2450000000.0,
+  "gprmax_stored_frequency_hz": 2449999872.0,
+  "comparison_floor_dbi": -40.0,
+  "main_beams": {
+    "phi_cuts": {
+      "phi_0_deg": {
+        "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+          "theta_deg": 0.0,
+          "directivity_dbi": 5.735
+        },
+        "gprmax_closed_ntff": {
+          "theta_deg": 0.0,
+          "directivity_dbi": 5.8694
+        },
+        "cst_fit_time_domain": {
+          "theta_deg": 0.0,
+          "directivity_dbi": 6.998
+        }
+      },
+      "phi_90_deg": {
+        "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+          "theta_deg": 14.0,
+          "directivity_dbi": 5.896
+        },
+        "gprmax_closed_ntff": {
+          "theta_deg": 18.0,
+          "directivity_dbi": 6.179637
+        },
+        "cst_fit_time_domain": {
+          "theta_deg": 15.0,
+          "directivity_dbi": 7.588
+        }
+      }
+    },
+    "full_planes": {
+      "phi_0_180_deg": {
+        "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+          "signed_plane_angle_deg": 0.0,
+          "directivity_dbi": 5.735
+        },
+        "gprmax_closed_ntff": {
+          "signed_plane_angle_deg": 0.0,
+          "directivity_dbi": 5.8694
+        },
+        "cst_fit_time_domain": {
+          "signed_plane_angle_deg": 0.0,
+          "directivity_dbi": 6.998
+        }
+      },
+      "phi_90_270_deg": {
+        "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+          "signed_plane_angle_deg": 14.0,
+          "directivity_dbi": 5.896
+        },
+        "gprmax_closed_ntff": {
+          "signed_plane_angle_deg": 18.0,
+          "directivity_dbi": 6.179637
+        },
+        "cst_fit_time_domain": {
+          "signed_plane_angle_deg": 15.0,
+          "directivity_dbi": 7.588
+        }
+      }
+    }
+  },
+  "cuts": {
+    "phi_0_deg": {
+      "gprmax_vs_cst_fem": {
+        "reference_peak_dbi": 5.735,
+        "reference_peak_theta_deg": 0.0,
+        "gprmax_peak_dbi": 5.8694000244140625,
+        "gprmax_peak_theta_deg": 0.0,
+        "peak_difference_db": 0.13440002441406218,
+        "boresight_difference_db": 0.13440002441406218,
+        "back_direction_difference_db": -4.567765884399414,
+        "mae_floor_clipped_db": 1.934819861443471,
+        "rmse_floor_clipped_db": 3.061555741437223,
+        "front_hemisphere_mae_floor_clipped_db": 0.2838519600770107,
+        "front_hemisphere_rmse_floor_clipped_db": 0.3041877783532122
+      },
+      "gprmax_vs_cst_fit": {
+        "reference_peak_dbi": 6.998,
+        "reference_peak_theta_deg": 0.0,
+        "gprmax_peak_dbi": 5.8694000244140625,
+        "gprmax_peak_theta_deg": 0.0,
+        "peak_difference_db": -1.1285999755859377,
+        "boresight_difference_db": -1.1285999755859377,
+        "back_direction_difference_db": -2.817765884399414,
+        "mae_floor_clipped_db": 2.822602610595009,
+        "rmse_floor_clipped_db": 3.3082425461923646,
+        "front_hemisphere_mae_floor_clipped_db": 1.3964835344284838,
+        "front_hemisphere_rmse_floor_clipped_db": 1.4266613570652946
+      }
+    },
+    "phi_90_deg": {
+      "gprmax_vs_cst_fem": {
+        "reference_peak_dbi": 5.896,
+        "reference_peak_theta_deg": 14.0,
+        "gprmax_peak_dbi": 6.1796369552612305,
+        "gprmax_peak_theta_deg": 18.0,
+        "peak_difference_db": 0.28363695526123056,
+        "boresight_difference_db": 0.13440002441406218,
+        "back_direction_difference_db": -4.567741088867187,
+        "mae_floor_clipped_db": 0.8895399311814124,
+        "rmse_floor_clipped_db": 1.6653301501078874,
+        "front_hemisphere_mae_floor_clipped_db": 0.23245297116504926,
+        "front_hemisphere_rmse_floor_clipped_db": 0.26053370368103806
+      },
+      "gprmax_vs_cst_fit": {
+        "reference_peak_dbi": 7.588,
+        "reference_peak_theta_deg": 15.0,
+        "gprmax_peak_dbi": 6.1796369552612305,
+        "gprmax_peak_theta_deg": 18.0,
+        "peak_difference_db": -1.4083630447387696,
+        "boresight_difference_db": -1.1285999755859377,
+        "back_direction_difference_db": -2.817741088867187,
+        "mae_floor_clipped_db": 1.8106199630983102,
+        "rmse_floor_clipped_db": 2.505248234251615,
+        "front_hemisphere_mae_floor_clipped_db": 1.0046874563098218,
+        "front_hemisphere_rmse_floor_clipped_db": 1.0355467611360707
+      }
+    }
+  }
+}

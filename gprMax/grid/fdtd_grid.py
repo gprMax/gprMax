@@ -153,6 +153,18 @@ class FDTDGrid:
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines: List[TransmissionLine] = []
         self.magneticfrillsources: List[MagneticFrillSource] = []
+        self.magneticfrill_specs = []
+        # Rational lumped networks are sparse terminal devices rather than
+        # sources or mesh materials. Definitions are reusable; each terminal
+        # owns only the states associated with its selected electric edge.
+        self.rationalnetworkmodels = {}
+        self.networkterminals = []
+        # MPI ranks parse the same scene but instantiate a point terminal only
+        # on its owning rank. These replicated definitions let later
+        # excitation/output commands validate and bind by terminal ID on every
+        # rank without duplicating the active edge device.
+        self.networkterminal_specs = {}
+        self.networkexcitation_specs = {}
         self.discreteplanewaves: List[DiscretePlaneWave] = []
         self.eigenmodeband = None
         self.eigenmodeportdefs = {}
@@ -160,8 +172,15 @@ class FDTDGrid:
         self.eigenmodesources: List[EigenmodeSource] = []
         self.eigenmodereceivers: List[EigenmodeReceiver] = []
         self.eigenmodeports = []
+        self.virtual_waveguide_specs = {}
+        self.virtual_waveguides = []
         self.rxs: List[Rx] = []
         self.port_monitors = []  # Source-bound S-parameter/impedance outputs
+        # Every MPI rank parses the same output commands, so this replicated
+        # registry allocates globally consistent automatic port IDs before a
+        # point object is reduced to its single owning rank.
+        self.mpi_port_output_ids = []
+        self.mpi_port_output_owners = {}
         self.snapshots = []  # List[Snapshot]
         self.ntff_monitors = []  # Time- and frequency-domain NTFF monitors
         # Reusable NTFF surface definitions are registered by user objects,
@@ -366,7 +385,8 @@ class FDTDGrid:
                 pml = self._construct_pml(pml_id, thickness)
                 averageer, averagemr = self._calculate_average_pml_material_properties(pml)
                 logger.debug(
-                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability =" f" {averagemr}"
+                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability ="
+                    f" {averagemr}"
                 )
                 pml.calculate_update_coeffs(averageer, averagemr)
                 self.pmls["slabs"].append(pml)
@@ -647,7 +667,9 @@ class FDTDGrid:
         if material is not None:
             return material
 
-        material_id = f"thin_wire_{wire.wire_axis}_{wire.radius:.12g}_{role}_bg" f"{background.numID}"
+        material_id = (
+            f"thin_wire_{wire.wire_axis}_{wire.radius:.12g}_{role}_bg" f"{background.numID}"
+        )
         material = Material(len(self.materials), material_id)
         material.type = "thin-wire"
         material.averagable = False
@@ -732,6 +754,9 @@ class FDTDGrid:
 
         if not self.thinwires:
             return
+        if hasattr(self, "comm"):
+            self._build_thin_wires_mpi()
+            return
 
         electric_builders = {"x": build_edge_x, "y": build_edge_y, "z": build_edge_z}
         magnetic_builders = {
@@ -759,11 +784,15 @@ class FDTDGrid:
                 previous_e = occupied_e.get(e_key)
                 signature = (wire.wire_axis, wire.radius)
                 if previous_e is not None and previous_e != signature:
-                    raise ValueError("Thin-wire electric edges overlap with different axes or radii.")
+                    raise ValueError(
+                        "Thin-wire electric edges overlap with different axes or radii."
+                    )
                 occupied_e[e_key] = signature
 
                 h_targets = list(self._thin_wire_h_targets(wire.wire_axis, i, j, k))
-                if any(self.within_pml(np.array((x, y, z), dtype=np.int32)) for _, x, y, z in h_targets):
+                if any(
+                    self.within_pml(np.array((x, y, z), dtype=np.int32)) for _, x, y, z in h_targets
+                ):
                     raise ValueError(
                         f"{wire} has a surrounding magnetic component inside a PML "
                         f"at grid position {(i, j, k)}; thin-wire stencils cannot "
@@ -772,7 +801,9 @@ class FDTDGrid:
 
                 background_e = self.materials[int(self.ID[component_e_index, i, j, k])]
                 material_e = self._thin_wire_material(wire, background_e, role=component_e)
-                electric_builders[wire.wire_axis](i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID)
+                electric_builders[wire.wire_axis](
+                    i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID
+                )
 
                 for component_h, x, y, z in h_targets:
                     h_key = (component_h, x, y, z)
@@ -788,7 +819,127 @@ class FDTDGrid:
                     background_h = self.materials[int(self.ID[component_h_index, x, y, z])]
                     if background_h.ID == "pmc" or background_h.sm == float("inf"):
                         raise ValueError(
-                            f"{wire} has a PMC magnetic component in its surrounding " f"stencil at {(x, y, z)}."
+                            f"{wire} has a PMC magnetic component in its surrounding "
+                            f"stencil at {(x, y, z)}."
+                        )
+                    radial_axis = self._thin_wire_h_radial_axis(wire.wire_axis, component_h)
+                    material_h = self._thin_wire_material(
+                        wire,
+                        background_h,
+                        role=component_h,
+                        radial_axis=radial_axis,
+                    )
+                    magnetic_builders[component_h](x, y, z, material_h.numID, self.rigidH, self.ID)
+
+    def _build_thin_wires_mpi(self) -> None:
+        """Build globally registered thin-wire components on their owning ranks."""
+
+        electric_builders = {"x": build_edge_x, "y": build_edge_y, "z": build_edge_z}
+        magnetic_builders = {
+            "Hx": build_magnetic_edge_x,
+            "Hy": build_magnetic_edge_y,
+            "Hz": build_magnetic_edge_z,
+        }
+        electric_components = {"x": "Ex", "y": "Ey", "z": "Ez"}
+        occupied_e = {}
+        occupied_h = {}
+        global_size = np.asarray(self.global_size, dtype=np.int32)
+
+        def owned_local(global_coord):
+            local = self.global_to_local_coordinate(np.asarray(global_coord, dtype=np.int32))
+            return local if self.within_bounds(local) else None
+
+        def global_h_targets(axis, i, j, k):
+            targets = {
+                "x": (("Hy", i, j, k - 1), ("Hy", i, j, k), ("Hz", i, j - 1, k), ("Hz", i, j, k)),
+                "y": (("Hx", i, j, k - 1), ("Hx", i, j, k), ("Hz", i - 1, j, k), ("Hz", i, j, k)),
+                "z": (("Hy", i - 1, j, k), ("Hy", i, j, k), ("Hx", i, j - 1, k), ("Hx", i, j, k)),
+            }[axis]
+            nx, ny, nz = (int(value) for value in global_size)
+            active_ranges = {
+                "Hx": ((0, nx + 1), (0, ny), (0, nz)),
+                "Hy": ((0, nx), (0, ny + 1), (0, nz)),
+                "Hz": ((0, nx), (0, ny), (0, nz + 1)),
+            }
+            for component, x, y, z in targets:
+                ranges = active_ranges[component]
+                if all(low <= value < high for value, (low, high) in zip((x, y, z), ranges)):
+                    yield component, (x, y, z)
+
+        for wire in self.thinwires:
+            start = np.asarray(wire.global_start, dtype=np.int32)
+            stop = np.asarray(wire.global_stop, dtype=np.int32)
+            axis_index = "xyz".index(wire.wire_axis)
+            for index, axis in enumerate("xyz"):
+                if index == axis_index:
+                    continue
+                coordinate = int(start[index])
+                if coordinate == 0:
+                    face = f"{axis}0"
+                elif coordinate == int(global_size[index]):
+                    face = f"{axis}max"
+                else:
+                    continue
+                if self.symmetry_boundaries.get(face) != "pmc":
+                    raise ValueError(
+                        f"{wire} lies on transverse global domain face {face}; "
+                        "a thin wire can lie on a transverse wall only when "
+                        "that face is declared as a PMC symmetry boundary."
+                    )
+
+            component_e = electric_components[wire.wire_axis]
+            component_e_index = self.IDlookup[component_e]
+            signature = (wire.wire_axis, wire.radius)
+            for position in range(int(start[axis_index]), int(stop[axis_index])):
+                global_e = start.copy()
+                global_e[axis_index] = position
+
+                local_e = owned_local(global_e)
+                if local_e is not None:
+                    i, j, k = (int(value) for value in local_e)
+                    if self.within_pml(local_e):
+                        raise ValueError(
+                            f"{wire} enters a PML at global grid position "
+                            f"{tuple(int(value) for value in global_e)}."
+                        )
+                    e_key = (component_e, i, j, k)
+                    previous_e = occupied_e.get(e_key)
+                    if previous_e is not None and previous_e != signature:
+                        raise ValueError(
+                            "Thin-wire electric edges overlap with different axes or radii."
+                        )
+                    occupied_e[e_key] = signature
+                    background_e = self.materials[int(self.ID[component_e_index, i, j, k])]
+                    material_e = self._thin_wire_material(wire, background_e, role=component_e)
+                    electric_builders[wire.wire_axis](
+                        i, j, k, material_e.numID, self.rigidE, self.rigidH, self.ID
+                    )
+
+                gi, gj, gk = (int(value) for value in global_e)
+                for component_h, global_h in global_h_targets(wire.wire_axis, gi, gj, gk):
+                    local_h = owned_local(global_h)
+                    if local_h is None:
+                        continue
+                    x, y, z = (int(value) for value in local_h)
+                    if self.within_pml(local_h):
+                        raise ValueError(
+                            f"{wire} has a surrounding magnetic component inside a PML "
+                            f"at global grid position {global_h}."
+                        )
+                    h_key = (component_h, x, y, z)
+                    previous_h = occupied_h.get(h_key)
+                    if previous_h is not None and previous_h != signature:
+                        raise ValueError(
+                            "Thin-wire magnetic stencils overlap with different axes or radii; "
+                            "sub-cell wire junctions are not yet supported."
+                        )
+                    occupied_h[h_key] = signature
+                    component_h_index = self.IDlookup[component_h]
+                    background_h = self.materials[int(self.ID[component_h_index, x, y, z])]
+                    if background_h.ID == "pmc" or background_h.sm == float("inf"):
+                        raise ValueError(
+                            f"{wire} has a PMC magnetic component in its surrounding stencil "
+                            f"at global grid position {global_h}."
                         )
                     radial_axis = self._thin_wire_h_radial_axis(wire.wire_axis, component_h)
                     material_h = self._thin_wire_material(
@@ -884,9 +1035,7 @@ class FDTDGrid:
         if not specs:
             return
 
-        pec_numids = np.asarray(
-            [m.numID for m in self.materials if m.is_pec], dtype=np.uint32
-        )
+        pec_numids = np.asarray([m.numID for m in self.materials if m.is_pec], dtype=np.uint32)
         limits = {"x": self.nx, "y": self.ny, "z": self.nz}
 
         for index, spec in enumerate(specs):
@@ -1013,17 +1162,33 @@ class FDTDGrid:
 
     def _build_symmetry_boundaries(self) -> None:
         """Apply PEC faces and resolve the per-iteration PMC edge dispatch."""
-        if not self.symmetry_boundaries:
+        local_boundaries = self.get_local_symmetry_boundaries()
+        if not local_boundaries:
             return
 
         pec_numid = next(m.numID for m in self.materials if m.ID == "pec")
-        for face, boundary_type in self.symmetry_boundaries.items():
+        for face, boundary_type in local_boundaries.items():
             if boundary_type == "pec":
                 self._force_pec_tangential_e(face, pec_numid)
 
         self.symmetry_boundary_edges = build_symmetry_boundary_edges(self)
         self.symmetry_boundary_edges_dispersive = build_symmetry_boundary_edges_dispersive(self)
         self.symmetry_boundary_edges_dispersive_b = build_symmetry_boundary_edges_dispersive_b(self)
+
+    def get_local_symmetry_boundaries(self) -> dict:
+        """Return symmetry faces that belong to this grid.
+
+        A serial grid owns every global domain face. ``MPIGrid`` overrides
+        this method so an internal rank boundary is never mistaken for a
+        physical PEC/PMC symmetry plane.
+        """
+
+        return self.symmetry_boundaries
+
+    def touches_global_face(self, face: str) -> bool:
+        """Return whether this grid touches a named global domain face."""
+
+        return True
 
     def _force_pec_tangential_e(self, face: str, pec_numid: int) -> None:
         """Force the two tangential E-component IDs on a domain face to PEC."""
@@ -1075,13 +1240,22 @@ class FDTDGrid:
     def _eigenmode_port_grid_init(self):
         """Process eigenmode sources and receivers after Yee IDs have been built."""
         if self.eigenmodeportdefs and self.eigenmodeband is None:
-            raise ValueError('Eigenmode ports require exactly one EigenmodeBand.')
+            raise ValueError("Eigenmode ports require exactly one EigenmodeBand.")
         if self.eigenmodeportdefs and self.eigenmodeexcitation is None:
-            raise ValueError('Eigenmode ports require exactly one EigenmodeExcitation.')
+            if set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs):
+                raise ValueError(
+                    "Eigenmode ports require exactly one EigenmodeExcitation, unless "
+                    "every port has a passive VirtualWaveguide."
+                )
+            from gprMax.user_objects.cmds_multiuse import build_passive_virtual_eigenmode_ports
+
+            build_passive_virtual_eigenmode_ports(self)
         source_count = len(self.eigenmodesources)
-        if (source_count or self.eigenmodereceivers) and source_count != 1:
+        expected_sources = 0 if self.eigenmodeexcitation is None else 1
+        if (source_count or self.eigenmodereceivers) and source_count != expected_sources:
             raise ValueError(
-                "Eigenmode ports require one and only one eigenmode source on " f"{self.name}; found {source_count}."
+                f"Eigenmode ports require {expected_sources} eigenmode source(s) on "
+                f"{self.name}; found {source_count}."
             )
         ports = [*self.eigenmodesources, *self.eigenmodereceivers]
         port_indices = [int(port.port_index) for port in ports]
@@ -1089,11 +1263,15 @@ class FDTDGrid:
             raise ValueError("Eigenmode port indices must be one or greater.")
         if len(set(port_indices)) != len(port_indices):
             raise ValueError(
-                "Eigenmode source and receiver port indices must be unique; " f"got {port_indices} on {self.name}."
+                "Eigenmode source and receiver port indices must be unique; "
+                f"got {port_indices} on {self.name}."
             )
         from gprMax.sources import initialise_eigenmode_ports
 
         initialise_eigenmode_ports(self)
+        from gprMax.virtual_waveguide import initialise_virtual_waveguides
+
+        initialise_virtual_waveguides(self)
 
     def _build_materials(self) -> None:
         """Calculate properties of materials in the grid.
@@ -1282,9 +1460,7 @@ class FDTDGrid:
             return True
 
         return any(
-            spec.xs <= p[0] <= spec.xf
-            and spec.ys <= p[1] <= spec.yf
-            and spec.zs <= p[2] <= spec.zf
+            spec.xs <= p[0] <= spec.xf and spec.ys <= p[1] <= spec.yf and spec.zs <= p[2] <= spec.zf
             for spec in self.pmls["internal_specs"]
         )
 
@@ -1349,8 +1525,12 @@ class FDTDGrid:
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
-        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
-        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
+        self.updatecoeffsE = np.zeros(
+            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.updatecoeffsH = np.zeros(
+            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
@@ -1401,6 +1581,9 @@ class FDTDGrid:
         # Clear arrays for fields in PML
         for pml in self.pmls["slabs"]:
             pml.initialise_field_arrays()
+
+        for terminal in self.networkterminals:
+            terminal.reset()
 
     def mem_est_basic(self):
         """Estimates the amount of memory (RAM) required for grid arrays.
@@ -1557,14 +1740,21 @@ class FDTDGrid:
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
         if config.get_model_config().mode in ("2D TMx", "2D TEx"):
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
+            )
         elif config.get_model_config().mode in ("2D TMy", "2D TEy"):
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
+            )
         elif config.get_model_config().mode in ("2D TMz", "2D TEz"):
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
+            )
         else:
             self.dt = 1 / (
-                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
             )
 
         # Round down time step to nearest float with precision one less than
@@ -1634,7 +1824,9 @@ class FDTDGrid:
         """
         results = self._dispersion_analysis(iterations)
         if results["error"]:
-            logger.warning(f"Numerical dispersion analysis [{self.name}] not carried out as {results['error']}")
+            logger.warning(
+                f"Numerical dispersion analysis [{self.name}] not carried out as {results['error']}"
+            )
         elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
             logger.exception(
                 f"\nNon-physical wave propagation in [{self.name}] "
@@ -1647,7 +1839,8 @@ class FDTDGrid:
             raise ValueError
         elif (
             results["deltavp"]
-            and np.abs(results["deltavp"]) > config.get_model_config().numdispersion["maxnumericaldisp"]
+            and np.abs(results["deltavp"])
+            > config.get_model_config().numdispersion["maxnumericaldisp"]
         ):
             logger.warning(
                 f"[{self.name}] has potentially significant "
@@ -1715,7 +1908,9 @@ class FDTDGrid:
                     iterations = min(iterations, max_iterations)
                     waveformvalues = np.zeros(iterations)
                     for iteration in range(iterations):
-                        waveformvalues[iteration] = waveform.calculate_value(iteration * self.dt, self.dt)
+                        waveformvalues[iteration] = waveform.calculate_value(
+                            iteration * self.dt, self.dt
+                        )
 
                     # Ensure source waveform is not being overly truncated before attempting any FFT
                     if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
@@ -1728,7 +1923,8 @@ class FDTDGrid:
                         try:
                             freqthres = (
                                 np.where(
-                                    power[freqmaxpower:] < -config.get_model_config().numdispersion["highestfreqthres"]
+                                    power[freqmaxpower:]
+                                    < -config.get_model_config().numdispersion["highestfreqthres"]
                                 )[0][0]
                                 + freqmaxpower
                             )
@@ -1747,7 +1943,8 @@ class FDTDGrid:
                     # If waveform is truncated don't do any further analysis
                     else:
                         results["error"] = (
-                            "waveform does not fit within specified " + "time window and is therefore being truncated."
+                            "waveform does not fit within specified "
+                            + "time window and is therefore being truncated."
                         )
         else:
             results["error"] = "no waveform detected."
@@ -1798,9 +1995,14 @@ class FDTDGrid:
             results["N"] = minwavelength / delta
 
             # Check grid sampling will result in physical wave propagation
-            if int(np.floor(results["N"])) >= config.get_model_config().numdispersion["mingridsampling"]:
+            if (
+                int(np.floor(results["N"]))
+                >= config.get_model_config().numdispersion["mingridsampling"]
+            ):
                 # Numerical phase velocity
-                vp = np.pi / (results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"])))
+                vp = np.pi / (
+                    results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
+                )
 
                 # Physical phase velocity error (percentage)
                 results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100

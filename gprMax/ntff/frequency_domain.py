@@ -35,27 +35,18 @@ try:
 except ImportError:  # pragma: no cover - permits source-tree use before compilation
     _accumulate_surface_dft = None
 
+from .closures import ResolvedKSIRClosure, closure_from_metadata
 from .conventions import (
     FORWARD_TRANSFORM_KERNEL,
     OUTGOING_GREEN_RADIAL_FACTOR,
     PHASOR_TIME_DEPENDENCE,
-)
-from .closures import (
-    ResolvedKSIRClosure,
-    closure_from_metadata,
 )
 from .evaluator import (
     evaluate_far_zone_patches,
     project_cartesian_to_spherical,
     spherical_directions,
 )
-from .surfaces import (
-    COMPONENT_OFFSETS,
-    FACES,
-    KSIRComponentSurface,
-    build_component_surface,
-)
-
+from .surfaces import COMPONENT_OFFSETS, FACES, KSIRComponentSurface, build_component_surface
 
 ELECTRIC_COMPONENTS = ("Ex", "Ey", "Ez")
 MAGNETIC_COMPONENTS = ("Hx", "Hy", "Hz")
@@ -179,9 +170,7 @@ def surface_compatibility_signature(
         np.asarray(surface.normals, dtype="<f8"),
         np.asarray(surface.area_weights, dtype="<f8"),
         np.asarray(frequencies, dtype="<f8"),
-        np.asarray(
-            (dt, sample_time_offset, background_er, background_mr), dtype="<f8"
-        ),
+        np.asarray((dt, sample_time_offset, background_er, background_mr), dtype="<f8"),
         np.asarray((iterations,), dtype="<i8"),
     )
     for array in arrays:
@@ -257,10 +246,7 @@ def _evaluate_component_with_closure(
     origin: npt.ArrayLike,
     nthreads: int = 1,
     retain_face_contributions: bool = True,
-) -> tuple[
-    npt.NDArray[np.complexfloating],
-    Optional[npt.NDArray[np.complexfloating]],
-]:
+) -> tuple[npt.NDArray[np.complexfloating], Optional[npt.NDArray[np.complexfloating]],]:
     """Evaluate one component and retain contributions by physical face."""
 
     field_values = np.asarray(field)
@@ -270,9 +256,7 @@ def _evaluate_component_with_closure(
         raise ValueError("KSIR surface phasors must use a complex dtype")
     frequency_values = np.asarray(frequencies)
     direction_values = np.asarray(directions)
-    total = np.zeros(
-        (frequency_values.size, direction_values.shape[0]), dtype=result_dtype
-    )
+    total = np.zeros((frequency_values.size, direction_values.shape[0]), dtype=result_dtype)
     face_contributions = (
         np.zeros(
             (frequency_values.size, direction_values.shape[0], len(FACES)),
@@ -308,9 +292,7 @@ def _evaluate_component_with_closure(
         total += contribution
         if face_contributions is not None:
             face_contributions[:, :, FACES.index(face_id)] += contribution
-    return _readonly(total), (
-        None if face_contributions is None else _readonly(face_contributions)
-    )
+    return _readonly(total), (None if face_contributions is None else _readonly(face_contributions))
 
 
 class _ComponentDFTAccumulator:
@@ -344,9 +326,7 @@ class _ComponentDFTAccumulator:
         shape = (frequencies.size, surface.npatches)
         self.inside_dft = np.zeros(shape, dtype=self.dtype)
         self.outside_dft = np.zeros(shape, dtype=self.dtype)
-        self._phase = _dft_phase_at_time(
-            frequencies, sample_time_offset_steps * dt, self.dtype
-        )
+        self._phase = _dft_phase_at_time(frequencies, sample_time_offset_steps * dt, self.dtype)
         self._step = _dft_phase_at_time(frequencies, dt, self.dtype)
         self._inside_indices = np.ascontiguousarray(
             np.concatenate([face.inside_flat_indices for face in surface.faces]),
@@ -376,12 +356,8 @@ class _ComponentDFTAccumulator:
 
         self._next_iteration += 1
         if self._next_iteration % DFT_PHASE_REANCHOR_INTERVAL == 0:
-            physical_time = (
-                self._next_iteration + self.sample_time_offset_steps
-            ) * self.dt
-            self._phase = _dft_phase_at_time(
-                self.frequencies, physical_time, self.dtype
-            )
+            physical_time = (self._next_iteration + self.sample_time_offset_steps) * self.dt
+            self._phase = _dft_phase_at_time(self.frequencies, physical_time, self.dtype)
         else:
             self._phase *= self._step
         return multiplier
@@ -414,9 +390,7 @@ class _ComponentDFTAccumulator:
             self.inside_dft += contribution * inside[np.newaxis, :]
             self.outside_dft += contribution * outside[np.newaxis, :]
 
-    def load_device_dfts(
-        self, inside: npt.ArrayLike, outside: npt.ArrayLike
-    ) -> None:
+    def load_device_dfts(self, inside: npt.ArrayLike, outside: npt.ArrayLike) -> None:
         """Load completed raw DFTs accumulated by a device backend."""
 
         if self._finalised:
@@ -436,9 +410,7 @@ class _ComponentDFTAccumulator:
         self.inside_dft[...] = inside_values
         self.outside_dft[...] = outside_values
 
-    def finalise(
-        self, background_er: float, background_mr: float
-    ) -> KSIRComponentPhasors:
+    def finalise(self, background_er: float, background_mr: float) -> KSIRComponentPhasors:
         if self._finalised:
             raise RuntimeError("KSIR DFT accumulator has already been finalised")
         if self._next_iteration != self.iterations:
@@ -506,6 +478,9 @@ class KSIRFrequencyDomainMonitor:
         exterior_index_bounds: Optional[Sequence[Sequence[int]]] = None,
         closure: Optional[ResolvedKSIRClosure] = None,
         allow_external_sources: bool = False,
+        mpi_comm=None,
+        mpi_grid=None,
+        global_surfaces: Optional[Mapping[str, KSIRComponentSurface]] = None,
     ):
         if not name:
             raise ValueError("KSIR monitor name must not be empty")
@@ -526,9 +501,7 @@ class KSIRFrequencyDomainMonitor:
             self.complex_dtype.kind != "c"
             or self.complex_dtype.itemsize != 2 * self.real_dtype.itemsize
         ):
-            raise ValueError(
-                "complex_dtype must be the matching complex dtype for real_dtype"
-            )
+            raise ValueError("complex_dtype must be the matching complex dtype for real_dtype")
         if not isinstance(nthreads, (int, np.integer)) or nthreads < 1:
             raise ValueError("nthreads must be an integer greater than zero")
         if not isinstance(window, str):
@@ -545,14 +518,10 @@ class KSIRFrequencyDomainMonitor:
         validate_nyquist_frequencies(frequencies, dt)
         self.theta_values = _angles("theta", theta, self.real_dtype)
         self.phi_values = _angles("phi", phi, self.real_dtype)
-        theta_grid, phi_grid = np.meshgrid(
-            self.theta_values, self.phi_values, indexing="ij"
-        )
+        theta_grid, phi_grid = np.meshgrid(self.theta_values, self.phi_values, indexing="ij")
         self.theta = _readonly(theta_grid.ravel())
         self.phi = _readonly(phi_grid.ravel())
-        self.directions = _readonly(
-            spherical_directions(self.theta, self.phi, degrees=True)
-        )
+        self.directions = _readonly(spherical_directions(self.theta, self.phi, degrees=True))
         if origin is None:
             centres = np.stack([surface.centre for surface in surfaces.values()])
             reference_origin = np.mean(centres, axis=0)
@@ -565,9 +534,7 @@ class KSIRFrequencyDomainMonitor:
         self.dt = float(dt)
         self.iterations = int(iterations)
         self.window_name = window.lower().replace("-", "_")
-        self.window_values = _window(
-            self.window_name, self.iterations, self.real_dtype
-        )
+        self.window_values = _window(self.window_name, self.iterations, self.real_dtype)
         if self.window_name in ("boxcar", "none"):
             self.window_name = "rectangular"
         elif self.window_name == "hanning":
@@ -579,9 +546,7 @@ class KSIRFrequencyDomainMonitor:
         self.nthreads = int(nthreads)
         if solver_backend == "cpu":
             self.collection_backend = (
-                "cython_openmp"
-                if _accumulate_surface_dft is not None
-                else "numpy_fallback"
+                "cython_openmp" if _accumulate_surface_dft is not None else "numpy_fallback"
             )
         else:
             self.collection_backend = f"{solver_backend}_device"
@@ -591,6 +556,15 @@ class KSIRFrequencyDomainMonitor:
         )
         self.incident_monitor_name = incident_monitor_name or name
         self.allow_external_sources = bool(allow_external_sources)
+        self.mpi_grid = mpi_grid
+        self.mpi_comm = mpi_comm if mpi_grid is None else mpi_grid.comm
+        self.global_surfaces = (
+            None if global_surfaces is None else MappingProxyType(dict(global_surfaces))
+        )
+        if self.mpi_comm is not None and self.global_surfaces is None:
+            raise ValueError("MPI NTFF collection requires the global component surfaces")
+        if self.mpi_comm is not None:
+            self.collection_backend = f"mpi_{self.collection_backend}"
         self.wave_speed = None if wave_speed is None else float(wave_speed)
         self.impedance = None if impedance is None else float(impedance)
         self._wave_speed_override = wave_speed is not None
@@ -601,9 +575,7 @@ class KSIRFrequencyDomainMonitor:
         self.background_material_name = None
         self.surface_material_id = None
         self.closure = (
-            ResolvedKSIRClosure("closed", (), (), True, True)
-            if closure is None
-            else closure
+            ResolvedKSIRClosure("closed", (), (), True, True) if closure is None else closure
         )
         for surface in surfaces.values():
             face_ids = tuple(face.face_id for face in surface.faces)
@@ -645,20 +617,14 @@ class KSIRFrequencyDomainMonitor:
         self._incident_reference_index = None
         self._incident_reference_positions = None
         self._incident_electric = None
-        self._incident_phase = np.ones(
-            self.frequencies.size, dtype=self.complex_dtype
-        )
-        self._incident_step = _dft_phase_at_time(
-            self.frequencies, self.dt, self.complex_dtype
-        )
+        self._incident_phase = np.ones(self.frequencies.size, dtype=self.complex_dtype)
+        self._incident_step = _dft_phase_at_time(self.frequencies, self.dt, self.complex_dtype)
         self._incident_next_iteration = 0
 
     @property
     def result(self) -> KSIRFrequencyResult:
         if self._result is None:
-            raise RuntimeError(
-                "KSIR result is not available until the solver has finalised"
-            )
+            raise RuntimeError("KSIR result is not available until the solver has finalised")
         return self._result
 
     @property
@@ -667,10 +633,11 @@ class KSIRFrequencyDomainMonitor:
             raise RuntimeError("KSIR surface DFT is not available until finalisation")
         return self._surface_data
 
-    def validate_materials(
-        self, material_ids: npt.ArrayLike, id_lookup: Mapping[str, int]
-    ) -> int:
+    def validate_materials(self, material_ids: npt.ArrayLike, id_lookup: Mapping[str, int]) -> int:
         """Verify that all straddling samples use one homogeneous material ID."""
+
+        if self.mpi_comm is not None:
+            return self._validate_materials_mpi(material_ids, id_lookup)
 
         ids = np.asarray(material_ids)
         sampled_ids = []
@@ -683,16 +650,11 @@ class KSIRFrequencyDomainMonitor:
                     self.real_dtype,
                 )
                 if np.any(keep):
-                    sampled_ids.append(
-                        component_ids[tuple(face.inside_indices[keep].T)]
-                    )
-                    sampled_ids.append(
-                        component_ids[tuple(face.outside_indices[keep].T)]
-                    )
+                    sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
+                    sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
         if not sampled_ids:
             raise ValueError(
-                f"KSIR monitor {self.name!r} has no off-symmetry samples "
-                "for material validation"
+                f"KSIR monitor {self.name!r} has no off-symmetry samples " "for material validation"
             )
         unique_ids = np.unique(np.concatenate(sampled_ids))
         if unique_ids.size != 1:
@@ -705,8 +667,7 @@ class KSIRFrequencyDomainMonitor:
             exterior_ids = []
             for component, surface in self.surfaces.items():
                 slices = tuple(
-                    slice(int(lower), int(upper) + 1)
-                    for lower, upper in self.exterior_index_bounds
+                    slice(int(lower), int(upper) + 1) for lower, upper in self.exterior_index_bounds
                 )
                 component_ids = ids[id_lookup[component]][slices]
                 coordinate_axes = [
@@ -715,9 +676,7 @@ class KSIRFrequencyDomainMonitor:
                         + COMPONENT_OFFSETS[component][axis]
                     )
                     * surface.grid_spacing[axis]
-                    for axis, (lower, upper) in enumerate(
-                        self.exterior_index_bounds
-                    )
+                    for axis, (lower, upper) in enumerate(self.exterior_index_bounds)
                 ]
                 coordinates = np.meshgrid(*coordinate_axes, indexing="ij")
                 outside = np.zeros(component_ids.shape, dtype=bool)
@@ -764,15 +723,187 @@ class KSIRFrequencyDomainMonitor:
                         )
                 exterior_ids.append(component_ids[outside])
             exterior_unique = np.unique(np.concatenate(exterior_ids))
-            if (
-                exterior_unique.size != 1
-                or int(exterior_unique[0]) != self.surface_material_id
-            ):
+            if exterior_unique.size != 1 or int(exterior_unique[0]) != self.surface_material_id:
                 raise ValueError(
                     f"KSIR monitor {self.name!r} exterior region is not "
                     "homogeneous with its surface"
                 )
         return self.surface_material_id
+
+    def _validate_materials_mpi(
+        self, material_ids: npt.ArrayLike, id_lookup: Mapping[str, int]
+    ) -> int:
+        """Collectively validate the rank-owned surface samples."""
+
+        from .mpi import distributed_unique
+
+        ids = np.asarray(material_ids)
+        sampled_ids = []
+        for component, surface in self.surfaces.items():
+            component_ids = ids[id_lookup[component]]
+            for face in surface.faces:
+                keep = self.closure.material_validation_mask(
+                    surface,
+                    face,
+                    self.real_dtype,
+                )
+                if np.any(keep):
+                    sampled_ids.append(component_ids[tuple(face.inside_indices[keep].T)])
+                    sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
+        local = np.concatenate(sampled_ids) if sampled_ids else np.empty(0, dtype=np.int64)
+        unique_ids = distributed_unique(local, self.mpi_comm)
+        if unique_ids.size != 1:
+            raise ValueError(
+                f"KSIR monitor {self.name!r} surface straddles multiple material IDs: "
+                f"{unique_ids.tolist()}"
+            )
+        self.surface_material_id = int(unique_ids[0])
+        if self.exterior_index_bounds is not None:
+            exterior_ids = []
+            local_lower = np.asarray(self.mpi_grid.negative_halo_offset, dtype=np.int64)
+            positive_boundary = np.asarray(self.mpi_grid.neighbours[:, 1] < 0, dtype=np.int64)
+            local_upper = np.asarray(self.mpi_grid.size, dtype=np.int64) + positive_boundary
+            global_lower = local_lower + np.asarray(self.mpi_grid.lower_extent, dtype=np.int64)
+            global_upper = local_upper + np.asarray(self.mpi_grid.lower_extent, dtype=np.int64)
+            requested_lower = np.asarray(self.exterior_index_bounds)[:, 0]
+            requested_upper = np.asarray(self.exterior_index_bounds)[:, 1] + 1
+            selected_lower = np.maximum(global_lower, requested_lower)
+            selected_upper = np.minimum(global_upper, requested_upper)
+            if np.all(selected_upper > selected_lower):
+                local_selected_lower = selected_lower - self.mpi_grid.lower_extent
+                local_selected_upper = selected_upper - self.mpi_grid.lower_extent
+                slices = tuple(
+                    slice(int(lower), int(upper))
+                    for lower, upper in zip(local_selected_lower, local_selected_upper)
+                )
+                for component, surface in self.surfaces.items():
+                    component_ids = ids[id_lookup[component]][slices]
+                    coordinate_axes = [
+                        (
+                            np.arange(lower, upper, dtype=self.real_dtype)
+                            + COMPONENT_OFFSETS[component][axis]
+                        )
+                        * surface.grid_spacing[axis]
+                        for axis, (lower, upper) in enumerate(zip(selected_lower, selected_upper))
+                    ]
+                    coordinates = np.meshgrid(*coordinate_axes, indexing="ij")
+                    outside = np.zeros(component_ids.shape, dtype=bool)
+                    for axis in range(3):
+                        outside |= coordinates[axis] < surface.physical_lower[axis]
+                        outside |= coordinates[axis] > surface.physical_upper[axis]
+                    on_symmetry_plane = np.zeros(component_ids.shape, dtype=bool)
+                    for plane in self.closure.symmetry_planes:
+                        tolerance = (
+                            16
+                            * np.finfo(self.real_dtype).eps
+                            * max(
+                                abs(plane.coordinate),
+                                surface.grid_spacing[plane.axis],
+                            )
+                        )
+                        on_symmetry_plane |= np.isclose(
+                            coordinates[plane.axis],
+                            plane.coordinate,
+                            rtol=0,
+                            atol=tolerance,
+                        )
+                    outside &= ~on_symmetry_plane
+                    for face in self.closure.omitted_faces:
+                        axis = "xyz".index(face[0])
+                        tolerance = (
+                            16
+                            * np.finfo(self.real_dtype).eps
+                            * max(
+                                abs(surface.physical_lower[axis]),
+                                abs(surface.physical_upper[axis]),
+                                surface.grid_spacing[axis],
+                            )
+                        )
+                        if face.endswith("0"):
+                            outside &= (
+                                coordinates[axis]
+                                > surface.physical_lower[axis]
+                                + surface.grid_spacing[axis]
+                                + tolerance
+                            )
+                        else:
+                            outside &= (
+                                coordinates[axis]
+                                < surface.physical_upper[axis]
+                                - surface.grid_spacing[axis]
+                                - tolerance
+                            )
+                    exterior_ids.append(component_ids[outside])
+            exterior_local = (
+                np.concatenate(exterior_ids) if exterior_ids else np.empty(0, dtype=np.int64)
+            )
+            exterior_unique = distributed_unique(exterior_local, self.mpi_comm)
+            if exterior_unique.size != 1 or int(exterior_unique[0]) != self.surface_material_id:
+                raise ValueError(
+                    f"KSIR monitor {self.name!r} exterior region is not "
+                    "homogeneous with its surface"
+                )
+        return self.surface_material_id
+
+    def _gather_mpi_surface_data(self, data):
+        """Assemble rank-local surface phasors on the coordinator once."""
+
+        from .mpi import global_patch_indices
+
+        payload = {}
+        for component, component_data in data.items():
+            payload[component] = (
+                global_patch_indices(component_data.surface),
+                component_data.field,
+                component_data.normal_derivative,
+            )
+        gathered = self.mpi_comm.gather(payload, root=0)
+        if self.mpi_comm.Get_rank() != 0:
+            return None
+
+        assembled = {}
+        for component in self.components:
+            surface = self.global_surfaces[component]
+            shape = (self.frequencies.size, surface.npatches)
+            field = np.empty(shape, dtype=self.complex_dtype)
+            derivative = np.empty(shape, dtype=self.complex_dtype)
+            assigned = np.zeros(surface.npatches, dtype=np.int8)
+            for rank_payload in gathered:
+                indices, rank_field, rank_derivative = rank_payload[component]
+                if np.any(assigned[indices]):
+                    raise RuntimeError(
+                        f"MPI NTFF {component} surface patches have duplicate owners"
+                    )
+                field[:, indices] = rank_field
+                derivative[:, indices] = rank_derivative
+                assigned[indices] = 1
+            if not np.all(assigned):
+                missing = np.flatnonzero(assigned == 0)
+                raise RuntimeError(
+                    f"MPI NTFF {component} surface has {missing.size} unowned patches"
+                )
+            _readonly(field)
+            _readonly(derivative)
+            signature = surface_compatibility_signature(
+                surface,
+                self.frequencies,
+                self.dt,
+                self.iterations,
+                (0.0 if component in ELECTRIC_COMPONENTS else 0.5 * self.dt),
+                self.window_name,
+                self.background_er,
+                self.background_mr,
+                self.closure.signature,
+                self.complex_dtype,
+            )
+            assembled[component] = KSIRComponentPhasors(
+                component=component,
+                surface=surface,
+                field=field,
+                normal_derivative=derivative,
+                compatibility_signature=signature,
+            )
+        return MappingProxyType(assembled)
 
     def configure_background(self, materials: Sequence) -> None:
         """Resolve lossless homogeneous Green-function properties."""
@@ -816,21 +947,15 @@ class KSIRFrequencyDomainMonitor:
         if not self._wave_speed_override:
             self.wave_speed = c / np.sqrt(self.background_er * self.background_mr)
         if not self._impedance_override:
-            self.impedance = np.sqrt(
-                mu_0 * self.background_mr / (epsilon_0 * self.background_er)
-            )
+            self.impedance = np.sqrt(mu_0 * self.background_mr / (epsilon_0 * self.background_er))
 
-    def associate_plane_wave(
-        self, plane_wave, grid_spacing: npt.ArrayLike, index: int
-    ) -> None:
+    def associate_plane_wave(self, plane_wave, grid_spacing: npt.ArrayLike, index: int) -> None:
         """Associate an enclosed DiscretePlaneWave and prepare incident DFT."""
 
         self.associated_plane_wave = plane_wave
         spacing = np.asarray(grid_spacing, dtype=self.real_dtype)
         reference_index = np.rint(self.origin / spacing).astype(np.int64)
-        one_d_index = int(
-            np.dot(plane_wave.m[:3], reference_index - plane_wave.origin)
-        )
+        one_d_index = int(np.dot(plane_wave.m[:3], reference_index - plane_wave.origin))
         if plane_wave.axial != 0:
             one_d_index += int(plane_wave.origin_axial)
         if one_d_index < 0 or one_d_index >= plane_wave.E_fields.shape[1]:
@@ -847,19 +972,13 @@ class KSIRFrequencyDomainMonitor:
                 ]
             )
         )
-        self._incident_electric = np.zeros(
-            (self.frequencies.size, 3), dtype=self.complex_dtype
-        )
+        self._incident_electric = np.zeros((self.frequencies.size, 3), dtype=self.complex_dtype)
         self.plane_wave_metadata = {
             "index": int(index),
             "corners": np.asarray(plane_wave.corners, dtype=np.int32),
             "waveform_id": plane_wave.waveformID,
-            "material_id": (
-                "" if plane_wave.materialID is None else plane_wave.materialID
-            ),
-            "actual_angles": np.asarray(
-                plane_wave.actual_angles, dtype=self.real_dtype
-            ),
+            "material_id": ("" if plane_wave.materialID is None else plane_wave.materialID),
+            "actual_angles": np.asarray(plane_wave.actual_angles, dtype=self.real_dtype),
             "polarisation_angle": float(plane_wave.psi),
             "integer_mapping": np.asarray(plane_wave.m[:3], dtype=np.int32),
             "start": float(plane_wave.start),
@@ -884,9 +1003,7 @@ class KSIRFrequencyDomainMonitor:
         if self.associated_plane_wave is None:
             return
         multiplier = self.device_incident_sampling_multiplier(iteration)
-        incident = self.associated_plane_wave.E_fields[
-            :, self._incident_reference_index
-        ]
+        incident = self.associated_plane_wave.E_fields[:, self._incident_reference_index]
         self._incident_electric += multiplier[:, np.newaxis] * incident[np.newaxis, :]
 
     def device_incident_sampling_multiplier(
@@ -900,9 +1017,7 @@ class KSIRFrequencyDomainMonitor:
         """
 
         if self.associated_plane_wave is None:
-            raise RuntimeError(
-                f"KSIR monitor {self.name!r} has no associated incident plane wave"
-            )
+            raise RuntimeError(f"KSIR monitor {self.name!r} has no associated incident plane wave")
         if iteration != self._incident_next_iteration:
             raise ValueError(
                 f"expected incident iteration {self._incident_next_iteration}, "
@@ -923,9 +1038,7 @@ class KSIRFrequencyDomainMonitor:
         """Load an incident electric-field DFT downloaded at finalisation."""
 
         if self.associated_plane_wave is None or self._incident_electric is None:
-            raise RuntimeError(
-                f"KSIR monitor {self.name!r} has no associated incident plane wave"
-            )
+            raise RuntimeError(f"KSIR monitor {self.name!r} has no associated incident plane wave")
         incident = np.asarray(values, dtype=self.complex_dtype)
         if incident.shape != self._incident_electric.shape:
             raise ValueError(
@@ -984,8 +1097,7 @@ class KSIRFrequencyDomainMonitor:
             monitor_path = f"ntff/{self.incident_monitor_name}"
             if monitor_path not in source:
                 raise ValueError(
-                    "incident surface file has no monitor "
-                    f"{self.incident_monitor_name!r}"
+                    "incident surface file has no monitor " f"{self.incident_monitor_name!r}"
                 )
             monitor_group = source[monitor_path]
             for attr, expected in (
@@ -997,30 +1109,22 @@ class KSIRFrequencyDomainMonitor:
                 if isinstance(actual, bytes):
                     actual = actual.decode()
                 if actual != expected:
-                    raise ValueError(
-                        f"incident surface convention {attr!r} is incompatible"
-                    )
+                    raise ValueError(f"incident surface convention {attr!r} is incompatible")
             if "surface" not in monitor_group:
                 raise ValueError("incident monitor does not contain saved surface DFTs")
 
             subtracted: Dict[str, KSIRComponentPhasors] = {}
             for component, current in data.items():
                 if component not in monitor_group["surface"]:
-                    raise ValueError(
-                        f"incident monitor has no {component} surface DFT"
-                    )
+                    raise ValueError(f"incident monitor has no {component} surface DFT")
                 group = monitor_group["surface"][component]
                 signature = group.attrs.get("compatibility_signature")
                 if isinstance(signature, bytes):
                     signature = signature.decode()
                 if signature != current.compatibility_signature:
-                    raise ValueError(
-                        f"incident {component} surface DFT is incompatible"
-                    )
+                    raise ValueError(f"incident {component} surface DFT is incompatible")
                 field = np.asarray(current.field) - group["psi_dft"][:]
-                derivative = (
-                    np.asarray(current.normal_derivative) - group["dn_psi_dft"][:]
-                )
+                derivative = np.asarray(current.normal_derivative) - group["dn_psi_dft"][:]
                 _readonly(field)
                 _readonly(derivative)
                 subtracted[component] = KSIRComponentPhasors(
@@ -1040,9 +1144,7 @@ class KSIRFrequencyDomainMonitor:
         if not any(component in fields for component in components):
             return None
         shape = (self.frequencies.size, self.directions.shape[0], 3)
-        cartesian = np.full(
-            shape, np.nan + 1j * np.nan, dtype=self.complex_dtype
-        )
+        cartesian = np.full(shape, np.nan + 1j * np.nan, dtype=self.complex_dtype)
         for axis, component in enumerate(components):
             if component in fields:
                 cartesian[:, :, axis] = fields[component]
@@ -1077,9 +1179,7 @@ class KSIRFrequencyDomainMonitor:
         power = np.trapezoid(phi_integral, theta_rad, axis=1)
         directivity = np.full_like(radiation_intensity, np.nan)
         valid = power > 0
-        directivity[valid] = (
-            4 * np.pi * radiation_intensity[valid] / power[valid, np.newaxis]
-        )
+        directivity[valid] = 4 * np.pi * radiation_intensity[valid] / power[valid, np.newaxis]
         maximum = np.full(power.shape, np.nan, dtype=self.real_dtype)
         maximum[valid] = np.max(directivity[valid], axis=1)
         return _readonly(power), _readonly(directivity), _readonly(maximum)
@@ -1088,9 +1188,7 @@ class KSIRFrequencyDomainMonitor:
         if self._finalised:
             return
         if self.wave_speed is None or self.impedance is None:
-            raise RuntimeError(
-                f"KSIR monitor {self.name!r} background material was not configured"
-            )
+            raise RuntimeError(f"KSIR monitor {self.name!r} background material was not configured")
         if (
             self.associated_plane_wave is not None
             and self._incident_next_iteration != self.iterations
@@ -1102,13 +1200,35 @@ class KSIRFrequencyDomainMonitor:
 
         raw_data = MappingProxyType(
             {
-                component: accumulator.finalise(
-                    self.background_er, self.background_mr
-                )
+                component: accumulator.finalise(self.background_er, self.background_mr)
                 for component, accumulator in self._accumulators.items()
             }
         )
-        data = self._subtract_incident_surface(raw_data)
+        if self.mpi_comm is not None:
+            coordinator = self.mpi_comm.Get_rank() == 0
+            mpi_error = None
+            gathered_data = None
+            try:
+                gathered_data = self._gather_mpi_surface_data(raw_data)
+                if coordinator:
+                    gathered_data = self._subtract_incident_surface(gathered_data)
+            except Exception as exc:  # propagate coordinator-only finalisation failures
+                if coordinator:
+                    mpi_error = f"{exc.__class__.__name__}: {exc}"
+                else:  # pragma: no cover - gather failures are coordinator-side
+                    raise
+            mpi_error = self.mpi_comm.bcast(mpi_error, root=0)
+            if mpi_error is not None:
+                raise RuntimeError(
+                    f"MPI NTFF monitor {self.name!r} could not assemble its surface data: "
+                    f"{mpi_error}"
+                )
+            if not coordinator:
+                self._finalised = True
+                return
+            data = gathered_data
+        else:
+            data = self._subtract_incident_surface(raw_data)
         self._surface_data = data
 
         fields: Dict[str, npt.NDArray[np.complexfloating]] = {}
@@ -1132,9 +1252,7 @@ class KSIRFrequencyDomainMonitor:
             face_contributions[component] = contributions
             numerator = np.sum(np.abs(contributions), axis=2)
             denominator = np.abs(values)
-            indicator = np.full(
-                denominator.shape, np.inf, dtype=self.real_dtype
-            )
+            indicator = np.full(denominator.shape, np.inf, dtype=self.real_dtype)
             np.divide(
                 numerator,
                 denominator,
@@ -1142,17 +1260,10 @@ class KSIRFrequencyDomainMonitor:
                 where=denominator > 0,
             )
             cancellation_indicators[component] = _readonly(indicator)
-            active_areas[component] = float(
-                np.sum(component_data.surface.area_weights)
-            )
-            extents = (
-                component_data.surface.physical_upper
-                - component_data.surface.physical_lower
-            )
+            active_areas[component] = float(np.sum(component_data.surface.area_weights))
+            extents = component_data.surface.physical_upper - component_data.surface.physical_lower
             full_area = 2 * (
-                extents[0] * extents[1]
-                + extents[0] * extents[2]
-                + extents[1] * extents[2]
+                extents[0] * extents[1] + extents[0] * extents[2] + extents[1] * extents[2]
             )
             missing_fractions[component] = (
                 max(0.0, 1.0 - active_areas[component] / full_area)
@@ -1163,12 +1274,8 @@ class KSIRFrequencyDomainMonitor:
 
         electric_cartesian = self._cartesian(fields, ELECTRIC_COMPONENTS)
         magnetic_cartesian = self._cartesian(fields, MAGNETIC_COMPONENTS)
-        complete_electric = all(
-            component in fields for component in ELECTRIC_COMPONENTS
-        )
-        complete_magnetic = all(
-            component in fields for component in MAGNETIC_COMPONENTS
-        )
+        complete_electric = all(component in fields for component in ELECTRIC_COMPONENTS)
+        complete_magnetic = all(component in fields for component in MAGNETIC_COMPONENTS)
         electric_spherical = (
             None
             if not complete_electric
@@ -1196,8 +1303,7 @@ class KSIRFrequencyDomainMonitor:
         bistatic_rcs = None
         if complete_electric:
             tangential_squared = (
-                np.abs(electric_spherical[:, :, 1]) ** 2
-                + np.abs(electric_spherical[:, :, 2]) ** 2
+                np.abs(electric_spherical[:, :, 1]) ** 2 + np.abs(electric_spherical[:, :, 2]) ** 2
             )
             radiation_intensity = _readonly(
                 np.asarray(
@@ -1206,30 +1312,22 @@ class KSIRFrequencyDomainMonitor:
                 )
             )
             tangential = np.sqrt(tangential_squared)
-            transversality_error = np.full(
-                tangential.shape, np.nan, dtype=self.real_dtype
-            )
+            transversality_error = np.full(tangential.shape, np.nan, dtype=self.real_dtype)
             nonzero = tangential > 0
             transversality_error[nonzero] = (
-                np.abs(electric_spherical[:, :, 0][nonzero])
-                / tangential[nonzero]
+                np.abs(electric_spherical[:, :, 0][nonzero]) / tangential[nonzero]
             )
             _readonly(transversality_error)
             if self.closure.mathematically_closed:
-                radiated_power, directivity, maximum_directivity = (
-                    self._integrated_metrics(radiation_intensity)
+                radiated_power, directivity, maximum_directivity = self._integrated_metrics(
+                    radiation_intensity
                 )
             if self._incident_electric is not None:
                 incident_power = np.sum(np.abs(self._incident_electric) ** 2, axis=1)
-                bistatic_rcs = np.full(
-                    tangential_squared.shape, np.nan, dtype=self.real_dtype
-                )
+                bistatic_rcs = np.full(tangential_squared.shape, np.nan, dtype=self.real_dtype)
                 valid = incident_power > 0
                 bistatic_rcs[valid] = (
-                    4
-                    * np.pi
-                    * tangential_squared[valid]
-                    / incident_power[valid, np.newaxis]
+                    4 * np.pi * tangential_squared[valid] / incident_power[valid, np.newaxis]
                 )
                 _readonly(bistatic_rcs)
 
@@ -1288,9 +1386,7 @@ class KSIRFrequencyDomainMonitor:
         group.attrs["closure"] = self.closure.name
         group.attrs["mathematically_closed"] = self.closure.mathematically_closed
         group.attrs["closure_exact"] = self.closure.exact
-        group.attrs["omitted_faces"] = np.asarray(
-            self.closure.omitted_faces, dtype="S5"
-        )
+        group.attrs["omitted_faces"] = np.asarray(self.closure.omitted_faces, dtype="S5")
         group.attrs["symmetry_plane_faces"] = np.asarray(
             [plane.face for plane in self.closure.symmetry_planes], dtype="S5"
         )
@@ -1316,14 +1412,9 @@ class KSIRFrequencyDomainMonitor:
         group.attrs["iterations"] = self.iterations
         group.attrs["components"] = np.asarray(self.components, dtype="S2")
         group.attrs["sample_time_offsets"] = np.asarray(
-            [
-                0.0 if item in ELECTRIC_COMPONENTS else 0.5 * self.dt
-                for item in self.components
-            ]
+            [0.0 if item in ELECTRIC_COMPONENTS else 0.5 * self.dt for item in self.components]
         )
-        group.attrs["incident_surface_subtracted"] = (
-            self.incident_surface_file is not None
-        )
+        group.attrs["incident_surface_subtracted"] = self.incident_surface_file is not None
         group.attrs["allow_external_sources"] = self.allow_external_sources
         if self.incident_surface_file is not None:
             group.attrs["incident_surface_file"] = str(self.incident_surface_file)
@@ -1347,9 +1438,7 @@ class KSIRFrequencyDomainMonitor:
             cancellation_group[component] = result.cancellation_indicator[component]
             component_group = diagnostics_group.create_group(component)
             component_group.attrs["active_area"] = result.active_area[component]
-            component_group.attrs["missing_area_fraction"] = (
-                result.missing_area_fraction[component]
-            )
+            component_group.attrs["missing_area_fraction"] = result.missing_area_fraction[component]
         for name, values in (
             ("E_cartesian", result.electric_cartesian),
             ("E_spherical", result.electric_spherical),
@@ -1375,9 +1464,7 @@ class KSIRFrequencyDomainMonitor:
             surface_group = group.create_group("surface")
             for component, data in self.surface_data.items():
                 component_group = surface_group.create_group(component)
-                component_group.attrs["compatibility_signature"] = (
-                    data.compatibility_signature
-                )
+                component_group.attrs["compatibility_signature"] = data.compatibility_signature
                 component_group.attrs["logical_lower"] = data.surface.lower
                 component_group.attrs["logical_upper"] = data.surface.upper
                 component_group.attrs["physical_lower"] = data.surface.physical_lower
@@ -1418,22 +1505,16 @@ def evaluate_saved_surface_dft(
                 raise ValueError(f"saved surface convention {attr!r} is incompatible")
         if "surface" not in group:
             raise ValueError("saved monitor does not contain surface DFTs")
-        stored_real_dtype = group.attrs.get(
-            "real_dtype", group["frequencies"].dtype.name
-        )
+        stored_real_dtype = group.attrs.get("real_dtype", group["frequencies"].dtype.name)
         if isinstance(stored_real_dtype, bytes):
             stored_real_dtype = stored_real_dtype.decode()
         real_dtype = np.dtype(stored_real_dtype)
         theta_values = _angles("theta", theta, real_dtype)
         phi_values = _angles("phi", phi, real_dtype)
-        theta_grid, phi_grid = np.meshgrid(
-            theta_values, phi_values, indexing="ij"
-        )
+        theta_grid, phi_grid = np.meshgrid(theta_values, phi_values, indexing="ij")
         paired_theta = _readonly(theta_grid.ravel())
         paired_phi = _readonly(phi_grid.ravel())
-        directions = _readonly(
-            spherical_directions(paired_theta, paired_phi, degrees=True)
-        )
+        directions = _readonly(spherical_directions(paired_theta, paired_phi, degrees=True))
         closure_name = group.attrs.get("closure", "closed")
         if isinstance(closure_name, bytes):
             closure_name = closure_name.decode()
@@ -1441,8 +1522,7 @@ def evaluate_saved_surface_dft(
         def decoded_strings(name):
             values = np.atleast_1d(group.attrs.get(name, ()))
             return tuple(
-                value.decode() if isinstance(value, bytes) else str(value)
-                for value in values
+                value.decode() if isinstance(value, bytes) else str(value) for value in values
             )
 
         closure = closure_from_metadata(
@@ -1450,9 +1530,7 @@ def evaluate_saved_surface_dft(
             decoded_strings("omitted_faces"),
             decoded_strings("symmetry_plane_faces"),
             decoded_strings("symmetry_plane_types"),
-            np.atleast_1d(
-                group.attrs.get("symmetry_plane_coordinates", ())
-            ),
+            np.atleast_1d(group.attrs.get("symmetry_plane_coordinates", ())),
         )
         frequencies = _readonly(group["frequencies"][:])
         reference_origin = np.asarray(
@@ -1476,12 +1554,8 @@ def evaluate_saved_surface_dft(
                     real_dtype=real_dtype,
                 )
             )
-            if not np.array_equal(
-                surface.patch_positions, component_group["patch_xyz"][:]
-            ):
-                raise ValueError(
-                    f"saved {component} surface geometry is inconsistent"
-                )
+            if not np.array_equal(surface.patch_positions, component_group["patch_xyz"][:]):
+                raise ValueError(f"saved {component} surface geometry is inconsistent")
             values, _ = _evaluate_component_with_closure(
                 surface,
                 component_group["psi_dft"][:],

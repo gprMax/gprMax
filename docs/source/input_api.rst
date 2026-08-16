@@ -144,6 +144,344 @@ Dispersive Averaging
 --------------------
 .. autoclass:: gprMax.user_objects.cmds_singleuse.DispersiveAveraging
 
+Reusable parameter studies
+--------------------------
+
+A :class:`gprMax.Study` runs an ordered set of source and receiver states while
+reusing one built geometry. It is intended for arbitrary GPR acquisition
+patterns and underlies the specialised multiport, antenna-array, and
+plane-wave workflows. Every case restores the original object state before its
+overrides are applied, so parameters cannot accidentally accumulate between
+runs.
+
+General GPR studies support top-level
+:class:`gprMax.HertzianDipole`, :class:`gprMax.MagneticDipole`, and
+:class:`gprMax.Rx` objects on the main grid. A state can refer directly to its
+Python object or use its deterministic ID. Sources omitted from a case are
+inactive; receivers omitted from a case keep their original position and are
+recorded.
+
+.. code-block:: python
+
+    source = gprMax.HertzianDipole(
+        polarisation='z', p1=(0.10, 0.05, 0.03), waveform_id='pulse'
+    )
+    receiver = gprMax.Rx(p1=(0.14, 0.05, 0.03), id='measurement')
+    scene.add(source)
+    scene.add(receiver)
+
+    study = gprMax.GPRStudy([
+        gprMax.StudyCase('trace_1', [
+            gprMax.ObjectState(source, position=(0.10, 0.05, 0.03), scale=1.0),
+            gprMax.ObjectState(receiver, position=(0.14, 0.05, 0.03)),
+        ]),
+        gprMax.StudyCase('trace_2', [
+            gprMax.ObjectState(source, position=(0.102, 0.052, 0.03), scale=0.8),
+            gprMax.ObjectState('measurement', position=(0.145, 0.052, 0.03)),
+        ]),
+    ])
+
+    gprMax.run(scenes=[scene], study=study, outputfile='survey')
+
+The available source overrides are ``active``, ``position``,
+``waveform_id``, ``start``, ``stop``, and the dimensionless amplitude
+``scale``. Receivers currently accept ``position`` and ``record=True``. The
+study determines the run count automatically; pass ``i=N`` to restart at the
+one-based case number ``N``. For a text input model the equivalent
+``#study`` command reads the same information from CSV.
+
+.. autoclass:: gprMax.studies.Study
+    :members: from_csv
+
+.. autoclass:: gprMax.studies.GPRStudy
+
+Fixed-topology terminal-source studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`gprMax.SourceStudy` reuses a model containing stateful terminal
+sources. It supports main-grid :class:`gprMax.TransmissionLine`,
+:class:`gprMax.MagneticFrillSource`, and
+:class:`gprMax.NetworkExcitation` objects. Their positions and physical
+definitions remain fixed, but each case may change ``waveform_id``, ``start``,
+``stop``, and the dimensionless generator ``scale``. ``active=false`` is
+equivalent to zero generator drive.
+
+This is deliberately different from an S-parameter study: any number of
+terminals may be active in one case, which is useful for phased-array and
+multiple-feed antenna patterns. A source omitted from a case is not removed.
+Its transmission-line resistance, coaxial-frill termination, or rational
+network remains coupled to the Yee grid as a passive load.
+
+.. code-block:: python
+
+    scene.add(gprMax.RationalNetwork(id='load50', conductance=1 / 50))
+    scene.add(gprMax.NetworkTerminal(
+        p1=(0.040, 0.050, 0.030), polarisation='z',
+        network_id='load50', id='port1'
+    ))
+    scene.add(gprMax.NetworkTerminal(
+        p1=(0.060, 0.050, 0.030), polarisation='z',
+        network_id='load50', id='port2'
+    ))
+    feed1 = gprMax.NetworkExcitation('port1', 'pulse')
+    feed2 = gprMax.NetworkExcitation('port2', 'pulse')
+    scene.add(feed1)
+    scene.add(feed2)
+
+    study = gprMax.SourceStudy([
+        gprMax.StudyCase('feed_1_only', [
+            gprMax.ObjectState(feed1, scale=1),
+        ]),
+        gprMax.StudyCase('equal_feeds', [
+            gprMax.ObjectState(feed1, scale=1),
+            gprMax.ObjectState(feed2, scale=1),
+        ]),
+        gprMax.StudyCase('weighted_feeds', [
+            gprMax.ObjectState(feed1, scale=1),
+            gprMax.ObjectState(feed2, scale=-1),
+        ]),
+    ])
+
+    gprMax.run(scenes=[scene], study=study, outputfile='fed_array')
+
+Before every case gprMax reconstructs the selected source waveform and clears
+all transmission-line voltage/current and ABC state, magnetic-frill recurrence
+and histories, rational-network pole state, receiver histories, and derived
+port results. Declarative NTFF monitors are recompiled with new accumulators,
+so every case may safely produce an independent antenna pattern. SourceStudy
+uses the normal CPU, CUDA, OpenCL, or Metal implementation of each terminal.
+It does not currently support source objects inside a subgrid, MPI execution,
+or task farming.
+
+.. autoclass:: gprMax.studies.SourceStudy
+
+Finite-resistance voltage-port studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`gprMax.PortStudy` calculates a complete multiport S matrix without
+rebuilding the antenna geometry. Every finite-resistance
+:class:`gprMax.VoltageSource` remains on its original electric edge in every
+case. Exactly one source is driven, while omitted sources have zero generator
+voltage but retain their resistance and therefore act as passive matched
+terminations. Every source must have a coincident, uniquely named
+:class:`gprMax.RxPort`.
+
+.. code-block:: python
+
+    port1_source = gprMax.VoltageSource(
+        p1=(0.040, 0.050, 0.030), polarisation='z', resistance=50,
+        waveform_id='pulse'
+    )
+    port2_source = gprMax.VoltageSource(
+        p1=(0.060, 0.050, 0.030), polarisation='z', resistance=50,
+        waveform_id='pulse'
+    )
+    scene.add(port1_source)
+    scene.add(port2_source)
+    scene.add(gprMax.RxPort(p1=(0.040, 0.050, 0.030), id='port1'))
+    scene.add(gprMax.RxPort(p1=(0.060, 0.050, 0.030), id='port2'))
+
+    study = gprMax.PortStudy([
+        gprMax.StudyCase('drive_port1', [
+            gprMax.ObjectState(port1_source, scale=1.0),
+        ]),
+        gprMax.StudyCase('drive_port2', [
+            gprMax.ObjectState(port2_source, scale=1.0),
+        ]),
+    ])
+
+    results = gprMax.run(scenes=[scene], study=study, outputfile='array')
+    smatrix = results['study'].s
+
+The returned and stored matrix uses
+``S[frequency, output_port, input_port]``. Voltage waves are converted to
+power-wave normalisation, so ports may use different positive real reference
+impedances. The individual source gaps contain numerical background
+capacitance and conductance. These are removed from the complete admittance
+matrix:
+
+.. math::
+
+    \begin{aligned}
+    \overline{\mathbf{Y}}_{\mathrm{s}}
+      &= (\mathbf{I}-\mathbf{S}_{\mathrm{s}})
+         (\mathbf{I}+\mathbf{S}_{\mathrm{s}})^{-1}, \\
+    \overline{\mathbf{Y}}
+      &= \overline{\mathbf{Y}}_{\mathrm{s}}
+         - \operatorname{diag}(Z_{0,p}Y_{\mathrm{gap},p}), \\
+    \mathbf{S}
+      &= (\mathbf{I}+\overline{\mathbf{Y}})^{-1}
+         (\mathbf{I}-\overline{\mathbf{Y}}).
+    \end{aligned}
+
+This matrix operation is important: applying the scalar one-port correction
+independently to off-diagonal elements is not mathematically valid. The
+per-case files contain the raw source-plane column, and ``array_study.h5``
+contains both ``S_source`` and the corrected ``S`` matrix. Restarting with
+``i=N`` reuses compatible columns already present in this aggregate file.
+
+Source position and resistance are immutable because both affect the built
+electric-edge material. The permitted case parameters are ``active``,
+``waveform_id``, ``start``, ``stop``, and ``scale``. Hard voltage sources are
+rejected because zero drive would impose a zero electric field rather than a
+matched passive termination.
+
+.. autoclass:: gprMax.studies.PortStudy
+
+.. autoclass:: gprMax.studies.PortStudyResult
+
+Eigenmode-port studies and array synthesis
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An :class:`gprMax.EigenmodeStudy` constructs the complete modal S matrix by
+exciting one declared ``(port, mode)`` channel per case. The geometry, Yee
+arrays, FDFD modal solutions, phase-aligned anchor fields, and modal power
+normalisation are prepared once. Between cases gprMax clears the main and
+virtual-waveguide fields, PML histories, modal DFT accumulators, recursive DFT
+phases, and derived S data before selecting the next cached modal basis.
+
+Every declared mode on every :class:`gprMax.EigenmodePort` must appear in
+exactly one case. This deliberate one-active-channel policy gives ordinary
+S-parameters; exciting several ports in one solve would yield only the active
+relation :math:`b(f)=S(f)a(f)`, not all columns of :math:`S`.
+
+.. code-block:: python
+
+    excitation = gprMax.EigenmodeExcitation(
+        port=1, mode=1, waveform='auto', plot_waveform=False
+    )
+    scene.add(excitation)
+
+    study = gprMax.EigenmodeStudy([
+        gprMax.StudyCase('p1m1', [
+            gprMax.ObjectState(excitation, port=1, mode=1),
+        ]),
+        gprMax.StudyCase('p2m1', [
+            gprMax.ObjectState(excitation, port=2, mode=1),
+        ]),
+    ])
+
+    results = gprMax.run(scenes=[scene], study=study, outputfile='array')
+    modal_s = results['study'].s
+
+The matrix convention is
+``S[frequency, output_channel, input_channel]``. ``channel_ports`` and
+``channel_modes`` define both channel axes. Physical power-wave and
+generalized-coefficient validity masks are stored separately, so an
+evanescent generalized coefficient is never mistaken for a propagating power
+wave. Compatible columns in an existing ``<output>_study.h5`` are retained
+when restarting with ``i=N``.
+
+Embedded far fields from the individual cases can be combined without a new
+FDTD solve. A :class:`gprMax.ModalWeight` supports either a constant phase
+shifter, a true time delay, or both:
+
+.. code-block:: python
+
+    weights = results['study'].excitation_weights([
+        gprMax.ModalWeight(port=1, mode=1, power=1, phase_deg=0),
+        gprMax.ModalWeight(port=2, mode=1, power=1, phase_deg=90),
+    ])
+    outgoing = results['study'].outgoing([
+        gprMax.ModalWeight(port=1, mode=1, power=1),
+    ])
+    field = gprMax.combine_embedded_modal_responses(embedded_fields, weights)
+
+Here ``power`` is incident modal power in watts, so the power-wave magnitude
+is its square root. With the engineering Fourier convention a constant phase
+uses :math:`\exp(+j\phi)`, whereas a delay uses
+:math:`\exp(-j2\pi f\tau)`. Constant phase produces ordinary narrowband
+beam steering and beam squint; true time delay preserves steering over
+bandwidth. ``embedded_fields`` is a complex array whose first axis is
+frequency and whose selected channel axis follows ``channel_ports`` and
+``channel_modes``.
+
+.. autoclass:: gprMax.studies.EigenmodeStudy
+
+.. autoclass:: gprMax.studies.EigenmodeStudyResult
+    :members: excitation_weights, outgoing
+
+.. autoclass:: gprMax.studies.ModalWeight
+
+.. autofunction:: gprMax.studies.modal_array_weights
+
+.. autofunction:: gprMax.studies.combine_embedded_modal_responses
+
+Plane-wave and RCS studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`gprMax.PlaneWaveStudy` evaluates several incident plane waves while
+building the main Yee geometry only once. The Scene contains exactly one
+discrete-plane-wave object, which acts as the reusable template, and each case
+changes its direction, polarisation, timing, waveform, or amplitude. Other
+active source types are rejected so that scattered-field and RCS results have
+an unambiguous incident wave.
+
+.. code-block:: python
+
+    plane_wave = gprMax.DiscretePlaneWaveAngles(
+        p1=(0.03, 0.03, 0.03),
+        p2=(0.07, 0.07, 0.07),
+        theta=90,
+        phi=0,
+        psi=90,
+        waveform_id='pulse',
+    )
+    scene.add(plane_wave)
+
+    study = gprMax.PlaneWaveStudy([
+        gprMax.StudyCase('x_incidence', [
+            gprMax.ObjectState(plane_wave, theta=90, phi=0, psi=90),
+        ]),
+        gprMax.StudyCase('y_incidence', [
+            gprMax.ObjectState(plane_wave, theta=90, phi=90, psi=90),
+        ]),
+    ])
+
+    gprMax.run(scenes=[scene], study=study, outputfile='angular_rcs')
+
+The TFSF box, background material, and angular-approximation tolerance remain
+fixed because they define the reusable source topology. The parameters which
+may change depend on the template:
+
+* :class:`gprMax.DiscretePlaneWaveAngles`: ``theta``, ``phi``, and ``psi``;
+* :class:`gprMax.DiscretePlaneWaveVector`: ``m_vec`` and ``psi``;
+* :class:`gprMax.DiscretePlaneWaveAxial`: ``axis`` and ``psi``.
+
+All three forms also accept per-case ``waveform_id``, ``start``, ``stop``, and
+non-zero dimensionless ``scale``. The principal Yee arrays and material IDs
+are retained, but the small auxiliary one-dimensional DPW grid is rebuilt for
+each case. This is necessary because its length, rational integer mapping,
+field projections, material profile, and PML state depend on the propagation
+direction.
+
+Declarative NTFF transforms are also reconstructed for every case. Their
+surface geometry is reused, while all time/frequency accumulators and the
+incident-wave DFT are new. Consequently an RCS result cannot contain state
+from an earlier direction. Each numbered HDF5 file records the requested
+study case under ``/study`` and the actual rationalised plane-wave parameters
+under the frequency transform's ``plane_wave`` group. A complete subgrid may
+be enclosed by the fixed TFSF and NTFF surfaces, subject to the normal
+enclosure rules, but it cannot contain another excitation. Far-field
+observation directions are part of the fixed output definition rather than a
+case parameter. Request every direction needed by the study (for example a
+complete angular sweep), then select the appropriate monostatic or bistatic
+direction from each case file.
+
+.. autoclass:: gprMax.studies.PlaneWaveStudy
+
+.. autoclass:: gprMax.studies.StudyCase
+
+.. autoclass:: gprMax.studies.ObjectState
+
+.. note::
+
+    MPI/task-farm studies are not yet enabled. General GPR and SourceStudy
+    objects remain main-grid only. Eigenmode studies support the owning main
+    grid or subgrid and reset direct and virtual-waveguide modal state
+    explicitly. Plane-wave studies use a main-grid TFSF source but may enclose
+    complete subgrids.
+
 Typical general settings are added directly to the scene:
 
 .. code-block:: python
@@ -410,6 +748,11 @@ material-index geometry for insertion into another model:
         filename='reusable_geometry',
     ))
 
+A geometry view can be added to an HSG subgrid. Its points and VTK origin are
+written in the global model coordinate system, even though its material data
+are sampled from the fine local grid. ``GeometryObjectsWrite`` remains a
+main-grid operation.
+
 In a different scene, the saved geometry can be inserted at a chosen origin:
 
 .. code-block:: python
@@ -484,15 +827,17 @@ waveforms can drive local Hertzian or magnetic dipoles, voltage sources,
 transmission lines, and magnetic-frill sources. The discrete-plane-wave
 formulation currently requires a built-in analytic waveform.
 
-Eigenmode band, ports, and excitation
--------------------------------------
+Eigenmode band, ports, excitation, and virtual guides
+------------------------------------------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeBand
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodePort
+.. autoclass:: gprMax.user_objects.cmds_multiuse.VirtualWaveguide
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeExcitation
 
 An eigenmode model has one shared frequency band, one or more independently
-configured ports, and exactly one excitation. Ports do not repeat the DFT
-range or waveform:
+configured ports, and zero or one excitation. The excitation can be omitted
+when every port is a passive virtual guide; that form writes raw modal spectra
+but no S matrix. Ports do not repeat the DFT range or waveform:
 
 .. code-block:: python
 
@@ -519,6 +864,26 @@ range or waveform:
         port=1, mode=1, waveform='auto', plot_waveform=True,
     ))
 
+To terminate either reference plane inside the model, attach a virtual guide
+by port number. It inherits the port orientation and cross-section:
+
+.. code-block:: python
+
+    scene.add(gprMax.VirtualWaveguide(
+        port=1,
+        length_cells=30,
+        pml_cells=12,
+        source_clearance_cells=6,
+        pml_profile=None,
+    ))
+
+Direct ports and virtual guides support domain-decomposed MPI CPU models. The
+modal material slice is reconstructed from the distributed component values,
+so rank-local IDs for averaged materials are not assumed to be globally
+interchangeable. Direct TF/SF injection is ownership-clipped. For a virtual
+guide, every rank advances the same compact auxiliary grid and exchanges only
+the three H-field sheets required at its aperture.
+
 ``modes`` is a strictly increasing tuple of one-based modes. A scalar value
 ``N`` is shorthand for modes 1 through ``N``. All ports using ``'auto'``
 receive one common anchor list covering both the shared DFT band and the
@@ -530,9 +895,10 @@ The automatic excitation is a finite real band-pass pulse with independently
 adapted Gaussian-smoothed lower and upper edges. It is placed at the earliest
 causal time that retains its significant temporal support, maximizing the
 remaining propagation and ring-down interval. A custom ``Waveform`` ID can be
-supplied instead. gprMax checks its exact sampled spectrum and rejects
-significant DC/Nyquist content or more than one percent power outside the
-declared band, with a recommendation to use ``waveform='auto'``.
+supplied instead. gprMax checks its exact sampled spectrum, warns and discards
+significant DC/Nyquist bins, and rejects more than one percent power outside
+the declared band. Use a band-limited waveform, or select ``waveform='auto'``
+to synthesize one automatically for a finite frequency band.
 ``plot_waveform`` independently controls the single excitation waveform/DFT
 figure. ``True`` writes it, ``False`` suppresses it, and the default ``None``
 writes it only for geometry-only runs. Each port's ``plot_fields`` setting
@@ -540,10 +906,47 @@ continues to control only that port's modal-field figures.
 
 Severe tracking mismatch between explicit multiple anchors is an error that
 recommends one explicit anchor. With automatic anchors, a failure confined to
-an outer spectral guard trims that tail for every automatic port. A failure
-inside the requested band makes every automatic port warn and use one shared
-band-centre anchor; results far from it may be inaccurate. See
+an outer spectral guard trims that tail only for the affected port and mode.
+A failure inside the requested band makes that port and mode warn and use its
+band-centre anchor; results for that mode far from it may be inaccurate. The
+candidate frequencies remain common to all automatic ports, while the
+retained masks and fallbacks are resolved independently. See
 :doc:`eigenmode_port` for the complete workflow and outputs.
+
+A direct eigenmode model may also be placed wholly inside one HSG subgrid.
+Add its band, ports, waveform (when one is used), and excitation to that same
+subgrid object. With ``autotranslate=True``, the plane coordinates remain
+global physical coordinates:
+
+.. code-block:: python
+
+    fine_grid.add(gprMax.Waveform(
+        wave_type='contsine', amp=1, freq=22e9, id='fine_wave',
+    ))
+    fine_grid.add(gprMax.EigenmodeBand(
+        id='fine_band', fmin=22e9, fmax=22e9, points=1,
+    ))
+    fine_grid.add(gprMax.EigenmodePort(
+        port=1,
+        p1=(0.045, 0.039, 0.039),
+        p2=(0.045, 0.051, 0.049),
+        direction='+', modes=(1,), anchors=(22e9,),
+    ))
+    fine_grid.add(gprMax.EigenmodeExcitation(
+        port=1, mode=1, waveform='fine_wave',
+    ))
+
+The FDFD solver samples the final component-resolved material slice of the
+fine Yee grid and uses its two transverse spatial steps. Injection and modal
+observation then run at every fine-grid time step. The complete plane and its
+adjacent staggered Yee stencil must lie strictly inside the subgrid working
+region; a plane touching the HSG coupling surface or entering its auxiliary
+or PML region is rejected. Ports cannot be divided between the main grid and
+a subgrid, or between different subgrids. ``VirtualWaveguide`` can be added
+to the same subgrid and referenced to one of its ports. The auxiliary guide
+then inherits the fine grid's spatial and temporal steps, material
+cross-section, update coefficients, and iteration count; it is not resampled
+from the coarse main grid.
 
 Voltage Source
 --------------
@@ -556,6 +959,59 @@ Hertzian Dipole Source
 Magnetic Dipole Source
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.MagneticDipole
+
+Rational lumped-network terminal
+--------------------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.RationalNetwork
+.. autoclass:: gprMax.user_objects.cmds_multiuse.NetworkTerminal
+.. autoclass:: gprMax.user_objects.cmds_multiuse.NetworkExcitation
+
+``RationalNetwork`` defines the reusable driving-point admittance
+
+.. math::
+
+    Y(s)=G+sC+\sum_m\frac{r_m}{s-p_m}.
+
+``NetworkTerminal`` places it on one electric Yee edge. It is passive unless
+a ``NetworkExcitation`` supplies a Thévenin open-circuit waveform. For
+example, a 50 Ohm driven port is
+
+.. code-block:: python
+
+    scene.add(gprMax.RationalNetwork(
+        id='source50', conductance=1 / 50, capacitance=0,
+    ))
+    scene.add(gprMax.NetworkTerminal(
+        p1=(0.05, 0.05, 0.02), polarisation='z',
+        network_id='source50', id='feed',
+    ))
+    scene.add(gprMax.NetworkExcitation(
+        terminal_id='feed', waveform_id='pulse',
+    ))
+
+An inductor is represented by ``poles=(0,)`` and ``residues=(1/L,)``;
+a series :math:`RL` branch uses ``poles=(-R/L,)`` and
+``residues=(1/L,)``. Complex terms must be supplied as conjugate pairs.
+The circuit-to-edge formulation follows the arbitrary linear lumped-network
+FDTD approaches of [PER1999]_ and [CHE2007]_. Their underlying classic PLRC
+time discretisation is improved here using the exponential recursive-
+convolution treatment of Giannakis and Giannopoulos [GIA2014]_: every pole
+current is evaluated analytically at the electric half-step for a linearly
+varying voltage, rather than estimated by averaging its two integer-time
+values. State is stored only for placed terminals. Independent one-port
+rational networks are supported in 3-D on the CPU, CUDA, OpenCL, and Metal
+solvers, including domain-decomposed MPI CPU models; terminals inside
+subgrids currently use the CPU solver. An MPI terminal is advanced only on
+the rank that owns its electric edge, and its histories are gathered for port
+post-processing. Device runs keep the network recurrence and field correction
+on the compute device
+and copy the completed histories back after the solve. Coupled multiport
+admittance matrices are reserved for a later extension.
+
+For :math:`Y=1/R`, ``NetworkExcitation`` and a conventional finite-resistance
+``VoltageSource`` are the same discrete Thévenin source when their position,
+resistance, and waveform are identical. This equivalence does not apply to a
+zero-resistance hard voltage source.
 
 Transmission Line
 -----------------
@@ -621,8 +1077,11 @@ resulting aperture remains sub-cell. For example:
     ))
 
 The corrected formulation is supported by the CPU, CUDA, OpenCL, and Metal
-solvers. It is also supported inside a CPU ``SubGridHSG``. Add the waveform,
-PEC ground plane, thin wire, and magnetic frill to the same subgrid object,
+solvers and by domain-decomposed MPI CPU models. Its four magnetic feed edges
+may cross internal MPI rank boundaries, and PMC image completion is supported
+at minimum-face symmetry corners. It is also supported inside a CPU
+``SubGridHSG``. Add the waveform, PEC ground plane, thin wire, and magnetic
+frill to the same subgrid object,
 using the same global-coordinate convention as other subgrid sources when
 ``autotranslate=True``:
 
@@ -715,30 +1174,20 @@ total-field box. For example, choose one of:
     ))
 
 Here ``pulse`` must identify a built-in analytic waveform. Discrete plane waves
-use the CPU and CUDA solvers. Homogeneous angle/vector plane waves and layered
-axial plane waves support non-dispersive materials and multi-pole Debye,
-Lorentz, and Drude materials. Their auxiliary dispersive state uses the same
-real or complex precision selected for the main grid. A discrete plane wave
-must be added to the main scene, not to a subgrid. Its TFSF box may contain a
-complete subgrid; where the two regions overlap, the box must strictly enclose
-the subgrid's HSG outer coupling surface so that the TFSF correction stencil
-remains on the main grid.
-
-Eigenmode Source
-----------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeSource
-
-Eigenmode Receiver
-------------------
-.. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeRx
-
-An eigenmode source solves and launches a selected mode while simultaneously
-acting as the first modal port. Additional eigenmode receivers measure
-reflection, transmission, and higher-order-mode conversion. Geometry-only
-builds write diagnostic modal-field plots so the selected mode can be checked
-before time stepping. See :ref:`eigenmode` for command examples, mode
-selection, broadband excitation, S-parameters, eigenmode-fed antenna results,
-and the complete formulation.
+use the CPU, CUDA, OpenCL, and Apple Metal solvers.
+Homogeneous angle/vector plane waves and layered axial plane waves support
+non-dispersive materials and multi-pole Debye, Lorentz, and Drude materials.
+Their auxiliary dispersive state uses the same real or complex precision
+selected for the main grid. A discrete plane wave must be added to the main
+scene, not to a subgrid. Its TFSF box may contain a complete subgrid; where the
+two regions overlap, the box must strictly enclose the subgrid's HSG outer
+coupling surface so that the TFSF correction stencil remains on the main grid.
+MPI domain decomposition is supported. The auxiliary one-dimensional wave is
+replicated on every rank, and each rank applies only the TFSF corrections for
+the Yee components that it owns. For an axial plane wave, the layered material
+profile is assembled once from the distributed grid's actual update
+coefficients, including multi-pole dispersive coefficients; no additional
+plane-wave communication occurs during timestepping.
 
 Excitation File
 ---------------
@@ -816,6 +1265,12 @@ hard source, gprMax obtains terminal current from the surrounding magnetic-
 field loop and accounts explicitly for the half-step phase difference from
 the integer-time voltage during transformation.
 
+``RxPort`` also supports domain-decomposed MPI CPU models. The owning rank
+stores the voltage history; hard-source current loops may cross internal rank
+faces because magnetic halos are synchronised before sampling. Histories are
+gathered and transformed once on the coordinator rank, while ``port.result``
+is rebound to that final result for Python API use.
+
 An ``RxPort`` may also be placed inside a ``SubGridHSG``. Add the waveform,
 voltage source, and port to the same subgrid object; the port is then sampled
 using that subgrid's finer spatial and temporal discretisation. With
@@ -841,6 +1296,29 @@ The result is stored at
 ``/subgrids/<subgrid ID>/ports/<port ID>``. The source and port must belong to
 the same grid object so that their discretised coordinates, material edge,
 ``dl``, and ``dt`` are unambiguous.
+
+Rational-network S11 and input impedance
+-----------------------------------------
+.. autoclass:: gprMax.user_objects.cmds_output.NetworkPort
+
+``NetworkPort`` requests the output for an existing ``NetworkTerminal``. Its
+terminal ID becomes the HDF5 port ID:
+
+.. code-block:: python
+
+    network_port = gprMax.NetworkPort(
+        terminal_id='feed', reference_impedance=50, spectrum_limit=10,
+    )
+    scene.add(network_port)
+
+After the solve, ``network_port.result`` contains aligned voltage/current
+histories and ``S11``, ``Zin``, and ``Yin`` spectra. The background Yee-gap
+capacitance and conductance are removed from terminal current. Omitting
+``NetworkExcitation`` leaves a passive measurable port; it has no meaningful
+source-normalised S11 but can still report impedance/admittance where the
+response is numerically defined. A port inside a Python API subgrid is written
+beneath ``/subgrids/<subgrid ID>/ports/<terminal ID>`` and uses that subgrid's
+fine ``dl`` and ``dt``.
 
 Source Steps
 ------------
@@ -874,6 +1352,11 @@ steps are applied between repeated model runs:
         dl=(0.002, 0.002, 0.002), time=2e-9,
         filename='fields_2ns', fileext='.h5', outputs=['Ez', 'Hy'],
     ))
+
+A snapshot can also be added to an HSG subgrid. It is sampled on every fine
+subgrid time step, uses the subgrid's spatial discretisation, and records its
+origin in the global model coordinate system. The requested time or iteration
+is interpreted against the owning subgrid's ``dt`` and iteration count.
 
 Reusable NTFF integration surface
 ---------------------------------
@@ -931,10 +1414,12 @@ class. Hash
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
-An eigenmode excitation cannot be combined with any of the ``KSIR*`` classes.
-Use ``NTFFFrequencyTransform``, ``NTFFFarField`` or
-``NTFFFarFieldArray``, and ``NTFFAntennaPorts`` for an eigenmode-fed
-antenna.
+A direct eigenmode excitation cannot be combined with any of the ``KSIR*``
+classes. When its active port has a ``VirtualWaveguide``, the impressed source
+is instead outside the main FDTD domain and either a closed KSIR surface or a
+closed equivalent-current surface may be used. Without a virtual guide, use
+``NTFFFrequencyTransform``, ``NTFFFarField`` or ``NTFFFarFieldArray``, and
+``NTFFAntennaPorts`` for an eigenmode-fed antenna.
 
 ``NTFFSurface(omit_faces=('x0', 'xmax'))`` creates an open frequency-domain
 Huygens surface. ``omit_faces`` accepts one to five distinct Cartesian face
@@ -949,6 +1434,13 @@ HSG outer coupling surface: overlapping regions require the NTFF surface to
 strictly enclose that outer surface. Sources and scatterers inside the subgrid
 then contribute through the normal HSG field exchange. A disjoint subgrid is
 permitted. NTFF surfaces cannot be defined inside a subgrid.
+
+The same interface is available with MPI domain decomposition. Surface patches
+are distributed between ranks and use the existing field halos, while the
+completed results retain the same HDF5 schema as a serial run. MPI NTFF does
+not introduce a surface collective during each FDTD iteration; accumulated
+time histories or frequency-domain phasors are combined once at finalisation.
+Geometry-fixed reuse remains unsupported.
 
 The following example reuses one surface for an exact time-domain point and a
 frequency-domain radiation pattern. Python keyword arguments replace the
@@ -1133,8 +1625,9 @@ Modified one-step transient far fields
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFTimeFarFieldArray
 
-These CPU-only classes implement the modified time-domain equivalent-current
-method of Giannopoulos *et al.* [GIAFF1997]_. Their ``times`` are reduced
+These classes implement the modified time-domain equivalent-current method of
+Giannopoulos *et al.* [GIAFF1997]_ on the CPU, CUDA, OpenCL, and Metal
+solvers. Their ``times`` are reduced
 times for range-normalized far fields, and only samples supported by every
 surface patch are returned. The time placement of both current derivatives is
 defined in :ref:`ntff-formulations`.
@@ -1199,6 +1692,10 @@ Symmetry Boundary
 .. code-block:: python
 
     scene.add(gprMax.SymmetryBoundary(face='x0', type='pmc'))
+
+Domain-decomposed MPI CPU models support the same PEC and PMC boundaries.
+Only ranks touching a selected global face construct and update it, and
+domain-edge corrections are not applied at internal MPI seams.
 
 PML Properties
 --------------
@@ -1289,6 +1786,18 @@ case-specific long-duration testing. The material cross-section must be
 invariant through the slab.
 
 When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
-``internal_pml_2``, and so on. Internal slabs currently support the CPU, CUDA,
-OpenCL, and Metal solvers on the main 3D grid; MPI and subgrids are not yet
-supported.
+``internal_pml_2``, and so on. Internal slabs support the CPU, CUDA, OpenCL,
+and Metal solvers on the main 3D grid. A slab may also be added to an HSG
+subgrid, where it uses the CPU solver and the fine-grid update cycle. A
+subgrid-owned slab must lie wholly within the working region: overlap with its
+HSG coupling or auxiliary-PML regions is rejected.
+
+Domain-decomposed MPI CPU models are supported. The user declaration remains
+in global coordinates and may cross normal or transverse rank boundaries.
+Each participating rank allocates only its local PML history arrays, but its
+coefficient slice is taken from the complete global CFS profile so a partition
+does not restart the grading. The ordinary field-halo exchanges join these
+local corrections; no additional slab-specific communication is required per
+timestep. Automatic PEC enclosure, collective material-extrusion checks,
+custom profiles, and use as a replacement for a disabled boundary PML retain
+their serial behaviour.

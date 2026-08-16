@@ -265,6 +265,8 @@ class EigenmodeSource(Source):
         self.domain_polarization = None
         self.transverse_start = None
         self.transverse_stop = None
+        self.global_transverse_start = None
+        self.global_transverse_stop = None
         self.mode_index = None
         self.mode_count = None
         self.mode_indices = ()
@@ -277,6 +279,10 @@ class EigenmodeSource(Source):
         self.spectral_threshold = 1e-3
         self.spectrum_coverage_policy = "error"
         self.plane_index = None
+        self.global_plane_index = None
+        self.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        self.tfsf_owned_upper = np.zeros(3, dtype=np.int32)
+        self.mpi_coordinator = True
         self.complex_eps_r_uu = None
         self.complex_eps_r_vv = None
         self.complex_eps_r_ww = None
@@ -302,7 +308,9 @@ class EigenmodeSource(Source):
         self.port_anchor_h = None
         self.port_anchor_neff = None
         self.port_anchor_mode_valid = None
+        self.port_anchor_mode_reference_valid = None
         self.port_anchor_mode_propagating = None
+        self.port_anchor_balanced_power = None
         self.port_mode_anchor_policies = None
         self.port_mode_solvers = None
         self.broadband_e_envelopes = None
@@ -362,14 +370,125 @@ class EigenmodeSource(Source):
             self._prepare_single_frequency_injection(G)
         self._register_port_monitor(G)
 
+    def configure_cached_excitation(self, G, mode_index, waveform):
+        """Prepare one excitation from this port's cached modal anchor bank.
+
+        The transverse FDFD problems are deliberately not solved here.  This
+        method is used by reusable eigenmode studies after the first geometry
+        build, when every declared port already owns a phase-aligned anchor
+        bank prepared by :meth:`grid_init`.
+        """
+
+        mode_index = int(mode_index)
+        mode_indices = tuple(int(value) for value in self.mode_indices)
+        if mode_index not in mode_indices:
+            raise ValueError(
+                f"Eigenmode port {self.port_index} does not monitor mode "
+                f"{mode_index}; available modes are {mode_indices}."
+            )
+        if self.port_anchor_frequencies is None or self.port_anchor_mode_valid is None:
+            raise RuntimeError(
+                f"Eigenmode port {self.port_index} has no reusable modal anchor bank."
+            )
+
+        mode_position = mode_indices.index(mode_index)
+        used = np.flatnonzero(self.port_anchor_mode_valid[:, mode_position])
+        if used.size == 0:
+            raise ValueError(
+                f"Eigenmode port {self.port_index} mode {mode_index} has no "
+                "propagating anchor suitable for excitation."
+            )
+
+        self.mode_index = mode_index
+        self.waveform = waveform
+        self.waveformID = waveform.ID
+        self.start = 0
+        self.stop = G.timewindow
+        self.uses_quadrature = False
+        self.broadband_e_envelopes = None
+        self.broadband_h_envelopes = None
+        self.broadband_modal_e_real = None
+        self.broadband_modal_e_imag = None
+        self.broadband_modal_h_real = None
+        self.broadband_modal_h_imag = None
+        self.broadband_input_waveform = None
+        self.broadband_reconstructed_waveform = None
+        self.broadband_waveform_error = None
+        self.complex_profile_phase = None
+        self.complex_profile_residual = None
+        self.representative_frequency = None
+
+        frequencies = tuple(float(self.port_anchor_frequencies[index]) for index in used)
+        self.frequencies = frequencies
+        self.anchor_modal_e = [
+            [
+                np.array(field, dtype=np.complex128, copy=True)
+                for field in self.port_anchor_e[index][mode_position]
+            ]
+            for index in used
+        ]
+        self.anchor_modal_h = [
+            [
+                np.array(field, dtype=np.complex128, copy=True)
+                for field in self.port_anchor_h[index][mode_position]
+            ]
+            for index in used
+        ]
+        self.anchor_complex_neff = np.asarray(
+            [self.port_anchor_neff[index, mode_position] for index in used],
+            dtype=np.complex128,
+        )
+        self.mode_solvers = [self.port_mode_solvers[index] for index in used]
+
+        policy = self.port_mode_anchor_policies[mode_position]
+        # This value may have been relaxed for a different mode in the
+        # preceding reusable case.  Start from the normal source policy and
+        # relax it only when this selected mode's resolved anchor policy
+        # explicitly permits trimmed waveform coverage.
+        self.spectrum_coverage_policy = "error"
+        if "nonpropagating_trimmed" in policy or (
+            self._automatic_anchor_policy()
+            and ("guard_trimmed" in policy or policy == "auto_single_fallback")
+        ):
+            self.spectrum_coverage_policy = "allow"
+
+        if len(frequencies) == 1 or policy == "auto_single_fallback":
+            representative = 0
+            self.frequency = frequencies[representative]
+            self.modal_e = [field.copy() for field in self.anchor_modal_e[representative]]
+            self.modal_h = [field.copy() for field in self.anchor_modal_h[representative]]
+            self.mode_solver = self.mode_solvers[representative]
+            self.complex_neff = self.anchor_complex_neff[representative]
+            self.neff = float(np.real(self.complex_neff))
+            self._prepare_single_frequency_injection(G)
+            return
+
+        self._prepare_broadband_time_traces(G, frequencies)
+        representative = (
+            len(frequencies) // 2
+            if self.representative_frequency is None
+            else min(
+                range(len(frequencies)),
+                key=lambda index: abs(frequencies[index] - self.representative_frequency),
+            )
+        )
+        self.frequency = frequencies[representative]
+        self.modal_e = [field.copy() for field in self.anchor_modal_e[representative]]
+        self.modal_h = [field.copy() for field in self.anchor_modal_h[representative]]
+        self.mode_solver = self.mode_solvers[representative]
+        self.complex_neff = self.anchor_complex_neff[representative]
+        self.neff = float(np.real(self.complex_neff))
+        self._store_real_modal_fields()
+
     def _fallback_to_single_anchor(self, G, mismatch):
         frequency = float(self.fallback_frequency)
-        logger.warning(
-            f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
-            f"will therefore use a single modal anchor at {frequency:g} Hz. The "
-            "modal field and S-parameters may be inaccurate toward frequencies "
-            "far from this anchor."
-        )
+        if self.mpi_coordinator:
+            logger.warning(
+                f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
+                f"will therefore use a single modal anchor at {frequency:g} Hz. The "
+                "modal field and S-parameters may be inaccurate toward frequencies "
+                "far from this anchor."
+            )
         self.frequency = frequency
         self.frequencies = (frequency,)
         self.mode_solvers = None
@@ -386,20 +505,16 @@ class EigenmodeSource(Source):
             centre=True,
         )
         mode_indices = tuple(self.mode_indices)
-        if not mode_indices and self.mode_count is not None:
-            mode_indices = tuple(range(1, self.mode_count + 1))
-        if not mode_indices and self.mode_index is not None:
-            mode_indices = (self.mode_index,)
-        # Keep monkeypatched/upstream legacy solvers compatible when they do
-        # not expose a solved mode object. Production ports always populate
-        # both the solver and at least one monitored mode here.
-        if self.mode_solver is not None and mode_indices:
-            self._prepare_port_anchor_bank(
-                (frequency,),
-                (self.mode_solver,),
-                mode_indices,
-                forced_policies=tuple("auto_single_fallback" for _ in mode_indices),
+        if self.mode_solver is None or not mode_indices:
+            raise RuntimeError(
+                "Eigenmode fallback requires a solved mode and monitored mode indices."
             )
+        self._prepare_port_anchor_bank(
+            (frequency,),
+            (self.mode_solver,),
+            mode_indices,
+            forced_policies=("auto_single_fallback",) * len(mode_indices),
+        )
         self.resolved_anchor_policy = "auto_single_fallback"
         self._prepare_single_frequency_injection(G)
 
@@ -430,7 +545,9 @@ class EigenmodeSource(Source):
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
             anchor_mode_valid=self.port_anchor_mode_valid,
+            anchor_mode_reference_valid=self.port_anchor_mode_reference_valid,
             anchor_mode_propagating=self.port_anchor_mode_propagating,
+            anchor_balanced_power=self.port_anchor_balanced_power,
             mode_anchor_policies=self.port_mode_anchor_policies,
         )
         monitor.prepare(G)
@@ -502,10 +619,11 @@ class EigenmodeSource(Source):
         residual = self._align_tangential_mode_for_real_injection()
         self._store_real_modal_fields()
         if residual <= self.COMPLEX_PROFILE_TOLERANCE:
-            logger.info(
-                "Single-frequency eigenmode tangential complex-profile residual "
-                f"is {residual:.3e}; using real-only injection."
-            )
+            if self.mpi_coordinator:
+                logger.info(
+                    "Single-frequency eigenmode tangential complex-profile residual "
+                    f"is {residual:.3e}; using real-only injection."
+                )
             return
 
         self.uses_quadrature = True
@@ -518,11 +636,12 @@ class EigenmodeSource(Source):
         self.anchor_complex_neff = np.asarray([complex(self.complex_neff)], dtype=np.complex128)
         self.anchor_overlaps = np.empty(0, dtype=np.float64)
         self.mode_solvers = [self.mode_solver]
-        logger.info(
-            "Single-frequency eigenmode tangential complex-profile residual "
-            f"is {residual:.3e}, above the {self.COMPLEX_PROFILE_TOLERANCE:.3e} "
-            "tolerance; using in-phase/quadrature injection."
-        )
+        if self.mpi_coordinator:
+            logger.info(
+                "Single-frequency eigenmode tangential complex-profile residual "
+                f"is {residual:.3e}, above the {self.COMPLEX_PROFILE_TOLERANCE:.3e} "
+                "tolerance; using in-phase/quadrature injection."
+            )
         self._prepare_broadband_time_traces(
             G,
             (self.frequency,),
@@ -640,6 +759,7 @@ class EigenmodeSource(Source):
         anchor_h = []
         anchor_neff = []
         propagating = np.empty((len(frequencies), len(mode_indices)), dtype=bool)
+        balanced_power = np.empty((len(frequencies), len(mode_indices)), dtype=np.float64)
         for frequency_position, solver in enumerate(solvers):
             frequency_e = []
             frequency_h = []
@@ -659,11 +779,44 @@ class EigenmodeSource(Source):
                 propagating[frequency_position, mode_position] = self._solver_mode_power_valid(
                     solver, mode_index
                 )
+                balanced_power_method = getattr(
+                    solver,
+                    "_calculate_mode_balanced_power",
+                    None,
+                )
+                if callable(balanced_power_method):
+                    balanced_power[frequency_position, mode_position] = float(
+                        balanced_power_method(mode_index - 1)
+                    )
+                else:
+                    # Compatibility fallback for older/downstream solvers.
+                    # This omits the common spatial measure, which cancels
+                    # when every candidate profile uses the same grid.
+                    em_consts = getattr(
+                        config.sim_config,
+                        "em_consts",
+                        config.SimulationConfig.em_consts,
+                    )
+                    impedance = float(em_consts["z0"])
+                    norm = 0.0
+                    reference_axes = (
+                        self.transverse_axes
+                        if self.transverse_axes is not None
+                        else range(len(electric))
+                    )
+                    for axis in reference_axes:
+                        field = electric[axis]
+                        norm += float(np.vdot(field, field).real)
+                    for axis in reference_axes:
+                        field = magnetic[axis]
+                        scaled = impedance * field
+                        norm += float(np.vdot(scaled, scaled).real)
+                    balanced_power[frequency_position, mode_position] = norm
             anchor_e.append(frequency_e)
             anchor_h.append(frequency_h)
             anchor_neff.append(frequency_neff)
 
-        valid, policies, overlaps = self._resolve_mode_anchor_masks(
+        valid, reference_valid, policies, overlaps = self._resolve_mode_anchor_masks(
             frequencies,
             solvers,
             mode_indices,
@@ -679,7 +832,9 @@ class EigenmodeSource(Source):
         self.port_anchor_h = anchor_h
         self.port_anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)
         self.port_anchor_mode_valid = valid
+        self.port_anchor_mode_reference_valid = reference_valid
         self.port_anchor_mode_propagating = propagating
+        self.port_anchor_balanced_power = balanced_power
         self.port_mode_anchor_policies = policies
         self.port_mode_solvers = solvers
         self.anchor_overlaps = overlaps
@@ -710,6 +865,7 @@ class EigenmodeSource(Source):
         automatic = self._automatic_anchor_policy()
         anchor_count = len(frequencies)
         valid = np.zeros_like(propagating, dtype=bool)
+        reference_valid = np.zeros_like(propagating, dtype=bool)
         overlaps = np.full(
             (max(anchor_count - 1, 0), len(mode_indices)),
             np.nan,
@@ -742,6 +898,7 @@ class EigenmodeSource(Source):
                             frequencies[second],
                             mode_index,
                             f"Eigenmode port {self.port_index}",
+                            coordinator=self.mpi_coordinator,
                         )
                     except EigenmodeAnchorMismatchError as exc:
                         mismatch = exc
@@ -773,14 +930,15 @@ class EigenmodeSource(Source):
                     ]
                     if trimmed != retained:
                         detail = mismatch.detail.rstrip(" .")
-                        logger.warning(
-                            f"{detail}, within the {side} spectral guard outside "
-                            f"the requested {band_low:g} to {band_high:g} Hz "
-                            f"band. Automatic eigenmode port {self.port_index} "
-                            f"mode {mode_index} will retain broadband tracking "
-                            f"from {endpoint:g} Hz and use that endpoint modal "
-                            "profile across the trimmed significant-spectrum tail."
-                        )
+                        if self.mpi_coordinator:
+                            logger.warning(
+                                f"{detail}, within the {side} spectral guard outside "
+                                f"the requested {band_low:g} to {band_high:g} Hz "
+                                f"band. Automatic eigenmode port {self.port_index} "
+                                f"mode {mode_index} will retain broadband tracking "
+                                f"from {endpoint:g} Hz and use that endpoint modal "
+                                "profile across the trimmed significant-spectrum tail."
+                            )
                         retained = trimmed
                         guard_trimmed = True
                         continue
@@ -793,13 +951,14 @@ class EigenmodeSource(Source):
                     centre=True,
                 )
                 detail = mismatch.detail.rstrip(" .")
-                logger.warning(
-                    f"{detail}. Automatic eigenmode port {self.port_index} mode "
-                    f"{mode_index} will therefore use only the centre-frequency "
-                    f"anchor at {frequencies[centre]:g} Hz. Its modal "
-                    "decomposition and S-parameters may be inaccurate toward "
-                    "frequencies far from this anchor."
-                )
+                if self.mpi_coordinator:
+                    logger.warning(
+                        f"{detail}. Automatic eigenmode port {self.port_index} mode "
+                        f"{mode_index} will therefore use only the centre-frequency "
+                        f"anchor at {frequencies[centre]:g} Hz. Its modal "
+                        "decomposition and S-parameters may be inaccurate toward "
+                        "frequencies far from this anchor."
+                    )
                 retained = [centre]
                 fallback = True
                 break
@@ -841,13 +1000,16 @@ class EigenmodeSource(Source):
                         f"{frequencies[index]:g} Hz (neff={neff!s}, "
                         f"raw power={raw_power!s}, metric={metric:g})"
                     )
-                logger.warning(
-                    f"Eigenmode port {self.port_index} mode {mode_index} has "
-                    "non-propagating anchor(s) that carry no forward real power: "
-                    + "; ".join(details)
-                    + ". They will be excluded from modal interpolation and the "
-                    "corresponding non-propagating power-wave bins will be marked invalid."
-                )
+                if self.mpi_coordinator:
+                    logger.warning(
+                        f"Eigenmode port {self.port_index} mode {mode_index} has "
+                        "non-propagating anchor(s) that carry no forward real power: "
+                        + "; ".join(details)
+                        + ". They will be excluded from source synthesis and one-watt "
+                        "power interpolation, but successfully tracked profiles will be "
+                        "retained as monitor-only generalized references. The corresponding "
+                        "bins will remain invalid as physical power waves."
+                    )
 
             if not usable:
                 if automatic:
@@ -878,16 +1040,25 @@ class EigenmodeSource(Source):
                     frequencies[centre],
                     centre=True,
                 )
-                logger.warning(
-                    f"Eigenmode port {self.port_index} mode {mode_index} has "
-                    "disconnected propagating anchor ranges. It will use only "
-                    f"the centre-frequency anchor at {frequencies[centre]:g} Hz "
-                    "instead of interpolating across a non-propagating gap."
-                )
+                if self.mpi_coordinator:
+                    logger.warning(
+                        f"Eigenmode port {self.port_index} mode {mode_index} has "
+                        "disconnected propagating anchor ranges. It will use only "
+                        f"the centre-frequency anchor at {frequencies[centre]:g} Hz "
+                        "instead of interpolating across a non-propagating gap."
+                    )
                 usable = [centre]
                 fallback = True
 
             valid[usable, mode_position] = True
+            # The modal monitor may use every successfully tracked raw mode,
+            # including finite-normalized evanescent modes. Source synthesis
+            # remains restricted to ``valid`` (forward-power) anchors. A
+            # centre-only fallback must also collapse this reference bank so
+            # a mode rejected by the tracking guard cannot leak back into the
+            # monitor interpolation.
+            reference_indices = usable if fallback else retained
+            reference_valid[reference_indices, mode_position] = True
             policies.append(
                 self._anchor_policy_name(
                     automatic=automatic,
@@ -897,7 +1068,7 @@ class EigenmodeSource(Source):
                 )
             )
 
-        return valid, tuple(policies), overlaps
+        return valid, reference_valid, tuple(policies), overlaps
 
     def _solve_broadband_eigenmode(self, G, frequencies):
         """Solve candidate anchors, resolve each mode, and synthesize the source."""
@@ -989,6 +1160,7 @@ class EigenmodeSource(Source):
                         frequencies[frequency_index],
                         mode_index,
                         f"Eigenmode port {self.port_index}",
+                        coordinator=self.mpi_coordinator,
                     )
                 previous_e = electric
                 previous_h = magnetic
@@ -1214,6 +1386,7 @@ class EigenmodeSource(Source):
         second_frequency,
         mode_index,
         context,
+        coordinator=True,
     ):
         """Apply the fixed warning and error limits for adjacent anchors."""
         description = (
@@ -1233,7 +1406,7 @@ class EigenmodeSource(Source):
                 overlap=float(magnitude),
                 context=context,
             )
-        if magnitude < cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:
+        if coordinator and magnitude < cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:
             logger.warning(
                 f"{description}, below the warning threshold "
                 f"{cls.ANCHOR_OVERLAP_WARNING_THRESHOLD:.6f}. The run will "
@@ -1258,6 +1431,7 @@ class EigenmodeSource(Source):
                 frequencies[index],
                 self.mode_index,
                 "Broadband eigenmode source",
+                coordinator=self.mpi_coordinator,
             )
 
             phase_aligned = np.isfinite(magnitude) and magnitude > 1e-300
@@ -1265,15 +1439,16 @@ class EigenmodeSource(Source):
             anchor_e[index] = [field * phase_factor for field in anchor_e[index]]
             anchor_h[index] = [field * phase_factor for field in anchor_h[index]]
             overlaps.append(magnitude)
-            logger.info(
-                f"Eigenmode anchor overlap {magnitude:.6f} between "
-                f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
-                + (
-                    "the latter anchor was phase-aligned."
-                    if phase_aligned
-                    else "its phase was left unchanged."
+            if self.mpi_coordinator:
+                logger.info(
+                    f"Eigenmode anchor overlap {magnitude:.6f} between "
+                    f"{frequencies[index - 1]:g} Hz and {frequencies[index]:g} Hz; "
+                    + (
+                        "the latter anchor was phase-aligned."
+                        if phase_aligned
+                        else "its phase was left unchanged."
+                    )
                 )
-            )
         return overlaps
 
     @staticmethod
@@ -1393,16 +1568,44 @@ class EigenmodeSource(Source):
             dtype=np.float64,
         )
         if not np.all(np.isfinite(waveform)):
-            logger.warning(
-                "The broadband eigenmode source waveform contains non-finite samples. "
-                "Replacing them with zero and continuing."
-            )
-            waveform = np.nan_to_num(waveform, nan=0.0, posinf=0.0, neginf=0.0)
+            raise ValueError("The broadband eigenmode source waveform contains non-finite samples.")
         padded_count = 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
         spectrum = np.fft.rfft(waveform, n=padded_count)
         bin_frequencies = np.fft.rfftfreq(padded_count, d=G.dt)
         spectrum_magnitude = np.abs(spectrum)
         peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            raise ValueError(
+                "The broadband eigenmode source waveform has zero or non-finite " "spectral energy."
+            )
+
+        endpoint_significant = spectrum_magnitude[0] >= self.spectral_threshold * peak
+        if padded_count % 2 == 0:
+            endpoint_significant |= spectrum_magnitude[-1] >= self.spectral_threshold * peak
+        if endpoint_significant:
+            source_kind = (
+                "single-frequency eigenmode source using I/Q injection"
+                if single_frequency_iq
+                else "broadband eigenmode source"
+            )
+            if self.mpi_coordinator:
+                logger.warning(
+                    f"The {source_kind} waveform has significant DC or Nyquist content. "
+                    "Those bins cannot carry a general complex modal coefficient and will be "
+                    "discarded. Use a band-limited waveform; for a finite frequency band, "
+                    "EigenmodeExcitation(..., waveform='auto') can synthesize one automatically."
+                )
+        spectrum = np.array(spectrum, copy=True)
+        spectrum[0] = 0
+        if padded_count % 2 == 0:
+            spectrum[-1] = 0
+        spectrum_magnitude = np.abs(spectrum)
+        peak = float(np.max(spectrum_magnitude))
+        if not np.isfinite(peak) or peak <= 0:
+            raise ValueError(
+                "The eigenmode source waveform has no usable positive-frequency spectral "
+                "energy after discarding DC and Nyquist."
+            )
         positive = bin_frequencies > 0
         positive_magnitude = spectrum_magnitude[positive]
         if positive_magnitude.size and np.any(positive_magnitude > 0):
@@ -1410,28 +1613,16 @@ class EigenmodeSource(Source):
             self.representative_frequency = float(bin_frequencies[positive][peak_index])
         else:
             self.representative_frequency = None
-        if not np.isfinite(peak) or peak <= 0:
-            logger.warning(
-                "The broadband eigenmode source waveform has no finite spectral "
-                "energy. Continuing with a zero-valued source."
-            )
 
-        significant = (
-            spectrum_magnitude >= self.spectral_threshold * peak
-            if np.isfinite(peak) and peak > 0
-            else np.zeros_like(spectrum_magnitude, dtype=bool)
-        )
+        significant = spectrum_magnitude >= self.spectral_threshold * peak
         significant_indices = np.flatnonzero(significant)
         if significant_indices.size == 0:
-            logger.warning(
-                "The broadband eigenmode source waveform has no significant FFT "
-                "bins. Continuing with endpoint mode extrapolation."
+            raise RuntimeError(
+                "Internal broadband eigenmode spectrum error: a finite non-zero "
+                "waveform spectrum has no significant FFT bins."
             )
-            significant_low = float("nan")
-            significant_high = float("nan")
-        else:
-            significant_low = float(bin_frequencies[significant_indices[0]])
-            significant_high = float(bin_frequencies[significant_indices[-1]])
+        significant_low = float(bin_frequencies[significant_indices[0]])
+        significant_high = float(bin_frequencies[significant_indices[-1]])
         if (
             not single_frequency_iq
             and significant_indices.size
@@ -1447,7 +1638,7 @@ class EigenmodeSource(Source):
                     "use EigenmodeExcitation with waveform='auto' for a validated "
                     "bandpass spectrum."
                 )
-            if self.spectrum_coverage_policy == "warn":
+            if self.spectrum_coverage_policy == "warn" and self.mpi_coordinator:
                 logger.warning(
                     "Broadband eigenmode anchor frequencies do not cover the significant waveform spectrum: "
                     f"anchors span {frequencies[0]:g} to {frequencies[-1]:g} Hz, while bins above "
@@ -1456,42 +1647,14 @@ class EigenmodeSource(Source):
                     "bandwidth, or use the single-frequency eigenmode source. Continuing by "
                     "using the nearest endpoint mode outside the anchor range."
                 )
-        if significant[0] or (padded_count % 2 == 0 and significant[-1]):
-            if single_frequency_iq:
-                logger.warning(
-                    "The single-frequency eigenmode source is using I/Q injection, but its "
-                    "waveform has significant DC or Nyquist content, where a general complex "
-                    "modal profile cannot be synthesized safely. Use a band-limited zero-mean "
-                    "waveform. Continuing after discarding the DC and Nyquist bins."
-                )
-            else:
-                logger.warning(
-                    "The broadband eigenmode source has significant DC or Nyquist content, where a "
-                    "positive-frequency propagating eigenmode cannot be synthesized safely. Use a "
-                    "band-limited zero-mean waveform or the single-frequency eigenmode source. "
-                    "Continuing after discarding the DC and Nyquist bins."
-                )
 
         weights = self._linear_anchor_weights(bin_frequencies, frequencies)
         partition = np.sum(weights, axis=0)
         if not np.allclose(partition, 1.0, rtol=0.0, atol=1e-14):
-            logger.warning(
+            raise RuntimeError(
                 "Internal broadband eigenmode interpolation error: anchor weights "
-                "do not form a partition of unity. Repairing the weights and continuing."
+                "do not form a partition of unity."
             )
-            usable = np.isfinite(partition) & (np.abs(partition) > 1e-300)
-            weights[:, usable] /= partition[usable]
-            for bin_index in np.flatnonzero(~usable):
-                nearest = int(
-                    np.argmin(
-                        np.abs(
-                            np.asarray(frequencies, dtype=np.float64) - bin_frequencies[bin_index]
-                        )
-                    )
-                )
-                weights[:, bin_index] = 0.0
-                weights[nearest, bin_index] = 1.0
-            partition = np.sum(weights, axis=0)
         anchor_count = len(frequencies)
         power_matrix = np.empty((anchor_count, anchor_count), dtype=np.complex128)
         for e_index in range(anchor_count):
@@ -1504,38 +1667,26 @@ class EigenmodeSource(Source):
         interpolated_power = np.real(
             np.einsum("kn,kl,ln->n", weights, power_matrix, weights, optimize=True)
         )
-        active_bins = np.sum(weights, axis=0) > 0
-        invalid_power = active_bins & (
+        injected_bins = spectrum_magnitude > 0
+        injected_bins[0] = False
+        if padded_count % 2 == 0:
+            injected_bins[-1] = False
+        invalid_power = injected_bins & (
             ~np.isfinite(interpolated_power) | (interpolated_power <= 1e-12)
         )
         if np.any(invalid_power):
             invalid_indices = np.flatnonzero(invalid_power)
             bad_frequency = float(bin_frequencies[invalid_indices[0]])
             bad_power = float(interpolated_power[invalid_indices[0]])
-            logger.warning(
+            raise ValueError(
                 "Cannot normalize the interpolated broadband eigenmode at "
                 f"{bad_frequency:g} Hz: modal power is {bad_power:g}. Add an anchor near this "
                 "frequency, narrow the bandwidth, or use the single-frequency eigenmode source. "
-                f"Continuing with fallback normalization for {invalid_indices.size} FFT bin(s)."
+                f"Invalid modal power affects {invalid_indices.size} injected FFT bin(s)."
             )
-            finite_nonzero = (
-                invalid_power
-                & np.isfinite(interpolated_power)
-                & (np.abs(interpolated_power) > 1e-12)
-            )
-            interpolated_power[finite_nonzero] = np.abs(interpolated_power[finite_nonzero])
-            unresolved = np.flatnonzero(invalid_power & ~finite_nonzero)
-            if unresolved.size:
-                nearest = np.argmax(weights[:, unresolved], axis=0)
-                anchor_power = np.real(np.diag(power_matrix))[nearest]
-                interpolated_power[unresolved] = np.where(
-                    np.isfinite(anchor_power) & (np.abs(anchor_power) > 1e-12),
-                    np.abs(anchor_power),
-                    1.0,
-                )
 
         normalization = np.zeros_like(interpolated_power)
-        normalization[active_bins] = 1.0 / np.sqrt(interpolated_power[active_bins])
+        normalization[injected_bins] = 1.0 / np.sqrt(interpolated_power[injected_bins])
         omega = 2 * np.pi * bin_frequencies
         interpolated_neff = np.einsum("kn,k->n", weights, self.anchor_complex_neff, optimize=True)
         beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
@@ -1604,7 +1755,7 @@ class EigenmodeSource(Source):
             self.broadband_modal_h_real,
             self.broadband_modal_h_imag,
         ) = split_fields(self.anchor_modal_h)
-        if single_frequency_iq:
+        if single_frequency_iq and self.mpi_coordinator:
             logger.info(
                 "Prepared single-frequency I/Q eigenmode source with "
                 f"{sample_count} time samples and significant waveform coverage "
@@ -1612,7 +1763,7 @@ class EigenmodeSource(Source):
                 "waveform reconstruction relative peak error is "
                 f"{reconstruction_error:.3e}."
             )
-        else:
+        elif self.mpi_coordinator:
             logger.info(
                 f"Prepared broadband eigenmode source with {anchor_count} anchors, "
                 f"{sample_count} time samples, and significant waveform coverage from "
@@ -1635,7 +1786,7 @@ class EigenmodeSource(Source):
         return bool(self.plot_waveform)
 
     def _plot_eigenmode_fields(self):
-        if not self._should_plot_eigenmode_fields():
+        if not self.mpi_coordinator or not self._should_plot_eigenmode_fields():
             return
 
         input_path = config.sim_config.input_file_path
@@ -1661,7 +1812,7 @@ class EigenmodeSource(Source):
 
     def _plot_eigenmode_excitation(self, G):
         """Write the single excitation waveform and its exact port-bin DFT."""
-        if not self._should_plot_eigenmode_excitation():
+        if not self.mpi_coordinator or not self._should_plot_eigenmode_excitation():
             return
 
         sample_count = int(G.iterations)
@@ -1697,6 +1848,9 @@ class EigenmodeSource(Source):
 
     def _extract_local_complex_property_tensors(self, G, electric):
         """Return local uu, vv, ww complex er or mu_r arrays on the Yee slice."""
+        if hasattr(G, "global_size"):
+            return self._extract_mpi_complex_property_tensors(G, electric)
+
         field_kind = "E" if electric else "H"
         component_ids = []
         local_to_global = (self.transverse_axes[0], self.transverse_axes[1], self.normal_axis)
@@ -1715,6 +1869,58 @@ class EigenmodeSource(Source):
             )
 
         return tuple(material_values[ids].copy() for ids in component_ids)
+
+    def _extract_mpi_complex_property_tensors(self, G, electric):
+        """Assemble one complete modal material slice on every MPI rank.
+
+        Compound material numeric IDs are rank-local. Communicate evaluated
+        constitutive values rather than those IDs so every rank solves the
+        same FDFD cross-section without per-timestep communication.
+        """
+
+        from mpi4py import MPI
+
+        field_kind = "E" if electric else "H"
+        local_to_global = (*self.transverse_axes, self.normal_axis)
+        materials_by_id = {material.numID: material for material in G.materials}
+        tensors = []
+
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            shape = self._expected_local_field_shapes(field_kind)[local_axis]
+            local_values = np.zeros(shape, dtype=np.complex128)
+            local_count = np.zeros(shape, dtype=np.int32)
+
+            for u, v in np.ndindex(shape):
+                coordinate = np.zeros(3, dtype=np.int32)
+                coordinate[self.normal_axis] = self.global_plane_index
+                coordinate[self.transverse_axes[0]] = self.global_transverse_start[0] + u
+                coordinate[self.transverse_axes[1]] = self.global_transverse_start[1] + v
+                if G.get_rank_from_coordinate(coordinate) != G.rank:
+                    continue
+                local_coordinate = G.global_to_local_coordinate(coordinate)
+                material_id = int(G.ID[(component, *local_coordinate)])
+                material = materials_by_id[material_id]
+                local_values[u, v] = (
+                    self._complex_er(material) if electric else self._complex_mur(material)
+                )
+                local_count[u, v] = 1
+
+            values = np.empty_like(local_values)
+            count = np.empty_like(local_count)
+            G.comm.Allreduce(local_values, values, op=MPI.SUM)
+            G.comm.Allreduce(local_count, count, op=MPI.SUM)
+            if np.any(count != 1):
+                missing = int(np.count_nonzero(count == 0))
+                duplicate = int(np.count_nonzero(count > 1))
+                raise RuntimeError(
+                    "MPI eigenmode material slice has invalid ownership for "
+                    f"component {component}: {missing} missing and {duplicate} "
+                    "duplicate sample(s)."
+                )
+            tensors.append(values)
+
+        return tuple(tensors)
 
     def _transverse_cell_shape(self):
         u0, v0 = self.transverse_start
@@ -1806,6 +2012,9 @@ class EigenmodeSource(Source):
 
     def _slice_cell_constraint_mask(self, G, electric):
         """Return source-cross-section cells occupied by PEC or PMC."""
+        if hasattr(G, "global_size"):
+            return self._mpi_cell_constraint_mask(G, electric)
+
         u0, v0 = self.transverse_start
         u1, v1 = self.transverse_stop
         normal_indices = [
@@ -1831,6 +2040,42 @@ class EigenmodeSource(Source):
                 ids = G.solid[u0:u1, v0:v1, n]
             cell_constraint_mask |= material_is_constrained[ids]
         return cell_constraint_mask
+
+    def _mpi_cell_constraint_mask(self, G, electric):
+        """Assemble the PEC/PMC cell mask adjacent to an MPI modal plane."""
+
+        from mpi4py import MPI
+
+        nu, nv = self._transverse_cell_shape()
+        local_mask = np.zeros((nu, nv), dtype=np.uint8)
+        materials_by_id = {material.numID: material for material in G.materials}
+        normal_indices = tuple(
+            index
+            for index in (self.global_plane_index - 1, self.global_plane_index)
+            if 0 <= index < G.global_size[self.normal_axis]
+        )
+
+        for u in range(nu):
+            for v in range(nv):
+                for normal_index in normal_indices:
+                    coordinate = np.zeros(3, dtype=np.int32)
+                    coordinate[self.normal_axis] = normal_index
+                    coordinate[self.transverse_axes[0]] = self.global_transverse_start[0] + u
+                    coordinate[self.transverse_axes[1]] = self.global_transverse_start[1] + v
+                    if G.get_rank_from_coordinate(coordinate) != G.rank:
+                        continue
+                    local_coordinate = G.global_to_local_coordinate(coordinate)
+                    material_id = int(G.solid[tuple(local_coordinate)])
+                    material = materials_by_id[material_id]
+                    property_value = (
+                        self._complex_er(material) if electric else self._complex_mur(material)
+                    )
+                    if not np.isfinite(property_value):
+                        local_mask[u, v] = 1
+
+        mask = np.empty_like(local_mask)
+        G.comm.Allreduce(local_mask, mask, op=MPI.MAX)
+        return mask.astype(bool)
 
     def _complex_er(self, material):
         omega = 2 * np.pi * self.frequency
@@ -1871,6 +2116,8 @@ class EigenmodeSource(Source):
             self.transverse_stop[0],
             self.transverse_stop[1],
             self.plane_index,
+            self.tfsf_owned_lower,
+            self.tfsf_owned_upper,
             config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
             self.modal_e_real[0],
             self.modal_e_real[1],
@@ -1903,6 +2150,8 @@ class EigenmodeSource(Source):
             self.transverse_stop[0],
             self.transverse_stop[1],
             self.plane_index,
+            self.tfsf_owned_lower,
+            self.tfsf_owned_upper,
             config.sim_config.dtypes["float_or_double"](self._waveform_value(time, G)),
             self.modal_h_real[0],
             self.modal_h_real[1],
@@ -1938,6 +2187,8 @@ class EigenmodeSource(Source):
                     self.transverse_stop[0],
                     self.transverse_stop[1],
                     self.plane_index,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     dtype(envelope),
                     modal_fields[0],
                     modal_fields[1],
@@ -1973,6 +2224,8 @@ class EigenmodeSource(Source):
                     self.transverse_stop[0],
                     self.transverse_stop[1],
                     self.plane_index,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     dtype(envelope),
                     modal_fields[0],
                     modal_fields[1],
@@ -2188,7 +2441,9 @@ class EigenmodeReceiver(EigenmodeSource):
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
             anchor_mode_valid=self.port_anchor_mode_valid,
+            anchor_mode_reference_valid=self.port_anchor_mode_reference_valid,
             anchor_mode_propagating=self.port_anchor_mode_propagating,
+            anchor_balanced_power=self.port_anchor_balanced_power,
             mode_anchor_policies=self.port_mode_anchor_policies,
         )
         monitor.prepare(G)
@@ -2730,6 +2985,24 @@ def dtoh_transmission_line_outputs(Vtotal, Itotal, G):
     """Copy device terminal histories into their transmission-line objects."""
 
     expected = (len(G.transmissionlines), G.iterations + 1)
+    general = getattr(config.sim_config, "general", {})
+    if general.get("solver") == "metal":
+        dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+        nbytes = int(np.prod(expected)) * dtype.itemsize
+
+        def metal_array(buffer):
+            if buffer.length() != nbytes:
+                raise ValueError(
+                    "Transmission-line Metal output buffer has the wrong size: "
+                    f"expected {nbytes} bytes, got {buffer.length()}."
+                )
+            return (
+                np.frombuffer(buffer.contents().as_buffer(nbytes), dtype=dtype)
+                .reshape(expected)
+                .copy()
+            )
+
+        Vtotal, Itotal = metal_array(Vtotal), metal_array(Itotal)
     if Vtotal.shape != expected or Itotal.shape != expected:
         raise ValueError(
             "Transmission-line device output shape does not match the grid: "
@@ -2768,6 +3041,7 @@ class TransmissionLine(Source):
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
         self.nl = round_value(0.667 * self.iterations)
+        self._incident_nl = self.nl
 
         # Cell position of the one-way injector excitation in the transmission line
         self.srcpos = 5
@@ -2790,7 +3064,7 @@ class TransmissionLine(Source):
         # processing is post-solve.
         self.port_output = None
 
-    def calculate_waveform_values(self, G):
+    def calculate_waveform_values(self, G, reuse_existing=True):
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
@@ -2802,12 +3076,13 @@ class TransmissionLine(Source):
         # pre-calculated waveform values, otherwise calculate them.
         src_match = False
 
-        if self.start == 0 and self.stop == G.timewindow:
+        if reuse_existing and self.start == 0 and self.stop == G.timewindow:
             for src in G.transmissionlines:
-                if src.waveformID == self.waveformID:
+                if src is not self and src.waveformID == self.waveformID:
                     src_match = True
                     self.waveformvalues_wholedt = src.waveformvalues_wholedt
                     self.waveformvalues_halfdt = src.waveformvalues_halfdt
+                    break
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
@@ -2842,6 +3117,7 @@ class TransmissionLine(Source):
         # use separate output histories, but they advance the same internal
         # line voltage/current vectors and ABC memories. Always start the
         # preliminary line from rest and clear any old incident histories.
+        self.nl = self._incident_nl
         self._reset_update_state()
         self.Vinc.fill(0)
         self.Iinc.fill(0)
@@ -2858,6 +3134,34 @@ class TransmissionLine(Source):
         # Vinc/Iinc retain the completed incident histories, but the actual
         # coupled source must begin with zero line fields and zero ABC memory.
         self._reset_update_state()
+
+    def configure_study_excitation(self, G, waveform_id, start, stop, scale):
+        """Apply one fixed-geometry study drive and return the line to rest."""
+
+        if not any(waveform.ID == waveform_id for waveform in G.waveforms):
+            raise ValueError(f"{self.ID} study drive references unknown waveform {waveform_id!r}.")
+        start = float(start)
+        stop = min(float(stop), float(G.timewindow))
+        scale = float(scale)
+        if not np.isfinite(scale):
+            raise ValueError(f"{self.ID} study scale must be finite.")
+        if start < 0 or stop <= start:
+            raise ValueError(
+                f"{self.ID} study drive requires 0 <= start < stop <= the model time window."
+            )
+
+        self.waveformID = waveform_id
+        self.start = start
+        self.stop = stop
+        self.calculate_waveform_values(G, reuse_existing=False)
+        self.waveformvalues_wholedt *= scale
+        self.waveformvalues_halfdt *= scale
+        self.calculate_incident_V_I(G)
+        self.Vtotal.fill(0)
+        self.Itotal.fill(0)
+        self.study_scale = scale
+        if self.port_output is not None:
+            self.port_output.result = None
 
     def _reset_update_state(self):
         """Reset mutable line and absorbing-boundary state to rest."""
@@ -3226,6 +3530,34 @@ class MagneticFrillSource(Source):
                 time -= self.start
                 self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
 
+    def configure_study_excitation(self, G, waveform_id, start, stop, scale):
+        """Apply one fixed-geometry study drive and clear terminal histories."""
+
+        if not any(waveform.ID == waveform_id for waveform in G.waveforms):
+            raise ValueError(f"{self.ID} study drive references unknown waveform {waveform_id!r}.")
+        start = float(start)
+        stop = min(float(stop), float(G.timewindow))
+        scale = float(scale)
+        if not np.isfinite(scale):
+            raise ValueError(f"{self.ID} study scale must be finite.")
+        if start < 0 or stop <= start:
+            raise ValueError(
+                f"{self.ID} study drive requires 0 <= start < stop <= the model time window."
+            )
+
+        self.waveformID = waveform_id
+        self.start = start
+        self.stop = stop
+        self.calculate_waveform_values(G)
+        self.waveformvalues_wholedt *= scale
+        self.Vinc.fill(0)
+        self.Vtotal.fill(0)
+        self.Itot.fill(0)
+        self._previous_half_current = 0.0
+        self.study_scale = scale
+        if self.port_output is not None:
+            self.port_output.result = None
+
     def _validate_geometry(self, G):
         """Bind the attached thin wire and check the local PEC ground plane."""
 
@@ -3276,6 +3608,10 @@ class MagneticFrillSource(Source):
         Args:
             G: FDTDGrid class describing a grid in a model.
         """
+        if hasattr(G, "comm") and hasattr(self, "mpi_global_coord"):
+            self._finalise_setup_mpi(G)
+            return
+
         i, j, k = self.xcoord, self.ycoord, self.zcoord
         if G.within_pml(np.array([i, j, k], dtype=np.int32)):
             raise ValueError(
@@ -3347,6 +3683,191 @@ class MagneticFrillSource(Source):
         self._mirror1 = at1 and face1_pmc
         self._mirror2 = at2 and face2_pmc
         self._prepare_drive_terms(G)
+
+    def _finalise_setup_mpi(self, G):
+        """Prepare a frill whose four H edges may span several MPI ranks."""
+
+        from mpi4py import MPI
+
+        local_error = None
+        if self.mpi_primary:
+            try:
+                if G.within_pml(self.coord):
+                    raise ValueError(f"{self.ID} feed point lies inside a PML.")
+                global_coord = np.asarray(self.mpi_global_coord, dtype=np.int32)
+                i, j, k = (int(value) for value in global_coord)
+                gx, gy, gz = (int(value) for value in G.global_size)
+                axis_faces = {
+                    "x": ("z0", "y0", "zmax", "ymax", k == 0, j == 0, k == gz, j == gy),
+                    "y": ("z0", "x0", "zmax", "xmax", k == 0, i == 0, k == gz, i == gx),
+                    "z": ("x0", "y0", "xmax", "ymax", i == 0, j == 0, i == gx, j == gy),
+                }
+                (
+                    face1,
+                    face2,
+                    maxface1,
+                    maxface2,
+                    at1,
+                    at2,
+                    atmax1,
+                    atmax2,
+                ) = axis_faces[self.polarisation]
+                face1_pmc = G.symmetry_boundaries.get(face1) == "pmc"
+                face2_pmc = G.symmetry_boundaries.get(face2) == "pmc"
+                if at1 and not face1_pmc:
+                    raise ValueError(
+                        f"{self.ID} feed point sits at global domain face {face1} "
+                        "without a PMC symmetry boundary."
+                    )
+                if at2 and not face2_pmc:
+                    raise ValueError(
+                        f"{self.ID} feed point sits at global domain face {face2} "
+                        "without a PMC symmetry boundary."
+                    )
+                if atmax1 and G.symmetry_boundaries.get(maxface1) == "pmc":
+                    raise ValueError(
+                        f"{self.ID} at a {maxface1}-type symmetry corner is not yet "
+                        "supported; only minimum-face symmetry corners are available."
+                    )
+                if atmax2 and G.symmetry_boundaries.get(maxface2) == "pmc":
+                    raise ValueError(
+                        f"{self.ID} at a {maxface2}-type symmetry corner is not yet "
+                        "supported; only minimum-face symmetry corners are available."
+                    )
+                self._validate_geometry(G)
+            except Exception as exc:
+                local_error = f"rank {G.comm.rank}: {exc}"
+
+        errors = [error for error in G.comm.allgather(local_error) if error is not None]
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        self.inner_radius = float(
+            G.comm.bcast(
+                self.inner_radius if self.mpi_primary else None,
+                root=self.mpi_primary_rank,
+            )
+        )
+        global_coord = np.asarray(self.mpi_global_coord, dtype=np.int32)
+        transverse_axes = {"x": (2, 1), "y": (2, 0), "z": (0, 1)}[self.polarisation]
+        minimum_faces = {
+            "x": ("z0", "y0"),
+            "y": ("z0", "x0"),
+            "z": ("x0", "y0"),
+        }[self.polarisation]
+        self._mirror1 = bool(
+            global_coord[transverse_axes[0]] == 0
+            and G.symmetry_boundaries.get(minimum_faces[0]) == "pmc"
+        )
+        self._mirror2 = bool(
+            global_coord[transverse_axes[1]] == 0
+            and G.symmetry_boundaries.get(minimum_faces[1]) == "pmc"
+        )
+
+        local_error = None
+        try:
+            local_g = self._prepare_drive_terms_mpi(G)
+        except Exception as exc:
+            local_error = f"rank {G.comm.rank}: {exc}"
+            local_g = 0.0
+        errors = [error for error in G.comm.allgather(local_error) if error is not None]
+        if errors:
+            raise ValueError("; ".join(errors))
+
+        self._G_coeff = float(G.comm.allreduce(local_g, op=MPI.SUM))
+        if not np.isfinite(self._G_coeff) or self._G_coeff <= 0:
+            raise ValueError(
+                f"{self.ID} produced invalid distributed feed-cell "
+                f"self-admittance G={self._G_coeff!r}."
+            )
+        self._previous_half_current = 0.0
+        if self.mpi_primary:
+            logger.info(
+                f"{self.ID}: distributed Hyun feed cell uses attached thin-wire "
+                f"radius a={self.inner_radius:g}m and self-admittance "
+                f"G={self._G_coeff:g}S."
+            )
+
+    def _prepare_drive_terms_mpi(self, G):
+        """Build only the frill H-edge terms owned by this MPI rank."""
+
+        i, j, k = (int(value) for value in self.mpi_global_coord)
+        dx, dy, dz = G.dx, G.dy, G.dz
+        axial_step = {"x": dx, "y": dy, "z": dz}[self.polarisation]
+        pairs = {
+            "x": (
+                ("Hy", ((i, j, k), -dy, -1), ((i, j, k - 1), dy, 1), "z", self._mirror1),
+                ("Hz", ((i, j, k), dz, 1), ((i, j - 1, k), -dz, -1), "y", self._mirror2),
+            ),
+            "y": (
+                ("Hx", ((i, j, k), dx, 1), ((i, j, k - 1), -dx, -1), "z", self._mirror1),
+                ("Hz", ((i, j, k), -dz, -1), ((i - 1, j, k), dz, 1), "x", self._mirror2),
+            ),
+            "z": (
+                ("Hy", ((i, j, k), dy, 1), ((i - 1, j, k), -dy, -1), "x", self._mirror1),
+                ("Hx", ((i, j, k), -dx, -1), ((i, j - 1, k), dx, 1), "y", self._mirror2),
+            ),
+        }[self.polarisation]
+        radial_steps = {"x": dx, "y": dy, "z": dz}
+        terms = []
+        for component, plus, minus, radial_axis, mirrored in pairs:
+            edges = (plus,) if mirrored else (plus, minus)
+            for edge_index, (coordinates, current_weight, source_sign) in enumerate(edges):
+                if mirrored and edge_index == 0:
+                    current_weight *= 2
+                global_coord = np.asarray(coordinates, dtype=np.int32)
+                local_coord = G.global_to_local_coordinate(global_coord)
+                if not G.within_bounds(local_coord):
+                    continue
+                x, y, z = (int(value) for value in local_coord)
+                material_numID = int(G.ID[G.IDlookup[component], x, y, z])
+                material = G.materials[material_numID]
+                correct_wire_row = (
+                    material.type == "thin-wire"
+                    and getattr(material, "thin_wire_axis", None) == self.polarisation
+                    and getattr(material, "thin_wire_role", None) == component
+                    and np.isclose(
+                        material.thin_wire_radius,
+                        self.inner_radius,
+                        rtol=1e-12,
+                        atol=0.0,
+                    )
+                    and getattr(material, "thin_wire_radial_axis", None) == radial_axis
+                )
+                if not correct_wire_row:
+                    raise ValueError(
+                        f"{self.ID} feed stencil component {component} at global "
+                        f"coordinate {coordinates} is not part of the attached thin wire."
+                    )
+                factor_f = float(material.thin_wire_factors["F"])
+                source_gain = (
+                    source_sign
+                    * G.updatecoeffsH[material_numID, 4]
+                    * factor_f
+                    / (axial_step * radial_steps[radial_axis])
+                )
+                terms.append((component, x, y, z, float(current_weight), float(source_gain)))
+
+        registry = getattr(G, "_magnetic_frill_drive_edges", {})
+        drive_edges = {(term[0], term[1], term[2], term[3]) for term in terms}
+        overlap = next(
+            (
+                (edge, registry[edge])
+                for edge in drive_edges
+                if edge in registry and registry[edge] is not self
+            ),
+            None,
+        )
+        if overlap is not None:
+            edge, owner = overlap
+            raise ValueError(
+                f"{self.ID} has an overlapping magnetic feed edge {edge} with "
+                f"{owner.ID}; a coupled multiport formulation is required."
+            )
+        registry.update({edge: self for edge in drive_edges})
+        G._magnetic_frill_drive_edges = registry
+        self._drive_terms = terms
+        return float(sum(term[-2] * term[-1] for term in terms))
 
     def _prepare_drive_terms(self, G):
         """Precompute Hyun's Cartesian feed stencil and self-admittance."""
@@ -3472,8 +3993,22 @@ class MagneticFrillSource(Source):
             Hx, Hy, Hz: memory view of array of magnetic field values.
             G: FDTDGrid class describing a grid in a model.
         """
-        self.Vinc[iteration] = 0.5 * self.waveformvalues_wholedt[iteration]
         current_bulk = self._calculate_Itot_frill(Hx, Hy, Hz)
+        self._advance_magnetic_frill(iteration, current_bulk, Hx, Hy, Hz)
+
+    def update_magnetic_mpi(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
+        """Advance a distributed frill from the sum of rank-local loop terms."""
+
+        from mpi4py import MPI
+
+        local_current = self._calculate_Itot_frill(Hx, Hy, Hz)
+        current_bulk = G.comm.allreduce(local_current, op=MPI.SUM)
+        self._advance_magnetic_frill(iteration, current_bulk, Hx, Hy, Hz)
+
+    def _advance_magnetic_frill(self, iteration, current_bulk, Hx, Hy, Hz):
+        """Apply the common implicit terminal relation and local H deposits."""
+
+        self.Vinc[iteration] = 0.5 * self.waveformvalues_wholedt[iteration]
         zeta = self._G_coeff * self.Z0
         current_new = (
             current_bulk
@@ -3534,6 +4069,10 @@ class DiscretePlaneWave(Source):
         self.origin[0] = 0
         self.origin[1] = 0
         self.origin[2] = 0
+        self.tfsf_origin = self.origin
+        self.tfsf_corners = None
+        self.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        self.tfsf_owned_upper = np.zeros(3, dtype=np.int32)
         self.length = 0
         # self.projections = np.zeros(6, dtype=config.sim_config.dtypes["float_or_double"])
         self.projections = np.zeros(
@@ -3696,12 +4235,15 @@ class DiscretePlaneWave(Source):
         # Store the absolute value of max(m_x, m_y, m_z) in the last element of the array
         self.m[3] = self.max_m
 
+        domain_size = np.asarray(getattr(G, "global_size", (G.nx, G.ny, G.nz)), dtype=np.int32)
         if self.m[0] < 0:
-            self.origin[0] = G.nx + 1
+            self.origin[0] = domain_size[0] + 1
         if self.m[1] < 0:
-            self.origin[1] = G.ny + 1
+            self.origin[1] = domain_size[1] + 1
         if self.m[2] < 0:
-            self.origin[2] = G.nz + 1
+            self.origin[2] = domain_size[2] + 1
+
+        self._configure_tfsf_partition(G)
 
         # Calculate ds that is needed for sourcing the 1D array. This is the spatial step of the 1D DPW grid.
         # For axial propagation this is simply the grid step in the direction of propagation.
@@ -3733,9 +4275,9 @@ class DiscretePlaneWave(Source):
         # Total length of the 1D grid if not axial propagation
         if self.axial == 0:
             self.length = (
-                np.abs(self.m[0]) * (G.nx + 1)
-                + np.abs(self.m[1]) * (G.ny + 1)
-                + np.abs(self.m[2]) * (G.nz + 1)
+                np.abs(self.m[0]) * (domain_size[0] + 1)
+                + np.abs(self.m[1]) * (domain_size[1] + 1)
+                + np.abs(self.m[2]) * (domain_size[2] + 1)
                 + self.pml_length
                 + buffercells
             )
@@ -3743,9 +4285,9 @@ class DiscretePlaneWave(Source):
         else:
             buffercells = self.buffercells_axial
             self.length = (
-                np.abs(self.m[0]) * (G.nx + 1)
-                + np.abs(self.m[1]) * (G.ny + 1)
-                + np.abs(self.m[2]) * (G.nz + 1)
+                np.abs(self.m[0]) * (domain_size[0] + 1)
+                + np.abs(self.m[1]) * (domain_size[1] + 1)
+                + np.abs(self.m[2]) * (domain_size[2] + 1)
                 + 2 * self.pml_length
                 + buffercells
             )
@@ -3899,6 +4441,29 @@ class DiscretePlaneWave(Source):
         if self.axial == 0:
             self._get_pml_parameters(G)
 
+    def _configure_tfsf_partition(self, G):
+        """Create rank-local TFSF coordinates while retaining global metadata.
+
+        Every MPI rank evolves the same small auxiliary 1-D DPW. Only TFSF
+        corrections whose target Yee component is owned by that rank are
+        applied; halo exchange then supplies the neighbouring copies. This
+        avoids per-timestep communication of the auxiliary wave.
+        """
+
+        if hasattr(G, "global_size"):
+            offset = np.asarray(G.lower_extent, dtype=np.int32)
+            self.tfsf_origin = np.asarray(self.origin - offset, dtype=np.int32)
+            self.tfsf_corners = np.asarray(self.corners, dtype=np.int32).copy()
+            self.tfsf_corners[:3] -= offset
+            self.tfsf_corners[3:] -= offset
+            self.tfsf_owned_lower = np.asarray(G.negative_halo_offset, dtype=np.int32)
+            self.tfsf_owned_upper = np.asarray(G.size, dtype=np.int32)
+        else:
+            self.tfsf_origin = np.asarray(self.origin, dtype=np.int32).copy()
+            self.tfsf_corners = np.asarray(self.corners, dtype=np.int32).copy()
+            self.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+            self.tfsf_owned_upper = np.asarray((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int32)
+
     def _validate_2d_projections(self):
         """Validates the polarisation of the plane wave against the active 2D
         mode (no-op in 3D).
@@ -3967,30 +4532,38 @@ class DiscretePlaneWave(Source):
             # zero (pec) row additionally pins them at zero against
             # roundoff.
             prop = self.axial - 1  # 0/1/2 = x/y/z
-            n_prop = (G.nx, G.ny, G.nz)[prop]
-            pos = list(self.transverse_pos)
+            n_prop = int(getattr(G, "global_size", (G.nx, G.ny, G.nz))[prop])
 
-            def _gid(component, prop_idx):
-                pos[prop] = prop_idx
-                return G.ID[(component, *pos)]
+            if hasattr(G, "global_size"):
+                self._build_mpi_axial_profile(G, prop, n_prop)
+                sampled_dispersive_materials = None
+            else:
+                pos = list(self.transverse_pos)
 
-            for c in range(6):
-                # Leading 1D buffer/PML region: extend the first grid cell's profile
-                for idx in range(self.origin_axial + 1):
-                    self.ID[c, idx] = _gid(c, 1)
-                # Main grid profile
-                for idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
-                    self.ID[c, idx] = _gid(c, idx - self.origin_axial)
-                # Trailing 1D PML region: extend the last grid cell's profile
-                for idx in range(n_prop + self.origin_axial, self.length):
-                    self.ID[c, idx] = _gid(c, n_prop - 1)
+                def _gid(component, prop_idx):
+                    pos[prop] = prop_idx
+                    return G.ID[(component, *pos)]
 
-            sampled_material_ids = set(np.unique(self.ID))
-            sampled_dispersive_materials = [
-                material
-                for material in G.materials
-                if material.numID in sampled_material_ids and getattr(material, "poles", 0) > 0
-            ]
+                for c in range(6):
+                    # Leading 1D buffer/PML region: extend the first grid cell's profile
+                    for idx in range(self.origin_axial + 1):
+                        self.ID[c, idx] = _gid(c, 1)
+                    # Main grid profile
+                    for idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
+                        self.ID[c, idx] = _gid(c, idx - self.origin_axial)
+                    # Trailing 1D PML region: extend the last grid cell's profile
+                    for idx in range(n_prop + self.origin_axial, self.length):
+                        self.ID[c, idx] = _gid(c, n_prop - 1)
+
+                sampled_material_ids = set(np.unique(self.ID))
+                sampled_dispersive_materials = [
+                    material
+                    for material in G.materials
+                    if material.numID in sampled_material_ids and getattr(material, "poles", 0) > 0
+                ]
+                self.axial_updatecoeffsE = G.updatecoeffsE
+                self.axial_updatecoeffsH = G.updatecoeffsH
+                self.axial_updatecoeffsdispersive = getattr(G, "updatecoeffsdispersive", None)
 
             # Get the background material near the origin (used for the
             # speed and impedance of the DPW) and near the far PML (used
@@ -4005,17 +4578,18 @@ class DiscretePlaneWave(Source):
             # cell-centred extents too: a TM invariant axis is 1 cell
             # (index 0) and a TE one is 2 cells (index 1, the live
             # interior layer).
-            pos_solid = list(self.transverse_pos)
+            if not hasattr(G, "global_size"):
+                pos_solid = list(self.transverse_pos)
 
-            pos_solid[prop] = 2
-            self.material = next(
-                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
-            )
+                pos_solid[prop] = 2
+                self.material = next(
+                    (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+                )
 
-            pos_solid[prop] = n_prop - 2
-            self.materialPML = next(
-                (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
-            )
+                pos_solid[prop] = n_prop - 2
+                self.materialPML = next(
+                    (x for x in G.materials if x.numID == G.solid[tuple(pos_solid)]), None
+                )
 
             # Reference material properties for the source-side auxiliary
             # grid. All Debye, Lorentz, and Drude pole dynamics are handled
@@ -4052,11 +4626,12 @@ class DiscretePlaneWave(Source):
                     self.materialPML.er * self.materialPML.mr
                 )  # Speed in the material
 
-            self.dispersive = bool(sampled_dispersive_materials)
-            self.max_poles = max(
-                (material.poles for material in sampled_dispersive_materials),
-                default=0,
-            )
+            if sampled_dispersive_materials is not None:
+                self.dispersive = bool(sampled_dispersive_materials)
+                self.max_poles = max(
+                    (material.poles for material in sampled_dispersive_materials),
+                    default=0,
+                )
 
             # Calculate the projections for sourcing the electric and magnetic fields
             # using double precision for better accuracy
@@ -4101,7 +4676,7 @@ class DiscretePlaneWave(Source):
 
             self._get_pml_parameters(G)
 
-            print(
+            logger.info(
                 f"Discrete Plane Wave has been initialized "
                 + f"with field projections (Ex, Ey, Ez, Hx, Hy, Hz) = ({self.projections[0]:.4f}, {self.projections[1]:.4f}, {self.projections[2]:.4f}, {self.projections[3]:.4f}, {self.projections[4]:.4f}, {self.projections[5]:.4f})"
                 + f" , grid origin = ({self.origin[0]}, {self.origin[1]}, {self.origin[2]})"
@@ -4121,6 +4696,115 @@ class DiscretePlaneWave(Source):
                 self.Px_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
                 self.Py_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
                 self.Pz_s = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
+
+    def _build_mpi_axial_profile(self, G, prop, n_prop):
+        """Assemble an axial DPW coefficient profile on every MPI rank.
+
+        Compound material numeric IDs are local to a rank. Therefore the
+        profile communicates the actual update-coefficient rows and remaps
+        them to a compact DPW-local table, rather than communicating IDs that
+        could address a different material on another rank. This collective
+        is performed once during model construction; the 1-D time stepping is
+        then completely local and replicated.
+        """
+
+        local_records = {}
+        transverse = np.asarray(self.transverse_pos, dtype=np.int32)
+        has_dispersion = hasattr(G, "updatecoeffsdispersive")
+
+        for prop_idx in range(1, n_prop):
+            global_pos = transverse.copy()
+            global_pos[prop] = prop_idx
+            local_pos = G.global_to_local_coordinate(global_pos)
+            if not G.within_bounds(local_pos):
+                continue
+
+            for component in range(6):
+                material_numid = int(G.ID[(component, *local_pos)])
+                material = next(item for item in G.materials if item.numID == material_numid)
+                local_records[("profile", component, prop_idx)] = (
+                    np.asarray(G.updatecoeffsE[material_numid]).copy(),
+                    np.asarray(G.updatecoeffsH[material_numid]).copy(),
+                    (
+                        np.asarray(G.updatecoeffsdispersive[material_numid]).copy()
+                        if has_dispersion
+                        else None
+                    ),
+                    int(getattr(material, "poles", 0)),
+                )
+
+        for label, prop_idx in (("source", 2), ("far_pml", n_prop - 2)):
+            global_pos = transverse.copy()
+            global_pos[prop] = prop_idx
+            local_pos = G.global_to_local_coordinate(global_pos)
+            if G.within_bounds(local_pos):
+                material_numid = int(G.solid[tuple(local_pos)])
+                local_records[("material", label)] = next(
+                    item for item in G.materials if item.numID == material_numid
+                )
+
+        records = {}
+        for rank_records in G.comm.allgather(local_records):
+            for key, value in rank_records.items():
+                if key in records:
+                    raise RuntimeError(f"Axial DPW profile coordinate {key} has multiple owners.")
+                records[key] = value
+
+        expected = 6 * (n_prop - 1)
+        actual = sum(key[0] == "profile" for key in records)
+        if actual != expected:
+            raise RuntimeError(
+                f"Axial DPW profile is incomplete: received {actual} of {expected} "
+                "component samples."
+            )
+
+        table_size = 6 * n_prop
+        self.axial_updatecoeffsE = np.zeros(
+            (table_size, G.updatecoeffsE.shape[1]), dtype=G.updatecoeffsE.dtype
+        )
+        self.axial_updatecoeffsH = np.zeros(
+            (table_size, G.updatecoeffsH.shape[1]), dtype=G.updatecoeffsH.dtype
+        )
+        dispersive_rows = [
+            value[2]
+            for key, value in records.items()
+            if key[0] == "profile" and value[2] is not None
+        ]
+        max_dispersive_coeffs = max((row.size for row in dispersive_rows), default=0)
+        if max_dispersive_coeffs % 3:
+            raise RuntimeError(
+                "Axial DPW dispersive coefficient rows must contain three values per pole."
+            )
+        if max_dispersive_coeffs:
+            self.axial_updatecoeffsdispersive = np.zeros(
+                (table_size, max_dispersive_coeffs),
+                dtype=config.get_model_config().materials["dispersivedtype"],
+            )
+        else:
+            self.axial_updatecoeffsdispersive = None
+
+        max_poles = 0
+        for component in range(6):
+            for prop_idx in range(1, n_prop):
+                compact_id = component * n_prop + prop_idx
+                coeffs_e, coeffs_h, coeffs_d, poles = records[("profile", component, prop_idx)]
+                self.axial_updatecoeffsE[compact_id] = coeffs_e
+                self.axial_updatecoeffsH[compact_id] = coeffs_h
+                if coeffs_d is not None:
+                    self.axial_updatecoeffsdispersive[compact_id, : coeffs_d.size] = coeffs_d
+                max_poles = max(max_poles, poles)
+
+            first_id = component * n_prop + 1
+            last_id = component * n_prop + n_prop - 1
+            self.ID[component, : self.origin_axial + 1] = first_id
+            for aux_idx in range(self.origin_axial + 1, n_prop + self.origin_axial):
+                self.ID[component, aux_idx] = component * n_prop + aux_idx - self.origin_axial
+            self.ID[component, n_prop + self.origin_axial :] = last_id
+
+        self.material = records[("material", "source")]
+        self.materialPML = records[("material", "far_pml")]
+        self.max_poles = max(max_poles, max_dispersive_coeffs // 3)
+        self.dispersive = self.max_poles > 0
 
     def calculate_waveform_values(self, G, cythonize=True):
         """Calculates all waveform values for source for duration of simulation.
@@ -4239,6 +4923,7 @@ class DiscretePlaneWave(Source):
                 self.Iz_s,
                 updatecoeffsE[:, :],
                 updatecoeffsH[:, :],
+                self.axial_updatecoeffsH,
                 self.ID,
                 G.ID,
                 self.pml_rex,
@@ -4263,8 +4948,10 @@ class DiscretePlaneWave(Source):
                 self.waveformvalues_wholedt[:, :, :],
                 self.waveformvalues_halfdt[:, :, :],
                 self.m,
-                self.origin,
-                self.corners,
+                self.tfsf_origin,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
                 precompute,
                 iteration,
                 G.dt,
@@ -4309,8 +4996,10 @@ class DiscretePlaneWave(Source):
                     self.waveformvalues_wholedt[:, :, :],
                     self.waveformvalues_halfdt[:, :, :],
                     self.m,
-                    self.origin,
-                    self.corners,
+                    self.tfsf_origin,
+                    self.tfsf_corners,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     precompute,
                     iteration,
                     G.dt,
@@ -4366,6 +5055,7 @@ class DiscretePlaneWave(Source):
                 self.Iz_s,
                 updatecoeffsE[:, :],
                 updatecoeffsH[:, :],
+                self.axial_updatecoeffsE,
                 self.ID,
                 G.ID,
                 self.pml_rex,
@@ -4390,8 +5080,10 @@ class DiscretePlaneWave(Source):
                 self.waveformvalues_wholedt[:, :, :],
                 self.waveformvalues_halfdt[:, :, :],
                 self.m,
-                self.origin,
-                self.corners,
+                self.tfsf_origin,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
                 precompute,
                 iteration,
                 G.dt,
@@ -4436,8 +5128,10 @@ class DiscretePlaneWave(Source):
                     self.waveformvalues_wholedt[:, :, :],
                     self.waveformvalues_halfdt[:, :, :],
                     self.m,
-                    self.origin,
-                    self.corners,
+                    self.tfsf_origin,
+                    self.tfsf_corners,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     precompute,
                     iteration,
                     G.dt,
@@ -4501,6 +5195,8 @@ class DiscretePlaneWave(Source):
                 updatecoeffsE[:, :],
                 updatecoeffsH[:, :],
                 updatecoeffsdispersive[:, :],
+                self.axial_updatecoeffsE,
+                self.axial_updatecoeffsdispersive,
                 self.ID,
                 G.ID,
                 self.max_poles,
@@ -4526,8 +5222,10 @@ class DiscretePlaneWave(Source):
                 self.waveformvalues_wholedt[:, :, :],
                 self.waveformvalues_halfdt[:, :, :],
                 self.m,
-                self.origin,
-                self.corners,
+                self.tfsf_origin,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
                 precompute,
                 iteration,
                 G.dt,
@@ -4577,8 +5275,10 @@ class DiscretePlaneWave(Source):
                     self.waveformvalues_wholedt[:, :, :],
                     self.waveformvalues_halfdt[:, :, :],
                     self.m,
-                    self.origin,
-                    self.corners,
+                    self.tfsf_origin,
+                    self.tfsf_corners,
+                    self.tfsf_owned_lower,
+                    self.tfsf_owned_upper,
                     precompute,
                     iteration,
                     G.dt,

@@ -84,6 +84,31 @@ Run one of the 2D test models:
 
 The ``--mpi`` argument passed to gprMax takes three integers to define the number of MPI processes in the x, y, and z dimensions to form a cartesian grid. The product of these three numbers shoud equal the number of MPI ranks. In this case ``2 x 2 x 1 = 4``.
 
+Discrete plane waves can span MPI subdomains. Their small one-dimensional DPW
+state is replicated on every rank, and the TFSF surface corrections are
+partitioned by Yee-component ownership. Axial layered profiles are assembled
+once during model construction, so plane waves add no source-specific
+communication to the timestep loop.
+
+Eigenmode ports can also span MPI subdomains. Their component-resolved modal
+cross-sections are assembled once during construction, TF/SF source terms are
+partitioned by field ownership, and the modal spectra are reduced only at
+finalisation. A virtual waveguide replicates its compact auxiliary Yee grid on
+each rank and performs one aperture-sized magnetic-field collective per time
+step to preserve bidirectional coupling.
+
+PEC and PMC symmetry boundaries may be used on MPI domain faces. Boundary
+construction and the PMC ghost-image update are dispatched only on ranks that
+touch the selected global face. Physical domain-edge corrections are similarly
+restricted to ranks that touch both adjoining global faces, so internal halo
+seams retain the ordinary distributed Yee update.
+
+Internal one-axis PML slabs may cross MPI partitions in any direction. Their
+global CFS grading is sliced between participating ranks without restarting at
+a partition, and only rank-local PML history arrays are allocated. The normal
+field-halo exchanges join the corrected fields, so these slabs introduce no
+additional per-timestep MPI collective.
+
 .. figure:: ../../images_shared/mpi_domain_decomposition.png
     :width: 80%
     :align: center

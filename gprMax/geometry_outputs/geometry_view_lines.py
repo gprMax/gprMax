@@ -67,8 +67,7 @@ class GeometryViewLines(GeometryView[GridType]):
 
         # Add offset to subgrid geometry to correctly locate within main grid
         if isinstance(self.grid, SubGridBaseGrid):
-            offset = [self.grid.i0, self.grid.j0, self.grid.k0]
-            self.points += offset * self.grid.dl * self.grid.ratio
+            self.points += self.grid.local_to_global(np.zeros(3, dtype=np.int32))
 
         nx, ny, nz = self.grid_view.size
         n_lines = (

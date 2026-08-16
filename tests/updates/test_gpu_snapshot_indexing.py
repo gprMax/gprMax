@@ -37,6 +37,8 @@ dispatch argument order/contract for CUDA and OpenCL (mirroring the
 existing Metal dispatch tests), and update_snapshot_max_dims() in
 isolation.
 """
+from types import SimpleNamespace
+
 import numpy as np
 
 from gprMax.snapshots import Snapshot, update_snapshot_max_dims
@@ -208,3 +210,42 @@ def test_opencl_store_snapshots_passes_local_sample_counts_not_absolute_finish(m
     assert args[18] == "dev:Hz"
     assert args[19] == "dev:snapEx"
     assert args[24] == "dev:snapHz"
+
+
+def test_opencl_snapshot_kernel_substitutes_real_type(monkeypatch):
+    import gprMax.config as config
+    import gprMax.updates.opencl_updates as opencl_updates
+    from gprMax.updates.opencl_updates import OpenCLUpdates
+
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={"C_float_or_double": "double"},
+            devices={"compiler_opts": []},
+        ),
+    )
+    monkeypatch.setattr(
+        opencl_updates,
+        "htod_snapshot_array",
+        lambda snapshots, queue: tuple(f"snap:{name}" for name in "Ex Ey Ez Hx Hy Hz".split()),
+    )
+
+    captured = {}
+    updates = OpenCLUpdates.__new__(OpenCLUpdates)
+    updates.grid = SimpleNamespace(snapshots=[object()])
+    updates.queue = object()
+    updates.ctx = object()
+    updates.knl_common = ""
+
+    def fake_elementwise(context, arguments, body, name, **kwargs):
+        captured.update(arguments=arguments, body=body, name=name)
+        return object()
+
+    updates.elwiseknl = fake_elementwise
+    updates._set_snapshot_knl()
+
+    assert captured["name"] == "store_snapshot"
+    assert "$" not in captured["arguments"]
+    assert "$" not in captured["body"]
+    assert "(double)0.25" in captured["body"]

@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -18,6 +18,59 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from string import Template
+
+# DEVICE-RESIDENT SOURCE INITIALISATION
+
+# The delayed waveform values are prepared once during model setup. This
+# kernel copies one whole- or half-timestep slice into the first M samples of
+# the appropriate auxiliary grid without a host-to-device transfer inside the
+# FDTD time loop.
+initialise_1d_source = {
+    "args_cuda": Template(
+        """
+        __global__ void initialise_1d_source(
+            const int N,
+            const int M,
+            const int timestep,
+            $REAL* __restrict__ fields,
+            const $REAL* __restrict__ source_values
+        )
+        """
+    ),
+    "args_opencl": Template(
+        """
+        const int N,
+        const int M,
+        const int timestep,
+        __global $REAL* restrict fields,
+        __global const $REAL* restrict source_values
+        """
+    ),
+    "args_metal": Template(
+        """
+        kernel void initialise_1d_source(
+            device const int& N,
+            device const int& M,
+            device const int& timestep,
+            device $REAL* fields,
+            device const $REAL* source_values,
+            uint i [[thread_position_in_grid]]
+        )
+        """
+    ),
+    "func": Template(
+        """
+    $CUDA_IDX
+
+    int count = 3 * M;
+    if (i < count) {
+        int component = i / M;
+        int r = i - component * M;
+        fields[component * N + r] = source_values[timestep * count + i];
+    }
+"""
+    ),
+}
 
 
 # STANDARD (HOMOGENEOUS) MAGNETIC UPDATE
@@ -323,7 +376,7 @@ update_1d_magnetic_pml = {
     $REAL dEzy, dEyz, dEzx, dExz, dEyx, dExy;
     $REAL mxy, mxz, myx, myz, mzx, mzy;
 
-    //  H_x PML correction 
+    //  H_x PML correction
     dEzy = (E_z[idx + m_y] - E_z[idx]) / dy;
     dEyz = (E_y[idx + m_z] - E_y[idx]) / dz;
 
@@ -335,7 +388,7 @@ update_1d_magnetic_pml = {
     Ixmzy[pml_i] = Ixmzy[pml_i] - RCHx[pml_i] * mxy + RDHx[pml_i] * dEzy;
     Ixmyz[pml_i] = Ixmyz[pml_i] - RCHx[pml_i] * mxz + RDHx[pml_i] * dEyz;
 
-    //  H_y PML correction 
+    //  H_y PML correction
     dEzx = (E_z[idx + m_x] - E_z[idx]) / dx;
     dExz = (E_x[idx + m_z] - E_x[idx]) / dz;
 
@@ -347,7 +400,7 @@ update_1d_magnetic_pml = {
     Iymzx[pml_i] = Iymzx[pml_i] - RCHy[pml_i] * myx + RDHy[pml_i] * dEzx;
     Iymxz[pml_i] = Iymxz[pml_i] - RCHy[pml_i] * myz + RDHy[pml_i] * dExz;
 
-    //  H_z PML correction 
+    //  H_z PML correction
     dEyx = (E_y[idx + m_x] - E_y[idx]) / dx;
     dExy = (E_x[idx + m_y] - E_x[idx]) / dy;
 
@@ -361,7 +414,6 @@ update_1d_magnetic_pml = {
     """
     ),
 }
-
 
 
 # STANDARD (HOMOGENEOUS) ELECTRIC UPDATE
@@ -497,7 +549,6 @@ update_1d_electric = {
     """
     ),
 }
-
 
 
 # STANDARD (HOMOGENEOUS) ELECTRIC PML UPDATE
@@ -665,7 +716,7 @@ update_1d_electric_pml = {
     Jxmzy[pml_i] = Jxmzy[pml_i] - RCEx[pml_i] * jxy + RDEx[pml_i] * dHzy;
     Jxmyz[pml_i] = Jxmyz[pml_i] - RCEx[pml_i] * jxz + RDEx[pml_i] * dHyz;
 
-    //  E_y PML correction 
+    //  E_y PML correction
     dHzx = (H_z[idx] - H_z[idx - m_x]) / dx;
     dHxz = (H_x[idx] - H_x[idx - m_z]) / dz;
 
@@ -677,7 +728,7 @@ update_1d_electric_pml = {
     Jymzx[pml_i] = Jymzx[pml_i] - RCEy[pml_i] * jyx + RDEy[pml_i] * dHzx;
     Jymxz[pml_i] = Jymxz[pml_i] - RCEy[pml_i] * jyz + RDEy[pml_i] * dHxz;
 
-    // E_z PML correction 
+    // E_z PML correction
     dHyx = (H_y[idx] - H_y[idx - m_x]) / dx;
     dHxy = (H_x[idx] - H_x[idx - m_y]) / dy;
 
@@ -699,7 +750,6 @@ update_1d_electric_pml = {
 #   updatecoeffsH[ID[component * N + j], col]
 # and require three sequential kernel launches due to source injection
 # dependency at origin_axial.
-
 
 
 # AXIAL MAGNETIC UPDATE - KERNEL 1 OF 3
@@ -747,7 +797,9 @@ update_1d_magnetic_axial_source = {
         __global const $REAL* restrict E_x_s,
         __global const $REAL* restrict E_y_s,
         __global const $REAL* restrict E_z_s,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -765,6 +817,8 @@ update_1d_magnetic_axial_source = {
             device const $REAL* E_y_s,
             device const $REAL* E_z_s,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -816,7 +870,6 @@ update_1d_magnetic_axial_source = {
     """
     ),
 }
-
 
 
 # AXIAL MAGNETIC UPDATE - SOURCE GRID PML
@@ -903,7 +956,9 @@ update_1d_magnetic_axial_source_pml = {
         __global const $REAL* restrict RBHz0,
         __global const $REAL* restrict RCHz0,
         __global const $REAL* restrict RDHz0,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -943,6 +998,8 @@ update_1d_magnetic_axial_source_pml = {
             device const $REAL* RCHz0,
             device const $REAL* RDHz0,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1047,7 +1104,9 @@ update_1d_magnetic_axial_inject = {
         __global const $REAL* restrict E_x_s,
         __global const $REAL* restrict E_y_s,
         __global const $REAL* restrict E_z_s,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1065,6 +1124,8 @@ update_1d_magnetic_axial_inject = {
             device const $REAL* E_y_s,
             device const $REAL* E_z_s,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1103,7 +1164,6 @@ update_1d_magnetic_axial_inject = {
     """
     ),
 }
-
 
 
 # AXIAL MAGNETIC UPDATE - KERNEL 3 OF 3 (MAIN GRID BULK)
@@ -1148,7 +1208,9 @@ update_1d_magnetic_axial_main = {
         __global const $REAL* restrict E_x,
         __global const $REAL* restrict E_y,
         __global const $REAL* restrict E_z,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1166,6 +1228,8 @@ update_1d_magnetic_axial_main = {
             device const $REAL* E_y,
             device const $REAL* E_z,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1208,7 +1272,6 @@ update_1d_magnetic_axial_main = {
     """
     ),
 }
-
 
 
 # AXIAL MAGNETIC UPDATE - MAIN GRID PML (END REGION)
@@ -1295,7 +1358,9 @@ update_1d_magnetic_axial_main_pml_end = {
         __global const $REAL* restrict RBHz,
         __global const $REAL* restrict RCHz,
         __global const $REAL* restrict RDHz,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1335,6 +1400,8 @@ update_1d_magnetic_axial_main_pml_end = {
             device const $REAL* RCHz,
             device const $REAL* RDHz,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1477,7 +1544,9 @@ update_1d_magnetic_axial_main_pml_start = {
         __global const $REAL* restrict RBHz0,
         __global const $REAL* restrict RCHz0,
         __global const $REAL* restrict RDHz0,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1516,6 +1585,8 @@ update_1d_magnetic_axial_main_pml_start = {
             device const $REAL* RCHz0,
             device const $REAL* RDHz0,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1626,7 +1697,9 @@ update_1d_electric_axial_source = {
         __global const $REAL* restrict H_x_s,
         __global const $REAL* restrict H_y_s,
         __global const $REAL* restrict H_z_s,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1644,6 +1717,8 @@ update_1d_electric_axial_source = {
             device const $REAL* H_y_s,
             device const $REAL* H_z_s,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1762,7 +1837,9 @@ update_1d_electric_axial_source_pml = {
         __global const $REAL* restrict RBEz0,
         __global const $REAL* restrict RCEz0,
         __global const $REAL* restrict RDEz0,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1802,6 +1879,8 @@ update_1d_electric_axial_source_pml = {
             device const $REAL* RCEz0,
             device const $REAL* RDEz0,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1894,7 +1973,9 @@ update_1d_electric_axial_inject = {
         __global const $REAL* restrict H_x_s,
         __global const $REAL* restrict H_y_s,
         __global const $REAL* restrict H_z_s,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -1912,6 +1993,8 @@ update_1d_electric_axial_inject = {
             device const $REAL* H_y_s,
             device const $REAL* H_z_s,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -1984,7 +2067,9 @@ update_1d_electric_axial_main = {
         __global const $REAL* restrict H_x,
         __global const $REAL* restrict H_y,
         __global const $REAL* restrict H_z,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -2002,6 +2087,8 @@ update_1d_electric_axial_main = {
             device const $REAL* H_y,
             device const $REAL* H_z,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -2117,7 +2204,9 @@ update_1d_electric_axial_main_pml_end = {
         __global const $REAL* restrict RBEz,
         __global const $REAL* restrict RCEz,
         __global const $REAL* restrict RDEz,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -2157,6 +2246,8 @@ update_1d_electric_axial_main_pml_end = {
             device const $REAL* RCEz,
             device const $REAL* RDEz,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -2291,7 +2382,9 @@ update_1d_electric_axial_main_pml_start = {
         __global const $REAL* restrict RBEz0,
         __global const $REAL* restrict RCEz0,
         __global const $REAL* restrict RDEz0,
-        __global const unsigned int* restrict GID
+        __global const unsigned int* restrict GID,
+        __global const $REAL* restrict matH,
+        __global const $REAL* restrict matE
         """
     ),
     "args_metal": Template(
@@ -2330,6 +2423,8 @@ update_1d_electric_axial_main_pml_start = {
             device const $REAL* RCEz0,
             device const $REAL* RDEz0,
             device const unsigned int* GID,
+            device const $REAL* matH,
+            device const $REAL* matE,
             uint i [[thread_position_in_grid]]
         )
         """
@@ -2388,19 +2483,6 @@ update_1d_electric_axial_main_pml_start = {
     """
     ),
 }
-
-
-
-
-         
-    
-            
-  
-     
-             
-        
-                        
-  
 
 
 # DISPERSIVE STANDARD ELECTRIC UPDATE (bulk) - part A

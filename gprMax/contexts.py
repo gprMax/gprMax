@@ -103,9 +103,15 @@ class Context:
         for i in self.model_range:
             self._run_model(i)
 
+        results = {}
+        if config.sim_config.study is not None:
+            study_result = config.sim_config.study.finalise()
+            if study_result is not None:
+                results["study"] = study_result
+
         self._end_simulation()
 
-        return {}
+        return results
 
     def _run_model(self, model_num: int) -> None:
         """Process for running a single model.
@@ -121,6 +127,8 @@ class Context:
         if not model_config.reuse_geometry():
             scene = self._get_scene(model_num)
             self.model = self._create_model()
+            if config.sim_config.study is not None:
+                config.sim_config.study.bind_scene(scene)
             scene.create_internal_objects(self.model)
         else:
             # model_config is freshly created every call (unlike self.model,
@@ -213,6 +221,12 @@ class MPIContext(Context):
     def run(self) -> Dict:
         try:
             result = super().run()
+            # A geometry-fixed series retains the same MPIGrid (and its
+            # committed halo datatypes) across every model run. Release them
+            # only after the complete series has finished. Ordinary grids are
+            # retired in _run_model() and self.model is already None here.
+            if self.model is not None:
+                self.model.G.free_halo_maps()
             logger.debug("Waiting for all ranks to finish.")
             self.comm.Barrier()
             logger.debug("Completed.")
@@ -235,6 +249,8 @@ class MPIContext(Context):
         if not model_config.reuse_geometry():
             self.model = self._create_model()
             scene = self._get_scene(model_num)
+            if config.sim_config.study is not None:
+                config.sim_config.study.bind_scene(scene)
             scene.create_internal_objects(self.model)
         else:
             # model_config is freshly created every call (unlike self.model,
@@ -258,6 +274,7 @@ class MPIContext(Context):
         if not config.sim_config.geometry_fixed:
             # Manual garbage collection required to stop memory leak on GPUs
             # when using pycuda
+            self.model.G.free_halo_maps()
             del self.model.G
             self.model = None
 

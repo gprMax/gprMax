@@ -1,9 +1,12 @@
-# Copyright (C) 2015-2024, Craig Warren
+# Copyright (C) 2015-2026, Craig Warren, Sam Stadler, Ourania Patsia
 #
 # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
 # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
 #
-# Please use the attribution at http://dx.doi.org/10.1190/1.3548506
+# Please use the following attributions:
+#  For the antenna_like_GSSI_1500 http://dx.doi.org/10.1190/1.3548506 and http://dx.doi.org/10.1109/TGRS.2018.2869027
+#  For the antenna_like_GSSI_400 https://doi.org/10.1109/TAP.2022.3142335
+#  For the antenna_like_GSSI_2000 https://doi.org/10.1002/nsg.12280
 
 from pathlib import Path
 
@@ -469,6 +472,230 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
             scene_objects.append(e1)
         r1 = gprMax.Rx(p1=(tx[0] - 0.060, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
         scene_objects.append(r1)
+
+    return scene_objects
+
+
+def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
+    """Insert a model similar to the GSSI 2 GHz palm antenna.
+
+    The model is based on the optimised unit No. 1 parameters reported by
+    Patsia et al. (2024), https://doi.org/10.1002/nsg.12280. It must be used
+    with a 1 mm cubic spatial discretisation. The nominal antenna dimensions
+    are 86 x 86 x 68 mm; in the discretised model the skid projects 2 mm
+    beyond each side of the case in the y direction. A Gaussian voltage source
+    excites the transmitter and an ``Ey`` receiver is placed across the
+    resistively loaded receiver gap.
+
+    Args:
+        x, y, z (float): Coordinates of the geometric centre of the antenna
+            in the x-y plane and the bottom of the antenna skid in z.
+        resolution (float): Spatial resolution of the antenna model. Only
+            1 mm is supported.
+
+    Returns:
+        scene_objects (list): All objects required to add the antenna to a
+            scene.
+    """
+
+    if resolution != 0.001:
+        raise ValueError("This antenna module can only be used with a spatial discretisation of 1 mm")
+
+    dx = dy = dz = resolution
+    scene_objects = []
+
+    # The original model used the lower x-y corner and had the skid at the
+    # high-z face. Translate to the toolbox convention (x-y centre and bottom
+    # of skid) by reflecting only the local z coordinate. This is a rigid
+    # transformation and does not alter the antenna geometry.
+    x0 = x - 0.043
+    y0 = y - 0.043
+    legacy_zmax = 0.067
+
+    def point(p):
+        return (x0 + p[0], y0 + p[1], z + legacy_zmax - p[2])
+
+    def ordered_points(p1, p2):
+        q1 = point(p1)
+        q2 = point(p2)
+        return tuple(min(a, b) for a, b in zip(q1, q2)), tuple(max(a, b) for a, b in zip(q1, q2))
+
+    def add_box(p1, p2, material_id):
+        q1, q2 = ordered_points(p1, p2)
+        scene_objects.append(gprMax.Box(p1=q1, p2=q2, material_id=material_id))
+
+    def add_plate(p1, p2, material_id="pec"):
+        q1, q2 = ordered_points(p1, p2)
+        scene_objects.append(gprMax.Plate(p1=q1, p2=q2, material_id=material_id))
+
+    def add_edge(p1, p2, material_id):
+        q1, q2 = ordered_points(p1, p2)
+        scene_objects.append(gprMax.Edge(p1=q1, p2=q2, material_id=material_id))
+
+    # Optimised material and equivalent-edge parameters for unit No. 1. The
+    # absorber and receiver resistances are converted to bulk conductivity
+    # exactly as in the original 1 mm model.
+    absorber1_resistance = 920.0
+    absorber2_resistance = 790.0
+    source_resistance = 560.0
+    receiver_resistance = 200008.0107
+    edge_to_bulk = dy / (dx * dz)
+
+    material_properties = (
+        ("gssi2000_rxres", 1.0560, (1 / receiver_resistance) * edge_to_bulk),
+        ("gssi2000_plastic", 6.10, 0.0029),
+        ("gssi2000_skid", 2.6792, 0.0050),
+        ("gssi2000_pcb", 1.5220, 0.0231),
+        ("gssi2000_divider", 1.0143, 45685957),
+        ("gssi2000_case_inner", 1.0, 45355559),
+        ("gssi2000_plastic_inner", 1.1758, 0.0017),
+        ("gssi2000_gasket", 1.0, 100000000),
+        ("gssi2000_absorber1", 1.10091, (1 / absorber1_resistance) * edge_to_bulk),
+        ("gssi2000_absorber2", 1.073, (1 / absorber2_resistance) * edge_to_bulk),
+    )
+    scene_objects.extend(
+        gprMax.Material(er=er, se=se, mr=1, sm=0, id=material_id) for material_id, er, se in material_properties
+    )
+
+    # Case and skid. Coordinates below are local coordinates from the legacy
+    # model and are transformed by the helpers above.
+    add_box((0, -0.002, 0.064), (0.086, 0.088, 0.067), "gssi2000_skid")
+    add_box((0.001, -0.001, -0.001), (0.085, 0.087, 0.066), "free_space")
+    add_box((0.001, -0.001, -0.001), (0.085, 0.087, 0.066), "gssi2000_plastic")
+    add_box((0.006, 0.040, 0.065), (0.039, 0.046, 0.066), "free_space")
+    add_box((0.047, 0.040, 0.065), (0.080, 0.046, 0.066), "free_space")
+    add_box((0.002, 0, 0), (0.084, 0.086, 0.066), "free_space")
+    add_box((0.002, 0, 0.020), (0.084, 0.086, 0.063), "gssi2000_case_inner")
+    add_box((0.003, 0.001, 0.021), (0.083, 0.085, 0.063), "free_space")
+    add_plate((0.001, -0.001, 0.066), (0.085, 0.087, 0.066), "gssi2000_plastic")
+
+    ydist = 0.007
+
+    def add_bowtie(shape_xoffset, feed_x):
+        zbowtie = 0.064
+        add_plate(
+            (0.008 + shape_xoffset, 0.010, zbowtie),
+            (0.032 + shape_xoffset, 0.030, zbowtie),
+        )
+        add_plate(
+            (0.017 + shape_xoffset, 0.023, zbowtie),
+            (0.023 + shape_xoffset, 0.041, zbowtie),
+        )
+        add_plate(
+            (0.015 + shape_xoffset, 0.023, zbowtie),
+            (0.017 + shape_xoffset, 0.040, zbowtie),
+        )
+        add_plate(
+            (0.023 + shape_xoffset, 0.023, zbowtie),
+            (0.025 + shape_xoffset, 0.040, zbowtie),
+        )
+        add_plate(
+            (0.013 + shape_xoffset, 0.023, zbowtie),
+            (0.015 + shape_xoffset, 0.039, zbowtie),
+        )
+        add_plate(
+            (0.025 + shape_xoffset, 0.023, zbowtie),
+            (0.027 + shape_xoffset, 0.039, zbowtie),
+        )
+
+        for i in range(1, 6):
+            upper_y = 0.033 - i * 0.001 + ydist - 0.001
+            if i == 5:
+                upper_y -= 0.001
+            add_plate(
+                (0.013 - i * 0.001 + shape_xoffset, 0.030, zbowtie),
+                (0.014 - i * 0.001 + shape_xoffset, upper_y, zbowtie),
+            )
+            add_plate(
+                (0.026 + i * 0.001 + shape_xoffset, 0.030, zbowtie),
+                (0.027 + i * 0.001 + shape_xoffset, upper_y, zbowtie),
+            )
+
+        add_plate(
+            (0.008 + shape_xoffset, 0.055, zbowtie),
+            (0.032 + shape_xoffset, 0.075, zbowtie),
+        )
+        for i in range(1, 6):
+            lower_y = 0.046 + i * 0.001
+            if i == 5:
+                lower_y += 0.001
+            add_plate(
+                (0.013 - i * 0.001 + shape_xoffset, lower_y, zbowtie),
+                (0.014 - i * 0.001 + shape_xoffset, 0.055, zbowtie),
+            )
+            add_plate(
+                (0.026 + i * 0.001 + shape_xoffset, lower_y, zbowtie),
+                (0.027 + i * 0.001 + shape_xoffset, 0.055, zbowtie),
+            )
+
+        add_plate(
+            (0.017 + shape_xoffset, 0.044, zbowtie),
+            (0.023 + shape_xoffset, 0.055, zbowtie),
+        )
+        add_plate(
+            (0.015 + shape_xoffset, 0.045, zbowtie),
+            (0.017 + shape_xoffset, 0.055, zbowtie),
+        )
+        add_plate(
+            (0.023 + shape_xoffset, 0.045, zbowtie),
+            (0.025 + shape_xoffset, 0.055, zbowtie),
+        )
+        add_plate(
+            (0.013 + shape_xoffset, 0.046, zbowtie),
+            (0.015 + shape_xoffset, 0.055, zbowtie),
+        )
+        add_plate(
+            (0.025 + shape_xoffset, 0.046, zbowtie),
+            (0.027 + shape_xoffset, 0.055, zbowtie),
+        )
+        add_plate((feed_x - 0.001, 0.040, zbowtie), (feed_x + 0.001, 0.042, zbowtie))
+        add_plate((feed_x - 0.001, 0.043, zbowtie), (feed_x + 0.001, 0.044, zbowtie))
+
+    # Transmitter and receiver bowties.
+    add_bowtie(shape_xoffset=0.003, feed_x=0.023)
+    add_bowtie(shape_xoffset=0.043, feed_x=0.063)
+
+    # PCBs and absorbers.
+    add_box((0.006, 0.005, 0.063), (0.039, 0.081, 0.064), "gssi2000_pcb")
+    add_box((0.047, 0.005, 0.063), (0.080, 0.081, 0.064), "gssi2000_pcb")
+    add_box((0.003, 0.001, 0.058), (0.042, 0.085, 0.063), "gssi2000_absorber1")
+    add_box((0.044, 0.001, 0.058), (0.083, 0.085, 0.063), "gssi2000_absorber1")
+    add_box((0.003, 0.001, 0.052), (0.042, 0.085, 0.058), "gssi2000_absorber2")
+    add_box((0.044, 0.001, 0.052), (0.083, 0.085, 0.058), "gssi2000_absorber2")
+
+    # Plastic shells and air gaps within the absorbers.
+    add_box((0.012, 0.032, 0.052), (0.036, 0.045, 0.063), "free_space")
+    add_box((0.051, 0.032, 0.052), (0.075, 0.045, 0.063), "free_space")
+    add_box((0.012, 0.032, 0.052), (0.036, 0.045, 0.063), "gssi2000_plastic_inner")
+    add_box((0.051, 0.032, 0.052), (0.075, 0.045, 0.063), "gssi2000_plastic_inner")
+    add_box((0.013, 0.033, 0.053), (0.035, 0.044, 0.063), "free_space")
+    add_box((0.052, 0.033, 0.053), (0.074, 0.044, 0.063), "free_space")
+
+    # EMI gaskets.
+    add_box((0.009, 0.030, 0.051), (0.035, 0.056, 0.052), "gssi2000_gasket")
+    add_box((0.051, 0.026, 0.051), (0.077, 0.056, 0.052), "gssi2000_gasket")
+
+    # Resistively loaded receiver gap.
+    add_edge((0.063, 0.042, 0.064), (0.063, 0.043, 0.064), "free_space")
+    add_edge((0.063, 0.042, 0.064), (0.063, 0.043, 0.064), "gssi2000_rxres")
+
+    # Metallic divider and its apertures.
+    add_box((0.041, 0.001, 0.020), (0.045, 0.085, 0.064), "free_space")
+    add_box((0.041, 0.001, 0.020), (0.045, 0.085, 0.064), "gssi2000_divider")
+    add_box((0.041, 0.020, 0.043), (0.045, 0.045, 0.063), "free_space")
+    add_box((0.041, 0.047, 0.043), (0.045, 0.070, 0.063), "free_space")
+
+    source_point = point((0.023, 0.042, 0.064))
+    receiver_point = point((0.063, 0.042, 0.064))
+    waveform = gprMax.Waveform(wave_type="gaussian", amp=-1, freq=2.12e9, id="gssi2000_gaussian")
+    source = gprMax.VoltageSource(
+        polarisation="y",
+        p1=source_point,
+        resistance=source_resistance,
+        waveform_id="gssi2000_gaussian",
+    )
+    receiver = gprMax.Rx(p1=receiver_point, id="gssi2000_rxbowtie", outputs=["Ey"])
+    scene_objects.extend((waveform, source, receiver))
 
     return scene_objects
 

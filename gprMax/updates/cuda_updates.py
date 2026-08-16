@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -26,17 +26,28 @@ from jinja2 import Environment, PackageLoader
 
 from gprMax import config
 from gprMax.cuda_opencl import (
+    knl_eigenmode,
     knl_fields_updates,
     knl_magnetic_frill_source,
     knl_planewave_updates,
+    knl_rational_network,
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
     knl_symmetry_boundaries,
     knl_tfsf_injection,
     knl_transmission_line,
+    knl_virtual_waveguide,
+)
+from gprMax.eigenmode_device import (
+    eigenmode_source_envelopes,
+    finalise_device_eigenmode_monitors,
+    prepare_device_eigenmode_monitor,
+    prepare_device_eigenmode_source,
+    reanchor_device_eigenmode_monitor,
 )
 from gprMax.grid.cuda_grid import CUDAGrid
+from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import CUDACombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
 from gprMax.snapshots import (
@@ -63,7 +74,7 @@ logger = logging.getLogger(__name__)
 class CUDAUpdates(Updates[CUDAGrid]):
     """Defines update functions for GPU-based (CUDA) solver."""
 
-    def __init__(self, G: CUDAGrid):
+    def __init__(self, G: CUDAGrid, shared=None):
         """
         Args:
             G: CUDAGrid class describing a grid in a model.
@@ -75,9 +86,15 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.source_module = getattr(import_module("pycuda.compiler"), "SourceModule")
         self.drv.init()
 
-        # Create device handle and context on specific GPU device (and make it current context)
-        self.dev = config.get_model_config().device["dev"]
-        self.ctx = self.dev.make_context()
+        # Auxiliary virtual guides must share the parent's CUDA context so a
+        # coupling kernel can address both grids without per-step transfers.
+        self._owns_context = shared is None
+        if shared is None:
+            self.dev = config.get_model_config().device["dev"]
+            self.ctx = self.dev.make_context()
+        else:
+            self.dev = shared.dev
+            self.ctx = shared.ctx
 
         # Set common substitutions for use in kernels
         # Substitutions in function arguments
@@ -89,6 +106,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.subs_func = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
             "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "TFSF_IDX": "int t = blockIdx.x * blockDim.x + threadIdx.x;",
+            "METAL_DFT_PARAMETERS": "",
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
             "NZ_FIELDS": self.grid.nz + 1,
@@ -119,17 +138,27 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self._set_src_knls()
         if self.grid.transmissionlines:
             self._set_transmission_line_knls()
+        if self.grid.networkterminals:
+            self._set_rational_network_knl()
         if self.grid.magneticfrillsources:
             self._set_magnetic_frill_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
         if self.grid.discreteplanewaves:
             self._set_planewave_knls()
+        if self.grid.eigenmodesources:
+            self._set_eigenmode_source_knls()
+        if self.grid.eigenmodeports:
+            self._set_eigenmode_monitor_knl()
         self.ntff_collector = None
         if self.grid.ntff_monitors:
             self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
             self.ntff_compiler_options = config.sim_config.devices["nvcc_opts"]
             self.ntff_collector = CUDACombinedKSIRCollector(self)
+        if self.grid.virtual_waveguides:
+            self._set_virtual_waveguide_knls()
+        for guide in self.grid.virtual_waveguides:
+            guide.initialise_device(self)
 
     def _build_knl(self, knl_func, subs_name_args, subs_func):
         """Builds a CUDA kernel from templates: 1) function name and args;
@@ -256,15 +285,43 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self.grid.htod_dispersive_arrays()
 
     def _set_symmetry_boundary_knl(self):
-        """Build the nondispersive PMC ghost-image boundary kernel."""
+        """Build normal or dispersive PMC ghost-image boundary kernels."""
+        substitutions = dict(self.subs_func)
+        substitutions.update(knl_symmetry_boundaries.nondispersive_substitutions())
         source = self._build_knl(
             knl_symmetry_boundaries.update_electric_pmc,
             self.subs_name_args,
-            self.subs_func,
+            substitutions,
         )
         module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
         self.update_electric_pmc_dev = module.get_function("update_electric_pmc")
         self._copy_mat_coeffs(module, module)
+        if config.get_model_config().materials["maxpoles"] > 0:
+            substitutions = dict(self.subs_func)
+            substitutions.update(
+                knl_symmetry_boundaries.dispersive_substitutions(
+                    config.sim_config.dtypes["C_float_or_double"]
+                )
+            )
+            source = self._build_knl(
+                knl_symmetry_boundaries.update_electric_pmc_dispersive,
+                self.subs_name_args,
+                substitutions,
+            )
+            module_a = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+            self.update_electric_pmc_dispersive_dev = module_a.get_function(
+                "update_electric_pmc_dispersive"
+            )
+            self._copy_mat_coeffs(module_a, module_a)
+            source = self._build_knl(
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            module_b = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+            self.update_electric_pmc_dispersive_b_dev = module_b.get_function(
+                "update_electric_pmc_dispersive_b"
+            )
 
     def _pmc_flags(self):
         boundaries = self.grid.symmetry_boundaries
@@ -427,6 +484,106 @@ class CUDAUpdates(Updates[CUDAGrid]):
             "update_transmission_line_electric"
         )
 
+    def _set_eigenmode_source_knls(self):
+        """Upload modal bases and compile device TF/SF source kernels."""
+
+        # Geometry reuse creates a fresh CUDA context for every run.  Python
+        # attributes from the former context can still exist on the retained
+        # grid, so presence is not evidence that a device pointer is valid.
+        self.grid.htod_mat_coeff_arrays()
+        for source in self.grid.eigenmodesources:
+            prepare_device_eigenmode_source(source, "cuda")
+        self.eigenmode_tpb = (128, 1, 1)
+        magnetic = self._build_knl(
+            knl_eigenmode.update_eigenmode_magnetic,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(magnetic, options=config.sim_config.devices["nvcc_opts"])
+        self.update_eigenmode_magnetic_dev = module.get_function("update_eigenmode_magnetic")
+        electric = self._build_knl(
+            knl_eigenmode.update_eigenmode_electric,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(electric, options=config.sim_config.devices["nvcc_opts"])
+        self.update_eigenmode_electric_dev = module.get_function("update_eigenmode_electric")
+
+    def _set_eigenmode_monitor_knl(self):
+        """Upload modal projection bases and compile the DFT kernel."""
+
+        for monitor in self.grid.eigenmodeports:
+            prepare_device_eigenmode_monitor(monitor, "cuda")
+        source = self._build_knl(
+            knl_eigenmode.accumulate_eigenmode_dft,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.accumulate_eigenmode_dft_dev = module.get_function("accumulate_eigenmode_dft")
+
+    def _set_virtual_waveguide_knls(self):
+        """Compile aperture coupling kernels for auxiliary device grids."""
+
+        self.virtual_tpb = (128, 1, 1)
+        for specification, attribute, name in (
+            (
+                knl_virtual_waveguide.couple_magnetic,
+                "couple_virtual_magnetic_dev",
+                "couple_virtual_waveguide_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_magnetic,
+                "clear_virtual_magnetic_dev",
+                "clear_virtual_waveguide_rear_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.couple_electric,
+                "couple_virtual_electric_dev",
+                "couple_virtual_waveguide_electric",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_electric,
+                "clear_virtual_electric_dev",
+                "clear_virtual_waveguide_rear_electric",
+            ),
+        ):
+            source = self._build_knl(specification, self.subs_name_args, self.subs_func)
+            module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+            setattr(self, attribute, module.get_function(name))
+
+    def _set_rational_network_knl(self):
+        """Initialise sparse device-resident rational-network terminals."""
+
+        arrays = htod_rational_network_arrays(self.grid.networkterminals, self.grid)
+        for name, array in arrays.items():
+            setattr(self, f"rn_{name}_dev", array)
+
+        self.rn_tpb = (32, 1, 1)
+        self.rn_bpg = (
+            int(np.ceil(len(self.grid.networkterminals) / self.rn_tpb[0])),
+            1,
+            1,
+        )
+        substitutions = dict(self.subs_func)
+        substitutions.update(
+            {
+                "NY_RNINFO": 6,
+                "NY_RNPARAMS": 7,
+                "NY_RNWAVEWHOLE": self.grid.iterations + 1,
+                "NY_RNWAVEHALF": self.grid.iterations,
+                "NY_RNVOLTAGE": self.grid.iterations + 1,
+                "NY_RNCURRENT": self.grid.iterations,
+            }
+        )
+        source = self._build_knl(
+            knl_rational_network.update_rational_network,
+            self.subs_name_args,
+            substitutions,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_rational_network_dev = module.get_function("update_rational_network")
+
     def _set_magnetic_frill_knls(self):
         """Initialise device-resident magnetic-frill sources and their kernel.
 
@@ -509,11 +666,18 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.grid.htod_mat_coeff_arrays()
 
         for dpw in self.grid.discreteplanewaves:
-
             # Upload all 1D DPW arrays to GPU
             self.grid.htod_planewave_arrays(dpw)
 
-            # Standard (homogeneous) kernels 
+            bld = self._build_knl(
+                knl_planewave_updates.initialise_1d_source,
+                self.subs_name_args,
+                subs_pw,
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.initialise_1d_source_dev = knl.get_function("initialise_1d_source")
+
+            # Standard (homogeneous) kernels
             # Scalar coefficients passed as kernel args - no constant memory needed
 
             bld = self._build_knl(
@@ -544,7 +708,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
             if dpw.dispersive:
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_dispersive_A,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_dispersive_A_dev = knl.get_function(
@@ -553,7 +718,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_dispersive_B,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_dispersive_B_dev = knl.get_function(
@@ -575,13 +741,13 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 func_name = knl_dict["name"]
                 dpw.std_E_face_devs.append(knl.get_function(func_name))
 
-            # Axial kernels (only if dpw.axial != 0) 
+            # Axial kernels (only if dpw.axial != 0)
             # updatecoeffsH/E passed as pointer args - no constant memory, no 64KB limit
             if dpw.axial != 0:
-
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_magnetic_axial_source,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_magnetic_axial_source_dev = knl.get_function(
@@ -590,7 +756,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_magnetic_axial_source_pml,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_magnetic_axial_source_pml_dev = knl.get_function(
@@ -599,7 +766,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_magnetic_axial_inject,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_magnetic_axial_inject_dev = knl.get_function(
@@ -608,7 +776,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_magnetic_axial_main,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_magnetic_axial_main_dev = knl.get_function(
@@ -617,7 +786,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_magnetic_axial_main_pml_end,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_magnetic_axial_main_pml_end_dev = knl.get_function(
@@ -626,7 +796,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_magnetic_axial_main_pml_start,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_magnetic_axial_main_pml_start_dev = knl.get_function(
@@ -635,7 +806,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_axial_source,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_axial_source_dev = knl.get_function(
@@ -644,7 +816,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_axial_source_pml,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_axial_source_pml_dev = knl.get_function(
@@ -653,7 +826,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_axial_inject,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_axial_inject_dev = knl.get_function(
@@ -662,7 +836,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_axial_main,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_axial_main_dev = knl.get_function(
@@ -671,7 +846,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_axial_main_pml_end,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_axial_main_pml_end_dev = knl.get_function(
@@ -680,7 +856,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 bld = self._build_knl(
                     knl_planewave_updates.update_1d_electric_axial_main_pml_start,
-                    self.subs_name_args, subs_pw
+                    self.subs_name_args,
+                    subs_pw,
                 )
                 knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                 dpw.update_1d_electric_axial_main_pml_start_dev = knl.get_function(
@@ -691,7 +868,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 if dpw.dispersive:
                     bld = self._build_knl(
                         knl_planewave_updates.update_1d_electric_dispersive_axial_source,
-                        self.subs_name_args, subs_pw
+                        self.subs_name_args,
+                        subs_pw,
                     )
                     knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                     dpw.update_1d_electric_dispersive_axial_source_dev = knl.get_function(
@@ -700,7 +878,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     bld = self._build_knl(
                         knl_planewave_updates.update_1d_electric_dispersive_axial_source_T,
-                        self.subs_name_args, subs_pw
+                        self.subs_name_args,
+                        subs_pw,
                     )
                     knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                     dpw.update_1d_electric_dispersive_axial_source_T_dev = knl.get_function(
@@ -709,7 +888,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     bld = self._build_knl(
                         knl_planewave_updates.update_1d_electric_dispersive_axial_main,
-                        self.subs_name_args, subs_pw
+                        self.subs_name_args,
+                        subs_pw,
                     )
                     knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                     dpw.update_1d_electric_dispersive_axial_main_dev = knl.get_function(
@@ -718,7 +898,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     bld = self._build_knl(
                         knl_planewave_updates.update_1d_electric_dispersive_axial_main_T,
-                        self.subs_name_args, subs_pw
+                        self.subs_name_args,
+                        subs_pw,
                     )
                     knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
                     dpw.update_1d_electric_dispersive_axial_main_T_dev = knl.get_function(
@@ -810,30 +991,41 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 continue
 
             # coef_H_1 and coef_H_2 depend on face axis
-            if idx < 2:   # x faces — use DBx (col 1)
-                c1 = REAL(mat[1]); c2 = REAL(mat[1])
-            elif idx < 4: # y faces — use DBy (col 2)
-                c1 = REAL(mat[2]); c2 = REAL(mat[2])
-            else:         # z faces — use DBz (col 3)
-                c1 = REAL(mat[3]); c2 = REAL(mat[3])
+            if idx < 2:  # x faces — use DBx (col 1)
+                c1 = REAL(mat[1])
+                c2 = REAL(mat[1])
+            elif idx < 4:  # y faces — use DBy (col 2)
+                c1 = REAL(mat[2])
+                c2 = REAL(mat[2])
+            else:  # z faces — use DBz (col 3)
+                c1 = REAL(mat[3])
+                c2 = REAL(mat[3])
 
             face_dev(
                 np.int32(self.grid.ny + 1),
                 np.int32(self.grid.nz + 1),
                 np.int32(NY_F),
                 np.int32(NZ_F),
-                np.int32(x_s), np.int32(x_e),
-                np.int32(y_s), np.int32(y_e),
-                np.int32(z_s), np.int32(z_e),
-                np.int32(m[0]), np.int32(m[1]), np.int32(m[2]),
-                np.int32(origin[0]), np.int32(origin[1]), np.int32(origin[2]),
-                c1, c2,
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
+                c1,
+                c2,
                 self.grid.Hx_dev,
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
-                dpw.E_fields_dev[0],   # E_x row
-                dpw.E_fields_dev[1],   # E_y row
-                dpw.E_fields_dev[2],   # E_z row
+                dpw.E_fields_dev[0],  # E_x row
+                dpw.E_fields_dev[1],  # E_y row
+                dpw.E_fields_dev[2],  # E_z row
                 block=(256, 1, 1),
                 grid=(int(np.ceil(face_size / 256)), 1, 1),
             )
@@ -879,30 +1071,41 @@ class CUDAUpdates(Updates[CUDAGrid]):
             if face_size == 0:
                 continue
 
-            if idx < 2:   # x faces — use CBx (col 1)
-                c1 = REAL(mat[1]); c2 = REAL(mat[1])
-            elif idx < 4: # y faces — use CBy (col 2)
-                c1 = REAL(mat[2]); c2 = REAL(mat[2])
-            else:         # z faces — use CBz (col 3)
-                c1 = REAL(mat[3]); c2 = REAL(mat[3])
+            if idx < 2:  # x faces — use CBx (col 1)
+                c1 = REAL(mat[1])
+                c2 = REAL(mat[1])
+            elif idx < 4:  # y faces — use CBy (col 2)
+                c1 = REAL(mat[2])
+                c2 = REAL(mat[2])
+            else:  # z faces — use CBz (col 3)
+                c1 = REAL(mat[3])
+                c2 = REAL(mat[3])
 
             face_dev(
                 np.int32(self.grid.ny + 1),
                 np.int32(self.grid.nz + 1),
                 np.int32(NY_F),
                 np.int32(NZ_F),
-                np.int32(x_s), np.int32(x_e),
-                np.int32(y_s), np.int32(y_e),
-                np.int32(z_s), np.int32(z_e),
-                np.int32(m[0]), np.int32(m[1]), np.int32(m[2]),
-                np.int32(origin[0]), np.int32(origin[1]), np.int32(origin[2]),
-                c1, c2,
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
+                c1,
+                c2,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
                 self.grid.Ez_dev,
-                dpw.H_fields_dev[0],   # H_x row
-                dpw.H_fields_dev[1],   # H_y row
-                dpw.H_fields_dev[2],   # H_z row
+                dpw.H_fields_dev[0],  # H_x row
+                dpw.H_fields_dev[1],  # H_y row
+                dpw.H_fields_dev[2],  # H_z row
                 block=(256, 1, 1),
                 grid=(int(np.ceil(face_size / 256)), 1, 1),
             )
@@ -951,18 +1154,27 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 np.int32(self.grid.nz + 1),
                 np.int32(NY_F),
                 np.int32(NZ_F),
-                np.int32(x_s), np.int32(x_e),
-                np.int32(y_s), np.int32(y_e),
-                np.int32(z_s), np.int32(z_e),
-                np.int32(m[0]), np.int32(m[1]), np.int32(m[2]),
-                np.int32(origin[0]), np.int32(origin[1]), np.int32(origin[2]),
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
                 np.int32(dpw.origin_axial),
                 self.grid.Hx_dev,
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
-                dpw.E_fields_dev[0],   # E_x row (main 1D grid, matches Cython applyTFSFMagnetic_axial)
-                dpw.E_fields_dev[1],   # E_y row
-                dpw.E_fields_dev[2],   # E_z row
+                dpw.E_fields_dev[
+                    0
+                ],  # E_x row (main 1D grid, matches Cython applyTFSFMagnetic_axial)
+                dpw.E_fields_dev[1],  # E_y row
+                dpw.E_fields_dev[2],  # E_z row
                 self.grid.ID_dev,
                 # updatecoeffsH is read from constant memory (populated by _copy_mat_coeffs)
                 block=(256, 1, 1),
@@ -1013,18 +1225,27 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 np.int32(self.grid.nz + 1),
                 np.int32(NY_F),
                 np.int32(NZ_F),
-                np.int32(x_s), np.int32(x_e),
-                np.int32(y_s), np.int32(y_e),
-                np.int32(z_s), np.int32(z_e),
-                np.int32(m[0]), np.int32(m[1]), np.int32(m[2]),
-                np.int32(origin[0]), np.int32(origin[1]), np.int32(origin[2]),
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
                 np.int32(dpw.origin_axial),
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
                 self.grid.Ez_dev,
-                dpw.H_fields_dev[0],   # H_x row (main 1D grid, matches Cython applyTFSFElectric_axial)
-                dpw.H_fields_dev[1],   # H_y row
-                dpw.H_fields_dev[2],   # H_z row
+                dpw.H_fields_dev[
+                    0
+                ],  # H_x row (main 1D grid, matches Cython applyTFSFElectric_axial)
+                dpw.H_fields_dev[1],  # H_y row
+                dpw.H_fields_dev[2],  # H_z row
                 self.grid.ID_dev,
                 # updatecoeffsE is read from constant memory (populated by _copy_mat_coeffs)
                 block=(256, 1, 1),
@@ -1174,6 +1395,63 @@ class CUDAUpdates(Updates[CUDAGrid]):
         if collector is not None:
             collector.observe_magnetic(iteration)
 
+    def observe_eigenmode_ports(self, iteration):
+        """Project modal port fields and accumulate DFTs on CUDA."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        for monitor in self.grid.eigenmodeports:
+            if iteration != monitor._next_iteration:
+                raise RuntimeError(
+                    f"expected eigenmode DFT iteration {monitor._next_iteration}, "
+                    f"received {iteration}"
+                )
+            owner = monitor.owner
+            arrays = monitor.device_arrays
+            nf, nm = monitor.electric_dft.shape
+            self.accumulate_eigenmode_dft_dev(
+                np.int32(nf),
+                np.int32(nm),
+                np.int32(owner.normal_axis),
+                np.int32(1 if owner.direction == "+" else -1),
+                np.int32(monitor.magnetic_side),
+                np.int32(owner.transverse_start[0]),
+                np.int32(owner.transverse_start[1]),
+                np.int32(owner.transverse_stop[0]),
+                np.int32(owner.transverse_stop[1]),
+                np.int32(owner.plane_index),
+                real(self.grid.dt),
+                real(monitor.measure),
+                np.int32(monitor.handedness),
+                arrays["electric_phase_real"].gpudata,
+                arrays["electric_phase_imag"].gpudata,
+                arrays["magnetic_phase_real"].gpudata,
+                arrays["magnetic_phase_imag"].gpudata,
+                arrays["phase_step_real"].gpudata,
+                arrays["phase_step_imag"].gpudata,
+                arrays["conj_eu_real"].gpudata,
+                arrays["conj_eu_imag"].gpudata,
+                arrays["conj_ev_real"].gpudata,
+                arrays["conj_ev_imag"].gpudata,
+                arrays["conj_hu_real"].gpudata,
+                arrays["conj_hu_imag"].gpudata,
+                arrays["conj_hv_real"].gpudata,
+                arrays["conj_hv_imag"].gpudata,
+                arrays["electric_dft_real"].gpudata,
+                arrays["electric_dft_imag"].gpudata,
+                arrays["magnetic_dft_real"].gpudata,
+                arrays["magnetic_dft_imag"].gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+                block=(128, 1, 1),
+                grid=(int(np.ceil(nf / 128)), 1, 1),
+            )
+            monitor._next_iteration += 1
+            reanchor_device_eigenmode_monitor(monitor, self.grid, "cuda")
+
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -1241,6 +1519,156 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=self.frill_bpg,
             )
 
+    def _launch_eigenmode_source(self, source, iteration, magnetic):
+        nu, nv = np.asarray(source.transverse_stop) - np.asarray(source.transverse_start)
+        npoints = int((nu + 1) * (nv + 1))
+        block = self.eigenmode_tpb
+        launch_grid = (int(np.ceil(npoints / block[0])), 1, 1)
+        kernel = (
+            self.update_eigenmode_magnetic_dev if magnetic else self.update_eigenmode_electric_dev
+        )
+        profiles = source.device_electric_profiles if magnetic else source.device_magnetic_profiles
+        fields = (
+            (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+            if magnetic
+            else (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)
+        )
+        coefficients = self.grid.updatecoeffsH_dev if magnetic else self.grid.updatecoeffsE_dev
+        real = config.sim_config.dtypes["float_or_double"]
+        for basis, envelope in eigenmode_source_envelopes(source, self.grid, iteration, magnetic):
+            kernel(
+                np.int32(npoints),
+                np.int32(source.normal_axis),
+                np.int32(1 if source.direction == "+" else -1),
+                np.int32(source.transverse_start[0]),
+                np.int32(source.transverse_start[1]),
+                np.int32(source.transverse_stop[0]),
+                np.int32(source.transverse_stop[1]),
+                np.int32(source.plane_index),
+                np.int32(basis),
+                real(envelope),
+                profiles.gpudata,
+                coefficients.gpudata,
+                self.grid.ID_dev.gpudata,
+                *(field.gpudata for field in fields),
+                block=block,
+                grid=launch_grid,
+            )
+
+    def update_eigenmode_sources_magnetic(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, True)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_magnetic(guide, iteration)
+
+    def update_eigenmode_sources_electric(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, False)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_electric(guide, iteration)
+
+    def _virtual_scalars(self, guide, npoints):
+        aux = guide.aux_grid
+        return (
+            np.int32(npoints),
+            np.int32(guide.normal_axis),
+            np.int32(guide.direction_sign),
+            np.int32(guide.u0),
+            np.int32(guide.v0),
+            np.int32(guide.u1),
+            np.int32(guide.v1),
+            np.int32(guide.plane_index),
+            np.int32(aux.nx),
+            np.int32(aux.ny),
+            np.int32(aux.nz),
+        )
+
+    def _virtual_launch(self, kernel, npoints, *arguments):
+        kernel(
+            *arguments,
+            block=self.virtual_tpb,
+            grid=(int(np.ceil(npoints / self.virtual_tpb[0])), 1, 1),
+        )
+
+    def _update_virtual_waveguide_magnetic(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_magnetic()
+        child.update_magnetic_pml()
+        child.update_eigenmode_sources_magnetic(iteration)
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_h = tuple(
+            field.gpudata for field in (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+        )
+        aux_h = tuple(
+            field.gpudata
+            for field in (guide.aux_grid.Hx_dev, guide.aux_grid.Hy_dev, guide.aux_grid.Hz_dev)
+        )
+        self._virtual_launch(
+            self.couple_virtual_magnetic_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            *main_h,
+            *aux_h,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_magnetic_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            *main_h,
+            *aux_h,
+        )
+
+    def _update_virtual_waveguide_electric(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_electric_a()
+        child.update_electric_pml()
+        child.update_eigenmode_sources_electric(iteration)
+        child.update_electric_b()
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_fields = tuple(
+            field.gpudata
+            for field in (
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+            )
+        )
+        aux_fields = tuple(
+            field.gpudata
+            for field in (
+                guide.aux_grid.Ex_dev,
+                guide.aux_grid.Ey_dev,
+                guide.aux_grid.Ez_dev,
+                guide.aux_grid.Hx_dev,
+                guide.aux_grid.Hy_dev,
+                guide.aux_grid.Hz_dev,
+            )
+        )
+        self._virtual_launch(
+            self.couple_virtual_electric_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            guide.aux_grid.updatecoeffsE_dev.gpudata,
+            guide.aux_grid.ID_dev.gpudata,
+            *main_fields,
+            *aux_fields,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_electric_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            *(field.gpudata for field in (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)),
+            *(
+                field.gpudata
+                for field in (guide.aux_grid.Ex_dev, guide.aux_grid.Ey_dev, guide.aux_grid.Ez_dev)
+            ),
+        )
+
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
@@ -1284,22 +1712,71 @@ class CUDAUpdates(Updates[CUDAGrid]):
             )
 
     def update_symmetry_boundaries_electric(self):
-        """Apply the nondispersive PMC ghost-image correction on CUDA."""
+        """Apply the PMC ghost-image correction on CUDA."""
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
-
-        self.update_electric_pmc_dev(
+        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        kernel = (
+            self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
+        )
+        leading = [
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
+        ]
+        if dispersive:
+            leading.append(np.int32(config.get_model_config().materials["maxpoles"]))
+        arguments = [
+            *leading,
             *self._pmc_flags(),
+        ]
+        if dispersive:
+            arguments.extend(
+                [
+                    self.grid.updatecoeffsdispersive_dev.gpudata,
+                    self.grid.Tx_dev.gpudata,
+                    self.grid.Ty_dev.gpudata,
+                    self.grid.Tz_dev.gpudata,
+                ]
+            )
+        arguments.extend(
+            [
+                self.grid.ID_dev.gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+            ]
+        )
+        kernel(
+            *arguments,
+            block=self.grid.tpb,
+            grid=self.grid.bpg,
+        )
+
+    def update_symmetry_boundaries_electric_b(self):
+        """Complete the dispersive PMC ADE update on CUDA."""
+        if (
+            "pmc" not in self.grid.symmetry_boundaries.values()
+            or config.get_model_config().materials["maxpoles"] == 0
+        ):
+            return
+        self.update_electric_pmc_dispersive_b_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            np.int32(config.get_model_config().materials["maxpoles"]),
+            *self._pmc_flags(),
+            self.grid.updatecoeffsdispersive_dev.gpudata,
+            self.grid.Tx_dev.gpudata,
+            self.grid.Ty_dev.gpudata,
+            self.grid.Tz_dev.gpudata,
             self.grid.ID_dev.gpudata,
             self.grid.Ex_dev.gpudata,
             self.grid.Ey_dev.gpudata,
             self.grid.Ez_dev.gpudata,
-            self.grid.Hx_dev.gpudata,
-            self.grid.Hy_dev.gpudata,
-            self.grid.Hz_dev.gpudata,
             block=self.grid.tpb,
             grid=self.grid.bpg,
         )
@@ -1372,7 +1849,6 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=(round32(len(self.grid.hertziandipoles)), 1, 1),
             )
 
-
     def update_plane_waves_magnetic(self, iteration):
         """Updates 1D DPW auxiliary grid H fields and applies TF/SF
         corrections to 3D H field arrays at all 6 faces.
@@ -1384,9 +1860,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
         REAL = config.sim_config.dtypes["float_or_double"]
 
         for dpw in self.grid.discreteplanewaves:
-            n  = np.int32(dpw.length)
-            p  = np.int32(dpw.pml_length)
-            M  = np.int32(dpw.m[3])
+            n = np.int32(dpw.length)
+            p = np.int32(dpw.pml_length)
+            M = np.int32(dpw.m[3])
             mx = np.int32(dpw.m[0])
             my = np.int32(dpw.m[1])
             mz = np.int32(dpw.m[2])
@@ -1394,36 +1870,30 @@ class CUDAUpdates(Updates[CUDAGrid]):
             dy = REAL(self.grid.dy)
             dz = REAL(self.grid.dz)
 
-            bulk_size  = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
-            pml_size   = int(np.ceil(dpw.pml_length / 256))
+            bulk_size = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
+            pml_size = int(np.ceil(dpw.pml_length / 256))
 
-            #  Source injection (initialize 1D grid source region) 
-            # Ports initializeMagneticFields() from plane_wave.pyx
-            # Sets H_fields[comp, r] = projections[3+comp] * waveformvalues_halfdt[iteration, comp, r]
-            # for r in [0, M) - the source region at start of 1D grid
+            # Source injection into the first M samples of the 1D grid. The
+            # projected waveform remains device-resident for the full solve.
             M_int = int(dpw.m[3])
             if M_int > 0:
-                wave_H = dpw.waveformvalues_halfdt[iteration]   # shape [3, M]
-                # Axial variant injects the source into the auxiliary source
-                # grid (H_fields_s), standard into the main 1D grid (H_fields)
-                # - matches initializeMagneticFields() call sites in plane_wave.pyx
                 target = dpw.H_fields_dev if dpw.axial == 0 else dpw.H_fields_s_dev
-                for comp in range(3):
-                    proj = dpw.projections[3 + comp]
-                    src_vals = (proj * wave_H[comp]).astype(
-                        config.sim_config.dtypes["float_or_double"]
-                    )
-                    # Write source values to first M positions of row `comp`.
-                    # Must compute the row offset manually — int(arr[comp].gpudata)
-                    # returns the base allocation address regardless of comp.
-                    row_ptr = int(target.gpudata) + comp * target.strides[0]
-                    self.drv.memcpy_htod(row_ptr, src_vals)
+                count = 3 * M_int
+                dpw.initialise_1d_source_dev(
+                    n,
+                    M,
+                    np.int32(iteration),
+                    target,
+                    dpw.source_h_dev,
+                    block=(256, 1, 1),
+                    grid=(int(np.ceil(count / 256)), 1, 1),
+                )
 
             if dpw.axial == 0:
-                #  Standard (homogeneous) magnetic 1D update 
+                #  Standard (homogeneous) magnetic 1D update
                 # Get background material coefficients
                 mat = self.grid.updatecoeffsH[dpw.material.numID]
-                DA  = REAL(mat[0])
+                DA = REAL(mat[0])
                 DBx = REAL(mat[1])
                 DBy = REAL(mat[2])
                 DBz = REAL(mat[3])
@@ -1443,12 +1913,26 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # where xy=DBy(col2), xz=DBz(col3), yx=DBx(col1), yz=DBz(col3),
                 #       zx=DBx(col1), zy=DBy(col2)  per plane_wave.pyx
                 dpw.update_1d_magnetic_dev(
-                    n, M, mx, my, mz,
-                    DA,  DBy, DBz,   # coef_H_xt, coef_H_xy, coef_H_xz
-                    DA,  DBx, DBz,   # coef_H_yt, coef_H_yx, coef_H_yz
-                    DA,  DBx, DBy,   # coef_H_zt, coef_H_zx, coef_H_zy
-                    Hx_ptr, Hy_ptr, Hz_ptr,
-                    Ex_ptr, Ey_ptr, Ez_ptr,
+                    n,
+                    M,
+                    mx,
+                    my,
+                    mz,
+                    DA,
+                    DBy,
+                    DBz,  # coef_H_xt, coef_H_xy, coef_H_xz
+                    DA,
+                    DBx,
+                    DBz,  # coef_H_yt, coef_H_yx, coef_H_yz
+                    DA,
+                    DBx,
+                    DBy,  # coef_H_zt, coef_H_zx, coef_H_zy
+                    Hx_ptr,
+                    Hy_ptr,
+                    Hz_ptr,
+                    Ex_ptr,
+                    Ey_ptr,
+                    Ez_ptr,
                     block=(256, 1, 1),
                     grid=(bulk_size, 1, 1),
                 )
@@ -1462,15 +1946,28 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Coeff rows: RA=row0, RB=row1, RC=row2, RD=row3 of rcHx/rcHy/rcHz
                 if pml_size > 0:
                     dpw.update_1d_magnetic_pml_dev(
-                        n, p, M, mx, my, mz, srcm, dx, dy, dz,
-                        Hx_ptr, Hy_ptr, Hz_ptr,
-                        Ex_ptr, Ey_ptr, Ez_ptr,
-                        dpw.Ix_dev[3],   # Ixmzy
-                        dpw.Ix_dev[2],   # Ixmyz
-                        dpw.Iy_dev[3],   # Iymzx
-                        dpw.Iy_dev[2],   # Iymxz
-                        dpw.Iz_dev[3],   # Izmyx
-                        dpw.Iz_dev[2],   # Izmxy
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        srcm,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_ptr,
+                        Hy_ptr,
+                        Hz_ptr,
+                        Ex_ptr,
+                        Ey_ptr,
+                        Ez_ptr,
+                        dpw.Ix_dev[3],  # Ixmzy
+                        dpw.Ix_dev[2],  # Ixmyz
+                        dpw.Iy_dev[3],  # Iymzx
+                        dpw.Iy_dev[2],  # Iymxz
+                        dpw.Iz_dev[3],  # Izmyx
+                        dpw.Iz_dev[2],  # Izmxy
                         dpw.pml_rhx_dev[0],  # RAHx
                         dpw.pml_rhx_dev[1],  # RBHx
                         dpw.pml_rhx_dev[2],  # RCHx
@@ -1510,9 +2007,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Launch 1: Update source grid bulk
                 if bulk_size > 0:
                     dpw.update_1d_magnetic_axial_source_dev(
-                        n, M, mx, my, mz,
-                        Hx_s, Hy_s, Hz_s,
-                        Ex_s, Ey_s, Ez_s,
+                        n,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
+                        Ex_s,
+                        Ey_s,
+                        Ez_s,
                         dpw.ID_dev,
                         self.grid.updatecoeffsH_dev,
                         self.grid.updatecoeffsE_dev,
@@ -1528,15 +2033,27 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Coeff rows: RA=0, RB=1, RC=2, RD=3 of pml_rhx0/pml_rhy0/pml_rhz0
                 if pml_size > 0:
                     dpw.update_1d_magnetic_axial_source_pml_dev(
-                        n, p, M, mx, my, mz, dx, dy, dz,
-                        Hx_s, Hy_s, Hz_s,
-                        Ex_s, Ey_s, Ez_s,
-                        dpw.Ix_s_dev[3],   # Ixmzy_s
-                        dpw.Ix_s_dev[2],   # Ixmyz_s
-                        dpw.Iy_s_dev[3],   # Iymzx_s
-                        dpw.Iy_s_dev[2],   # Iymxz_s
-                        dpw.Iz_s_dev[3],   # Izmyx_s
-                        dpw.Iz_s_dev[2],   # Izmxy_s
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
+                        Ex_s,
+                        Ey_s,
+                        Ez_s,
+                        dpw.Ix_s_dev[3],  # Ixmzy_s
+                        dpw.Ix_s_dev[2],  # Ixmyz_s
+                        dpw.Iy_s_dev[3],  # Iymzx_s
+                        dpw.Iy_s_dev[2],  # Iymxz_s
+                        dpw.Iz_s_dev[3],  # Izmyx_s
+                        dpw.Iz_s_dev[2],  # Izmxy_s
                         dpw.pml_rhx0_dev[0],  # RAHx0
                         dpw.pml_rhx0_dev[1],  # RBHx0
                         dpw.pml_rhx0_dev[2],  # RCHx0
@@ -1558,9 +2075,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                 # Launch 2-Inject source into main grid at src-2
                 dpw.update_1d_magnetic_axial_inject_dev(
-                    n, np.int32(dpw.origin_axial), mx, my, mz,
-                    Hx_m, Hy_m, Hz_m,
-                    Ex_s, Ey_s, Ez_s,
+                    n,
+                    np.int32(dpw.origin_axial),
+                    mx,
+                    my,
+                    mz,
+                    Hx_m,
+                    Hy_m,
+                    Hz_m,
+                    Ex_s,
+                    Ey_s,
+                    Ez_s,
                     dpw.ID_dev,
                     self.grid.updatecoeffsH_dev,
                     self.grid.updatecoeffsE_dev,
@@ -1571,12 +2096,22 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Launch 3- Update main grid bulk
                 # Range [M-1, N-M) gives size N - 2M + 1 (includes origin point)
                 main_bulk_threads = dpw.length - 2 * dpw.m[3] + 1
-                main_bulk_size = int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                main_bulk_size = (
+                    int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                )
                 if main_bulk_size > 0:
                     dpw.update_1d_magnetic_axial_main_dev(
-                        n, M, mx, my, mz,
-                        Hx_m, Hy_m, Hz_m,
-                        Ex_m, Ey_m, Ez_m,
+                        n,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        Hx_m,
+                        Hy_m,
+                        Hz_m,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
                         dpw.ID_dev,
                         self.grid.updatecoeffsH_dev,
                         self.grid.updatecoeffsE_dev,
@@ -1588,21 +2123,39 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Main PML integrals at rows 2,3 of Ix/Iy/Iz; coeffs at rows 0-3 of pml_rh*
                 if pml_size > 0:
                     dpw.update_1d_magnetic_axial_main_pml_end_dev(
-                        n, p, M, mx, my, mz, dx, dy, dz,
-                        Hx_m, Hy_m, Hz_m,
-                        Ex_m, Ey_m, Ez_m,
-                        dpw.Ix_dev[3],   # Ixmzy
-                        dpw.Ix_dev[2],   # Ixmyz
-                        dpw.Iy_dev[3],   # Iymzx
-                        dpw.Iy_dev[2],   # Iymxz
-                        dpw.Iz_dev[3],   # Izmyx
-                        dpw.Iz_dev[2],   # Izmxy
-                        dpw.pml_rhx_dev[0], dpw.pml_rhx_dev[1],
-                        dpw.pml_rhx_dev[2], dpw.pml_rhx_dev[3],
-                        dpw.pml_rhy_dev[0], dpw.pml_rhy_dev[1],
-                        dpw.pml_rhy_dev[2], dpw.pml_rhy_dev[3],
-                        dpw.pml_rhz_dev[0], dpw.pml_rhz_dev[1],
-                        dpw.pml_rhz_dev[2], dpw.pml_rhz_dev[3],
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_m,
+                        Hy_m,
+                        Hz_m,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        dpw.Ix_dev[3],  # Ixmzy
+                        dpw.Ix_dev[2],  # Ixmyz
+                        dpw.Iy_dev[3],  # Iymzx
+                        dpw.Iy_dev[2],  # Iymxz
+                        dpw.Iz_dev[3],  # Izmyx
+                        dpw.Iz_dev[2],  # Izmxy
+                        dpw.pml_rhx_dev[0],
+                        dpw.pml_rhx_dev[1],
+                        dpw.pml_rhx_dev[2],
+                        dpw.pml_rhx_dev[3],
+                        dpw.pml_rhy_dev[0],
+                        dpw.pml_rhy_dev[1],
+                        dpw.pml_rhy_dev[2],
+                        dpw.pml_rhy_dev[3],
+                        dpw.pml_rhz_dev[0],
+                        dpw.pml_rhz_dev[1],
+                        dpw.pml_rhz_dev[2],
+                        dpw.pml_rhz_dev[3],
                         dpw.ID_dev,
                         self.grid.updatecoeffsH_dev,
                         self.grid.updatecoeffsE_dev,
@@ -1614,21 +2167,38 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Uses Ix0/Iy0/Iz0 (separate from main Ix/Iy/Iz) and pml_rh*0 (source coeffs reused)
                 if pml_size > 0:
                     dpw.update_1d_magnetic_axial_main_pml_start_dev(
-                        n, p, mx, my, mz, dx, dy, dz,
-                        Hx_m, Hy_m, Hz_m,
-                        Ex_m, Ey_m, Ez_m,
-                        dpw.Ix0_dev[3],   # Ixmzy0
-                        dpw.Ix0_dev[2],   # Ixmyz0
-                        dpw.Iy0_dev[3],   # Iymzx0
-                        dpw.Iy0_dev[2],   # Iymxz0
-                        dpw.Iz0_dev[3],   # Izmyx0
-                        dpw.Iz0_dev[2],   # Izmxy0
-                        dpw.pml_rhx0_dev[0], dpw.pml_rhx0_dev[1],
-                        dpw.pml_rhx0_dev[2], dpw.pml_rhx0_dev[3],
-                        dpw.pml_rhy0_dev[0], dpw.pml_rhy0_dev[1],
-                        dpw.pml_rhy0_dev[2], dpw.pml_rhy0_dev[3],
-                        dpw.pml_rhz0_dev[0], dpw.pml_rhz0_dev[1],
-                        dpw.pml_rhz0_dev[2], dpw.pml_rhz0_dev[3],
+                        n,
+                        p,
+                        mx,
+                        my,
+                        mz,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_m,
+                        Hy_m,
+                        Hz_m,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        dpw.Ix0_dev[3],  # Ixmzy0
+                        dpw.Ix0_dev[2],  # Ixmyz0
+                        dpw.Iy0_dev[3],  # Iymzx0
+                        dpw.Iy0_dev[2],  # Iymxz0
+                        dpw.Iz0_dev[3],  # Izmyx0
+                        dpw.Iz0_dev[2],  # Izmxy0
+                        dpw.pml_rhx0_dev[0],
+                        dpw.pml_rhx0_dev[1],
+                        dpw.pml_rhx0_dev[2],
+                        dpw.pml_rhx0_dev[3],
+                        dpw.pml_rhy0_dev[0],
+                        dpw.pml_rhy0_dev[1],
+                        dpw.pml_rhy0_dev[2],
+                        dpw.pml_rhy0_dev[3],
+                        dpw.pml_rhz0_dev[0],
+                        dpw.pml_rhz0_dev[1],
+                        dpw.pml_rhz0_dev[2],
+                        dpw.pml_rhz0_dev[3],
                         dpw.ID_dev,
                         self.grid.updatecoeffsH_dev,
                         self.grid.updatecoeffsE_dev,
@@ -1650,9 +2220,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
         REAL = config.sim_config.dtypes["float_or_double"]
 
         for dpw in self.grid.discreteplanewaves:
-            n  = np.int32(dpw.length)
-            p  = np.int32(dpw.pml_length)
-            M  = np.int32(dpw.m[3])
+            n = np.int32(dpw.length)
+            p = np.int32(dpw.pml_length)
+            M = np.int32(dpw.m[3])
             mx = np.int32(dpw.m[0])
             my = np.int32(dpw.m[1])
             mz = np.int32(dpw.m[2])
@@ -1660,30 +2230,29 @@ class CUDAUpdates(Updates[CUDAGrid]):
             dy = REAL(self.grid.dy)
             dz = REAL(self.grid.dz)
 
-            bulk_size  = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
-            pml_size   = int(np.ceil(dpw.pml_length / 256))
+            bulk_size = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
+            pml_size = int(np.ceil(dpw.pml_length / 256))
 
-            #  Source injection for electric fields
-            # Ports initializeElectricFields() from plane_wave.pyx
-            # Sets E_fields[comp, r] = projections[comp] * waveformvalues_wholedt[iteration+1, comp, r]
+            # Source injection into the first M samples of the 1D grid. The
+            # projected waveform remains device-resident for the full solve.
             M_int = int(dpw.m[3])
             if M_int > 0:
-                wave_E = dpw.waveformvalues_wholedt[iteration + 1]   # shape [3, M]
-                # Axial variant injects into the source grid (E_fields_s),
-                # standard into the main 1D grid (E_fields)
                 target = dpw.E_fields_dev if dpw.axial == 0 else dpw.E_fields_s_dev
-                for comp in range(3):
-                    proj = dpw.projections[comp]
-                    src_vals = (proj * wave_E[comp]).astype(
-                        config.sim_config.dtypes["float_or_double"]
-                    )
-                    row_ptr = int(target.gpudata) + comp * target.strides[0]
-                    self.drv.memcpy_htod(row_ptr, src_vals)
+                count = 3 * M_int
+                dpw.initialise_1d_source_dev(
+                    n,
+                    M,
+                    np.int32(iteration + 1),
+                    target,
+                    dpw.source_e_dev,
+                    block=(256, 1, 1),
+                    grid=(int(np.ceil(count / 256)), 1, 1),
+                )
 
             if dpw.axial == 0:
-                #  Standard (homogeneous) electric 1D update 
+                #  Standard (homogeneous) electric 1D update
                 mat = self.grid.updatecoeffsE[dpw.material.numID]
-                CA  = REAL(mat[0])
+                CA = REAL(mat[0])
                 CBx = REAL(mat[1])
                 CBy = REAL(mat[2])
                 CBz = REAL(mat[3])
@@ -1703,12 +2272,26 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # timestep (double update -> compounding amplitude error).
                 if not dpw.dispersive:
                     dpw.update_1d_electric_dev(
-                        n, M, mx, my, mz,
-                        CA,  CBy, CBz,   # coef_E_xt, coef_E_xy, coef_E_xz
-                        CA,  CBx, CBz,   # coef_E_yt, coef_E_yx, coef_E_yz
-                        CA,  CBx, CBy,   # coef_E_zt, coef_E_zx, coef_E_zy
-                        Ex_ptr, Ey_ptr, Ez_ptr,
-                        Hx_ptr, Hy_ptr, Hz_ptr,
+                        n,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        CA,
+                        CBy,
+                        CBz,  # coef_E_xt, coef_E_xy, coef_E_xz
+                        CA,
+                        CBx,
+                        CBz,  # coef_E_yt, coef_E_yx, coef_E_yz
+                        CA,
+                        CBx,
+                        CBy,  # coef_E_zt, coef_E_zx, coef_E_zy
+                        Ex_ptr,
+                        Ey_ptr,
+                        Ez_ptr,
+                        Hx_ptr,
+                        Hy_ptr,
+                        Hz_ptr,
                         block=(256, 1, 1),
                         grid=(bulk_size, 1, 1),
                     )
@@ -1722,15 +2305,28 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # launches its own PML pass.
                 if pml_size > 0 and not dpw.dispersive:
                     dpw.update_1d_electric_pml_dev(
-                        n, p, M, mx, my, mz, srce, dx, dy, dz,
-                        Ex_ptr, Ey_ptr, Ez_ptr,
-                        Hx_ptr, Hy_ptr, Hz_ptr,
-                        dpw.Ix_dev[1],   # Jxmzy
-                        dpw.Ix_dev[0],   # Jxmyz
-                        dpw.Iy_dev[1],   # Jymzx
-                        dpw.Iy_dev[0],   # Jymxz
-                        dpw.Iz_dev[1],   # Jzmyx
-                        dpw.Iz_dev[0],   # Jzmxy
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        srce,
+                        dx,
+                        dy,
+                        dz,
+                        Ex_ptr,
+                        Ey_ptr,
+                        Ez_ptr,
+                        Hx_ptr,
+                        Hy_ptr,
+                        Hz_ptr,
+                        dpw.Ix_dev[1],  # Jxmzy
+                        dpw.Ix_dev[0],  # Jxmyz
+                        dpw.Iy_dev[1],  # Jymzx
+                        dpw.Iy_dev[0],  # Jymxz
+                        dpw.Iz_dev[1],  # Jzmyx
+                        dpw.Iz_dev[0],  # Jzmxy
                         dpw.pml_rex_dev[0],  # RAEx
                         dpw.pml_rex_dev[1],  # RBEx
                         dpw.pml_rex_dev[2],  # RCEx
@@ -1754,10 +2350,10 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Part B: final T subtraction (after PML, uses post-PML E values).
                 if dpw.dispersive:
                     mat = self.grid.updatecoeffsE[dpw.material.numID]
-                    CA   = REAL(mat[0])
-                    CBx  = REAL(mat[1])
-                    CBy  = REAL(mat[2])
-                    CBz  = REAL(mat[3])
+                    CA = REAL(mat[0])
+                    CBx = REAL(mat[1])
+                    CBy = REAL(mat[2])
+                    CBz = REAL(mat[3])
                     srce = REAL(mat[4])
                     num_poles = np.int32(config.get_model_config().materials["maxpoles"])
 
@@ -1774,40 +2370,83 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     if bulk_size > 0:
                         dpw.update_1d_electric_dispersive_A_dev(
-                            n, M, mx, my, mz, num_poles,
-                            CA, CBx, CBy, CBz, srce,
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            num_poles,
+                            CA,
+                            CBx,
+                            CBy,
+                            CBz,
+                            srce,
                             coef_D_ptr,
-                            dpw.Px_dev, dpw.Py_dev, dpw.Pz_dev,
-                            Ex_ptr, Ey_ptr, Ez_ptr,
-                            Hx_ptr, Hy_ptr, Hz_ptr,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_ptr,
+                            Ey_ptr,
+                            Ez_ptr,
+                            Hx_ptr,
+                            Hy_ptr,
+                            Hz_ptr,
                             block=(256, 1, 1),
                             grid=(bulk_size, 1, 1),
                         )
 
                     if pml_size > 0:
                         dpw.update_1d_electric_pml_dev(
-                            n, p, M, mx, my, mz, srce, dx, dy, dz,
-                            Ex_ptr, Ey_ptr, Ez_ptr,
-                            Hx_ptr, Hy_ptr, Hz_ptr,
-                            dpw.Ix_dev[1], dpw.Ix_dev[0],
-                            dpw.Iy_dev[1], dpw.Iy_dev[0],
-                            dpw.Iz_dev[1], dpw.Iz_dev[0],
-                            dpw.pml_rex_dev[0], dpw.pml_rex_dev[1],
-                            dpw.pml_rex_dev[2], dpw.pml_rex_dev[3],
-                            dpw.pml_rey_dev[0], dpw.pml_rey_dev[1],
-                            dpw.pml_rey_dev[2], dpw.pml_rey_dev[3],
-                            dpw.pml_rez_dev[0], dpw.pml_rez_dev[1],
-                            dpw.pml_rez_dev[2], dpw.pml_rez_dev[3],
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            srce,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_ptr,
+                            Ey_ptr,
+                            Ez_ptr,
+                            Hx_ptr,
+                            Hy_ptr,
+                            Hz_ptr,
+                            dpw.Ix_dev[1],
+                            dpw.Ix_dev[0],
+                            dpw.Iy_dev[1],
+                            dpw.Iy_dev[0],
+                            dpw.Iz_dev[1],
+                            dpw.Iz_dev[0],
+                            dpw.pml_rex_dev[0],
+                            dpw.pml_rex_dev[1],
+                            dpw.pml_rex_dev[2],
+                            dpw.pml_rex_dev[3],
+                            dpw.pml_rey_dev[0],
+                            dpw.pml_rey_dev[1],
+                            dpw.pml_rey_dev[2],
+                            dpw.pml_rey_dev[3],
+                            dpw.pml_rez_dev[0],
+                            dpw.pml_rez_dev[1],
+                            dpw.pml_rez_dev[2],
+                            dpw.pml_rez_dev[3],
                             block=(256, 1, 1),
                             grid=(pml_size, 1, 1),
                         )
 
                     if bulk_size > 0:
                         dpw.update_1d_electric_dispersive_B_dev(
-                            n, M, num_poles,
+                            n,
+                            M,
+                            num_poles,
                             coef_D_ptr,
-                            dpw.Px_dev, dpw.Py_dev, dpw.Pz_dev,
-                            Ex_ptr, Ey_ptr, Ez_ptr,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_ptr,
+                            Ey_ptr,
+                            Ez_ptr,
                             block=(256, 1, 1),
                             grid=(bulk_size, 1, 1),
                         )
@@ -1835,9 +2474,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Launch 1: Source grid bulk
                     if bulk_size > 0:
                         dpw.update_1d_electric_axial_source_dev(
-                            n, M, mx, my, mz,
-                            Ex_s, Ey_s, Ez_s,
-                            Hx_s, Hy_s, Hz_s,
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -1851,21 +2498,39 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Kernel param order: Jxmzy_s..Jzmxy_s pairs with E PML naming.
                     if pml_size > 0:
                         dpw.update_1d_electric_axial_source_pml_dev(
-                            n, p, M, mx, my, mz, dx, dy, dz,
-                            Ex_s, Ey_s, Ez_s,
-                            Hx_s, Hy_s, Hz_s,
-                            dpw.Ix_s_dev[1],   # Ixjzy_s
-                            dpw.Ix_s_dev[0],   # Ixjyz_s
-                            dpw.Iy_s_dev[1],   # Iyjzx_s
-                            dpw.Iy_s_dev[0],   # Iyjxz_s
-                            dpw.Iz_s_dev[1],   # Izjyx_s
-                            dpw.Iz_s_dev[0],   # Izjxy_s
-                            dpw.pml_rex0_dev[0], dpw.pml_rex0_dev[1],
-                            dpw.pml_rex0_dev[2], dpw.pml_rex0_dev[3],
-                            dpw.pml_rey0_dev[0], dpw.pml_rey0_dev[1],
-                            dpw.pml_rey0_dev[2], dpw.pml_rey0_dev[3],
-                            dpw.pml_rez0_dev[0], dpw.pml_rez0_dev[1],
-                            dpw.pml_rez0_dev[2], dpw.pml_rez0_dev[3],
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
+                            dpw.Ix_s_dev[1],  # Ixjzy_s
+                            dpw.Ix_s_dev[0],  # Ixjyz_s
+                            dpw.Iy_s_dev[1],  # Iyjzx_s
+                            dpw.Iy_s_dev[0],  # Iyjxz_s
+                            dpw.Iz_s_dev[1],  # Izjyx_s
+                            dpw.Iz_s_dev[0],  # Izjxy_s
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -1875,9 +2540,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     # Launch 2- Inject source into main grid at src-1
                     dpw.update_1d_electric_axial_inject_dev(
-                        n, np.int32(dpw.origin_axial), mx, my, mz,
-                        Ex_m, Ey_m, Ez_m,
-                        Hx_s, Hy_s, Hz_s,
+                        n,
+                        np.int32(dpw.origin_axial),
+                        mx,
+                        my,
+                        mz,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
                         dpw.ID_dev,
                         self.grid.updatecoeffsH_dev,
                         self.grid.updatecoeffsE_dev,
@@ -1888,12 +2561,22 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Launch 3- Main grid bulk
                     # Electric main range is [M, N-M) - size N - 2M (no -1, unlike magnetic)
                     main_bulk_threads = dpw.length - 2 * dpw.m[3]
-                    main_bulk_size = int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                    main_bulk_size = (
+                        int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                    )
                     if main_bulk_size > 0:
                         dpw.update_1d_electric_axial_main_dev(
-                            n, M, mx, my, mz,
-                            Ex_m, Ey_m, Ez_m,
-                            Hx_m, Hy_m, Hz_m,
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -1904,21 +2587,39 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Main grid PML end
                     if pml_size > 0:
                         dpw.update_1d_electric_axial_main_pml_end_dev(
-                            n, p, M, mx, my, mz, dx, dy, dz,
-                            Ex_m, Ey_m, Ez_m,
-                            Hx_m, Hy_m, Hz_m,
-                            dpw.Ix_dev[1],   # Ixjzy
-                            dpw.Ix_dev[0],   # Ixjyz
-                            dpw.Iy_dev[1],   # Iyjzx
-                            dpw.Iy_dev[0],   # Iyjxz
-                            dpw.Iz_dev[1],   # Izjyx
-                            dpw.Iz_dev[0],   # Izjxy
-                            dpw.pml_rex_dev[0], dpw.pml_rex_dev[1],
-                            dpw.pml_rex_dev[2], dpw.pml_rex_dev[3],
-                            dpw.pml_rey_dev[0], dpw.pml_rey_dev[1],
-                            dpw.pml_rey_dev[2], dpw.pml_rey_dev[3],
-                            dpw.pml_rez_dev[0], dpw.pml_rez_dev[1],
-                            dpw.pml_rez_dev[2], dpw.pml_rez_dev[3],
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix_dev[1],  # Ixjzy
+                            dpw.Ix_dev[0],  # Ixjyz
+                            dpw.Iy_dev[1],  # Iyjzx
+                            dpw.Iy_dev[0],  # Iyjxz
+                            dpw.Iz_dev[1],  # Izjyx
+                            dpw.Iz_dev[0],  # Izjxy
+                            dpw.pml_rex_dev[0],
+                            dpw.pml_rex_dev[1],
+                            dpw.pml_rex_dev[2],
+                            dpw.pml_rex_dev[3],
+                            dpw.pml_rey_dev[0],
+                            dpw.pml_rey_dev[1],
+                            dpw.pml_rey_dev[2],
+                            dpw.pml_rey_dev[3],
+                            dpw.pml_rez_dev[0],
+                            dpw.pml_rez_dev[1],
+                            dpw.pml_rez_dev[2],
+                            dpw.pml_rez_dev[3],
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -1929,21 +2630,38 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Main grid PML start
                     if pml_size > 0:
                         dpw.update_1d_electric_axial_main_pml_start_dev(
-                            n, p, mx, my, mz, dx, dy, dz,
-                            Ex_m, Ey_m, Ez_m,
-                            Hx_m, Hy_m, Hz_m,
-                            dpw.Ix0_dev[1],   # Ixjzy0
-                            dpw.Ix0_dev[0],   # Ixjyz0
-                            dpw.Iy0_dev[1],   # Iyjzx0
-                            dpw.Iy0_dev[0],   # Iyjxz0
-                            dpw.Iz0_dev[1],   # Izjyx0
-                            dpw.Iz0_dev[0],   # Izjxy0
-                            dpw.pml_rex0_dev[0], dpw.pml_rex0_dev[1],
-                            dpw.pml_rex0_dev[2], dpw.pml_rex0_dev[3],
-                            dpw.pml_rey0_dev[0], dpw.pml_rey0_dev[1],
-                            dpw.pml_rey0_dev[2], dpw.pml_rey0_dev[3],
-                            dpw.pml_rez0_dev[0], dpw.pml_rez0_dev[1],
-                            dpw.pml_rez0_dev[2], dpw.pml_rez0_dev[3],
+                            n,
+                            p,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix0_dev[1],  # Ixjzy0
+                            dpw.Ix0_dev[0],  # Ixjyz0
+                            dpw.Iy0_dev[1],  # Iyjzx0
+                            dpw.Iy0_dev[0],  # Iyjxz0
+                            dpw.Iz0_dev[1],  # Izjyx0
+                            dpw.Iz0_dev[0],  # Izjxy0
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -1962,10 +2680,21 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Source grid dispersive bulk
                     if bulk_size > 0:
                         dpw.update_1d_electric_dispersive_axial_source_dev(
-                            n, M, mx, my, mz, num_poles,
-                            dpw.Px_s_dev, dpw.Py_s_dev, dpw.Pz_s_dev,
-                            Ex_s, Ey_s, Ez_s,
-                            Hx_s, Hy_s, Hz_s,
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            num_poles,
+                            dpw.Px_s_dev,
+                            dpw.Py_s_dev,
+                            dpw.Pz_s_dev,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
                             dpw.ID_dev,
                             self.grid.updatecoeffsE_dev,
                             matD,
@@ -1976,18 +2705,39 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Source grid PML (reuse non-dispersive — same PML math)
                     if pml_size > 0:
                         dpw.update_1d_electric_axial_source_pml_dev(
-                            n, p, M, mx, my, mz, dx, dy, dz,
-                            Ex_s, Ey_s, Ez_s,
-                            Hx_s, Hy_s, Hz_s,
-                            dpw.Ix_s_dev[1], dpw.Ix_s_dev[0],
-                            dpw.Iy_s_dev[1], dpw.Iy_s_dev[0],
-                            dpw.Iz_s_dev[1], dpw.Iz_s_dev[0],
-                            dpw.pml_rex0_dev[0], dpw.pml_rex0_dev[1],
-                            dpw.pml_rex0_dev[2], dpw.pml_rex0_dev[3],
-                            dpw.pml_rey0_dev[0], dpw.pml_rey0_dev[1],
-                            dpw.pml_rey0_dev[2], dpw.pml_rey0_dev[3],
-                            dpw.pml_rez0_dev[0], dpw.pml_rez0_dev[1],
-                            dpw.pml_rez0_dev[2], dpw.pml_rez0_dev[3],
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
+                            dpw.Ix_s_dev[1],
+                            dpw.Ix_s_dev[0],
+                            dpw.Iy_s_dev[1],
+                            dpw.Iy_s_dev[0],
+                            dpw.Iz_s_dev[1],
+                            dpw.Iz_s_dev[0],
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -1998,9 +2748,15 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Source grid final T subtraction
                     if bulk_size > 0:
                         dpw.update_1d_electric_dispersive_axial_source_T_dev(
-                            n, M, num_poles,
-                            dpw.Px_s_dev, dpw.Py_s_dev, dpw.Pz_s_dev,
-                            Ex_s, Ey_s, Ez_s,
+                            n,
+                            M,
+                            num_poles,
+                            dpw.Px_s_dev,
+                            dpw.Py_s_dev,
+                            dpw.Pz_s_dev,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
                             dpw.ID_dev,
                             matD,
                             block=(256, 1, 1),
@@ -2009,9 +2765,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     # Inject source into main grid at src-1 (reuse non-dispersive inject)
                     dpw.update_1d_electric_axial_inject_dev(
-                        n, np.int32(dpw.origin_axial), mx, my, mz,
-                        Ex_m, Ey_m, Ez_m,
-                        Hx_s, Hy_s, Hz_s,
+                        n,
+                        np.int32(dpw.origin_axial),
+                        mx,
+                        my,
+                        mz,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
                         dpw.ID_dev,
                         self.grid.updatecoeffsH_dev,
                         self.grid.updatecoeffsE_dev,
@@ -2021,13 +2785,26 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                     # Main grid dispersive bulk
                     main_bulk_threads = dpw.length - 2 * dpw.m[3]
-                    main_bulk_size = int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                    main_bulk_size = (
+                        int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                    )
                     if main_bulk_size > 0:
                         dpw.update_1d_electric_dispersive_axial_main_dev(
-                            n, M, mx, my, mz, num_poles,
-                            dpw.Px_dev, dpw.Py_dev, dpw.Pz_dev,
-                            Ex_m, Ey_m, Ez_m,
-                            Hx_m, Hy_m, Hz_m,
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            num_poles,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
                             dpw.ID_dev,
                             self.grid.updatecoeffsE_dev,
                             matD,
@@ -2038,18 +2815,39 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Main grid PML end (reuse non-dispersive)
                     if pml_size > 0:
                         dpw.update_1d_electric_axial_main_pml_end_dev(
-                            n, p, M, mx, my, mz, dx, dy, dz,
-                            Ex_m, Ey_m, Ez_m,
-                            Hx_m, Hy_m, Hz_m,
-                            dpw.Ix_dev[1], dpw.Ix_dev[0],
-                            dpw.Iy_dev[1], dpw.Iy_dev[0],
-                            dpw.Iz_dev[1], dpw.Iz_dev[0],
-                            dpw.pml_rex_dev[0], dpw.pml_rex_dev[1],
-                            dpw.pml_rex_dev[2], dpw.pml_rex_dev[3],
-                            dpw.pml_rey_dev[0], dpw.pml_rey_dev[1],
-                            dpw.pml_rey_dev[2], dpw.pml_rey_dev[3],
-                            dpw.pml_rez_dev[0], dpw.pml_rez_dev[1],
-                            dpw.pml_rez_dev[2], dpw.pml_rez_dev[3],
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix_dev[1],
+                            dpw.Ix_dev[0],
+                            dpw.Iy_dev[1],
+                            dpw.Iy_dev[0],
+                            dpw.Iz_dev[1],
+                            dpw.Iz_dev[0],
+                            dpw.pml_rex_dev[0],
+                            dpw.pml_rex_dev[1],
+                            dpw.pml_rex_dev[2],
+                            dpw.pml_rex_dev[3],
+                            dpw.pml_rey_dev[0],
+                            dpw.pml_rey_dev[1],
+                            dpw.pml_rey_dev[2],
+                            dpw.pml_rey_dev[3],
+                            dpw.pml_rez_dev[0],
+                            dpw.pml_rez_dev[1],
+                            dpw.pml_rez_dev[2],
+                            dpw.pml_rez_dev[3],
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -2059,18 +2857,38 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
                         # Main grid PML start (reuse non-dispersive)
                         dpw.update_1d_electric_axial_main_pml_start_dev(
-                            n, p, mx, my, mz, dx, dy, dz,
-                            Ex_m, Ey_m, Ez_m,
-                            Hx_m, Hy_m, Hz_m,
-                            dpw.Ix0_dev[1], dpw.Ix0_dev[0],
-                            dpw.Iy0_dev[1], dpw.Iy0_dev[0],
-                            dpw.Iz0_dev[1], dpw.Iz0_dev[0],
-                            dpw.pml_rex0_dev[0], dpw.pml_rex0_dev[1],
-                            dpw.pml_rex0_dev[2], dpw.pml_rex0_dev[3],
-                            dpw.pml_rey0_dev[0], dpw.pml_rey0_dev[1],
-                            dpw.pml_rey0_dev[2], dpw.pml_rey0_dev[3],
-                            dpw.pml_rez0_dev[0], dpw.pml_rez0_dev[1],
-                            dpw.pml_rez0_dev[2], dpw.pml_rez0_dev[3],
+                            n,
+                            p,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix0_dev[1],
+                            dpw.Ix0_dev[0],
+                            dpw.Iy0_dev[1],
+                            dpw.Iy0_dev[0],
+                            dpw.Iz0_dev[1],
+                            dpw.Iz0_dev[0],
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
                             dpw.ID_dev,
                             self.grid.updatecoeffsH_dev,
                             self.grid.updatecoeffsE_dev,
@@ -2081,9 +2899,15 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     # Main grid final T subtraction
                     if main_bulk_size > 0:
                         dpw.update_1d_electric_dispersive_axial_main_T_dev(
-                            n, M, num_poles,
-                            dpw.Px_dev, dpw.Py_dev, dpw.Pz_dev,
-                            Ex_m, Ey_m, Ez_m,
+                            n,
+                            M,
+                            num_poles,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
                             dpw.ID_dev,
                             matD,
                             block=(256, 1, 1),
@@ -2117,6 +2941,42 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=self.grid.bpg,
             )
 
+    def update_network_terminals(self, iteration):
+        """Apply sparse rational-network corrections entirely on CUDA."""
+
+        if not self.grid.networkterminals:
+            return
+        self.update_rational_network_dev(
+            np.int32(len(self.grid.networkterminals)),
+            np.int32(iteration),
+            config.sim_config.dtypes["float_or_double"](self.grid.dt),
+            self.rn_info_dev.gpudata,
+            self.rn_params_dev.gpudata,
+            self.rn_waveform_whole_dev.gpudata,
+            self.rn_waveform_half_dev.gpudata,
+            self.rn_voltage_dev.gpudata,
+            self.rn_current_dev.gpudata,
+            self.rn_exp_half_real_dev.gpudata,
+            self.rn_exp_half_imag_dev.gpudata,
+            self.rn_coeff_half_new_real_dev.gpudata,
+            self.rn_coeff_half_new_imag_dev.gpudata,
+            self.rn_coeff_half_old_real_dev.gpudata,
+            self.rn_coeff_half_old_imag_dev.gpudata,
+            self.rn_exp_full_real_dev.gpudata,
+            self.rn_exp_full_imag_dev.gpudata,
+            self.rn_coeff_full_new_real_dev.gpudata,
+            self.rn_coeff_full_new_imag_dev.gpudata,
+            self.rn_coeff_full_old_real_dev.gpudata,
+            self.rn_coeff_full_old_imag_dev.gpudata,
+            self.rn_state_real_dev.gpudata,
+            self.rn_state_imag_dev.gpudata,
+            self.grid.Ex_dev.gpudata,
+            self.grid.Ey_dev.gpudata,
+            self.grid.Ez_dev.gpudata,
+            block=self.rn_tpb,
+            grid=self.rn_bpg,
+        )
+
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""
         self.iterstart = self.drv.Event()
@@ -2149,16 +3009,22 @@ class CUDAUpdates(Updates[CUDAGrid]):
         if collector is not None:
             collector.finalise()
 
+        if getattr(self.grid, "eigenmodeports", ()):
+            finalise_device_eigenmode_monitors(self.grid.eigenmodeports, "cuda")
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             currents = self.rxcurrents_dev.get() if self.nrxcurrent else None
-            dtoh_rx_array(
-                self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents
-            )
+            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents)
 
         if self.grid.transmissionlines:
             dtoh_transmission_line_outputs(
                 self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
+            )
+
+        if getattr(self.grid, "networkterminals", ()):
+            dtoh_rational_network_outputs(
+                self.rn_voltage_dev.get(), self.rn_current_dev.get(), self.grid
             )
 
         if self.grid.magneticfrillsources:
@@ -2186,5 +3052,6 @@ class CUDAUpdates(Updates[CUDAGrid]):
     def cleanup(self):
         """Cleanup GPU context."""
         # Remove context from top of stack and clear
-        self.ctx.pop()
-        self.ctx = None
+        if self._owns_context:
+            self.ctx.pop()
+            self.ctx = None

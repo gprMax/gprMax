@@ -146,8 +146,11 @@ class ModelConfig:
         )
 
         # Output file path and name for specific model
+        study_case_count = (
+            len(sim_config.study.cases) if sim_config.study is not None else sim_config.args.n
+        )
         self.appendmodelnumber = (
-            "" if sim_config.args.n == 1 else str(model_num + 1)
+            "" if study_case_count == 1 else str(model_num + 1)
         )  # Indexed from 1
         self.set_output_file_path()
 
@@ -297,6 +300,7 @@ class SimulationConfig:
         self.args = args
 
         self.geometry_fixed: bool = args.geometry_fixed
+        self.study = getattr(args, "study", None)
         self.geometry_only: bool = args.geometry_only
         self.gpu: Union[List[str], bool] = args.gpu
         self.mpi: List[int] = args.mpi

@@ -125,7 +125,11 @@ Analytical validation
 
 The higher-resolution drivers in ``testing/validation`` compare normal-incidence
 plane-wave reflection, Hertzian-dipole fields and antenna metrics, and PEC or
-dielectric sphere RCS with independent Fresnel, dipole, and Mie solutions.
+dielectric sphere RCS with independent Fresnel, dipole, and Mie solutions. The
+partial-cutoff rectangular-waveguide model compares generalized TE10
+transmission magnitude and phase directly with
+:math:`S_{21}=\exp(-j\beta L)`.
+
 The dispersive studies compare exact pole-residue interface averaging with
 the non-averaged staircased representation for planar layers, homogeneous
 spheres, and a Debye-core/Lorentz-shell sphere.
@@ -135,10 +139,15 @@ human-readable report. Run, for example:
 .. code-block:: console
 
     $ python -m testing.validation.validate_hertzian_dipole --gpu 0
+    $ python -m testing.validation.validate_rational_network_literature
     $ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     $ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     $ python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
     $ python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
+    $ python -m gprMax \
+        testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in \
+        --hide-progress-bars
+    $ python testing/validation/rectangular_waveguide_partial_cutoff/plot_partial_cutoff.py
 
 Omit ``--gpu`` to use the CPU solver. These full-resolution cases can take
 minutes and are intentionally not all part of routine CI. Compact FDTD

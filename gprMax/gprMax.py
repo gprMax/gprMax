@@ -41,6 +41,7 @@ args_defaults = {
     "autotranslate": False,
     "geometry_only": False,
     "geometry_fixed": False,
+    "study": None,
     "write_processed": False,
     "show_progress_bars": False,
     "hide_progress_bars": False,
@@ -144,6 +145,7 @@ def run(
     autotranslate=args_defaults["autotranslate"],
     geometry_only=args_defaults["geometry_only"],
     geometry_fixed=args_defaults["geometry_fixed"],
+    study=args_defaults["study"],
     write_processed=args_defaults["write_processed"],
     show_progress_bars=args_defaults["show_progress_bars"],
     hide_progress_bars=args_defaults["hide_progress_bars"],
@@ -203,6 +205,8 @@ def run(
             geometry views but do not run the simulation.
         geometry_fixed: optional boolean to run a series of models where
             the geometry does not change between models.
+        study: optional Study instance defining validated per-run object
+            states while reusing one geometry.
         write_processed: optional boolean to write another input file
             after any #python blocks (which are deprecated) in the
             original input file has been processed.
@@ -238,6 +242,7 @@ def run(
             "autotranslate": autotranslate,
             "geometry_only": geometry_only,
             "geometry_fixed": geometry_fixed,
+            "study": study,
             "write_processed": write_processed,
             "show_progress_bars": show_progress_bars,
             "hide_progress_bars": hide_progress_bars,
@@ -247,7 +252,7 @@ def run(
         }
     )
 
-    run_main(args)
+    return run_main(args)
 
 
 def cli():
@@ -355,6 +360,9 @@ def run_main(args):
             script.
     """
 
+    from gprMax.studies import preflight_study_args
+
+    preflight_study_args(args)
     results = {}
     logging_config(
         level=args.log_level,

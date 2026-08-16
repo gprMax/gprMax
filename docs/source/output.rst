@@ -27,6 +27,10 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``nports`` is the number of voltage-source S11/impedance outputs.
 - ``neigenmodeports`` is the number of eigenmode source/receiver port
   monitors.
+- ``SourceExcitationSchemaVersion`` identifies the schema used for exact
+  source histories stored below local source groups.
+- ``ReceiverTimingSchemaVersion`` identifies the schema used for receiver
+  dataset time offsets.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
 (``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
@@ -34,9 +38,93 @@ voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
 Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
 further groups for each named or numbered output.
 
+Reusable parameter studies add a root ``study`` group. Its attributes are
+``Type``, ``CaseID``, ``CaseIndex`` (one based), ``CaseCount``,
+``GeometryReused``, and, for CSV studies, ``SourcePath``. The ``source``
+dataset preserves the complete CSV text. ``definition`` stores the normalised
+full study as JSON, while ``resolved_case`` contains the post-validation values
+actually applied to every study-managed object, including baseline receivers
+and implicitly disabled sources.
+Study-managed source and receiver groups also carry a ``StudyID`` attribute,
+including the ``tls`` and ``frills`` groups used by a source study. This
+provides an unambiguous link back to the case table.
+
+For a plane-wave study, ``resolved_case`` records the requested case together
+with the actual rationalised propagation angles and integer DPW mapping. Each
+case remains an ordinary numbered model output; no aggregate matrix is needed
+because RCS patterns from different illuminations are independent results.
+
+For a source study, ``resolved_case`` records every stateful terminal,
+including sources omitted from the sparse case table. ``active=false`` and
+``scale=0`` identify a passive physical termination rather than an object
+removed from the model. Transmission-line, magnetic-frill, rational-network,
+receiver, port, and declarative NTFF datasets in each numbered file contain
+only that case's reset state.
+
+Every case in a finite-resistance voltage-port study additionally contains
+``study/port_response``. ``DrivenSourceID`` and ``DrivenPortID`` identify its
+input port; ``S_source_column`` contains the power-normalised raw source-plane
+response for every output port. ``gap_correction_c`` stores the dimensionless
+parallel-gap admittance :math:`Z_{0,p}Y_{\mathrm{gap},p}` used by the matrix
+correction.
+
+After all requested cases finish, gprMax writes ``<output>_study.h5``. Its
+principal datasets are:
+
+- ``frequency``: common frequency axis;
+- ``port_ids`` and ``source_ids``: output-port and deterministic source order;
+- ``case_ids``: case contributing each input-port column;
+- ``reference_impedance``: positive real wave-reference impedance per port;
+- ``gap_correction_c``: numerical gap shunt correction for every frequency and
+  port;
+- ``S_source``: uncorrected source-plane S matrix;
+- ``S``: matrix after removing all numerical gap admittances;
+- ``valid_S_source`` and ``valid_S``: element validity masks.
+
+Both matrices use axis order
+``S[frequency, output_port, input_port]``. The ``Complete`` attribute states
+whether every input-port column is present. A restarted study loads compatible
+columns from an existing aggregate file and replaces the newly evaluated
+columns; an incompatible existing file is rejected rather than mixed with new
+results.
+
+Every eigenmode-study case instead contains
+``study/eigenmode_response``. ``InputPort`` and ``InputMode`` identify the
+incident modal channel; ``S_column`` is ordered by ``channel_ports`` and
+``channel_modes``. ``valid_S_column`` selects physical propagating power-wave
+coefficients, while ``generalized_valid_S_column`` also permits conditioned
+generalized coefficients that are not valid for power accounting.
+
+The eigenmode aggregate ``<output>_study.h5`` contains ``frequency``,
+``channel_ports``, ``channel_modes``, ``case_ids``, ``S``, ``valid_S``, and
+``generalized_valid_S``. Its convention is
+``S[frequency, output_channel, input_channel]``. Modal channels can represent
+different mode counts on different ports; the two channel-index datasets are
+therefore authoritative and should be used instead of assuming one mode per
+port.
+
 .. code-block:: none
 
     /
+        study/ [optional]
+            source [CSV studies]
+            definition
+            resolved_case
+            port_response/ [port studies]
+                port_ids
+                source_ids
+                frequency
+                reference_impedance
+                gap_correction_c
+                S_source_column
+                valid_S_source_column
+            eigenmode_response/ [eigenmode studies]
+                channel_ports
+                channel_modes
+                frequency
+                S_column
+                valid_S_column
+                generalized_valid_S_column
         rxs/
             rx1/
                 Name
@@ -56,6 +144,11 @@ further groups for each named or numbered output.
             src1/
                 Type
                 Position
+                ID
+                GridPosition
+                Polarisation
+                excitation/
+                    samples
             src2/
                 ...
 
@@ -113,17 +206,27 @@ further groups for each named or numbered output.
                 outgoing
                 electric_cross_power_matrix
                 power_matrix
+                anchor_mode_valid
+                anchor_mode_reference_valid
+                anchor_mode_propagating
+                anchor_balanced_power
+                decomposition_valid
+                generalized_valid
                 power_normalization_valid
                 power_matrix_valid
                 valid
                 condition_number
                 S
+                generalized_valid_S
                 valid_S
+                power_wave_valid_S
 
 Within each individual ``rx`` group are the following attributes:
 
 * ``Name`` is the name of the receiver if specified. Otherwise 'Rx(x,y,z)', where x,y,z is the position of the receiver, is used.
 * ``Position`` is the x, y, z position (in metres) of the receiver in the model.
+* ``GridPosition`` is the integer x, y, z position of the receiver on its
+  owning grid.
 
 Within each individual ``rx`` group can be the following datasets:
 
@@ -137,10 +240,39 @@ Within each individual ``rx`` group can be the following datasets:
 * ``Iy`` is an optional array containing the time history (for the model time window) of the values of the y component of current (calculated around a single cell loop) at that receiver position.
 * ``Iz`` is an optional array containing the time history (for the model time window) of the values of the z component of current (calculated around a single cell loop) at that receiver position.
 
+Every receiver component dataset has ``SampleInterval``, ``TimeSampleOffset``,
+and ``Quantity`` attributes. Electric fields have ``TimeSampleOffset=0`` and
+represent :math:`E^n`. Magnetic fields and magnetic-loop currents have
+``TimeSampleOffset=-\Delta t/2`` and represent :math:`H^{n-1/2}` at stored
+sample index :math:`n`. These explicit physical times are important when
+combining electric and magnetic quantities or deconvolving a source.
+
 Within each individual ``src`` group are the following attributes:
 
 * ``Type`` is the type of source, e.g. Hertzian dipole, voltage source etc...
 * ``Position`` is the x, y, z position (in metres) of the source in the model.
+* ``ID``, ``GridPosition``, and ``Polarisation`` identify the source and its
+  electric or magnetic Yee component.
+
+Each supported local source also contains an ``excitation`` group. Its
+``samples`` dataset is the exact scalar history consumed by the solver, with
+the update look-ahead sample removed. ``SampleInterval`` and
+``TimeSampleOffset`` define the physical time of sample :math:`n` as
+:math:`t_n=n\Delta t+t_0`; ``DrivingQuantity``, ``Units``, ``SpatialScale``,
+``UpdateLattice``, and waveform attributes describe the excitation. A
+``WaveformEvaluationTimeOffset`` attribute separately records the time used
+to evaluate the waveform function for source sample :math:`n`. A
+resistive voltage source and Hertzian electric dipole, for example, use
+:math:`t_0=\Delta t/2`, while a hard voltage source is imposed on
+:math:`E^{n+1}` and uses :math:`t_0=\Delta t`. Transmission-line sources store
+their two staggered histories as ``samples_whole`` and ``samples_half``;
+``samples`` is a non-duplicating HDF5 link to the whole-step generator-voltage
+reference.
+
+This timing-aware source schema is used by the
+:ref:`impulse-response waveform-synthesis toolbox <impulse_response>`, the
+:ref:`SFCW toolbox <sfcw>`, and the :ref:`FMCW toolbox <fmcw>`, and is also
+available for other file-based deconvolution and post-processing.
 
 Within each individual ``tl`` group are the following attributes:
 
@@ -317,6 +449,72 @@ second, independent measurement (unlike its role with ``#voltage_source``);
 it can only override the ``spectrum_limit`` of this always-on automatic
 output.
 
+Rational-network port output
+----------------------------
+
+The ``#network_port`` command and ``NetworkPort`` Python object write a
+rational terminal beneath ``/ports/<terminal ID>``. The external-network
+current is defined positive from the FDTD gap into the network,
+
+.. math::
+
+    I_N(s)=Y(s)\left[V(s)-V_g(s)\right],
+    \qquad
+    Y(s)=G+sC+\sum_m\frac{r_m}{s-p_m}.
+
+Here :math:`V_g=0` for a passive terminal. For antenna and accepted-power
+calculations, the current entering the electromagnetic structure removes the
+numerical parallel Yee-gap admittance,
+
+.. math::
+
+    I_\mathrm{terminal}=-I_N-Y_\mathrm{gap}V,
+    \qquad
+    V^\pm=\frac{V\pm Z_0I_\mathrm{terminal}}{2}.
+
+For each rational term, :math:`\dot{x}_m=p_mx_m+r_mu`, where
+:math:`u=V-V_g`. Its value at any fraction :math:`\theta` of a time step is
+calculated without a finite-difference approximation to :math:`x_m`,
+
+.. math::
+
+    x_m^{n+\theta}=e^{\theta p_m\Delta t}x_m^n
+    +a_{m,\theta}u^{n+1}+b_{m,\theta}u^n,
+
+with the coefficients obtained from the exact convolution of an exponential
+pole with a linearly varying voltage. The implementation uses
+:math:`\theta=1/2` directly for the locally implicit Ampere update and
+:math:`\theta=1` to advance stored state. This is the relevant
+Giannakis--Giannopoulos improvement [GIA2014]_ to the classic PLRC
+lumped-network treatment of [PER1999]_ and [CHE2007]_: the half-step pole
+current is obtained directly rather than by averaging adjacent integer-time
+values.
+
+The reported quantities are :math:`S_{11}=V^-/V^+`,
+:math:`Z_\mathrm{in}=V/I_\mathrm{terminal}`, and
+:math:`Y_\mathrm{in}=I_\mathrm{terminal}/V`. Their validity is recorded
+separately, so a passive receiving port may retain valid impedance while its
+source-normalised S11 is invalid.
+
+The group stores ``poles`` and ``residues`` together with ``Conductance`` and
+``Capacitance``; time histories ``Vgenerator``, ``Vtotal``, and ``Inetwork``;
+frequency-domain ``Vgenerator_spectrum``, ``Vtotal_spectrum``,
+``Inetwork_spectrum``, ``Iterminal_spectrum``, ``Vincident_spectrum``, and
+``Vreflected_spectrum``; and the usual ``S11``, ``Zin``, ``Yin``, mesh,
+source, gap, and cells-per-wavelength validity datasets. The transform uses
+the engineering convention and all three histories are sampled at the
+electric half-step. ``NetworkModelID`` identifies the reusable model and
+``PortMode`` is ``rational_network``.
+
+The complete production update is compared with the exact reflection from
+series-RC and series-RLC sheets in a parallel-plate guide in
+:ref:`rational-network-validation`.
+
+A terminal owned by a subgrid is stored beneath
+``/subgrids/<subgrid ID>/ports/<terminal ID>`` using the subgrid's fine time
+and space increments.
+
+
 Voltage-source S11 and impedance output
 ---------------------------------------
 
@@ -327,6 +525,9 @@ subgrid's spatial step, time step, iteration count, material edge, and field
 histories. For a finite-resistance source, its resistance is the reference
 impedance :math:`Z_0`; the source-plane reflection coefficient is calculated
 from the known generator voltage and sampled total gap voltage.
+In a domain-decomposed MPI model the same schema is written after source,
+receiver, and port histories have been gathered on the coordinator. All
+``Position`` and ``GridPosition`` metadata use the global main-grid frame.
 For a zero-resistance hard source, :math:`Z_0` is supplied by the voltage
 source (50 Ohms by default) and
 the terminal quantities are calculated from the prescribed voltage and
@@ -401,16 +602,52 @@ The frequency dataset and validity mask can be plotted directly:
     plt.xlabel('Frequency [Hz]')
     plt.ylabel(r'$|S_{11}|$ [dB]')
 
+For routine inspection, the port plotter reads these stored values and their
+diagnostics directly, and can save PNG, PDF, or SVG figures without repeating
+the terminal calculation:
+
+.. code-block:: console
+
+    python -m toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
+
+The same command supports rational-network, transmission-line, and
+magnetic-frill port groups, including ports owned by subgrids. Multiple
+``--port`` options may be supplied, or omitted to plot every discovered port.
+
 Eigenmode-port and S-parameter output
 -------------------------------------
 
-Each explicitly numbered eigenmode source or receiver is stored below
-``/eigenmode_ports/portN``. ``frequency`` contains the direct-DFT bins.
+Each explicitly numbered main-grid eigenmode source or receiver is stored
+below ``/eigenmode_ports/portN``. A direct port owned by an HSG subgrid is
+stored below ``/subgrids/<subgrid ID>/eigenmode_ports/portN`` and uses that
+grid's fine ``dx_dy_dz``, ``dt``, and iteration count. ``frequency`` contains
+the direct-DFT bins.
 ``incident`` and ``outgoing`` have shape ``(nmodes, nfrequencies)``, with
 rows ordered by the one-based ``ModeIndices`` attribute. ``S`` is the outgoing
 coefficient divided by the excited source-mode incident coefficient, so the
 source group contains modal S11 and other groups contain S21, S31, and modal
 conversion terms.
+
+Each mode has two audited anchor banks. ``anchor_mode_valid`` selects the
+propagating, one-watt profiles used by TF/SF source synthesis and real-power
+normalization. ``anchor_mode_reference_valid`` selects the successfully
+tracked profiles used only by modal monitoring and can include evanescent
+anchors. For generalized-only bins, the applicable contiguous evanescent
+reference run is converted to a common E/H-balanced scale before its E, H,
+and effective index are interpolated with matching branch-local weights.
+Propagating and evanescent anchors are never mixed across cutoff, and
+disconnected evanescent runs are not bridged. ``anchor_mode_propagating``
+records the raw forward-power classification, and ``anchor_balanced_power``
+records each raw profile's positive balanced E/H power; its inverse square
+root supplies the reference scale.
+
+The ``AnchorFrequencies`` attribute remains the union of the retained
+propagating source/power anchors, while ``ReferenceAnchorFrequencies`` is the
+union of retained monitor-reference anchors. ``CandidateAnchorFrequencies``
+lists every solved candidate; use it together with
+``anchor_mode_reference_valid`` to recover the monitor-reference frequencies
+for each mode rather than only their union. Non-propagating reference anchors
+never drive the source and never become power waves.
 
 The complex ``electric_cross_power_matrix`` and Hermitian ``power_matrix``
 both have shape
@@ -426,15 +663,36 @@ exactly orthogonal. The incident and outgoing arrays are generalized modal
 travelling-wave coefficients; an individual coefficient magnitude squared is
 not an additive power when ``power_matrix`` is non-diagonal. The electric
 cross-power matrix is retained to reconstruct total-field flux in lossy
-ports. ``power_normalization_valid`` is a per-mode mask,
-``power_matrix_valid`` is a per-frequency mask, and ``valid`` and ``valid_S``
-also include decomposition conditioning and source-spectrum checks.
-Ill-conditioned or weakly excited bins remain in the file but must not be
-plotted as valid results.
+ports. ``decomposition_valid`` has shape ``(nfrequencies, nmodes)`` and records
+pre-solve reference eligibility. ``generalized_valid`` has shape
+``(nmodes, nfrequencies)`` and records conditioned incident/outgoing
+coefficients. Legacy ``valid`` has the same latter shape and is the stricter
+physical power-wave mask. ``power_normalization_valid`` has shape
+``(nfrequencies, nmodes)``, while ``power_matrix_valid`` has shape
+``(nfrequencies,)``. The anchor masks have shape ``(ncandidates, nmodes)``.
+
+For scattering output, ``generalized_valid_S``, ``valid_S``, and
+``power_wave_valid_S`` all have shape ``(nmodes, nfrequencies)``.
+``generalized_valid_S`` identifies conditioned generalized coefficient
+ratios, including the source-spectrum check. ``valid_S`` preserves the legacy
+physical meaning, and ``power_wave_valid_S`` is its explicit exact alias. A
+below-cutoff coefficient can therefore have ``generalized_valid_S=1`` while
+``valid_S=power_wave_valid_S=0``. Ill-conditioned or weakly excited bins
+remain in the file but must not be plotted as valid results; generalized
+coefficients must not be used for power accounting unless the corresponding
+physical mask is also true.
 
 A run with one eigenmode source also writes
 ``<output>_sparameters.csv`` with one row per frequency, destination port,
-and destination mode.
+and destination mode. For a source in a subgrid the filename is
+``<output>_<subgrid ID>_sparameters.csv``. Ports in different owning grids are
+finalised independently and do not form one cross-grid S matrix.
+
+When every eigenmode port has a passive virtual waveguide and no
+``EigenmodeExcitation`` is defined, the same HDF5 groups contain the raw
+``incident`` and ``outgoing`` modal spectra. No ``S`` datasets or
+``<output>_sparameters.csv`` file are written because there is no active
+incident spectrum by which to normalize them.
 
 .. _output-ntff:
 
@@ -443,6 +701,11 @@ NTFF field-transformation output
 
 Reusable KSIR and equivalent-current outputs are stored in the normal model
 file under their surface and transform IDs:
+
+MPI domain-decomposition runs use this same schema and write the completed
+datasets from the coordinator rank. A ``collection_backend`` value beginning
+with ``mpi_`` records that the integration surface was partitioned between
+ranks; it does not change field normalisation or array ordering.
 
 .. code-block:: none
 
@@ -620,9 +883,11 @@ arrays and reference impedance are NaN because no artificial voltage/current
 equivalent is introduced; ``representations`` identifies them as
 ``modal_power_waves`` (the retained schema identifier), and ``modal_ports``
 retains the generalized modal amplitudes, electric cross-power matrix, and
-Hermitian forward-wave power matrix. Modal amplitudes have units ``sqrt(W) s``
-and their dimensionless quadratic matrices produce ``W s**2`` spectral
-power. A zero-amplitude
+Hermitian forward-wave power matrix. Where the real-power masks are true,
+modal amplitudes have units ``sqrt(W) s`` and their dimensionless quadratic
+matrices produce ``W s**2`` spectral power. A finite coefficient outside that
+mask is a generalized reference-basis amplitude only; its magnitude squared
+is not power. A zero-amplitude
 conventional source remains a terminated port with zero incident voltage; its
 terminal voltage/current and signed accepted power can still be non-zero
 through mutual coupling.
@@ -660,6 +925,12 @@ spectrum produces ``NaN`` RCS. Very small incident values are mathematically
 non-zero but can give unreliable results, so the requested frequencies should
 remain within the useful excitation bandwidth.
 
+When a frequency transform is associated with a plane wave, its
+``plane_wave`` subgroup stores the source index, TFSF corners, waveform and
+material IDs, actual angles, polarisation, rational integer mapping, start and
+stop times, and the incident-field reference positions. This metadata is the
+authoritative description of the illumination used for that transform.
+
 For plotting in dBsm, convert the stored values explicitly:
 
 .. code-block:: python
@@ -676,7 +947,9 @@ Here ``theta`` and ``phi`` in the same group define the observation direction.
 Monostatic RCS is the value in the direction opposite to plane-wave
 propagation; all other directions are bistatic RCS. Use separate simulations
 for different incident plane waves because selecting an association does not
-separate simultaneously accumulated scattered fields.
+separate simultaneously accumulated scattered fields. A
+:class:`gprMax.PlaneWaveStudy` automates those separate illuminations while
+reusing the unchanged Yee geometry.
 
 Exact finite-distance KSIR time-domain fields retain the complete raw retarded
 buffer and have shape ``(npoints, max(valid_lengths))``. Its final bins may contain only part of the
@@ -737,7 +1010,7 @@ strictly enclose the complete subgrid coupling region.
 Snapshots
 ---------
 
-Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired.
+Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired. HDF5 snapshots include ``origin`` (global x, y, z coordinates), ``dx_dy_dz``, ``nx_ny_nz``, and ``time`` attributes. A snapshot owned by an HSG subgrid is sampled at the fine-grid time step and is still positioned in this global coordinate frame.
 
 .. tip::
     You can take advantage of our Python API to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x, y, z, dl, fn`` accordingly.

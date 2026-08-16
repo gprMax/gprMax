@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -251,6 +251,9 @@ class PML:
         formulation=None,
         cfs=None,
         profile_id=None,
+        profile_offset=0,
+        profile_thickness=None,
+        profile_updates_terminal_e_plane=None,
     ):
         """
         Args:
@@ -273,6 +276,7 @@ class PML:
         self.maximum_face = maximum_face
         self.profile_id = profile_id
         self.formulation = formulation or self.G.pmls["formulation"]
+        self.profile_offset = int(profile_offset)
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
@@ -287,6 +291,15 @@ class PML:
         elif self.direction[0] == "z":
             self.d = self.G.dz
             self.thickness = self.nz
+
+        self.profile_thickness = (
+            self.thickness if profile_thickness is None else int(profile_thickness)
+        )
+        self.profile_updates_terminal_e_plane = profile_updates_terminal_e_plane
+        if self.profile_offset < 0:
+            raise ValueError("PML profile offset must be non-negative.")
+        if self.profile_thickness < self.profile_offset + self.thickness:
+            raise ValueError("Local PML extent falls outside its global profile thickness.")
 
         # Automatic sigma maxima depend on the slab spacing and underlying
         # material. Each slab therefore needs its own CFS parameter objects;
@@ -405,10 +418,26 @@ class PML:
             logger.debug(
                 f"PML {self.ID}: sigma.max set to {cfs.sigma.max} for {'first' if x == 0 else 'second'} order CFS parameter"
             )
-            endpoint = self._updates_terminal_e_plane()
-            Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha, endpoint)
-            Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa, endpoint)
-            Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma, endpoint)
+            profile_endpoint = self._profile_updates_terminal_e_plane()
+            Ealpha, Halpha = cfs.calculate_values(
+                self.profile_thickness, cfs.alpha, profile_endpoint
+            )
+            Ekappa, Hkappa = cfs.calculate_values(
+                self.profile_thickness, cfs.kappa, profile_endpoint
+            )
+            Esigma, Hsigma = cfs.calculate_values(
+                self.profile_thickness, cfs.sigma, profile_endpoint
+            )
+
+            start = self.profile_offset
+            e_stop = start + electric_thickness
+            h_stop = start + self.thickness
+            Ealpha = Ealpha[start:e_stop]
+            Ekappa = Ekappa[start:e_stop]
+            Esigma = Esigma[start:e_stop]
+            Halpha = Halpha[start:h_stop]
+            Hkappa = Hkappa[start:h_stop]
+            Hsigma = Hsigma[start:h_stop]
 
             # Define different parameters depending on PML formulation
             if self.formulation == "HORIPML":
@@ -467,6 +496,12 @@ class PML:
             "zminus": self.zs > 0,
             "zplus": self.zf < self.G.nz,
         }[self.direction]
+
+    def _profile_updates_terminal_e_plane(self):
+        """Return whether the complete slab profile contains its terminal E plane."""
+        if self.profile_updates_terminal_e_plane is None:
+            return self._updates_terminal_e_plane()
+        return bool(self.profile_updates_terminal_e_plane)
 
     def _electric_update_bounds(self):
         """Return bounds including an embedded slab's terminal E plane."""
@@ -780,41 +815,29 @@ class MetalPML(PML):
 
     def htod_field_arrays(self, dev=None):
         """Initialises PML field and coefficient arrays on GPU."""
-        
+
         # Create Metal buffers for all PML arrays using device's method
         if dev is None:
             raise RuntimeError("Metal device not provided. PML arrays cannot be initialized.")
-        
+
         # Store shapes before creating buffers (since Metal buffers don't have shape attribute)
         self.EPhi1_shape = self.EPhi1.shape
-        self.EPhi2_shape = self.EPhi2.shape  
+        self.EPhi2_shape = self.EPhi2.shape
         self.HPhi1_shape = self.HPhi1.shape
         self.HPhi2_shape = self.HPhi2.shape
-            
-        self.ERA_dev = dev.newBufferWithBytes_length_options_(self.ERA, 
-                                                                        self.ERA.nbytes, 0)
-        self.ERB_dev = dev.newBufferWithBytes_length_options_(self.ERB, 
-                                                                        self.ERB.nbytes, 0)
-        self.ERE_dev = dev.newBufferWithBytes_length_options_(self.ERE, 
-                                                                        self.ERE.nbytes, 0)
-        self.ERF_dev = dev.newBufferWithBytes_length_options_(self.ERF, 
-                                                                        self.ERF.nbytes, 0)
-        self.HRA_dev = dev.newBufferWithBytes_length_options_(self.HRA, 
-                                                                        self.HRA.nbytes, 0)
-        self.HRB_dev = dev.newBufferWithBytes_length_options_(self.HRB, 
-                                                                        self.HRB.nbytes, 0)
-        self.HRE_dev = dev.newBufferWithBytes_length_options_(self.HRE, 
-                                                                        self.HRE.nbytes, 0)
-        self.HRF_dev = dev.newBufferWithBytes_length_options_(self.HRF, 
-                                                                        self.HRF.nbytes, 0)
-        self.EPhi1_dev = dev.newBufferWithBytes_length_options_(self.EPhi1, 
-                                                                          self.EPhi1.nbytes, 0)
-        self.EPhi2_dev = dev.newBufferWithBytes_length_options_(self.EPhi2, 
-                                                                          self.EPhi2.nbytes, 0)
-        self.HPhi1_dev = dev.newBufferWithBytes_length_options_(self.HPhi1, 
-                                                                          self.HPhi1.nbytes, 0)
-        self.HPhi2_dev = dev.newBufferWithBytes_length_options_(self.HPhi2, 
-                                                                          self.HPhi2.nbytes, 0)
+
+        self.ERA_dev = dev.newBufferWithBytes_length_options_(self.ERA, self.ERA.nbytes, 0)
+        self.ERB_dev = dev.newBufferWithBytes_length_options_(self.ERB, self.ERB.nbytes, 0)
+        self.ERE_dev = dev.newBufferWithBytes_length_options_(self.ERE, self.ERE.nbytes, 0)
+        self.ERF_dev = dev.newBufferWithBytes_length_options_(self.ERF, self.ERF.nbytes, 0)
+        self.HRA_dev = dev.newBufferWithBytes_length_options_(self.HRA, self.HRA.nbytes, 0)
+        self.HRB_dev = dev.newBufferWithBytes_length_options_(self.HRB, self.HRB.nbytes, 0)
+        self.HRE_dev = dev.newBufferWithBytes_length_options_(self.HRE, self.HRE.nbytes, 0)
+        self.HRF_dev = dev.newBufferWithBytes_length_options_(self.HRF, self.HRF.nbytes, 0)
+        self.EPhi1_dev = dev.newBufferWithBytes_length_options_(self.EPhi1, self.EPhi1.nbytes, 0)
+        self.EPhi2_dev = dev.newBufferWithBytes_length_options_(self.EPhi2, self.EPhi2.nbytes, 0)
+        self.HPhi1_dev = dev.newBufferWithBytes_length_options_(self.HPhi1, self.HPhi1.nbytes, 0)
+        self.HPhi2_dev = dev.newBufferWithBytes_length_options_(self.HPhi2, self.HPhi2.nbytes, 0)
 
     def set_queue(self, queue):
         """Sets the command queue for the PML."""
@@ -823,12 +846,12 @@ class MetalPML(PML):
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU using Metal."""
         xs, xf, ys, yf, zs, zf = self._electric_update_bounds()
-        
+
         # Create command buffer and encoder
         cmdbuffer = self.queue.commandBuffer()
         cmpencoder = cmdbuffer.computeCommandEncoder()
         cmpencoder.setComputePipelineState_(self.psoE)
-        
+
         # Set scalar parameters
         cmpencoder.setBytes_length_atIndex_(np.int32(xs).tobytes(), 4, 0)
         cmpencoder.setBytes_length_atIndex_(np.int32(xf).tobytes(), 4, 1)
@@ -843,7 +866,7 @@ class MetalPML(PML):
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[2]).tobytes(), 4, 10)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.EPhi2_shape[3]).tobytes(), 4, 11)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.ERA.shape[1]).tobytes(), 4, 12)
-        
+
         # Set buffer arguments
         cmpencoder.setBuffer_offset_atIndex_(self.G.ID_dev, 0, 13)
         cmpencoder.setBuffer_offset_atIndex_(self.G.Ex_dev, 0, 14)
@@ -860,22 +883,22 @@ class MetalPML(PML):
         cmpencoder.setBuffer_offset_atIndex_(self.ERF_dev, 0, 25)
         d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
-        
+
         # Dispatch threads using grid's thread configuration
         cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
-        
+
         cmpencoder.endEncoding()
         cmdbuffer.commit()
         cmdbuffer.waitUntilCompleted()
 
     def update_magnetic(self):
         """Updates magnetic field components with the PML correction on the GPU using Metal."""
-        
+
         # Create command buffer and encoder
         cmdbuffer = self.queue.commandBuffer()
         cmpencoder = cmdbuffer.computeCommandEncoder()
         cmpencoder.setComputePipelineState_(self.psoH)
-        
+
         # Set scalar parameters
         cmpencoder.setBytes_length_atIndex_(np.int32(self.xs).tobytes(), 4, 0)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.xf).tobytes(), 4, 1)
@@ -890,7 +913,7 @@ class MetalPML(PML):
         cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi2_shape[2]).tobytes(), 4, 10)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.HPhi2_shape[3]).tobytes(), 4, 11)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.thickness).tobytes(), 4, 12)
-        
+
         # Set buffer arguments
         cmpencoder.setBuffer_offset_atIndex_(self.G.ID_dev, 0, 13)
         cmpencoder.setBuffer_offset_atIndex_(self.G.Ex_dev, 0, 14)
@@ -907,10 +930,10 @@ class MetalPML(PML):
         cmpencoder.setBuffer_offset_atIndex_(self.HRF_dev, 0, 25)
         d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
-        
+
         # Dispatch threads using grid's thread configuration
         cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
-        
+
         cmpencoder.endEncoding()
         cmdbuffer.commit()
         cmdbuffer.waitUntilCompleted()
@@ -931,20 +954,15 @@ class MPIPML(PML):
         """
         for cfs in self.CFS:
             if not cfs.sigma.max:
-                if self.global_comm.rank == self.COORDINATOR_RANK:
-                    cfs.calculate_sigmamax(self.d, er, mr)
-                    buffer = np.array([cfs.sigma.max])
-                else:
-                    buffer = np.empty(1)
-
-                # Needs to be non-blocking because some ranks will
-                # contain multiple PMLs, but the material properties for
-                # a PML cannot be calculated until all ranks have
-                # completed that stage. Therefore a blocking broadcast
-                # would wait for ranks that are stuck calculating the
-                # material properties of the PML.
-                self.global_comm.Ibcast(buffer, self.COORDINATOR_RANK).Wait()
-                cfs.sigma.max = buffer[0]
+                # MPIGrid has already reduced the material properties over
+                # this slab's face communicator. Every participating rank
+                # therefore has the same er/mr and can calculate the same
+                # automatic sigma maximum locally. A collective over the
+                # union of all boundary-PML ranks is incorrect here: symmetry
+                # faces can leave ranks with different numbers of local PML
+                # slabs, so a broadcast per slab would deadlock when one rank
+                # finishes its slab list before another.
+                cfs.calculate_sigmamax(self.d, er, mr)
 
         super().calculate_update_coeffs(er, mr)
 
@@ -975,6 +993,5 @@ def print_pml_info(G):
 
     return (
         f"PML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
-        f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}\n"
-        + internal_info
+        f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}\n" + internal_info
     )

@@ -30,6 +30,7 @@ from tqdm import tqdm
 import gprMax.config as config
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.utilities.mpi import Dim, Dir
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 
@@ -317,7 +318,7 @@ class Snapshot(Generic[GridType]):
             pbar: Progress bar class instance.
         """
 
-        origin = self.grid_view.start * self.grid.dl
+        origin = self._physical_origin()
         spacing = self.grid_view.step * self.grid.dl
 
         with VtkImageData(self.filename, self.grid_view.size, origin, spacing) as f:
@@ -339,12 +340,20 @@ class Snapshot(Generic[GridType]):
             # f.attrs["Title"] = G.title
             f.attrs["nx_ny_nz"] = tuple(self.grid_view.size)
             f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
+            f.attrs["origin"] = self._physical_origin()
             f.attrs["time"] = self.time * self.grid.dt
 
             for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
                 if self.outputs[key]:
                     f[key] = self.snapfields[key]
                     pbar.update(n=self.snapfields[key].nbytes)
+
+    def _physical_origin(self):
+        """Return the snapshot origin in the model's global coordinate frame."""
+
+        if isinstance(self.grid, SubGridBaseGrid):
+            return self.grid.local_to_global(self.grid_view.start)
+        return self.grid_view.start * self.grid.dl
 
 
 class MPISnapshot(Snapshot[MPIGrid]):
@@ -605,6 +614,7 @@ class MPISnapshot(Snapshot[MPIGrid]):
             # f.attrs["Title"] = G.title
             f.attrs["nx_ny_nz"] = self.grid_view.global_size
             f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
+            f.attrs["origin"] = self.grid_view.global_start * self.grid.dl
             f.attrs["time"] = self.time * self.grid.dt
 
             dset_slice = self.grid_view.get_3d_output_slice()

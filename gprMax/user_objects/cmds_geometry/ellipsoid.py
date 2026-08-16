@@ -91,9 +91,11 @@ class Ellipsoid(GeometryUserObject):
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
-            notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            message = f"{self.__str__()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         # Isotropic case
         if len(materials) == 1:
@@ -113,7 +115,7 @@ class Ellipsoid(GeometryUserObject):
             requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
             averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
-                numID = averagedmaterial.numID
+                numID = averagedmaterial[0].numID
             else:
                 numID = len(grid.materials)
                 m = Material(numID, requiredID)

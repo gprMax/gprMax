@@ -8,7 +8,11 @@ from pathlib import Path
 
 
 def find_input_files(root: Path) -> list[Path]:
-    return sorted(path for path in root.rglob("*.in") if path.is_file())
+    return sorted(
+        path
+        for path in root.rglob("*.in")
+        if path.is_file() and "legacy" not in path.relative_to(root).parts
+    )
 
 
 def find_repository_root(start: Path) -> Path:
@@ -35,8 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path(__file__).resolve().parent / "cases",
-        help="Root directory containing regression cases. Defaults to the adjacent cases directory.",
+        default=Path(__file__).resolve().parent,
+        help="Root directory containing regression models. Defaults to this suite directory.",
     )
     parser.add_argument(
         "--python",
@@ -73,8 +77,8 @@ def main() -> int:
     suite_root = Path(__file__).resolve().parent
     repo_root = find_repository_root(suite_root)
     plot_script = suite_root / "plot_snapshots.py"
-    sparameter_plot_script = suite_root / "cases" / "plot_sparameters.py"
-    validation_script = suite_root / "cases" / "validate_sparameters.py"
+    sparameter_plot_script = suite_root / "plot_sparameters.py"
+    validation_script = suite_root / "validate_sparameters.py"
 
     if not root.is_dir():
         raise SystemExit(f"Test root does not exist: {root}")
@@ -129,7 +133,10 @@ def main() -> int:
             dry_run=args.dry_run,
         )
         for plotter_script in sorted(root.rglob("plot_*.py")):
-            if plotter_script.resolve() == sparameter_plot_script.resolve():
+            if plotter_script.resolve() in {
+                plot_script.resolve(),
+                sparameter_plot_script.resolve(),
+            }:
                 continue
             print(f"\nRunning plot helper {plotter_script}", flush=True)
             run_command(

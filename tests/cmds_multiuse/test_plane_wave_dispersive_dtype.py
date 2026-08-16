@@ -211,6 +211,8 @@ def test_homogeneous_complex_pole_current_uses_complete_product():
     mapping = np.array([1, 0, 0, 1], dtype=np.int32)
     origin = np.zeros(3, dtype=np.int32)
     corners = np.zeros(6, dtype=np.int32)
+    owned_lower = np.zeros(3, dtype=np.int32)
+    owned_upper = np.ones(3, dtype=np.int32)
 
     updatePlaneWave_electric_dispersive(
         n,
@@ -247,6 +249,8 @@ def test_homogeneous_complex_pole_current_uses_complete_product():
         mapping,
         origin,
         corners,
+        owned_lower,
+        owned_upper,
         True,
         0,  # iteration
         1,  # dt

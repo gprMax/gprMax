@@ -22,9 +22,11 @@ from typing import List, Sequence
 import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.mpi_model import MPIModel
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
 from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
@@ -180,7 +182,11 @@ class Scene:
         """
         from gprMax.user_objects.cmds_geometry.plate import Plate
 
-        limits = (grid.nx, grid.ny, grid.nz)
+        limits = (
+            tuple(grid.global_size)
+            if isinstance(grid, MPIGrid)
+            else (grid.nx, grid.ny, grid.nz)
+        )
         for spec in grid.pmls["internal_specs"]:
             if not spec.build_pec:
                 continue
@@ -211,9 +217,15 @@ class Scene:
                 faces.append((p1, p2))
 
             for p1, p2 in faces:
+                if isinstance(grid, SubGridBaseGrid):
+                    continuous_p1 = tuple(grid.local_to_global(p1))
+                    continuous_p2 = tuple(grid.local_to_global(p2))
+                else:
+                    continuous_p1 = tuple(np.asarray(grid.dl) * p1)
+                    continuous_p2 = tuple(np.asarray(grid.dl) * p2)
                 Plate(
-                    p1=tuple(np.asarray(grid.dl) * p1),
-                    p2=tuple(np.asarray(grid.dl) * p2),
+                    p1=continuous_p1,
+                    p2=continuous_p2,
                     material_id="pec",
                 ).build(grid)
 
@@ -233,6 +245,7 @@ class Scene:
             self.build_grid_objects(subgrid_object.children_grid, subgrid)
             self.build_output_objects(subgrid_object.children_output, model, subgrid)
             self.process_geometry_objects(subgrid_object.children_geometry, subgrid)
+            self._build_internal_pml_enclosures(subgrid)
 
     def create_internal_objects(self, model: Model):
         """Calls the UserObject.build() function in the correct way - API

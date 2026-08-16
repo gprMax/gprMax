@@ -22,6 +22,7 @@ import pytest
 
 import gprMax
 import gprMax.config as config
+from gprMax.hash_cmds_file import get_user_objects
 from gprMax.user_objects.cmds_multiuse import MagneticFrillSource
 
 INF = float("inf")
@@ -51,16 +52,57 @@ def _frill(**overrides):
     return MagneticFrillSource(**kwargs)
 
 
+@pytest.mark.parametrize(
+    "command, expected_polarisation, expected_zcoax, expected_start, expected_stop",
+    [
+        ("#magnetic_frill_source: z 0.01 0.02 0.03 50 w", "z", 50, None, None),
+        (
+            "#magnetic_frill_source: x 0.01 0.02 0.03 75 w 1e-10 2e-10",
+            "x",
+            75,
+            1e-10,
+            2e-10,
+        ),
+    ],
+)
+def test_hash_command_builds_api_object(
+    command, expected_polarisation, expected_zcoax, expected_start, expected_stop
+):
+    objects = get_user_objects([f"{command}\n"], checkessential=False)
+
+    assert len(objects) == 1
+    frill = objects[0]
+    assert isinstance(frill, MagneticFrillSource)
+    assert frill.point == (0.01, 0.02, 0.03)
+    assert frill.polarisation == expected_polarisation
+    assert frill.zcoax == expected_zcoax
+    assert frill.waveform_id == "w"
+    assert frill.start == expected_start
+    assert frill.stop == expected_stop
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "#magnetic_frill_source: z 0.01 0.02 0.03 50",
+        "#magnetic_frill_source: z 0.01 0.02 0.03 50 w 1e-10",
+        "#magnetic_frill_source: z 0.01 0.02 0.03 50 w 1e-10 2e-10 extra",
+    ],
+)
+def test_hash_command_rejects_invalid_parameter_count(command):
+    with pytest.raises(ValueError, match="requires six parameters"):
+        get_user_objects([f"{command}\n"], checkessential=False)
+
+
 @pytest.mark.parametrize("solver", ["cuda", "opencl", "metal"])
 def test_accelerator_solvers_are_accepted(monkeypatch, solver):
     _set_solver(monkeypatch, solver)
     _frill()._validate_parameters(_fake_grid())
 
 
-def test_rejected_with_mpi(monkeypatch):
+def test_allowed_with_mpi(monkeypatch):
     _set_solver(monkeypatch, "cpu", mpi=True)
-    with pytest.raises(ValueError, match="MPI"):
-        _frill()._validate_parameters(_fake_grid())
+    _frill()._validate_parameters(_fake_grid())
 
 
 def test_main_grid_frill_is_accepted_when_model_contains_subgrid(monkeypatch):

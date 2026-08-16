@@ -87,8 +87,6 @@ class ThinWire(RotatableMixin, GeometryUserObject):
 
         if config.get_model_config().mode.startswith("2D"):
             raise ValueError(f"{self.__str__()} is not yet supported in 2D mode.")
-        if hasattr(grid, "comm"):
-            raise ValueError(f"{self.__str__()} is not yet supported with MPI.")
         if not math.isfinite(radius) or radius <= 0:
             raise ValueError(f"{self.__str__()} requires a finite radius greater than zero.")
 
@@ -98,6 +96,9 @@ class ThinWire(RotatableMixin, GeometryUserObject):
             p2 = self.kwargs["p2"]
 
         uip = self._create_uip(grid)
+        if hasattr(grid, "comm"):
+            self._build_mpi(grid, uip, p1, p2, radius)
+            return
         p1 = uip.resolve_inf_point(p1, role="lower")
         p2 = uip.resolve_inf_point(p2, role="upper")
         within_grid, start, stop = uip.check_box_points(p1, p2, self.__str__())
@@ -131,6 +132,55 @@ class ThinWire(RotatableMixin, GeometryUserObject):
             f"{rounded_stop[0]:g}m, {rounded_stop[1]:g}m, "
             f"{rounded_stop[2]:g}m, radius {radius:g}m, created."
         )
+
+    def _build_mpi(self, grid, uip, p1, p2, radius):
+        """Register one global wire definition on every MPI rank.
+
+        Component construction later assigns each electric and magnetic edge
+        to exactly one owning rank. Keeping the uncut global endpoints here is
+        essential because the surrounding four-H-edge stencil can straddle a
+        decomposition boundary even though the wire E edge has one owner.
+        """
+
+        domain = np.asarray(grid.global_size, dtype=np.int32)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
+        start = np.asarray(uip.discretise_static_point(p1), dtype=np.int32)
+        stop = np.asarray(uip.discretise_static_point(p2), dtype=np.int32)
+        if np.any(start < 0) or np.any(stop > domain):
+            raise ValueError(f"{self.__str__()} endpoints must lie inside the global MPI domain.")
+        changed = np.flatnonzero(start != stop)
+        if changed.size != 1 or np.any(start > stop):
+            raise ValueError(f"{self.__str__()} must define one non-zero, axis-aligned line.")
+
+        axis_index = int(changed[0])
+        transverse = [index for index in range(3) if index != axis_index]
+        limiting_step = min(float(grid.dl[index]) for index in transverse)
+        if radius >= 0.5 * limiting_step:
+            raise ValueError(
+                f"{self.__str__()} radius {radius:g}m must be smaller than half "
+                f"the minimum transverse cell size ({0.5 * limiting_step:g}m)."
+            )
+
+        self.wire_axis = "xyz"[axis_index]
+        self.global_start = start
+        self.global_stop = stop
+        # Retain local aliases for diagnostics; MPI construction uses the
+        # global endpoints above.
+        self.start = grid.global_to_local_coordinate(start)
+        self.stop = grid.global_to_local_coordinate(stop)
+        self.radius = radius
+        grid.thinwires.append(self)
+
+        if grid.is_coordinator():
+            rounded_start = start * grid.dl
+            rounded_stop = stop * grid.dl
+            logger.info(
+                f"Thin wire from {rounded_start[0]:g}m, {rounded_start[1]:g}m, "
+                f"{rounded_start[2]:g}m, to {rounded_stop[0]:g}m, "
+                f"{rounded_stop[1]:g}m, {rounded_stop[2]:g}m, radius "
+                f"{radius:g}m, created."
+            )
 
     def cells(self):
         """Yield the electric Yee-edge coordinates occupied by the wire."""

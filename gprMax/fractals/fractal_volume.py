@@ -263,8 +263,9 @@ class FractalVolume:
         # Take the real part (numerical errors can give rise to an imaginary part)
         # of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        self.fractalvolume = np.real(fftpack.ifftn(self.fractalvolume)).astype(
-            config.sim_config.dtypes["float_or_double"], copy=False
+        self.fractalvolume = np.ascontiguousarray(
+            np.real(fftpack.ifftn(self.fractalvolume)),
+            dtype=config.sim_config.dtypes["float_or_double"],
         )
 
         # Bin fractal values
@@ -489,7 +490,9 @@ class MPIFractalVolume(FractalVolume):
         # Take the real part (numerical errors can give rise to an imaginary part)
         # of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        A = np.real(A).astype(config.sim_config.dtypes["float_or_double"], copy=False)
+        A = np.ascontiguousarray(
+            np.real(A), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Allreduce to get min and max values in the fractal volume
         min_value = np.array(np.amin(A), dtype=config.sim_config.dtypes["float_or_double"])
@@ -569,7 +572,12 @@ class MPIFractalVolume(FractalVolume):
                 )
             ):
                 mpi_type = create_mpi_type(
-                    A_shape, -negative_offset, -positive_offset, dirs, sending=True
+                    A_shape,
+                    -negative_offset,
+                    -positive_offset,
+                    dirs,
+                    A.dtype,
+                    sending=True,
                 )
 
                 logger.debug(f"Sending fractal volume to rank {rank}, MPI type={mpi_type.decode()}")
@@ -583,7 +591,13 @@ class MPIFractalVolume(FractalVolume):
                     dirs == Dir.NONE,
                 )
             ):
-                mpi_type = create_mpi_type(local_shape, negative_offset, positive_offset, dirs)
+                mpi_type = create_mpi_type(
+                    local_shape,
+                    negative_offset,
+                    positive_offset,
+                    dirs,
+                    self.fractalvolume.dtype,
+                )
 
                 logger.debug(
                     f"Receiving fractal volume from rank {rank}, MPI type={mpi_type.decode()}"

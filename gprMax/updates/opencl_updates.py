@@ -25,14 +25,28 @@ from jinja2 import Environment, PackageLoader
 
 from gprMax import config
 from gprMax.cuda_opencl import (
+    knl_eigenmode,
     knl_fields_updates,
     knl_magnetic_frill_source,
+    knl_planewave_updates,
+    knl_rational_network,
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
     knl_symmetry_boundaries,
+    knl_tfsf_injection,
+    knl_transmission_line,
+    knl_virtual_waveguide,
+)
+from gprMax.eigenmode_device import (
+    eigenmode_source_envelopes,
+    finalise_device_eigenmode_monitors,
+    prepare_device_eigenmode_monitor,
+    prepare_device_eigenmode_source,
+    reanchor_device_eigenmode_monitor,
 )
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import OpenCLCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
 from gprMax.snapshots import (
@@ -45,8 +59,10 @@ from gprMax.snapshots import (
 from gprMax.sources import (
     MAGNETIC_FRILL_MAX_TERMS,
     dtoh_magnetic_frill_source_outputs,
+    dtoh_transmission_line_outputs,
     htod_magnetic_frill_source_arrays,
     htod_src_arrays,
+    htod_transmission_line_arrays,
 )
 from gprMax.updates.updates import Updates
 
@@ -56,7 +72,7 @@ logger = logging.getLogger(__name__)
 class OpenCLUpdates(Updates[OpenCLGrid]):
     """Defines update functions for OpenCL-based solver."""
 
-    def __init__(self, G: OpenCLGrid):
+    def __init__(self, G: OpenCLGrid, shared=None):
         """
         Args:
             G: OpenCLGrid class describing a grid in a model.
@@ -68,11 +84,17 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
 
         # Select device, create context and command queue
-        self.dev = config.get_model_config().device["dev"]
-        self.ctx = self.cl.Context(devices=[self.dev])
-        self.queue = self.cl.CommandQueue(
-            self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE
-        )
+        if shared is None:
+            self.dev = config.get_model_config().device["dev"]
+            self.ctx = self.cl.Context(devices=[self.dev])
+            self.queue = self.cl.CommandQueue(
+                self.ctx,
+                properties=self.cl.command_queue_properties.PROFILING_ENABLE,
+            )
+        else:
+            self.dev = shared.dev
+            self.ctx = shared.ctx
+            self.queue = shared.queue
 
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
@@ -94,15 +116,29 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self._set_rx_knl()
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
             self._set_src_knls()
+        if self.grid.transmissionlines:
+            self._set_transmission_line_knls()
+        if self.grid.networkterminals:
+            self._set_rational_network_knl()
         if self.grid.magneticfrillsources:
             self._set_magnetic_frill_knl()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        if self.grid.discreteplanewaves:
+            self._set_planewave_knls()
+        if self.grid.eigenmodesources:
+            self._set_eigenmode_source_knls()
+        if self.grid.eigenmodeports:
+            self._set_eigenmode_monitor_knl()
         self.ntff_collector = None
         if self.grid.ntff_monitors:
             self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
             self.ntff_compiler_options = config.sim_config.devices["compiler_opts"]
             self.ntff_collector = OpenCLCombinedKSIRCollector(self)
+        if self.grid.virtual_waveguides:
+            self._set_virtual_waveguide_knls()
+        for guide in self.grid.virtual_waveguides:
+            guide.initialise_device(self)
 
     def _set_macros(self):
         """Common macros to be used in kernels."""
@@ -241,7 +277,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.grid.htod_dispersive_arrays(self.queue)
 
     def _set_symmetry_boundary_knl(self):
-        """Build the nondispersive PMC ghost-image boundary kernel."""
+        """Build normal or dispersive PMC ghost-image boundary kernels."""
         substitutions = {
             "CUDA_IDX": "",
             "REAL": config.sim_config.dtypes["C_float_or_double"],
@@ -252,6 +288,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             "NY_ID": self.grid.ID.shape[2],
             "NZ_ID": self.grid.ID.shape[3],
         }
+        substitutions.update(knl_symmetry_boundaries.nondispersive_substitutions())
         self.update_electric_pmc_dev = self.elwiseknl(
             self.ctx,
             knl_symmetry_boundaries.update_electric_pmc["args_opencl"].substitute(
@@ -262,6 +299,41 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
+        if config.get_model_config().materials["maxpoles"] > 0:
+            dispersive = dict(substitutions)
+            dispersive.update(
+                knl_symmetry_boundaries.dispersive_substitutions(
+                    config.sim_config.dtypes["C_float_or_double"]
+                )
+            )
+            arguments = {
+                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            }
+            self.update_electric_pmc_dispersive_dev = self.elwiseknl(
+                self.ctx,
+                knl_symmetry_boundaries.update_electric_pmc_dispersive["args_opencl"].substitute(
+                    arguments
+                ),
+                knl_symmetry_boundaries.update_electric_pmc_dispersive["func"].substitute(
+                    dispersive
+                ),
+                "update_electric_pmc_dispersive",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
+            self.update_electric_pmc_dispersive_b_dev = self.elwiseknl(
+                self.ctx,
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b["args_opencl"].substitute(
+                    arguments
+                ),
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b["func"].substitute(
+                    substitutions
+                ),
+                "update_electric_pmc_dispersive_b",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
 
     def _pmc_flags(self):
         boundaries = self.grid.symmetry_boundaries
@@ -341,6 +413,19 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
+        if self.nrxcurrent:
+            self.store_current_outputs_dev = self.elwiseknl(
+                self.ctx,
+                knl_store_outputs.store_current_outputs["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
+                knl_store_outputs.store_current_outputs["func"].substitute(
+                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
+                "store_current_outputs",
+                preamble=self.knl_common,
+                options=config.sim_config.devices["compiler_opts"],
+            )
 
     def _set_src_knls(self):
         """Sources - initialises arrays on compute device, prepares kernel and
@@ -422,29 +507,1090 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         }
         self.update_magnetic_frill_source_dev = self.elwiseknl(
             self.ctx,
-            knl_magnetic_frill_source.update_magnetic_frill_source[
-                "args_opencl"
-            ].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
-            knl_magnetic_frill_source.update_magnetic_frill_source[
-                "func"
-            ].substitute(substitutions),
+            knl_magnetic_frill_source.update_magnetic_frill_source["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_magnetic_frill_source.update_magnetic_frill_source["func"].substitute(
+                substitutions
+            ),
             "update_magnetic_frill_source",
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
-        if self.nrxcurrent:
-            self.store_current_outputs_dev = self.elwiseknl(
-                self.ctx,
-                knl_store_outputs.store_current_outputs["args_opencl"].substitute(
-                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+
+    def _set_transmission_line_knls(self):
+        """Initialise device-resident transmission lines and their kernels."""
+
+        arrays = htod_transmission_line_arrays(self.grid.transmissionlines, self.grid, self.queue)
+        for name, array in arrays.items():
+            setattr(self, f"tl_{name}_dev", array)
+
+        real = config.sim_config.dtypes["float_or_double"]
+        line = self.grid.transmissionlines[0]
+        self.tl_line_coefficient = real(config.c * self.grid.dt / line.dl)
+        self.tl_abc_coefficient = real(
+            (config.c * self.grid.dt - line.dl) / (config.c * self.grid.dt + line.dl)
+        )
+
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NY_TLINFO": 10,
+            "NY_TLWAVES": self.grid.iterations + 1,
+            "NY_TLOUTPUTS": self.grid.iterations + 1,
+        }
+        self.update_transmission_line_magnetic_dev = self.elwiseknl(
+            self.ctx,
+            knl_transmission_line.update_transmission_line_magnetic["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_transmission_line.update_transmission_line_magnetic["func"].substitute(
+                substitutions
+            ),
+            "update_transmission_line_magnetic",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+        self.update_transmission_line_electric_dev = self.elwiseknl(
+            self.ctx,
+            knl_transmission_line.update_transmission_line_electric["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_transmission_line.update_transmission_line_electric["func"].substitute(
+                substitutions
+            ),
+            "update_transmission_line_electric",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _set_eigenmode_source_knls(self):
+        """Upload modal bases and compile device TF/SF source kernels."""
+
+        # A reused grid retains Python attributes but receives a fresh OpenCL
+        # queue.  Always re-upload pointer arguments to that current queue.
+        self.grid.htod_mat_coeff_arrays(self.queue)
+        for source in self.grid.eigenmodesources:
+            prepare_device_eigenmode_source(source, "opencl", queue=self.queue)
+        arguments = {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+        }
+        self.update_eigenmode_magnetic_dev = self.elwiseknl(
+            self.ctx,
+            knl_eigenmode.update_eigenmode_magnetic["args_opencl"].substitute(arguments),
+            knl_eigenmode.update_eigenmode_magnetic["func"].substitute(substitutions),
+            "update_eigenmode_magnetic",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+        self.update_eigenmode_electric_dev = self.elwiseknl(
+            self.ctx,
+            knl_eigenmode.update_eigenmode_electric["args_opencl"].substitute(arguments),
+            knl_eigenmode.update_eigenmode_electric["func"].substitute(substitutions),
+            "update_eigenmode_electric",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _set_eigenmode_monitor_knl(self):
+        """Upload modal projection bases and compile the DFT kernel."""
+
+        for monitor in self.grid.eigenmodeports:
+            prepare_device_eigenmode_monitor(monitor, "opencl", queue=self.queue)
+        self.accumulate_eigenmode_dft_dev = self.elwiseknl(
+            self.ctx,
+            knl_eigenmode.accumulate_eigenmode_dft["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_eigenmode.accumulate_eigenmode_dft["func"].substitute(
+                {
+                    "CUDA_IDX": "",
+                    "METAL_DFT_PARAMETERS": "",
+                    "REAL": config.sim_config.dtypes["C_float_or_double"],
+                }
+            ),
+            "accumulate_eigenmode_dft",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _set_virtual_waveguide_knls(self):
+        """Compile aperture coupling kernels for auxiliary device grids."""
+
+        arguments = {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NX_FIELDS": self.grid.nx + 1,
+            "NY_FIELDS": self.grid.ny + 1,
+            "NZ_FIELDS": self.grid.nz + 1,
+        }
+        for specification, attribute, name in (
+            (
+                knl_virtual_waveguide.couple_magnetic,
+                "couple_virtual_magnetic_dev",
+                "couple_virtual_waveguide_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_magnetic,
+                "clear_virtual_magnetic_dev",
+                "clear_virtual_waveguide_rear_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.couple_electric,
+                "couple_virtual_electric_dev",
+                "couple_virtual_waveguide_electric",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_electric,
+                "clear_virtual_electric_dev",
+                "clear_virtual_waveguide_rear_electric",
+            ),
+        ):
+            setattr(
+                self,
+                attribute,
+                self.elwiseknl(
+                    self.ctx,
+                    specification["args_opencl"].substitute(arguments),
+                    specification["func"].substitute(substitutions),
+                    name,
+                    preamble=self.knl_common,
+                    options=config.sim_config.devices["compiler_opts"],
                 ),
-                knl_store_outputs.store_current_outputs["func"].substitute(
-                    {"CUDA_IDX": "", "REAL": config.sim_config.dtypes["C_float_or_double"]}
-                ),
-                "store_current_outputs",
-                preamble=self.knl_common,
-                options=config.sim_config.devices["compiler_opts"],
             )
+
+    def _set_rational_network_knl(self):
+        """Initialise sparse device-resident rational-network terminals."""
+
+        arrays = htod_rational_network_arrays(self.grid.networkterminals, self.grid, self.queue)
+        for name, array in arrays.items():
+            setattr(self, f"rn_{name}_dev", array)
+        substitutions = {
+            "CUDA_IDX": "",
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "NY_RNINFO": 6,
+            "NY_RNPARAMS": 7,
+            "NY_RNWAVEWHOLE": self.grid.iterations + 1,
+            "NY_RNWAVEHALF": self.grid.iterations,
+            "NY_RNVOLTAGE": self.grid.iterations + 1,
+            "NY_RNCURRENT": self.grid.iterations,
+        }
+        self.update_rational_network_dev = self.elwiseknl(
+            self.ctx,
+            knl_rational_network.update_rational_network["args_opencl"].substitute(
+                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+            ),
+            knl_rational_network.update_rational_network["func"].substitute(substitutions),
+            "update_rational_network",
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+
+    def _planewave_kernel(self, specification, name):
+        """Build or reuse an OpenCL plane-wave elementwise kernel."""
+
+        try:
+            return self._planewave_kernel_cache[name]
+        except KeyError:
+            pass
+
+        arguments = specification["args_opencl"].substitute(
+            {
+                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            }
+        )
+        body = specification["func"].substitute(
+            {
+                "CUDA_IDX": "",
+                "TFSF_IDX": "int t = i;",
+                "REAL": config.sim_config.dtypes["C_float_or_double"],
+            }
+        )
+        kernel = self.elwiseknl(
+            self.ctx,
+            arguments,
+            body,
+            name,
+            preamble=self.knl_common,
+            options=config.sim_config.devices["compiler_opts"],
+        )
+        self._planewave_kernel_cache[name] = kernel
+        return kernel
+
+    def _set_planewave_knls(self):
+        """Initialise OpenCL auxiliary-grid and TFSF plane-wave kernels."""
+
+        self._planewave_kernel_cache = {}
+        self.grid.htod_mat_coeff_arrays(self.queue)
+
+        standard = (
+            ("initialise_1d_source_dev", "initialise_1d_source"),
+            ("update_1d_magnetic_dev", "update_1d_magnetic"),
+            ("update_1d_magnetic_pml_dev", "update_1d_magnetic_pml"),
+            ("update_1d_electric_dev", "update_1d_electric"),
+            ("update_1d_electric_pml_dev", "update_1d_electric_pml"),
+        )
+        dispersive = (
+            ("update_1d_electric_dispersive_A_dev", "update_1d_electric_dispersive_A"),
+            ("update_1d_electric_dispersive_B_dev", "update_1d_electric_dispersive_B"),
+        )
+        axial = (
+            ("update_1d_magnetic_axial_source_dev", "update_1d_magnetic_axial_source"),
+            (
+                "update_1d_magnetic_axial_source_pml_dev",
+                "update_1d_magnetic_axial_source_pml",
+            ),
+            ("update_1d_magnetic_axial_inject_dev", "update_1d_magnetic_axial_inject"),
+            ("update_1d_magnetic_axial_main_dev", "update_1d_magnetic_axial_main"),
+            (
+                "update_1d_magnetic_axial_main_pml_end_dev",
+                "update_1d_magnetic_axial_main_pml_end",
+            ),
+            (
+                "update_1d_magnetic_axial_main_pml_start_dev",
+                "update_1d_magnetic_axial_main_pml_start",
+            ),
+            ("update_1d_electric_axial_source_dev", "update_1d_electric_axial_source"),
+            (
+                "update_1d_electric_axial_source_pml_dev",
+                "update_1d_electric_axial_source_pml",
+            ),
+            ("update_1d_electric_axial_inject_dev", "update_1d_electric_axial_inject"),
+            ("update_1d_electric_axial_main_dev", "update_1d_electric_axial_main"),
+            (
+                "update_1d_electric_axial_main_pml_end_dev",
+                "update_1d_electric_axial_main_pml_end",
+            ),
+            (
+                "update_1d_electric_axial_main_pml_start_dev",
+                "update_1d_electric_axial_main_pml_start",
+            ),
+        )
+        axial_dispersive = (
+            (
+                "update_1d_electric_dispersive_axial_source_dev",
+                "update_1d_electric_dispersive_axial_source",
+            ),
+            (
+                "update_1d_electric_dispersive_axial_source_T_dev",
+                "update_1d_electric_dispersive_axial_source_T",
+            ),
+            (
+                "update_1d_electric_dispersive_axial_main_dev",
+                "update_1d_electric_dispersive_axial_main",
+            ),
+            (
+                "update_1d_electric_dispersive_axial_main_T_dev",
+                "update_1d_electric_dispersive_axial_main_T",
+            ),
+        )
+
+        for dpw in self.grid.discreteplanewaves:
+            self.grid.htod_planewave_arrays(dpw, self.queue)
+            for attribute, name in standard:
+                setattr(
+                    dpw,
+                    attribute,
+                    self._planewave_kernel(getattr(knl_planewave_updates, name), name),
+                )
+            if dpw.dispersive:
+                for attribute, name in dispersive:
+                    setattr(
+                        dpw,
+                        attribute,
+                        self._planewave_kernel(getattr(knl_planewave_updates, name), name),
+                    )
+
+            dpw.std_H_face_devs = [
+                self._planewave_kernel(kernel, kernel["name"])
+                for kernel in knl_tfsf_injection.STANDARD_H_KERNELS
+            ]
+            dpw.std_E_face_devs = [
+                self._planewave_kernel(kernel, kernel["name"])
+                for kernel in knl_tfsf_injection.STANDARD_E_KERNELS
+            ]
+
+            if dpw.axial != 0:
+                for attribute, name in axial:
+                    setattr(
+                        dpw,
+                        attribute,
+                        self._planewave_kernel(getattr(knl_planewave_updates, name), name),
+                    )
+                if dpw.dispersive:
+                    for attribute, name in axial_dispersive:
+                        setattr(
+                            dpw,
+                            attribute,
+                            self._planewave_kernel(getattr(knl_planewave_updates, name), name),
+                        )
+                dpw.axial_H_face_devs = [
+                    self._planewave_kernel(kernel, kernel["name"])
+                    for kernel in knl_tfsf_injection.AXIAL_H_KERNELS
+                ]
+                dpw.axial_E_face_devs = [
+                    self._planewave_kernel(kernel, kernel["name"])
+                    for kernel in knl_tfsf_injection.AXIAL_E_KERNELS
+                ]
+
+    @staticmethod
+    def _dpw_skip_axis(dpw, mode2d):
+        """Return the TFSF face-pair axis omitted by a 2D model."""
+
+        skip = getattr(dpw, "skip_axis", None)
+        if skip is not None:
+            return int(skip)
+        if mode2d is None or mode2d < 0:
+            return -1
+        return mode2d % 3
+
+    @staticmethod
+    def _dpw_face_configurations(dpw):
+        """Build the six flattened face launch descriptions."""
+
+        xs, ys, zs, xf, yf, zf = dpw.corners
+        ny_xface = yf - ys + 1
+        nz_xface = zf - zs + 1
+        nx_yface = xf - xs + 1
+        nz_yface = zf - zs + 1
+        nx_zface = xf - xs + 1
+        ny_zface = yf - ys + 1
+        return (
+            (ny_xface * nz_xface, ny_xface, nz_xface, xs, xs, ys, yf, zs, zf),
+            (ny_xface * nz_xface, ny_xface, nz_xface, xf, xf, ys, yf, zs, zf),
+            (nx_yface * nz_yface, nx_yface, nz_yface, xs, xf, ys, ys, zs, zf),
+            (nx_yface * nz_yface, nx_yface, nz_yface, xs, xf, yf, yf, zs, zf),
+            (nx_zface * ny_zface, nx_zface, ny_zface, xs, xf, ys, yf, zs, zs),
+            (nx_zface * ny_zface, nx_zface, ny_zface, xs, xf, ys, yf, zf, zf),
+        )
+
+    @staticmethod
+    def _launch_opencl(kernel, count, *arguments):
+        """Launch an elementwise kernel over an explicit logical range."""
+
+        if count > 0:
+            kernel(*arguments, range=slice(0, int(count)))
+
+    def _launch_standard_plane_wave_faces(self, dpw, magnetic):
+        """Apply homogeneous TFSF corrections to all active faces."""
+
+        kernels = dpw.std_H_face_devs if magnetic else dpw.std_E_face_devs
+        material = (
+            self.grid.updatecoeffsH[dpw.material.numID]
+            if magnetic
+            else self.grid.updatecoeffsE[dpw.material.numID]
+        )
+        fields = (
+            (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+            if magnetic
+            else (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)
+        )
+        incident = (
+            (dpw.E_fields_dev[0], dpw.E_fields_dev[1], dpw.E_fields_dev[2])
+            if magnetic
+            else (dpw.H_fields_dev[0], dpw.H_fields_dev[1], dpw.H_fields_dev[2])
+        )
+        real = config.sim_config.dtypes["float_or_double"]
+        skip_axis = self._dpw_skip_axis(dpw, getattr(self.grid, "mode2d", -1))
+
+        for index, (kernel, face) in enumerate(zip(kernels, self._dpw_face_configurations(dpw))):
+            if skip_axis == index // 2:
+                continue
+            count, ny_face, nz_face, xs, xf, ys, yf, zs, zf = face
+            coefficient = real(material[1 + index // 2])
+            self._launch_opencl(
+                kernel,
+                count,
+                np.int32(self.grid.ny + 1),
+                np.int32(self.grid.nz + 1),
+                np.int32(ny_face),
+                np.int32(nz_face),
+                np.int32(xs),
+                np.int32(xf),
+                np.int32(ys),
+                np.int32(yf),
+                np.int32(zs),
+                np.int32(zf),
+                np.int32(dpw.m[0]),
+                np.int32(dpw.m[1]),
+                np.int32(dpw.m[2]),
+                np.int32(dpw.origin[0]),
+                np.int32(dpw.origin[1]),
+                np.int32(dpw.origin[2]),
+                coefficient,
+                coefficient,
+                *fields,
+                *incident,
+            )
+
+    def _launch_axial_plane_wave_faces(self, dpw, magnetic):
+        """Apply heterogeneous axial TFSF corrections to all active faces."""
+
+        kernels = dpw.axial_H_face_devs if magnetic else dpw.axial_E_face_devs
+        fields = (
+            (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+            if magnetic
+            else (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)
+        )
+        incident = (
+            (dpw.E_fields_dev[0], dpw.E_fields_dev[1], dpw.E_fields_dev[2])
+            if magnetic
+            else (dpw.H_fields_dev[0], dpw.H_fields_dev[1], dpw.H_fields_dev[2])
+        )
+        skip_axis = self._dpw_skip_axis(dpw, getattr(self.grid, "mode2d", -1))
+
+        for index, (kernel, face) in enumerate(zip(kernels, self._dpw_face_configurations(dpw))):
+            if skip_axis == index // 2:
+                continue
+            count, ny_face, nz_face, xs, xf, ys, yf, zs, zf = face
+            self._launch_opencl(
+                kernel,
+                count,
+                np.int32(self.grid.ny + 1),
+                np.int32(self.grid.nz + 1),
+                np.int32(ny_face),
+                np.int32(nz_face),
+                np.int32(xs),
+                np.int32(xf),
+                np.int32(ys),
+                np.int32(yf),
+                np.int32(zs),
+                np.int32(zf),
+                np.int32(dpw.m[0]),
+                np.int32(dpw.m[1]),
+                np.int32(dpw.m[2]),
+                np.int32(dpw.origin[0]),
+                np.int32(dpw.origin[1]),
+                np.int32(dpw.origin[2]),
+                np.int32(dpw.origin_axial),
+                *fields,
+                *incident,
+                self.grid.ID_dev,
+            )
+
+    def _initialise_plane_wave_source(self, dpw, iteration, magnetic):
+        """Copy one projected waveform slice into its auxiliary source grid."""
+
+        m = int(dpw.m[3])
+        if m <= 0:
+            return
+        target = (
+            (dpw.H_fields_dev if dpw.axial == 0 else dpw.H_fields_s_dev)
+            if magnetic
+            else (dpw.E_fields_dev if dpw.axial == 0 else dpw.E_fields_s_dev)
+        )
+        source = dpw.source_h_dev if magnetic else dpw.source_e_dev
+        timestep = iteration if magnetic else iteration + 1
+        self._launch_opencl(
+            dpw.initialise_1d_source_dev,
+            3 * m,
+            np.int32(dpw.length),
+            np.int32(m),
+            np.int32(timestep),
+            target,
+            source,
+        )
+
+    def update_plane_waves_magnetic(self, iteration):
+        """Advance OpenCL auxiliary magnetic fields and inject the TFSF H faces."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        for dpw in self.grid.discreteplanewaves:
+            self._initialise_plane_wave_source(dpw, iteration, magnetic=True)
+            if dpw.axial != 0:
+                self._update_axial_plane_wave_magnetic(dpw)
+                continue
+
+            n = np.int32(dpw.length)
+            p = np.int32(dpw.pml_length)
+            m = np.int32(dpw.m[3])
+            mx, my, mz = (np.int32(value) for value in dpw.m[:3])
+            material = self.grid.updatecoeffsH[dpw.material.numID]
+            da, dbx, dby, dbz, source_coefficient = (real(material[index]) for index in range(5))
+            hx, hy, hz = (dpw.H_fields_dev[index] for index in range(3))
+            ex, ey, ez = (dpw.E_fields_dev[index] for index in range(3))
+
+            self._launch_opencl(
+                dpw.update_1d_magnetic_dev,
+                dpw.length - 2 * dpw.m[3],
+                n,
+                m,
+                mx,
+                my,
+                mz,
+                da,
+                dby,
+                dbz,
+                da,
+                dbx,
+                dbz,
+                da,
+                dbx,
+                dby,
+                hx,
+                hy,
+                hz,
+                ex,
+                ey,
+                ez,
+            )
+            self._launch_opencl(
+                dpw.update_1d_magnetic_pml_dev,
+                dpw.pml_length,
+                n,
+                p,
+                m,
+                mx,
+                my,
+                mz,
+                source_coefficient,
+                real(self.grid.dx),
+                real(self.grid.dy),
+                real(self.grid.dz),
+                hx,
+                hy,
+                hz,
+                ex,
+                ey,
+                ez,
+                dpw.Ix_dev[3],
+                dpw.Ix_dev[2],
+                dpw.Iy_dev[3],
+                dpw.Iy_dev[2],
+                dpw.Iz_dev[3],
+                dpw.Iz_dev[2],
+                *[dpw.pml_rhx_dev[index] for index in range(4)],
+                *[dpw.pml_rhy_dev[index] for index in range(4)],
+                *[dpw.pml_rhz_dev[index] for index in range(4)],
+            )
+            self._launch_standard_plane_wave_faces(dpw, magnetic=True)
+
+    def _update_axial_plane_wave_magnetic(self, dpw):
+        """Advance one heterogeneous axial magnetic auxiliary grid."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        n = np.int32(dpw.length)
+        p = np.int32(dpw.pml_length)
+        m = np.int32(dpw.m[3])
+        mx, my, mz = (np.int32(value) for value in dpw.m[:3])
+        dx, dy, dz = (real(value) for value in (self.grid.dx, self.grid.dy, self.grid.dz))
+        bulk_count = dpw.length - 2 * dpw.m[3]
+        pml_count = dpw.pml_length
+        main_count = dpw.length - 2 * dpw.m[3] + 1
+
+        hx_s, hy_s, hz_s = (dpw.H_fields_s_dev[index] for index in range(3))
+        ex_s, ey_s, ez_s = (dpw.E_fields_s_dev[index] for index in range(3))
+        hx, hy, hz = (dpw.H_fields_dev[index] for index in range(3))
+        ex, ey, ez = (dpw.E_fields_dev[index] for index in range(3))
+        material_arrays = (
+            dpw.ID_dev,
+            self.grid.updatecoeffsH_dev,
+            self.grid.updatecoeffsE_dev,
+        )
+
+        self._launch_opencl(
+            dpw.update_1d_magnetic_axial_source_dev,
+            bulk_count,
+            n,
+            m,
+            mx,
+            my,
+            mz,
+            hx_s,
+            hy_s,
+            hz_s,
+            ex_s,
+            ey_s,
+            ez_s,
+            *material_arrays,
+        )
+        self._launch_opencl(
+            dpw.update_1d_magnetic_axial_source_pml_dev,
+            pml_count,
+            n,
+            p,
+            m,
+            mx,
+            my,
+            mz,
+            dx,
+            dy,
+            dz,
+            hx_s,
+            hy_s,
+            hz_s,
+            ex_s,
+            ey_s,
+            ez_s,
+            dpw.Ix_s_dev[3],
+            dpw.Ix_s_dev[2],
+            dpw.Iy_s_dev[3],
+            dpw.Iy_s_dev[2],
+            dpw.Iz_s_dev[3],
+            dpw.Iz_s_dev[2],
+            *[dpw.pml_rhx0_dev[index] for index in range(4)],
+            *[dpw.pml_rhy0_dev[index] for index in range(4)],
+            *[dpw.pml_rhz0_dev[index] for index in range(4)],
+            *material_arrays,
+        )
+        self._launch_opencl(
+            dpw.update_1d_magnetic_axial_inject_dev,
+            1,
+            n,
+            np.int32(dpw.origin_axial),
+            mx,
+            my,
+            mz,
+            hx,
+            hy,
+            hz,
+            ex_s,
+            ey_s,
+            ez_s,
+            *material_arrays,
+        )
+        self._launch_opencl(
+            dpw.update_1d_magnetic_axial_main_dev,
+            main_count,
+            n,
+            m,
+            mx,
+            my,
+            mz,
+            hx,
+            hy,
+            hz,
+            ex,
+            ey,
+            ez,
+            *material_arrays,
+        )
+        self._launch_opencl(
+            dpw.update_1d_magnetic_axial_main_pml_end_dev,
+            pml_count,
+            n,
+            p,
+            m,
+            mx,
+            my,
+            mz,
+            dx,
+            dy,
+            dz,
+            hx,
+            hy,
+            hz,
+            ex,
+            ey,
+            ez,
+            dpw.Ix_dev[3],
+            dpw.Ix_dev[2],
+            dpw.Iy_dev[3],
+            dpw.Iy_dev[2],
+            dpw.Iz_dev[3],
+            dpw.Iz_dev[2],
+            *[dpw.pml_rhx_dev[index] for index in range(4)],
+            *[dpw.pml_rhy_dev[index] for index in range(4)],
+            *[dpw.pml_rhz_dev[index] for index in range(4)],
+            *material_arrays,
+        )
+        self._launch_opencl(
+            dpw.update_1d_magnetic_axial_main_pml_start_dev,
+            pml_count,
+            n,
+            p,
+            mx,
+            my,
+            mz,
+            dx,
+            dy,
+            dz,
+            hx,
+            hy,
+            hz,
+            ex,
+            ey,
+            ez,
+            dpw.Ix0_dev[3],
+            dpw.Ix0_dev[2],
+            dpw.Iy0_dev[3],
+            dpw.Iy0_dev[2],
+            dpw.Iz0_dev[3],
+            dpw.Iz0_dev[2],
+            *[dpw.pml_rhx0_dev[index] for index in range(4)],
+            *[dpw.pml_rhy0_dev[index] for index in range(4)],
+            *[dpw.pml_rhz0_dev[index] for index in range(4)],
+            *material_arrays,
+        )
+        self._launch_axial_plane_wave_faces(dpw, magnetic=True)
+
+    def update_plane_waves_electric(self, iteration):
+        """Advance OpenCL auxiliary electric fields and inject the TFSF E faces."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        for dpw in self.grid.discreteplanewaves:
+            self._initialise_plane_wave_source(dpw, iteration, magnetic=False)
+            if dpw.axial != 0:
+                self._update_axial_plane_wave_electric(dpw)
+                continue
+
+            n = np.int32(dpw.length)
+            p = np.int32(dpw.pml_length)
+            m = np.int32(dpw.m[3])
+            mx, my, mz = (np.int32(value) for value in dpw.m[:3])
+            material = self.grid.updatecoeffsE[dpw.material.numID]
+            ca, cbx, cby, cbz, source_coefficient = (real(material[index]) for index in range(5))
+            ex, ey, ez = (dpw.E_fields_dev[index] for index in range(3))
+            hx, hy, hz = (dpw.H_fields_dev[index] for index in range(3))
+            bulk_count = dpw.length - 2 * dpw.m[3]
+
+            if not dpw.dispersive:
+                self._launch_opencl(
+                    dpw.update_1d_electric_dev,
+                    bulk_count,
+                    n,
+                    m,
+                    mx,
+                    my,
+                    mz,
+                    ca,
+                    cby,
+                    cbz,
+                    ca,
+                    cbx,
+                    cbz,
+                    ca,
+                    cbx,
+                    cby,
+                    ex,
+                    ey,
+                    ez,
+                    hx,
+                    hy,
+                    hz,
+                )
+            else:
+                material_id = dpw.material.numID
+                coefficients = self.grid.updatecoeffsdispersive_dev[material_id]
+                poles = np.int32(config.get_model_config().materials["maxpoles"])
+                self._launch_opencl(
+                    dpw.update_1d_electric_dispersive_A_dev,
+                    bulk_count,
+                    n,
+                    m,
+                    mx,
+                    my,
+                    mz,
+                    poles,
+                    ca,
+                    cbx,
+                    cby,
+                    cbz,
+                    source_coefficient,
+                    coefficients,
+                    dpw.Px_dev,
+                    dpw.Py_dev,
+                    dpw.Pz_dev,
+                    ex,
+                    ey,
+                    ez,
+                    hx,
+                    hy,
+                    hz,
+                )
+
+            self._launch_opencl(
+                dpw.update_1d_electric_pml_dev,
+                dpw.pml_length,
+                n,
+                p,
+                m,
+                mx,
+                my,
+                mz,
+                source_coefficient,
+                real(self.grid.dx),
+                real(self.grid.dy),
+                real(self.grid.dz),
+                ex,
+                ey,
+                ez,
+                hx,
+                hy,
+                hz,
+                dpw.Ix_dev[1],
+                dpw.Ix_dev[0],
+                dpw.Iy_dev[1],
+                dpw.Iy_dev[0],
+                dpw.Iz_dev[1],
+                dpw.Iz_dev[0],
+                *[dpw.pml_rex_dev[index] for index in range(4)],
+                *[dpw.pml_rey_dev[index] for index in range(4)],
+                *[dpw.pml_rez_dev[index] for index in range(4)],
+            )
+            if dpw.dispersive:
+                self._launch_opencl(
+                    dpw.update_1d_electric_dispersive_B_dev,
+                    bulk_count,
+                    n,
+                    m,
+                    np.int32(config.get_model_config().materials["maxpoles"]),
+                    self.grid.updatecoeffsdispersive_dev[dpw.material.numID],
+                    dpw.Px_dev,
+                    dpw.Py_dev,
+                    dpw.Pz_dev,
+                    ex,
+                    ey,
+                    ez,
+                )
+            self._launch_standard_plane_wave_faces(dpw, magnetic=False)
+
+    def _update_axial_plane_wave_electric(self, dpw):
+        """Advance one heterogeneous axial electric auxiliary grid."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        n = np.int32(dpw.length)
+        p = np.int32(dpw.pml_length)
+        m = np.int32(dpw.m[3])
+        mx, my, mz = (np.int32(value) for value in dpw.m[:3])
+        dx, dy, dz = (real(value) for value in (self.grid.dx, self.grid.dy, self.grid.dz))
+        bulk_count = dpw.length - 2 * dpw.m[3]
+        pml_count = dpw.pml_length
+
+        ex_s, ey_s, ez_s = (dpw.E_fields_s_dev[index] for index in range(3))
+        hx_s, hy_s, hz_s = (dpw.H_fields_s_dev[index] for index in range(3))
+        ex, ey, ez = (dpw.E_fields_dev[index] for index in range(3))
+        hx, hy, hz = (dpw.H_fields_dev[index] for index in range(3))
+        material_arrays = (
+            dpw.ID_dev,
+            self.grid.updatecoeffsH_dev,
+            self.grid.updatecoeffsE_dev,
+        )
+
+        if not dpw.dispersive:
+            self._launch_opencl(
+                dpw.update_1d_electric_axial_source_dev,
+                bulk_count,
+                n,
+                m,
+                mx,
+                my,
+                mz,
+                ex_s,
+                ey_s,
+                ez_s,
+                hx_s,
+                hy_s,
+                hz_s,
+                *material_arrays,
+            )
+        else:
+            poles = np.int32(config.get_model_config().materials["maxpoles"])
+            self._launch_opencl(
+                dpw.update_1d_electric_dispersive_axial_source_dev,
+                bulk_count,
+                n,
+                m,
+                mx,
+                my,
+                mz,
+                poles,
+                dpw.Px_s_dev,
+                dpw.Py_s_dev,
+                dpw.Pz_s_dev,
+                ex_s,
+                ey_s,
+                ez_s,
+                hx_s,
+                hy_s,
+                hz_s,
+                dpw.ID_dev,
+                self.grid.updatecoeffsE_dev,
+                self.grid.updatecoeffsdispersive_dev,
+            )
+
+        self._launch_opencl(
+            dpw.update_1d_electric_axial_source_pml_dev,
+            pml_count,
+            n,
+            p,
+            m,
+            mx,
+            my,
+            mz,
+            dx,
+            dy,
+            dz,
+            ex_s,
+            ey_s,
+            ez_s,
+            hx_s,
+            hy_s,
+            hz_s,
+            dpw.Ix_s_dev[1],
+            dpw.Ix_s_dev[0],
+            dpw.Iy_s_dev[1],
+            dpw.Iy_s_dev[0],
+            dpw.Iz_s_dev[1],
+            dpw.Iz_s_dev[0],
+            *[dpw.pml_rex0_dev[index] for index in range(4)],
+            *[dpw.pml_rey0_dev[index] for index in range(4)],
+            *[dpw.pml_rez0_dev[index] for index in range(4)],
+            *material_arrays,
+        )
+        if dpw.dispersive:
+            self._launch_opencl(
+                dpw.update_1d_electric_dispersive_axial_source_T_dev,
+                bulk_count,
+                n,
+                m,
+                poles,
+                dpw.Px_s_dev,
+                dpw.Py_s_dev,
+                dpw.Pz_s_dev,
+                ex_s,
+                ey_s,
+                ez_s,
+                dpw.ID_dev,
+                self.grid.updatecoeffsdispersive_dev,
+            )
+
+        self._launch_opencl(
+            dpw.update_1d_electric_axial_inject_dev,
+            1,
+            n,
+            np.int32(dpw.origin_axial),
+            mx,
+            my,
+            mz,
+            ex,
+            ey,
+            ez,
+            hx_s,
+            hy_s,
+            hz_s,
+            *material_arrays,
+        )
+        if not dpw.dispersive:
+            self._launch_opencl(
+                dpw.update_1d_electric_axial_main_dev,
+                bulk_count,
+                n,
+                m,
+                mx,
+                my,
+                mz,
+                ex,
+                ey,
+                ez,
+                hx,
+                hy,
+                hz,
+                *material_arrays,
+            )
+        else:
+            self._launch_opencl(
+                dpw.update_1d_electric_dispersive_axial_main_dev,
+                bulk_count,
+                n,
+                m,
+                mx,
+                my,
+                mz,
+                poles,
+                dpw.Px_dev,
+                dpw.Py_dev,
+                dpw.Pz_dev,
+                ex,
+                ey,
+                ez,
+                hx,
+                hy,
+                hz,
+                dpw.ID_dev,
+                self.grid.updatecoeffsE_dev,
+                self.grid.updatecoeffsdispersive_dev,
+            )
+
+        self._launch_opencl(
+            dpw.update_1d_electric_axial_main_pml_end_dev,
+            pml_count,
+            n,
+            p,
+            m,
+            mx,
+            my,
+            mz,
+            dx,
+            dy,
+            dz,
+            ex,
+            ey,
+            ez,
+            hx,
+            hy,
+            hz,
+            dpw.Ix_dev[1],
+            dpw.Ix_dev[0],
+            dpw.Iy_dev[1],
+            dpw.Iy_dev[0],
+            dpw.Iz_dev[1],
+            dpw.Iz_dev[0],
+            *[dpw.pml_rex_dev[index] for index in range(4)],
+            *[dpw.pml_rey_dev[index] for index in range(4)],
+            *[dpw.pml_rez_dev[index] for index in range(4)],
+            *material_arrays,
+        )
+        self._launch_opencl(
+            dpw.update_1d_electric_axial_main_pml_start_dev,
+            pml_count,
+            n,
+            p,
+            mx,
+            my,
+            mz,
+            dx,
+            dy,
+            dz,
+            ex,
+            ey,
+            ez,
+            hx,
+            hy,
+            hz,
+            dpw.Ix0_dev[1],
+            dpw.Ix0_dev[0],
+            dpw.Iy0_dev[1],
+            dpw.Iy0_dev[0],
+            dpw.Iz0_dev[1],
+            dpw.Iz0_dev[0],
+            *[dpw.pml_rex0_dev[index] for index in range(4)],
+            *[dpw.pml_rey0_dev[index] for index in range(4)],
+            *[dpw.pml_rez0_dev[index] for index in range(4)],
+            *material_arrays,
+        )
+        if dpw.dispersive:
+            self._launch_opencl(
+                dpw.update_1d_electric_dispersive_axial_main_T_dev,
+                bulk_count,
+                n,
+                m,
+                poles,
+                dpw.Px_dev,
+                dpw.Py_dev,
+                dpw.Pz_dev,
+                ex,
+                ey,
+                ez,
+                dpw.ID_dev,
+                self.grid.updatecoeffsdispersive_dev,
+            )
+
+        self._launch_axial_plane_wave_faces(dpw, magnetic=False)
 
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on compute device, prepares kernel and
@@ -466,6 +1612,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             knl_snapshots.store_snapshot["func"].substitute(
                 {
                     "CUDA_IDX": "",
+                    "REAL": config.sim_config.dtypes["C_float_or_double"],
                     "NX_SNAPS": Snapshot.nx_max,
                     "NY_SNAPS": Snapshot.ny_max,
                     "NZ_SNAPS": Snapshot.nz_max,
@@ -491,6 +1638,20 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
+            if self.nrxcurrent:
+                real = config.sim_config.dtypes["float_or_double"]
+                self.store_current_outputs_dev(
+                    np.int32(self.nrxcurrent),
+                    np.int32(iteration),
+                    self.rxcurrentinfo_dev,
+                    self.rxcurrents_dev,
+                    real(self.grid.dx),
+                    real(self.grid.dy),
+                    real(self.grid.dz),
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                )
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -572,6 +1733,62 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if collector is not None:
             collector.observe_magnetic(iteration)
 
+    def observe_eigenmode_ports(self, iteration):
+        """Project modal port fields and accumulate DFTs on OpenCL."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        for monitor in self.grid.eigenmodeports:
+            if iteration != monitor._next_iteration:
+                raise RuntimeError(
+                    f"expected eigenmode DFT iteration {monitor._next_iteration}, "
+                    f"received {iteration}"
+                )
+            owner = monitor.owner
+            arrays = monitor.device_arrays
+            nf, nm = monitor.electric_dft.shape
+            self.accumulate_eigenmode_dft_dev(
+                np.int32(nf),
+                np.int32(nm),
+                np.int32(owner.normal_axis),
+                np.int32(1 if owner.direction == "+" else -1),
+                np.int32(monitor.magnetic_side),
+                np.int32(owner.transverse_start[0]),
+                np.int32(owner.transverse_start[1]),
+                np.int32(owner.transverse_stop[0]),
+                np.int32(owner.transverse_stop[1]),
+                np.int32(owner.plane_index),
+                real(self.grid.dt),
+                real(monitor.measure),
+                np.int32(monitor.handedness),
+                arrays["electric_phase_real"],
+                arrays["electric_phase_imag"],
+                arrays["magnetic_phase_real"],
+                arrays["magnetic_phase_imag"],
+                arrays["phase_step_real"],
+                arrays["phase_step_imag"],
+                arrays["conj_eu_real"],
+                arrays["conj_eu_imag"],
+                arrays["conj_ev_real"],
+                arrays["conj_ev_imag"],
+                arrays["conj_hu_real"],
+                arrays["conj_hu_imag"],
+                arrays["conj_hv_real"],
+                arrays["conj_hv_imag"],
+                arrays["electric_dft_real"],
+                arrays["electric_dft_imag"],
+                arrays["magnetic_dft_real"],
+                arrays["magnetic_dft_imag"],
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+                range=slice(0, nf),
+            )
+            monitor._next_iteration += 1
+            reanchor_device_eigenmode_monitor(monitor, self.grid, "opencl")
+
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -579,6 +1796,27 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
     def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
+        if self.grid.transmissionlines:
+            self.update_transmission_line_magnetic_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_info_dev,
+                self.tl_resistance_dev,
+                self.tl_waveform_half_dev,
+                self.tl_voltage_dev,
+                self.tl_current_dev,
+                self.tl_Vtotal_dev,
+                self.tl_Itotal_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+                range=slice(0, len(self.grid.transmissionlines)),
+            )
+
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
@@ -626,6 +1864,144 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                     self.grid.Hz_dev,
                 )
 
+    def _launch_eigenmode_source(self, source, iteration, magnetic):
+        nu, nv = np.asarray(source.transverse_stop) - np.asarray(source.transverse_start)
+        npoints = int((nu + 1) * (nv + 1))
+        kernel = (
+            self.update_eigenmode_magnetic_dev if magnetic else self.update_eigenmode_electric_dev
+        )
+        profiles = source.device_electric_profiles if magnetic else source.device_magnetic_profiles
+        fields = (
+            (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+            if magnetic
+            else (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)
+        )
+        coefficients = self.grid.updatecoeffsH_dev if magnetic else self.grid.updatecoeffsE_dev
+        real = config.sim_config.dtypes["float_or_double"]
+        for basis, envelope in eigenmode_source_envelopes(source, self.grid, iteration, magnetic):
+            kernel(
+                np.int32(npoints),
+                np.int32(source.normal_axis),
+                np.int32(1 if source.direction == "+" else -1),
+                np.int32(source.transverse_start[0]),
+                np.int32(source.transverse_start[1]),
+                np.int32(source.transverse_stop[0]),
+                np.int32(source.transverse_stop[1]),
+                np.int32(source.plane_index),
+                np.int32(basis),
+                real(envelope),
+                profiles,
+                coefficients,
+                self.grid.ID_dev,
+                *fields,
+                range=slice(0, npoints),
+            )
+
+    def update_eigenmode_sources_magnetic(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, True)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_magnetic(guide, iteration)
+
+    def update_eigenmode_sources_electric(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, False)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_electric(guide, iteration)
+
+    def _virtual_scalars(self, guide, npoints):
+        aux = guide.aux_grid
+        return (
+            np.int32(npoints),
+            np.int32(guide.normal_axis),
+            np.int32(guide.direction_sign),
+            np.int32(guide.u0),
+            np.int32(guide.v0),
+            np.int32(guide.u1),
+            np.int32(guide.v1),
+            np.int32(guide.plane_index),
+            np.int32(aux.nx),
+            np.int32(aux.ny),
+            np.int32(aux.nz),
+        )
+
+    @staticmethod
+    def _virtual_launch(kernel, npoints, *arguments):
+        kernel(*arguments, range=slice(0, npoints))
+
+    def _update_virtual_waveguide_magnetic(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_magnetic()
+        child.update_magnetic_pml()
+        child.update_eigenmode_sources_magnetic(iteration)
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_h = (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+        aux_h = (
+            guide.aux_grid.Hx_dev,
+            guide.aux_grid.Hy_dev,
+            guide.aux_grid.Hz_dev,
+        )
+        self._virtual_launch(
+            self.couple_virtual_magnetic_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            *main_h,
+            *aux_h,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_magnetic_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            *main_h,
+            *aux_h,
+        )
+
+    def _update_virtual_waveguide_electric(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_electric_a()
+        child.update_electric_pml()
+        child.update_eigenmode_sources_electric(iteration)
+        child.update_electric_b()
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_fields = (
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            self.grid.Hx_dev,
+            self.grid.Hy_dev,
+            self.grid.Hz_dev,
+        )
+        aux_fields = (
+            guide.aux_grid.Ex_dev,
+            guide.aux_grid.Ey_dev,
+            guide.aux_grid.Ez_dev,
+            guide.aux_grid.Hx_dev,
+            guide.aux_grid.Hy_dev,
+            guide.aux_grid.Hz_dev,
+        )
+        self._virtual_launch(
+            self.couple_virtual_electric_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            guide.aux_grid.updatecoeffsE_dev,
+            guide.aux_grid.ID_dev,
+            *main_fields,
+            *aux_fields,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_electric_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            guide.aux_grid.Ex_dev,
+            guide.aux_grid.Ey_dev,
+            guide.aux_grid.Ez_dev,
+        )
+
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
@@ -665,22 +2041,75 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             )
 
     def update_symmetry_boundaries_electric(self):
-        """Apply the nondispersive PMC ghost-image correction on OpenCL."""
+        """Apply the PMC ghost-image correction on OpenCL."""
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
-
-        self.update_electric_pmc_dev(
+        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        kernel = (
+            self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
+        )
+        leading = [
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
+        ]
+        if dispersive:
+            leading.append(np.int32(config.get_model_config().materials["maxpoles"]))
+        arguments = [
+            *leading,
+            *self._pmc_flags(),
+        ]
+        if dispersive:
+            arguments.extend(
+                [
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                    self.grid.updatecoeffsdispersive_dev,
+                    self.grid.Tx_dev,
+                    self.grid.Ty_dev,
+                    self.grid.Tz_dev,
+                ]
+            )
+        else:
+            arguments.extend(
+                [
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                ]
+            )
+        kernel(*arguments)
+
+    def update_symmetry_boundaries_electric_b(self):
+        """Complete the dispersive PMC ADE update on OpenCL."""
+        if (
+            "pmc" not in self.grid.symmetry_boundaries.values()
+            or config.get_model_config().materials["maxpoles"] == 0
+        ):
+            return
+        self.update_electric_pmc_dispersive_b_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            np.int32(config.get_model_config().materials["maxpoles"]),
             *self._pmc_flags(),
             self.grid.ID_dev,
             self.grid.Ex_dev,
             self.grid.Ey_dev,
             self.grid.Ez_dev,
-            self.grid.Hx_dev,
-            self.grid.Hy_dev,
-            self.grid.Hz_dev,
+            self.grid.updatecoeffsdispersive_dev,
+            self.grid.Tx_dev,
+            self.grid.Ty_dev,
+            self.grid.Tz_dev,
         )
 
     def update_electric_pml(self):
@@ -708,6 +2137,28 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ez_dev,
             )
 
+        if self.grid.transmissionlines:
+            self.update_transmission_line_electric_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_abc_coefficient,
+                self.tl_info_dev,
+                self.tl_resistance_dev,
+                self.tl_waveform_whole_dev,
+                self.tl_voltage_dev,
+                self.tl_current_dev,
+                self.tl_abcv0_dev,
+                self.tl_abcv1_dev,
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                range=slice(0, len(self.grid.transmissionlines)),
+            )
+
         if self.grid.hertziandipoles:
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
@@ -723,7 +2174,6 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ey_dev,
                 self.grid.Ez_dev,
             )
-
 
     def update_electric_b(self):
         """If there are any dispersive materials do 2nd part of dispersive
@@ -747,6 +2197,41 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.grid.Ty_dev,
                 self.grid.Tz_dev,
             )
+
+    def update_network_terminals(self, iteration):
+        """Apply sparse rational-network corrections entirely on OpenCL."""
+
+        if not self.grid.networkterminals:
+            return
+        self.update_rational_network_dev(
+            np.int32(len(self.grid.networkterminals)),
+            np.int32(iteration),
+            config.sim_config.dtypes["float_or_double"](self.grid.dt),
+            self.rn_info_dev,
+            self.rn_params_dev,
+            self.rn_waveform_whole_dev,
+            self.rn_waveform_half_dev,
+            self.rn_voltage_dev,
+            self.rn_current_dev,
+            self.rn_exp_half_real_dev,
+            self.rn_exp_half_imag_dev,
+            self.rn_coeff_half_new_real_dev,
+            self.rn_coeff_half_new_imag_dev,
+            self.rn_coeff_half_old_real_dev,
+            self.rn_coeff_half_old_imag_dev,
+            self.rn_exp_full_real_dev,
+            self.rn_exp_full_imag_dev,
+            self.rn_coeff_full_new_real_dev,
+            self.rn_coeff_full_new_imag_dev,
+            self.rn_coeff_full_old_real_dev,
+            self.rn_coeff_full_old_imag_dev,
+            self.rn_state_real_dev,
+            self.rn_state_imag_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            range=slice(0, len(self.grid.networkterminals)),
+        )
 
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""
@@ -777,12 +2262,13 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if collector is not None:
             collector.finalise()
 
+        if getattr(self.grid, "eigenmodeports", ()):
+            finalise_device_eigenmode_monitors(self.grid.eigenmodeports, "opencl")
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             currents = self.rxcurrents_dev.get() if self.nrxcurrent else None
-            dtoh_rx_array(
-                self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents
-            )
+            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents)
 
         if self.grid.magneticfrillsources:
             dtoh_magnetic_frill_source_outputs(
@@ -790,6 +2276,16 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 self.frill_Vtotal_dev.get(),
                 self.frill_Itot_dev.get(),
                 self.grid,
+            )
+
+        if self.grid.transmissionlines:
+            dtoh_transmission_line_outputs(
+                self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
+            )
+
+        if getattr(self.grid, "networkterminals", ()):
+            dtoh_rational_network_outputs(
+                self.rn_voltage_dev.get(), self.rn_current_dev.get(), self.grid
             )
 
         # Copy data from any snapshots back to correct snapshot objects

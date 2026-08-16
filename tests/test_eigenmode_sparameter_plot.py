@@ -6,11 +6,11 @@ import h5py
 import numpy as np
 import pytest
 
-from testing.regression.eigenmode_sources.cases.bending_waveguide.plot_bend_comparison import (
+from testing.regression.eigenmode_sources.bending_waveguide.plot_bend_comparison import (
     plot_comparison,
 )
-from testing.regression.eigenmode_sources.cases.plot_sparameters import plot_tree
-from testing.regression.eigenmode_sources.cases.validate_sparameters import (
+from testing.regression.eigenmode_sources.plot_sparameters import plot_tree
+from testing.regression.eigenmode_sources.validate_sparameters import (
     validate_tree,
 )
 from testing.regression.eigenmode_sources.plot_snapshots import snapshot_paths

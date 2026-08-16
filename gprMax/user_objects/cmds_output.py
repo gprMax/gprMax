@@ -48,6 +48,7 @@ from gprMax.ntff.interface import (
 )
 from gprMax.ports import (
     DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+    RationalNetworkPortOutput,
     RxPortOverride,
     VoltageSourcePortMonitor,
     validate_spectrum_limit,
@@ -60,6 +61,27 @@ from gprMax.user_objects.user_objects import OutputUserObject
 from gprMax.utilities.utilities import round_int
 
 logger = logging.getLogger(__name__)
+
+
+def _reserve_mpi_port_output_id(
+    grid: FDTDGrid, requested: Optional[str], owner: OutputUserObject
+) -> str:
+    """Reserve one output ID consistently while every MPI rank parses the scene."""
+
+    used = grid.mpi_port_output_ids
+    if requested is None:
+        index = 1
+        while f"port{index}" in used:
+            index += 1
+        output_id = f"port{index}"
+    else:
+        validate_identifier("port output ID", requested)
+        output_id = requested
+    if output_id in used:
+        raise ValueError(f"port output ID {output_id!r} is already in use.")
+    used.append(output_id)
+    grid.mpi_port_output_owners[output_id] = owner
+    return output_id
 
 
 class RxPort(OutputUserObject):
@@ -124,10 +146,13 @@ class RxPort(OutputUserObject):
         raise RuntimeError("RxPort result is not available until the model has solved")
 
     def _validate_context(self, grid):
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} does not yet support MPI.")
-        if config.sim_config.args.geometry_fixed:
-            raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
+        if config.sim_config.args.geometry_fixed and getattr(
+            config.sim_config.study, "type", None
+        ) not in ("port", "source"):
+            raise ValueError(
+                f"{self.params_str()} does not support geometry-fixed runs outside a "
+                "PortStudy or SourceStudy."
+            )
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
         if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
@@ -135,14 +160,21 @@ class RxPort(OutputUserObject):
 
     def build(self, model: Model, grid: FDTDGrid):
         self._validate_context(grid)
+        mpi_output_id = (
+            _reserve_mpi_port_output_id(grid, self.ID, self) if config.sim_config.mpi else None
+        )
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
         point_within_grid, coord = uip.check_src_rx_point(self.point, self.params_str())
         if not point_within_grid:
             return
 
-        voltage_candidates = [source for source in grid.voltagesources if np.array_equal(source.coord, coord)]
-        frill_candidates = [source for source in grid.magneticfrillsources if np.array_equal(source.coord, coord)]
+        voltage_candidates = [
+            source for source in grid.voltagesources if np.array_equal(source.coord, coord)
+        ]
+        frill_candidates = [
+            source for source in grid.magneticfrillsources if np.array_equal(source.coord, coord)
+        ]
         candidates = voltage_candidates + frill_candidates
         if len(candidates) != 1:
             raise ValueError(
@@ -159,23 +191,34 @@ class RxPort(OutputUserObject):
             return
 
         if not np.isfinite(source.resistance) or source.resistance < 0:
-            raise ValueError(f"{self.params_str()} requires a finite, non-negative voltage-source resistance")
+            raise ValueError(
+                f"{self.params_str()} requires a finite, non-negative voltage-source resistance"
+            )
         if any(monitor.source is source for monitor in grid.port_monitors):
             raise ValueError(f"{self.params_str()} source already has an RxPort output.")
 
         if self.ID is None:
-            used = {monitor.output_id for monitor in grid.port_monitors}
-            index = 1
-            while f"port{index}" in used:
-                index += 1
-            output_id = f"port{index}"
+            if mpi_output_id is not None:
+                output_id = mpi_output_id
+            else:
+                used = {monitor.output_id for monitor in grid.port_monitors}
+                index = 1
+                while f"port{index}" in used:
+                    index += 1
+                output_id = f"port{index}"
         else:
-            validate_identifier("RxPort ID", self.ID)
-            output_id = self.ID
+            if mpi_output_id is not None:
+                output_id = mpi_output_id
+            else:
+                validate_identifier("RxPort ID", self.ID)
+                output_id = self.ID
         if any(monitor.output_id == output_id for monitor in grid.port_monitors):
             raise ValueError(f"{self.params_str()} output ID is already in use.")
 
-        if self.spectrum_limit != "nyquist" and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS:
+        if (
+            self.spectrum_limit != "nyquist"
+            and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS
+        ):
             logger.warning(
                 f"{self.params_str()} requests only {self.spectrum_limit:g} cells "
                 "per shortest material wavelength; values below 10 may have "
@@ -206,7 +249,9 @@ class RxPort(OutputUserObject):
                 )
             # CPU and device solvers store the identical requested-only
             # Ampere-loop component at the magnetic half step.
-            receiver.outputs[f"I{source.polarisation}"] = np.zeros(grid.iterations, dtype=real_dtype)
+            receiver.outputs[f"I{source.polarisation}"] = np.zeros(
+                grid.iterations, dtype=real_dtype
+            )
 
         monitor = VoltageSourcePortMonitor(
             output_id,
@@ -245,7 +290,10 @@ class RxPort(OutputUserObject):
         if getattr(source, "_rx_port_override", None) is not None:
             raise ValueError(f"{self.params_str()} source already has an RxPort output.")
 
-        if self.spectrum_limit != "nyquist" and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS:
+        if (
+            self.spectrum_limit != "nyquist"
+            and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS
+        ):
             logger.warning(
                 f"{self.params_str()} requests only {self.spectrum_limit:g} cells "
                 "per shortest material wavelength; values below 10 may have "
@@ -258,6 +306,98 @@ class RxPort(OutputUserObject):
         logger.info(
             f"RxPort spectrum_limit override bound to the magnetic frill "
             f"source at {position[0]:g}m, {position[1]:g}m, {position[2]:g}m."
+        )
+
+
+class NetworkPort(OutputUserObject):
+    """Request port quantities for a rational-network terminal."""
+
+    @property
+    def order(self):
+        return 16
+
+    @property
+    def hash(self):
+        return "#network_port"
+
+    def __init__(
+        self,
+        terminal_id: str,
+        reference_impedance: float = 50.0,
+        spectrum_limit=DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+    ):
+        spectrum_limit = validate_spectrum_limit(spectrum_limit)
+        super().__init__(
+            terminal_id=terminal_id,
+            reference_impedance=reference_impedance,
+            spectrum_limit=spectrum_limit,
+        )
+        self.terminal_id = terminal_id
+        self.reference_impedance = float(reference_impedance)
+        self.spectrum_limit = spectrum_limit
+        self._monitor = None
+
+    @property
+    def result(self):
+        if self._monitor is None or self._monitor.result is None:
+            raise RuntimeError("NetworkPort result is not available until the model has solved")
+        return self._monitor.result
+
+    def build(self, model: Model, grid: FDTDGrid):
+        from gprMax.studies import SourceStudy
+
+        if config.sim_config.args.geometry_fixed and not isinstance(
+            config.sim_config.study, SourceStudy
+        ):
+            raise ValueError(f"{self.params_str()} does not support geometry-fixed runs.")
+        if config.get_model_config().mode != "3D":
+            raise ValueError(f"{self.params_str()} currently supports only 3-D models.")
+        validate_identifier("NetworkPort terminal ID", self.terminal_id)
+        if self.terminal_id not in grid.networkterminal_specs:
+            raise ValueError(
+                f"{self.params_str()} there is no network terminal with ID {self.terminal_id!r}."
+            )
+        if not np.isfinite(self.reference_impedance) or self.reference_impedance <= 0:
+            raise ValueError(
+                f"{self.params_str()} reference impedance must be finite and positive."
+            )
+        if (
+            self.spectrum_limit != "nyquist"
+            and self.spectrum_limit < DEFAULT_MINIMUM_WAVELENGTH_CELLS
+        ):
+            logger.warning(
+                f"{self.params_str()} requests only {self.spectrum_limit:g} cells "
+                "per shortest material wavelength; values below 10 may have "
+                "significant spatial-dispersion error."
+            )
+        if config.sim_config.mpi:
+            _reserve_mpi_port_output_id(grid, self.terminal_id, self)
+        elif any(monitor.output_id == self.terminal_id for monitor in grid.port_monitors):
+            raise ValueError(f"{self.params_str()} output ID is already in use.")
+        terminal = next(
+            (item for item in grid.networkterminals if item.ID == self.terminal_id), None
+        )
+        if terminal is None:
+            # MPI point objects are instantiated only on their owning rank.
+            if config.sim_config.mpi:
+                return
+            raise RuntimeError(f"{self.params_str()} terminal definition was not instantiated")
+        if terminal.output is not None:
+            raise ValueError(f"{self.params_str()} terminal already has a NetworkPort output.")
+
+        monitor = RationalNetworkPortOutput(
+            self.terminal_id,
+            terminal,
+            self.reference_impedance,
+            self.spectrum_limit,
+            owner=self,
+        )
+        terminal.output = monitor
+        grid.port_monitors.append(monitor)
+        self._monitor = monitor
+        logger.info(
+            self.grid_name(grid) + f"NetworkPort {self.terminal_id!r}: reference impedance "
+            f"{self.reference_impedance:g} Ohms."
         )
 
 
@@ -280,6 +420,10 @@ class Snapshot(OutputUserObject):
                             '.vtkhdf' (default) or '.h5'
         outputs: optional list of outputs for receiver. It can be any
                     selection from Ex, Ey, Ez, Hx, Hy, or Hz.
+
+    A snapshot added to an HSG subgrid uses that grid's spatial and temporal
+    discretisation. Its output origin is expressed in global model
+    coordinates.
     """
 
     @property
@@ -326,9 +470,6 @@ class Snapshot(OutputUserObject):
         return start + step * np.ceil(size / step)
 
     def build(self, model: Model, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} do not add snapshots to subgrids.")
-
         uip = self._create_uip(grid)
         self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
         self.upper_bound = uip.resolve_inf_point(self.upper_bound, role="upper")
@@ -341,7 +482,9 @@ class Snapshot(OutputUserObject):
 
         # If p2 does not line up with the set discretisation, the actual
         # maximum element accessed in the grid will be this upper bound.
-        upper_bound = self._calculate_upper_bound(discretised_lower_bound, discretised_dl, snapshot_size)
+        upper_bound = self._calculate_upper_bound(
+            discretised_lower_bound, discretised_dl, snapshot_size
+        )
 
         # Each coordinate may need a different method to correct p2.
         # Therefore, this check needs to be repeated after each
@@ -366,8 +509,12 @@ class Snapshot(OutputUserObject):
             # discretisation may need reducing. E.g. for snapshots of 2D
             # models.
             elif any(discretised_dl > snapshot_size):
-                discretised_dl = np.where(discretised_dl > snapshot_size, snapshot_size, discretised_dl)
-                upper_bound = self._calculate_upper_bound(discretised_lower_bound, discretised_dl, snapshot_size)
+                discretised_dl = np.where(
+                    discretised_dl > snapshot_size, snapshot_size, discretised_dl
+                )
+                upper_bound = self._calculate_upper_bound(
+                    discretised_lower_bound, discretised_dl, snapshot_size
+                )
                 dl_continuous = discretised_dl * grid.dl
                 logger.warning(
                     f"{self.params_str()} current bounds and discretisation would go outside"
@@ -385,7 +532,9 @@ class Snapshot(OutputUserObject):
                     discretised_upper_bound,
                 )
                 snapshot_size = discretised_upper_bound - discretised_lower_bound
-                upper_bound = self._calculate_upper_bound(discretised_lower_bound, discretised_dl, snapshot_size)
+                upper_bound = self._calculate_upper_bound(
+                    discretised_lower_bound, discretised_dl, snapshot_size
+                )
                 upper_bound_continuous = discretised_upper_bound * grid.dl
                 logger.warning(
                     f"{self.params_str()} current bounds and discretisation would go outside"
@@ -400,10 +549,14 @@ class Snapshot(OutputUserObject):
         if any(discretised_dl < 0):
             raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
         if any(discretised_dl < 1):
-            raise ValueError(f"{self.params_str()} the step size should not be less than the spatial discretisation.")
+            raise ValueError(
+                f"{self.params_str()} the step size should not be less than the spatial discretisation."
+            )
 
         if self.iterations is not None and self.time is not None:
-            logger.warning(f"{self.params_str()} Time and iterations were both specified, using 'iterations'")
+            logger.warning(
+                f"{self.params_str()} Time and iterations were both specified, using 'iterations'"
+            )
 
         # If number of iterations given
         if self.iterations is not None:
@@ -477,12 +630,15 @@ def _check_ksir_interface_context(user_object, grid):
             f"{user_object.params_str()} must be defined on the main grid; "
             "its closed surface may enclose complete subgrids."
         )
-    if config.sim_config.mpi:
-        raise ValueError(f"{user_object.params_str()} does not yet support MPI.")
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
-        raise ValueError(f"{user_object.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers.")
+        raise ValueError(
+            f"{user_object.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
+        )
     if config.sim_config.args.geometry_fixed:
-        raise ValueError(f"{user_object.params_str()} does not support geometry-fixed runs.")
+        from gprMax.studies import PlaneWaveStudy, SourceStudy
+
+        if not isinstance(config.sim_config.study, (PlaneWaveStudy, SourceStudy)):
+            raise ValueError(f"{user_object.params_str()} does not support geometry-fixed runs.")
     if config.get_model_config().mode != "3D":
         raise ValueError(f"{user_object.params_str()} currently supports only 3-D models.")
 
@@ -491,7 +647,12 @@ def _ksir_points(values, real_dtype, name="points"):
     points = np.asarray(values, dtype=real_dtype)
     if points.ndim == 1:
         points = points[np.newaxis, :]
-    if points.ndim != 2 or points.shape[0] == 0 or points.shape[1] != 3 or not np.all(np.isfinite(points)):
+    if (
+        points.ndim != 2
+        or points.shape[0] == 0
+        or points.shape[1] != 3
+        or not np.all(np.isfinite(points))
+    ):
         raise ValueError(f"{name} must have shape (npoints, 3) and be finite")
     points = np.ascontiguousarray(points)
     points.setflags(write=False)
@@ -539,7 +700,10 @@ def _ksir_outputs(requested, defaults, allowed, params):
         raise ValueError(f"{params} outputs must not contain duplicates")
     unknown = set(outputs) - set(allowed)
     if unknown:
-        raise ValueError(f"{params} unknown outputs {sorted(unknown)}; allowed outputs are " f"{', '.join(allowed)}")
+        raise ValueError(
+            f"{params} unknown outputs {sorted(unknown)}; allowed outputs are "
+            f"{', '.join(allowed)}"
+        )
     component_dependencies(outputs)
     return outputs
 
@@ -557,7 +721,9 @@ def _ksir_array_points(p1, p2, dl, real_dtype):
         or np.any(step < 0)
         or np.any((upper > lower) & (step == 0))
     ):
-        raise ValueError("KSIR array bounds require finite p1 <= p2 and a positive step on every varying axis")
+        raise ValueError(
+            "KSIR array bounds require finite p1 <= p2 and a positive step on every varying axis"
+        )
     axes = []
     tolerance = max(1e-9, 16 * np.finfo(np.dtype(real_dtype)).eps)
     for start, stop, increment in zip(lower, upper, step):
@@ -618,7 +784,16 @@ class NTFFSurface(OutputUserObject):
         uip = self._create_uip(grid)
         self.lower_bound = uip.resolve_inf_point(self.lower_bound, role="lower")
         self.upper_bound = uip.resolve_inf_point(self.upper_bound, role="upper")
-        lower, upper = uip.check_output_object_bounds(self.lower_bound, self.upper_bound, self.params_str())
+        lower, upper = uip.check_output_object_bounds(
+            self.lower_bound, self.upper_bound, self.params_str()
+        )
+        # Main-grid user coordinates are translated into each rank's local
+        # frame during MPI parsing. NTFF surfaces are global objects which
+        # are partitioned only after the Yee grid has been built, so retain
+        # one identical global definition on every rank.
+        if hasattr(grid, "global_size"):
+            lower = grid.local_to_global_coordinate(lower)
+            upper = grid.local_to_global_coordinate(upper)
         origin = None
         if self.origin is not None:
             values = np.asarray(self.origin, dtype=config.sim_config.dtypes["float_or_double"])
@@ -715,7 +890,9 @@ class KSIRFrequencyTransform(OutputUserObject):
             or np.any(values < 0)
             or len(np.unique(values)) != values.size
         ):
-            raise ValueError(f"{self.params_str()} frequencies must be unique, finite, non-negative values")
+            raise ValueError(
+                f"{self.params_str()} frequencies must be unique, finite, non-negative values"
+            )
         try:
             validate_nyquist_frequencies(self.frequencies, grid.dt)
         except ValueError as exc:
@@ -813,7 +990,9 @@ class KSIRTimeRx(_NTFFRequest):
             raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
         if self.time_origin not in TIME_ORIGINS:
             raise ValueError(f"{self.params_str()} time origin must be {' or '.join(TIME_ORIGINS)}")
-        outputs = _ksir_outputs(self.outputs, CARTESIAN_OUTPUTS, CARTESIAN_OUTPUTS, self.params_str())
+        outputs = _ksir_outputs(
+            self.outputs, CARTESIAN_OUTPUTS, CARTESIAN_OUTPUTS, self.params_str()
+        )
         related = [item for item in grid.ksir_time_requests if item.surface_id == self.surface_id]
         output_id = _ksir_output_id(related, self.ID, "rx")
         if any(item.output_id == output_id for item in related):
@@ -854,7 +1033,9 @@ class KSIRTimeRxArray(KSIRTimeRx):
         )
 
     def _points(self, grid):
-        return _ksir_array_points(self.p1, self.p2, self.dl, config.sim_config.dtypes["float_or_double"])
+        return _ksir_array_points(
+            self.p1, self.p2, self.dl, config.sim_config.dtypes["float_or_double"]
+        )
 
 
 class KSIRTimeRxSpherical(KSIRTimeRx):
@@ -865,7 +1046,9 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
         return "#ksir_time_rx_spherical"
 
     def __init__(self, r, theta, phi, surface_id, id=None, outputs=None, time_origin="simulation"):
-        super().__init__((r, theta, phi), surface_id, id=id, outputs=outputs, time_origin=time_origin)
+        super().__init__(
+            (r, theta, phi), surface_id, id=id, outputs=outputs, time_origin=time_origin
+        )
         self.r, self.theta, self.phi = r, theta, phi
         self.kwargs = dict(
             r=r,
@@ -883,13 +1066,17 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
             raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
         if self.time_origin not in TIME_ORIGINS:
             raise ValueError(f"{self.params_str()} time origin must be {' or '.join(TIME_ORIGINS)}")
-        outputs = _ksir_outputs(self.outputs, SPHERICAL_OUTPUTS, SPHERICAL_OUTPUTS, self.params_str())
+        outputs = _ksir_outputs(
+            self.outputs, SPHERICAL_OUTPUTS, SPHERICAL_OUTPUTS, self.params_str()
+        )
         dtype = config.sim_config.dtypes["float_or_double"]
         spherical = _ksir_spherical_coordinates(self.r, self.theta, self.phi, dtype)
         surface = grid.ntff_surface_specs[self.surface_id]
         origin = surface_reference_origin(surface, grid, dtype)
         points = _ksir_points(
-            spherical_observation_points(origin, spherical[:, 0], spherical[:, 1], spherical[:, 2], degrees=True),
+            spherical_observation_points(
+                origin, spherical[:, 0], spherical[:, 1], spherical[:, 2], degrees=True
+            ),
             dtype,
         )
         related = [item for item in grid.ksir_time_requests if item.surface_id == self.surface_id]
@@ -937,9 +1124,15 @@ class KSIRFrequencyRx(_NTFFRequest):
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
         if self.transform_id not in grid.ksir_transform_specs:
-            raise ValueError(f"{self.params_str()} refers to unknown transform {self.transform_id!r}")
-        outputs = _ksir_outputs(self.outputs, CARTESIAN_OUTPUTS, CARTESIAN_OUTPUTS, self.params_str())
-        related = [item for item in grid.ksir_frequency_requests if item.transform_id == self.transform_id]
+            raise ValueError(
+                f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
+            )
+        outputs = _ksir_outputs(
+            self.outputs, CARTESIAN_OUTPUTS, CARTESIAN_OUTPUTS, self.params_str()
+        )
+        related = [
+            item for item in grid.ksir_frequency_requests if item.transform_id == self.transform_id
+        ]
         output_id = _ksir_output_id(related, self.ID, "rx")
         if any(item.output_id == output_id for item in related):
             raise ValueError(f"{self.params_str()} output ID {output_id!r} is already in use")
@@ -970,7 +1163,9 @@ class KSIRFrequencyRxArray(KSIRFrequencyRx):
         self.kwargs = dict(p1=p1, p2=p2, dl=dl, transform_id=transform_id, id=id, outputs=outputs)
 
     def _points(self, grid):
-        return _ksir_array_points(self.p1, self.p2, self.dl, config.sim_config.dtypes["float_or_double"])
+        return _ksir_array_points(
+            self.p1, self.p2, self.dl, config.sim_config.dtypes["float_or_double"]
+        )
 
 
 class KSIRFrequencyRxSpherical(KSIRFrequencyRx):
@@ -983,23 +1178,33 @@ class KSIRFrequencyRxSpherical(KSIRFrequencyRx):
     def __init__(self, r, theta, phi, transform_id, id=None, outputs=None):
         super().__init__((r, theta, phi), transform_id, id=id, outputs=outputs)
         self.r, self.theta, self.phi = r, theta, phi
-        self.kwargs = dict(r=r, theta=theta, phi=phi, transform_id=transform_id, id=id, outputs=outputs)
+        self.kwargs = dict(
+            r=r, theta=theta, phi=phi, transform_id=transform_id, id=id, outputs=outputs
+        )
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
         if self.transform_id not in grid.ksir_transform_specs:
-            raise ValueError(f"{self.params_str()} refers to unknown transform {self.transform_id!r}")
-        outputs = _ksir_outputs(self.outputs, SPHERICAL_OUTPUTS, SPHERICAL_OUTPUTS, self.params_str())
+            raise ValueError(
+                f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
+            )
+        outputs = _ksir_outputs(
+            self.outputs, SPHERICAL_OUTPUTS, SPHERICAL_OUTPUTS, self.params_str()
+        )
         dtype = config.sim_config.dtypes["float_or_double"]
         spherical = _ksir_spherical_coordinates(self.r, self.theta, self.phi, dtype)
         transform = grid.ksir_transform_specs[self.transform_id]
         surface = grid.ntff_surface_specs[transform.surface_id]
         origin = surface_reference_origin(surface, grid, dtype)
         points = _ksir_points(
-            spherical_observation_points(origin, spherical[:, 0], spherical[:, 1], spherical[:, 2], degrees=True),
+            spherical_observation_points(
+                origin, spherical[:, 0], spherical[:, 1], spherical[:, 2], degrees=True
+            ),
             dtype,
         )
-        related = [item for item in grid.ksir_frequency_requests if item.transform_id == self.transform_id]
+        related = [
+            item for item in grid.ksir_frequency_requests if item.transform_id == self.transform_id
+        ]
         output_id = _ksir_output_id(related, self.ID, "rx")
         if any(item.output_id == output_id for item in related):
             raise ValueError(f"{self.params_str()} output ID {output_id!r} is already in use")
@@ -1049,7 +1254,9 @@ class KSIRFarField(_NTFFRequest):
         self.outputs = outputs
 
     def _angles(self, dtype):
-        theta, phi = np.broadcast_arrays(np.asarray(self.theta, dtype=dtype), np.asarray(self.phi, dtype=dtype))
+        theta, phi = np.broadcast_arrays(
+            np.asarray(self.theta, dtype=dtype), np.asarray(self.phi, dtype=dtype)
+        )
         if theta.size == 0 or not np.all(np.isfinite(theta)) or not np.all(np.isfinite(phi)):
             raise ValueError(f"{self.params_str()} angles must be finite and non-empty")
         if np.any(theta < 0) or np.any(theta > 180):
@@ -1060,13 +1267,19 @@ class KSIRFarField(_NTFFRequest):
         _check_ksir_interface_context(self, grid)
         transform_specs = getattr(grid, self.transform_specs_attr)
         if self.transform_id not in transform_specs:
-            raise ValueError(f"{self.params_str()} refers to unknown transform {self.transform_id!r}")
+            raise ValueError(
+                f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
+            )
         allowed = SPHERICAL_OUTPUTS + CARTESIAN_OUTPUTS + FAR_METRICS
         outputs = _ksir_outputs(self.outputs, ("Etheta", "Ephi"), allowed, self.params_str())
         theta, phi = self._angles(config.sim_config.dtypes["float_or_double"])
         theta.setflags(write=False)
         phi.setflags(write=False)
-        related = [item for item in getattr(grid, self.far_requests_attr) if item.transform_id == self.transform_id]
+        related = [
+            item
+            for item in getattr(grid, self.far_requests_attr)
+            if item.transform_id == self.transform_id
+        ]
         output_id = _ksir_output_id(related, self.ID, "ff")
         if any(item.output_id == output_id for item in related):
             raise ValueError(f"{self.params_str()} output ID {output_id!r} is already in use")
@@ -1189,7 +1402,9 @@ class NTFFTimeFarField(KSIRFarField):
         theta, phi = self._angles(config.sim_config.dtypes["float_or_double"])
         theta.setflags(write=False)
         phi.setflags(write=False)
-        related = [item for item in grid.ntff_time_far_field_requests if item.surface_id == self.surface_id]
+        related = [
+            item for item in grid.ntff_time_far_field_requests if item.surface_id == self.surface_id
+        ]
         output_id = _ksir_output_id(related, self.ID, "ff")
         if any(item.output_id == output_id for item in related):
             raise ValueError(f"{self.params_str()} output ID {output_id!r} is already in use")
@@ -1283,7 +1498,9 @@ class KSIRAntennaPorts(OutputUserObject):
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
         if self.transform_id not in getattr(grid, self.transform_specs_attr):
-            raise ValueError(f"{self.params_str()} refers to unknown transform {self.transform_id!r}")
+            raise ValueError(
+                f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
+            )
         if not self.port_ids:
             raise ValueError(f"{self.params_str()} requires at least one port ID")
         for port_id in self.port_ids:
@@ -1293,7 +1510,8 @@ class KSIRAntennaPorts(OutputUserObject):
             parts = port_id.split("/")
             if len(parts) not in (1, 2):
                 raise ValueError(
-                    "antenna port reference must be a main-grid port ID or " "'<subgrid ID>/<local port ID>'"
+                    "antenna port reference must be a main-grid port ID or "
+                    "'<subgrid ID>/<local port ID>'"
                 )
             for part in parts:
                 validate_identifier("antenna port reference component", part)
@@ -1302,7 +1520,8 @@ class KSIRAntennaPorts(OutputUserObject):
         antenna_specs = getattr(grid, self.antenna_specs_attr)
         if self.transform_id in antenna_specs:
             raise ValueError(
-                f"{self.formulation_label} transform {self.transform_id!r} already has " "an antenna-port group"
+                f"{self.formulation_label} transform {self.transform_id!r} already has "
+                "an antenna-port group"
             )
 
         # Subgrid objects are built after main-grid output commands. Resolve
@@ -1384,10 +1603,13 @@ class GeometryView(OutputUserObject):
         if any(discretised_dl < 0):
             raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
         if any(discretised_dl > grid.size):
-            raise ValueError(f"{self.params_str()} the step size should be less than the domain size.")
+            raise ValueError(
+                f"{self.params_str()} the step size should be less than the domain size."
+            )
         if any(discretised_dl < 1):
             raise ValueError(
-                f"{self.params_str()} the step size should not be less than the spatial" " discretisation."
+                f"{self.params_str()} the step size should not be less than the spatial"
+                " discretisation."
             )
         if self.output_type == "f" and any(discretised_dl != 1):
             raise ValueError(
@@ -1411,7 +1633,9 @@ class GeometryView(OutputUserObject):
                 self.filename,
             )
         else:
-            raise ValueError(f"{self.params_str()} requires type to be either n (normal) or f (fine).")
+            raise ValueError(
+                f"{self.params_str()} requires type to be either n (normal) or f (fine)."
+            )
 
         if g is not None:
             p1 = uip.round_to_grid_static_point(self.lower_bound)
@@ -1448,7 +1672,9 @@ class GeometryObjectsWrite(OutputUserObject):
     def hash(self):
         return "#geometry_objects_write"
 
-    def __init__(self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], filename: str):
+    def __init__(
+        self, p1: Tuple[float, float, float], p2: Tuple[float, float, float], filename: str
+    ):
         super().__init__(p1=p1, p2=p2, filename=filename)
         self.lower_bound = p1
         self.upper_bound = p2
@@ -1466,7 +1692,9 @@ class GeometryObjectsWrite(OutputUserObject):
             self.lower_bound, self.upper_bound, self.params_str()
         )
 
-        g = model.add_geometry_object(grid, discretised_lower_bound, discretised_upper_bound, self.basefilename)
+        g = model.add_geometry_object(
+            grid, discretised_lower_bound, discretised_upper_bound, self.basefilename
+        )
 
         if g is not None:
             p1 = uip.round_to_grid_static_point(self.lower_bound)

@@ -8,7 +8,11 @@ from pathlib import Path
 import pytest
 
 import gprMax
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400, antenna_like_GSSI_1500
+from toolboxes.GPRAntennaModels.GSSI import (
+    antenna_like_GSSI_400,
+    antenna_like_GSSI_1500,
+    antenna_like_GSSI_2000,
+)
 from toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
 
 
@@ -29,6 +33,49 @@ def test_gssi_1500_custom_optimisation_parameters_build_source():
 
     assert any(isinstance(obj, gprMax.Waveform) for obj in objects)
     assert any(isinstance(obj, gprMax.VoltageSource) for obj in objects)
+
+
+def test_gssi_2000_geometry_and_feed_match_published_model():
+    position = (0.125, 0.125, 0.04)
+    objects = antenna_like_GSSI_2000(*position)
+
+    assert sum(isinstance(obj, gprMax.Material) for obj in objects) == 10
+    assert sum(isinstance(obj, gprMax.Box) for obj in objects) == 26
+    assert sum(isinstance(obj, gprMax.Plate) for obj in objects) == 69
+    assert sum(isinstance(obj, gprMax.Edge) for obj in objects) == 2
+
+    waveform = next(obj for obj in objects if isinstance(obj, gprMax.Waveform))
+    source = next(obj for obj in objects if isinstance(obj, gprMax.VoltageSource))
+    receiver = next(obj for obj in objects if isinstance(obj, gprMax.Rx))
+    materials = {
+        obj.kwargs["id"]: obj
+        for obj in objects
+        if isinstance(obj, gprMax.Material)
+    }
+
+    assert waveform.kwargs["amp"] == -1
+    assert waveform.kwargs["freq"] == pytest.approx(2.12e9)
+    assert source.point == pytest.approx((0.105, 0.124, 0.043))
+    assert source.resistance == pytest.approx(560)
+    assert receiver.point == pytest.approx((0.145, 0.124, 0.043))
+    assert receiver.outputs == ["Ey"]
+    assert materials["gssi2000_rxres"].kwargs["se"] == pytest.approx(0.0049998)
+    assert materials["gssi2000_absorber1"].kwargs["se"] == pytest.approx(1.0869565)
+    assert materials["gssi2000_absorber2"].kwargs["se"] == pytest.approx(1.2658228)
+
+    geometry = [obj for obj in objects if isinstance(obj, (gprMax.Box, gprMax.Plate, gprMax.Edge))]
+    points = [obj.kwargs[key] for obj in geometry for key in ("p1", "p2")]
+    assert min(point[0] for point in points) == pytest.approx(position[0] - 0.043)
+    assert max(point[0] for point in points) == pytest.approx(position[0] + 0.043)
+    assert min(point[1] for point in points) == pytest.approx(position[1] - 0.045)
+    assert max(point[1] for point in points) == pytest.approx(position[1] + 0.045)
+    assert min(point[2] for point in points) == pytest.approx(position[2])
+    assert max(point[2] for point in points) == pytest.approx(position[2] + 0.068)
+
+
+def test_gssi_2000_rejects_unsupported_resolution():
+    with pytest.raises(ValueError, match="1 mm"):
+        antenna_like_GSSI_2000(0.5, 0.5, 0.1, resolution=0.002)
 
 
 def test_gssi_400_rejects_unsupported_resolution():

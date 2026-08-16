@@ -1,0 +1,17 @@
+#title: FMCW impulse response from a layered target in a dielectric half-space
+#domain_mode: TM
+#domain: 0.600 0.400 inf
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 40e-9
+
+#material: 4.1 0 1 0 overburden
+#material: 6 0 1 0 target
+
+#waveform: impulse 1 1 impulse
+#hertzian_dipole: z 0.200 0.320 inf impulse
+#rx: 0.240 0.320 inf response Ez
+
+#box: 0 0 0 0.600 0.280 inf overburden
+#box: 0 0 0 0.600 0.100 inf target
+
+#geometry_view: 0 0 0 0.600 0.400 inf 0.002 0.002 0.002 layered_fmcw_2D n

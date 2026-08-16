@@ -71,7 +71,7 @@ class Model:
 
         # Set number of OpenMP threads to physical threads at this point to be
         # used with threaded model building methods, e.g. fractals. Can be
-        # changed by the user via #num_threads command in input file or via API
+        # changed by the user via #omp_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
 
@@ -374,15 +374,29 @@ class Model:
         for grid in grids:
             grid.update_sources_and_recievers()
 
+        # A Study supplies absolute per-case state after the legacy linear
+        # src/rx stepping hooks. This ordering makes Study authoritative and,
+        # because it restores its captured baseline first, prevents changes
+        # leaking from one reused-geometry run into the next.
+        if config.sim_config.study is not None:
+            config.sim_config.study.apply_case(self)
+
         # Magnetic-frill sources bind the attached thin-wire radius, resolve
         # symmetry, validate the PEC ground plane, and precompute their
         # feed-cell recurrence here. This needs final material coefficients
         # and symmetry boundaries, which do not exist during scene parsing.
-        # MPI use is rejected by the source builder; a frill can belong to a
-        # CPU subgrid and is then prepared against that fine grid.
+        # On MPI grids a frill is replicated so its four-edge feed stencil can
+        # span ranks; on a CPU subgrid it is prepared against that fine grid.
         for grid in grids:
             for frill in grid.magneticfrillsources:
                 frill.finalise_setup(grid)
+
+        # Rational networks are local terminal corrections. Bind their final
+        # Yee material/source coefficient and initialise sparse pole state only
+        # after grid.build() has completed.
+        for grid in grids:
+            for terminal in getattr(grid, "networkterminals", ()):
+                terminal.prepare(grid)
 
         # Voltage-source ports bind their receiver during scene processing,
         # but their effective edge material and update coefficient only exist
@@ -475,39 +489,33 @@ class Model:
             grid.dispersion_analysis(self.iterations)
 
     def _check_stateful_sources_with_geometry_fixed(self, grids: Sequence[FDTDGrid]):
-        # TransmissionLine and DiscretePlaneWave each carry their own
-        # persistent internal state (TL: voltage/current/ABC history;
-        # DPW: its own internal 1D E/H-field and PML-integral arrays) that
-        # is never reset between geometry_fixed reuse runs (only grid
-        # fields/PMLs are). Neither source can even vary between those
-        # runs in the first place - TransmissionLine is explicitly
-        # excluded from #src_steps repositioning
-        # (FDTDGrid.update_simple_source_positions()), and a
-        # DiscretePlaneWave's angle/direction is fixed once at scene-parse
-        # time with no per-run mechanism to change it. So with
-        # geometry_fixed and more than one model requested, every run
-        # after the first would silently reuse the exact same source at
-        # the exact same configuration, contaminated by the previous
-        # run's leftover internal state - not a "reuse the geometry, vary
-        # something else" scenario at all, just a broken repeat of an
-        # identical model. (A stepped receiver/dipole elsewhere in the
-        # same scene doesn't need multiple runs either - use multiple
-        # #rx commands, or #src_steps/#rx_steps, in a single run instead.)
-        # Eigenmode sources and receivers also attach persistent modal DFT
-        # accumulators, recursive phase state, and derived S-parameters to
-        # their grids. grid.reset_fields() does not reset any of that state.
+        # These sources and monitors own state outside the principal Yee
+        # arrays cleared by grid.reset_fields(). Unmanaged geometry-fixed
+        # repetition would therefore contaminate later runs. Each specialised
+        # Study listed below provides the corresponding explicit reset and
+        # per-case reconfiguration contract; retain the protective rejection
+        # for all other geometry-fixed workflows.
         if config.sim_config.geometry_fixed and config.sim_config.number_of_models > 1:
-            if any(grid.transmissionlines for grid in grids):
+            from gprMax.studies import SourceStudy
+
+            if not isinstance(config.sim_config.study, SourceStudy) and any(
+                grid.transmissionlines for grid in grids
+            ):
                 raise ValueError(
                     "#transmission_line cannot be used with geometry_fixed when more "
                     "than one model is requested (n > 1) - a transmission line's "
                     "internal state (voltage/current/ABC history) is not reset "
                     "between reused-geometry runs, and it cannot be repositioned "
                     "via #src_steps, so every run after the first would silently "
-                    "repeat the identical, contaminated source. Run a single model "
-                    "instead, or use #voltage_source if you need geometry_fixed."
+                    "repeat the identical, contaminated source. Use a SourceStudy "
+                    "to vary and reset a fixed transmission-line terminal, or run "
+                    "a single model instead."
                 )
-            if any(grid.discreteplanewaves for grid in grids):
+            from gprMax.studies import PlaneWaveStudy
+
+            if not isinstance(config.sim_config.study, PlaneWaveStudy) and any(
+                grid.discreteplanewaves for grid in grids
+            ):
                 raise ValueError(
                     "A discrete plane wave command cannot be used with "
                     "geometry_fixed when more than one model is requested (n > 1) "
@@ -515,27 +523,36 @@ class Model:
                     "PML-integral arrays) is not reset between reused-geometry "
                     "runs, and its angle/direction cannot vary between runs, so "
                     "every run after the first would silently repeat the "
-                    "identical, contaminated source. Run a single model instead."
+                    "identical, contaminated source. Use a PlaneWaveStudy to vary "
+                    "and rebuild the TFSF source, or run a single model instead."
                 )
-            if any(grid.magneticfrillsources for grid in grids):
+            if not isinstance(config.sim_config.study, SourceStudy) and any(
+                grid.magneticfrillsources for grid in grids
+            ):
                 raise ValueError(
                     "#magnetic_frill_source cannot be used with geometry_fixed "
                     "when more than one model is requested (n > 1) - its "
                     "internal voltage/current history arrays are not reset "
                     "between reused-geometry runs, so every run after the "
                     "first would retain state from the previous run and "
-                    "contaminate "
-                    "Vtotal/S11/Zin output with no error. Run a single model "
-                    "instead."
+                    "contaminate Vtotal/S11/Zin output with no error. Use a "
+                    "SourceStudy to vary and reset the fixed frill terminal, or "
+                    "run a single model instead."
                 )
-            if any(grid.eigenmodesources or grid.eigenmodereceivers for grid in grids):
+            from gprMax.studies import EigenmodeStudy
+
+            if not isinstance(config.sim_config.study, EigenmodeStudy) and any(
+                grid.eigenmodesources or grid.eigenmodereceivers or grid.virtual_waveguide_specs
+                for grid in grids
+            ):
                 raise ValueError(
-                    "EigenmodeBand, EigenmodePort, and EigenmodeExcitation cannot "
+                    "EigenmodeBand, EigenmodePort, EigenmodeExcitation, and "
+                    "VirtualWaveguide cannot "
                     "be used with geometry_fixed when more "
                     "than one model is requested (n > 1) - their modal DFT "
                     "accumulators, recursive phase state, and derived "
-                    "S-parameters are not reset between reused-geometry runs. "
-                    "Run a single model instead."
+                    "S-parameters are not reset between reused-geometry runs. Use "
+                    "an EigenmodeStudy, or run a single model instead."
                 )
 
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
@@ -552,9 +569,7 @@ class Model:
             # coefficients, silently truncating them (numpy raises only a
             # ComplexWarning on such an assignment, not an error).
             config.get_model_config().materials["drudelorentz"] = any(
-                "drude" in m.type or "lorentz" in m.type
-                for grid in grids
-                for m in grid.materials
+                "drude" in m.type or "lorentz" in m.type for grid in grids for m in grid.materials
             )
 
             # Set data type if any dispersive materials (must be done before memory checks)
@@ -574,17 +589,11 @@ class Model:
             # own flag rather than the global one.
 
     def _check_accelerator_symmetry_boundaries(self, grids: Sequence[FDTDGrid]):
-        """Reject accelerator PMC after material dispersion is resolved."""
-        solver = config.sim_config.general["solver"]
-        maxpoles = config.get_model_config().materials["maxpoles"]
-        has_pmc = any("pmc" in grid.symmetry_boundaries.values() for grid in grids)
+        """Reserved parity check after material dispersion is resolved."""
 
-        if solver in ("cuda", "opencl", "metal") and maxpoles > 0 and has_pmc:
-            raise ValueError(
-                "Dispersive PMC symmetry boundaries currently require the CPU "
-                "solver. PEC and nondispersive PMC symmetry are supported by "
-                "CUDA, OpenCL, and Apple Metal."
-            )
+        # All local backends now implement both phases of the dispersive PMC
+        # ADE update. Keep this hook because future backends may need an
+        # explicit capability check here.
 
     def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory
@@ -644,6 +653,9 @@ class Model:
         for grid in [self.G] + self.subgrids:
             finalise_transmission_line_ports(grid)
             finalise_magnetic_frill_ports(grid)
+
+        if config.sim_config.study is not None:
+            config.sim_config.study.collect_case(self)
 
         # Write output data to file if they are any receivers in any grids
         sg_rxs = [True for sg in self.subgrids if sg.rxs]

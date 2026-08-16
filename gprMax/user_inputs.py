@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -30,6 +30,7 @@ from gprMax import config
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.utilities.mpi import Dim, Dir
 
 from .utilities.utilities import round_int
 
@@ -412,15 +413,30 @@ class MPIUserInput(MainGridUserInput[MPIGrid]):
     ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         _, lower_point, upper_point = super().check_box_points(p1, p2, cmd_str)
 
+        # Determine overlap before clipping. A zero-thickness dimension is a
+        # plane coordinate rather than an interval. Coordinates on an internal
+        # positive rank face belong to the neighbouring rank, while a
+        # coordinate on the global maximum face must remain on the terminal
+        # rank. The latter is required for edges and plates on xmax/ymax/zmax.
+        overlaps = []
+        for dimension in Dim:
+            lower = lower_point[dimension]
+            upper = upper_point[dimension]
+            size = self.grid.size[dimension]
+
+            if lower == upper:
+                overlaps.append(
+                    0 <= lower < size
+                    or (lower == size and not self.grid.has_neighbour(dimension, Dir.POS))
+                )
+            else:
+                overlaps.append(lower < size and upper > 0)
+
         # Restrict points to the bounds of the local grid
         lower_point = np.where(lower_point < 0, 0, lower_point)
         upper_point = np.where(upper_point > self.grid.size, self.grid.size, upper_point)
 
-        return (
-            all(lower_point <= upper_point) and all(lower_point < self.grid.size),
-            lower_point,
-            upper_point,
-        )
+        return all(overlaps), lower_point, upper_point
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):

@@ -1,0 +1,190 @@
+{
+  "reference_length_cells": 50,
+  "cell_size_mm": 0.2,
+  "frequency_band_ghz": [
+    30.000000000000004,
+    45.0
+  ],
+  "results": {
+    "empty": [
+      {
+        "length_cells": 0,
+        "length_mm": 0.0,
+        "worst_s11_db": 0.0039475361563187416,
+        "median_s11_db": -4.1353173743504916e-05,
+        "worst_excess_vs_long_db": 0.04122210820704717,
+        "median_excess_vs_long_db": -0.0015384264559232957
+      },
+      {
+        "length_cells": 4,
+        "length_mm": 0.8,
+        "worst_s11_db": -26.99413370710937,
+        "median_s11_db": -36.74456031631654,
+        "worst_excess_vs_long_db": -28.964187589378433,
+        "median_excess_vs_long_db": -36.85794331024508
+      },
+      {
+        "length_cells": 6,
+        "length_mm": 1.2000000000000002,
+        "worst_s11_db": -31.684501054338533,
+        "median_s11_db": -53.910773682197245,
+        "worst_excess_vs_long_db": -42.70872155949554,
+        "median_excess_vs_long_db": -55.695896974799794
+      },
+      {
+        "length_cells": 8,
+        "length_mm": 1.6,
+        "worst_s11_db": -32.58940270921166,
+        "median_s11_db": -51.462586788672226,
+        "worst_excess_vs_long_db": -51.57747567098894,
+        "median_excess_vs_long_db": -64.53647003705608
+      },
+      {
+        "length_cells": 10,
+        "length_mm": 2.0,
+        "worst_s11_db": -32.66346138195167,
+        "median_s11_db": -51.1300242792755,
+        "worst_excess_vs_long_db": -54.54623689157516,
+        "median_excess_vs_long_db": -66.95479780616185
+      },
+      {
+        "length_cells": 12,
+        "length_mm": 2.4000000000000004,
+        "worst_s11_db": -32.61797306005902,
+        "median_s11_db": -50.94212260661578,
+        "worst_excess_vs_long_db": -57.051650984461574,
+        "median_excess_vs_long_db": -69.63546966928214
+      },
+      {
+        "length_cells": 16,
+        "length_mm": 3.2,
+        "worst_s11_db": -32.484983262485,
+        "median_s11_db": -50.74595601752449,
+        "worst_excess_vs_long_db": -61.89745050401665,
+        "median_excess_vs_long_db": -74.60889819590959
+      },
+      {
+        "length_cells": 20,
+        "length_mm": 4.0,
+        "worst_s11_db": -32.39326127875828,
+        "median_s11_db": -50.64278483513502,
+        "worst_excess_vs_long_db": -65.8598248871539,
+        "median_excess_vs_long_db": -76.65446085287904
+      },
+      {
+        "length_cells": 30,
+        "length_mm": 6.0,
+        "worst_s11_db": -32.42764043572484,
+        "median_s11_db": -50.59585826499706,
+        "worst_excess_vs_long_db": -85.85925760003009,
+        "median_excess_vs_long_db": -95.88588204770593
+      },
+      {
+        "length_cells": 40,
+        "length_mm": 8.0,
+        "worst_s11_db": -32.4225445094566,
+        "median_s11_db": -50.598707194010366,
+        "worst_excess_vs_long_db": -110.41156769812187,
+        "median_excess_vs_long_db": -120.56371414967376
+      },
+      {
+        "length_cells": 50,
+        "length_mm": 10.0,
+        "worst_s11_db": -32.42277792087719,
+        "median_s11_db": -50.595832207925525,
+        "worst_excess_vs_long_db": -6153.053111371775,
+        "median_excess_vs_long_db": -6153.053111371775
+      }
+    ],
+    "lossy_debye": [
+      {
+        "length_cells": 0,
+        "length_mm": 0.0,
+        "worst_s11_db": -16.161636619305572,
+        "median_s11_db": -22.78342565844476,
+        "worst_excess_vs_long_db": -16.16821988846717,
+        "median_excess_vs_long_db": -22.757688611823536
+      },
+      {
+        "length_cells": 4,
+        "length_mm": 0.8,
+        "worst_s11_db": -57.65966287480674,
+        "median_s11_db": -67.85402716716203,
+        "worst_excess_vs_long_db": -76.16353289914014,
+        "median_excess_vs_long_db": -86.67880487480468
+      },
+      {
+        "length_cells": 6,
+        "length_mm": 1.2000000000000002,
+        "worst_s11_db": -58.127645170499605,
+        "median_s11_db": -67.63332735506009,
+        "worst_excess_vs_long_db": -95.72963620755738,
+        "median_excess_vs_long_db": -103.01482923661399
+      },
+      {
+        "length_cells": 8,
+        "length_mm": 1.6,
+        "worst_s11_db": -58.195231923393,
+        "median_s11_db": -67.64825987257751,
+        "worst_excess_vs_long_db": -124.94810242278189,
+        "median_excess_vs_long_db": -131.24627527016838
+      },
+      {
+        "length_cells": 10,
+        "length_mm": 2.0,
+        "worst_s11_db": -58.197634848373355,
+        "median_s11_db": -67.65009707937858,
+        "worst_excess_vs_long_db": -127.69785719898778,
+        "median_excess_vs_long_db": -136.41495143128236
+      },
+      {
+        "length_cells": 12,
+        "length_mm": 2.4000000000000004,
+        "worst_s11_db": -58.19702322569134,
+        "median_s11_db": -67.64776161433738,
+        "worst_excess_vs_long_db": -130.1693983437573,
+        "median_excess_vs_long_db": -139.25879848244114
+      },
+      {
+        "length_cells": 16,
+        "length_mm": 3.2,
+        "worst_s11_db": -58.196600963650354,
+        "median_s11_db": -67.65008608539281,
+        "worst_excess_vs_long_db": -131.7790662191127,
+        "median_excess_vs_long_db": -142.6660203267329
+      },
+      {
+        "length_cells": 20,
+        "length_mm": 4.0,
+        "worst_s11_db": -58.19673172928163,
+        "median_s11_db": -67.65144546781481,
+        "worst_excess_vs_long_db": -131.93174217760787,
+        "median_excess_vs_long_db": -139.42151624021
+      },
+      {
+        "length_cells": 30,
+        "length_mm": 6.0,
+        "worst_s11_db": -58.19702322569134,
+        "median_s11_db": -67.65264172592958,
+        "worst_excess_vs_long_db": -131.45938780685745,
+        "median_excess_vs_long_db": -140.92037892343401
+      },
+      {
+        "length_cells": 40,
+        "length_mm": 8.0,
+        "worst_s11_db": -58.19698365585114,
+        "median_s11_db": -67.64982318528884,
+        "worst_excess_vs_long_db": -132.16220655598985,
+        "median_excess_vs_long_db": -139.33841345991326
+      },
+      {
+        "length_cells": 50,
+        "length_mm": 10.0,
+        "worst_s11_db": -58.1965613946531,
+        "median_s11_db": -67.65125451778964,
+        "worst_excess_vs_long_db": -6153.053111371775,
+        "median_excess_vs_long_db": -6153.053111371775
+      }
+    ]
+  }
+}

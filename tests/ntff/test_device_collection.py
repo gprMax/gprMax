@@ -7,6 +7,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from gprMax.cuda_opencl.knl_ntff import (
+    build_equivalent_current_time_kernel_source,
     build_ntff_kernel_source,
     build_time_domain_ntff_kernel_source,
 )
@@ -263,6 +264,26 @@ def test_backend_kernel_sources_use_configured_real_type(backend, c_real, marker
 @pytest.mark.parametrize(
     "backend,c_real,marker",
     [
+        ("cuda", "float", "blockIdx.x"),
+        ("opencl", "double", "cl_khr_fp64"),
+        ("metal", "float", "thread_position_in_grid"),
+    ],
+)
+def test_equivalent_current_time_kernel_sources_are_backend_complete(
+    backend, c_real, marker
+):
+    source = build_equivalent_current_time_kernel_source(c_real, backend)
+
+    assert marker in source
+    assert "gather_equivalent_current_time" in source
+    assert "deposit_equivalent_current_time" in source
+    assert "current[patch * 3]" in source
+    assert "inverse_dt" in source
+
+
+@pytest.mark.parametrize(
+    "backend,c_real,marker",
+    [
         ("cuda", "float", "ksir_atomic_add"),
         ("opencl", "double", "get_global_id(0)"),
         ("metal", "float", "thread_position_in_grid"),
@@ -285,9 +306,14 @@ class _FakeArray:
     def __init__(self, name):
         self.gpudata = f"ptr:{name}"
         self.data = f"buffer:{name}"
+        self.base_data = self.data
+        self.offset = 0
+        self.dtype = np.dtype("f8")
         self.set_value = None
+        self.set_input_contiguous = None
 
     def set(self, value, **kwargs):
+        self.set_input_contiguous = np.asarray(value).flags.c_contiguous
         self.set_value = np.asarray(value).copy()
 
 
@@ -340,6 +366,7 @@ def test_opencl_dispatch_uses_split_configured_real_buffers():
     collector.kernel = lambda *args: calls.append(args)
     record = _dispatch_record()
     field = _FakeArray("field")
+    field.offset = 16
     multiplier = np.asarray([1 + 2j, 3 + 4j], dtype="c16")
 
     collector._accumulate(record, field, multiplier)
@@ -347,14 +374,17 @@ def test_opencl_dispatch_uses_split_configured_real_buffers():
     args = calls[0]
     assert args[0] is collector.queue
     assert args[5] == "buffer:inside_index"
-    assert args[9] == "buffer:field"
-    assert args[10:14] == (
+    assert args[9] == 2
+    assert args[10] == "buffer:field"
+    assert args[11:15] == (
         "buffer:inside_real",
         "buffer:inside_imag",
         "buffer:outside_real",
         "buffer:outside_imag",
     )
     assert record.device["multiplier_real"].set_value.dtype == np.dtype("f8")
+    assert record.device["multiplier_real"].set_input_contiguous
+    assert record.device["multiplier_imag"].set_input_contiguous
 
 
 class _FakeMetalEncoder:

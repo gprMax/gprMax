@@ -1,0 +1,13 @@
+# Large or regenerable solver outputs.
+*.h5
+*.vtkhdf
+
+# Raw CST exports retained outside version control.
+patch_ff_*_cst.txt
+*.s1p
+
+# Regenerable eigenmode diagnostic plots.
+*_EigenmodeExcitation.png
+*_Port*_Mode*.png
+
+__pycache__/

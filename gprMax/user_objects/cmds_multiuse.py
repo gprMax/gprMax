@@ -20,6 +20,7 @@
 import inspect
 import logging
 import math
+import operator
 from os import PathLike
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -29,13 +30,20 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
-from gprMax.eigenmode_config import EigenmodeBandpassWaveform, EigenmodeBandSpec, EigenmodePortSpec
+from gprMax.eigenmode_config import (
+    EigenmodeBandpassWaveform,
+    EigenmodeBandSpec,
+    EigenmodePortSpec,
+    VirtualWaveguideSpec,
+)
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
 from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
 from gprMax.materials import RangeMaterial as RangeMaterialUser
+from gprMax.network_ports import RationalNetworkModel, RationalNetworkTerminal
 from gprMax.pml import CFS, CFSParameter, InternalPMLSpec
 from gprMax.receivers import Rx as RxUser
 from gprMax.sources import DiscretePlaneWave as DiscretePlaneWaveUser
@@ -56,6 +64,15 @@ from gprMax.user_objects.user_objects import GridUserObject
 from gprMax.waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)
+
+
+def _require_complete_source_time_window(user_object, start, stop):
+    """Require conventional source start/stop limits to be supplied together."""
+
+    if (start is None) != (stop is None):
+        raise ValueError(
+            f"{user_object.params_str()} start and stop times must be supplied together"
+        )
 
 
 class ExcitationFile(GridUserObject):
@@ -112,7 +129,9 @@ class ExcitationFile(GridUserObject):
         waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str)
 
         # Read all waveform values into an array
-        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"])
+        waveformvalues = np.loadtxt(
+            excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Time array (if specified) for interpolation, otherwise use simulation time
         if waveformIDs[0].lower() == "time":
@@ -132,7 +151,9 @@ class ExcitationFile(GridUserObject):
             w.type = "user"
 
             # Select correct column of waveform values depending on array shape
-            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
+            singlewaveformvalues = (
+                waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
+            )
 
             # Truncate waveform array if it is longer than time array
             if len(singlewaveformvalues) > len(waveformtime):
@@ -221,11 +242,14 @@ class Waveform(GridUserObject):
                 freq = self.kwargs["freq"]
                 ID = self.kwargs["id"]
             except KeyError:
-                logger.exception(self.params_str() + (" builtin waveforms require exactly four parameters."))
+                logger.exception(
+                    self.params_str() + (" builtin waveforms require exactly four parameters.")
+                )
                 raise
             if freq <= 0:
                 logger.exception(
-                    self.params_str() + (" requires an excitation " "frequency value of greater than zero.")
+                    self.params_str()
+                    + (" requires an excitation " "frequency value of greater than zero.")
                 )
                 raise ValueError
             if any(x.ID == ID for x in grid.waveforms):
@@ -253,7 +277,10 @@ class Waveform(GridUserObject):
             except KeyError:
                 logger.exception(
                     self.params_str()
-                    + (" a user-defined waveform requires an 'id' and either " "'user_func' or 'user_values'.")
+                    + (
+                        " a user-defined waveform requires an 'id' and either "
+                        "'user_func' or 'user_values'."
+                    )
                 )
                 raise
 
@@ -294,7 +321,10 @@ class Waveform(GridUserObject):
                     raise ValueError(msg) from err
                 w.userfunc = userfunc
 
-                logger.info(self.grid_name(grid) + (f"Waveform {w.ID} using a user-supplied function created."))
+                logger.info(
+                    self.grid_name(grid)
+                    + (f"Waveform {w.ID} using a user-supplied function created.")
+                )
 
             elif "user_values" in self.kwargs:
                 uservalues = self.kwargs["user_values"]
@@ -314,14 +344,202 @@ class Waveform(GridUserObject):
 
                 w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
 
-                logger.info(self.grid_name(grid) + (f"Waveform {w.ID} that is user-defined created."))
+                logger.info(
+                    self.grid_name(grid) + (f"Waveform {w.ID} that is user-defined created.")
+                )
 
             else:
-                msg = self.params_str() + " a user-defined waveform requires either 'user_func' " "or 'user_values'."
+                msg = (
+                    self.params_str() + " a user-defined waveform requires either 'user_func' "
+                    "or 'user_values'."
+                )
                 logger.exception(msg)
                 raise ValueError(msg)
 
         grid.waveforms.append(w)
+
+
+class RationalNetwork(GridUserObject):
+    """Define a reusable rational one-port admittance."""
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#rational_network"
+
+    def __init__(
+        self,
+        id: str,
+        conductance: float = 0.0,
+        capacitance: float = 0.0,
+        poles=(),
+        residues=(),
+        allow_active: bool = False,
+    ):
+        super().__init__(
+            id=id,
+            conductance=conductance,
+            capacitance=capacitance,
+            poles=tuple(poles),
+            residues=tuple(residues),
+            allow_active=allow_active,
+        )
+        self.ID = id
+        self.conductance = conductance
+        self.capacitance = capacitance
+        self.poles = tuple(poles)
+        self.residues = tuple(residues)
+        self.allow_active = allow_active
+
+    def build(self, grid: FDTDGrid):
+        if self.ID in grid.rationalnetworkmodels:
+            raise ValueError(f"{self.params_str()} network model ID is already in use")
+        model = RationalNetworkModel(
+            self.ID,
+            self.conductance,
+            self.capacitance,
+            self.poles,
+            self.residues,
+            self.allow_active,
+        )
+        grid.rationalnetworkmodels[self.ID] = model
+        logger.info(
+            self.grid_name(grid) + f"Rational network {self.ID!r}: G={model.conductance:g} S, "
+            f"C={model.capacitance:g} F, {len(model.poles)} pole(s)."
+        )
+
+
+class NetworkTerminal(GridUserObject):
+    """Connect a rational network model to one electric Yee edge."""
+
+    @property
+    def order(self):
+        return 6
+
+    @property
+    def hash(self):
+        return "#network_terminal"
+
+    def __init__(self, p1: Tuple[float, float, float], polarisation: str, network_id: str, id: str):
+        super().__init__(polarisation=polarisation, p1=p1, network_id=network_id, id=id)
+        self.point = p1
+        self.polarisation = polarisation
+        self.network_id = network_id
+        self.ID = id
+
+    def build(self, grid: FDTDGrid):
+        if config.get_model_config().mode != "3D":
+            raise ValueError(f"{self.params_str()} currently supports only 3-D models")
+        from gprMax.studies import SourceStudy
+
+        if config.sim_config.args.geometry_fixed and not isinstance(
+            config.sim_config.study, SourceStudy
+        ):
+            raise ValueError(f"{self.params_str()} does not yet support geometry-fixed runs")
+        self.polarisation = self.polarisation.lower()
+        if self.polarisation not in ("x", "y", "z"):
+            raise ValueError(f"{self.params_str()} polarisation must be x, y, or z")
+        if not self.ID or "/" in self.ID or "\x00" in self.ID:
+            raise ValueError(f"{self.params_str()} ID must be a non-empty HDF5 path component")
+        if self.ID in grid.networkterminal_specs:
+            raise ValueError(f"{self.params_str()} terminal ID is already in use")
+        try:
+            model = grid.rationalnetworkmodels[self.network_id]
+        except KeyError as exc:
+            raise ValueError(
+                f"{self.params_str()} there is no rational network with ID {self.network_id!r}"
+            ) from exc
+
+        uip = self._create_uip(grid)
+        self.point = uip.resolve_inf_point(self.point)
+        grid.networkterminal_specs[self.ID] = {
+            "polarisation": self.polarisation,
+            "network_id": self.network_id,
+            "point": tuple(float(value) for value in self.point),
+        }
+        point_within_grid, coord = uip.check_src_rx_point(self.point, self.params_str())
+        if not point_within_grid:
+            return
+        if any(
+            terminal.polarisation == self.polarisation and np.array_equal(terminal.coord, coord)
+            for terminal in grid.networkterminals
+        ):
+            raise ValueError(
+                f"{self.params_str()} another network terminal uses the same electric edge"
+            )
+
+        terminal = RationalNetworkTerminal(self.ID, model, coord, self.polarisation)
+        grid.networkterminals.append(terminal)
+        position = uip.round_to_grid_static_point(self.point)
+        logger.info(
+            self.grid_name(grid) + f"Network terminal {self.ID!r} using {self.network_id!r}, "
+            f"{self.polarisation}-polarised at {position[0]:g}m, "
+            f"{position[1]:g}m, {position[2]:g}m."
+        )
+
+
+class NetworkExcitation(GridUserObject):
+    """Apply a Thevenin open-circuit waveform to a network terminal."""
+
+    @property
+    def order(self):
+        return 7
+
+    @property
+    def hash(self):
+        return "#network_excitation"
+
+    def __init__(
+        self,
+        terminal_id: str,
+        waveform_id: str,
+        start: Optional[float] = None,
+        stop: Optional[float] = None,
+    ):
+        super().__init__(terminal_id=terminal_id, waveform_id=waveform_id, start=start, stop=stop)
+        self.terminal_id = terminal_id
+        self.waveform_id = waveform_id
+        self.start = start
+        self.stop = stop
+
+    def build(self, grid: FDTDGrid):
+        if self.terminal_id not in grid.networkterminal_specs:
+            raise ValueError(
+                f"{self.params_str()} there is no network terminal with ID {self.terminal_id!r}"
+            )
+        if self.terminal_id in grid.networkexcitation_specs:
+            raise ValueError(
+                f"{self.params_str()} network terminal {self.terminal_id!r} "
+                "already has an excitation"
+            )
+        if not any(waveform.ID == self.waveform_id for waveform in grid.waveforms):
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with ID {self.waveform_id!r}"
+            )
+        grid.networkexcitation_specs[self.terminal_id] = {
+            "waveform_id": self.waveform_id,
+            "start": self.start,
+            "stop": self.stop,
+        }
+        terminal = next(
+            (item for item in grid.networkterminals if item.ID == self.terminal_id), None
+        )
+        if terminal is None:
+            # In an MPI model the active terminal exists only on its owning
+            # rank. The replicated specification above is sufficient on all
+            # other ranks.
+            if config.sim_config.mpi:
+                return
+            raise RuntimeError(f"{self.params_str()} terminal definition was not instantiated")
+        terminal.set_excitation(self.waveform_id, self.start, self.stop)
+        terminal.study_id = getattr(self, "_study_id", None)
+        logger.info(
+            self.grid_name(grid) + f"Network terminal {self.terminal_id!r} excited by waveform "
+            f"{self.waveform_id!r}."
+        )
 
 
 class VoltageSource(RotatableMixin, GridUserObject):
@@ -378,11 +596,15 @@ class VoltageSource(RotatableMixin, GridUserObject):
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(self.point, self.polarisation, self.axis, self.angle, grid)
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def _validate_parameters(self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None):
+    def _validate_parameters(
+        self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
+    ):
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
@@ -394,13 +616,16 @@ class VoltageSource(RotatableMixin, GridUserObject):
             if "TM" in mode and self.polarisation != invariant_letter:
                 # E survives along the invariant axis in TM (e.g. Ez for
                 # TMz) - the two tangential components are forced pec.
-                raise ValueError(f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode.")
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode."
+                )
             elif "TE" in mode and self.polarisation == invariant_letter:
                 # E survives perpendicular to the invariant axis in TE
                 # (e.g. Ex, Ey for TEz) - the own-axis component is
                 # forced pec, same rule as HertzianDipole.
                 raise ValueError(
-                    f"{self.params_str()} polarisation must be {other_axes[0]} or " f"{other_axes[1]} in {mode} mode."
+                    f"{self.params_str()} polarisation must be {other_axes[0]} or "
+                    f"{other_axes[1]} in {mode} mode."
                 )
 
             # Once polarisation is valid, the surviving E component is
@@ -434,36 +659,55 @@ class VoltageSource(RotatableMixin, GridUserObject):
 
         # Check resistance
         if self.resistance < 0:
-            raise ValueError(f"{self.params_str()} requires a source resistance of zero or greater.")
+            raise ValueError(
+                f"{self.params_str()} requires a source resistance of zero or greater."
+            )
         if self.reference_impedance is not None:
             self.reference_impedance = float(self.reference_impedance)
             if not np.isfinite(self.reference_impedance) or self.reference_impedance <= 0:
-                raise ValueError(f"{self.params_str()} reference impedance must be finite and positive.")
+                raise ValueError(
+                    f"{self.params_str()} reference impedance must be finite and positive."
+                )
             if self.resistance > 0 and not np.isclose(self.reference_impedance, self.resistance):
-                raise ValueError(f"{self.params_str()} reference impedance must equal the finite " "source resistance.")
+                raise ValueError(
+                    f"{self.params_str()} reference impedance must equal the finite "
+                    "source resistance."
+                )
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
-            raise ValueError(f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}.")
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
-                    f"{self.params_str()} delay of the initiation of the source should not be less" " than zero."
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
                 )
             if self.stop < 0:
-                raise ValueError(f"{self.params_str()} time to remove the source should not be less than zero.")
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
             if self.stop - self.start <= 0:
-                raise ValueError(f"{self.params_str()} duration of the source should not be zero or less.")
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
 
-    def _create_voltage_source(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> VoltageSourceUser:
+    def _create_voltage_source(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> VoltageSourceUser:
         voltage_source = VoltageSourceUser()
         voltage_source.polarisation = self.polarisation
         voltage_source.coord = coord
+        voltage_source.coordorigin = coord.copy()
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         voltage_source.ID = f"{voltage_source.__class__.__name__}({x},{y},{z})"
+        voltage_source.study_id = getattr(self, "_study_id", None)
         voltage_source.resistance = self.resistance
         voltage_source.reference_impedance = (
             float(self.reference_impedance)
@@ -543,7 +787,9 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         start: Optional[float] = None,
         stop: Optional[float] = None,
     ):
-        super().__init__(polarisation=polarisation, p1=p1, waveform_id=waveform_id, start=start, stop=stop)
+        super().__init__(
+            polarisation=polarisation, p1=p1, waveform_id=waveform_id, start=start, stop=stop
+        )
 
         self.point = p1
         self.polarisation = polarisation.lower()
@@ -553,11 +799,15 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(self.point, self.polarisation, self.axis, self.angle, grid)
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def _validate_parameters(self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None):
+    def _validate_parameters(
+        self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
+    ):
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
@@ -569,13 +819,16 @@ class HertzianDipole(RotatableMixin, GridUserObject):
             if "TM" in mode and self.polarisation != invariant_letter:
                 # E survives along the invariant axis in TM (e.g. Ez for
                 # TMz) - the two tangential components are forced pec.
-                raise ValueError(f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode.")
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode."
+                )
             elif "TE" in mode and self.polarisation == invariant_letter:
                 # E survives perpendicular to the invariant axis in TE
                 # (e.g. Ex, Ey for TEz) - the own-axis component is
                 # forced pec.
                 raise ValueError(
-                    f"{self.params_str()} polarisation must be {other_axes[0]} or " f"{other_axes[1]} in {mode} mode."
+                    f"{self.params_str()} polarisation must be {other_axes[0]} or "
+                    f"{other_axes[1]} in {mode} mode."
                 )
 
             # Once polarisation is valid, the surviving E component is
@@ -601,20 +854,30 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
-            raise ValueError(f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}.")
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
-                    f"{self.params_str()} delay of the initiation of the source should not be less" " than zero."
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
                 )
             if self.stop < 0:
-                raise ValueError(f"{self.params_str()} time to remove the source should not be less than zero.")
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
             if self.stop - self.start <= 0:
-                raise ValueError(f"{self.params_str()} duration of the source should not be zero or less.")
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
 
-    def _create_hertzian_dipole(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> HertzianDipoleUser:
+    def _create_hertzian_dipole(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> HertzianDipoleUser:
         h = HertzianDipoleUser()
         h.polarisation = self.polarisation
 
@@ -631,6 +894,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         h.ID = f"{h.__class__.__name__}({x},{y},{z})"
+        h.study_id = getattr(self, "_study_id", None)
         h.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
@@ -644,7 +908,9 @@ class HertzianDipole(RotatableMixin, GridUserObject):
 
         return h
 
-    def _log(self, grid: FDTDGrid, hertzian_dipole: HertzianDipoleUser, x: float, y: float, z: float):
+    def _log(
+        self, grid: FDTDGrid, hertzian_dipole: HertzianDipoleUser, x: float, y: float, z: float
+    ):
         if self.start is None or self.stop is None:
             startstop = " "
         else:
@@ -711,7 +977,9 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         start: Optional[float] = None,
         stop: Optional[float] = None,
     ):
-        super().__init__(polarisation=polarisation, p1=p1, waveform_id=waveform_id, start=start, stop=stop)
+        super().__init__(
+            polarisation=polarisation, p1=p1, waveform_id=waveform_id, start=start, stop=stop
+        )
 
         self.point = p1
         self.polarisation = polarisation.lower()
@@ -737,11 +1005,15 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(self.point, self.polarisation, self.axis, self.angle, grid)
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
-    def _validate_parameters(self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None):
+    def _validate_parameters(
+        self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
+    ):
         # Check polarity
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
@@ -757,10 +1029,13 @@ class MagneticDipole(RotatableMixin, GridUserObject):
             other_axes = [a for a in "xyz" if a != invariant_letter]
             if "TM" in mode and self.polarisation == invariant_letter:
                 raise ValueError(
-                    f"{self.params_str()} polarisation must be {other_axes[0]} or " f"{other_axes[1]} in {mode} mode."
+                    f"{self.params_str()} polarisation must be {other_axes[0]} or "
+                    f"{other_axes[1]} in {mode} mode."
                 )
             elif "TE" in mode and self.polarisation != invariant_letter:
-                raise ValueError(f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode.")
+                raise ValueError(
+                    f"{self.params_str()} polarisation must be {invariant_letter} in {mode} mode."
+                )
 
             # Once polarisation is valid, the surviving H component is
             # only ever computed at one specific index on the invariant
@@ -786,20 +1061,30 @@ class MagneticDipole(RotatableMixin, GridUserObject):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
-            raise ValueError(f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}.")
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
-                    f"{self.params_str()} delay of the initiation of the source should not be less" " than zero."
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
                 )
             if self.stop < 0:
-                raise ValueError(f"{self.params_str()} time to remove the source should not be less than zero.")
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
             if self.stop - self.start <= 0:
-                raise ValueError(f"{self.params_str()} duration of the source should not be zero or less.")
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
 
-    def _create_magnetic_dipole(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> MagneticDipoleUser:
+    def _create_magnetic_dipole(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> MagneticDipoleUser:
         m = MagneticDipoleUser()
         m.polarisation = self.polarisation
         m.coord = coord
@@ -807,6 +1092,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         m.ID = f"{m.__class__.__name__}({x},{y},{z})"
+        m.study_id = getattr(self, "_study_id", None)
         m.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
@@ -882,7 +1168,9 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(self.point, self.polarisation, self.axis, self.angle, grid)
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
@@ -903,16 +1191,6 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             self._log(grid, transmission_line, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # CUDA has a device-resident transmission-line update. OpenCL and
-        # Metal use the same kernel template but do not yet have their host
-        # buffer/launch lifecycle enabled and verified.
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
-            raise ValueError(
-                f"{self.params_str()} cannot currently be used "
-                "with the OpenCL or Metal-based solver. Consider "
-                "using a #voltage_source instead."
-            )
-
         # A transmission line is a 3D-only source: its internal 1D line
         # model uses a "magic time step" (TransmissionLineUser.dl =
         # sqrt(3) * c * dt) derived from the 3D Courant condition. In 2D
@@ -943,26 +1221,37 @@ class TransmissionLine(RotatableMixin, GridUserObject):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
-            raise ValueError(f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}.")
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
-                    f"{self.params_str()} delay of the initiation of the source should not be less" " than zero."
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
                 )
             if self.stop < 0:
-                raise ValueError(f"{self.params_str()} time to remove the source should not be less than zero.")
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
             if self.stop - self.start <= 0:
-                raise ValueError(f"{self.params_str()} duration of the source should not be zero or less.")
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
 
-    def _create_transmission_line(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> TransmissionLineUser:
+    def _create_transmission_line(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> TransmissionLineUser:
         t = TransmissionLineUser(grid.iterations, grid.dt)
         t.polarisation = self.polarisation
         t.coord = coord
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         t.ID = f"{t.__class__.__name__}({x},{y},{z})"
+        t.study_id = getattr(self, "_study_id", None)
         t.resistance = self.resistance
         t.waveformID = self.waveform_id
 
@@ -1053,7 +1342,9 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(self.point, self.polarisation, self.axis, self.angle, grid)
+        rot_pol_pts, self.polarisation = rotate_polarisation(
+            self.point, self.polarisation, self.axis, self.angle, grid
+        )
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.point = tuple(rot_pts[0, :])
 
@@ -1065,21 +1356,33 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
-        if point_within_grid:
-            self._validate_parameters(grid)
+        self._validate_parameters(grid)
+        if config.sim_config.mpi:
+            global_coord = np.asarray(uip.discretise_static_point(self.point), dtype=np.int32)
+            global_index = len(grid.magneticfrill_specs) + 1
+            grid.magneticfrill_specs.append(
+                {
+                    "coord": tuple(int(value) for value in global_coord),
+                    "polarisation": self.polarisation,
+                    "index": global_index,
+                }
+            )
+            frill_source = self._create_magnetic_frill_source(grid, discretised_point)
+            frill_source.mpi_global_coord = global_coord
+            frill_source.mpi_global_index = global_index
+            frill_source.mpi_primary_rank = int(grid.get_rank_from_coordinate(global_coord))
+            frill_source.mpi_primary = bool(point_within_grid)
+            grid.add_source(frill_source)
+            if point_within_grid:
+                position = uip.round_to_grid_static_point(self.point)
+                self._log(grid, frill_source, *position)
+        elif point_within_grid:
             frill_source = self._create_magnetic_frill_source(grid, discretised_point)
             grid.add_source(frill_source)
             position = uip.round_to_grid_static_point(self.point)
             self._log(grid, frill_source, *position)
 
     def _validate_parameters(self, grid: FDTDGrid):
-        # MPI is rejected because a feed stencil cannot be split across rank
-        # boundaries. A subgrid is safe: the frill, attached thin wire,
-        # material rows, field stencil, and time histories all belong to the
-        # same fine grid and are advanced by its CPU updater.
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} does not support MPI.")
-
         # 2D mode rejected outright - the feed point's four surrounding H
         # components have no meaningful reduction to a 2D TM/TE invariant-
         # axis model at all.
@@ -1100,26 +1403,37 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
-            raise ValueError(f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}.")
+            raise ValueError(
+                f"{self.params_str()} there is no waveform with the identifier {self.waveform_id}."
+            )
 
         # Check start and stop
+        _require_complete_source_time_window(self, self.start, self.stop)
         if self.start is not None and self.stop is not None:
             if self.start < 0:
                 raise ValueError(
-                    f"{self.params_str()} delay of the initiation of the source should not be less" " than zero."
+                    f"{self.params_str()} delay of the initiation of the source should not be less"
+                    " than zero."
                 )
             if self.stop < 0:
-                raise ValueError(f"{self.params_str()} time to remove the source should not be less than zero.")
+                raise ValueError(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
             if self.stop - self.start <= 0:
-                raise ValueError(f"{self.params_str()} duration of the source should not be zero or less.")
+                raise ValueError(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
 
-    def _create_magnetic_frill_source(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> MagneticFrillSourceUser:
+    def _create_magnetic_frill_source(
+        self, grid: FDTDGrid, coord: npt.NDArray[np.int32]
+    ) -> MagneticFrillSourceUser:
         f = MagneticFrillSourceUser(grid.iterations, grid.dt)
         f.polarisation = self.polarisation
         f.coord = coord
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         f.ID = f"{f.__class__.__name__}({x},{y},{z})"
+        f.study_id = getattr(self, "_study_id", None)
         f.Z0 = self.zcoax
         f.waveformID = self.waveform_id
 
@@ -1148,13 +1462,6 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         )
 
 
-def _reject_discrete_plane_wave_mpi(params_str):
-    """Reject TFSF corrections that are not MPI-decomposition aware."""
-
-    if config.sim_config.mpi:
-        raise ValueError(f"{params_str} cannot currently be used with MPI.")
-
-
 def _dpw_tfsf_corners(uip, p1, p2, params_str):
     """Discretises and validates the TFSF box corners for a discrete plane
     wave, shared by all three #plane_wave_* builders.
@@ -1179,7 +1486,8 @@ def _dpw_tfsf_corners(uip, p1, p2, params_str):
     """
     if isinstance(uip.grid, SubGridBaseGrid):
         raise ValueError(
-            f"{params_str} must be defined on the main grid; its TFSF box " "may strictly enclose complete subgrids."
+            f"{params_str} must be defined on the main grid; its TFSF box "
+            "may strictly enclose complete subgrids."
         )
 
     mode = config.get_model_config().mode
@@ -1194,9 +1502,19 @@ def _dpw_tfsf_corners(uip, p1, p2, params_str):
     _, start = uip.check_src_rx_point(p1, params_str)
     _, stop = uip.check_src_rx_point(p2, params_str)
 
+    # MPI user input is translated to each rank's local coordinates for
+    # geometry construction. A DPW is instead replicated on every rank, so
+    # retain one authoritative global TFSF box and derive rank-local injection
+    # coordinates later when the auxiliary grid is initialised.
+    if config.sim_config.mpi:
+        start = uip.grid.local_to_global_coordinate(start)
+        stop = uip.grid.local_to_global_coordinate(stop)
+
     if is_2d:
         forced = (0, 1) if "TM" in mode else (1, 1)
-        overridden_explicit = (p1_explicit and start[inv] != forced[0]) or (p2_explicit and stop[inv] != forced[1])
+        overridden_explicit = (p1_explicit and start[inv] != forced[0]) or (
+            p2_explicit and stop[inv] != forced[1]
+        )
         if overridden_explicit:
             logger.warning(
                 f"{params_str} the TFSF box extent on the invariant "
@@ -1270,7 +1588,6 @@ class DiscretePlaneWaveAngles(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least ten parameters.")
             raise
 
-        _reject_discrete_plane_wave_mpi(self.params_str())
         try:
             max_angle_diff = self.kwargs["max_angle_diff"]
         except KeyError:
@@ -1301,34 +1618,37 @@ class DiscretePlaneWaveAngles(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
-            logger.exception(
-                f"{self.params_str()} cannot currently be used " + "with the OpenCL or Apple Metal-based solver. "
-            )
-            raise ValueError
-
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
+            )
             raise ValueError
 
         # Check if there is a materialID in the materials list
         if not any(x.ID == material_id for x in grid.materials):
-            logger.exception(f"{self.params_str()} there is no material " + f"with the identifier {material_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no material " + f"with the identifier {material_id}."
+            )
             raise ValueError
 
         # Check angles
         if theta < 0 or theta > 180:
-            logger.exception(f"{self.params_str()} Polar angle theta must be between 0 and 180 degrees.")
+            logger.exception(
+                f"{self.params_str()} Polar angle theta must be between 0 and 180 degrees."
+            )
             raise ValueError
 
         if phi < 0 or phi > 360:
-            logger.exception(f"{self.params_str()} Azimuthal angle phi must be between 0 and 360 degrees.")
+            logger.exception(
+                f"{self.params_str()} Azimuthal angle phi must be between 0 and 360 degrees."
+            )
             raise ValueError
 
         if psi < 0 or psi > 360:
-            logger.exception(f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees.")
+            logger.exception(
+                f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
+            )
             raise ValueError
 
         uip = self._create_uip(grid)
@@ -1351,14 +1671,19 @@ class DiscretePlaneWaveAngles(GridUserObject):
             stop = self.kwargs["stop"]
             if start < 0:
                 logger.exception(
-                    self.params_str() + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (" time to remove the source should not be less than zero."))
+                logger.exception(
+                    self.params_str() + (" time to remove the source should not be less than zero.")
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (" duration of the source should not be zero or less."))
+                logger.exception(
+                    self.params_str() + (" duration of the source should not be zero or less.")
+                )
                 raise ValueError
             DPW.start = start
             DPW.stop = min(stop, grid.timewindow)
@@ -1447,8 +1772,6 @@ class DiscretePlaneWaveVector(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least eleven parameters.")
             raise
 
-        _reject_discrete_plane_wave_mpi(self.params_str())
-
         try:
             material_id = self.kwargs["material_id"]
         except KeyError:
@@ -1460,27 +1783,26 @@ class DiscretePlaneWaveVector(GridUserObject):
         except KeyError:
             precompute = True
 
-        # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
-            logger.exception(
-                f"{self.params_str()} cannot currently be used " + "with the OpenCL or Apple Metal-based solver. "
-            )
-            raise ValueError
-
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
+            )
             raise ValueError
 
         # Check if there is a materialID in the materials list
         if not any(x.ID == material_id for x in grid.materials):
-            logger.exception(f"{self.params_str()} there is no material " + f"with the identifier {material_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no material " + f"with the identifier {material_id}."
+            )
             raise ValueError
 
         # Check angle
 
         if psi < 0 or psi > 360:
-            logger.exception(f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees.")
+            logger.exception(
+                f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
+            )
             raise ValueError
 
         uip = self._create_uip(grid)
@@ -1512,14 +1834,19 @@ class DiscretePlaneWaveVector(GridUserObject):
             stop = self.kwargs["stop"]
             if start < 0:
                 logger.exception(
-                    self.params_str() + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (" time to remove the source should not be less than zero."))
+                logger.exception(
+                    self.params_str() + (" time to remove the source should not be less than zero.")
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (" duration of the source should not be zero or less."))
+                logger.exception(
+                    self.params_str() + (" duration of the source should not be zero or less.")
+                )
                 raise ValueError
             DPW.start = start
             DPW.stop = min(stop, grid.timewindow)
@@ -1604,28 +1931,23 @@ class DiscretePlaneWaveAxial(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least 9 parameters.")
             raise
 
-        _reject_discrete_plane_wave_mpi(self.params_str())
-
         try:
             precompute = self.kwargs["precompute"]
         except KeyError:
             precompute = True
 
-        # Warn about using a discrete plane wave on GPU
-        if config.sim_config.general["solver"] in ["opencl", "metal"]:
-            logger.exception(
-                f"{self.params_str()} cannot currently be used " + "with the OpenCL or Apple Metal-based solver. "
-            )
-            raise ValueError
-
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}."
+            )
             raise ValueError
 
         # Check polarisation angle
         if psi < 0 or psi > 360:
-            logger.exception(f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees.")
+            logger.exception(
+                f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
+            )
             raise ValueError
 
         uip = self._create_uip(grid)
@@ -1677,14 +1999,19 @@ class DiscretePlaneWaveAxial(GridUserObject):
             stop = self.kwargs["stop"]
             if start < 0:
                 logger.exception(
-                    self.params_str() + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (" time to remove the source should not be less than zero."))
+                logger.exception(
+                    self.params_str() + (" time to remove the source should not be less than zero.")
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (" duration of the source should not be zero or less."))
+                logger.exception(
+                    self.params_str() + (" duration of the source should not be zero or less.")
+                )
                 raise ValueError
             DPW.start = start
             DPW.stop = min(stop, grid.timewindow)
@@ -1712,7 +2039,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
 
 class EigenmodeBand(GridUserObject):
-    '''Define the single frequency band shared by all eigenmode ports.'''
+    """Define the single frequency band shared by all eigenmode ports."""
 
     @property
     def order(self):
@@ -1720,35 +2047,37 @@ class EigenmodeBand(GridUserObject):
 
     @property
     def hash(self):
-        return '#eigenmode_band'
+        return "#eigenmode_band"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f'{self.params_str()} currently supports only the main grid.')
         if grid.eigenmodeband is not None:
-            raise ValueError('Exactly one EigenmodeBand may be defined per grid.')
+            raise ValueError("Exactly one EigenmodeBand may be defined per grid.")
         try:
-            band_id = str(self.kwargs['id'])
-            fmin = float(self.kwargs['fmin'])
-            fmax = float(self.kwargs['fmax'])
-            points = int(self.kwargs['points'])
+            band_id = str(self.kwargs["id"])
+            fmin = float(self.kwargs["fmin"])
+            fmax = float(self.kwargs["fmax"])
+            points = int(self.kwargs["points"])
         except KeyError:
-            logger.exception(f'{self.params_str()} requires id, fmin, fmax, and points.')
+            logger.exception(f"{self.params_str()} requires id, fmin, fmax, and points.")
             raise
         if not band_id or any(character.isspace() for character in band_id):
-            raise ValueError(f'{self.params_str()} id must be a non-empty token without whitespace.')
+            raise ValueError(
+                f"{self.params_str()} id must be a non-empty token without whitespace."
+            )
         _validate_eigenmode_dft(self.params_str(), fmin, fmax, points)
-        threshold = float(self.kwargs.get('spectral_threshold', 1e-3))
+        threshold = float(self.kwargs.get("spectral_threshold", 1e-3))
         if not 0 < threshold < 1:
-            raise ValueError(f'{self.params_str()} spectral_threshold must be between zero and one.')
-        transition = self.kwargs.get('transition', 'auto')
-        if transition != 'auto':
+            raise ValueError(
+                f"{self.params_str()} spectral_threshold must be between zero and one."
+            )
+        transition = self.kwargs.get("transition", "auto")
+        if transition != "auto":
             transition = float(transition)
             if not np.isfinite(transition) or transition <= 0:
-                raise ValueError(f'{self.params_str()} transition must be positive or auto.')
+                raise ValueError(f"{self.params_str()} transition must be positive or auto.")
         grid.eigenmodeband = EigenmodeBandSpec(
             id=band_id,
             fmin=fmin,
@@ -1758,13 +2087,13 @@ class EigenmodeBand(GridUserObject):
             spectral_threshold=threshold,
         )
         logger.info(
-            f'{self.grid_name(grid)}Eigenmode band {band_id!r}, frequencies '
-            f'{fmin:g} to {fmax:g} Hz with {points} common DFT point(s), created.'
+            f"{self.grid_name(grid)}Eigenmode band {band_id!r}, frequencies "
+            f"{fmin:g} to {fmax:g} Hz with {points} common DFT point(s), created."
         )
 
 
 class EigenmodePort(GridUserObject):
-    '''Define a modal port plane with its own anchor-frequency policy.'''
+    """Define a modal port plane with its own anchor-frequency policy."""
 
     @property
     def order(self):
@@ -1772,67 +2101,61 @@ class EigenmodePort(GridUserObject):
 
     @property
     def hash(self):
-        return '#eigenmode_port'
+        return "#eigenmode_port"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f'{self.params_str()} currently supports only the main grid.')
         if grid.eigenmodeband is None:
-            raise ValueError(f'{self.params_str()} requires one preceding EigenmodeBand.')
-        if config.sim_config.general['solver'] in ('cuda', 'opencl', 'metal'):
-            raise ValueError(
-                f'{self.params_str()} cannot currently be used with CUDA, OpenCL, or Metal.'
-            )
-        if config.sim_config.mpi:
-            raise ValueError(f'{self.params_str()} cannot currently be used with MPI.')
+            raise ValueError(f"{self.params_str()} requires one preceding EigenmodeBand.")
         try:
-            port = int(self.kwargs['port'])
-            p1 = tuple(float(value) for value in self.kwargs['p1'])
-            p2 = tuple(float(value) for value in self.kwargs['p2'])
-            direction = str(self.kwargs['direction'])
-            modes_arg = self.kwargs['modes']
+            port = int(self.kwargs["port"])
+            p1 = tuple(float(value) for value in self.kwargs["p1"])
+            p2 = tuple(float(value) for value in self.kwargs["p2"])
+            direction = str(self.kwargs["direction"])
+            modes_arg = self.kwargs["modes"]
         except KeyError:
-            logger.exception(f'{self.params_str()} requires port, p1, p2, direction, and modes.')
+            logger.exception(f"{self.params_str()} requires port, p1, p2, direction, and modes.")
             raise
         if port < 1:
-            raise ValueError(f'{self.params_str()} port must be one or greater.')
+            raise ValueError(f"{self.params_str()} port must be one or greater.")
         if len(p1) != 3 or len(p2) != 3:
-            raise ValueError(f'{self.params_str()} p1 and p2 must each contain three coordinates.')
-        if direction not in ('+', '-'):
-            raise ValueError(f'{self.params_str()} direction must be + or -.')
+            raise ValueError(f"{self.params_str()} p1 and p2 must each contain three coordinates.")
+        if direction not in ("+", "-"):
+            raise ValueError(f"{self.params_str()} direction must be + or -.")
         if np.isscalar(modes_arg):
             mode_count = int(modes_arg)
             modes = tuple(range(1, mode_count + 1))
         else:
             modes = tuple(int(value) for value in modes_arg)
         if not modes or any(mode < 1 for mode in modes):
-            raise ValueError(f'{self.params_str()} modes must contain positive one-based indices.')
+            raise ValueError(f"{self.params_str()} modes must contain positive one-based indices.")
         if modes != tuple(sorted(set(modes))):
-            raise ValueError(f'{self.params_str()} modes must be unique and strictly increasing.')
-        anchors_arg = self.kwargs.get('anchors', 'auto')
+            raise ValueError(f"{self.params_str()} modes must be unique and strictly increasing.")
+        anchors_arg = self.kwargs.get("anchors", "auto")
         if isinstance(anchors_arg, str):
-            if anchors_arg.lower() != 'auto':
-                raise ValueError(f'{self.params_str()} anchors must be auto or frequencies.')
-            anchors = 'auto'
+            if anchors_arg.lower() != "auto":
+                raise ValueError(f"{self.params_str()} anchors must be auto or frequencies.")
+            anchors = "auto"
         elif np.isscalar(anchors_arg):
             anchors = (float(anchors_arg),)
         else:
             anchors = tuple(float(value) for value in anchors_arg)
-        if anchors != 'auto':
+        if anchors != "auto":
             if not anchors:
-                raise ValueError(f'{self.params_str()} requires at least one explicit anchor.')
+                raise ValueError(f"{self.params_str()} requires at least one explicit anchor.")
             if any(not np.isfinite(value) or value <= 0 for value in anchors):
-                raise ValueError(f'{self.params_str()} anchors must be finite and positive.')
+                raise ValueError(f"{self.params_str()} anchors must be finite and positive.")
             if any(anchors[index] >= anchors[index + 1] for index in range(len(anchors) - 1)):
-                raise ValueError(f'{self.params_str()} anchors must be unique and strictly increasing.')
+                raise ValueError(
+                    f"{self.params_str()} anchors must be unique and strictly increasing."
+                )
         if port in grid.eigenmodeportdefs:
-            raise ValueError(f'Eigenmode port {port} is already defined.')
+            raise ValueError(f"Eigenmode port {port} is already defined.")
 
         domain_mode = config.get_model_config().mode
-        invariant_axis = 'xyz'.index(domain_mode[-1]) if domain_mode.startswith('2D') else None
+        invariant_axis = "xyz".index(domain_mode[-1]) if domain_mode.startswith("2D") else None
         equal_axes = [
             axis
             for axis in range(3)
@@ -1840,19 +2163,19 @@ class EigenmodePort(GridUserObject):
         ]
         if len(equal_axes) != 1:
             raise ValueError(
-                f'{self.params_str()} must have exactly one finite matching coordinate '
-                'pair, which defines the port normal.'
+                f"{self.params_str()} must have exactly one finite matching coordinate "
+                "pair, which defines the port normal."
             )
         normal_axis = equal_axes[0]
         transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
-        plot_fields = self.kwargs.get('plot_fields')
+        plot_fields = self.kwargs.get("plot_fields")
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
-            raise ValueError(f'{self.params_str()} plot_fields must be True, False, or None.')
+            raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
         grid.eigenmodeportdefs[port] = EigenmodePortSpec(
             port=port,
             p1=p1,
             p2=p2,
-            normal='xyz'[normal_axis],
+            normal="xyz"[normal_axis],
             direction=direction,
             normal_axis=normal_axis,
             transverse_axes=transverse_axes,
@@ -1861,15 +2184,29 @@ class EigenmodePort(GridUserObject):
             anchors=anchors,
             plot_fields=None if plot_fields is None else bool(plot_fields),
         )
-        axis_name = 'xyz'[normal_axis]
+        axis_name = "xyz"[normal_axis]
         logger.info(
-            f'{self.grid_name(grid)}Eigenmode port {port}, normal {axis_name}{direction}, '
-            f'monitoring modes {modes}, with anchors {anchors}, created.'
+            f"{self.grid_name(grid)}Eigenmode port {port}, normal {axis_name}{direction}, "
+            f"monitoring modes {modes}, with anchors {anchors}, created."
         )
 
 
-class EigenmodeExcitation(GridUserObject):
-    '''Attach the single active modal excitation to a defined port.'''
+class VirtualWaveguide(GridUserObject):
+    """Terminate an eigenmode port with a bidirectionally coupled FDTD guide.
+
+    The guide repeats the material cross-section at the referenced
+    :class:`EigenmodePort`, couples both E and H fields at its aperture, and
+    terminates its remote end with a PML. It can contain the active modal
+    source or act as a passive matched receiver.
+
+    Args:
+        port: One-based eigenmode-port number.
+        length_cells: Total virtual-guide length in cells. Default 30.
+        pml_cells: PML thickness at the remote end. Default 12.
+        source_clearance_cells: Cells between an active internal source plane
+            and the PML. Default 6.
+        pml_profile: Optional reusable PML profile ID.
+    """
 
     @property
     def order(self):
@@ -1877,7 +2214,87 @@ class EigenmodeExcitation(GridUserObject):
 
     @property
     def hash(self):
-        return '#eigenmode_excitation'
+        return "#virtual_waveguide"
+
+    def __init__(
+        self,
+        port,
+        length_cells=30,
+        pml_cells=12,
+        source_clearance_cells=6,
+        pml_profile=None,
+    ):
+        super().__init__(
+            port=port,
+            length_cells=length_cells,
+            pml_cells=pml_cells,
+            source_clearance_cells=source_clearance_cells,
+            pml_profile=pml_profile,
+        )
+
+    def build(self, grid: FDTDGrid):
+        def integer_parameter(name):
+            try:
+                value = operator.index(self.kwargs[name])
+            except TypeError as exc:
+                raise ValueError(f"{self.params_str()} {name} must be an integer.") from exc
+            if isinstance(self.kwargs[name], (bool, np.bool_)):
+                raise ValueError(f"{self.params_str()} {name} must be an integer.")
+            return value
+
+        port = integer_parameter("port")
+        length_cells = integer_parameter("length_cells")
+        pml_cells = integer_parameter("pml_cells")
+        clearance = integer_parameter("source_clearance_cells")
+        profile_id = self.kwargs.get("pml_profile")
+        if port not in grid.eigenmodeportdefs:
+            raise ValueError(f"{self.params_str()} references unknown eigenmode port {port}.")
+        if port in grid.virtual_waveguide_specs:
+            raise ValueError(f"Eigenmode port {port} already has a virtual waveguide.")
+        if length_cells < 1 or pml_cells < 1 or clearance < 1:
+            raise ValueError(f"{self.params_str()} cell counts must all be positive integers.")
+        if pml_cells < 2:
+            raise ValueError(f"{self.params_str()} pml_cells must be at least 2.")
+        minimum_length = pml_cells + clearance + 3
+        if length_cells < minimum_length:
+            raise ValueError(
+                f"{self.params_str()} length_cells must be at least pml_cells + "
+                f"source_clearance_cells + 3 ({minimum_length} for this request)."
+            )
+        if profile_id is not None:
+            profile_id = str(profile_id)
+            if not profile_id:
+                raise ValueError(f"{self.params_str()} pml_profile must not be empty.")
+            if profile_id not in grid.pmls["profiles"]:
+                raise ValueError(
+                    f"{self.params_str()} refers to unknown PML profile {profile_id!r}."
+                )
+
+        grid.virtual_waveguide_specs[port] = VirtualWaveguideSpec(
+            port=port,
+            length_cells=length_cells,
+            pml_cells=pml_cells,
+            source_clearance_cells=clearance,
+            profile_id=profile_id,
+        )
+        logger.info(
+            f"{self.grid_name(grid)}Virtual waveguide requested for eigenmode "
+            f"port {port}: length {length_cells}, PML {pml_cells}, source "
+            f"clearance {clearance} cell(s)"
+            + (f", PML profile {profile_id!r}." if profile_id else ".")
+        )
+
+
+class EigenmodeExcitation(GridUserObject):
+    """Attach the single active modal excitation to a defined port."""
+
+    @property
+    def order(self):
+        return 23
+
+    @property
+    def hash(self):
+        return "#eigenmode_excitation"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1889,57 +2306,55 @@ class EigenmodeExcitation(GridUserObject):
         lower = tuple(min(first, second) for first, second in zip(transverse_p1, transverse_p2))
         upper = tuple(max(first, second) for first, second in zip(transverse_p1, transverse_p2))
         kwargs = {
-            'normal': port.normal,
-            'direction': port.direction,
-            'p1': lower,
-            'p2': upper,
-            'w': port.p1[port.normal_axis],
-            'port_index': port.port,
-            'dft_start': band.fmin,
-            'dft_stop': band.fmax,
-            'dft_points': band.points,
-            'plot_fields': port.plot_fields,
+            "normal": port.normal,
+            "direction": port.direction,
+            "p1": lower,
+            "p2": upper,
+            "w": port.p1[port.normal_axis],
+            "port_index": port.port,
+            "dft_start": band.fmin,
+            "dft_stop": band.fmax,
+            "dft_points": band.points,
+            "plot_fields": port.plot_fields,
         }
         if len(port.resolved_anchors) == 1:
-            kwargs['frequency'] = port.resolved_anchors[0]
+            kwargs["frequency"] = port.resolved_anchors[0]
         else:
-            kwargs['frequencies'] = port.resolved_anchors
+            kwargs["frequencies"] = port.resolved_anchors
         return kwargs
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f'{self.params_str()} currently supports only the main grid.')
         if grid.eigenmodeexcitation is not None:
-            raise ValueError('Only one EigenmodeExcitation may be defined per grid.')
+            raise ValueError("Only one EigenmodeExcitation may be defined per grid.")
         if grid.eigenmodeband is None:
-            raise ValueError(f'{self.params_str()} requires one EigenmodeBand.')
+            raise ValueError(f"{self.params_str()} requires one EigenmodeBand.")
         try:
-            source_port_number = int(self.kwargs['port'])
-            excitation_mode = int(self.kwargs['mode'])
+            source_port_number = int(self.kwargs["port"])
+            excitation_mode = int(self.kwargs["mode"])
         except KeyError:
-            logger.exception(f'{self.params_str()} requires port and mode.')
+            logger.exception(f"{self.params_str()} requires port and mode.")
             raise
         if not grid.eigenmodeportdefs:
-            raise ValueError(f'{self.params_str()} requires at least one EigenmodePort.')
+            raise ValueError(f"{self.params_str()} requires at least one EigenmodePort.")
         if source_port_number not in grid.eigenmodeportdefs:
-            raise ValueError(f'{self.params_str()} references unknown eigenmode port {source_port_number}.')
+            raise ValueError(
+                f"{self.params_str()} references unknown eigenmode port {source_port_number}."
+            )
         source_port = grid.eigenmodeportdefs[source_port_number]
         if excitation_mode not in source_port.modes:
             raise ValueError(
-                f'{self.params_str()} mode {excitation_mode} is not monitored by port '
-                f'{source_port_number}; available modes are {source_port.modes}.'
+                f"{self.params_str()} mode {excitation_mode} is not monitored by port "
+                f"{source_port_number}; available modes are {source_port.modes}."
             )
         band = grid.eigenmodeband
-        waveform_arg = self.kwargs.get('waveform', 'auto')
-        amplitude = float(self.kwargs.get('amplitude', 1.0))
-        plot_waveform = self.kwargs.get('plot_waveform')
+        waveform_arg = self.kwargs.get("waveform", "auto")
+        amplitude = float(self.kwargs.get("amplitude", 1.0))
+        plot_waveform = self.kwargs.get("plot_waveform")
         if plot_waveform is not None and not isinstance(plot_waveform, (bool, np.bool_)):
-            raise ValueError(
-                f'{self.params_str()} plot_waveform must be True, False, or None.'
-            )
+            raise ValueError(f"{self.params_str()} plot_waveform must be True, False, or None.")
         if plot_waveform is not None:
             plot_waveform = bool(plot_waveform)
-        generated_waveform = isinstance(waveform_arg, str) and waveform_arg.lower() == 'auto'
+        generated_waveform = isinstance(waveform_arg, str) and waveform_arg.lower() == "auto"
         if generated_waveform:
             waveform = EigenmodeBandpassWaveform(
                 band_id=band.id,
@@ -1952,30 +2367,35 @@ class EigenmodeExcitation(GridUserObject):
                 transition=band.transition,
             )
             if any(existing.ID == waveform.ID for existing in grid.waveforms):
-                raise ValueError(f'Generated eigenmode waveform ID {waveform.ID!r} is already in use.')
+                raise ValueError(
+                    f"Generated eigenmode waveform ID {waveform.ID!r} is already in use."
+                )
             grid.waveforms.append(waveform)
         else:
             if amplitude != 1.0:
-                raise ValueError('EigenmodeExcitation amplitude is only used with waveform=\'auto\'.')
+                raise ValueError("EigenmodeExcitation amplitude is only used with waveform='auto'.")
             waveform_id = str(waveform_arg)
             matches = [waveform for waveform in grid.waveforms if waveform.ID == waveform_id]
             if not matches:
-                raise ValueError(f'{self.params_str()} references unknown waveform {waveform_id!r}.')
+                raise ValueError(
+                    f"{self.params_str()} references unknown waveform {waveform_id!r}."
+                )
             waveform = matches[0]
         band.resolve_spectrum(grid, waveform, generated_waveform=generated_waveform)
 
+        reusable_study = bool(getattr(self, "_reusable_study", False))
         for port_number in sorted(grid.eigenmodeportdefs):
             port = grid.eigenmodeportdefs[port_number]
             is_source = port_number == source_port_number
-            port.resolve_anchors(band, is_source=is_source)
+            port.resolve_anchors(band, is_source=(is_source or reusable_study))
             common = self._runtime_plane_kwargs(port, band)
             if is_source:
                 common.update(
                     {
-                        'mode_index': excitation_mode,
-                        'mode_count': max(port.modes),
-                        'waveform_id': waveform.ID,
-                        'spectral_threshold': band.spectral_threshold,
+                        "mode_index": excitation_mode,
+                        "mode_count": max(port.modes),
+                        "waveform_id": waveform.ID,
+                        "spectral_threshold": band.spectral_threshold,
                     }
                 )
                 _EigenmodeSourceBuilder(**common).build(grid)
@@ -1983,18 +2403,19 @@ class EigenmodeExcitation(GridUserObject):
                 runtime.mode_indices = port.modes
                 runtime.plot_waveform = plot_waveform
             else:
-                common.update({'mode_count': max(port.modes), 'id': f'port{port.port}'})
+                common.update({"mode_count": max(port.modes), "id": f"port{port.port}"})
                 _EigenmodeReceiverBuilder(**common).build(grid)
                 runtime = grid.eigenmodereceivers[-1]
                 runtime.mode_indices = port.modes
+                runtime.spectral_threshold = band.spectral_threshold
             runtime.anchor_policy = port.anchor_policy
             runtime.requested_anchor_policy = port.anchor_policy
             runtime.resolved_anchor_policy = port.anchor_policy
             runtime.fallback_frequency = 0.5 * (band.fmin + band.fmax)
         grid.eigenmodeexcitation = self
         logger.info(
-            f'{self.grid_name(grid)}Eigenmode excitation created on port '
-            f'{source_port_number}, mode {excitation_mode}, using waveform {waveform.ID!r}.'
+            f"{self.grid_name(grid)}Eigenmode excitation created on port "
+            f"{source_port_number}, mode {excitation_mode}, using waveform {waveform.ID!r}."
         )
 
 
@@ -2007,6 +2428,148 @@ def _validate_eigenmode_dft(label, start, stop, points):
         raise ValueError(f"{label} a one-point DFT requires equal start and stop.")
     if points > 1 and stop == start:
         raise ValueError(f"{label} a multi-point DFT requires stop greater than start.")
+
+
+def build_passive_virtual_eigenmode_ports(grid):
+    """Build monitor runtimes when every modal port is passive and virtual."""
+
+    band = grid.eigenmodeband
+    band.significant_range = (band.fmin, band.fmax)
+    band.representative_frequency = 0.5 * (band.fmin + band.fmax)
+    for port_number in sorted(grid.eigenmodeportdefs):
+        port = grid.eigenmodeportdefs[port_number]
+        port.resolve_anchors(band, is_source=False)
+        common = EigenmodeExcitation._runtime_plane_kwargs(port, band)
+        common.update({"mode_count": max(port.modes), "id": f"port{port.port}"})
+        _EigenmodeReceiverBuilder(**common).build(grid)
+        runtime = grid.eigenmodereceivers[-1]
+        runtime.mode_indices = port.modes
+        runtime.anchor_policy = port.anchor_policy
+        runtime.requested_anchor_policy = port.anchor_policy
+        runtime.resolved_anchor_policy = port.anchor_policy
+        runtime.fallback_frequency = band.representative_frequency
+
+
+def _discretise_eigenmode_plane(
+    user_object,
+    grid,
+    normal_axis,
+    transverse_axes,
+    full_lower,
+    full_upper,
+):
+    """Map one global-coordinate modal plane onto its owning grid.
+
+    Main-grid coordinates have a zero local origin. HSG coordinates are still
+    supplied in the global model frame, so ``SubgridUserInput`` must translate
+    them past the fine grid's auxiliary padding. A modal plane is deliberately
+    more restricted than ordinary subgrid geometry: every staggered component
+    used by the FDFD slice, TF/SF correction, and modal monitor must remain
+    strictly inside the HSG working region and away from its coupling surface.
+    """
+
+    uip = user_object._create_uip(grid)
+    if hasattr(grid, "global_size"):
+        mode = config.get_model_config().mode
+
+        def resolve_global_inf(point, role):
+            resolved = list(point)
+            for axis, value in enumerate(point):
+                if not math.isinf(value):
+                    continue
+                if not mode.startswith("2D"):
+                    raise ValueError(
+                        f"{user_object.params_str()} 'inf' coordinates require a 2D model."
+                    )
+                extent = float(grid.global_size[axis] * grid.dl[axis])
+                resolved[axis] = 0.0 if role == "lower" else extent
+            return tuple(resolved)
+
+        full_lower = np.asarray(resolve_global_inf(full_lower, "lower"), dtype=np.float64)
+        full_upper = np.asarray(resolve_global_inf(full_upper, "upper"), dtype=np.float64)
+        lower = np.asarray(uip.discretise_static_point(tuple(full_lower)), dtype=np.int32)
+        upper = np.asarray(uip.discretise_static_point(tuple(full_upper)), dtype=np.int32)
+    else:
+        full_lower = np.asarray(
+            uip.resolve_inf_point(tuple(full_lower), role="lower"),
+            dtype=np.float64,
+        )
+        full_upper = np.asarray(
+            uip.resolve_inf_point(tuple(full_upper), role="upper"),
+            dtype=np.float64,
+        )
+        lower = np.asarray(uip.discretise_point(tuple(full_lower)), dtype=np.int32)
+        upper = np.asarray(uip.discretise_point(tuple(full_upper)), dtype=np.int32)
+    plane_index = int(lower[normal_axis])
+
+    if int(upper[normal_axis]) != plane_index:
+        raise ValueError(
+            f"{user_object.params_str()} modal-plane normal coordinates must map "
+            "to the same grid plane."
+        )
+
+    if isinstance(grid, SubGridBaseGrid):
+        inner = np.asarray(
+            (
+                grid.n_boundary_cells_x,
+                grid.n_boundary_cells_y,
+                grid.n_boundary_cells_z,
+            ),
+            dtype=np.int32,
+        )
+        outer = np.asarray(grid.size, dtype=np.int32) - inner
+
+        # E is sampled/updated on plane_index and H on plane_index or
+        # plane_index - 1. Transverse staggered components include both range
+        # endpoints. Keep this complete stencil off the HSG coupling surface.
+        stencil_lower = lower.copy()
+        stencil_upper = upper.copy()
+        stencil_lower[normal_axis] = plane_index - 1
+        stencil_upper[normal_axis] = plane_index
+        if np.any(stencil_lower <= inner) or np.any(stencil_upper >= outer):
+            working_lower = tuple(grid.local_to_global(inner))
+            working_upper = tuple(grid.local_to_global(outer))
+            raise ValueError(
+                f"{user_object.params_str()} eigenmode plane and its adjacent "
+                "Yee stencil must lie strictly inside the subgrid working region "
+                f"from {working_lower} m to {working_upper} m; it cannot touch "
+                "the HSG coupling surface or enter the auxiliary/PML region."
+            )
+
+    return full_lower, full_upper, lower, upper, plane_index
+
+
+def _configure_eigenmode_runtime_coordinates(
+    runtime,
+    grid,
+    lower,
+    upper,
+    plane_index,
+    transverse_axes,
+):
+    """Store authoritative global port geometry and rank-local coordinates."""
+
+    global_start = np.asarray(lower[transverse_axes], dtype=np.int32)
+    global_stop = np.asarray(upper[transverse_axes], dtype=np.int32)
+    runtime.global_transverse_start = global_start
+    runtime.global_transverse_stop = global_stop
+    runtime.global_plane_index = int(plane_index)
+
+    if hasattr(grid, "global_size"):
+        offset = np.asarray(grid.lower_extent, dtype=np.int32)
+        runtime.transverse_start = global_start - offset[transverse_axes]
+        runtime.transverse_stop = global_stop - offset[transverse_axes]
+        runtime.plane_index = int(plane_index - offset[runtime.normal_axis])
+        runtime.tfsf_owned_lower = np.asarray(grid.negative_halo_offset, dtype=np.int32)
+        runtime.tfsf_owned_upper = np.asarray(grid.size, dtype=np.int32)
+        runtime.mpi_coordinator = bool(grid.is_coordinator())
+    else:
+        runtime.transverse_start = global_start.copy()
+        runtime.transverse_stop = global_stop.copy()
+        runtime.plane_index = int(plane_index)
+        runtime.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        runtime.tfsf_owned_upper = np.asarray(grid.size + 1, dtype=np.int32)
+        runtime.mpi_coordinator = True
 
 
 class _EigenmodeSourceBuilder(GridUserObject):
@@ -2024,9 +2587,6 @@ class _EigenmodeSourceBuilder(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
-
         try:
             normal = self.kwargs["normal"]
             direction = self.kwargs["direction"]
@@ -2051,7 +2611,9 @@ class _EigenmodeSourceBuilder(GridUserObject):
         frequency = self.kwargs.get("frequency")
         frequencies_arg = self.kwargs.get("frequencies")
         if frequency is not None and frequencies_arg is not None:
-            raise ValueError(f"{self.params_str()} accepts either frequency or frequencies, not both.")
+            raise ValueError(
+                f"{self.params_str()} accepts either frequency or frequencies, not both."
+            )
         if frequencies_arg is None:
             if frequency is None:
                 raise ValueError(f"{self.params_str()} requires frequency or frequencies.")
@@ -2068,20 +2630,6 @@ class _EigenmodeSourceBuilder(GridUserObject):
         if plot_fields is not None:
             plot_fields = bool(plot_fields)
 
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
-            logger.exception(
-                f"{self.params_str()} cannot currently be used with the CUDA, OpenCL, or Apple Metal solver."
-            )
-            raise ValueError
-
-        # MPI decomposes the grid across ranks, but the source plane's
-        # bounds/plane-index validation below and the FDFD cross-section
-        # extraction in EigenmodeSource.grid_init() both assume a single,
-        # whole grid with globally-valid coordinates. Neither is currently
-        # rank-aware, so reject MPI outright until that support is added.
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
-
         if normal not in ["x", "y", "z"]:
             logger.exception(f"{self.params_str()} normal must be x, y, or z.")
             raise ValueError
@@ -2095,7 +2643,8 @@ class _EigenmodeSourceBuilder(GridUserObject):
             raise ValueError
         if mode_count < mode_index:
             raise ValueError(
-                f"{self.params_str()} mode_count must be at least the excited mode_index " f"({mode_index})."
+                f"{self.params_str()} mode_count must be at least the excited mode_index "
+                f"({mode_index})."
             )
         if port_index < 1:
             raise ValueError(f"{self.params_str()} port_index must be one or greater.")
@@ -2105,14 +2654,24 @@ class _EigenmodeSourceBuilder(GridUserObject):
         if not frequencies:
             raise ValueError(f"{self.params_str()} requires at least one frequency.")
         if any(not np.isfinite(value) or value <= 0 for value in frequencies):
-            raise ValueError(f"{self.params_str()} frequencies must be finite and greater than zero.")
-        if any(frequencies[index] >= frequencies[index + 1] for index in range(len(frequencies) - 1)):
-            raise ValueError(f"{self.params_str()} frequencies must be unique and strictly increasing.")
+            raise ValueError(
+                f"{self.params_str()} frequencies must be finite and greater than zero."
+            )
+        if any(
+            frequencies[index] >= frequencies[index + 1] for index in range(len(frequencies) - 1)
+        ):
+            raise ValueError(
+                f"{self.params_str()} frequencies must be unique and strictly increasing."
+            )
         if not 0 < spectral_threshold < 1:
-            raise ValueError(f"{self.params_str()} spectral_threshold must be between zero and one.")
+            raise ValueError(
+                f"{self.params_str()} spectral_threshold must be between zero and one."
+            )
 
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+            )
             raise ValueError
 
         axis_map = {"x": 0, "y": 1, "z": 2}
@@ -2133,37 +2692,34 @@ class _EigenmodeSourceBuilder(GridUserObject):
         full_upper[normal_axis] = w
         full_lower[transverse_axes] = p1
         full_upper[transverse_axes] = p2
-        uip = self._create_uip(grid)
-        full_lower = np.asarray(
-            uip.resolve_inf_point(tuple(full_lower), role="lower"),
-            dtype=np.float64,
-        )
-        full_upper = np.asarray(
-            uip.resolve_inf_point(tuple(full_upper), role="upper"),
-            dtype=np.float64,
+        full_lower, full_upper, lower, upper, plane_index = _discretise_eigenmode_plane(
+            self,
+            grid,
+            normal_axis,
+            transverse_axes,
+            full_lower,
+            full_upper,
         )
         p1 = tuple(full_lower[transverse_axes])
         p2 = tuple(full_upper[transverse_axes])
         w = float(full_lower[normal_axis])
 
-        lower = np.zeros(3, dtype=np.int32)
-        upper = np.zeros(3, dtype=np.int32)
-        plane_index = int(round(w / grid.dl[normal_axis]))
-        lower[transverse_axes[0]] = int(round(p1[0] / grid.dl[transverse_axes[0]]))
-        lower[transverse_axes[1]] = int(round(p1[1] / grid.dl[transverse_axes[1]]))
-        upper[transverse_axes[0]] = int(round(p2[0] / grid.dl[transverse_axes[0]]))
-        upper[transverse_axes[1]] = int(round(p2[1] / grid.dl[transverse_axes[1]]))
-
-        if plane_index < 0 or plane_index > grid.size[normal_axis]:
-            logger.exception(f"{self.params_str()} normal source plane coordinate is outside the grid.")
+        domain_size = np.asarray(getattr(grid, "global_size", grid.size), dtype=np.int32)
+        if plane_index < 0 or plane_index > domain_size[normal_axis]:
+            logger.exception(
+                f"{self.params_str()} normal source plane coordinate is outside the grid."
+            )
             raise ValueError
 
         if direction == "+" and plane_index < 1:
             raise ValueError(
-                "A positive-direction eigenmode source must be at least " "one cell inside the lower domain boundary."
+                "A positive-direction eigenmode source must be at least "
+                "one cell inside the lower domain boundary."
             )
 
-        if np.any(lower[transverse_axes] < 0) or np.any(upper[transverse_axes] > grid.size[transverse_axes]):
+        if np.any(lower[transverse_axes] < 0) or np.any(
+            upper[transverse_axes] > domain_size[transverse_axes]
+        ):
             logger.exception(f"{self.params_str()} transverse source bounds are outside the grid.")
             raise ValueError
 
@@ -2174,7 +2730,7 @@ class _EigenmodeSourceBuilder(GridUserObject):
             raise ValueError
 
         if invariant_axis is not None and (
-            lower[invariant_axis] != 0 or upper[invariant_axis] != grid.size[invariant_axis]
+            lower[invariant_axis] != 0 or upper[invariant_axis] != domain_size[invariant_axis]
         ):
             logger.exception(
                 f"{self.params_str()} in {mode} mode must span the complete "
@@ -2189,15 +2745,22 @@ class _EigenmodeSourceBuilder(GridUserObject):
         source.transverse_axes = tuple(transverse_axes)
         source.invariant_axis = invariant_axis
         source.physical_transverse_axis = (
-            next(axis for axis in transverse_axes if axis != invariant_axis) if invariant_axis is not None else None
+            next(axis for axis in transverse_axes if axis != invariant_axis)
+            if invariant_axis is not None
+            else None
         )
         if mode.startswith("2D TM"):
             source.domain_polarization = "TM"
         elif mode.startswith("2D TE"):
             source.domain_polarization = "TE"
-        source.transverse_start = lower[transverse_axes].copy()
-        source.transverse_stop = upper[transverse_axes].copy()
-        source.plane_index = plane_index
+        _configure_eigenmode_runtime_coordinates(
+            source,
+            grid,
+            lower,
+            upper,
+            plane_index,
+            transverse_axes,
+        )
         source.mode_index = mode_index
         source.mode_count = mode_count
         source.port_index = port_index
@@ -2244,9 +2807,6 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         super().__init__(**kwargs)
 
     def build(self, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} currently supports only the main grid.")
-
         try:
             normal = self.kwargs["normal"]
             direction = self.kwargs["direction"]
@@ -2270,21 +2830,19 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         frequency = self.kwargs.get("frequency")
         frequencies_arg = self.kwargs.get("frequencies")
         if frequency is not None and frequencies_arg is not None:
-            raise ValueError(f"{self.params_str()} accepts either frequency or frequencies, not both.")
+            raise ValueError(
+                f"{self.params_str()} accepts either frequency or frequencies, not both."
+            )
         values = frequencies_arg if frequencies_arg is not None else frequency
         if values is None:
             raise ValueError(f"{self.params_str()} requires frequency or frequencies.")
-        frequencies = (float(values),) if np.isscalar(values) else tuple(float(value) for value in values)
+        frequencies = (
+            (float(values),) if np.isscalar(values) else tuple(float(value) for value in values)
+        )
         plot_fields = self.kwargs.get("plot_fields")
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
             raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
 
-        if config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
-            raise ValueError(
-                f"{self.params_str()} cannot currently be used with the CUDA, OpenCL, or Apple Metal solver."
-            )
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
         if normal not in ("x", "y", "z") or direction not in ("+", "-"):
             raise ValueError(f"{self.params_str()} requires normal x/y/z and direction +/-.")
         if mode_count < 1:
@@ -2294,8 +2852,12 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         mode_indices = tuple(range(1, mode_count + 1))
         if not frequencies or any(not np.isfinite(value) or value <= 0 for value in frequencies):
             raise ValueError(f"{self.params_str()} frequencies must be finite and positive.")
-        if any(frequencies[index] >= frequencies[index + 1] for index in range(len(frequencies) - 1)):
-            raise ValueError(f"{self.params_str()} frequencies must be unique and strictly increasing.")
+        if any(
+            frequencies[index] >= frequencies[index + 1] for index in range(len(frequencies) - 1)
+        ):
+            raise ValueError(
+                f"{self.params_str()} frequencies must be unique and strictly increasing."
+            )
         _validate_eigenmode_dft(self.params_str(), dft_start, dft_stop, dft_points)
 
         axis_map = {"x": 0, "y": 1, "z": 2}
@@ -2304,7 +2866,9 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         domain_mode = config.get_model_config().mode
         invariant_axis = "xyz".index(domain_mode[-1]) if domain_mode.startswith("2D") else None
         if invariant_axis is not None and normal_axis == invariant_axis:
-            raise ValueError(f"{self.params_str()} in {domain_mode} mode must have an in-plane normal.")
+            raise ValueError(
+                f"{self.params_str()} in {domain_mode} mode must have an in-plane normal."
+            )
 
         full_lower = np.zeros(3, dtype=np.float64)
         full_upper = np.zeros(3, dtype=np.float64)
@@ -2312,48 +2876,63 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         full_upper[normal_axis] = w
         full_lower[transverse_axes] = p1
         full_upper[transverse_axes] = p2
-        uip = self._create_uip(grid)
-        full_lower = np.asarray(uip.resolve_inf_point(tuple(full_lower), role="lower"), dtype=np.float64)
-        full_upper = np.asarray(uip.resolve_inf_point(tuple(full_upper), role="upper"), dtype=np.float64)
+        full_lower, full_upper, lower, upper, plane_index = _discretise_eigenmode_plane(
+            self,
+            grid,
+            normal_axis,
+            transverse_axes,
+            full_lower,
+            full_upper,
+        )
         p1 = tuple(full_lower[transverse_axes])
         p2 = tuple(full_upper[transverse_axes])
         w = float(full_lower[normal_axis])
-        lower = np.zeros(3, dtype=np.int32)
-        upper = np.zeros(3, dtype=np.int32)
-        plane_index = int(round(w / grid.dl[normal_axis]))
-        for position, axis in enumerate(transverse_axes):
-            lower[axis] = int(round(p1[position] / grid.dl[axis]))
-            upper[axis] = int(round(p2[position] / grid.dl[axis]))
 
-        if plane_index < 0 or plane_index > grid.size[normal_axis]:
+        domain_size = np.asarray(getattr(grid, "global_size", grid.size), dtype=np.int32)
+        if plane_index < 0 or plane_index > domain_size[normal_axis]:
             raise ValueError(f"{self.params_str()} receiver plane is outside the grid.")
         if direction == "+" and plane_index < 1:
-            raise ValueError(f"{self.params_str()} positive-direction receiver needs a lower H plane.")
-        if np.any(lower[transverse_axes] < 0) or np.any(upper[transverse_axes] > grid.size[transverse_axes]):
+            raise ValueError(
+                f"{self.params_str()} positive-direction receiver needs a lower H plane."
+            )
+        if np.any(lower[transverse_axes] < 0) or np.any(
+            upper[transverse_axes] > domain_size[transverse_axes]
+        ):
             raise ValueError(f"{self.params_str()} transverse bounds are outside the grid.")
         if np.any(lower[transverse_axes] >= upper[transverse_axes]):
             raise ValueError(f"{self.params_str()} lower bounds must be less than upper bounds.")
         if invariant_axis is not None and (
-            lower[invariant_axis] != 0 or upper[invariant_axis] != grid.size[invariant_axis]
+            lower[invariant_axis] != 0 or upper[invariant_axis] != domain_size[invariant_axis]
         ):
-            raise ValueError(f"{self.params_str()} in {domain_mode} mode must span the invariant axis.")
+            raise ValueError(
+                f"{self.params_str()} in {domain_mode} mode must span the invariant axis."
+            )
 
-        axis_name = "xyz"[normal_axis]
-        face = f"{axis_name}0" if direction == "+" else f"{axis_name}max"
-        pml_thickness = grid.pmls["thickness"][face]
-        adjacent_plane = pml_thickness if direction == "+" else grid.size[normal_axis] - pml_thickness
-        if pml_thickness == 0:
-            logger.warning(
-                f"Eigenmode receiver {port_id!r} is not next to a PML because the "
-                f"{face} face has zero PML thickness. Reflections beyond the port "
-                "can contaminate its S-parameters."
+        if port_index not in grid.virtual_waveguide_specs and not isinstance(grid, SubGridBaseGrid):
+            axis_name = "xyz"[normal_axis]
+            face = f"{axis_name}0" if direction == "+" else f"{axis_name}max"
+            pml_thickness = grid.pmls["thickness"][face]
+            if hasattr(grid, "global_size"):
+                # Interior MPI ranks deliberately have zero thickness on
+                # their local faces. Recover the physical boundary value
+                # before comparing a globally indexed modal plane.
+                pml_thickness = max(grid.comm.allgather(pml_thickness))
+            adjacent_plane = (
+                pml_thickness if direction == "+" else domain_size[normal_axis] - pml_thickness
             )
-        elif plane_index != adjacent_plane:
-            logger.warning(
-                f"Eigenmode receiver {port_id!r} is at plane {plane_index}, not next to the "
-                f"{face} PML interface at plane {adjacent_plane}. Reflections beyond the port "
-                "can contaminate its S-parameters."
-            )
+            report_warning = not hasattr(grid, "is_coordinator") or grid.is_coordinator()
+            if pml_thickness == 0 and report_warning:
+                logger.warning(
+                    f"Eigenmode receiver {port_id!r} is not next to a PML because the "
+                    f"{face} face has zero PML thickness. Reflections beyond the port "
+                    "can contaminate its S-parameters."
+                )
+            elif plane_index != adjacent_plane and report_warning:
+                logger.warning(
+                    f"Eigenmode receiver {port_id!r} is at plane {plane_index}, not next to the "
+                    f"{face} PML interface at plane {adjacent_plane}. Reflections beyond the port "
+                    "can contaminate its S-parameters."
+                )
 
         receiver = EigenmodeReceiverUser(grid)
         receiver.normal = normal
@@ -2362,15 +2941,22 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         receiver.transverse_axes = tuple(transverse_axes)
         receiver.invariant_axis = invariant_axis
         receiver.physical_transverse_axis = (
-            next(axis for axis in transverse_axes if axis != invariant_axis) if invariant_axis is not None else None
+            next(axis for axis in transverse_axes if axis != invariant_axis)
+            if invariant_axis is not None
+            else None
         )
         if domain_mode.startswith("2D TM"):
             receiver.domain_polarization = "TM"
         elif domain_mode.startswith("2D TE"):
             receiver.domain_polarization = "TE"
-        receiver.transverse_start = lower[transverse_axes].copy()
-        receiver.transverse_stop = upper[transverse_axes].copy()
-        receiver.plane_index = plane_index
+        _configure_eigenmode_runtime_coordinates(
+            receiver,
+            grid,
+            lower,
+            upper,
+            plane_index,
+            transverse_axes,
+        )
         receiver.mode_count = mode_count
         receiver.mode_indices = mode_indices
         receiver.frequency = frequencies[0]
@@ -2448,6 +3034,7 @@ class Rx(RotatableMixin, GridUserObject):
             r.ID = f"{r.__class__.__name__}({x},{y},{z})"
         else:
             r.ID = self.id
+        r.study_id = getattr(self, "_study_id", None)
 
         if self.outputs is None:
             self.outputs = RxUser.defaultoutputs
@@ -2461,7 +3048,9 @@ class Rx(RotatableMixin, GridUserObject):
         # Check and add field output names
         for field in self.outputs:
             if field in allowableoutputs:
-                r.outputs[field] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+                r.outputs[field] = np.zeros(
+                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                )
             else:
                 raise ValueError(
                     f"{self.params_str()} contains an output "
@@ -2542,25 +3131,37 @@ class RxArray(GridUserObject):
         if invariant_axis is not None:
             lower_single = uip.resolve_inf_point(self.lower_point, role=None)
             upper_single = uip.resolve_inf_point(self.upper_point, role=None)
-            self.lower_point = tuple(lower_single[a] if a == invariant_axis else lower_ranged[a] for a in range(3))
-            self.upper_point = tuple(upper_single[a] if a == invariant_axis else upper_ranged[a] for a in range(3))
+            self.lower_point = tuple(
+                lower_single[a] if a == invariant_axis else lower_ranged[a] for a in range(3)
+            )
+            self.upper_point = tuple(
+                upper_single[a] if a == invariant_axis else upper_ranged[a] for a in range(3)
+            )
         else:
             self.lower_point = lower_ranged
             self.upper_point = upper_ranged
 
-        _, discretised_lower_point = uip.check_src_rx_point(self.lower_point, self.params_str(), "lower")
-        _, discretised_upper_point = uip.check_src_rx_point(self.upper_point, self.params_str(), "upper")
+        _, discretised_lower_point = uip.check_src_rx_point(
+            self.lower_point, self.params_str(), "lower"
+        )
+        _, discretised_upper_point = uip.check_src_rx_point(
+            self.upper_point, self.params_str(), "upper"
+        )
         discretised_dl = uip.discretise_static_point(self.dl)
 
         if any(discretised_lower_point > discretised_upper_point):
-            raise ValueError(f"{self.params_str()} the lower coordinates should be less than the upper coordinates.")
+            raise ValueError(
+                f"{self.params_str()} the lower coordinates should be less than the upper coordinates."
+            )
         if any(discretised_dl < 0):
             raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
 
         discretised_dl = np.where(discretised_dl == 0, 1, discretised_dl)
 
         if any(discretised_dl < 1):
-            raise ValueError(f"{self.params_str()} the step size should not be less than the spatial discretisation.")
+            raise ValueError(
+                f"{self.params_str()} the step size should not be less than the spatial discretisation."
+            )
 
         xs, ys, zs = uip.round_to_grid_static_point(self.lower_point)
         xf, yf, zf = uip.round_to_grid_static_point(self.upper_point)
@@ -2631,7 +3232,9 @@ class Material(GridUserObject):
         if se != "inf":
             se = float(se)
             if se < 0:
-                logger.exception(f"{self.params_str()} requires a positive value for electric conductivity.")
+                logger.exception(
+                    f"{self.params_str()} requires a positive value for electric conductivity."
+                )
                 raise ValueError
         else:
             se = float("inf")
@@ -2692,6 +3295,29 @@ def _reject_perfect_conductor_dispersion(user_object, materials, formulation):
         raise ValueError(message)
 
 
+def _validate_dispersion_definition(user_object, poles, material_ids, **pole_parameters):
+    """Validate the common structure of an API dispersive-material request."""
+
+    try:
+        poles = operator.index(poles)
+    except TypeError as exc:
+        raise ValueError(f"{user_object.params_str()} requires an integer number of poles") from exc
+
+    if poles <= 0:
+        raise ValueError(f"{user_object.params_str()} requires a positive number of poles")
+    if not material_ids:
+        raise ValueError(f"{user_object.params_str()} requires at least one material identifier")
+
+    for name, values in pole_parameters.items():
+        if len(values) != poles:
+            raise ValueError(
+                f"{user_object.params_str()} requires exactly {poles} {name} value(s), "
+                "one for each pole"
+            )
+
+    return poles
+
+
 class AddDebyeDispersion(GridUserObject):
     """Adds dispersive properties to already defined Material based on a
     multi-pole Debye formulation.
@@ -2731,17 +3357,23 @@ class AddDebyeDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least four parameters.")
             raise
 
-        if poles < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for number of poles.")
-            raise ValueError
+        poles = _validate_dispersion_definition(
+            self,
+            poles,
+            material_ids,
+            er_delta=er_delta,
+            tau=tau,
+        )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
-            notfound = [x for x in material_ids if x not in materials]
-            logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in material_ids if material_id not in found_ids]
+            message = f"{self.params_str()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         _reject_perfect_conductor_dispersion(self, materials, "Debye")
 
@@ -2760,13 +3392,17 @@ class AddDebyeDispersion(GridUserObject):
                     disp_material.deltaer.append(er_delta[i])
                     disp_material.tau.append(tau[i])
                 else:
-                    logger.exception(f"{self.params_str()} requires positive values for the permittivity difference.")
+                    logger.exception(
+                        f"{self.params_str()} requires positive values for the permittivity difference."
+                    )
                     raise ValueError
             if disp_material.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [disp_material if mat.numID == material.numID else mat for mat in grid.materials]
+            grid.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            ]
 
             logger.info(
                 f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} "
@@ -2816,17 +3452,24 @@ class AddLorentzDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least five parameters.")
             raise
 
-        if poles < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for number of poles.")
-            raise ValueError
+        poles = _validate_dispersion_definition(
+            self,
+            poles,
+            material_ids,
+            er_delta=er_delta,
+            omega=omega,
+            delta=delta,
+        )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
-            notfound = [x for x in material_ids if x not in materials]
-            logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in material_ids if material_id not in found_ids]
+            message = f"{self.params_str()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         _reject_perfect_conductor_dispersion(self, materials, "Lorentz")
 
@@ -2862,7 +3505,9 @@ class AddLorentzDispersion(GridUserObject):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [disp_material if mat.numID == material.numID else mat for mat in grid.materials]
+            grid.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            ]
 
             logger.info(
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
@@ -2909,17 +3554,23 @@ class AddDrudeDispersion(GridUserObject):
             logger.exception(f"{self.params_str()} requires at least four parameters.")
             raise
 
-        if poles < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for number of poles.")
-            raise ValueError
+        poles = _validate_dispersion_definition(
+            self,
+            poles,
+            material_ids,
+            omega=omega,
+            alpha=alpha,
+        )
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
-            notfound = [x for x in material_ids if x not in materials]
-            logger.exception(f"{self.params_str()} material(s) {notfound} do not exist.")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [material_id for material_id in material_ids if material_id not in found_ids]
+            message = f"{self.params_str()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         _reject_perfect_conductor_dispersion(self, materials, "Drude")
 
@@ -2948,7 +3599,9 @@ class AddDrudeDispersion(GridUserObject):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [disp_material if mat.numID == material.numID else mat for mat in grid.materials]
+            grid.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            ]
 
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
@@ -3000,10 +3653,14 @@ class SoilPeplinski(GridUserObject):
         # sand_fraction/clay_fraction are physical fractions - values
         # above 1 were previously unvalidated.
         if not (0 <= sand_fraction <= 1):
-            logger.exception(f"{self.params_str()} requires the sand fraction to be between 0 and 1.")
+            logger.exception(
+                f"{self.params_str()} requires the sand fraction to be between 0 and 1."
+            )
             raise ValueError
         if not (0 <= clay_fraction <= 1):
-            logger.exception(f"{self.params_str()} requires the clay fraction to be between 0 and 1.")
+            logger.exception(
+                f"{self.params_str()} requires the clay fraction to be between 0 and 1."
+            )
             raise ValueError
         if bulk_density < 0:
             logger.exception(f"{self.params_str()} requires a positive value for the bulk density.")
@@ -3013,7 +3670,8 @@ class SoilPeplinski(GridUserObject):
         # not here, at build time.
         if sand_density <= 0:
             logger.exception(
-                f"{self.params_str()} requires a value greater than zero for the sand particle " "density."
+                f"{self.params_str()} requires a value greater than zero for the sand particle "
+                "density."
             )
             raise ValueError
         if water_fraction_lower < 0:
@@ -3118,10 +3776,14 @@ class MaterialRange(GridUserObject):
             )
             raise ValueError
         if sigma_lower < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the lower limit of conductivity.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the lower limit of conductivity."
+            )
             raise ValueError
         if ro_lower < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the lower range magnetic loss.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the lower range magnetic loss."
+            )
             raise ValueError
         if er_upper < 1:
             logger.exception(
@@ -3136,10 +3798,14 @@ class MaterialRange(GridUserObject):
             )
             raise ValueError
         if sigma_upper < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the upper range of conductivity.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the upper range of conductivity."
+            )
             raise ValueError
         if ro_upper < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the upper range of magnetic loss.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
+            )
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -3176,7 +3842,7 @@ class MaterialList(GridUserObject):
 
     @property
     def hash(self):
-        return "#material_range"
+        return "#material_list"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3194,7 +3860,9 @@ class MaterialList(GridUserObject):
 
         s = ListMaterialUser(ID, list_of_materials)
 
-        logger.info(f"{self.grid_name(grid)}A list of materials used to create {s.ID} that includes {s.mat}, created")
+        logger.info(
+            f"{self.grid_name(grid)}A list of materials used to create {s.ID} that includes {s.mat}, created"
+        )
 
         grid.mixingmodels.append(s)
 
@@ -3267,17 +3935,27 @@ class PMLCFS(GridUserObject):
             or kappascalingdirection not in CFSParameter.scalingdirections
             or sigmascalingdirection not in CFSParameter.scalingdirections
         ):
-            logger.exception(f"{self.params_str()} must have scaling type {','.join(CFSParameter.scalingdirections)}")
+            logger.exception(
+                f"{self.params_str()} must have scaling type {','.join(CFSParameter.scalingdirections)}"
+            )
             raise ValueError
+
+        if isinstance(sigmamax, str) and sigmamax.lower() == "none":
+            sigmamax = None
+
         if (
             float(alphamin) < 0
             or float(alphamax) < 0
             or float(kappamin) < 0
             or float(kappamax) < 0
             or float(sigmamin) < 0
+            or (sigmamax is not None and float(sigmamax) < 0)
         ):
-            logger.exception(f"{self.params_str()} minimum and maximum scaling values must be greater than zero.")
-            raise ValueError
+            message = (
+                f"{self.params_str()} minimum and maximum scaling values must be zero or greater."
+            )
+            logger.error(message)
+            raise ValueError(message)
 
         cfsalpha = CFSParameter()
         cfsalpha.ID = "alpha"
@@ -3296,8 +3974,6 @@ class PMLCFS(GridUserObject):
         cfssigma.scalingprofile = sigmascalingprofile
         cfssigma.scalingdirection = sigmascalingdirection
         cfssigma.min = float(sigmamin)
-        if sigmamax == "None":
-            sigmamax = None
         if sigmamax is not None:
             sigmamax = float(sigmamax)
         cfssigma.max = sigmamax
@@ -3307,7 +3983,9 @@ class PMLCFS(GridUserObject):
         cfs.sigma = cfssigma
 
         profile_id = self.kwargs.get("profile_id")
-        destination = "global PML configuration" if profile_id is None else f"PML profile '{profile_id}'"
+        destination = (
+            "global PML configuration" if profile_id is None else f"PML profile '{profile_id}'"
+        )
         logger.info(
             f"{destination} CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, "
             f"scaling direction: {cfsalpha.scalingdirection}, min: "
@@ -3324,19 +4002,19 @@ class PMLCFS(GridUserObject):
         else:
             if not profile_id:
                 raise ValueError(f"{self.params_str()} profile_id must not be empty.")
-            profile = grid.pmls["profiles"].setdefault(
-                profile_id, {"formulation": None, "cfs": []}
-            )
+            profile = grid.pmls["profiles"].setdefault(profile_id, {"formulation": None, "cfs": []})
             terms = profile["cfs"]
         terms.append(cfs)
 
         if len(terms) > 2:
-            logger.exception(f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML.")
+            logger.exception(
+                f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML."
+            )
             raise ValueError
 
 
 class PMLSlab(GridUserObject):
-    """Place an experimental one-axis RIPML slab inside the main grid.
+    """Place an experimental one-axis RIPML slab inside a grid.
 
     ``p1`` and ``p2`` bound a rectangular region. ``maximum_face`` selects the
     local face at which complex stretching is greatest; the profile reduces
@@ -3347,7 +4025,10 @@ class PMLSlab(GridUserObject):
     faces coincident with the model boundary are omitted. The zero-stretch
     entrance remains open. Set ``build_pec=False`` to provide a custom or
     deliberately open enclosure. Exposed faces are then reported as warnings;
-    incomplete enclosures have no stability guarantee.
+    incomplete enclosures have no stability guarantee. A slab added to an HSG
+    subgrid must lie wholly within its working region. Domain-decomposed MPI
+    CPU models may partition a slab normally or transversely; every rank stores
+    only its local PML history while retaining the complete global CFS profile.
     """
 
     FACE_TO_DIRECTION = {
@@ -3378,9 +4059,7 @@ class PMLSlab(GridUserObject):
             p2 = self.kwargs["p2"]
             maximum_face = self.kwargs["maximum_face"].lower()
         except KeyError:
-            logger.exception(
-                f"{self.params_str()} requires p1, p2, and maximum_face."
-            )
+            logger.exception(f"{self.params_str()} requires p1, p2, and maximum_face.")
             raise
 
         profile_id = self.kwargs.get("profile_id")
@@ -3393,10 +4072,6 @@ class PMLSlab(GridUserObject):
                 number += 1
                 ID = f"internal_pml_{number}"
 
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} cannot currently be used with MPI.")
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} cannot currently be used on a subgrid.")
         if config.get_model_config().mode.startswith("2D"):
             raise ValueError(f"{self.params_str()} cannot currently be used in 2D mode.")
         if maximum_face not in self.FACE_TO_DIRECTION:
@@ -3411,10 +4086,26 @@ class PMLSlab(GridUserObject):
 
         uip = self._create_uip(grid)
         within_grid, lower, upper = uip.check_box_points(p1, p2, self.__str__())
-        if not within_grid:
+        if isinstance(grid, MPIGrid):
+            # Every rank retains the same immutable global declaration. Local
+            # clipping is deferred until PML construction, where the global
+            # CFS depth can be preserved across rank boundaries.
+            lower = uip.discretise_static_point(p1)
+            upper = uip.discretise_static_point(p2)
+        elif not within_grid:
             return
         if not np.all(upper > lower):
             raise ValueError(f"{self.params_str()} must have non-zero extent on all three axes.")
+        if isinstance(grid, SubGridBaseGrid):
+            inner = np.array(
+                [grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z]
+            )
+            outer = np.asarray(grid.size) - inner
+            if np.any(lower < inner) or np.any(upper > outer):
+                raise ValueError(
+                    f"{self.params_str()} must lie wholly inside the subgrid working region; "
+                    "it cannot overlap the HSG coupling or auxiliary PML regions."
+                )
 
         axis = "xyz".index(maximum_face[0])
         if upper[axis] - lower[axis] < 2:
@@ -3443,12 +4134,22 @@ class PMLSlab(GridUserObject):
             "build_pec": bool(build_pec),
             "generated_pec_faces": 0,
         }
+        if isinstance(grid, SubGridBaseGrid):
+            continuous_lower = grid.local_to_global(lower)
+            continuous_upper = grid.local_to_global(upper)
+        else:
+            continuous_lower = uip.discrete_to_continuous(lower)
+            continuous_upper = uip.discrete_to_continuous(upper)
         logger.info(
             f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
-            f"{tuple(uip.discrete_to_continuous(lower))}m to "
-            f"{tuple(uip.discrete_to_continuous(upper))}m, with maximum "
+            f"{tuple(continuous_lower)}m to "
+            f"{tuple(continuous_upper)}m, with maximum "
             f"stretching on its {maximum_face} face"
-            + (f", using profile '{profile_id}'" if profile_id else ", using the global PML configuration")
+            + (
+                f", using profile '{profile_id}'"
+                if profile_id
+                else ", using the global PML configuration"
+            )
             + (
                 ", with an automatic PEC enclosure"
                 if build_pec
@@ -3466,11 +4167,11 @@ class SymmetryBoundary(GridUserObject):
     material during grid construction. A PMC boundary uses an image-theory
     ghost-node update for the on-wall tangential electric fields.
 
-    Nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and
-    Metal solvers. Dispersive PMC boundaries are currently CPU-only.
-    Symmetry boundaries are not supported in 2D mode, with MPI, or on a
-    subgrid, although they may be used on the main grid of a model that
-    contains subgrids.
+    PEC and PMC boundaries, including PMC boundaries in dispersive models, are
+    supported by the CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU
+    solvers. Symmetry boundaries are not supported in 2D mode or on a subgrid,
+    although they may be used on the main grid of a model that contains
+    subgrids.
 
     Attributes:
         face: One of ``x0``, ``y0``, ``z0``, ``xmax``, ``ymax``, or ``zmax``.
@@ -3502,15 +4203,15 @@ class SymmetryBoundary(GridUserObject):
             raise
 
         if face not in self.VALID_FACES:
-            logger.exception(f"{self.params_str()} face must be one of {', '.join(self.VALID_FACES)}.")
+            logger.exception(
+                f"{self.params_str()} face must be one of {', '.join(self.VALID_FACES)}."
+            )
             raise ValueError
 
         if boundary_type not in self.VALID_TYPES:
-            logger.exception(f"{self.params_str()} type must be one of {', '.join(self.VALID_TYPES)}.")
-            raise ValueError
-
-        if config.sim_config.mpi:
-            logger.exception(f"{self.params_str()} cannot currently be used with MPI.")
+            logger.exception(
+                f"{self.params_str()} type must be one of {', '.join(self.VALID_TYPES)}."
+            )
             raise ValueError
 
         if config.get_model_config().mode.startswith("2D"):
@@ -3525,7 +4226,9 @@ class SymmetryBoundary(GridUserObject):
             raise ValueError
 
         if face in grid.symmetry_boundaries:
-            logger.exception(f"{self.params_str()} a symmetry boundary has already been set on face '{face}'.")
+            logger.exception(
+                f"{self.params_str()} a symmetry boundary has already been set on face '{face}'."
+            )
             raise ValueError
 
         grid.symmetry_boundaries[face] = boundary_type

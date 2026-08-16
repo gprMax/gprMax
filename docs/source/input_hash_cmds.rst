@@ -229,6 +229,12 @@ Allows you to control how many OpenMP threads (usually the number of physical CP
 
 where ``i1`` is the number of OpenMP threads to use. If ``#omp_threads`` is not specified gprMax will first look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
 
+For compatibility with input files created for earlier versions of gprMax,
+``#num_threads: i1`` is accepted as an exact alias for ``#omp_threads: i1``.
+``#omp_threads`` is the preferred name because it distinguishes OpenMP CPU
+threads from other forms of parallel execution. Do not specify both commands
+in the same input file.
+
 
 .. _materials:
 
@@ -692,8 +698,11 @@ For example, a z-directed wire of radius 0.1 mm is specified by:
 
 The wire may lie on a transverse domain face only when that face is a PMC
 symmetry boundary. A wire and its surrounding magnetic stencil must not touch
-a PML region. Thin wires in 2D models, MPI models, and overlapping sub-cell
-wire junctions are not currently supported. The charge-based end-cap treatment
+a PML region. MPI domain decomposition is supported: each electric edge and
+each member of the surrounding magnetic stencil is constructed on its owning
+rank, including a stencil that crosses an internal rank boundary. Thin wires
+in 2D models and overlapping sub-cell wire junctions are not currently
+supported. The charge-based end-cap treatment
 from [MAK2002]_ is not implemented, so an isolated open end retains the usual
 staircasing/electrically-long end error; the improved straight-section update
 is used up to the final wire edge. No special runtime solver is used: the
@@ -1129,6 +1138,85 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 * ``f4 f5`` are optional parameters. ``f4`` is a time delay in starting the source. ``f5`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f4 f5`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
+#rational_network:, #network_terminal:, #network_excitation:
+------------------------------------------------------------
+
+These commands connect a linear one-port network to one electric Yee edge.
+The reusable network model is expressed as a rational driving-point
+admittance
+
+.. math::
+
+    Y(s) = G + sC + \sum_{m=1}^{M}\frac{r_m}{s-p_m},
+
+where :math:`G` is the direct conductance, :math:`C` is the direct
+capacitance, and :math:`p_m` and :math:`r_m` are pole-residue pairs. The
+syntax is
+
+.. code-block:: none
+
+    #rational_network: str1 f1 f2 i1 [f3 f4 f5 f6 ...] [c1]
+    #network_terminal: c2 f7 f8 f9 str1 str2
+    #network_excitation: str2 str3 [f10 f11]
+
+* ``str1`` is the reusable network-model ID.
+* ``f1`` and ``f2`` are :math:`G` in siemens and :math:`C` in farads.
+* ``i1`` is the number of poles. Every pole then has four values:
+  ``pole_real pole_imag residue_real residue_imag``. Poles are in rad/s and
+  residues are in S/s. Non-real poles and residues must occur in conjugate
+  pairs so that the time-domain current is real.
+* ``c1`` is an optional ``y``/``n`` flag permitting an active model. It is
+  ``n`` by default. Passive models are checked over the FDTD band and all
+  poles must be stable.
+* ``c2`` is the terminal polarisation ``x``, ``y``, or ``z``; ``f7 f8 f9``
+  are its coordinates; and ``str2`` is its unique terminal ID.
+* ``str3`` is an existing waveform ID. The optional ``f10 f11`` pair gives
+  its start and stop times. Omitting ``#network_excitation`` creates a
+  passive load or receiving terminal.
+
+For common elements, a resistor uses :math:`G=1/R`, a capacitor uses the
+direct :math:`C` term, and an inductor uses :math:`p=0`, :math:`r=1/L`. A
+series :math:`RL` branch has :math:`p=-R/L` and :math:`r=1/L`. For example,
+a driven 50 Ohm terminal is
+
+.. code-block:: none
+
+    #waveform: ricker 1 2e9 pulse
+    #rational_network: source50 0.02 0 0
+    #network_terminal: z 0.05 0.05 0.02 source50 feed
+    #network_excitation: feed pulse
+    #network_port: feed 50 10
+
+The optional excitation is a Thévenin open-circuit voltage applied through
+the complete rational impedance. The arbitrary linear circuit-to-edge
+formulation follows [PER1999]_ and [CHE2007]_. gprMax improves the underlying
+classic PLRC time placement using the exponential recursive-convolution
+approach of Giannakis and Giannopoulos [GIA2014]_. In particular, every pole
+state is evaluated analytically at the electric half-step under a linearly
+varying terminal voltage; it is not estimated by averaging its two integer-
+time values. Each terminal stores only its own poles and applies one locally
+implicit edge correction, rather than allocating dispersive state throughout
+the mesh.
+
+A driven network with :math:`G=1/R`, no direct capacitance, and no poles is
+discretely identical to a finite-resistance ``#voltage_source`` having the
+same :math:`R`, waveform, position, and polarisation. A zero-resistance hard
+source is not equivalent.
+
+This implementation supports 3-D models on the CPU, CUDA, OpenCL, and Metal
+solvers, including domain-decomposed MPI CPU models, and a nondispersive
+terminal edge; dispersive materials may exist elsewhere in the model. In an
+MPI model the sparse terminal state is advanced only by the rank that owns its
+electric edge, then gathered for final port processing. A terminal may be
+placed in a CPU subgrid, where it uses the fine spatial and temporal steps. On
+an accelerator the complete recurrence and local field correction remain
+device-resident during time
+stepping. Several independent terminals may be used, but a coupled multiport
+admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
+lumped-network formulation and :ref:`Analytical comparisons
+<rational-network-validation>` for a complete loaded-guide comparison.
+
+
 #voltage_source:
 ----------------
 
@@ -1154,7 +1242,7 @@ For example, to specify a y directed voltage source with an internal resistance 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU and CUDA solvers; OpenCL and Metal support is not currently enabled. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, OpenCL, and Metal solvers. The syntax of the command is:
 
 .. code-block:: none
 
@@ -1196,7 +1284,10 @@ There is no explicit one-dimensional line, no absorbing boundary, and no
 equivalent magnetic surface current entering Faraday's law at the four Yee
 magnetic-field components immediately surrounding the feed point. The
 corrected Hyun feed-cell formulation is supported by the CPU, CUDA, OpenCL,
-and Metal solvers. The syntax is:
+and Metal solvers, and by domain-decomposed MPI CPU models. In MPI, the four
+magnetic feed edges may cross internal rank boundaries: their Ampere-loop
+terms are combined before the common terminal state is advanced, and each
+field deposit is applied by its owning rank. The syntax is:
 
 .. code-block:: none
 
@@ -1372,6 +1463,9 @@ objects (including the waveform) to the same subgrid object.
     * Two frill sources may not share a surrounding H edge. Such adjacent or
       duplicate feeds form a coupled feed-cell system and cannot be advanced
       as independent scalar terminal relations.
+    * MPI symmetry boundaries are supported. A frill and its thin wire may
+      cross internal rank boundaries or use PMC image completion at supported
+      minimum-face symmetry corners.
     * This source is a "Path A" (through-ground-plane, continuous-conductor)
       feed model. It is not intended for a dipole/bow-tie style gap feed
       (:math:`E_z \neq 0` at the feed) - use ``#voltage_source`` for that case.
@@ -1399,7 +1493,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
-    * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
+    * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
     * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
     * Internally, theta and phi are approximated by an integer direction vector (Mx, My, Mz) found to within a maximum acceptable angular difference of 3 arc minutes (0.05 degrees) by default. This tolerance can be relaxed or tightened using the ``max_angle_diff`` parameter (in degrees) when using the Python API.
 
@@ -1425,7 +1519,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
-    * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
+    * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
     * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
@@ -1452,7 +1546,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
     * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formulations are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Plane waves support non-dispersive dielectric layers and multi-pole Debye, Lorentz, and Drude layers. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
-    * ``#plane_wave_angles``, ``#plane_wave_vector``, and ``#plane_wave_axial`` currently cannot be used with MPI. The TFSF box correction is applied with per-rank local array indices and has no awareness of MPI domain decomposition, so a box spanning more than one rank's sub-domain would silently be corrected on only one rank.
+    * MPI domain decomposition is supported. The layered one-dimensional material profile is assembled collectively once during model construction using the actual electric, magnetic, and dispersive update-coefficient rows. The compact auxiliary profile is then replicated, and the timestep loop requires no plane-wave-specific MPI communication.
     * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
@@ -1517,15 +1611,18 @@ Consecutive anchors are checked using normalized modal-field overlap. If
 explicit multiple anchors show a severe mismatch, such as at a degeneracy or
 mode crossing, the run stops and recommends one explicit anchor. With
 ``auto``, a failure confined to a spectral guard outside the requested band
-trims that tail for every automatic port and uses the nearest retained modal
-profile for endpoint extrapolation. A failure in the requested band makes
-every automatic port warn and use one shared band-centre anchor.
+trims that tail only for the affected port and mode and uses its nearest
+retained modal profile for endpoint extrapolation. A failure in the requested
+band makes that port and mode warn and use its band-centre anchor. Candidate
+frequencies remain common, but retained masks and fallbacks are per port and
+per mode.
 
 #eigenmode_excitation:
 ----------------------
 
-Selects the single active port and mode after the band and ports have been
-defined:
+Optionally selects the single active port and mode after the band and ports
+have been defined. Omit this command only when every port is a passive virtual
+guide; such a model writes raw modal spectra but no S matrix:
 
 .. code-block:: none
 
@@ -1540,9 +1637,10 @@ defined:
   causal time that preserves its significant temporal support, leaving the
   remaining time window for propagation and ring-down.
 * A custom waveform identifier may be supplied instead. Its exact sampled
-  spectrum is checked before any modal solve. Significant DC or Nyquist
-  content, or more than one percent spectral power outside the requested band,
-  is an error that reports the measured range and recommends ``auto``.
+  spectrum is checked before any modal solve. Significant DC or Nyquist bins
+  are discarded with a warning. More than one percent spectral power outside
+  the requested band remains an error. Use a band-limited waveform, or select
+  ``auto`` to synthesize one automatically for a finite frequency band.
 * ``f1`` is an optional amplitude scale and is valid only with ``auto``.
 * ``c1`` optionally controls the waveform/DFT plot: ``y`` always writes it and
   ``n`` always suppresses it. If omitted, geometry-only runs write the plot and
@@ -1568,8 +1666,63 @@ and output definitions.
 
 .. note::
 
-    * Eigenmode commands currently support only the main grid and CPU solver.
-    * Eigenmode commands currently cannot be used with MPI.
+    * Hash commands define eigenmode ports on the main grid, where the CPU,
+      CUDA, OpenCL, and Metal solvers are supported. Direct eigenmode ports may
+      also be added to an HSG subgrid through the Python API; they then use the
+      fine-grid material slice, spatial step, time step, and CPU update cycle.
+      The complete port stencil must remain strictly inside the subgrid working
+      region. See :doc:`eigenmode_port`.
+    * Domain-decomposed MPI CPU models are supported. Modal material slices
+      are assembled collectively once, TF/SF corrections are restricted to
+      locally owned Yee components, and modal DFT projections are reduced at
+      finalisation.
+
+#virtual_waveguide:
+-------------------
+
+Replaces the continuation behind an eigenmode-port plane with a finite
+auxiliary FDTD waveguide terminated by a PML:
+
+.. code-block:: none
+
+    #virtual_waveguide: i1 [i2] [i3] [i4] [str1]
+
+* ``i1`` is the one-based number of an existing ``#eigenmode_port``.
+* ``i2`` is the total auxiliary-guide length in cells (default 30).
+* ``i3`` is the remote PML thickness in cells (default 12).
+* ``i4`` is the number of clear cells between an active modal source and the
+  PML (default 6).
+* ``str1`` optionally selects a reusable PML profile defined by named
+  ``#pml_formulation`` and ``#pml_cfs`` commands. Use ``None`` to retain the
+  global PML configuration while specifying all preceding positional values.
+
+The guide direction and cross-section are inherited from the referenced port.
+The material and Yee-component cross-section at the port is repeated through
+the auxiliary grid. The normal H field and tangential E fields are coupled in
+both directions at the aperture, so reflected modes enter the guide and are
+absorbed by its remote PML.
+
+If the referenced port is selected by ``#eigenmode_excitation``, the modal
+source is placed inside the auxiliary guide. Otherwise the guide is passive.
+All ports may be passive when every ``#eigenmode_port`` has a
+``#virtual_waveguide``; raw incident and outgoing modal spectra are then saved,
+but no S-parameters can be normalized without an active port.
+
+The port plane must be internal, locally uniform along the guide axis, and at
+least two cells wide in each transverse direction. The minimum guide length
+is ``i3 + i4 + 3`` cells. Main-grid virtual waveguides support 3D,
+non-dispersive guide cross-sections with the CPU, CUDA, OpenCL, and Metal
+solvers. Through the Python API, a virtual waveguide may instead be attached
+to an HSG-subgrid port; it then inherits that subgrid's fine material slice,
+spatial and temporal steps, and CPU update cycle. Domain-decomposed MPI CPU
+models are supported. The compact auxiliary guide is replicated, while one
+aperture-sized collective communicates the three required H sheets after each
+magnetic halo exchange.
+
+Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
+main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
+therefore enclose the antenna and its physical feed aperture without omitting
+a face. The integration surface must not intersect the virtual aperture.
 
 #rx:
 ----
@@ -1635,6 +1788,13 @@ The voltage source supplies the reference impedance :math:`Z_0`. For example:
     # Custom 75 Ohm hard-source reference; start/stop precede it positionally
     #voltage_source: z 0.070 0.050 0.020 0 source_wave 0 10e-9 75
     #rx_port: 0.070 0.050 0.020 ideal_feed_75
+
+``#rx_port`` is supported in domain-decomposed MPI CPU models. The source and
+its internal field monitor belong to one rank; for a hard source, magnetic
+halos are synchronised before the next current sample so an Ampere loop may
+cross an internal rank face or corner. Port histories are gathered and the
+frequency-domain quantities are calculated once on the coordinator rank.
+
 
 For a finite-resistance source, the voltage-source resistance is the
 reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless
@@ -1732,6 +1892,30 @@ material are reported when the model is built.
       contaminate the spectrum. gprMax reports a tail-level warning rather
       than hiding or clipping the result.
 
+#network_port:
+--------------
+
+Requests time- and frequency-domain port quantities for an existing
+``#network_terminal``. The terminal ID is also the HDF5 port ID. The syntax is
+
+.. code-block:: none
+
+    #network_port: str1 [f1 [f2]]
+
+* ``str1`` is the network-terminal ID.
+* ``f1`` is the positive real power-wave reference impedance in ohms; it is
+  50 Ohms by default.
+* ``f2`` is the minimum number of cells per shortest material wavelength; it
+  is 10 by default. The literal ``nyquist`` retains the full native spectrum
+  with validity masks for research use.
+
+The output contains terminal voltage and current, incident and reflected
+power-wave spectra, ``S11``, ``Zin``, and ``Yin``. gprMax removes the
+background Yee-gap capacitance and conductance from the reported terminal
+current. A driven network obtains ``S11`` and incident power; an unexcited
+network remains useful as a passive measured port, for which ``Zin`` and
+``Yin`` are still available when numerically defined.
+
 #src_steps: and #rx_steps:
 --------------------------
 
@@ -1747,6 +1931,164 @@ Provides a simple method to allow you to move the location of all simple sources
 .. note::
 
     * ``#src_steps`` and ``#rx_steps`` are not suitable for moving sources which have associated geometry, e.g. antenna models.
+
+#study:
+-------
+
+Runs a sequence of source/receiver cases while building the model geometry
+only once. This is the general counterpart to ``#src_steps`` and
+``#rx_steps``: positions need not follow a regular increment, individual
+sources can be activated or scaled, and every output file records the exact
+case that produced it. The syntax is:
+
+.. code-block:: none
+
+    #study: gpr file1
+
+The study type may be ``gpr`` for irregular source/receiver acquisition,
+``source`` for fixed-topology stateful terminal sources, ``port`` for a
+finite-resistance voltage-source S-parameter study, ``eigenmode`` for a
+modal-port S-parameter study, or ``plane_wave`` for an angular TFSF/RCS
+study:
+
+.. code-block:: none
+
+    #study: source file1
+    #study: port file1
+    #study: eigenmode file1
+    #study: plane_wave file1
+
+``file1`` is a CSV table. Its path is resolved relative to the main input
+file. The required columns are ``case_id`` and ``object_id``. The optional
+columns are ``active``, ``x_m``, ``y_m``, ``z_m``, ``waveform_id``,
+``start_s``, ``stop_s``, ``scale``, ``record``, ``port``, and ``mode``. Blank
+cells mean "use the object's baseline value". All three position columns must
+be supplied together and contain absolute coordinates in metres. ``port`` and
+``mode`` are positive integers used only by an eigenmode study.
+
+A plane-wave table uses the deterministic object ID ``plane_wave_1``. Its
+additional optional columns are ``theta_deg``, ``phi_deg``, ``psi_deg``,
+``axis``, ``m_x``, ``m_y``, and ``m_z``. The permitted columns follow the
+plane-wave command used in the model: angles use theta/phi/psi, vector sources
+use all three integer mapping columns and psi, and axial sources use axis and
+psi. ``waveform_id``, ``start_s``, ``stop_s``, and a non-zero ``scale`` are
+available for every form. For example:
+
+.. code-block:: text
+
+    case_id,object_id,theta_deg,phi_deg,psi_deg,scale
+    x_incidence,plane_wave_1,90,0,90,1
+    y_incidence,plane_wave_1,90,90,90,1
+
+The TFSF box and its background material remain fixed. gprMax rebuilds the
+auxiliary one-dimensional discrete plane wave and resets/recompiles
+declarative NTFF accumulators for each row, while retaining the main model
+geometry. NTFF observation directions also remain fixed: request all angles
+needed across the cases in the input file and select the appropriate direction
+from each numbered output file.
+
+A ``source`` study manages main-grid ``#transmission_line``,
+``#magnetic_frill_source``, and ``#network_excitation`` commands. Their
+deterministic IDs are ``transmission_line_1``, ``magnetic_frill_source_1``,
+and ``network_excitation_1`` (and so on within each family). Positions,
+impedances, thin-wire/coax geometry, and rational-network definitions are
+fixed. The CSV may vary ``active``, ``waveform_id``, ``start_s``, ``stop_s``,
+and ``scale``. For example:
+
+.. code-block:: text
+
+    case_id,object_id,active,waveform_id,start_s,stop_s,scale
+    full_drive,transmission_line_1,true,pulse,0,4e-9,1
+    half_drive,transmission_line_1,true,pulse,0,4e-9,0.5
+    passive,transmission_line_1,false,,,,
+
+Any number of listed sources may be active in a case. An omitted or inactive
+source keeps its physical terminal and acts as a passive termination with
+zero generator drive. gprMax resets the terminal's internal field, recurrence,
+history, and derived port state before every case. Declarative NTFF outputs
+are also rebuilt with pristine accumulators. ``source`` studies are therefore
+suitable for comparing multiple-feed antenna excitations, but do not
+calculate a complete S matrix; use ``port`` or ``eigenmode`` for that purpose.
+The normal CPU, CUDA, OpenCL, and Metal implementations are available.
+Stateful sources inside subgrids, MPI, and task farming are not currently
+supported by this study type.
+
+For example:
+
+.. code-block:: text
+
+    case_id,object_id,active,x_m,y_m,z_m,waveform_id,start_s,stop_s,scale,record
+    trace_1,hertzian_dipole_1,true,0.100,0.050,0.030,,,,1,
+    trace_1,rx_1,,0.140,0.050,0.030,,,,,true
+    trace_2,hertzian_dipole_1,true,0.102,0.052,0.030,,,,0.8,
+    trace_2,rx_1,,0.145,0.052,0.030,,,,,true
+
+Objects receive deterministic IDs from their order of appearance within each
+object family: ``hertzian_dipole_1``, ``hertzian_dipole_2``,
+``magnetic_dipole_1``, ``voltage_source_1``, and ``rx_1``. An explicit
+``#rx`` identifier is also accepted as an alias. A source listed in a case is
+active by default; a source omitted from that case, or listed with
+``active=false``, is inactive. A receiver omitted from a case remains at its
+baseline position and is still recorded. ``record=false`` is reserved for
+future selective-output support and is currently rejected rather than
+silently ignored.
+
+For a ``port`` study, every ``#voltage_source`` must have finite, non-zero
+resistance and a coincident ``#rx_port`` with a unique ID. The CSV must contain
+one case for every voltage source and drive exactly one source in each case.
+Omitted sources retain their fixed source resistance but receive a zero
+generator waveform, so they behave as passive matched terminations. For
+example, a two-port schedule is:
+
+.. code-block:: text
+
+    case_id,object_id,active,scale
+    drive_port1,voltage_source_1,true,1
+    drive_port2,voltage_source_2,true,1
+
+Source position and resistance cannot vary in a port study because they are
+part of the built electric-edge material. Hard sources are not accepted: zero
+drive on a hard source enforces zero field and is not a matched termination.
+Each case output stores its source-plane S-matrix column. After the cases
+finish, ``<output>_study.h5`` stores the complete source-plane and
+gap-corrected matrices using
+``S[frequency, output_port, input_port]``. The correction removes all numerical
+gap capacitances/conductances through the full admittance matrix, including
+the coupled off-diagonal terms.
+
+For an ``eigenmode`` study, every case contains the single deterministic
+object ``eigenmode_excitation_1`` and selects one declared port/mode channel.
+Every mode on every ``#eigenmode_port`` must be selected exactly once:
+
+.. code-block:: text
+
+    case_id,object_id,port,mode
+    p1m1,eigenmode_excitation_1,1,1
+    p2m1,eigenmode_excitation_1,2,1
+
+All port modal anchors are solved during the first geometry build, including
+source-grade spectral-guard anchors. Later cases reuse those bases, reset the
+modal DFT and any ``#virtual_waveguide`` fields/PML history, and switch the
+active channel without another FDFD solve. The aggregate file stores
+``S[frequency, output_channel, input_channel]`` together with ``channel_ports``
+and ``channel_modes``.
+
+The number of CSV cases determines the number of model runs, so ``-n`` is not
+required. ``-i N`` restarts at case ``N`` and retains absolute output numbering.
+The original geometry, materials, PMLs, and grid allocation are reused, but
+field arrays and receiver histories are reset before every case. Each output
+contains a ``/study`` group with the case ID, resolved parameters, and a copy
+of the CSV source.
+
+.. note::
+
+    GPR studies support top-level ``#hertzian_dipole``,
+    ``#magnetic_dipole``, and ``#rx`` objects; port studies additionally
+    support finite-resistance ``#voltage_source``/``#rx_port`` pairs;
+    eigenmode studies support ``#eigenmode_port``, ``#eigenmode_excitation``,
+    and ``#virtual_waveguide``. MPI domain decomposition, task farming, plane
+    waves, transmission lines, and rational/frill ports remain excluded from
+    studies until their family-specific state reset hooks are implemented.
 
 #snapshot:
 ----------
@@ -1773,6 +2115,11 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
+
+    The Python API can also add a snapshot to an HSG subgrid. Such a snapshot
+    uses the subgrid's finer spatial discretisation and time step, while its
+    file origin remains in the global model coordinate system. The hash
+    command above always defines a main-grid snapshot.
 
 Near-to-far-field transformation commands
 ==========================================
@@ -1810,20 +2157,26 @@ The following conventions apply to every NTFF command:
   stencil. A closed surface must enclose the radiating source or the complete
   TFSF box and scatterer. An open Huygens surface instead permits an impressed
   source outside only through one of its omitted faces;
-* the implementation currently requires a three-dimensional serial model and
-  does not support MPI or geometry-fixed reuse. NTFF commands are main-grid
-  objects, but their closed surface may contain complete subgrids. A surface
-  that overlaps a subgrid must strictly enclose its HSG outer coupling surface;
-  it cannot touch or cut the coupling region. Both time- and frequency-domain
-  KSIR collection and frequency-domain equivalent-current collection are
-  available with CPU, CUDA, OpenCL, and Metal. Equivalent-current transient
-  far fields currently require the CPU solver;
+* the implementation requires a three-dimensional model and does not support
+  geometry-fixed reuse. NTFF commands are main-grid objects, but their closed
+  surface may contain complete subgrids. A surface that overlaps a subgrid
+  must strictly enclose its HSG outer coupling surface; it cannot touch or cut
+  the coupling region. Both time- and frequency-domain KSIR collection and
+  frequency-domain equivalent-current collection are available with the
+  serial CPU, CUDA, OpenCL, Metal, and MPI domain-decomposition solvers.
+  Equivalent-current transient far fields are available with the same
+  solvers. MPI uses the CPU field-update backend;
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
-  iterations and are transferred to the host once, after the solve. CUDA is
-  hardware-qualified on the development server. OpenCL and Metal have source-
-  generation and dispatch coverage, but still require execution tests on
-  suitable hardware.
+  iterations and are transferred to the host once, after the solve. CUDA and
+  OpenCL are hardware-qualified on the development server. Metal has complete
+  source-generation and dispatch coverage, but still requires execution tests
+  on suitable Apple hardware. With MPI, every surface patch is sampled by the
+  rank which owns its inside Yee sample; the neighbouring outside sample is
+  read from the normal one-cell halo. There is therefore no additional NTFF
+  communication inside the FDTD iteration. Compact time histories are reduced
+  and frequency-domain surface phasors are assembled on the coordinator after
+  time stepping, before the normal HDF5 output is written.
 
 Directivity, gain, efficiency, and port normalisation are post-processing
 operations after the FDTD solve. Angular KSIR and equivalent-current
@@ -2031,10 +2384,12 @@ creation order. The association is not required for electric or magnetic far
 fields, radiation intensity, RCS, or directivity. It is required when a
 far-field command asks for gain or efficiency.
 
-An eigenmode source cannot be used with any Ramahi/KSIR command. gprMax rejects
-that combination even when gain is not requested. Use the frequency-domain
-equivalent-current Huygens commands ``#ntff_frequency``, ``#ntff_far_field``
-or ``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
+A direct eigenmode source cannot be used with any Ramahi/KSIR command. When
+its active port has a ``#virtual_waveguide``, the source is moved outside the
+main FDTD domain and a closed KSIR or equivalent-current surface may be used.
+Without a virtual guide, use the frequency-domain equivalent-current Huygens
+commands ``#ntff_frequency``, ``#ntff_far_field`` or
+``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
 
 A port on a subgrid is named as ``subgrid_id/port_id``. For example,
 ``fine_grid/feed`` identifies an ``#rx_port`` called ``feed`` on subgrid
@@ -2200,8 +2555,9 @@ This prevents an incomplete retarded-time tail being mistaken for a physical
 late-time response. Increase ``#time_window`` if the stored terminal-decay
 test fails.
 
-The current implementation is CPU-only, requires a homogeneous lossless
-background and all six physical faces, and supports 3-D serial models. KSIR
+The current implementation supports the CPU, CUDA, OpenCL, and Metal solvers,
+requires a homogeneous lossless background and all six physical faces, and
+supports 3-D serial models. KSIR
 remains available for finite-distance time-domain points and for
 symmetry-completed surfaces.
 
@@ -2427,7 +2783,9 @@ simulated half. This KSIR workflow is supported by the local CPU, CUDA,
 OpenCL, and Metal solvers for nondispersive models. Equivalent-current
 transforms do not yet support symmetry image completion; physical faces can
 instead be omitted explicitly for an open frequency-domain Huygens surface.
-OpenCL and Metal still require end-to-end qualification on suitable hardware.
+OpenCL has end-to-end qualification on the development server. Metal has
+source-generation and dispatch coverage but still requires qualification on
+suitable Apple hardware.
 
 
 PML commands
@@ -2564,9 +2922,19 @@ and overlaps with a native PML remain errors because they invalidate the
 current formulation.
 
 An automatically generated internal identifier is reported in the log. The
-feature is currently limited to the main 3D grid and is not available with MPI
-or on subgrids. Orthogonal PML slabs may overlap, as domain PMLs do at edges and
-corners.
+hash command defines a slab on the main 3D grid. With the Python API a slab may
+instead be added to an HSG subgrid, provided the complete slab lies inside its
+working region and does not overlap the HSG coupling or auxiliary-PML regions.
+Subgrid slabs use the CPU solver and the subgrid's finer spatial and temporal
+discretisation. Domain-decomposed MPI CPU models are also supported. A slab may
+cross any number of rank boundaries. Its CFS grading is evaluated over the
+complete global thickness and sliced consistently between ranks, while each
+rank allocates only the PML history arrays for its local part. Consequently,
+the timestep loop needs no slab-specific communication in addition to the
+normal electric- and magnetic-field halo exchanges. Automatic PEC enclosure,
+material-extrusion validation, custom profiles, and boundary-replacement slabs
+have the same behaviour as in serial models. Orthogonal PML slabs may overlap,
+as domain PMLs do at edges and corners.
 
 
 #symmetry_boundary:
@@ -2591,6 +2959,13 @@ For example:
 .. note::
 
     * The PML thickness on a symmetry face is set to zero automatically.
-    * PEC boundaries and nondispersive PMC boundaries are supported by the CPU, CUDA, OpenCL, and Metal solvers.
-    * PMC boundaries in models containing dispersive materials are currently CPU-only.
-    * Symmetry boundaries are not currently supported in 2D mode, with MPI, or on a subgrid. They may be used on the main grid of a model that contains subgrids.
+    * PEC and PMC boundaries, including PMC boundaries in models containing
+      dispersive materials, are supported by the CPU, CUDA, OpenCL, Metal, and
+      domain-decomposed MPI CPU solvers.
+    * In MPI models, each face is constructed and updated only by ranks that
+      touch that global domain face. Domain-edge corrections are likewise
+      restricted to ranks touching both physical faces; internal rank seams
+      are not treated as symmetry edges.
+    * Symmetry boundaries are not currently supported in 2D mode or on a
+      subgrid. They may be used on the main grid of a model that contains
+      subgrids.

@@ -2,7 +2,7 @@ import csv
 
 import pytest
 
-from testing.regression.eigenmode_sources.cases.grid_spacing.plot_grid_spacing import (
+from testing.regression.eigenmode_sources.grid_spacing.plot_grid_spacing import (
     GRID_CASES,
     plot_grid_spacing,
     summarize_grid_spacing,

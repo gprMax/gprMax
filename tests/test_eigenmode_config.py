@@ -56,6 +56,25 @@ def test_bad_custom_waveform_recommends_automatic_bandpass():
         band.resolve_spectrum(grid, waveform, generated_waveform=False)
 
 
+@pytest.mark.parametrize(
+    "samples",
+    (np.ones(8), (-1.0) ** np.arange(8)),
+    ids=("dc", "nyquist"),
+)
+def test_band_spectrum_discards_endpoints_before_coverage(samples):
+    waveform = SimpleNamespace(
+        calculate_value=lambda time, dt: float(samples[int(round(time / dt))]),
+    )
+    grid = SimpleNamespace(dt=1.0, iterations=samples.size)
+    band = EigenmodeBandSpec(id="endpoint", fmin=1 / 16, fmax=7 / 16, points=7)
+
+    band.resolve_spectrum(grid, waveform, generated_waveform=False)
+
+    assert 0 < band.significant_range[0]
+    assert band.significant_range[1] < 0.5 / grid.dt
+    assert 0 < band.representative_frequency < 0.5 / grid.dt
+
+
 def _port(port, anchors):
     return EigenmodePortSpec(
         port=port,

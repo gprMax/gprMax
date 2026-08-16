@@ -1,7 +1,17 @@
 from types import SimpleNamespace
 
+import h5py
+import numpy as np
+
 import gprMax.fields_outputs as fields_outputs_mod
-from gprMax.fields_outputs import _global_position, write_hdf5_outputfile
+from gprMax.fields_outputs import (
+    _global_position,
+    _receiver_time_offset,
+    _write_dual_lattice_source_excitation,
+    _write_source_excitation,
+    write_hdf5_outputfile,
+)
+from gprMax.sources import HertzianDipole, VoltageSource
 
 
 def test_global_position_main_grid_scales_by_dl():
@@ -92,3 +102,96 @@ def test_write_hdf5_outputfile_closes_file_via_context_manager(monkeypatch):
 
     assert created["file"].entered
     assert created["file"].exited
+
+
+def test_hertzian_source_excitation_preserves_half_step_samples(tmp_path):
+    source = HertzianDipole()
+    source.ID = "dipole"
+    source.waveformID = "impulse"
+    source.polarisation = "z"
+    source.start = 0.0
+    source.stop = 8e-9
+    source.dl = 0.002
+    source.waveformvalues_halfdt = np.asarray((1.0, 0.0, 0.0, 99.0), dtype=np.float32)
+    grid = SimpleNamespace(
+        iterations=3,
+        dt=1e-12,
+        waveforms=[SimpleNamespace(ID="impulse", type="impulse", amp=1.0, freq=1e9)],
+    )
+    output = tmp_path / "source.h5"
+
+    with h5py.File(output, "w") as file:
+        group = file.create_group("srcs/src1")
+        _write_source_excitation(group, source, grid)
+
+    with h5py.File(output, "r") as file:
+        excitation = file["srcs/src1/excitation"]
+        np.testing.assert_array_equal(excitation["samples"], (1.0, 0.0, 0.0))
+        assert excitation.attrs["TimeSampleOffset"] == 0.5e-12
+        assert excitation.attrs["WaveformEvaluationTimeOffset"] == 0.5e-12
+        assert excitation.attrs["DrivingQuantity"] == "electric_current"
+        assert excitation.attrs["SpatialScale"] == 0.002
+
+
+def test_hard_voltage_source_records_applied_electric_time(tmp_path):
+    source = VoltageSource()
+    source.ID = "hard"
+    source.waveformID = "impulse"
+    source.polarisation = "x"
+    source.start = 0.0
+    source.stop = 4e-9
+    source.resistance = 0.0
+    source.waveformvalues_wholedt = np.asarray((1.0, 0.0, 0.0), dtype=np.float64)
+    source.waveformvalues_halfdt = np.asarray((1.0, 0.0, 0.0), dtype=np.float64)
+    grid = SimpleNamespace(
+        iterations=2,
+        dt=2e-12,
+        waveforms=[SimpleNamespace(ID="impulse", type="impulse", amp=1.0, freq=None)],
+    )
+    output = tmp_path / "source.h5"
+
+    with h5py.File(output, "w") as file:
+        group = file.create_group("srcs/src1")
+        _write_source_excitation(group, source, grid)
+
+    with h5py.File(output, "r") as file:
+        excitation = file["srcs/src1/excitation"]
+        assert excitation.attrs["TimeSampleOffset"] == grid.dt
+        assert excitation.attrs["WaveformEvaluationTimeOffset"] == 0.0
+        assert excitation.attrs["DrivingQuantity"] == "imposed_gap_voltage"
+
+
+def test_receiver_time_offsets_follow_yee_staggering():
+    dt = 3e-12
+    assert _receiver_time_offset("Ez", dt) == 0.0
+    assert _receiver_time_offset("Hy", dt) == -0.5 * dt
+    assert _receiver_time_offset("Ix", dt) == -0.5 * dt
+
+
+def test_transmission_line_excitation_exposes_whole_step_scalar_reference(tmp_path):
+    source = SimpleNamespace(
+        ID="line",
+        waveformID="impulse",
+        polarisation="z",
+        start=0.0,
+        stop=4e-9,
+        waveformvalues_wholedt=np.asarray((1.0, 0.0, 0.0)),
+        waveformvalues_halfdt=np.asarray((0.5, 0.0, 0.0)),
+    )
+    grid = SimpleNamespace(
+        iterations=2,
+        dt=2e-12,
+        waveforms=[SimpleNamespace(ID="impulse", type="impulse", amp=1.0, freq=1.0)],
+    )
+    output = tmp_path / "line.h5"
+
+    with h5py.File(output, "w") as file:
+        group = file.create_group("tls/tl1")
+        _write_dual_lattice_source_excitation(group, source, grid, "TransmissionLine")
+
+    with h5py.File(output, "r") as file:
+        excitation = file["tls/tl1/excitation"]
+        assert excitation["samples"].id == excitation["samples_whole"].id
+        assert excitation.attrs["TimeSampleOffset"] == 0.0
+        assert excitation.attrs["WaveformEvaluationTimeOffset"] == 0.0
+        assert excitation["samples_half"].attrs["TimeSampleOffset"] == grid.dt / 2
