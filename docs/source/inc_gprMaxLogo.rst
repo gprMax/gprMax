@@ -1,6 +1,6 @@
-************************
-gprMax logo and branding
-************************
+*******************
+gprMaxLogo toolbox
+*******************
 
 .. figure:: ../../images_shared/gprMax_logo.png
    :width: 720 px
@@ -22,11 +22,22 @@ forms a small electromagnetic cavity; the electric field is zero in the PEC
 surrounding the letters.
 
 Eight z-polarised Hertzian line sources excite the cavities with continuous
-10 GHz or 12 GHz sinusoidal waveforms. Their amplitudes are calibrated on the
-final grid to give comparable RMS field strength in each glyph. The official
-model has a 0.083333 mm spatial step and 12000 by 6000 cells. Its ``Ez`` field
-is sampled at 10 ns. No PML is needed because every free-space cavity is
-enclosed by PEC.
+10 GHz or 12 GHz sinusoidal waveforms. Their relative amplitudes are calibrated
+on the final grid to give comparable RMS field strength in each glyph. The
+official model has a 0.083333 mm spatial step and 12000 by 6000 cells. Its
+``Ez`` field is sampled at 10 ns. No PML is needed because every free-space
+cavity is enclosed by PEC.
+
+The source waveform is a line current :math:`I` in amperes. gprMax deposits
+the electric-current density
+
+.. math::
+
+   J_z = \frac{I\,\Delta z}{\Delta x\,\Delta y\,\Delta z}
+       = \frac{I}{\Delta x\,\Delta y}.
+
+The spatial grid, source amplitudes, and all other simulation parameters are
+fixed as part of the authoritative model.
 
 .. figure:: ../../images_shared/gprMax_logo_geometry.png
    :width: 720 px
@@ -49,31 +60,31 @@ dark-background PNGs. Use the transparent version where possible, preserve
 the wordmark aspect ratio, and retain the ``gprMax`` capitalisation.
 
 * :download:`2048 px transparent PNG
-  <../../branding/logo_v4/assets/gprmax_v4_logo_2048px.png>`
+  <../../toolboxes/gprMaxLogo/assets/gprmax_v4_logo_2048px.png>`
 * :download:`1024 px transparent PNG
-  <../../branding/logo_v4/assets/gprmax_v4_logo_1024px.png>`
+  <../../toolboxes/gprMaxLogo/assets/gprmax_v4_logo_1024px.png>`
 * :download:`512 px transparent PNG
-  <../../branding/logo_v4/assets/gprmax_v4_logo_512px.png>`
+  <../../toolboxes/gprMaxLogo/assets/gprmax_v4_logo_512px.png>`
 * :download:`Asset manifest
-  <../../branding/logo_v4/assets/manifest.json>`
+  <../../toolboxes/gprMaxLogo/assets/manifest.json>`
 
 Reproducing the logo
 ====================
 
 The complete model, bundled font and licence, rendering tools, standard
 exports, and detailed reproduction instructions are included in the
-:download:`branding README <../../branding/logo_v4/README.md>`.
+:download:`gprMaxLogo README <../../toolboxes/gprMaxLogo/README.md>`.
 
 Generate the model from the repository root with:
 
 .. code-block:: console
 
-   $ python branding/logo_v4/logo_model.py
+   $ python toolboxes/gprMaxLogo/logo_model.py
 
 The production case contains 72 million cells and produces an approximately
 1.7 GB raw field snapshot, so a suitable GPU is recommended. The snapshot is
 not distributed; the compact input model and generated assets are. After the
-simulation, ``render_logo.py`` creates a transparent master at any requested
-pixel width, and ``export_assets.py`` creates the standard screen and print
-sizes. Only the default 3x model has the calibrated source amplitudes used for
-the approved wordmark.
+simulation, ``render_logo.py`` creates the 10000-pixel transparent master and
+``export_assets.py`` downsamples it to the standard screen and print sizes.
+Every derivative therefore contains the same field pattern and relative colour
+balance.

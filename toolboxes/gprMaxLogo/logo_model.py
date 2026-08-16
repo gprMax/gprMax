@@ -19,43 +19,38 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 TEXT = "gprMax"
-BASE_DL = 0.00025
-BASE_NX = 4000
-BASE_NY = 2000
-BASE_FONT_SIZE = 996
-OFFICIAL_REFINEMENT = 3
+GRID_SPACING = 0.00025 / 3
+GRID_CELLS = (12000, 6000)
+FONT_SIZE = 2988
 FONT = Path(__file__).resolve().parent / "fonts" / "IBMPlexSans-Bold.ttf"
-# Subpixel glyph advances are rounded by Pillow at draw time. These one-pixel
-# offsets preserve the exact raster used for the approved 3x master rather
-# than allowing a future Pillow rounding change to move most glyphs by one
-# 0.083 mm cell.
-OFFICIAL_GLYPH_X_OFFSETS = (1, 1, 1, 1, 1, 0)
+# Subpixel glyph advances are rounded by Pillow at draw time. Keep an explicit
+# per-glyph correction table so the approved raster can be pinned if a future
+# Pillow release changes its rounding. No corrections are required with the
+# bundled font and currently tested Pillow version.
+GLYPH_X_OFFSETS = (0, 0, 0, 0, 0, 0)
 
-# Source locations were selected in the deeply interior parts of the glyphs on
-# the base grid. Scaling the indices preserves their physical locations on the
-# official 3x grid. Amplitudes were calibrated on that grid so that the RMS
-# field in each isolated glyph is approximately equal.
+# Source locations were selected in deeply interior parts of the glyphs.
+# Amplitudes were calibrated on this fixed grid so that the RMS field in each
+# isolated glyph is approximately equal.
 SOURCE_SPECS = (
-    ("g1", "g", (712, 1224), 2.076331, 10e9, 5e-9),
-    ("g2", "g", (367, 877), 2.076331, 10e9, 5e-9),
-    ("p1", "p", (948, 845), 2.974881, 10e9, 5e-9),
-    ("r1", "r", (1555, 872), 1.268562, 10e9, 5e-9),
-    ("M1", "M", (2439, 682), 0.941482, 12e9, 7e-9),
-    ("M2", "M", (1993, 677), 0.941482, 12e9, 7e-9),
-    ("a1", "a", (3033, 979), 2.053664, 12e9, 3e-9),
-    ("x1", "x", (3470, 971), 0.898925, 12e9, 5e-9),
+    ("g1", "g", (2136, 3672), 2.076331, 10e9, 5e-9),
+    ("g2", "g", (1101, 2631), 2.076331, 10e9, 5e-9),
+    ("p1", "p", (2844, 2535), 2.974881, 10e9, 5e-9),
+    ("r1", "r", (4665, 2616), 1.268562, 10e9, 5e-9),
+    ("M1", "M", (7317, 2046), 0.941482, 12e9, 7e-9),
+    ("M2", "M", (5979, 2031), 0.941482, 12e9, 7e-9),
+    ("a1", "a", (9099, 2937), 2.053664, 12e9, 3e-9),
+    ("x1", "x", (10410, 2913), 0.898925, 12e9, 5e-9),
 )
 
 
-def text_mask(refinement: int) -> tuple[np.ndarray, list[dict[str, object]]]:
-    """Rasterise the IBM Plex Sans wordmark directly on an FDTD grid."""
-    if refinement < 1:
-        raise ValueError("refinement must be a positive integer")
+def text_mask() -> tuple[np.ndarray, list[dict[str, object]]]:
+    """Rasterise the IBM Plex Sans wordmark on the authoritative FDTD grid."""
     if not FONT.exists():
         raise FileNotFoundError(f"The bundled IBM Plex Sans font was not found: {FONT}")
 
-    nx, ny = BASE_NX * refinement, BASE_NY * refinement
-    font = ImageFont.truetype(FONT, BASE_FONT_SIZE * refinement)
+    nx, ny = GRID_CELLS
+    font = ImageFont.truetype(FONT, FONT_SIZE)
     advances = [float(font.getlength(character)) for character in TEXT]
     boxes = [font.getbbox(character, anchor="ls") for character in TEXT]
     width = sum(advances)
@@ -67,8 +62,7 @@ def text_mask(refinement: int) -> tuple[np.ndarray, list[dict[str, object]]]:
     x = (nx - width) / 2
     baseline = (ny - (bottom - top)) / 2 - top
     glyphs: list[dict[str, object]] = []
-    offsets = OFFICIAL_GLYPH_X_OFFSETS if refinement == OFFICIAL_REFINEMENT else (0,) * len(TEXT)
-    for character, advance, offset in zip(TEXT, advances, offsets):
+    for character, advance, offset in zip(TEXT, advances, GLYPH_X_OFFSETS):
         before = np.asarray(image).copy()
         draw.text((x + offset, baseline), character, font=font, fill=255, anchor="ls")
         added = np.asarray(image) > before
@@ -116,11 +110,10 @@ def number(value: float) -> str:
     return f"{value:.12g}"
 
 
-def sources(refinement: int, mask: np.ndarray) -> list[dict[str, object]]:
-    """Return the calibrated source definitions for a refined grid."""
+def sources(mask: np.ndarray) -> list[dict[str, object]]:
+    """Return the calibrated source definitions for the fixed logo model."""
     result: list[dict[str, object]] = []
-    for name, glyph, base_point, amplitude, frequency, stop in SOURCE_SPECS:
-        point = (base_point[0] * refinement, base_point[1] * refinement)
+    for name, glyph, point, amplitude, frequency, stop in SOURCE_SPECS:
         if not mask[point]:
             raise ValueError(f"Source {name} at {point} lies outside its glyph")
         result.append(
@@ -139,12 +132,11 @@ def sources(refinement: int, mask: np.ndarray) -> list[dict[str, object]]:
 
 def write_model(
     output: Path,
-    refinement: int,
     mask: np.ndarray,
     source_definitions: list[dict[str, object]],
 ) -> dict[str, object]:
     """Write the complete hash-command model and return its metadata."""
-    dl = BASE_DL / refinement
+    dl = GRID_SPACING
     boxes = rectangles(mask)
     lines = [
         "#title: gprMax v4 IBM Plex Sans resonant-field logo",
@@ -188,7 +180,7 @@ def write_model(
     return {
         "input_file": output.name,
         "grid_spacing_m": dl,
-        "grid_cells": [BASE_NX * refinement, BASE_NY * refinement],
+        "grid_cells": list(GRID_CELLS),
         "physical_domain_m": [1.0, 0.5],
         "free_space_cells": int(mask.sum()),
         "rectangles": len(boxes),
@@ -196,25 +188,25 @@ def write_model(
     }
 
 
-def generate(refinement: int, output_dir: Path) -> dict[str, object]:
-    """Generate a model, its geometry preview, and portable metadata."""
+def generate(output_dir: Path) -> dict[str, object]:
+    """Generate the authoritative model, geometry preview, and metadata."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    mask, glyphs = text_mask(refinement)
-    source_definitions = sources(refinement, mask)
-    stem = f"gprmax_v4_logo_{refinement}x"
-    metadata = write_model(output_dir / f"{stem}.in", refinement, mask, source_definitions)
+    mask, glyphs = text_mask()
+    source_definitions = sources(mask)
+    stem = "gprmax_v4_logo"
+    metadata = write_model(output_dir / f"{stem}.in", mask, source_definitions)
     Image.fromarray((mask.T * 255).astype(np.uint8)).save(output_dir / f"{stem}_geometry.png")
     metadata.update(
         {
-            "refinement": refinement,
             "font_file": "fonts/IBMPlexSans-Bold.ttf",
-            "font_size_pixels": BASE_FONT_SIZE * refinement,
+            "font_size_pixels": FONT_SIZE,
             "glyphs": glyphs,
-            "amplitude_calibration": (
-                "Per-glyph RMS field calibrated on the official 3x model"
-                if refinement == OFFICIAL_REFINEMENT
-                else "Official 3x amplitudes retained; this is not an approved brand master"
-            ),
+            "source_model": {
+                "waveform_quantity": "line current (A)",
+                "grid_policy": "single authoritative model",
+            },
+            "amplitude_calibration": "Per-glyph visual balance calibrated on this model",
+            "brand_master": True,
         }
     )
     (output_dir / f"{stem}.json").write_text(json.dumps(metadata, indent=2) + "\n")
@@ -223,14 +215,13 @@ def generate(refinement: int, output_dir: Path) -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--refinement", type=int, default=OFFICIAL_REFINEMENT)
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path(__file__).resolve().parent / "model",
     )
     args = parser.parse_args()
-    print(json.dumps(generate(args.refinement, args.output_dir), indent=2))
+    print(json.dumps(generate(args.output_dir), indent=2))
 
 
 if __name__ == "__main__":

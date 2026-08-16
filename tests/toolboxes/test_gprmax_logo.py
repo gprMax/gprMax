@@ -1,4 +1,4 @@
-"""Tests for the reproducible gprMax version 4 branding assets."""
+"""Tests for the reproducible gprMax version 4 logo toolbox."""
 
 import json
 from pathlib import Path
@@ -6,17 +6,18 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from branding.logo_v4.export_assets import export
-from branding.logo_v4.logo_model import generate, rectangles
+from toolboxes.gprMaxLogo.export_assets import export
+from toolboxes.gprMaxLogo.logo_model import SOURCE_SPECS, rectangles
 from gprMax.hash_cmds_file import check_cmd_names
 
 ROOT = Path(__file__).resolve().parents[2]
-BRANDING = ROOT / "branding" / "logo_v4"
+LOGO_TOOLBOX = ROOT / "toolboxes" / "gprMaxLogo"
 
 
 def test_official_model_and_metadata_are_consistent():
-    metadata = json.loads((BRANDING / "model" / "gprmax_v4_logo_3x.json").read_text())
-    lines = (BRANDING / "model" / "gprmax_v4_logo_3x.in").read_text().splitlines()
+    metadata = json.loads((LOGO_TOOLBOX / "model" / "gprmax_v4_logo.json").read_text())
+    manifest = json.loads((LOGO_TOOLBOX / "assets" / "manifest.json").read_text())
+    lines = (LOGO_TOOLBOX / "model" / "gprmax_v4_logo.in").read_text().splitlines()
     free_space_boxes = [line for line in lines if line.startswith("#box:") and "free_space" in line]
     sources = [line for line in lines if line.startswith("#hertzian_dipole:")]
 
@@ -24,6 +25,12 @@ def test_official_model_and_metadata_are_consistent():
     assert metadata["free_space_cells"] == 10_666_982
     assert metadata["rectangles"] == len(free_space_boxes) == 9724
     assert len(metadata["sources"]) == len(sources) == 8
+    assert metadata["source_model"]["waveform_quantity"] == "line current (A)"
+    assert metadata["source_model"]["grid_policy"] == "single authoritative model"
+    assert metadata["brand_master"] is True
+    assert [source["amplitude"] for source in metadata["sources"]] == [
+        spec[3] for spec in SOURCE_SPECS
+    ]
     assert all(len(source.split()) == 8 for source in sources)
     assert lines[-1].endswith("10e-9 logo_fields.h5")
 
@@ -32,6 +39,21 @@ def test_official_model_and_metadata_are_consistent():
     assert single["#domain_mode"] == "TM"
     assert len(multi["#hertzian_dipole"]) == 8
     assert len(geometry) == 9725  # One PEC plane and 9724 free-space boxes.
+    assert manifest["source"] == "gprmax_v4_logo_master_10000.png"
+    assert manifest["source_pixels"] == [10000, 2788]
+    assert {asset["pixels"][0] for asset in manifest["assets"]} == {
+        2048,
+        1024,
+        512,
+        400,
+        256,
+    }
+    assert (ROOT / "images_shared" / "gprMax_logo.png").read_bytes() == (
+        LOGO_TOOLBOX / "assets" / "gprmax_v4_logo_1024px.png"
+    ).read_bytes()
+    assert (ROOT / "images_shared" / "gprMax_logo_small.png").read_bytes() == (
+        LOGO_TOOLBOX / "assets" / "gprmax_v4_logo_400px.png"
+    ).read_bytes()
 
 
 def test_rectangle_compression_reconstructs_mask():
@@ -44,17 +66,6 @@ def test_rectangle_compression_reconstructs_mask():
         rebuilt[x0:x1, y0:y1] = True
 
     np.testing.assert_array_equal(rebuilt, mask)
-
-
-def test_coarse_exploratory_model_is_complete(tmp_path):
-    metadata = generate(1, tmp_path)
-    model = (tmp_path / "gprmax_v4_logo_1x.in").read_text()
-
-    assert metadata["grid_cells"] == [4000, 2000]
-    assert len(metadata["glyphs"]) == 6
-    assert model.count("#hertzian_dipole:") == 8
-    assert model.count("#snapshot:") == 1
-    assert (tmp_path / "gprmax_v4_logo_1x_geometry.png").exists()
 
 
 def test_standard_asset_export(tmp_path):
