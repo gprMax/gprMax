@@ -59,13 +59,17 @@ FAKE_HOST_INFO = {
 
 
 @pytest.fixture(autouse=True)
-def restore_config_globals():
+def restore_config_globals(request):
     """Save and restore every module-level name this suite writes.
 
     ``sim_config`` is a plain module attribute with no reset hook, and these
     tests assign to it directly. Restoring it is what keeps the rest of
     ``tests/unit/`` order-independent.
     """
+    if request.node.get_closest_marker("unit") is None:
+        yield
+        return
+
     from gprMax import config
 
     saved = config.sim_config
@@ -74,7 +78,7 @@ def restore_config_globals():
 
 
 @pytest.fixture(autouse=True)
-def no_host_probes(monkeypatch):
+def no_host_probes(monkeypatch, request):
     """Replace the four hardware probes and the terminal-width lookup.
 
     Patched on ``gprMax.config`` rather than at their definition sites,
@@ -83,6 +87,9 @@ def no_host_probes(monkeypatch):
     ``lscpu``, making the suite slow, non-deterministic and dependent on the
     runner's hardware.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     monkeypatch.setattr(config, "get_host_info", lambda: dict(FAKE_HOST_INFO))

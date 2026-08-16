@@ -13,10 +13,7 @@ and mask dispatch, and the material-ID offsetting.
 import numpy as np
 import pytest
 
-from gprMax.cython.geometry_primitives import (
-    build_voxels_from_array,
-    build_voxels_from_array_mask,
-)
+from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
 
 from .conftest import nonzero_set
 
@@ -42,8 +39,9 @@ class TestBuildVoxelsFromArray:
                 for k in range(2):
                     data[i, j, k] = i * 4 + j * 2 + k  # values 0..7
 
-        build_voxels_from_array(1, 2, 3, 10, True, _NO_LOOKUP, _NO_LOOKUP,
-                                data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array(
+            1, 2, 3, 10, True, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+        )
 
         # data[i, j, k] maps to solid[xs + i, ys + j, zs + k], offset by
         # numexistmaterials.
@@ -63,8 +61,9 @@ class TestBuildVoxelsFromArray:
         data = make_data(2, 1, 1, fill=-1)
         data[1, 0, 0] = 0
 
-        build_voxels_from_array(2, 2, 2, 5, True, _NO_LOOKUP, _NO_LOOKUP,
-                                data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array(
+            2, 2, 2, 5, True, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+        )
 
         # Only the non-negative entry is written (0 + numexistmaterials).
         assert nonzero_set(g.solid) == {(3, 2, 2)}
@@ -82,27 +81,28 @@ class TestBuildVoxelsFromArray:
         for i in range(4):
             data[i, 0, 0] = i + 1
 
-        build_voxels_from_array(6, 0, 0, 0, True, _NO_LOOKUP, _NO_LOOKUP,
-                                data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array(
+            6, 0, 0, 0, True, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+        )
 
         assert nonzero_set(g.solid) == {(6, 0, 0), (7, 0, 0)}
         assert g.solid[6, 0, 0] == 1
         assert g.solid[7, 0, 0] == 2
 
-    @pytest.mark.xfail(reason="intermittent interaction with upstream tests — passes in isolation")
     def test_hard_write_stamps_id_with_the_offset_material(self, grid_arrays):
         g = grid_arrays()
         data = make_data(1, 1, 1, fill=5)
 
-        build_voxels_from_array(2, 2, 2, 1, False, _NO_LOOKUP, _NO_LOOKUP,
-                                data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array(
+            2, 2, 2, 1, False, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+        )
 
         assert g.solid[2, 2, 2] == 6
         assert np.all(g.rigidE[:, 2, 2, 2] == 1)
         assert np.all(g.rigidH[:, 2, 2, 2] == 1)
         # All six ID components carry the same offset material ID.
         written = nonzero_set(g.ID)
-        assert {comp for (comp, *_ ) in written} == set(range(6))
+        assert {comp for (comp, *_) in written} == set(range(6))
         assert all(g.ID[slot] == 6 for slot in written)
 
 
@@ -116,8 +116,22 @@ class TestBuildVoxelsFromArrayMask:
         mask[2, 0, 0] = 3  # grass
         mask[3, 0, 0] = 0  # skip
 
-        build_voxels_from_array_mask(2, 3, 4, 20, 30, True, _NO_LOOKUP, _NO_LOOKUP,
-                                     mask, data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array_mask(
+            2,
+            3,
+            4,
+            20,
+            30,
+            True,
+            _NO_LOOKUP,
+            _NO_LOOKUP,
+            mask,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert nonzero_set(g.solid) == {(2, 3, 4), (3, 3, 4), (4, 3, 4)}
         assert g.solid[2, 3, 4] == 7  # mask 1 -> data value, no offset
@@ -133,8 +147,22 @@ class TestBuildVoxelsFromArrayMask:
         mask = make_mask(2, 1, 1)
         mask[0, 0, 0] = 1
 
-        build_voxels_from_array_mask(1, 1, 1, 20, 30, True, _NO_LOOKUP, _NO_LOOKUP,
-                                     mask, data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array_mask(
+            1,
+            1,
+            1,
+            20,
+            30,
+            True,
+            _NO_LOOKUP,
+            _NO_LOOKUP,
+            mask,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         # The written cell (mask=1) has its rigid flags handled by the
         # averaging path; the skipped cell (mask=0) keeps its flags.
@@ -146,8 +174,22 @@ class TestBuildVoxelsFromArrayMask:
         data = make_data(1, 1, 1, fill=5)
         mask = make_mask(1, 1, 1, fill=2)  # water
 
-        build_voxels_from_array_mask(3, 3, 3, 20, 30, False, _NO_LOOKUP, _NO_LOOKUP,
-                                     mask, data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array_mask(
+            3,
+            3,
+            3,
+            20,
+            30,
+            False,
+            _NO_LOOKUP,
+            _NO_LOOKUP,
+            mask,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert g.solid[3, 3, 3] == 20
         assert np.all(g.rigidE[:, 3, 3, 3] == 1)
@@ -160,10 +202,27 @@ class TestBuildVoxelsFromArrayMask:
         data = make_data(2, 2, 2, fill=9)
         mask = make_mask(2, 2, 2)
 
-        build_voxels_from_array_mask(1, 1, 1, 20, 30, True, _NO_LOOKUP, _NO_LOOKUP,
-                                     mask, data, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxels_from_array_mask(
+            1,
+            1,
+            1,
+            20,
+            30,
+            True,
+            _NO_LOOKUP,
+            _NO_LOOKUP,
+            mask,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert not g.solid.any()
         assert not g.rigidE.any()
         assert not g.rigidH.any()
         assert not g.ID.any()
+
+
+pytestmark = pytest.mark.unit

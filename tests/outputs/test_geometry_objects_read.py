@@ -109,7 +109,9 @@ class TestConstruction:
     def test_stores_the_material_map(self, geometry_file, target_grid):
         """Expects the material_id_map stored for use by every read."""
         seven_map = np.arange(7, dtype=np.int32)
-        with ReadGeometryObject(geometry_file(), target_grid(), np.zeros(3, np.int32), seven_map) as r:
+        with ReadGeometryObject(
+            geometry_file(), target_grid(), np.zeros(3, np.int32), seven_map
+        ) as r:
             assert len(r.material_id_map) == 7
             assert np.array_equal(r.material_id_map, seven_map)
 
@@ -146,8 +148,10 @@ class TestValidation:
         so importing it into a differently-discretised model would silently
         change its physical size."""
         with ReadGeometryObject(
-            geometry_file(dl=(2 * DL, 2 * DL, 2 * DL)), target_grid(dl=DL),
-            np.zeros(3, np.int32), ID_MAP,
+            geometry_file(dl=(2 * DL, 2 * DL, 2 * DL)),
+            target_grid(dl=DL),
+            np.zeros(3, np.int32),
+            ID_MAP,
         ) as r:
             assert not r.has_valid_discritisation()
 
@@ -164,22 +168,30 @@ class TestValidation:
         The caller uses this to choose between a fast path that reads the
         stored arrays directly and a slow one that rebuilds them from ``data``
         with the voxel builder."""
-        with ReadGeometryObject(geometry_file(include_id=True), target_grid(), np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(include_id=True), target_grid(), np.zeros(3, np.int32), ID_MAP
+        ) as r:
             assert r.has_ID_array()
 
     def test_detects_a_missing_id_array(self, geometry_file, target_grid):
         """Expects ``False`` for an older file with only ``/data``."""
-        with ReadGeometryObject(geometry_file(include_id=False), target_grid(), np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(include_id=False), target_grid(), np.zeros(3, np.int32), ID_MAP
+        ) as r:
             assert not r.has_ID_array()
 
     def test_detects_rigid_arrays(self, geometry_file, target_grid):
         """Expects ``True`` only when *both* rigid arrays are present."""
-        with ReadGeometryObject(geometry_file(include_rigid=True), target_grid(), np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(include_rigid=True), target_grid(), np.zeros(3, np.int32), ID_MAP
+        ) as r:
             assert r.has_rigid_arrays()
 
     def test_detects_missing_rigid_arrays(self, geometry_file, target_grid):
         """Expects ``False`` when they are absent."""
-        with ReadGeometryObject(geometry_file(include_rigid=False), target_grid(), np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(include_rigid=False), target_grid(), np.zeros(3, np.int32), ID_MAP
+        ) as r:
             assert not r.has_rigid_arrays()
 
 
@@ -188,7 +200,9 @@ class TestReadData:
         """Expects the imported values to land in ``grid.solid`` at the
         requested position."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             r.read_data()
         assert g.solid[0, 0, 0] == 0
         assert g.solid[2, 2, 2] == 26
@@ -207,7 +221,9 @@ class TestReadData:
         """Expects every imported ID mapped through ``material_id_map``,
         so it names the material the importing model expects."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP + 10) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP + 10
+        ) as r:
             r.read_data()
         assert g.solid[0, 0, 0] == 10
         assert g.solid[2, 2, 2] == 36
@@ -216,7 +232,9 @@ class TestReadData:
         """Expects the array back and the grid untouched — the caller uses this
         when it needs to rebuild the rigid and ID arrays itself."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             data = r.get_data()
         assert data.shape == (3, 3, 3)
         assert not np.any(g.solid)
@@ -228,7 +246,9 @@ class TestReadData:
 
         With an identity map, file values and returned values match."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             data = r.get_data()
         assert data[0, 0, 0] == 0  # identity: file 0 → numID 0
 
@@ -259,14 +279,18 @@ class TestReadRigidAndId:
     def test_reads_rigid_e(self, geometry_file, target_grid):
         """Expects all 12 components written into the grid's ``rigidE``."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             r.read_rigidE()
         assert np.all(g.rigidE[:, :3, :3, :3] == 1)
 
     def test_reads_rigid_h(self, geometry_file, target_grid):
         """Expects all 6 components written into ``rigidH``."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             r.read_rigidH()
         assert np.all(g.rigidH[:, :3, :3, :3] == 2)
 
@@ -274,7 +298,9 @@ class TestReadRigidAndId:
         """Expects the mapping *not* applied — the rigid arrays hold flags, not
         material indices."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP + 10) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP + 10
+        ) as r:
             r.read_rigidE()
         assert np.all(g.rigidE[:, :3, :3, :3] == 1)
 
@@ -282,7 +308,9 @@ class TestReadRigidAndId:
         """Expects ``(nx+1)`` nodes per axis, because ``ID`` is node-centred —
         the reader asks for a read slice with ``upper_bound_exclusive=False``."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             r.read_ID()
         assert np.all(g.ID[:, :4, :4, :4] == 3)
 
@@ -290,7 +318,9 @@ class TestReadRigidAndId:
         """Expects the mapping applied here, unlike the rigid arrays — ``ID``
         does hold material indices."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP + 10) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP + 10
+        ) as r:
             r.read_ID()
         assert np.all(g.ID[:, :4, :4, :4] == 13)
 
@@ -308,7 +338,9 @@ class TestReadRigidAndId:
         """Expects the complete fast path to reconstruct the geometry without
         re-running the voxel builder."""
         g = target_grid()
-        with ReadGeometryObject(geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP) as r:
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
             r.read_data()
             r.read_ID()
             r.read_rigidE()
@@ -430,9 +462,7 @@ class TestMpiPaths:
         everyone."""
         assert viewless_reader.has_valid_discritisation()
 
-    @pytest.mark.parametrize(
-        "method", ["read_data", "read_rigidE", "read_rigidH", "read_ID"]
-    )
+    @pytest.mark.parametrize("method", ["read_data", "read_rigidE", "read_rigidH", "read_ID"])
     def test_every_read_short_circuits_without_a_view(self, viewless_reader, method):
         """Expects each reader to return immediately rather than raise.
         (4 parameter sets)"""
@@ -442,3 +472,6 @@ class TestMpiPaths:
         """Expects ``None`` rather than an empty array, so the caller can tell
         "nothing for this rank" from "an empty object"."""
         assert viewless_reader.get_data() is None
+
+
+pytestmark = pytest.mark.unit

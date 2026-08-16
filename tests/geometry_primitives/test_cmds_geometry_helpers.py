@@ -129,7 +129,8 @@ class TestRotatePolarisation:
         assert np.allclose(pts[1], [0.01, 0.022, 0.03])
 
     def test_uppercase_polarisation_accepted(self):
-        _, new_polarisation = rotate_polarisation(
-            (0.0, 0.0, 0.0), "X", "z", 90, self.GRID
-        )
+        _, new_polarisation = rotate_polarisation((0.0, 0.0, 0.0), "X", "z", 90, self.GRID)
         assert new_polarisation == "y"
+
+
+pytestmark = pytest.mark.unit

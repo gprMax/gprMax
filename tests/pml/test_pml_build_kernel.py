@@ -263,3 +263,6 @@ class TestDtypes:
         mrs = np.array([3.0], dtype=np.float64)
         with pytest.raises(ValueError):
             pml_average_er_mr(2, 2, 1, solid, ers, mrs)
+
+
+pytestmark = pytest.mark.unit

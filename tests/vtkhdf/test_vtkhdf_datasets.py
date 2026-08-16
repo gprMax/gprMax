@@ -53,9 +53,7 @@ class TestScalarsAndSequences:
 
         assert list(datasets["VTKHDF/Numbers"]) == [1, 2, 3]
 
-    def test_a_scalar_becomes_a_one_element_dataset(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_a_scalar_becomes_a_one_element_dataset(self, make_vtkhdf_file, read_h5):
         """``NumberOfCells`` is written this way — a bare Python ``int``."""
         with make_vtkhdf_file() as handler:
             handler._write_dataset("VTKHDF/Count", 7)
@@ -85,18 +83,14 @@ class TestScalarsAndSequences:
 
     def test_the_dtype_is_deduced_from_the_data(self, make_vtkhdf_file, read_h5):
         with make_vtkhdf_file() as handler:
-            handler._write_dataset(
-                "VTKHDF/Numbers", np.arange(3, dtype=np.int32)
-            )
+            handler._write_dataset("VTKHDF/Numbers", np.arange(3, dtype=np.int32))
             path = handler.filename
 
         _, datasets = read_h5(path)
 
         assert datasets["VTKHDF/Numbers"].dtype == np.int32
 
-    def test_an_explicit_dtype_overrides_the_data(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_an_explicit_dtype_overrides_the_data(self, make_vtkhdf_file, read_h5):
         with make_vtkhdf_file() as handler:
             handler._write_dataset("VTKHDF/Numbers", [1, 2, 3], dtype=np.float64)
             path = handler.filename
@@ -105,14 +99,10 @@ class TestScalarsAndSequences:
 
         assert datasets["VTKHDF/Numbers"].dtype == np.float64
 
-    def test_floating_point_data_keeps_its_precision(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_floating_point_data_keeps_its_precision(self, make_vtkhdf_file, read_h5):
         """Snapshots are ``float32``; promoting them would double file size."""
         with make_vtkhdf_file() as handler:
-            handler._write_dataset(
-                "VTKHDF/Field", np.ones(4, dtype=np.float32)
-            )
+            handler._write_dataset("VTKHDF/Field", np.ones(4, dtype=np.float32))
             path = handler.filename
 
         _, datasets = read_h5(path)
@@ -141,9 +131,7 @@ class TestScalarsAndSequences:
             with pytest.raises(ValueError):
                 handler._write_dataset("VTKHDF/Numbers", [2])
 
-    def test_a_nested_path_creates_intermediate_groups(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_a_nested_path_creates_intermediate_groups(self, make_vtkhdf_file, read_h5):
         """``CellData/Material`` needs a ``CellData`` group that nothing made."""
         with make_vtkhdf_file() as handler:
             handler._write_dataset("VTKHDF/CellData/Material", [1, 2])
@@ -157,9 +145,7 @@ class TestScalarsAndSequences:
 class TestTheTranspose:
     """ZYX on disk, XYZ in memory — reversal of *all* axes."""
 
-    def test_a_three_dimensional_array_is_reversed(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_a_three_dimensional_array_is_reversed(self, make_vtkhdf_file, tmp_path):
         """The shape on disk is the reverse of the shape in memory.
 
         Asserted on the raw HDF5 dataset, because that is what VTK reads.
@@ -170,9 +156,7 @@ class TestTheTranspose:
         with h5py.File(tmp_path / "model.vtkhdf", "r") as f:
             assert f["VTKHDF/Field"].shape == (4, 3, 2)
 
-    def test_the_values_land_where_the_reversal_says(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_the_values_land_where_the_reversal_says(self, make_vtkhdf_file, tmp_path):
         """Shape alone would pass for a wrong permutation; values pin it."""
         data = np.arange(24).reshape((2, 3, 4))
 
@@ -184,9 +168,7 @@ class TestTheTranspose:
 
         assert stored[3, 2, 1] == data[1, 2, 3]
 
-    def test_the_round_trip_recovers_the_original(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_the_round_trip_recovers_the_original(self, make_vtkhdf_file, tmp_path):
         """A reader that transposes back gets exactly what was written."""
         data = np.arange(24).reshape((2, 3, 4))
 
@@ -198,9 +180,7 @@ class TestTheTranspose:
 
         assert np.array_equal(stored.transpose(), data)
 
-    def test_a_one_dimensional_array_is_unaffected(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_a_one_dimensional_array_is_unaffected(self, make_vtkhdf_file, read_h5):
         """Transposing a vector is a no-op, so scalars and IDs are safe."""
         with make_vtkhdf_file() as handler:
             handler._write_dataset("VTKHDF/Ids", np.arange(5))
@@ -226,9 +206,7 @@ class TestTheTranspose:
     def test_it_can_be_switched_off(self, make_vtkhdf_file, tmp_path):
         """The escape hatch ``Points`` and field data use."""
         with make_vtkhdf_file() as handler:
-            handler._write_dataset(
-                "VTKHDF/Vectors", np.zeros((5, 3)), xyz_data_ordering=False
-            )
+            handler._write_dataset("VTKHDF/Vectors", np.zeros((5, 3)), xyz_data_ordering=False)
 
         with h5py.File(tmp_path / "model.vtkhdf", "r") as f:
             assert f["VTKHDF/Vectors"].shape == (5, 3)
@@ -252,9 +230,7 @@ class TestTheTranspose:
         import inspect
 
         from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
-        from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import (
-            VtkUnstructuredGrid,
-        )
+        from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
 
         public = [
             VtkImageData.add_point_data,
@@ -264,8 +240,7 @@ class TestTheTranspose:
         ]
 
         assert not any(
-            "xyz_data_ordering" in inspect.signature(method).parameters
-            for method in public
+            "xyz_data_ordering" in inspect.signature(method).parameters for method in public
         )
 
 
@@ -284,9 +259,7 @@ class TestStringData:
             "beta",
         ]
 
-    def test_strings_are_stored_as_variable_length(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_strings_are_stored_as_variable_length(self, make_vtkhdf_file, tmp_path):
         """Fixed-length padding would be read by VTK as trailing nulls."""
         with make_vtkhdf_file() as handler:
             handler.add_field_data("Names", ["a", "much longer name"])
@@ -305,9 +278,7 @@ class TestStringData:
 
         assert info.encoding == "ascii"
 
-    def test_a_single_string_becomes_a_one_element_dataset(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_a_single_string_becomes_a_one_element_dataset(self, make_vtkhdf_file, read_h5):
         with make_vtkhdf_file() as handler:
             handler.add_field_data("Title", "a model")
             path = handler.filename
@@ -323,9 +294,7 @@ class TestStringData:
 
         assert "UTF-32" in caplog.text
 
-    def test_an_explicit_unicode_dtype_still_writes_ascii(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_an_explicit_unicode_dtype_still_writes_ascii(self, make_vtkhdf_file, tmp_path):
         with make_vtkhdf_file() as handler:
             handler.add_field_data("Names", ["alpha"], dtype="U5")
 
@@ -336,28 +305,20 @@ class TestStringData:
 
     def test_a_utf8_string_dtype_warns(self, make_vtkhdf_file, caplog):
         with make_vtkhdf_file() as handler:
-            handler.add_field_data(
-                "Names", ["alpha"], dtype=h5py.string_dtype("utf-8")
-            )
+            handler.add_field_data("Names", ["alpha"], dtype=h5py.string_dtype("utf-8"))
 
         assert "utf-8 encoding is not supported" in caplog.text
 
     def test_a_fixed_length_string_dtype_warns(self, make_vtkhdf_file, caplog):
         """Serial I/O converts to variable length and says so."""
         with make_vtkhdf_file() as handler:
-            handler.add_field_data(
-                "Names", ["alpha"], dtype=h5py.string_dtype("ascii", 10)
-            )
+            handler.add_field_data("Names", ["alpha"], dtype=h5py.string_dtype("ascii", 10))
 
         assert "Fixed length strings are not supported" in caplog.text
 
-    def test_a_fixed_length_string_dtype_is_converted(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_a_fixed_length_string_dtype_is_converted(self, make_vtkhdf_file, tmp_path):
         with make_vtkhdf_file() as handler:
-            handler.add_field_data(
-                "Names", ["alpha"], dtype=h5py.string_dtype("ascii", 10)
-            )
+            handler.add_field_data("Names", ["alpha"], dtype=h5py.string_dtype("ascii", 10))
 
         with h5py.File(tmp_path / "model.vtkhdf", "r") as f:
             info = h5py.check_string_dtype(f["VTKHDF/FieldData/Names"].dtype)
@@ -432,14 +393,10 @@ class TestPartialWrites:
 
         assert list(datasets["VTKHDF/Numbers"][1:]) == [0, 0, 0]
 
-    def test_a_shape_equal_to_the_data_needs_no_offset(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_a_shape_equal_to_the_data_needs_no_offset(self, make_vtkhdf_file, read_h5):
         """The single-rank case: shape is given but describes the whole thing."""
         with make_vtkhdf_file() as handler:
-            handler._write_dataset(
-                "VTKHDF/Numbers", np.array([1, 2, 3]), shape=np.array([3])
-            )
+            handler._write_dataset("VTKHDF/Numbers", np.array([1, 2, 3]), shape=np.array([3]))
             path = handler.filename
 
         _, datasets = read_h5(path)
@@ -449,9 +406,7 @@ class TestPartialWrites:
     def test_a_larger_shape_without_an_offset_raises(self, make_vtkhdf_file):
         with make_vtkhdf_file() as handler:
             with pytest.raises(ValueError, match="Offset must not be None"):
-                handler._write_dataset(
-                    "VTKHDF/Numbers", np.array([1, 2]), shape=np.array([5])
-                )
+                handler._write_dataset("VTKHDF/Numbers", np.array([1, 2]), shape=np.array([5]))
 
     def test_a_shape_of_the_wrong_rank_raises(self, make_vtkhdf_file):
         with make_vtkhdf_file() as handler:
@@ -495,9 +450,7 @@ class TestPartialWrites:
                     offset=np.array([2]),
                 )
 
-    def test_a_two_dimensional_partial_write_places_correctly(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_a_two_dimensional_partial_write_places_correctly(self, make_vtkhdf_file, tmp_path):
         """Both ``shape`` and ``offset`` are flipped alongside the data."""
         with make_vtkhdf_file() as handler:
             handler._write_dataset(
@@ -510,9 +463,7 @@ class TestPartialWrites:
         with h5py.File(tmp_path / "model.vtkhdf", "r") as f:
             stored = f["VTKHDF/Block"][()]
 
-        assert stored.shape == (2, 3) and np.array_equal(
-            stored[:, 1], np.ones(2)
-        )
+        assert stored.shape == (2, 3) and np.array_equal(stored[:, 1], np.ones(2))
 
     def test_the_offset_is_flipped_with_the_data(self, make_vtkhdf_file, tmp_path):
         """Stated as its own test: the flip must apply to all three, or the
@@ -556,9 +507,7 @@ class TestCreateDataset:
     collective creation call.
     """
 
-    def test_a_dataset_of_the_requested_shape_is_created(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_a_dataset_of_the_requested_shape_is_created(self, make_vtkhdf_file, read_h5):
         with make_vtkhdf_file() as handler:
             handler.add_field_data("Empty", None, shape=(4,), dtype=np.int32)
             path = handler.filename
@@ -591,9 +540,7 @@ class TestCreateDataset:
 
         assert "UTF-32" in caplog.text
 
-    def test_a_unicode_dtype_becomes_variable_length_ascii(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_a_unicode_dtype_becomes_variable_length_ascii(self, make_vtkhdf_file, tmp_path):
         with make_vtkhdf_file() as handler:
             handler.add_field_data("Empty", None, shape=(2,), dtype="U5")
 
@@ -604,9 +551,7 @@ class TestCreateDataset:
 
     def test_a_utf8_dtype_warns(self, make_vtkhdf_file, caplog):
         with make_vtkhdf_file() as handler:
-            handler.add_field_data(
-                "Empty", None, shape=(2,), dtype=h5py.string_dtype("utf-8")
-            )
+            handler.add_field_data("Empty", None, shape=(2,), dtype=h5py.string_dtype("utf-8"))
 
         assert "utf-8 encoding is not supported" in caplog.text
 
@@ -624,9 +569,7 @@ class TestCreateDataset:
 class TestFieldData:
     """``add_field_data`` — the only public writer on the base class."""
 
-    def test_it_writes_under_the_field_data_group(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_it_writes_under_the_field_data_group(self, make_vtkhdf_file, read_h5):
         with make_vtkhdf_file() as handler:
             handler.add_field_data("Title", [1])
             path = handler.filename
@@ -688,3 +631,6 @@ class TestFieldData:
         _, datasets = read_h5(path)
 
         assert list(datasets["VTKHDF/FieldData/Steps"]) == [0, 9, 0]
+
+
+pytestmark = pytest.mark.unit

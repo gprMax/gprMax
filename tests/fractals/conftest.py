@@ -41,19 +41,23 @@ DT = 1.926e-12
 
 
 @pytest.fixture(autouse=True)
-def fractal_config(monkeypatch):
+def fractal_config(monkeypatch, request):
     """Patch ``gprMax.config`` for the fractal modules.
 
     Double precision output, a single OpenMP thread, and a materials dict
     that ``create_water`` / ``create_grass`` can bump ``maxpoles`` on.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     model_cfg = SimpleNamespace(
         mode="3D",
         ompthreads=1,
         materials={"maxpoles": 0},
-        debye_averaging=True, dispersive_averaging=True,
+        debye_averaging=True,
+        dispersive_averaging=True,
     )
     sim_cfg = SimpleNamespace(
         general={"solver": "cpu", "precision": "double", "subgrid": False},
@@ -76,8 +80,15 @@ def nonzero_set(arr):
 def make_material(numID, ID, averagable=True):
     """Stub with the attributes the geometry ``build()`` methods read."""
     return SimpleNamespace(
-        numID=numID, ID=ID, averagable=averagable, er=1.0, se=0.0, mr=1.0, sm=0.0,
-        is_pec=(ID == "pec" or False), is_pmc=(ID == "pmc" or False)
+        numID=numID,
+        ID=ID,
+        averagable=averagable,
+        er=1.0,
+        se=0.0,
+        mr=1.0,
+        sm=0.0,
+        is_pec=(ID == "pec" or False),
+        is_pmc=(ID == "pmc" or False),
     )
 
 

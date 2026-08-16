@@ -38,8 +38,8 @@ from gprMax.utilities.host_info import (
     detect_metal,
     detect_opencl,
     has_metal,
-    has_pyopencl,
     has_pycuda,
+    has_pyopencl,
     print_cuda_info,
     print_metal_info,
     print_opencl_info,
@@ -89,8 +89,9 @@ def _cuda_device(name="Test GPU", memory=8 * 1024**3):
     return SimpleNamespace(name=lambda: name, total_memory=lambda: memory)
 
 
-def _opencl_device(name="Test Device", memory=8 * 1024**3, platform="Test Platform",
-                   device_type=2):
+def _opencl_device(
+    name="Test Device", memory=8 * 1024**3, platform="Test Platform", device_type=2
+):
     """A stand-in pyopencl device: attributes, not methods, unlike pycuda."""
     return SimpleNamespace(
         name=name,
@@ -107,17 +108,13 @@ class TestTheAvailabilityPredicates:
         "predicate, module",
         [(has_pycuda, "pycuda"), (has_pyopencl, "pyopencl"), (has_metal, "Metal")],
     )
-    def test_an_installed_module_is_reported_present(
-        self, fake_module, predicate, module
-    ):
+    def test_an_installed_module_is_reported_present(self, fake_module, predicate, module):
         """Truthiness, not identity — see the shadowing test below."""
         fake_module(module)
 
         assert predicate()
 
-    def test_two_of_the_three_return_the_module_instead_of_true(
-        self, fake_module
-    ):
+    def test_two_of_the_three_return_the_module_instead_of_true(self, fake_module):
         """``import pycuda`` rebinds the local that held ``True``.
 
         Each predicate sets a local to ``True``, then does ``import <name>``
@@ -142,16 +139,12 @@ class TestTheAvailabilityPredicates:
         "predicate, module",
         [(has_pycuda, "pycuda"), (has_pyopencl, "pyopencl"), (has_metal, "Metal")],
     )
-    def test_a_missing_module_is_reported_absent(
-        self, hide_module, predicate, module
-    ):
+    def test_a_missing_module_is_reported_absent(self, hide_module, predicate, module):
         hide_module(module)
 
         assert predicate() is False
 
-    @pytest.mark.parametrize(
-        "predicate", [has_pycuda, has_pyopencl, has_metal]
-    )
+    @pytest.mark.parametrize("predicate", [has_pycuda, has_pyopencl, has_metal])
     def test_a_missing_module_does_not_raise(self, hide_module, predicate):
         """The whole point — these are called unconditionally at startup.
 
@@ -163,9 +156,7 @@ class TestTheAvailabilityPredicates:
 
         assert predicate() is False
 
-    @pytest.mark.parametrize(
-        "predicate", [has_pycuda, has_pyopencl, has_metal]
-    )
+    @pytest.mark.parametrize("predicate", [has_pycuda, has_pyopencl, has_metal])
     def test_the_result_is_a_boolean(self, hide_module, predicate):
         """Callers use it in ``if``; a truthy module object would also work,
         but the annotation-free signature makes the type worth pinning.
@@ -191,9 +182,7 @@ class TestDetectCudaGpus:
             driver = fake_module(
                 "pycuda.driver",
                 init=lambda: None,
-                Device=SimpleNamespace(
-                    count=lambda: count, __call__=None
-                ),
+                Device=SimpleNamespace(count=lambda: count, __call__=None),
             )
             driver.Device = lambda ID: devices[ID]
             driver.Device.count = staticmethod(lambda: count)
@@ -207,9 +196,7 @@ class TestDetectCudaGpus:
 
         assert detect_cuda_gpus() == {}
 
-    def test_no_pycuda_warns_with_installation_instructions(
-        self, hide_module, caplog
-    ):
+    def test_no_pycuda_warns_with_installation_instructions(self, hide_module, caplog):
         """The user asked for ``-gpu``; silence would be unhelpful."""
         hide_module("pycuda")
 
@@ -250,9 +237,7 @@ class TestDetectCudaGpus:
 
         assert detect_cuda_gpus() == {}
 
-    def test_the_visible_devices_variable_restricts_the_list(
-        self, cuda, monkeypatch
-    ):
+    def test_the_visible_devices_variable_restricts_the_list(self, cuda, monkeypatch):
         """Schedulers set ``CUDA_VISIBLE_DEVICES``; gprMax must honour it.
 
         Ignoring it on a shared node would mean grabbing another job's GPU.
@@ -291,9 +276,7 @@ class TestDetectOpencl:
                 VERSION_TEXT="2024.1",
                 get_platforms=lambda: platforms,
                 device_type=SimpleNamespace(
-                    to_string=lambda value: {1: "CPU", 2: "GPU"}.get(
-                        value, "ACCELERATOR"
-                    )
+                    to_string=lambda value: {1: "CPU", 2: "GPU"}.get(value, "ACCELERATOR")
                 ),
             )
 
@@ -308,9 +291,7 @@ class TestDetectOpencl:
 
         assert detect_opencl() == {}
 
-    def test_no_pyopencl_warns_with_installation_instructions(
-        self, hide_module, caplog
-    ):
+    def test_no_pyopencl_warns_with_installation_instructions(self, hide_module, caplog):
         hide_module("pyopencl")
 
         detect_opencl()
@@ -358,9 +339,7 @@ class TestDetectOpencl:
 
         assert "No OpenCL-capable platforms detected" in caplog.text
 
-    def test_a_failing_platform_query_returns_an_empty_dictionary(
-        self, fake_module
-    ):
+    def test_a_failing_platform_query_returns_an_empty_dictionary(self, fake_module):
         fake_module(
             "pyopencl",
             get_platforms=lambda: (_ for _ in ()).throw(RuntimeError("no ICD")),
@@ -377,9 +356,7 @@ class TestDetectMetal:
 
         assert detect_metal() == {}
 
-    def test_no_metal_warns_with_installation_instructions(
-        self, hide_module, caplog
-    ):
+    def test_no_metal_warns_with_installation_instructions(self, hide_module, caplog):
         hide_module("Metal")
 
         detect_metal()
@@ -394,9 +371,7 @@ class TestDetectMetal:
 
     def test_it_is_keyed_at_zero(self, fake_module):
         """Metal exposes one system default; there is no device list."""
-        fake_module(
-            "Metal", MTLCreateSystemDefaultDevice=lambda: SimpleNamespace()
-        )
+        fake_module("Metal", MTLCreateSystemDefaultDevice=lambda: SimpleNamespace())
 
         assert list(detect_metal()) == [0]
 
@@ -480,9 +455,7 @@ class TestPrintOpenclInfo:
             "pyopencl",
             VERSION_TEXT="2024.1",
             device_type=SimpleNamespace(
-                to_string=lambda value: {1: "CPU", 2: "GPU"}.get(
-                    value, "ACCELERATOR"
-                )
+                to_string=lambda value: {1: "CPU", 2: "GPU"}.get(value, "ACCELERATOR")
             ),
         )
 
@@ -518,9 +491,7 @@ class TestPrintOpenclInfo:
     def test_the_device_name_and_memory_are_printed(self, caplog):
         caplog.set_level(1)
 
-        print_opencl_info(
-            {0: _opencl_device(name="Test Device", memory=4 * 1024**3)}
-        )
+        print_opencl_info({0: _opencl_device(name="Test Device", memory=4 * 1024**3)})
 
         assert "Test Device" in caplog.text and "4.0 GiB" in caplog.text
 
@@ -556,28 +527,13 @@ class TestPrintOpenclInfo:
 
         assert len(caplog.records) == 1  # upstream: no count line when no devices
 
-    @pytest.mark.xfail(
-        reason="upstream added ``device_type = types`` fallback — UnboundLocalError no longer raised"
-    )
-    def test_a_device_that_is_neither_cpu_nor_gpu_raises(self, caplog):
-        """``type`` is assigned in two ``if``s with no ``else``.
-
-        An FPGA or a custom accelerator reports neither ``"CPU"`` nor
-        ``"GPU"``, so the local is never bound and the line that formats it
-        raises ``UnboundLocalError`` — while merely *listing* devices, before
-        anything has been selected. Worse, if a CPU or GPU device was printed
-        first, the stale value is silently reused and the accelerator is
-        mislabelled. Pinned as the current behaviour; written up in
-        ``notes/bugs/host-info-print-opencl-unbound-type.md``.
-
-        Upstream fix: ``device_type = types`` as a fallback on line 608 prevents
-        the ``UnboundLocalError``. The accelerator-is-mislabelled bug is still
-        present but the crash is gone.
-        """
+    def test_a_device_that_is_neither_cpu_nor_gpu_uses_its_reported_type(self, caplog):
+        """Accelerators are reported without assuming they are CPUs or GPUs."""
         caplog.set_level(1)
 
-        with pytest.raises(UnboundLocalError):
-            print_opencl_info({0: _opencl_device(device_type=8)})
+        print_opencl_info({0: _opencl_device(device_type=8)})
+
+        assert "ACCELERATOR" in caplog.text
 
 
 class TestPrintMetalInfo:
@@ -627,3 +583,6 @@ class TestPrintMetalInfo:
         print_metal_info({0: SimpleNamespace(name=lambda: "Apple M2")})
 
         assert {record.levelname for record in caplog.records} == {"BASIC"}
+
+
+pytestmark = pytest.mark.unit

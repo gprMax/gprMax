@@ -33,7 +33,6 @@ from gprMax.user_objects.cmds_singleuse import (
     Title,
 )
 
-
 # ---------------------------------------------------------------------------
 # Title
 # ---------------------------------------------------------------------------
@@ -147,9 +146,7 @@ class TestDomain:
         "nx,ny,nz,expected_mode",
         [(1, 50, 50, "2D TMx"), (50, 1, 50, "2D TMy"), (50, 50, 1, "2D TMz"), (50, 50, 50, "3D")],
     )
-    def test_build_sets_mode(
-        self, stub_model, user_object_config, nx, ny, nz, expected_mode
-    ):
+    def test_build_sets_mode(self, stub_model, user_object_config, nx, ny, nz, expected_mode):
         stub_model.nx, stub_model.ny, stub_model.nz = nx, ny, nz
         uip = MagicMock()
         uip.discretise_static_point.return_value = np.array([nx, ny, nz])
@@ -269,24 +266,10 @@ class TestOMPThreads:
             OMPThreads(0).build(stub_model)
 
 
-class TestOMPThreadsHashMismatchBug:
-    """Bug tripwire: ``cmds_singleuse.py:276``.
-
-    ``OMPThreads.hash`` returns ``"#num_threads"`` but the rest of the
-    codebase — the hash dispatcher in ``hash_cmds_singleuse.py:64``, the
-    docs at ``docs/source/input_hash_cmds.rst:158``, the parser keys in
-    ``hash_cmds_file.py:222`` — all use ``"#omp_threads"``. As a result
-    ``str(OMPThreads(4))`` produces ``"#num_threads: 4"``, a string that
-    cannot be parsed back by the dispatcher.
-
-    When fixed (rename the property to return ``"#omp_threads"``), this
-    tripwire should flip to assert the correct hash.
-    """
-
-    def test_hash_currently_diverges_from_dispatcher(self):
-        assert OMPThreads(4).hash == "#num_threads"
-        # Round-trip through __str__ produces a string the parser can't read
-        assert str(OMPThreads(4)) == "#num_threads: 4"
+class TestOMPThreadsHash:
+    def test_hash_uses_the_canonical_command_name(self):
+        assert OMPThreads(4).hash == "#omp_threads"
+        assert str(OMPThreads(4)) == "#omp_threads: 4"
 
 
 # ---------------------------------------------------------------------------
@@ -463,6 +446,7 @@ class TestOutputDir:
 
     def test_build_calls_set_output_file_path(self, stub_model, user_object_config):
         OutputDir("results/run1").build(stub_model)
-        user_object_config.model_config.set_output_file_path.assert_called_once_with(
-            "results/run1"
-        )
+        user_object_config.model_config.set_output_file_path.assert_called_once_with("results/run1")
+
+
+pytestmark = pytest.mark.unit

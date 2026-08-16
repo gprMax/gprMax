@@ -142,9 +142,7 @@ class TestSigmamaxAutoCalculation:
         pml = make_pml(thickness=4)
         assert pml.CFS[0].sigma.max is None
         pml.calculate_update_coeffs(1.0, 1.0)
-        assert pml.CFS[0].sigma.max == pytest.approx(
-            0.8 * 5 / (self._z0() * pml.d)
-        )
+        assert pml.CFS[0].sigma.max == pytest.approx(0.8 * 5 / (self._z0() * pml.d))
 
     @staticmethod
     def _z0():
@@ -202,9 +200,7 @@ class TestSigmamaxAutoCalculation:
         x_slab.calculate_update_coeffs(1.0, 1.0)
         y_slab.calculate_update_coeffs(1.0, 1.0)
         ratio = DL_ANISO[1] / DL_ANISO[0]
-        assert y_slab.CFS[0].sigma.max == pytest.approx(
-            x_slab.CFS[0].sigma.max / ratio
-        )
+        assert y_slab.CFS[0].sigma.max == pytest.approx(x_slab.CFS[0].sigma.max / ratio)
 
 
 class TestHoripmlAgainstTheClosedForm:
@@ -221,12 +217,8 @@ class TestHoripmlAgainstTheClosedForm:
         pml = PML(g, "x0", "xminus", 0, 6, 0, 11, 0, 11)
         electric, magnetic = profiles_for(rich_cfs, 6)
         pml.calculate_update_coeffs(1.0, 1.0)
-        expected = dict(
-            zip(COEFF_NAMES[:4], horipml_reference(e0, DT, *electric))
-        )
-        expected.update(
-            dict(zip(COEFF_NAMES[4:], horipml_reference(e0, DT, *magnetic)))
-        )
+        expected = dict(zip(COEFF_NAMES[:4], horipml_reference(e0, DT, *electric)))
+        expected.update(dict(zip(COEFF_NAMES[4:], horipml_reference(e0, DT, *magnetic))))
         assert getattr(pml, name)[0] == pytest.approx(expected[name])
 
     def test_era_with_the_default_cfs_is_two_e0_over_tmp(self, make_pml, e0):
@@ -307,9 +299,7 @@ class TestMripmlAgainstTheClosedForm:
         electric, magnetic = profiles_for(rich_cfs, 6)
         pml.calculate_update_coeffs(1.0, 1.0)
         expected = dict(zip(COEFF_NAMES[:4], mripml_reference(e0, DT, *electric)))
-        expected.update(
-            dict(zip(COEFF_NAMES[4:], mripml_reference(e0, DT, *magnetic)))
-        )
+        expected.update(dict(zip(COEFF_NAMES[4:], mripml_reference(e0, DT, *magnetic))))
         assert getattr(pml, name)[0] == pytest.approx(expected[name])
 
     def test_erb_is_exactly_one_for_the_default_cfs(self, make_pml_grid):
@@ -422,3 +412,6 @@ class TestMultipole:
         with caplog.at_level(logging.DEBUG, logger="gprMax.pml"):
             pml.calculate_update_coeffs(1.0, 1.0)
         assert caplog.text.count("sigma.max set to") == 2
+
+
+pytestmark = pytest.mark.unit

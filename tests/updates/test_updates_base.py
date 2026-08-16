@@ -135,11 +135,7 @@ class TestAbstractContract:
         eleven — the ABC machinery computes ``__abstractmethods__`` itself —
         and asserts instantiation fails naming the one left out.
         """
-        body = {
-            name: (lambda self, *a, **k: None)
-            for name in ABSTRACT_METHODS
-            if name != missing
-        }
+        body = {name: (lambda self, *a, **k: None) for name in ABSTRACT_METHODS if name != missing}
         incomplete = type("Incomplete", (Updates,), body)
 
         assert incomplete.__abstractmethods__ == frozenset({missing})
@@ -268,21 +264,14 @@ class TestBackendConformance:
         """Each of the eleven is a real implementation, not inherited."""
         assert name in CPUUpdates.__dict__
 
-    def test_cpu_updates_adds_three_methods_outside_the_contract(self):
-        """``Solver.solve`` needs ``isinstance`` guards because of these.
+    def test_plane_wave_hooks_are_part_of_the_backend_contract(self):
+        hooks = {"update_plane_waves_electric", "update_plane_waves_magnetic"}
+        assert hooks <= set(CPUUpdates.__dict__)
+        assert hooks <= set(vars(Updates))
 
-        ``update_plane_waves_electric``, ``update_plane_waves_magnetic`` and
-        ``set_dispersive_updates`` exist only on ``CPUUpdates``, so the solver
-        loop cannot call them through the base type and has to type-check
-        first.
-        """
-        extra = {
-            "update_plane_waves_electric",
-            "update_plane_waves_magnetic",
-            "set_dispersive_updates",
-        }
-        assert extra <= set(CPUUpdates.__dict__)
-        assert not extra & set(vars(Updates))
+    def test_set_dispersive_updates_is_cpu_specific(self):
+        assert "set_dispersive_updates" in CPUUpdates.__dict__
+        assert "set_dispersive_updates" not in vars(Updates)
 
     def test_metal_updates_does_not_implement_the_contract(self):
         """``MetalUpdates`` is not an ``Updates`` subclass at all.
@@ -302,3 +291,6 @@ class TestBackendConformance:
             reason="metal_updates imports platform-specific machinery",
         )
         assert not issubclass(metal_updates.MetalUpdates, Updates)
+
+
+pytestmark = pytest.mark.unit

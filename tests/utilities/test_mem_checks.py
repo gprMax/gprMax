@@ -27,11 +27,9 @@ A real ``FDTDGrid`` would allocate the very arrays these functions are trying
 to predict, which would make the tests both slow and circular.
 """
 
-from gprMax.utilities.host_info import (
-    mem_check_build_all,
-    mem_check_host,
-    mem_check_run_all,
-)
+import pytest
+
+from gprMax.utilities.host_info import mem_check_build_all, mem_check_host, mem_check_run_all
 
 
 class TestMemCheckHost:
@@ -52,9 +50,7 @@ class TestMemCheckHost:
 
         assert caplog.records[0].levelname == "WARNING"
 
-    def test_the_requested_amount_appears_in_the_warning(
-        self, install_host_config, caplog
-    ):
+    def test_the_requested_amount_appears_in_the_warning(self, install_host_config, caplog):
         """Humanised, so the user can compare it with what they have."""
         install_host_config()
 
@@ -62,18 +58,14 @@ class TestMemCheckHost:
 
         assert "34.4 GB" in caplog.text
 
-    def test_the_available_amount_appears_in_the_warning(
-        self, install_host_config, caplog
-    ):
+    def test_the_available_amount_appears_in_the_warning(self, install_host_config, caplog):
         install_host_config()
 
         mem_check_host(32 * 1024**3)
 
         assert "16.0 GiB" in caplog.text
 
-    def test_exactly_the_available_amount_does_not_warn(
-        self, install_host_config, caplog
-    ):
+    def test_exactly_the_available_amount_does_not_warn(self, install_host_config, caplog):
         """A strict ``>``; using every last byte is allowed."""
         caplog.set_level(1)
         install_host_config()
@@ -97,9 +89,7 @@ class TestMemCheckHost:
 
         assert mem_check_host(10**15) is None
 
-    def test_the_limit_comes_from_the_global_host_info(
-        self, install_host_config, caplog
-    ):
+    def test_the_limit_comes_from_the_global_host_info(self, install_host_config, caplog):
         """Not probed live, so a long run is judged against startup figures.
 
         Shown by lowering the recorded RAM to an absurd figure: a request of
@@ -147,9 +137,7 @@ class TestMemCheckRunAll:
 
         assert total == 65_001_000
 
-    def test_every_grid_contributes(
-        self, install_host_config, install_model_config, make_grid
-    ):
+    def test_every_grid_contributes(self, install_host_config, install_model_config, make_grid):
         """Subgrids are separate ``FDTDGrid`` objects in the same list."""
         install_host_config()
         model_config = install_model_config()
@@ -164,15 +152,11 @@ class TestMemCheckRunAll:
         install_host_config()
         install_model_config()
 
-        _, strings = mem_check_run_all(
-            [make_grid(name="main"), make_grid(name="sub")]
-        )
+        _, strings = mem_check_run_all([make_grid(name="main"), make_grid(name="sub")])
 
         assert len(strings) == 2
 
-    def test_each_string_names_its_grid(
-        self, install_host_config, install_model_config, make_grid
-    ):
+    def test_each_string_names_its_grid(self, install_host_config, install_model_config, make_grid):
         install_host_config()
         install_model_config()
 
@@ -180,9 +164,7 @@ class TestMemCheckRunAll:
 
         assert "[main]" in strings[0]
 
-    def test_each_string_is_humanised(
-        self, install_host_config, install_model_config, make_grid
-    ):
+    def test_each_string_is_humanised(self, install_host_config, install_model_config, make_grid):
         install_host_config()
         install_model_config()
 
@@ -243,9 +225,7 @@ class TestDispersiveMaterials:
         install_host_config()
         model_config = install_model_config(maxpoles=2)
 
-        mem_check_run_all(
-            [make_grid(basic=0, dispersive=100), make_grid(basic=0, dispersive=200)]
-        )
+        mem_check_run_all([make_grid(basic=0, dispersive=100), make_grid(basic=0, dispersive=200)])
 
         assert model_config.mem_use == 300
 
@@ -259,9 +239,7 @@ class TestSnapshots:
 
         return SimpleNamespace(nbytes=nbytes)
 
-    def test_no_snapshots_add_nothing(
-        self, install_host_config, install_model_config, make_grid
-    ):
+    def test_no_snapshots_add_nothing(self, install_host_config, install_model_config, make_grid):
         install_host_config()
         model_config = install_model_config()
 
@@ -269,9 +247,7 @@ class TestSnapshots:
 
         assert model_config.mem_use == 1000
 
-    def test_each_snapshot_is_counted(
-        self, install_host_config, install_model_config, make_grid
-    ):
+    def test_each_snapshot_is_counted(self, install_host_config, install_model_config, make_grid):
         install_host_config()
         model_config = install_model_config()
         snapshots = [self._snapshot(100), self._snapshot(200)]
@@ -354,9 +330,7 @@ class TestMemCheckBuildAll:
         install_host_config()
         install_model_config()
 
-        total, _ = mem_check_build_all(
-            [make_grid(basic=1000, fractals=5000, fractalvolumes=[])]
-        )
+        total, _ = mem_check_build_all([make_grid(basic=1000, fractals=5000, fractalvolumes=[])])
 
         assert total == 1000
 
@@ -416,8 +390,7 @@ class TestMemCheckBuildAll:
         install_model_config()
 
         _, strings = mem_check_build_all(
-            [make_grid(name="main", basic=1_000_000),
-             make_grid(name="sub", basic=1_000_000)]
+            [make_grid(name="main", basic=1_000_000), make_grid(name="sub", basic=1_000_000)]
         )
 
         assert strings == ["~1.0 MB [main]", "~1.0 MB [sub]"]
@@ -441,3 +414,6 @@ class TestMemCheckBuildAll:
         total, strings = mem_check_build_all([])
 
         assert (total, strings) == (65_000_000, [])
+
+
+pytestmark = pytest.mark.unit

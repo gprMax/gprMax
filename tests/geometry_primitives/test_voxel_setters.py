@@ -90,7 +90,9 @@ class TestBuildEdges:
             (build_edge_z, 8, 2),
         ],
     )
-    def test_edge_at_origin_skips_neighbour_writes(self, grid_arrays, builder, base_slot, id_component):
+    def test_edge_at_origin_skips_neighbour_writes(
+        self, grid_arrays, builder, base_slot, id_component
+    ):
         # At (0, 0, 0) the neighbour cells do not exist; only the base
         # rigid slot of the origin cell may be flipped.
         g = grid_arrays(4, 4, 4)
@@ -113,10 +115,22 @@ class TestBuildFaces:
         # + set_rigid_Ey(2,2,3) + set_rigid_Ez(2,3,2), each fanning out
         # to its edge-sharing neighbours.
         assert nonzero_set(g.rigidE) == {
-            (4, 2, 2, 2), (7, 1, 2, 2), (5, 2, 2, 1), (6, 1, 2, 1),
-            (8, 2, 2, 2), (9, 1, 2, 2), (11, 2, 1, 2), (10, 1, 1, 2),
-            (4, 2, 2, 3), (7, 1, 2, 3), (5, 2, 2, 2), (6, 1, 2, 2),
-            (8, 2, 3, 2), (9, 1, 3, 2), (11, 2, 2, 2), (10, 1, 2, 2),
+            (4, 2, 2, 2),
+            (7, 1, 2, 2),
+            (5, 2, 2, 1),
+            (6, 1, 2, 1),
+            (8, 2, 2, 2),
+            (9, 1, 2, 2),
+            (11, 2, 1, 2),
+            (10, 1, 1, 2),
+            (4, 2, 2, 3),
+            (7, 1, 2, 3),
+            (5, 2, 2, 2),
+            (6, 1, 2, 2),
+            (8, 2, 3, 2),
+            (9, 1, 3, 2),
+            (11, 2, 2, 2),
+            (10, 1, 2, 2),
         }
         assert nonzero_set(g.ID) == {
             (1, 2, 2, 2),
@@ -136,10 +150,22 @@ class TestBuildFaces:
         build_face_xz(2, 2, 2, NUM_IDX, NUM_IDZ, g.rigidE, g.rigidH, g.ID)
 
         assert nonzero_set(g.rigidE) == {
-            (0, 2, 2, 2), (1, 2, 1, 2), (3, 2, 2, 1), (2, 2, 1, 1),
-            (8, 2, 2, 2), (9, 1, 2, 2), (11, 2, 1, 2), (10, 1, 1, 2),
-            (0, 2, 2, 3), (1, 2, 1, 3), (3, 2, 2, 2), (2, 2, 1, 2),
-            (8, 3, 2, 2), (9, 2, 2, 2), (11, 3, 1, 2), (10, 2, 1, 2),
+            (0, 2, 2, 2),
+            (1, 2, 1, 2),
+            (3, 2, 2, 1),
+            (2, 2, 1, 1),
+            (8, 2, 2, 2),
+            (9, 1, 2, 2),
+            (11, 2, 1, 2),
+            (10, 1, 1, 2),
+            (0, 2, 2, 3),
+            (1, 2, 1, 3),
+            (3, 2, 2, 2),
+            (2, 2, 1, 2),
+            (8, 3, 2, 2),
+            (9, 2, 2, 2),
+            (11, 3, 1, 2),
+            (10, 2, 1, 2),
         }
         assert nonzero_set(g.ID) == {
             (0, 2, 2, 2),
@@ -158,10 +184,22 @@ class TestBuildFaces:
         build_face_xy(2, 2, 2, NUM_IDX, NUM_IDY, g.rigidE, g.rigidH, g.ID)
 
         assert nonzero_set(g.rigidE) == {
-            (0, 2, 2, 2), (1, 2, 1, 2), (3, 2, 2, 1), (2, 2, 1, 1),
-            (4, 2, 2, 2), (7, 1, 2, 2), (5, 2, 2, 1), (6, 1, 2, 1),
-            (0, 2, 3, 2), (1, 2, 2, 2), (3, 2, 3, 1), (2, 2, 2, 1),
-            (4, 3, 2, 2), (7, 2, 2, 2), (5, 3, 2, 1), (6, 2, 2, 1),
+            (0, 2, 2, 2),
+            (1, 2, 1, 2),
+            (3, 2, 2, 1),
+            (2, 2, 1, 1),
+            (4, 2, 2, 2),
+            (7, 1, 2, 2),
+            (5, 2, 2, 1),
+            (6, 1, 2, 1),
+            (0, 2, 3, 2),
+            (1, 2, 2, 2),
+            (3, 2, 3, 1),
+            (2, 2, 2, 1),
+            (4, 3, 2, 2),
+            (7, 2, 2, 2),
+            (5, 3, 2, 1),
+            (6, 2, 2, 1),
         }
         assert nonzero_set(g.ID) == {
             (0, 2, 2, 2),
@@ -199,7 +237,23 @@ class TestBuildVoxelAveraging:
         g.rigidE[:] = 1
         g.rigidH[:] = 1
 
-        build_voxel(1, 2, 3, NUM_ID, NUM_IDX, NUM_IDY, NUM_IDZ, True, False, False, False, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxel(
+            1,
+            2,
+            3,
+            NUM_ID,
+            NUM_IDX,
+            NUM_IDY,
+            NUM_IDZ,
+            True,
+            False,
+            False,
+            False,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert nonzero_set(g.solid) == {(1, 2, 3)}
         assert g.solid[1, 2, 3] == NUM_ID
@@ -248,7 +302,23 @@ class TestBuildVoxelHard:
 
     def test_stamps_solid_rigid_and_all_24_id_entries(self, grid_arrays):
         g = grid_arrays(4, 4, 4)
-        build_voxel(1, 1, 1, NUM_ID, NUM_IDX, NUM_IDY, NUM_IDZ, False, False, False, False, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxel(
+            1,
+            1,
+            1,
+            NUM_ID,
+            NUM_IDX,
+            NUM_IDY,
+            NUM_IDZ,
+            False,
+            False,
+            False,
+            False,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert nonzero_set(g.solid) == {(1, 1, 1)}
         assert g.solid[1, 1, 1] == NUM_ID
@@ -262,8 +332,10 @@ class TestBuildVoxelHard:
         written = nonzero_set(g.ID)
         assert len(written) == 18
         for slot in written:
-            assert g.ID[slot] == NUM_IDX if slot[0] % 3 == 0 else (
-                NUM_IDY if slot[0] % 3 == 1 else NUM_IDZ
+            assert (
+                g.ID[slot] == NUM_IDX
+                if slot[0] % 3 == 0
+                else (NUM_IDY if slot[0] % 3 == 1 else NUM_IDZ)
             )
 
     def test_far_corner_writes_into_id_padding(self, grid_arrays):
@@ -271,7 +343,23 @@ class TestBuildVoxelHard:
         # voxel of the domain can stamp its far corners without going out
         # of bounds.
         g = grid_arrays(4, 4, 4)
-        build_voxel(3, 3, 3, NUM_ID, NUM_IDX, NUM_IDY, NUM_IDZ, False, False, False, False, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxel(
+            3,
+            3,
+            3,
+            NUM_ID,
+            NUM_IDX,
+            NUM_IDY,
+            NUM_IDZ,
+            False,
+            False,
+            False,
+            False,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert g.solid[3, 3, 3] == NUM_ID
         written = nonzero_set(g.ID)
@@ -285,9 +373,30 @@ class TestBuildVoxelHard:
         # averaged write followed by a hard write leaves the cell rigid
         # with the new material.
         g = grid_arrays(4, 4, 4)
-        build_voxel(2, 2, 2, 7, 7, 7, 7, True, False, False, False, g.solid, g.rigidE, g.rigidH, g.ID)
-        build_voxel(2, 2, 2, NUM_ID, NUM_IDX, NUM_IDY, NUM_IDZ, False, False, False, False, g.solid, g.rigidE, g.rigidH, g.ID)
+        build_voxel(
+            2, 2, 2, 7, 7, 7, 7, True, False, False, False, g.solid, g.rigidE, g.rigidH, g.ID
+        )
+        build_voxel(
+            2,
+            2,
+            2,
+            NUM_ID,
+            NUM_IDX,
+            NUM_IDY,
+            NUM_IDZ,
+            False,
+            False,
+            False,
+            False,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
 
         assert g.solid[2, 2, 2] == NUM_ID
         assert np.all(g.rigidE[:, 2, 2, 2] == 1)
         assert np.all(g.rigidH[:, 2, 2, 2] == 1)
+
+
+pytestmark = pytest.mark.unit

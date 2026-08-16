@@ -340,9 +340,7 @@ class TestCalculateValuesPolynomial:
         assert H == pytest.approx([1.5, 2.5, 3.5, 4.5])
 
     @pytest.mark.parametrize("name,order", [p for p in PROFILES if p[0] != "constant"])
-    def test_every_polynomial_profile_matches_the_longhand_formula(
-        self, make_cfs, name, order
-    ):
+    def test_every_polynomial_profile_matches_the_longhand_formula(self, make_cfs, name, order):
         """Expects agreement with an independently written reference for all
         eight non-constant profiles, rescaled into ``[0, 1]``. (8 parameter
         sets)"""
@@ -458,3 +456,6 @@ class TestCalculateValuesReverse:
         assert E_fwd != pytest.approx(E_rev[::-1])
         full, _ = polynomial_profile(4, 2)
         assert E_rev == pytest.approx(full[::-1][:-1])
+
+
+pytestmark = pytest.mark.unit

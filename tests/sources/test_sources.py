@@ -38,7 +38,6 @@ from gprMax.sources import (
     htod_src_arrays,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers shared across tests
 # ---------------------------------------------------------------------------
@@ -124,9 +123,7 @@ class TestVoltageSourceInit:
 
 
 class TestVoltageSourceCalculateWaveformValues:
-    def test_populates_both_arrays_inside_window(
-        self, fake_grid, make_constant_waveform
-    ):
+    def test_populates_both_arrays_inside_window(self, fake_grid, make_constant_waveform):
         w = make_constant_waveform(ID="wf", value=2.5)
         G = fake_grid(iterations=10, dt=1e-12, waveforms=[w])
         src = _make_voltage_source(polarisation="x", resistance=50.0)
@@ -175,9 +172,7 @@ class TestVoltageSourceCalculateWaveformValues:
         existing.waveformvalues_halfdt = sentinel_half
         existing.waveformvalues_wholedt = sentinel_whole
 
-        G = fake_grid(
-            iterations=10, dt=1.0, waveforms=[w], voltagesources=[existing]
-        )
+        G = fake_grid(iterations=10, dt=1.0, waveforms=[w], voltagesources=[existing])
         existing.stop = G.timewindow
 
         new = _make_voltage_source(polarisation="y", resistance=10.0)
@@ -202,9 +197,7 @@ class TestVoltageSourceUpdateElectric:
         with ``coeff = updatecoeffsE[material, 4]``.
         """
         IDlookup, ID, updatecoeffsE, _ = _make_id_arrays()
-        G = fake_grid(
-            dt=1.0, dx=1.0, dy=1.0, dz=1.0, iterations=5, IDlookup=IDlookup, ID=ID
-        )
+        G = fake_grid(dt=1.0, dx=1.0, dy=1.0, dz=1.0, iterations=5, IDlookup=IDlookup, ID=ID)
         Ex, Ey, Ez = _zero_fields()
 
         src = _make_voltage_source(polarisation=polarisation, resistance=2.0)
@@ -228,12 +221,10 @@ class TestVoltageSourceUpdateElectric:
         self, fake_grid, polarisation, field_idx, d_along
     ):
         """Per ``sources.py:187`` hard-source case (``resistance == 0``):
-            E[i,j,k] = -waveform_wholedt[it] / d_along
+        E[i,j,k] = -waveform_wholedt[it] / d_along
         """
         IDlookup, ID, updatecoeffsE, _ = _make_id_arrays()
-        G = fake_grid(
-            dt=1.0, dx=2.0, dy=2.0, dz=2.0, iterations=5, IDlookup=IDlookup, ID=ID
-        )
+        G = fake_grid(dt=1.0, dx=2.0, dy=2.0, dz=2.0, iterations=5, IDlookup=IDlookup, ID=ID)
         Ex, Ey, Ez = _zero_fields()
 
         src = _make_voltage_source(polarisation=polarisation, resistance=0)
@@ -361,16 +352,12 @@ class TestHertzianDipoleUpdateElectric:
         "polarisation, field_idx",
         [("x", 0), ("y", 1), ("z", 2)],
     )
-    def test_decrements_E_by_documented_formula(
-        self, fake_grid, polarisation, field_idx
-    ):
+    def test_decrements_E_by_documented_formula(self, fake_grid, polarisation, field_idx):
         """Per ``sources.py:303-325``:
-            E -= coeff * waveform * dl / (dx*dy*dz)
+        E -= coeff * waveform * dl / (dx*dy*dz)
         """
         IDlookup, ID, updatecoeffsE, _ = _make_id_arrays()
-        G = fake_grid(
-            dt=1.0, dx=1.0, dy=1.0, dz=1.0, iterations=5, IDlookup=IDlookup, ID=ID
-        )
+        G = fake_grid(dt=1.0, dx=1.0, dy=1.0, dz=1.0, iterations=5, IDlookup=IDlookup, ID=ID)
         Ex, Ey, Ez = _zero_fields()
 
         src = _make_hertzian(polarisation=polarisation, dl=2.0)
@@ -419,16 +406,12 @@ class TestMagneticDipoleUpdateMagnetic:
         "polarisation, field_idx",
         [("x", 0), ("y", 1), ("z", 2)],
     )
-    def test_decrements_H_by_documented_formula(
-        self, fake_grid, polarisation, field_idx
-    ):
+    def test_decrements_H_by_documented_formula(self, fake_grid, polarisation, field_idx):
         """Per ``sources.py:382-401``:
-            H -= coeff * waveform / (dx*dy*dz)
+        H -= coeff * waveform / (dx*dy*dz)
         """
         IDlookup, ID, _, updatecoeffsH = _make_id_arrays()
-        G = fake_grid(
-            dt=1.0, dx=1.0, dy=1.0, dz=1.0, iterations=5, IDlookup=IDlookup, ID=ID
-        )
+        G = fake_grid(dt=1.0, dx=1.0, dy=1.0, dz=1.0, iterations=5, IDlookup=IDlookup, ID=ID)
         Hx, Hy, Hz = _zero_fields()
 
         src = _make_magnetic(polarisation=polarisation)
@@ -487,9 +470,7 @@ class TestHtodSrcArraysVoltageSourceDeadCodeBug:
     redundant lines deleted), this test must flip its assertion.
     """
 
-    def test_hard_voltage_source_srcwaves_currently_uses_halfdt(
-        self, fake_grid, monkeypatch
-    ):
+    def test_hard_voltage_source_srcwaves_currently_uses_halfdt(self, fake_grid, monkeypatch):
         from gprMax import config
 
         # The autouse source_config fixture already gives us a fresh dict;
@@ -614,9 +595,7 @@ class TestTransmissionLineUpdateElectric:
         "polarisation, field_idx, d_along",
         [("x", 0, "dx"), ("y", 1, "dy"), ("z", 2, "dz")],
     )
-    def test_sets_E_from_voltage(
-        self, fake_grid, polarisation, field_idx, d_along
-    ):
+    def test_sets_E_from_voltage(self, fake_grid, polarisation, field_idx, d_along):
         dt = 1e-12
         tl = TransmissionLine(iterations=20, dt=dt)
         tl.resistance = 50.0
@@ -630,9 +609,7 @@ class TestTransmissionLineUpdateElectric:
         tl.waveformvalues_wholedt = np.zeros(21)
         tl.waveformvalues_halfdt = np.zeros(21)
         IDlookup, ID, updatecoeffsE, _ = _make_id_arrays()
-        G = fake_grid(
-            dt=dt, dx=1.0, dy=1.0, dz=1.0, IDlookup=IDlookup, ID=ID
-        )
+        G = fake_grid(dt=dt, dx=1.0, dy=1.0, dz=1.0, IDlookup=IDlookup, ID=ID)
         Ex, Ey, Ez = _zero_fields()
 
         tl.update_electric(0, updatecoeffsE, ID, Ex, Ey, Ez, G)
@@ -665,9 +642,7 @@ class TestTransmissionLineUpdateMagnetic:
         tl.stop = 100.0
         tl.waveformvalues_halfdt = np.zeros(21)
         IDlookup, ID, _, updatecoeffsH = _make_id_arrays()
-        G = fake_grid(
-            dt=dt, dx=1.0, dy=1.0, dz=1.0, IDlookup=IDlookup, ID=ID
-        )
+        G = fake_grid(dt=dt, dx=1.0, dy=1.0, dz=1.0, IDlookup=IDlookup, ID=ID)
         # Stub the calculate_I* methods on the fake grid.
         setattr(G, calc_method, lambda i, j, k: expected_current)
         Hx, Hy, Hz = _zero_fields()
@@ -760,9 +735,7 @@ class TestFindDpwIntegersOptimized:
         integer triple within a 1° tolerance.
         """
         dpw = DiscretePlaneWave(G=None)
-        m_vec, _, _, total_err = self._solve(
-            dpw, theta_deg=45.0, phi_deg=45.0, tol_deg=1.0
-        )
+        m_vec, _, _, total_err = self._solve(dpw, theta_deg=45.0, phi_deg=45.0, tol_deg=1.0)
         assert m_vec is not None
         assert max(abs(int(x)) for x in m_vec) < 10
         assert total_err <= 1.0
@@ -825,9 +798,7 @@ class TestDpwNonCythonTypoBug:
     index with ``dim+1`` and ``dim+2``), this assertion must flip.
     """
 
-    def test_time2_offset_uses_doubled_same_index(
-        self, fake_grid, make_constant_waveform
-    ):
+    def test_time2_offset_uses_doubled_same_index(self, fake_grid, make_constant_waveform):
         # Use a sparse waveform: returns 1.0 only at a specific t-window.
         # We pick m, ds, speed so the cross-axis-sum formula would land
         # OUTSIDE the window but the duplicated-index formula lands INSIDE.
@@ -854,3 +825,6 @@ class TestDpwNonCythonTypoBug:
         # *array index* was set to 1.0 (the constant waveform value).
         # Pin the fact that the value lands at iteration=1, dim=0, r=0.
         assert dpw.waveformvalues_wholedt[1, 0, 0] == 1.0
+
+
+pytestmark = pytest.mark.unit

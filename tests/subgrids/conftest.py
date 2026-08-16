@@ -26,8 +26,8 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from scipy.constants import epsilon_0, mu_0
 from scipy.constants import c as C_LIGHT
+from scipy.constants import epsilon_0, mu_0
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.subgrids.precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
@@ -44,13 +44,16 @@ MAIN_CELLS = 30
 
 
 @pytest.fixture(autouse=True)
-def subgrid_config(monkeypatch):
+def subgrid_config(monkeypatch, request):
     """Patch ``gprMax.config`` for the subgrid modules.
 
     ``SubGridBaseGrid`` inherits ``FDTDGrid``, so the same three config
     surfaces are needed: array dtype, OpenMP thread count (passed straight
     into the HSG Cython kernels) and the model mode.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     model_cfg = SimpleNamespace(

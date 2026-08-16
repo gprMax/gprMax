@@ -30,7 +30,6 @@ from gprMax.user_objects.user_objects import (
     UserObject,
 )
 
-
 # ---------------------------------------------------------------------------
 # UserObject — the common contract
 # ---------------------------------------------------------------------------
@@ -166,9 +165,7 @@ class TestCreateUIPDispatch:
             obj._create_uip(grid)
             SubUIP.assert_called_once_with(grid)
 
-    def test_subgrid_without_global_autotranslate_falls_through_to_main(
-        self, user_object_config
-    ):
+    def test_subgrid_without_global_autotranslate_falls_through_to_main(self, user_object_config):
         from gprMax.subgrids.grid import SubGridBaseGrid
         from gprMax.user_objects import user_objects as uo_mod
 
@@ -180,9 +177,7 @@ class TestCreateUIPDispatch:
             obj._create_uip(grid)
             MainUIP.assert_called_once_with(grid)
 
-    def test_subgrid_with_object_autotranslate_disabled_falls_through(
-        self, user_object_config
-    ):
+    def test_subgrid_with_object_autotranslate_disabled_falls_through(self, user_object_config):
         # Per-object autotranslate is the override even when global is True
         from gprMax.subgrids.grid import SubGridBaseGrid
         from gprMax.user_objects import user_objects as uo_mod
@@ -339,3 +334,6 @@ class TestRotatableMixinAbstractEnforcement:
 
         with pytest.raises(TypeError):
             BareRot()
+
+
+pytestmark = pytest.mark.unit

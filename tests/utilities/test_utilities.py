@@ -47,9 +47,7 @@ class TestTerminalWidth:
     """``get_terminal_width`` — the width every banner is padded to."""
 
     def test_returns_the_reported_width(self, monkeypatch):
-        monkeypatch.setattr(
-            "gprMax.utilities.utilities.get_terminal_size", lambda: (137, 40)
-        )
+        monkeypatch.setattr("gprMax.utilities.utilities.get_terminal_size", lambda: (137, 40))
 
         assert get_terminal_width() == 137
 
@@ -60,17 +58,13 @@ class TestTerminalWidth:
         (``'-' * (get_terminal_width() - 1 - len(s))``) would go negative and
         silently produce no separator at all.
         """
-        monkeypatch.setattr(
-            "gprMax.utilities.utilities.get_terminal_size", lambda: (0, 0)
-        )
+        monkeypatch.setattr("gprMax.utilities.utilities.get_terminal_size", lambda: (0, 0))
 
         assert get_terminal_width() == 100
 
     def test_only_the_first_element_is_used(self, monkeypatch):
         """Columns, not lines — the two are easy to transpose."""
-        monkeypatch.setattr(
-            "gprMax.utilities.utilities.get_terminal_size", lambda: (80, 24)
-        )
+        monkeypatch.setattr("gprMax.utilities.utilities.get_terminal_size", lambda: (80, 24))
 
         assert get_terminal_width() == 80
 
@@ -142,9 +136,9 @@ class TestNaturalKeys:
     def test_it_orders_snapshot_files_correctly(self):
         names = [f"model_snaps/snapshot{n}.vti" for n in (1, 2, 10, 20, 3)]
 
-        assert [
-            n for n in sorted(names, key=natural_keys)
-        ] == [f"model_snaps/snapshot{n}.vti" for n in (1, 2, 3, 10, 20)]
+        assert [n for n in sorted(names, key=natural_keys)] == [
+            f"model_snaps/snapshot{n}.vti" for n in (1, 2, 3, 10, 20)
+        ]
 
 
 class TestRoundInt:
@@ -472,9 +466,7 @@ class TestLogo:
     @pytest.fixture(autouse=True)
     def fixed_width(self, monkeypatch):
         """Pin the terminal width; the banner is padded to it."""
-        monkeypatch.setattr(
-            "gprMax.utilities.utilities.get_terminal_width", lambda: 100
-        )
+        monkeypatch.setattr("gprMax.utilities.utilities.get_terminal_width", lambda: 100)
 
     def test_it_returns_a_string(self):
         assert isinstance(logo("4.0.0"), str)
@@ -514,3 +506,6 @@ class TestLogo:
         logo("4.0.0")
 
         assert capsys.readouterr().out == ""
+
+
+pytestmark = pytest.mark.unit

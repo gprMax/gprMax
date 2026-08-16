@@ -329,93 +329,60 @@ class TestAddSurfaceWater:
             AddSurfaceWater(**WATER_KWARGS).build(boxed_grid)
 
 
-# ---------------------------------------------------------------------------
-# TEMPORARILY COMMENTED OUT
-#
-# ``TestAddGrassBuild`` was previously shipped as nine ``xfail`` tests. They
-# are commented out here so the suite reports no expected-failure noise while
-# the underlying source bug is outstanding.
-#
-# The bug: ``add_grass.py:227`` assigns ``R.randint(..., size=1)`` — a
-# one-element array — into a scalar element of the height-map. NumPy made
-# that an error in 2.0 (it was a DeprecationWarning in 1.25), so every valid
-# input reaches an unreachable success path and ``#add_grass`` cannot run at
-# all in this environment. Fix is one line: drop ``size=1`` or index ``[0]``.
-#
-# Write-up: notes/bugs/add-grass-numpy2-scalar-assignment.md
-# Restore this block verbatim (minus the comment markers) once fixed; the
-# assertions describe the intended contract and should then pass unchanged.
-#
-# The validation branches in TestAddGrassValidation below raise before
-# reaching line 227 and continue to run normally.
-# ---------------------------------------------------------------------------
-# # ``AddGrass.build()`` cannot complete under NumPy >= 2: at
-# # ``add_grass.py:227`` it assigns ``R.randint(..., size=1)`` — a
-# # one-element array — into a scalar element of the height-map, which NumPy
-# # 2 rejects ("setting an array element with a sequence"; it was a
-# # DeprecationWarning in NumPy 1.25). Every valid input reaches that line,
-# # so the success path is unreachable in this environment. The tests below
-# # describe the intended contract and are marked xfail until the source is
-# # fixed; the validation branches (next class) all raise before reaching it
-# # and run normally.
-# @pytest.mark.xfail(
-#     raises=ValueError,
-#     reason="add_grass.py:227 assigns a size-1 array to a scalar element; rejected by NumPy >= 2",
-# )
-# class TestAddGrassBuild:
-#     def test_the_surface_is_marked_as_grass(self, boxed_grid):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         surface = volume_of(boxed_grid).fractalsurfaces[0]
-#         assert surface.ID == "grass"
-#         assert surface.surfaceID == "zplus"
-#
-#     def test_a_grass_object_carries_the_blade_count(self, boxed_grid):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         surface = volume_of(boxed_grid).fractalsurfaces[0]
-#         assert len(surface.grass) == 1
-#         assert surface.grass[0].numblades == 10
-#
-#     def test_the_fractal_range_spans_the_blade_heights(self, boxed_grid):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         assert volume_of(boxed_grid).fractalsurfaces[0].fractalrange == (11, 14)
-#
-#     def test_blade_heights_are_sparse_and_within_range(self, boxed_grid):
-#         # The height-map becomes a probability distribution, then discrete
-#         # blade heights: zero where there is no blade, a height in range
-#         # where there is one.
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         heights = volume_of(boxed_grid).fractalsurfaces[0].fractalsurface
-#         assert heights.shape == (8, 8)
-#         planted = heights[heights > 0]
-#         assert planted.size > 0
-#         assert np.all(planted >= 11)
-#         assert np.all(planted < 14)
-#
-#     def test_grass_is_created_as_a_material(self, boxed_grid):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         assert any(m.ID == "grass" for m in boxed_grid.materials)
-#
-#     def test_a_debye_pole_is_registered_for_grass(self, boxed_grid, fractal_config):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         assert fractal_config.model_config.materials["maxpoles"] == 1
-#
-#     def test_the_surface_is_attached_to_the_volume(self, boxed_grid):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         assert len(volume_of(boxed_grid).fractalsurfaces) == 1
-#
-#     def test_no_grid_arrays_are_touched(self, boxed_grid):
-#         AddGrass(**GRASS_KWARGS).build(boxed_grid)
-#         assert not boxed_grid.solid.any()
-#
-#     def test_the_result_is_reproducible(self, fractal_grid):
-#         heights = []
-#         for _ in range(2):
-#             g = fractal_grid()
-#             add_mixing_model(g)
-#             make_boxed(g)
-#             AddGrass(**GRASS_KWARGS).build(g)
-#             heights.append(g.fractalvolumes[0].fractalsurfaces[0].fractalsurface.copy())
-#         assert np.array_equal(*heights)
+class TestAddGrassBuild:
+    def test_the_surface_is_marked_as_grass(self, boxed_grid):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        surface = volume_of(boxed_grid).fractalsurfaces[0]
+        assert surface.ID == "grass"
+        assert surface.surfaceID == "zplus"
+
+    def test_a_grass_object_carries_the_blade_count(self, boxed_grid):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        surface = volume_of(boxed_grid).fractalsurfaces[0]
+        assert len(surface.grass) == 1
+        assert surface.grass[0].numblades == 10
+
+    def test_the_fractal_range_spans_the_blade_heights(self, boxed_grid):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        assert volume_of(boxed_grid).fractalsurfaces[0].fractalrange == (11, 14)
+
+    def test_blade_heights_are_sparse_and_within_range(self, boxed_grid):
+        # The height-map becomes a probability distribution, then discrete
+        # blade heights: zero where there is no blade, a height in range
+        # where there is one.
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        heights = volume_of(boxed_grid).fractalsurfaces[0].fractalsurface
+        assert heights.shape == (8, 8)
+        planted = heights[heights > 0]
+        assert planted.size > 0
+        assert np.all(planted >= 11)
+        assert np.all(planted < 14)
+
+    def test_grass_is_created_as_a_material(self, boxed_grid):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        assert any(m.ID == "grass" for m in boxed_grid.materials)
+
+    def test_a_debye_pole_is_registered_for_grass(self, boxed_grid, fractal_config):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        assert fractal_config.model_config.materials["maxpoles"] == 1
+
+    def test_the_surface_is_attached_to_the_volume(self, boxed_grid):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        assert len(volume_of(boxed_grid).fractalsurfaces) == 1
+
+    def test_no_grid_arrays_are_touched(self, boxed_grid):
+        AddGrass(**GRASS_KWARGS).build(boxed_grid)
+        assert not boxed_grid.solid.any()
+
+    def test_the_result_is_reproducible(self, fractal_grid):
+        heights = []
+        for _ in range(2):
+            g = fractal_grid()
+            add_mixing_model(g)
+            make_boxed(g)
+            AddGrass(**GRASS_KWARGS).build(g)
+            heights.append(g.fractalvolumes[0].fractalsurfaces[0].fractalsurface.copy())
+        assert np.array_equal(*heights)
 
 
 class TestAddGrassValidation:
@@ -454,15 +421,15 @@ class TestAddGrassValidation:
 
     def test_an_internal_plane_raises(self, boxed_grid):
         with pytest.raises(ValueError):
-            AddGrass(
-                **{**GRASS_KWARGS, "p1": (LOW, LOW, 0.006), "p2": (HIGH, HIGH, 0.006)}
-            ).build(boxed_grid)
+            AddGrass(**{**GRASS_KWARGS, "p1": (LOW, LOW, 0.006), "p2": (HIGH, HIGH, 0.006)}).build(
+                boxed_grid
+            )
 
     def test_a_volume_rather_than_a_plane_raises(self, boxed_grid):
         with pytest.raises(ValueError):
-            AddGrass(
-                **{**GRASS_KWARGS, "p1": (LOW, LOW, LOW), "p2": (HIGH, HIGH, HIGH)}
-            ).build(boxed_grid)
+            AddGrass(**{**GRASS_KWARGS, "p1": (LOW, LOW, LOW), "p2": (HIGH, HIGH, HIGH)}).build(
+                boxed_grid
+            )
 
     def test_more_blades_than_surface_cells_raises(self, boxed_grid):
         # The 8 x 8 face has room for 64 blades.
@@ -474,3 +441,6 @@ class TestAddGrassValidation:
     # the blade-height assignment that NumPy 2 rejects, so it cannot be
     # reached from a test today. See TestAddGrassBuild. The equivalent
     # water guard is covered in TestAddSurfaceWater.
+
+
+pytestmark = pytest.mark.unit

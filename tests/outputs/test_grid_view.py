@@ -120,8 +120,12 @@ class TestSizeArithmetic:
         """Expects the size to tick over exactly one element past each
         multiple of the step. (7 parameter sets)"""
         view = make_grid_view(
-            start=(0, 0, 0), stop=(stop, stop, stop), step=(step, step, step),
-            nx=16, ny=16, nz=16,
+            start=(0, 0, 0),
+            stop=(stop, stop, stop),
+            step=(step, step, step),
+            nx=16,
+            ny=16,
+            nz=16,
         )
         assert view.size[0] == expected
 
@@ -198,9 +202,7 @@ class TestGetterSlice:
     def test_the_extra_sample_is_a_whole_step(self, make_grid_view):
         """Expects a strided view to extend by its own step, not by one cell —
         so a step-3 view reaches ``stop + 3``."""
-        view = make_grid_view(
-            start=(0, 0, 0), stop=(9, 9, 9), step=(3, 3, 3), nx=12, ny=12, nz=12
-        )
+        view = make_grid_view(start=(0, 0, 0), stop=(9, 9, 9), step=(3, 3, 3), nx=12, ny=12, nz=12)
         assert view.getter_slice(0, upper_bound_exclusive=False) == slice(0, 12, 3)
 
     @pytest.mark.parametrize("dimension", [0, 1, 2])
@@ -225,15 +227,11 @@ class TestSetterSliceMatchesGetterSlice:
 
     @pytest.mark.parametrize("dimension", [0, 1, 2])
     @pytest.mark.parametrize("exclusive", [True, False])
-    def test_setter_slice_delegates_to_getter_slice(
-        self, make_grid_view, dimension, exclusive
-    ):
+    def test_setter_slice_delegates_to_getter_slice(self, make_grid_view, dimension, exclusive):
         """Expects identical slices from both, on every axis and both bound
         conventions. (6 parameter sets)"""
         view = make_grid_view(start=(1, 2, 3), stop=(7, 8, 9))
-        assert view.setter_slice(dimension, exclusive) == view.getter_slice(
-            dimension, exclusive
-        )
+        assert view.setter_slice(dimension, exclusive) == view.getter_slice(dimension, exclusive)
 
     @pytest.mark.parametrize("dimension", [0, 1, 2])
     def test_read_slice_delegates_to_output_slice(self, make_grid_view, dimension):
@@ -258,17 +256,13 @@ class TestOutputSlice:
 
     def test_length_is_the_view_size(self, make_grid_view):
         """Expects the slice to span exactly ``size[dimension]``."""
-        view = make_grid_view(
-            start=(0, 0, 0), stop=(9, 9, 9), step=(3, 3, 3), nx=12, ny=12, nz=12
-        )
+        view = make_grid_view(start=(0, 0, 0), stop=(9, 9, 9), step=(3, 3, 3), nx=12, ny=12, nz=12)
         assert view.get_output_slice(0) == slice(0, 3)
 
     def test_inclusive_bound_adds_exactly_one(self, make_grid_view):
         """Expects ``size + 1``, not ``size + step`` — output slices index a
         dense buffer, so the extra node is one element regardless of stride."""
-        view = make_grid_view(
-            start=(0, 0, 0), stop=(9, 9, 9), step=(3, 3, 3), nx=12, ny=12, nz=12
-        )
+        view = make_grid_view(start=(0, 0, 0), stop=(9, 9, 9), step=(3, 3, 3), nx=12, ny=12, nz=12)
         assert view.get_output_slice(0, upper_bound_exclusive=False) == slice(0, 4)
 
     def test_3d_form_returns_one_slice_per_axis(self, make_grid_view):
@@ -307,9 +301,7 @@ class TestArraySlicing:
     def test_result_is_contiguous(self, make_grid_view):
         """Expects ``np.ascontiguousarray`` to have been applied — the arrays
         go straight into HDF5 and typed memoryviews, both of which require it."""
-        view = make_grid_view(
-            start=(0, 0, 0), stop=(8, 8, 8), step=(2, 2, 2)
-        )
+        view = make_grid_view(start=(0, 0, 0), stop=(8, 8, 8), step=(2, 2, 2))
         assert view.get_array_slice(view.grid.solid).flags["C_CONTIGUOUS"]
 
     def test_result_is_a_copy_not_a_view(self, make_grid_view, make_view_grid):
@@ -329,9 +321,7 @@ class TestArraySlicing:
         g.solid[...] = 0
         view = make_grid_view(grid=g, start=(1, 1, 1), stop=(3, 3, 3))
         view.set_array_slice(g.solid, np.full((2, 2, 2), 7, dtype=g.solid.dtype))
-        assert nonzero_set(g.solid) == {
-            (i, j, k) for i in (1, 2) for j in (1, 2) for k in (1, 2)
-        }
+        assert nonzero_set(g.solid) == {(i, j, k) for i in (1, 2) for j in (1, 2) for k in (1, 2)}
 
     def test_set_array_slice_leaves_the_rest_alone(self, make_grid_view, make_view_grid):
         """Expects cells outside the view to keep their previous values."""
@@ -533,18 +523,14 @@ class TestAnisotropicViews:
         """Expects three different steps to produce three different lengths in
         the sliced result."""
         g = make_view_grid(nx=12, ny=12, nz=12)
-        view = make_grid_view(
-            grid=g, start=(0, 0, 0), stop=(12, 12, 12), step=(1, 2, 3)
-        )
+        view = make_grid_view(grid=g, start=(0, 0, 0), stop=(12, 12, 12), step=(1, 2, 3))
         assert view.get_solid().shape == (12, 6, 4)
 
     def test_field_slices_add_one_node_per_axis(self, make_grid_view, make_view_grid):
         """Expects ``(13, 7, 5)`` for the same view — one extra sample on each
         axis regardless of that axis's stride."""
         g = make_view_grid(nx=12, ny=12, nz=12)
-        view = make_grid_view(
-            grid=g, start=(0, 0, 0), stop=(12, 12, 12), step=(1, 2, 3)
-        )
+        view = make_grid_view(grid=g, start=(0, 0, 0), stop=(12, 12, 12), step=(1, 2, 3))
         assert view.get_Ex().shape == (13, 7, 5)
 
     def test_spacing_does_not_affect_shapes(self, make_grid_view):
@@ -553,3 +539,6 @@ class TestAnisotropicViews:
         uniform = make_grid_view(stop=(4, 4, 4))
         aniso = make_grid_view(stop=(4, 4, 4), dl=DL_ANISO)
         assert uniform.get_solid().shape == aniso.get_solid().shape
+
+
+pytestmark = pytest.mark.unit

@@ -26,7 +26,6 @@ from gprMax.user_objects.cmds_geometry.plate import Plate
 from gprMax.user_objects.cmds_geometry.sphere import Sphere
 from gprMax.user_objects.cmds_geometry.triangle import Triangle
 
-
 # ---------------------------------------------------------------------------
 # Sanity: empty input
 # ---------------------------------------------------------------------------
@@ -44,9 +43,7 @@ class TestEmptyDispatch:
 
 class TestGeometryObjectsRead:
     def test_six_token_form(self):
-        from gprMax.user_objects.cmds_geometry.geometry_objects_read import (
-            GeometryObjectsRead,
-        )
+        from gprMax.user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
 
         objs = process_geometrycmds(["#geometry_objects_read: 0 0 0 geo.bin mat.txt"])
         gor = objs[0]
@@ -108,24 +105,18 @@ class TestPlate:
 
 class TestTriangle:
     def test_twelve_token_isotropic_no_averaging(self):
-        objs = process_geometrycmds(
-            ["#triangle: 0 0 0 1 0 0 0 1 0 0.01 m1"]
-        )
+        objs = process_geometrycmds(["#triangle: 0 0 0 1 0 0 0 1 0 0.01 m1"])
         tri = objs[0]
         assert isinstance(tri, Triangle)
         assert tri.kwargs["thickness"] == 0.01
         assert tri.kwargs["material_id"] == "m1"
 
     def test_thirteen_token_isotropic_with_averaging(self):
-        objs = process_geometrycmds(
-            ["#triangle: 0 0 0 1 0 0 0 1 0 0.01 m1 y"]
-        )
+        objs = process_geometrycmds(["#triangle: 0 0 0 1 0 0 0 1 0 0.01 m1 y"])
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_fourteen_token_anisotropic(self):
-        objs = process_geometrycmds(
-            ["#triangle: 0 0 0 1 0 0 0 1 0 0.01 mx my mz"]
-        )
+        objs = process_geometrycmds(["#triangle: 0 0 0 1 0 0 0 1 0 0.01 mx my mz"])
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
@@ -182,9 +173,7 @@ class TestCylinder:
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_eleven_token_anisotropic(self):
-        objs = process_geometrycmds(
-            ["#cylinder: 0 0 0 0.1 0.1 0.1 0.05 mx my mz"]
-        )
+        objs = process_geometrycmds(["#cylinder: 0 0 0 0.1 0.1 0.1 0.05 mx my mz"])
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
@@ -199,9 +188,7 @@ class TestCylinder:
 
 class TestCone:
     def test_ten_token_isotropic(self):
-        objs = process_geometrycmds(
-            ["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02 m1"]
-        )
+        objs = process_geometrycmds(["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02 m1"])
         cone = objs[0]
         assert isinstance(cone, Cone)
         assert cone.kwargs["r1"] == 0.05
@@ -209,15 +196,11 @@ class TestCone:
         assert cone.kwargs["material_id"] == "m1"
 
     def test_eleven_token_isotropic_with_averaging(self):
-        objs = process_geometrycmds(
-            ["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02 m1 n"]
-        )
+        objs = process_geometrycmds(["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02 m1 n"])
         assert objs[0].kwargs["averaging"] == "n"
 
     def test_twelve_token_anisotropic(self):
-        objs = process_geometrycmds(
-            ["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02 mx my mz"]
-        )
+        objs = process_geometrycmds(["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02 mx my mz"])
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
@@ -232,9 +215,7 @@ class TestCone:
 
 class TestCylindricalSector:
     def test_ten_token_isotropic(self):
-        objs = process_geometrycmds(
-            ["#cylindrical_sector: X 0.1 0.1 0 0.1 0.05 0 90 m1"]
-        )
+        objs = process_geometrycmds(["#cylindrical_sector: X 0.1 0.1 0 0.1 0.05 0 90 m1"])
         sec = objs[0]
         assert isinstance(sec, CylindricalSector)
         # axis is lowercased
@@ -242,15 +223,11 @@ class TestCylindricalSector:
         assert sec.kwargs["material_id"] == "m1"
 
     def test_eleven_token_isotropic_with_averaging(self):
-        objs = process_geometrycmds(
-            ["#cylindrical_sector: x 0.1 0.1 0 0.1 0.05 0 90 m1 y"]
-        )
+        objs = process_geometrycmds(["#cylindrical_sector: x 0.1 0.1 0 0.1 0.05 0 90 m1 y"])
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_twelve_token_anisotropic(self):
-        objs = process_geometrycmds(
-            ["#cylindrical_sector: x 0.1 0.1 0 0.1 0.05 0 90 mx my mz"]
-        )
+        objs = process_geometrycmds(["#cylindrical_sector: x 0.1 0.1 0 0.1 0.05 0 90 mx my mz"])
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
@@ -284,27 +261,12 @@ class TestSphere:
             process_geometrycmds(["#sphere: 0.05 0.05 0.05 0.02 mx my mz extra"])
 
 
-class TestSphereAnisotropicWrongKwargBug:
-    """Bug tripwire: ``hash_cmds_geometry.py:315``.
-
-    The 8-token (anisotropic) branch passes ``material_id=tmp[5:]`` to
-    ``Sphere(**kwargs)``. The kwarg name is *singular* (``material_id``)
-    but the value is a slice — a list of three material strings. Every
-    other shape's anisotropic branch correctly passes ``material_ids=``
-    (plural). At ``Sphere.build`` time this nests the list inside another
-    list and the materials lookup fails.
-
-    Pin the current behaviour. When fixed (``material_ids=tmp[5:]``), this
-    test fails — flip the assertion onto the plural kwarg.
-    """
-
-    def test_anisotropic_branch_stores_list_under_singular_kwarg(self):
+class TestSphereAnisotropicMaterials:
+    def test_anisotropic_branch_uses_plural_material_ids(self):
         objs = process_geometrycmds(["#sphere: 0 0 0 0.02 mx my mz"])
         sphere = objs[0]
-        # The bug: list value stored under the singular kwarg
-        assert sphere.kwargs.get("material_id") == ["mx", "my", "mz"]
-        # And not under the (correct) plural kwarg
-        assert "material_ids" not in sphere.kwargs
+        assert sphere.kwargs["material_ids"] == ["mx", "my", "mz"]
+        assert "material_id" not in sphere.kwargs
 
 
 # ---------------------------------------------------------------------------
@@ -314,17 +276,13 @@ class TestSphereAnisotropicWrongKwargBug:
 
 class TestEllipsoid:
     def test_eight_token_treated_as_isotropic(self):
-        objs = process_geometrycmds(
-            ["#ellipsoid: 0 0 0 0.1 0.1 0.1 m1"]
-        )
+        objs = process_geometrycmds(["#ellipsoid: 0 0 0 0.1 0.1 0.1 m1"])
         ell = objs[0]
         assert isinstance(ell, Ellipsoid)
         assert ell.kwargs["material_id"] == "m1"
 
     def test_nine_token_with_averaging(self):
-        objs = process_geometrycmds(
-            ["#ellipsoid: 0 0 0 0.1 0.1 0.1 m1 y"]
-        )
+        objs = process_geometrycmds(["#ellipsoid: 0 0 0 0.1 0.1 0.1 m1 y"])
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_too_few_tokens_rejected(self):
@@ -355,9 +313,7 @@ class TestEllipsoidAnisotropicDeadCodeBug:
         # An 8-token input where the user *wanted* anisotropy: the
         # last three tokens read like material names, but only the
         # final one is taken as ``material_id`` (a string).
-        objs = process_geometrycmds(
-            ["#ellipsoid: 0 0 0 0.1 0.1 0.1 mz"]
-        )
+        objs = process_geometrycmds(["#ellipsoid: 0 0 0 0.1 0.1 0.1 mz"])
         ell = objs[0]
         assert ell.kwargs["material_id"] == "mz"
         assert isinstance(ell.kwargs["material_id"], str)
@@ -371,9 +327,7 @@ class TestEllipsoidAnisotropicDeadCodeBug:
 
 class TestFractalBox:
     def test_fourteen_token_minimal(self):
-        objs = process_geometrycmds(
-            ["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1"]
-        )
+        objs = process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1"])
         fb = objs[0]
         assert isinstance(fb, FractalBox)
         assert fb.kwargs["frac_dim"] == 1.5
@@ -382,23 +336,17 @@ class TestFractalBox:
         np.testing.assert_array_equal(fb.kwargs["weighting"], np.array([1.0, 1.0, 1.0]))
 
     def test_fifteen_token_with_seed(self):
-        objs = process_geometrycmds(
-            ["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42"]
-        )
+        objs = process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42"])
         # Seed is included
         assert "seed" in objs[0].kwargs
 
     def test_sixteen_token_with_seed_and_averaging(self):
-        objs = process_geometrycmds(
-            ["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42 y"]
-        )
+        objs = process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42 y"])
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_too_few_tokens_rejected(self):
         with pytest.raises(ValueError):
-            process_geometrycmds(
-                ["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix"]
-            )
+            process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix"])
 
 
 class TestFractalBoxSeedTypeBug:
@@ -416,9 +364,7 @@ class TestFractalBoxSeedTypeBug:
     """
 
     def test_fractal_box_seed_stored_as_string(self):
-        objs = process_geometrycmds(
-            ["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42"]
-        )
+        objs = process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42"])
         assert isinstance(objs[0].kwargs["seed"], str)
         assert objs[0].kwargs["seed"] == "42"
 
@@ -456,24 +402,20 @@ class TestFractalBoxModifiers:
         objs = process_geometrycmds(geometry)
         assert any(isinstance(o, AddGrass) for o in objs)
 
-    def test_modifier_with_mismatched_id_skipped(self):
-        # Modifier targets fb_other; current fractal box is fb1
+    def test_modifier_with_mismatched_id_rejected(self):
         geometry = [
             "#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1",
             "#add_surface_roughness: 0 0.1 0 0.1 0.1 0.1 1.5 1 1 0 0.01 fb_other 7",
         ]
-        objs = process_geometrycmds(geometry)
-        # Only the fractal box itself
-        assert [type(o) for o in objs] == [FractalBox]
+        with pytest.raises(ValueError, match="cannot find #fractal_box"):
+            process_geometrycmds(geometry)
 
-    def test_modifier_without_parent_fractal_box_silently_dropped(self):
-        # No top-level branch for #add_surface_roughness in the outer
-        # if/elif chain — without a #fractal_box: it is silently ignored
+    def test_modifier_without_parent_fractal_box_rejected(self):
         geometry = [
             "#add_surface_roughness: 0 0.1 0 0.1 0.1 0.1 1.5 1 1 0 0.01 fb1 7",
         ]
-        objs = process_geometrycmds(geometry)
-        assert objs == []
+        with pytest.raises(ValueError, match="cannot find #fractal_box"):
+            process_geometrycmds(geometry)
 
 
 class TestFractalBoxModifierArity:
@@ -516,3 +458,6 @@ class TestUnknownCommandSilentlyDropped:
     def test_unknown_command_yields_nothing(self):
         objs = process_geometrycmds(["#not_a_real_command: 1 2 3"])
         assert objs == []
+
+
+pytestmark = pytest.mark.unit

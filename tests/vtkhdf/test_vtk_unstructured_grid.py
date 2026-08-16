@@ -59,9 +59,7 @@ REQUIRED_DATASETS = [
 class TestConstruction:
     """A minimal grid: two points joined by one line."""
 
-    def test_the_type_attribute_says_unstructured_grid(
-        self, make_unstructured_grid, read_h5
-    ):
+    def test_the_type_attribute_says_unstructured_grid(self, make_unstructured_grid, read_h5):
         with make_unstructured_grid() as handler:
             path = handler.filename
 
@@ -69,9 +67,7 @@ class TestConstruction:
 
         assert attrs["VTKHDF/Type"] == UNSTRUCTURED_GRID_TYPE
 
-    def test_all_seven_datasets_are_written(
-        self, make_unstructured_grid, read_h5
-    ):
+    def test_all_seven_datasets_are_written(self, make_unstructured_grid, read_h5):
         with make_unstructured_grid() as handler:
             path = handler.filename
 
@@ -81,9 +77,7 @@ class TestConstruction:
 
     def test_the_dataset_names_are_the_specification_ones(self):
         """Pinned against the enum, so a rename is caught at the source."""
-        assert sorted(
-            member.value for member in VtkUnstructuredGrid.Dataset
-        ) == [
+        assert sorted(member.value for member in VtkUnstructuredGrid.Dataset) == [
             "Connectivity",
             "NumberOfCells",
             "NumberOfConnectivityIds",
@@ -138,9 +132,7 @@ class TestCounts:
             datasets["VTKHDF/NumberOfConnectivityIds"][0],
         ) == (2, 3, 4)
 
-    def test_the_counts_are_one_element_datasets(
-        self, make_unstructured_grid, read_h5
-    ):
+    def test_the_counts_are_one_element_datasets(self, make_unstructured_grid, read_h5):
         """One entry per partition; serial writes a single element.
 
         The format expects an array here even when there is one rank, which
@@ -153,9 +145,7 @@ class TestCounts:
 
         assert datasets["VTKHDF/NumberOfCells"].shape == (1,)
 
-    def test_the_global_counts_match_the_local_ones(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_the_global_counts_match_the_local_ones(self, make_unstructured_grid, line_grid_arrays):
         """Serial: no reduction happens, so global equals local."""
         with make_unstructured_grid(**line_grid_arrays) as handler:
             assert (
@@ -177,9 +167,7 @@ class TestCounts:
 class TestPointsDataset:
     """Coordinates — the one dataset written without the ZYX transpose."""
 
-    def test_the_shape_is_points_by_three(
-        self, make_unstructured_grid, line_grid_arrays, tmp_path
-    ):
+    def test_the_shape_is_points_by_three(self, make_unstructured_grid, line_grid_arrays, tmp_path):
         """``(N, 3)`` on disk, exactly as VTK expects for coordinates."""
         with make_unstructured_grid(**line_grid_arrays):
             pass
@@ -187,9 +175,7 @@ class TestPointsDataset:
         with h5py.File(tmp_path / "grid.vtkhdf", "r") as f:
             assert f["VTKHDF/Points"].shape == (3, 3)
 
-    def test_the_coordinates_are_not_transposed(
-        self, make_unstructured_grid, tmp_path
-    ):
+    def test_the_coordinates_are_not_transposed(self, make_unstructured_grid, tmp_path):
         """A distinctive point makes the orientation unambiguous."""
         points = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 
@@ -201,9 +187,7 @@ class TestPointsDataset:
 
         assert list(stored[0]) == [1.0, 2.0, 3.0]
 
-    def test_the_coordinates_survive_the_round_trip(
-        self, make_unstructured_grid, read_h5
-    ):
+    def test_the_coordinates_survive_the_round_trip(self, make_unstructured_grid, read_h5):
         points = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
 
         with make_unstructured_grid(points=points) as handler:
@@ -225,9 +209,7 @@ class TestCellsAndConnectivity:
 
         assert list(datasets["VTKHDF/Types"]) == [VtkCellType.LINE]
 
-    def test_the_cell_types_are_unsigned_bytes(
-        self, make_unstructured_grid, read_h5
-    ):
+    def test_the_cell_types_are_unsigned_bytes(self, make_unstructured_grid, read_h5):
         """One byte per cell; a geometry view can hold millions."""
         with make_unstructured_grid() as handler:
             path = handler.filename
@@ -236,9 +218,7 @@ class TestCellsAndConnectivity:
 
         assert datasets["VTKHDF/Types"].dtype == np.uint8
 
-    def test_the_connectivity_is_written(
-        self, make_unstructured_grid, line_grid_arrays, read_h5
-    ):
+    def test_the_connectivity_is_written(self, make_unstructured_grid, line_grid_arrays, read_h5):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             path = handler.filename
 
@@ -246,9 +226,7 @@ class TestCellsAndConnectivity:
 
         assert list(datasets["VTKHDF/Connectivity"]) == [0, 1, 1, 2]
 
-    def test_the_offsets_are_written(
-        self, make_unstructured_grid, line_grid_arrays, read_h5
-    ):
+    def test_the_offsets_are_written(self, make_unstructured_grid, line_grid_arrays, read_h5):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             path = handler.filename
 
@@ -300,18 +278,14 @@ class TestValidation:
         with pytest.raises(ValueError, match="sorted in ascending order"):
             make_unstructured_grid(**line_grid_arrays)
 
-    def test_equal_consecutive_offsets_are_allowed(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_equal_consecutive_offsets_are_allowed(self, make_unstructured_grid, line_grid_arrays):
         """A zero-length cell is degenerate but not out of order."""
         line_grid_arrays["cell_offsets"] = np.array([0, 2, 2], dtype=np.int32)
 
         with make_unstructured_grid(**line_grid_arrays) as handler:
             assert handler.number_of_cells == 2
 
-    def test_a_short_connectivity_array_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_short_connectivity_array_raises(self, make_unstructured_grid, line_grid_arrays):
         """The last cell would reference points past the end of the array."""
         line_grid_arrays["connectivity"] = np.array([0, 1], dtype=np.int32)
 
@@ -322,9 +296,7 @@ class TestValidation:
         self, make_unstructured_grid, line_grid_arrays, caplog
     ):
         """Surplus entries are unreferenced, not wrong — a warning suffices."""
-        line_grid_arrays["connectivity"] = np.array(
-            [0, 1, 1, 2, 2, 0], dtype=np.int32
-        )
+        line_grid_arrays["connectivity"] = np.array([0, 1, 1, 2, 2, 0], dtype=np.int32)
 
         with make_unstructured_grid(**line_grid_arrays):
             pass
@@ -335,9 +307,7 @@ class TestValidation:
         self, make_unstructured_grid, line_grid_arrays, read_h5
     ):
         """The surplus is stored; only the offsets decide what is read."""
-        line_grid_arrays["connectivity"] = np.array(
-            [0, 1, 1, 2, 2, 0], dtype=np.int32
-        )
+        line_grid_arrays["connectivity"] = np.array([0, 1, 1, 2, 2, 0], dtype=np.int32)
 
         with make_unstructured_grid(**line_grid_arrays) as handler:
             path = handler.filename
@@ -346,9 +316,7 @@ class TestValidation:
 
         assert len(datasets["VTKHDF/Connectivity"]) == 6
 
-    def test_a_valid_grid_does_not_warn(
-        self, make_unstructured_grid, line_grid_arrays, caplog
-    ):
+    def test_a_valid_grid_does_not_warn(self, make_unstructured_grid, line_grid_arrays, caplog):
         with make_unstructured_grid(**line_grid_arrays):
             pass
 
@@ -375,9 +343,7 @@ class TestValidation:
 class TestAddCellData:
     """One value, or one 3-vector, per cell."""
 
-    def test_a_matching_array_is_written(
-        self, make_unstructured_grid, line_grid_arrays, read_h5
-    ):
+    def test_a_matching_array_is_written(self, make_unstructured_grid, line_grid_arrays, read_h5):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_cell_data("Material", np.array([1, 2]))
             path = handler.filename
@@ -386,48 +352,36 @@ class TestAddCellData:
 
         assert list(datasets["VTKHDF/CellData/Material"]) == [1, 2]
 
-    def test_a_three_component_array_is_accepted(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_three_component_array_is_accepted(self, make_unstructured_grid, line_grid_arrays):
         """Vectors per cell — the ``(C, 3)`` layout VTK defines."""
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_cell_data("Vectors", np.zeros((2, 3)))
 
             assert "CellData" in handler.root_group
 
-    def test_a_single_component_array_is_accepted(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_single_component_array_is_accepted(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_cell_data("Scalars", np.zeros((2, 1)))
 
             assert "CellData" in handler.root_group
 
-    def test_a_wrong_length_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_wrong_length_raises(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="must match the number of cells"):
                 handler.add_cell_data("Material", np.array([1, 2, 3]))
 
-    def test_the_error_names_the_partition(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_the_error_names_the_partition(self, make_unstructured_grid, line_grid_arrays):
         """Under MPI the rank is what a user needs to know."""
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="partition 0"):
                 handler.add_cell_data("Material", np.array([1]))
 
-    def test_a_three_dimensional_array_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_three_dimensional_array_raises(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="1 or 2 dimensions"):
                 handler.add_cell_data("Material", np.zeros((2, 3, 4)))
 
-    def test_a_two_component_array_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_two_component_array_raises(self, make_unstructured_grid, line_grid_arrays):
         """VTK has scalars and 3-vectors; nothing in between."""
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="shape 1 or 3"):
@@ -456,9 +410,7 @@ class TestAddCellData:
 class TestAddPointData:
     """One value, or one 3-vector, per point."""
 
-    def test_a_matching_array_is_written(
-        self, make_unstructured_grid, line_grid_arrays, read_h5
-    ):
+    def test_a_matching_array_is_written(self, make_unstructured_grid, line_grid_arrays, read_h5):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_point_data("Field", np.array([1, 2, 3]))
             path = handler.filename
@@ -467,38 +419,28 @@ class TestAddPointData:
 
         assert list(datasets["VTKHDF/PointData/Field"]) == [1, 2, 3]
 
-    def test_a_three_component_array_is_accepted(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_three_component_array_is_accepted(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_point_data("Field", np.zeros((3, 3)))
 
             assert "PointData" in handler.root_group
 
-    def test_a_wrong_length_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_wrong_length_raises(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="must match the number of points"):
                 handler.add_point_data("Field", np.array([1, 2]))
 
-    def test_a_three_dimensional_array_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_three_dimensional_array_raises(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="1 or 2 dimensions"):
                 handler.add_point_data("Field", np.zeros((3, 3, 3)))
 
-    def test_a_two_component_array_raises(
-        self, make_unstructured_grid, line_grid_arrays
-    ):
+    def test_a_two_component_array_raises(self, make_unstructured_grid, line_grid_arrays):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             with pytest.raises(ValueError, match="shape 1 or 3"):
                 handler.add_point_data("Field", np.zeros((3, 2)))
 
-    def test_point_and_cell_data_coexist(
-        self, make_unstructured_grid, line_grid_arrays, read_h5
-    ):
+    def test_point_and_cell_data_coexist(self, make_unstructured_grid, line_grid_arrays, read_h5):
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_cell_data("Material", np.array([1, 2]))
             handler.add_point_data("Field", np.array([1, 2, 3]))
@@ -520,3 +462,6 @@ class TestAddPointData:
         _, datasets = read_h5(path)
 
         assert set(REQUIRED_DATASETS) <= set(datasets)
+
+
+pytestmark = pytest.mark.unit

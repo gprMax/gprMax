@@ -12,12 +12,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from gprMax.user_objects.cmds_output import (
-    GeometryObjectsWrite,
-    GeometryView,
-    Snapshot,
-)
-
+from gprMax.user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
 
 # ---------------------------------------------------------------------------
 # Snapshot
@@ -67,8 +62,11 @@ class TestSnapshotCalculateUpperBound:
 
     def test_returns_start_plus_step_times_ceil_size_over_step(self):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", iterations=10,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
         )
         start = np.array([0, 0, 0])
         step = np.array([3, 3, 3])
@@ -79,8 +77,11 @@ class TestSnapshotCalculateUpperBound:
 
     def test_aligned_size_returns_size(self):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", iterations=10,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
         )
         # size is exact multiple of step → ceil is exact
         out = s._calculate_upper_bound(
@@ -101,22 +102,33 @@ class TestSnapshotBuildValidation:
         uip.round_to_grid_static_point.return_value = (0.0, 0.0, 0.0)
         return uip
 
-    def test_build_rejects_subgrid(self, stub_model):
+    def test_build_accepts_subgrid(self, stub_model):
         from gprMax.subgrids.grid import SubGridBaseGrid
 
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", iterations=10,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
         )
         subgrid = MagicMock(spec=SubGridBaseGrid)
-        with pytest.raises(ValueError):
+        subgrid.iterations = 100
+        subgrid.dt = 1e-12
+        subgrid.dl = np.ones(3)
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             s.build(stub_model, subgrid)
+        stub_model.add_snapshot.assert_called_once()
 
     def test_build_rejects_iterations_above_grid(self, stub_model, stub_grid):
         # grid.iterations = 100 (stub default); iterations=200 → too big
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", iterations=200,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=200,
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
@@ -124,8 +136,11 @@ class TestSnapshotBuildValidation:
 
     def test_build_rejects_zero_iterations(self, stub_model, stub_grid):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", iterations=0,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=0,
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
@@ -133,8 +148,11 @@ class TestSnapshotBuildValidation:
 
     def test_build_rejects_negative_time(self, stub_model, stub_grid):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", time=-1.0,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=-1.0,
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
@@ -142,8 +160,10 @@ class TestSnapshotBuildValidation:
 
     def test_build_rejects_missing_iterations_and_time(self, stub_model, stub_grid):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x",
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
@@ -151,9 +171,12 @@ class TestSnapshotBuildValidation:
 
     def test_build_rejects_invalid_fileext(self, stub_model, stub_grid):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x",
-            iterations=10, fileext=".bogus",
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
+            fileext=".bogus",
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
@@ -161,9 +184,12 @@ class TestSnapshotBuildValidation:
 
     def test_build_rejects_invalid_output(self, stub_model, stub_grid):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x",
-            iterations=10, outputs=["Notreal"],
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
+            outputs=["Notreal"],
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
@@ -171,15 +197,16 @@ class TestSnapshotBuildValidation:
 
     def test_build_defaults_fileext_to_vtkhdf(self, stub_model, stub_grid):
         s = Snapshot(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05),
-            dl=(0.001, 0.001, 0.001), filename="x", iterations=10,
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
         )
         # The logging branch reads ``snapshot.time`` and ``snapshot.filename``
         # — give the stub a real ``SimpleNamespace`` so f-string formatting
         # works.
-        stub_model.add_snapshot.return_value = SimpleNamespace(
-            time=10, filename="x"
-        )
+        stub_model.add_snapshot.return_value = SimpleNamespace(time=10, filename="x")
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             s.build(stub_model, stub_grid)
         # ``self.file_extension`` is set during build()
@@ -219,12 +246,8 @@ class TestGeometryView:
 
     def _patch_uip(self, dl=None):
         uip = MagicMock()
-        uip.check_output_object_bounds.return_value = (
-            np.array([0, 0, 0]), np.array([50, 50, 50])
-        )
-        uip.discretise_static_point.return_value = (
-            np.array([1, 1, 1]) if dl is None else dl
-        )
+        uip.check_output_object_bounds.return_value = (np.array([0, 0, 0]), np.array([50, 50, 50]))
+        uip.discretise_static_point.return_value = np.array([1, 1, 1]) if dl is None else dl
         uip.round_to_grid_static_point.return_value = (0.0, 0.0, 0.0)
         return uip
 
@@ -277,40 +300,33 @@ class TestGeometryView:
 
 class TestGeometryObjectsWrite:
     def test_constructor_stores_attributes_and_kwargs(self):
-        g = GeometryObjectsWrite(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs"
-        )
+        g = GeometryObjectsWrite(p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs")
         assert g.lower_bound == (0, 0, 0)
         assert g.upper_bound == (0.05, 0.05, 0.05)
         assert g.basefilename == "objs"
         assert g.kwargs["filename"] == "objs"
 
     def test_order_and_hash(self):
-        g = GeometryObjectsWrite(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs"
-        )
+        g = GeometryObjectsWrite(p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs")
         assert g.order == 18
         assert g.hash == "#geometry_objects_write"
 
     def test_build_rejects_subgrid(self, stub_model):
         from gprMax.subgrids.grid import SubGridBaseGrid
 
-        g = GeometryObjectsWrite(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs"
-        )
+        g = GeometryObjectsWrite(p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs")
         subgrid = MagicMock(spec=SubGridBaseGrid)
         with pytest.raises(ValueError):
             g.build(stub_model, subgrid)
 
     def test_build_calls_add_geometry_object(self, stub_model, stub_grid):
-        g = GeometryObjectsWrite(
-            p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs"
-        )
+        g = GeometryObjectsWrite(p1=(0, 0, 0), p2=(0.05, 0.05, 0.05), filename="objs")
         uip = MagicMock()
-        uip.check_output_object_bounds.return_value = (
-            np.array([0, 0, 0]), np.array([50, 50, 50])
-        )
+        uip.check_output_object_bounds.return_value = (np.array([0, 0, 0]), np.array([50, 50, 50]))
         uip.round_to_grid_static_point.return_value = (0.0, 0.0, 0.0)
         with patch.object(GeometryObjectsWrite, "_create_uip", return_value=uip):
             g.build(stub_model, stub_grid)
         stub_model.add_geometry_object.assert_called_once()
+
+
+pytestmark = pytest.mark.unit

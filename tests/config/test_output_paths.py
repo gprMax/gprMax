@@ -64,9 +64,7 @@ class TestTheOutputFileArgument:
     """``-o`` / ``outputfile=`` overrides the input file name."""
 
     def test_the_argument_wins_over_the_input_file(self, make_model_config):
-        model_config = make_model_config(
-            inputfile="model.in", outputfile="results/run_a"
-        )
+        model_config = make_model_config(inputfile="model.in", outputfile="results/run_a")
 
         assert model_config.output_file_path == Path("results/run_a")
 
@@ -96,9 +94,7 @@ class TestTheOutputDirectory:
 
         assert outputdir.is_dir()
 
-    def test_the_input_file_stem_is_placed_inside_it(
-        self, make_model_config, tmp_path
-    ):
+    def test_the_input_file_stem_is_placed_inside_it(self, make_model_config, tmp_path):
         """Only the *stem* survives — the input file's own directory is dropped."""
         model_config = make_model_config(inputfile="deep/nested/model.in")
         outputdir = tmp_path / "out"
@@ -117,21 +113,15 @@ class TestTheOutputDirectory:
 
         assert model_config.output_file_path == outputdir / "model"
 
-    def test_it_takes_priority_over_the_output_file_argument(
-        self, make_model_config, tmp_path
-    ):
-        model_config = make_model_config(
-            inputfile="model.in", outputfile="ignored/elsewhere"
-        )
+    def test_it_takes_priority_over_the_output_file_argument(self, make_model_config, tmp_path):
+        model_config = make_model_config(inputfile="model.in", outputfile="ignored/elsewhere")
         outputdir = tmp_path / "wins"
 
         model_config.set_output_file_path(str(outputdir))
 
         assert model_config.output_file_path.parent == outputdir
 
-    def test_a_missing_parent_directory_is_not_created(
-        self, make_model_config, tmp_path
-    ):
+    def test_a_missing_parent_directory_is_not_created(self, make_model_config, tmp_path):
         """``mkdir`` is called without ``parents=True``.
 
         ``#output_dir: results/2026/run_a`` therefore raises
@@ -161,21 +151,13 @@ class TestTheModelNumberSuffix:
         assert model_config.appendmodelnumber == "1"
 
     @pytest.mark.parametrize("model_num, expected", [(0, "1"), (1, "2"), (9, "10")])
-    def test_the_number_is_the_model_index_plus_one(
-        self, make_model_config, model_num, expected
-    ):
-        model_config = make_model_config(
-            model_num=model_num, inputfile="model.in", n=10
-        )
+    def test_the_number_is_the_model_index_plus_one(self, make_model_config, model_num, expected):
+        model_config = make_model_config(model_num=model_num, inputfile="model.in", n=10)
 
         assert model_config.appendmodelnumber == expected
 
-    def test_the_number_lands_on_the_file_name_not_the_directory(
-        self, make_model_config
-    ):
-        model_config = make_model_config(
-            model_num=1, inputfile="results/model.in", n=3
-        )
+    def test_the_number_lands_on_the_file_name_not_the_directory(self, make_model_config):
+        model_config = make_model_config(model_num=1, inputfile="results/model.in", n=3)
 
         assert model_config.output_file_path == Path("results/model2")
 
@@ -184,15 +166,11 @@ class TestTheModelNumberSuffix:
         from gprMax import config
 
         sim_config = install_sim_config(inputfile="model.in", n=3)
-        paths = {
-            config.ModelConfig(n).output_file_path for n in range(3)
-        }
+        paths = {config.ModelConfig(n).output_file_path for n in range(3)}
 
         assert len(paths) == 3
 
-    def test_the_number_survives_an_output_directory(
-        self, make_model_config, tmp_path
-    ):
+    def test_the_number_survives_an_output_directory(self, make_model_config, tmp_path):
         model_config = make_model_config(model_num=2, inputfile="model.in", n=3)
 
         model_config.set_output_file_path(str(tmp_path))
@@ -213,9 +191,7 @@ class TestTheExtendedPath:
 
         assert model_config.output_file_path_ext == Path("model2.h5")
 
-    def test_it_is_recomputed_when_the_path_changes(
-        self, make_model_config, tmp_path
-    ):
+    def test_it_is_recomputed_when_the_path_changes(self, make_model_config, tmp_path):
         """Both attributes are set together, so they cannot drift apart."""
         model_config = make_model_config(inputfile="model.in")
 
@@ -273,9 +249,7 @@ class TestTheSnapshotDirectory:
 
         assert not model_config.set_snapshots_dir().exists()
 
-    def test_it_is_recomputed_from_the_current_output_path(
-        self, make_model_config, tmp_path
-    ):
+    def test_it_is_recomputed_from_the_current_output_path(self, make_model_config, tmp_path):
         """Nothing is cached — the answer tracks later ``#output_dir:`` commands."""
         model_config = make_model_config(inputfile="model.in")
         before = model_config.set_snapshots_dir()
@@ -284,3 +258,6 @@ class TestTheSnapshotDirectory:
         after = model_config.set_snapshots_dir()
 
         assert before != after
+
+
+pytestmark = pytest.mark.unit

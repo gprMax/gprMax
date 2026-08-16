@@ -83,9 +83,7 @@ class TestPrimeVsDot:
         a = make_waveform("gaussianprime", freq=1e9)
         b = make_waveform("gaussiandot", freq=1e9)
         for t in [0.3e-9, 0.7e-9, 1.0e-9, 1.5e-9, 2.0e-9]:
-            assert a.calculate_value(t, dt=1e-12) == pytest.approx(
-                b.calculate_value(t, dt=1e-12)
-            )
+            assert a.calculate_value(t, dt=1e-12) == pytest.approx(b.calculate_value(t, dt=1e-12))
 
     def test_gaussiandoubleprime_differs_from_gaussiandotdot(self, make_waveform):
         """Distinct by design. Both share the formula at waveforms.py:110-114
@@ -227,3 +225,6 @@ class TestErrors:
         w = make_waveform("notarealtype", freq=1e9)
         with pytest.raises(UnboundLocalError):
             w.calculate_value(1e-9, dt=1e-12)
+
+
+pytestmark = pytest.mark.unit

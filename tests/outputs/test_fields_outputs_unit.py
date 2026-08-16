@@ -29,14 +29,7 @@ import numpy as np
 import pytest
 
 from gprMax._version import __version__
-from gprMax.fields_outputs import (
-    Ix,
-    Iy,
-    Iz,
-    store_outputs,
-    write_hd5_data,
-    write_hdf5_outputfile,
-)
+from gprMax.fields_outputs import Ix, Iy, Iz, store_outputs, write_hd5_data, write_hdf5_outputfile
 
 from .conftest import DL, DL_ANISO, DT
 
@@ -81,9 +74,7 @@ class TestCurrentBoundaryGuards:
         (3 parameter sets)"""
         assert Iz(x, y, 2, *h_fields, current_grid) == 0
 
-    def test_each_component_guards_the_two_axes_that_are_not_its_own(
-        self, current_grid, h_fields
-    ):
+    def test_each_component_guards_the_two_axes_that_are_not_its_own(self, current_grid, h_fields):
         """Expects ``Ix`` to be unguarded in x: a current along x is computed
         from a contour in the y-z plane, so ``x == 0`` is perfectly fine."""
         assert Ix(0, 2, 2, *h_fields, current_grid) != 0
@@ -263,9 +254,7 @@ class TestStoreOutputs:
             store_outputs(g, i)
         assert list(rx.outputs["Ex"]) == [0.0, 1.0, 2.0]
 
-    def test_transmission_line_totals_are_sampled_at_the_antenna(
-        self, make_view_grid, make_tl
-    ):
+    def test_transmission_line_totals_are_sampled_at_the_antenna(self, make_view_grid, make_tl):
         """Expects ``Vtotal``/``Itotal`` to take the line's voltage and current
         at ``antpos``, not at index 0."""
         g = make_view_grid(nx=8, ny=8, nz=8)
@@ -289,7 +278,9 @@ class TestWriteOutputFileTopLevel:
     def model(self, make_view_grid, make_rx):
         g = make_view_grid(nx=8, ny=8, nz=8, dl=DL_ANISO)
         g.rxs = [make_rx(ID="rx1", position=(1, 2, 3), outputs=("Ex", "Ey"))]
-        return SimpleNamespace(iterations=17, srcsteps=[1, 0, 0], rxsteps=[0, 1, 0], G=g, subgrids=[])
+        return SimpleNamespace(
+            iterations=17, srcsteps=[1, 0, 0], rxsteps=[0, 1, 0], G=g, subgrids=[]
+        )
 
     @pytest.fixture
     def written(self, model, tmp_path):
@@ -336,8 +327,29 @@ class TestWriteGridMetadata:
         g = make_view_grid(nx=8, ny=8, nz=8, dl=DL_ANISO)
         g.rxs = [make_rx(ID="rx1", position=(1, 2, 3), outputs=("Ex", "Ey"))]
         g.transmissionlines = [make_tl(position=(4, 4, 4))]
-        g.voltagesources = [SimpleNamespace(xcoord=1, ycoord=1, zcoord=1)]
-        g.hertziandipoles = [SimpleNamespace(xcoord=2, ycoord=2, zcoord=2)]
+        voltage = type("VoltageSource", (), {})()
+        voltage.ID = "voltage1"
+        voltage.xcoord, voltage.ycoord, voltage.zcoord = 1, 1, 1
+        voltage.coord = (1, 1, 1)
+        voltage.polarisation = "x"
+        voltage.start, voltage.stop = 0.0, 5 * DT
+        voltage.waveformID = "wf"
+        voltage.resistance = 0.0
+        voltage.waveformvalues_wholedt = np.zeros(6)
+        voltage.waveformvalues_halfdt = np.zeros(6)
+
+        dipole = type("HertzianDipole", (), {})()
+        dipole.ID = "dipole1"
+        dipole.xcoord, dipole.ycoord, dipole.zcoord = 2, 2, 2
+        dipole.coord = (2, 2, 2)
+        dipole.polarisation = "z"
+        dipole.start, dipole.stop = 0.0, 5 * DT
+        dipole.waveformID = "wf"
+        dipole.dl = DL
+        dipole.waveformvalues_halfdt = np.zeros(6)
+
+        g.voltagesources = [voltage]
+        g.hertziandipoles = [dipole]
         return g
 
     @pytest.fixture
@@ -383,9 +395,24 @@ class TestWriteSources:
 
         class VoltageSource:
             xcoord, ycoord, zcoord = 1, 2, 3
+            coord = (1, 2, 3)
+            ID = "voltage1"
+            polarisation = "x"
+            start, stop = 0.0, 5 * DT
+            waveformID = "wf"
+            resistance = 0.0
+            waveformvalues_wholedt = np.zeros(6)
+            waveformvalues_halfdt = np.zeros(6)
 
         class HertzianDipole:
             xcoord, ycoord, zcoord = 4, 5, 6
+            coord = (4, 5, 6)
+            ID = "dipole1"
+            polarisation = "z"
+            start, stop = 0.0, 5 * DT
+            waveformID = "wf"
+            dl = DL
+            waveformvalues_halfdt = np.zeros(6)
 
         g = make_view_grid(nx=8, ny=8, nz=8, dl=DL_ANISO)
         g.rxs = []
@@ -551,9 +578,7 @@ class TestWriteReceivers:
         attrs, _ = read_h5(path)
         assert attrs["rxs/rx1/Name"] == "alpha"
 
-    def test_the_sort_mutates_the_grids_receiver_list(
-        self, make_view_grid, make_rx, tmp_path
-    ):
+    def test_the_sort_mutates_the_grids_receiver_list(self, make_view_grid, make_rx, tmp_path):
         """``grid.rxs`` is NOT mutated — the writer sorts a local copy, so
         the original list stays as-is. This is the correct behaviour since the
         solver's receiver order must not be changed by output writing."""
@@ -595,6 +620,7 @@ class TestWriteSubgrids:
             magneticfrillsources=[],
             transmissionlines=[],
             port_monitors=[],
+            eigenmodeports=[],
             rxs=[make_rx(ID="sub-rx", outputs=("Ez",))],
             local_to_global=lambda coords: tuple(coords),
         )
@@ -665,3 +691,6 @@ class TestWriteSubgrids:
         write_hdf5_outputfile(path, "t", model)
         attrs, _ = read_h5(path)
         assert not any(k.startswith("subgrids/") for k in attrs)
+
+
+pytestmark = pytest.mark.unit

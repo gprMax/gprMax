@@ -14,69 +14,7 @@ tests pure.
 
 import pytest
 
-
-SINGLE_KEYS = (
-    "#domain",
-    "#domain_mode",
-    "#dx_dy_dz",
-    "#time_window",
-    "#title",
-    "#omp_threads",
-    "#time_step_stability_factor",
-    "#pml_cells",
-    "#src_steps",
-    "#rx_steps",
-    "#output_dir",
-    "#dispersive_averaging",
-    "#magnetic_averaging",
-)
-
-MULTI_KEYS = (
-    "#geometry_view",
-    "#geometry_objects_write",
-    "#material",
-    "#material_range",
-    "#material_list",
-    "#soil_peplinski",
-    "#add_dispersion_debye",
-    "#add_dispersion_lorentz",
-    "#add_dispersion_drude",
-    "#waveform",
-    "#voltage_source",
-    "#hertzian_dipole",
-    "#magnetic_dipole",
-    "#transmission_line",
-    "#plane_wave_angles",
-    "#plane_wave_axial",
-    "#plane_wave_vector",
-    "#excitation_file",
-    "#rx",
-    "#rx_array",
-    "#rx_port",
-    "#snapshot",
-    "#pml_cfs",
-    "#pml_formulation",
-    "#pml_slab",
-    "#symmetry_boundary",
-    "#include_file",
-    "#ntff_frequency",
-    "#ntff_surface",
-    "#ntff_far_field",
-    "#ntff_far_field_array",
-    "#ntff_time_far_field",
-    "#ntff_time_far_field_array",
-    "#ntff_antenna_ports",
-    "#ksir_frequency",
-    "#ksir_frequency_rx",
-    "#ksir_frequency_rx_array",
-    "#ksir_frequency_rx_spherical",
-    "#ksir_time_rx",
-    "#ksir_time_rx_array",
-    "#ksir_time_rx_spherical",
-    "#ksir_antenna_ports",
-    "#ksir_far_field",
-    "#ksir_far_field_array",
-)
+from gprMax.hash_cmds_file import check_cmd_names
 
 
 @pytest.fixture
@@ -87,7 +25,8 @@ def singlecmds_template():
     command it cares about — every other branch in ``process_singlecmds``
     short-circuits on the ``is not None`` check.
     """
-    return dict.fromkeys(SINGLE_KEYS, None)
+    singlecmds, _, _ = check_cmd_names([], checkessential=False)
+    return singlecmds
 
 
 @pytest.fixture
@@ -98,4 +37,5 @@ def multicmds_template():
     each list, so empty lists produce no scene objects and only the keys
     we populate exercise their dispatch branch.
     """
-    return {key: [] for key in MULTI_KEYS}
+    _, multicmds, _ = check_cmd_names([], checkessential=False)
+    return multicmds

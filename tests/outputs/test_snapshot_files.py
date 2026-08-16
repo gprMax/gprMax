@@ -143,18 +143,14 @@ class TestHdf5Datasets:
     def test_unrequested_components_are_absent(self, written_snapshot, read_h5):
         """Expects the dummy ``(1,1,1)`` placeholder arrays *not* to be
         written — they exist only to satisfy the Cython signature."""
-        _, data = read_h5(
-            written_snapshot(outputs={**NO_OUTPUTS, "Ez": True}).filename
-        )
+        _, data = read_h5(written_snapshot(outputs={**NO_OUTPUTS, "Ez": True}).filename)
         assert set(data) == {"Ez"}
 
     @pytest.mark.parametrize("name", FIELDS)
     def test_each_component_can_be_written_alone(self, written_snapshot, read_h5, name):
         """Expects the six flags to be independent at the file level.
         (6 parameter sets)"""
-        _, data = read_h5(
-            written_snapshot(outputs={**NO_OUTPUTS, name: True}).filename
-        )
+        _, data = read_h5(written_snapshot(outputs={**NO_OUTPUTS, name: True}).filename)
         assert set(data) == {name}
 
     def test_dataset_shape_is_the_view_size(self, written_snapshot, read_h5):
@@ -192,13 +188,9 @@ class TestVtkLayout:
     def test_unrequested_components_are_absent(self, written_snapshot, read_h5):
         """Expects the same flag filtering as the HDF5 writer."""
         _, data = read_h5(
-            written_snapshot(
-                fileext=".vtkhdf", outputs={**NO_OUTPUTS, "Hy": True}
-            ).filename
+            written_snapshot(fileext=".vtkhdf", outputs={**NO_OUTPUTS, "Hy": True}).filename
         )
-        assert [k for k in data if k.startswith("VTKHDF/CellData")] == [
-            "VTKHDF/CellData/Hy"
-        ]
+        assert [k for k in data if k.startswith("VTKHDF/CellData")] == ["VTKHDF/CellData/Hy"]
 
     def test_declares_the_image_data_type(self, written_snapshot):
         """Expects ``Type == b"ImageData"`` on the ``VTKHDF`` group — the
@@ -219,26 +211,18 @@ class TestVtkLayout:
         lands in the right place when overlaid on the full model."""
         snap = written_snapshot(fileext=".vtkhdf", start=(2, 3, 4), stop=(6, 7, 8))
         with h5py.File(snap.filename, "r") as f:
-            assert f["VTKHDF"].attrs["Origin"] == pytest.approx(
-                [2 * DL, 3 * DL, 4 * DL]
-            )
+            assert f["VTKHDF"].attrs["Origin"] == pytest.approx([2 * DL, 3 * DL, 4 * DL])
 
     def test_origin_follows_an_anisotropic_grid(self, written_snapshot):
         """Expects each axis scaled by its own discretisation."""
-        snap = written_snapshot(
-            fileext=".vtkhdf", start=(2, 2, 2), stop=(6, 6, 6), dl=DL_ANISO
-        )
+        snap = written_snapshot(fileext=".vtkhdf", start=(2, 2, 2), stop=(6, 6, 6), dl=DL_ANISO)
         with h5py.File(snap.filename, "r") as f:
-            assert f["VTKHDF"].attrs["Origin"] == pytest.approx(
-                [2 * d for d in DL_ANISO]
-            )
+            assert f["VTKHDF"].attrs["Origin"] == pytest.approx([2 * d for d in DL_ANISO])
 
     def test_spacing_is_the_physical_cell_size(self, written_snapshot):
         """Expects ``step * grid.dl``, matching the HDF5 writer's
         ``dx_dy_dz``."""
-        snap = written_snapshot(
-            fileext=".vtkhdf", start=(0, 0, 0), stop=(8, 8, 8), step=(2, 2, 2)
-        )
+        snap = written_snapshot(fileext=".vtkhdf", start=(0, 0, 0), stop=(8, 8, 8), step=(2, 2, 2))
         with h5py.File(snap.filename, "r") as f:
             assert f["VTKHDF"].attrs["Spacing"] == pytest.approx([2 * DL] * 3)
 
@@ -283,7 +267,9 @@ class TestProgressReporting:
         """Expects one ``update`` call per written component, each carrying
         that array's byte count."""
         g = make_view_grid(nx=8, ny=8, nz=8)
-        snap = Snapshot(0, 0, 0, 4, 4, 4, 1, 1, 1, 5, str(tmp_path / "s"), ".h5", dict(ALL_OUTPUTS), g)
+        snap = Snapshot(
+            0, 0, 0, 4, 4, 4, 1, 1, 1, 5, str(tmp_path / "s"), ".h5", dict(ALL_OUTPUTS), g
+        )
         snap.initialise_snapfields()
         snap.store()
         snap.write_file(null_pbar)
@@ -293,15 +279,15 @@ class TestProgressReporting:
         """Expects the progress total to match the ``nbytes`` the bar was sized
         with — otherwise the bar finishes short or overruns."""
         g = make_view_grid(nx=8, ny=8, nz=8)
-        snap = Snapshot(0, 0, 0, 4, 4, 4, 1, 1, 1, 5, str(tmp_path / "s"), ".h5", dict(ALL_OUTPUTS), g)
+        snap = Snapshot(
+            0, 0, 0, 4, 4, 4, 1, 1, 1, 5, str(tmp_path / "s"), ".h5", dict(ALL_OUTPUTS), g
+        )
         snap.initialise_snapfields()
         snap.store()
         snap.write_file(null_pbar)
         assert null_pbar.total == snap.nbytes
 
-    def test_unrequested_components_are_not_reported(
-        self, make_view_grid, tmp_path, null_pbar
-    ):
+    def test_unrequested_components_are_not_reported(self, make_view_grid, tmp_path, null_pbar):
         """Expects no progress update for a component that is not written."""
         g = make_view_grid(nx=8, ny=8, nz=8)
         outputs = {**NO_OUTPUTS, "Ex": True}
@@ -390,3 +376,6 @@ class TestSaveSnapshots:
         save_snapshots(snaps)
         assert snaps[0].filename.exists()
         assert snaps[0].filename.suffix == ".vtkhdf"
+
+
+pytestmark = pytest.mark.unit

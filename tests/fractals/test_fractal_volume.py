@@ -180,7 +180,6 @@ class TestGenerateFractalVolume:
         second.generate_fractal_volume()
         assert not np.array_equal(first.fractalvolume, second.fractalvolume)
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_different_dimension_gives_a_different_volume(self):
         first = make_volume(dimension=1.0)
         second = make_volume(dimension=3.0)
@@ -232,3 +231,6 @@ class TestGenerateVolumeMask:
         volume.mask[0, 0, 0] = 3
         volume.generate_volume_mask()
         assert volume.mask[0, 0, 0] == 1
+
+
+pytestmark = pytest.mark.unit

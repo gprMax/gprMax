@@ -43,9 +43,9 @@ class TestWeightingCoefficients:
         c1, c2 = calculate_weighting_coefficients(m, ratio)
         assert c1 + c2 == pytest.approx(1.0)
 
-    @pytest.mark.parametrize("m,ratio,expected", [(1, 3, (2 / 3, 1 / 3)),
-                                                  (2, 3, (1 / 3, 2 / 3)),
-                                                  (1, 5, (4 / 5, 1 / 5))])
+    @pytest.mark.parametrize(
+        "m,ratio,expected", [(1, 3, (2 / 3, 1 / 3)), (2, 3, (1 / 3, 2 / 3)), (1, 5, (4 / 5, 1 / 5))]
+    )
     def test_intermediate_values(self, m, ratio, expected):
         assert calculate_weighting_coefficients(m, ratio) == pytest.approx(expected)
 
@@ -434,15 +434,13 @@ class TestPrecursorTypes:
         assert isinstance(coupled_grids(filtered=False).precursors, PrecursorNodes)
 
     def test_filtered_type(self, coupled_grids):
-        assert isinstance(
-            coupled_grids(filtered=True).precursors, PrecursorNodesFiltered
-        )
+        assert isinstance(coupled_grids(filtered=True).precursors, PrecursorNodesFiltered)
 
     def test_both_share_the_same_field_shapes(self, coupled_grids):
         plain = coupled_grids(filtered=False).precursors
         filtered = coupled_grids(filtered=True).precursors
         for name in plain.fn_e + plain.fn_m:
-            assert (
-                getattr(plain, f"{name}_1").shape
-                == getattr(filtered, f"{name}_1").shape
-            )
+            assert getattr(plain, f"{name}_1").shape == getattr(filtered, f"{name}_1").shape
+
+
+pytestmark = pytest.mark.unit

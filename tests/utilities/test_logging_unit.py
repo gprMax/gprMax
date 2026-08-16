@@ -34,12 +34,7 @@ import logging
 
 import pytest
 
-from gprMax.utilities.logging import (
-    BASIC_NUM,
-    MAPPING,
-    CustomFormatter,
-    logging_config,
-)
+from gprMax.utilities.logging import BASIC_NUM, MAPPING, CustomFormatter, logging_config
 
 
 @pytest.fixture
@@ -190,8 +185,13 @@ class TestCustomFormatter:
     @staticmethod
     def _record(level=logging.WARNING, msg="a message", args=()):
         return logging.LogRecord(
-            name="test", level=level, pathname=__file__, lineno=1,
-            msg=msg, args=args, exc_info=None,
+            name="test",
+            level=level,
+            pathname=__file__,
+            lineno=1,
+            msg=msg,
+            args=args,
+            exc_info=None,
         )
 
     def test_the_message_appears_in_the_output(self):
@@ -200,9 +200,7 @@ class TestCustomFormatter:
         assert "a message" in formatted
 
     def test_the_level_name_appears_when_the_pattern_asks_for_it(self):
-        formatted = CustomFormatter("%(levelname)s: %(message)s").format(
-            self._record()
-        )
+        formatted = CustomFormatter("%(levelname)s: %(message)s").format(self._record())
 
         assert "WARNING" in formatted
 
@@ -218,13 +216,11 @@ class TestCustomFormatter:
         assert formatted.endswith("\x1b[0m")
 
     @pytest.mark.parametrize(
-        "level", [logging.DEBUG, logging.INFO, BASIC_NUM, logging.WARNING,
-                  logging.ERROR, logging.CRITICAL]
+        "level",
+        [logging.DEBUG, logging.INFO, BASIC_NUM, logging.WARNING, logging.ERROR, logging.CRITICAL],
     )
     def test_every_level_formats(self, level):
-        formatted = CustomFormatter("%(levelname)s %(message)s").format(
-            self._record(level=level)
-        )
+        formatted = CustomFormatter("%(levelname)s %(message)s").format(self._record(level=level))
 
         assert "a message" in formatted
 
@@ -250,33 +246,15 @@ class TestCustomFormatter:
 
     def test_a_message_with_no_arguments_formats(self):
         """The only shape gprMax actually uses — every call site is an f-string."""
-        formatted = CustomFormatter("%(message)s").format(
-            self._record(msg="6 cores")
-        )
+        formatted = CustomFormatter("%(message)s").format(self._record(msg="6 cores"))
 
         assert "6 cores" in formatted
 
-    @pytest.mark.xfail(
-        reason="upstream fix — double-interpolation bug resolved, TypeError no longer raised"
-    )
-    def test_a_message_with_arguments_raises(self):
-        """``getMessage()`` runs twice, so lazy ``%``-style logging is broken.
+    def test_a_message_with_arguments_formats_once(self):
+        """The formatter supports the standard library's lazy interpolation."""
+        formatted = CustomFormatter("%(message)s").format(self._record(msg="%d cores", args=(6,)))
 
-        ``format`` interpolates the arguments and assigns the *result* back to
-        ``msg`` — but leaves ``args`` in place. The base ``Formatter.format``
-        then calls ``getMessage()`` again on the already-interpolated string,
-        and the surviving arguments have nothing left to fill.
-
-        The idiomatic stdlib call ``logger.basic("%d cores", 6)`` therefore
-        fails inside the handler. It has never been noticed because every call
-        site in gprMax passes a pre-built f-string. Pinned as the current
-        behaviour; written up in
-        ``notes/bugs/logging-custom-formatter-double-interpolation.md``.
-        """
-        with pytest.raises(TypeError):
-            CustomFormatter("%(message)s").format(
-                self._record(msg="%d cores", args=(6,))
-            )
+        assert "6 cores" in formatted
 
 
 class TestLoggingConfig:
@@ -384,9 +362,7 @@ class TestFormatStyles:
         """
         logger = temporary_logger("test-style-debug")
 
-        logging_config(
-            name="test-style-debug", level=logging.DEBUG, format_style="std"
-        )
+        logging_config(name="test-style-debug", level=logging.DEBUG, format_style="std")
 
         assert "%(lineno)d" in logger.handlers[0].formatter._fmt
 
@@ -420,9 +396,7 @@ class TestFileLogging:
 
         assert isinstance(logger.handlers[1], logging.FileHandler)
 
-    def test_the_file_name_starts_with_the_logger_name(
-        self, temporary_logger, tmp_path
-    ):
+    def test_the_file_name_starts_with_the_logger_name(self, temporary_logger, tmp_path):
         temporary_logger("test-file-name")
 
         logging_config(name="test-file-name", log_file=True)
@@ -437,9 +411,7 @@ class TestFileLogging:
         """
         logger = temporary_logger("test-file-level")
 
-        logging_config(
-            name="test-file-level", level=logging.WARNING, log_file=True
-        )
+        logging_config(name="test-file-level", level=logging.WARNING, log_file=True)
 
         assert logger.handlers[1].level == logging.DEBUG
 
@@ -455,9 +427,7 @@ class TestFileLogging:
         """Even when the console is terse."""
         logger = temporary_logger("test-file-format")
 
-        logging_config(
-            name="test-file-format", format_style="std", log_file=True
-        )
+        logging_config(name="test-file-format", format_style="std", log_file=True)
 
         assert "%(lineno)d" in logger.handlers[1].formatter._fmt
 
@@ -481,3 +451,6 @@ class TestFileLogging:
 
         written = next(tmp_path.glob("test-file-levelname-log-*.txt")).read_text()
         assert "BASIC" in written
+
+
+pytestmark = pytest.mark.unit

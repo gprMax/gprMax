@@ -188,18 +188,24 @@ class TestDelegatedProperties:
     def test_each_property_forwards_to_the_grid_view(self, make_snapshot, name):
         """Expects all twelve accessors to return the view's value, so the
         snapshot holds no duplicate coordinate state. (12 parameter sets)"""
-        snap = make_snapshot(start=(1, 2, 3), stop=(13, 14, 15), step=(1, 2, 3), nx=16, ny=16, nz=16)
+        snap = make_snapshot(
+            start=(1, 2, 3), stop=(13, 14, 15), step=(1, 2, 3), nx=16, ny=16, nz=16
+        )
         assert getattr(snap, name) == getattr(snap.grid_view, name)
 
     def test_sizes_follow_the_ceiling_rule(self, make_snapshot):
         """Expects ``nx == ceil((xf-xs)/dx)``: a 0-to-10 window at step 3 is
         four cells, inherited straight from ``GridView``."""
-        snap = make_snapshot(start=(0, 0, 0), stop=(10, 10, 10), step=(3, 3, 3), nx=12, ny=12, nz=12)
+        snap = make_snapshot(
+            start=(0, 0, 0), stop=(10, 10, 10), step=(3, 3, 3), nx=12, ny=12, nz=12
+        )
         assert (snap.nx, snap.ny, snap.nz) == (4, 4, 4)
 
     def test_axes_are_independent(self, make_snapshot):
         """Expects three different steps to give three different sizes."""
-        snap = make_snapshot(start=(0, 0, 0), stop=(12, 12, 12), step=(1, 2, 3), nx=12, ny=12, nz=12)
+        snap = make_snapshot(
+            start=(0, 0, 0), stop=(12, 12, 12), step=(1, 2, 3), nx=12, ny=12, nz=12
+        )
         assert (snap.nx, snap.ny, snap.nz) == (12, 6, 4)
 
 
@@ -486,3 +492,6 @@ class TestSinglePrecision:
         snap.store()
         assert snap.snapfields["Ex"].dtype == np.float32
         assert snap.snapfields["Ex"] == pytest.approx(np.full((4, 4, 4), 2.0))
+
+
+pytestmark = pytest.mark.unit

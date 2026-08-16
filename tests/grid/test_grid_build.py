@@ -37,9 +37,7 @@ def stub_build_steps(monkeypatch):
     monkeypatch.setattr(fg, "print_pml_info", lambda g: "")
 
     def _record(grid, name):
-        monkeypatch.setattr(
-            grid, name, lambda *a, **k: calls.append(name), raising=True
-        )
+        monkeypatch.setattr(grid, name, lambda *a, **k: calls.append(name), raising=True)
 
     def _apply(grid):
         for name in (
@@ -171,17 +169,13 @@ class TestBuildOrchestration:
         built_grid.build()
         assert "_build_pmls" in calls
 
-    def test_skips_pmls_when_all_thicknesses_are_zero(
-        self, built_grid, stub_build_steps
-    ):
+    def test_skips_pmls_when_all_thicknesses_are_zero(self, built_grid, stub_build_steps):
         calls = stub_build_steps(built_grid)
         built_grid.set_pml_thickness(0)
         built_grid.build()
         assert "_build_pmls" not in calls
 
-    def test_builds_pmls_when_only_one_slab_is_non_zero(
-        self, built_grid, stub_build_steps
-    ):
+    def test_builds_pmls_when_only_one_slab_is_non_zero(self, built_grid, stub_build_steps):
         calls = stub_build_steps(built_grid)
         built_grid.set_pml_thickness(0)
         built_grid.pmls["thickness"]["x0"] = 2
@@ -204,9 +198,7 @@ class TestBuildOrchestration:
         built_grid.build()
         assert built_grid.updatecoeffsE.shape == (2, 5)
 
-    def test_skips_dispersive_arrays_without_poles(
-        self, built_grid, stub_build_steps, grid_config
-    ):
+    def test_skips_dispersive_arrays_without_poles(self, built_grid, stub_build_steps, grid_config):
         grid_config.model_config.materials["maxpoles"] = 0
         stub_build_steps(built_grid)
         built_grid.build()
@@ -318,9 +310,7 @@ class TestDispersionAnalysisReporting:
         with pytest.raises(ValueError):
             g.dispersion_analysis(10)
 
-    def test_sampling_at_the_threshold_does_not_raise(
-        self, make_grid, monkeypatch, make_material
-    ):
+    def test_sampling_at_the_threshold_does_not_raise(self, make_grid, monkeypatch, make_material):
         """``mingridsampling`` is 3; ``N == 3`` is acceptable."""
         g = make_grid(nx=8, ny=8, nz=8)
         material = make_material(ID="soil", numID=1)
@@ -331,9 +321,7 @@ class TestDispersionAnalysisReporting:
         )
         g.dispersion_analysis(10)
 
-    def test_large_phase_error_is_warned(
-        self, make_grid, monkeypatch, make_material, caplog
-    ):
+    def test_large_phase_error_is_warned(self, make_grid, monkeypatch, make_material, caplog):
         g = make_grid(nx=8, ny=8, nz=8)
         material = make_material(ID="soil", numID=1)
         monkeypatch.setattr(
@@ -358,3 +346,6 @@ class TestDispersionAnalysisReporting:
         with caplog.at_level("INFO"):
             g.dispersion_analysis(10)
         assert "phase-velocity error" in caplog.text
+
+
+pytestmark = pytest.mark.unit

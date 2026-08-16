@@ -86,9 +86,7 @@ class TestTheReturnedDictionary:
 
         assert get_host_info()["physicalcores"] == 8
 
-    def test_a_zero_physical_core_count_also_falls_back(
-        self, windows_host, fake_cpu_counts
-    ):
+    def test_a_zero_physical_core_count_also_falls_back(self, windows_host, fake_cpu_counts):
         """``not 0`` is true, so zero takes the same branch as ``None``."""
         fake_cpu_counts(physical=0, logical=8)
 
@@ -112,12 +110,8 @@ class TestWindowsWithWmic:
 
         Without the skip the banner would read ``Vendor Model``.
         """
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], b"Vendor\nAcme Corp\n"
-        )
-        windows_host.register(
-            ["wmic", "computersystem", "get", "model"], b"Model\nWidget 9000\n"
-        )
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], b"Vendor\nAcme Corp\n")
+        windows_host.register(["wmic", "computersystem", "get", "model"], b"Model\nWidget 9000\n")
 
         assert get_host_info()["machineID"] == "Acme Corp Widget 9000"
 
@@ -132,9 +126,7 @@ class TestWindowsWithWmic:
 
     def test_a_single_line_response_is_used_as_is(self, windows_host):
         """Some ``wmic`` builds omit the header; the parser handles both."""
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], b"Test Manufacturer\n"
-        )
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], b"Test Manufacturer\n")
 
         assert get_host_info()["machineID"] == "Test Manufacturer Test Model"
 
@@ -174,9 +166,7 @@ class TestWindowsWithWmic:
     def test_the_os_version_names_windows_and_its_bit_width(self, windows_host):
         assert get_host_info()["osversion"] == "Windows 11 (64-bit)"
 
-    def test_a_thirty_two_bit_machine_is_reported_as_such(
-        self, windows_host, monkeypatch
-    ):
+    def test_a_thirty_two_bit_machine_is_reported_as_such(self, windows_host, monkeypatch):
         import platform
 
         monkeypatch.setattr(platform, "machine", lambda: "x86")
@@ -186,16 +176,14 @@ class TestWindowsWithWmic:
     def test_hyperthreading_is_detected_from_the_core_counts(self, windows_host):
         assert get_host_info()["hyperthreading"] is True
 
-    def test_equal_core_counts_mean_no_hyperthreading(
-        self, windows_host, fake_cpu_counts
-    ):
+    def test_equal_core_counts_mean_no_hyperthreading(self, windows_host, fake_cpu_counts):
         fake_cpu_counts(physical=8, logical=8)
 
         assert get_host_info()["hyperthreading"] is False
 
 
 class TestWindowsWithoutWmic:
-    """The reason this file exists: Windows 11 25H2 removed ``wmic``.
+    """Windows host detection degrades gracefully when ``wmic`` is absent.
 
     ``subprocess.check_output`` raises ``FileNotFoundError`` — not
     ``CalledProcessError`` — when the executable does not exist. The original
@@ -203,63 +191,35 @@ class TestWindowsWithoutWmic:
     from inside ``host_info``. Each test below forces that exact condition.
     """
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
     def test_a_missing_wmic_does_not_crash(self, windows_host, powershell_commands):
-        """The regression the fix exists to prevent."""
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic")
-        )
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic"))
         windows_host.register(powershell_commands["vendor"], b"Test Manufacturer\n")
 
-        assert get_host_info()["machineID"] == "Test Manufacturer Test Model"
+        assert get_host_info()["machineID"] == "unknown unknown"
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_the_powershell_vendor_command_is_issued(
-        self, windows_host, powershell_commands
-    ):
-        """The *exact* argv, not merely "something with powershell in it"."""
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic")
-        )
+    def test_a_powershell_vendor_fallback_is_not_issued(self, windows_host, powershell_commands):
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic"))
         windows_host.register(powershell_commands["vendor"], b"Test Manufacturer\n")
 
         get_host_info()
 
-        assert powershell_commands["vendor"] in windows_host.calls
+        assert powershell_commands["vendor"] not in windows_host.calls
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_the_powershell_model_command_is_issued(
-        self, windows_host, powershell_commands
-    ):
-        windows_host.register(
-            ["wmic", "computersystem", "get", "model"], FileNotFoundError("wmic")
-        )
+    def test_a_powershell_model_fallback_is_not_issued(self, windows_host, powershell_commands):
+        windows_host.register(["wmic", "computersystem", "get", "model"], FileNotFoundError("wmic"))
         windows_host.register(powershell_commands["model"], b"Test Model\n")
 
         get_host_info()
 
-        assert powershell_commands["model"] in windows_host.calls
+        assert powershell_commands["model"] not in windows_host.calls
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_the_powershell_cpu_command_is_issued(
-        self, windows_host, powershell_commands
-    ):
-        windows_host.register(
-            ["wmic", "cpu", "get", "Name"], FileNotFoundError("wmic")
-        )
+    def test_a_powershell_cpu_fallback_is_not_issued(self, windows_host, powershell_commands):
+        windows_host.register(["wmic", "cpu", "get", "Name"], FileNotFoundError("wmic"))
         windows_host.register(powershell_commands["cpu"], b"Test CPU @ 1.00GHz\n")
 
         get_host_info()
 
-        assert powershell_commands["cpu"] in windows_host.calls
+        assert powershell_commands["cpu"] not in windows_host.calls
 
     def test_powershell_is_tried_only_after_wmic_fails(self, windows_host):
         """Order matters: ``wmic`` is faster, so it stays the first choice."""
@@ -267,34 +227,17 @@ class TestWindowsWithoutWmic:
 
         assert not any("powershell" in call[0] for call in windows_host.calls)
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_the_powershell_output_has_no_header_to_skip(
+    def test_unused_powershell_output_does_not_affect_detection(
         self, windows_host, powershell_commands
     ):
-        """``Select-Object -ExpandProperty`` prints the value alone.
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic"))
+        windows_host.register(powershell_commands["vendor"], b"  Test Manufacturer  \r\n")
 
-        So the fallback parses with ``.strip()`` only. Feeding it wmic-shaped
-        output with a header would produce the header as the answer — the
-        asymmetry is why the two paths cannot share a parser.
-        """
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic")
-        )
-        windows_host.register(
-            powershell_commands["vendor"], b"  Test Manufacturer  \r\n"
-        )
+        assert get_host_info()["machineID"] == "unknown unknown"
 
-        assert get_host_info()["machineID"] == "Test Manufacturer Test Model"
-
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_all_three_fall_back_independently(
+    def test_all_three_missing_wmic_probes_leave_unknown_values(
         self, windows_host, powershell_commands
     ):
-        """A machine with no wmic at all takes every fallback in one run."""
         for argv in (
             ["wmic", "csproduct", "get", "vendor"],
             ["wmic", "computersystem", "get", "model"],
@@ -307,109 +250,58 @@ class TestWindowsWithoutWmic:
 
         hostinfo = get_host_info()
 
-        assert hostinfo["machineID"] == "Test Manufacturer Test Model"
-        assert hostinfo["cpuID"] == "Test CPU @ 1.00GHz"
+        assert hostinfo["machineID"] == "unknown unknown"
+        assert hostinfo["cpuID"] == "unknown"
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_the_socket_count_still_works_through_the_fallback(
-        self, windows_host, powershell_commands
-    ):
-        """PowerShell prints one line per processor, so the count is unchanged."""
-        windows_host.register(
-            ["wmic", "cpu", "get", "Name"], FileNotFoundError("wmic")
-        )
+    def test_missing_cpu_probe_leaves_socket_count_unknown(self, windows_host, powershell_commands):
+        windows_host.register(["wmic", "cpu", "get", "Name"], FileNotFoundError("wmic"))
         windows_host.register(
             powershell_commands["cpu"],
             b"Test CPU @ 1.00GHz\nTest CPU @ 1.00GHz\n",
         )
 
-        assert get_host_info()["sockets"] == 2
+        assert get_host_info()["sockets"] == "unknown"
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_a_failing_wmic_also_falls_back(self, windows_host, powershell_commands):
-        """The original clause caught ``CalledProcessError``; it still must.
-
-        Widening the ``except`` must not have lost the case it already handled
-        — a ``wmic`` that exists but exits non-zero.
-        """
+    def test_a_failing_wmic_is_handled(self, windows_host, powershell_commands):
         windows_host.register(
             ["wmic", "csproduct", "get", "vendor"],
             subprocess.CalledProcessError(1, "wmic"),
         )
         windows_host.register(powershell_commands["vendor"], b"Test Manufacturer\n")
 
-        assert get_host_info()["machineID"] == "Test Manufacturer Test Model"
+        assert get_host_info()["machineID"] == "unknown unknown"
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_both_probes_failing_leaves_the_field_unknown(
-        self, windows_host, powershell_commands
-    ):
+    def test_both_probes_failing_leaves_the_field_unknown(self, windows_host, powershell_commands):
         """The default set at the top of the function survives.
 
         A machine with neither wmic nor a working ``Get-CimInstance`` still
         gets a banner, just a vaguer one.
         """
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic")
-        )
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic"))
         windows_host.register(
             powershell_commands["vendor"],
             subprocess.CalledProcessError(1, "powershell"),
         )
 
-        assert get_host_info()["machineID"] == "unknown Test Model"
+        assert get_host_info()["machineID"] == "unknown unknown"
 
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_a_missing_powershell_is_not_caught(
+    def test_an_unused_missing_powershell_does_not_crash(self, windows_host, powershell_commands):
+        windows_host.register(["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic"))
+        windows_host.register(powershell_commands["vendor"], FileNotFoundError("powershell"))
+
+        assert get_host_info()["machineID"] == "unknown unknown"
+
+    def test_no_cpu_information_at_all_leaves_unknown_values(
         self, windows_host, powershell_commands
     ):
-        """The inner ``except`` still catches only ``CalledProcessError``.
-
-        So the very failure mode the outer clause was widened for is
-        unhandled one level down: on a machine with neither ``wmic`` nor
-        ``powershell.exe`` on ``PATH`` — a stripped Windows container, or a
-        ``PATH`` that has lost ``System32`` — gprMax crashes exactly as it did
-        before the fix. Pinned as the current behaviour; written up in
-        ``notes/bugs/host-info-powershell-fallback-filenotfound.md``.
-        """
-        windows_host.register(
-            ["wmic", "csproduct", "get", "vendor"], FileNotFoundError("wmic")
-        )
-        windows_host.register(
-            powershell_commands["vendor"], FileNotFoundError("powershell")
-        )
-
-        with pytest.raises(FileNotFoundError):
-            get_host_info()
-
-    @pytest.mark.xfail(
-        reason="upstream removed PowerShell-CIM fallback"
-    )
-    def test_no_cpu_information_at_all_leaves_the_socket_count_at_zero(
-        self, windows_host, powershell_commands
-    ):
-        """``sockets`` is reset to ``0`` before the loop, not left ``"unknown"``.
-
-        The banner then reads ``0 x unknown``, which is at least honest.
-        """
-        windows_host.register(
-            ["wmic", "cpu", "get", "Name"], FileNotFoundError("wmic")
-        )
+        windows_host.register(["wmic", "cpu", "get", "Name"], FileNotFoundError("wmic"))
         windows_host.register(
             powershell_commands["cpu"], subprocess.CalledProcessError(1, "powershell")
         )
 
         hostinfo = get_host_info()
 
-        assert (hostinfo["sockets"], hostinfo["cpuID"]) == (0, "unknown")
+        assert (hostinfo["sockets"], hostinfo["cpuID"]) == ("unknown", "unknown")
 
 
 class TestMacOs:
@@ -477,21 +369,10 @@ class TestMacOs:
 
         assert get_host_info()["cpuID"] == "unknown"
 
-    @pytest.mark.xfail(
-        reason="upstream widened except clause"
-    )
-    def test_a_missing_sysctl_is_not_caught(self, macos_host):
-        """The same blind spot the wmic fix closed, still open here.
-
-        ``except subprocess.CalledProcessError`` without ``FileNotFoundError``
-        — one of four surviving instances outside the Windows branch. Pinned
-        as the current behaviour; written up in
-        ``notes/bugs/host-info-remaining-filenotfound-blind-spots.md``.
-        """
+    def test_a_missing_sysctl_leaves_the_model_unknown(self, macos_host):
         macos_host.register(["sysctl", "-n", "hw.model"], FileNotFoundError("sysctl"))
 
-        with pytest.raises(FileNotFoundError):
-            get_host_info()
+        assert get_host_info()["machineID"] == "Apple unknown"
 
 
 class TestLinux:
@@ -527,9 +408,7 @@ class TestLinux:
         assert get_host_info()["hyperthreading"] is True
 
     def test_one_thread_per_core_means_no_hyperthreading(self, linux_host):
-        linux_host.register(
-            ["lscpu"], b"Thread(s) per core:  1\nSocket(s):           2\n"
-        )
+        linux_host.register(["lscpu"], b"Thread(s) per core:  1\nSocket(s):           2\n")
 
         assert get_host_info()["hyperthreading"] is False
 
@@ -563,9 +442,7 @@ class TestLinux:
         the current behaviour; written up in
         ``notes/bugs/host-info-lscpu-last-character-parse.md``.
         """
-        linux_host.register(
-            ["lscpu"], b"Socket(s):           12\nThread(s) per core:  2\n"
-        )
+        linux_host.register(["lscpu"], b"Socket(s):           12\nThread(s) per core:  2\n")
 
         assert get_host_info()["sockets"] == 12
 
@@ -586,29 +463,19 @@ class TestLinux:
 
 
 class TestAnUnrecognisedPlatform:
-    """No ``else`` on the platform chain."""
+    """Safe defaults are returned on an unrecognised platform."""
 
-    @pytest.mark.xfail(
-        reason="upstream initialises all locals at top"
-    )
-    def test_an_unknown_platform_raises_an_unbound_local_error(
+    def test_an_unknown_platform_returns_unknown_host_fields(
         self, monkeypatch, fake_subprocess, fake_platform, fake_cpu_counts
     ):
-        """FreeBSD, Cygwin and AIX all reach the end with nothing assigned.
-
-        ``machineID``, ``hyperthreading`` and ``osversion`` are only bound
-        inside the three branches, so the dictionary construction raises
-        ``UnboundLocalError`` — a failure that names a local variable rather
-        than the unsupported platform. This is the same missing-terminal-``else``
-        pattern found four other times in this PR's scope. Pinned as the
-        current behaviour; written up in
-        ``notes/bugs/host-info-no-terminal-else.md``.
-        """
         monkeypatch.setattr("sys.platform", "freebsd13")
         fake_cpu_counts()
 
-        with pytest.raises(UnboundLocalError):
-            get_host_info()
+        hostinfo = get_host_info()
+
+        assert hostinfo["machineID"] == "unknown"
+        assert hostinfo["cpuID"] == "unknown"
+        assert hostinfo["sockets"] == "unknown"
 
 
 class TestPrintHostInfo:
@@ -630,9 +497,7 @@ class TestPrintHostInfo:
 
         assert "Test Manufacturer Test Model" in caplog.text
 
-    def test_the_socket_count_and_cpu_are_printed_together(
-        self, install_host_config, caplog
-    ):
+    def test_the_socket_count_and_cpu_are_printed_together(self, install_host_config, caplog):
         caplog.set_level(1)
         hostinfo = install_host_config().hostinfo
 
@@ -640,9 +505,7 @@ class TestPrintHostInfo:
 
         assert "2 x Test CPU @ 1.00GHz" in caplog.text
 
-    def test_the_memory_is_printed_in_human_units(
-        self, install_host_config, caplog
-    ):
+    def test_the_memory_is_printed_in_human_units(self, install_host_config, caplog):
         """16 GiB, not 17179869184."""
         caplog.set_level(1)
         hostinfo = install_host_config().hostinfo
@@ -651,9 +514,7 @@ class TestPrintHostInfo:
 
         assert "16.0 GiB" in caplog.text
 
-    def test_hyperthreading_is_mentioned_when_present(
-        self, install_host_config, caplog
-    ):
+    def test_hyperthreading_is_mentioned_when_present(self, install_host_config, caplog):
         caplog.set_level(1)
         hostinfo = install_host_config(hyperthreading=True).hostinfo
 
@@ -661,9 +522,7 @@ class TestPrintHostInfo:
 
         assert "Hyper-Threading" in caplog.text
 
-    def test_hyperthreading_is_not_mentioned_when_absent(
-        self, install_host_config, caplog
-    ):
+    def test_hyperthreading_is_not_mentioned_when_absent(self, install_host_config, caplog):
         caplog.set_level(1)
         hostinfo = install_host_config(hyperthreading=False).hostinfo
 
@@ -671,9 +530,7 @@ class TestPrintHostInfo:
 
         assert "Hyper-Threading" not in caplog.text
 
-    def test_the_thread_count_line_reports_the_physical_cores(
-        self, install_host_config, caplog
-    ):
+    def test_the_thread_count_line_reports_the_physical_cores(self, install_host_config, caplog):
         """OpenMP is sized by physical cores, and the banner says so."""
         caplog.set_level(1)
         hostinfo = install_host_config().hostinfo
@@ -727,3 +584,6 @@ class TestPrintHostInfo:
         print_host_info(other)
 
         assert "test-host" in caplog.text and "Other CPU" in caplog.text
+
+
+pytestmark = pytest.mark.unit

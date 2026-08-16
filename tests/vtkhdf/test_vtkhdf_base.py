@@ -87,9 +87,7 @@ class TestFileNaming:
 
         assert "Invalid file extension" in caplog.text
 
-    def test_the_offending_extension_is_named_in_the_warning(
-        self, make_vtkhdf_file, caplog
-    ):
+    def test_the_offending_extension_is_named_in_the_warning(self, make_vtkhdf_file, caplog):
         with make_vtkhdf_file("model.h5"):
             pass
 
@@ -112,9 +110,7 @@ class TestFileNaming:
         with make_vtkhdf_file("model.h5") as handler:
             assert handler.filename.parent == tmp_path
 
-    def test_the_file_is_written_where_the_name_says(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_the_file_is_written_where_the_name_says(self, make_vtkhdf_file, tmp_path):
         with make_vtkhdf_file("model.h5"):
             pass
 
@@ -181,9 +177,7 @@ class TestRootGroup:
 
         assert attrs["VTKHDF/Type"] == IMAGE_DATA_TYPE
 
-    def test_the_type_attribute_is_bytes_not_a_string(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_the_type_attribute_is_bytes_not_a_string(self, make_vtkhdf_file, read_h5):
         """The whole reason for the explicit dtype.
 
         A Python ``str`` would be stored as variable-length UTF-8, which VTK
@@ -196,9 +190,7 @@ class TestRootGroup:
 
         assert isinstance(attrs["VTKHDF/Type"], bytes)
 
-    def test_the_type_attribute_is_fixed_length_ascii(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_the_type_attribute_is_fixed_length_ascii(self, make_vtkhdf_file, tmp_path):
         """Length exactly ``len("ImageData")`` — 9 bytes, no terminator."""
         with make_vtkhdf_file():
             pass
@@ -208,9 +200,7 @@ class TestRootGroup:
 
         assert dtype == np.dtype("S9")
 
-    def test_the_unstructured_type_gets_its_own_length(
-        self, make_vtkhdf_file, tmp_path
-    ):
+    def test_the_unstructured_type_gets_its_own_length(self, make_vtkhdf_file, tmp_path):
         """16 bytes for ``UnstructuredGrid`` — the length is per-value."""
         with make_vtkhdf_file(vtk_file_type=VtkFileType.UNSTRUCTURED_GRID):
             pass
@@ -229,9 +219,7 @@ class TestRootGroup:
 
         assert sorted(attrs) == ["VTKHDF/Type", "VTKHDF/Version"]
 
-    def test_no_datasets_are_written_by_the_base_constructor(
-        self, make_vtkhdf_file, read_h5
-    ):
+    def test_no_datasets_are_written_by_the_base_constructor(self, make_vtkhdf_file, read_h5):
         with make_vtkhdf_file() as handler:
             path = handler.filename
 
@@ -256,9 +244,7 @@ class TestExistingFiles:
 
         assert datasets == {}
 
-    def test_a_matching_version_does_not_warn(
-        self, make_vtkhdf_file, caplog
-    ):
+    def test_a_matching_version_does_not_warn(self, make_vtkhdf_file, caplog):
         with make_vtkhdf_file():
             pass
         caplog.clear()
@@ -268,9 +254,7 @@ class TestExistingFiles:
 
         assert "mismatch" not in caplog.text
 
-    def test_a_mismatched_version_warns(
-        self, make_vtkhdf_file, vtkhdf_path, caplog
-    ):
+    def test_a_mismatched_version_warns(self, make_vtkhdf_file, vtkhdf_path, caplog):
         """A file written by a future gprMax should not be silently trusted."""
         with make_vtkhdf_file() as handler:
             handler._set_root_attribute("Version", [9, 9])
@@ -307,9 +291,7 @@ class TestExistingFiles:
 
         assert attrs == {}
 
-    def test_a_readwrite_file_gains_the_attributes(
-        self, make_vtkhdf_file, vtkhdf_path, read_h5
-    ):
+    def test_a_readwrite_file_gains_the_attributes(self, make_vtkhdf_file, vtkhdf_path, read_h5):
         """Mode ``r+`` is the one branch that repairs a file in place."""
         with h5py.File(vtkhdf_path("bare.vtkhdf"), "w") as f:
             f.create_group("VTKHDF")
@@ -325,9 +307,7 @@ class TestExistingFiles:
         with pytest.raises(OSError):
             make_vtkhdf_file("absent.vtkhdf", mode="r")
 
-    def test_the_root_group_is_created_if_absent(
-        self, make_vtkhdf_file, vtkhdf_path
-    ):
+    def test_the_root_group_is_created_if_absent(self, make_vtkhdf_file, vtkhdf_path):
         """``require_group``, so an empty HDF5 file is upgraded rather than
         rejected.
         """
@@ -369,9 +349,7 @@ class TestTheContextManager:
             with make_vtkhdf_file():
                 raise RuntimeError("must escape")
 
-    def test_the_data_is_readable_after_exit(
-        self, make_vtkhdf_file, vtkhdf_path, read_h5
-    ):
+    def test_the_data_is_readable_after_exit(self, make_vtkhdf_file, vtkhdf_path, read_h5):
         """The point of closing: buffers are flushed."""
         with make_vtkhdf_file() as handler:
             handler._write_root_dataset("Numbers", np.array([1, 2, 3]))
@@ -425,10 +403,7 @@ class TestDatasetPaths:
 
     def test_several_components_are_joined(self, make_vtkhdf_file):
         with make_vtkhdf_file() as handler:
-            assert (
-                handler._build_dataset_path("CellData", "Material")
-                == "VTKHDF/CellData/Material"
-            )
+            assert handler._build_dataset_path("CellData", "Material") == "VTKHDF/CellData/Material"
 
     def test_no_components_gives_the_root_group(self, make_vtkhdf_file):
         with make_vtkhdf_file() as handler:
@@ -445,9 +420,7 @@ class TestDatasetPaths:
             with pytest.raises(KeyError):
                 handler._get_dataset("VTKHDF/Absent")
 
-    def test_the_missing_path_message_is_never_the_one_reported(
-        self, make_vtkhdf_file
-    ):
+    def test_the_missing_path_message_is_never_the_one_reported(self, make_vtkhdf_file):
         """``h5py`` returns ``None`` for an absent path, not ``"default"``.
 
         So the ``cls == "default"`` branch — and its clear "Path does not
@@ -556,3 +529,6 @@ class TestCellTypes:
         from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType
 
         assert int(VtkCellType.TETRA) + 1 == 11
+
+
+pytestmark = pytest.mark.unit

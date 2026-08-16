@@ -25,8 +25,18 @@ SEED = 42
 DIMENSION = 1.5
 
 
-def make_surface(xs=0, xf=0, ys=0, yf=8, zs=0, zf=8, dimension=DIMENSION, seed=SEED,
-                 fractalrange=(4, 12), weighting=(1.0, 1.0)):
+def make_surface(
+    xs=0,
+    xf=0,
+    ys=0,
+    yf=8,
+    zs=0,
+    zf=8,
+    dimension=DIMENSION,
+    seed=SEED,
+    fractalrange=(4, 12),
+    weighting=(1.0, 1.0),
+):
     """A surface on a plane, ready to generate."""
     surface = FractalSurface(xs, xf, ys, yf, zs, zf, dimension, seed)
     surface.fractalrange = fractalrange
@@ -183,7 +193,6 @@ class TestGenerateFractalSurface:
         surface.generate_fractal_surface()
         assert np.array_equal(surface.fractalsurface, first)
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_higher_dimension_gives_a_smoother_surface(self):
         # A bigger dimension divides the high-frequency coefficients by
         # more, so the cell-to-cell variation falls.
@@ -198,7 +207,6 @@ class TestGenerateFractalSurface:
         surface.generate_fractal_surface()
         assert np.array_equal(surface.weighting, [1.0, 2.0])
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
     def test_weighting_changes_the_surface(self):
         isotropic = make_surface(weighting=(1.0, 1.0))
         anisotropic = make_surface(weighting=(1.0, 4.0))
@@ -212,3 +220,6 @@ class TestGenerateFractalSurface:
         assert surface.fractalsurface.shape == (1, 8)
         assert np.amin(surface.fractalsurface) == pytest.approx(4.0)
         assert np.amax(surface.fractalsurface) == pytest.approx(12.0)
+
+
+pytestmark = pytest.mark.unit

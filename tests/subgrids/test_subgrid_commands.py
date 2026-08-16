@@ -19,11 +19,7 @@ import pytest
 
 from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGGrid
 from gprMax.subgrids.user_objects import SubGridBase, SubGridHSG
-from gprMax.user_objects.user_objects import (
-    GeometryUserObject,
-    GridUserObject,
-    OutputUserObject,
-)
+from gprMax.user_objects.user_objects import GeometryUserObject, GridUserObject, OutputUserObject
 
 from .conftest import DL
 
@@ -311,9 +307,7 @@ class TestBuild:
         sg = command().build(model)
         assert sg.materials[0] is not builtin
 
-    def test_non_builtin_materials_are_not_copied(
-        self, command, model, make_material
-    ):
+    def test_non_builtin_materials_are_not_copied(self, command, model, make_material):
         user_material = make_material(ID="soil", numID=2)
         user_material.type = "user"
         model.G.materials = [user_material]
@@ -334,3 +328,6 @@ class TestBuild:
         model.subgrids.append(_Other(**command().kwargs))
         with pytest.raises(ValueError):
             command(id="three").build(model)
+
+
+pytestmark = pytest.mark.unit

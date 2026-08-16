@@ -58,18 +58,14 @@ class TestTheThreadCount:
 
         assert set_omp_threads(4) == 4
 
-    def test_an_explicit_count_is_written_to_the_environment(
-        self, install_host_config
-    ):
+    def test_an_explicit_count_is_written_to_the_environment(self, install_host_config):
         install_host_config()
 
         set_omp_threads(4)
 
         assert os.environ["OMP_NUM_THREADS"] == "4"
 
-    def test_an_explicit_count_overrides_the_environment(
-        self, install_host_config, monkeypatch
-    ):
+    def test_an_explicit_count_overrides_the_environment(self, install_host_config, monkeypatch):
         """``-n 2`` on the command line beats an inherited variable."""
         install_host_config()
         monkeypatch.setenv("OMP_NUM_THREADS", "8")
@@ -83,18 +79,14 @@ class TestTheThreadCount:
 
         assert set_omp_threads() == 3
 
-    def test_an_inherited_count_is_returned_as_an_integer(
-        self, install_host_config, monkeypatch
-    ):
+    def test_an_inherited_count_is_returned_as_an_integer(self, install_host_config, monkeypatch):
         """It arrives as a string; callers do arithmetic with it."""
         install_host_config()
         monkeypatch.setenv("OMP_NUM_THREADS", "3")
 
         assert isinstance(set_omp_threads(), int)
 
-    def test_an_inherited_count_is_not_rewritten(
-        self, install_host_config, monkeypatch
-    ):
+    def test_an_inherited_count_is_not_rewritten(self, install_host_config, monkeypatch):
         install_host_config()
         monkeypatch.setenv("OMP_NUM_THREADS", "3")
 
@@ -102,9 +94,7 @@ class TestTheThreadCount:
 
         assert os.environ["OMP_NUM_THREADS"] == "3"
 
-    def test_a_count_of_zero_falls_through_to_the_default(
-        self, install_host_config
-    ):
+    def test_a_count_of_zero_falls_through_to_the_default(self, install_host_config):
         """``if nthreads:`` is a truthiness test, so ``0`` is not "no threads".
 
         Arguably right — zero OpenMP threads is meaningless — but it means
@@ -126,9 +116,7 @@ class TestTheThreadCount:
 
         assert set_omp_threads() == 6
 
-    def test_the_physical_core_count_is_read_from_the_global_config(
-        self, install_host_config
-    ):
+    def test_the_physical_core_count_is_read_from_the_global_config(self, install_host_config):
         """Not probed again — the value ``get_host_info`` found at startup."""
         install_host_config(physicalcores=13)
 
@@ -165,9 +153,7 @@ class TestTheFixedSettings:
 
         assert os.environ["OMP_PROC_BIND"] == "TRUE"
 
-    def test_the_three_are_set_regardless_of_the_thread_count(
-        self, install_host_config
-    ):
+    def test_the_three_are_set_regardless_of_the_thread_count(self, install_host_config):
         """They precede the ``nthreads`` branching, so no path skips them."""
         install_host_config()
 
@@ -205,9 +191,7 @@ class TestTheWaitPolicyOnMacOs:
 
         assert os.environ["OMP_WAIT_POLICY"] == "ACTIVE"
 
-    def test_the_branch_is_chosen_by_a_substring_of_the_cpu_name(
-        self, install_host_config
-    ):
+    def test_the_branch_is_chosen_by_a_substring_of_the_cpu_name(self, install_host_config):
         """``"Apple" in cpuID`` — the only signal available."""
         install_host_config(cpuID="Apple")
 
@@ -243,9 +227,7 @@ class TestTheWaitPolicyElsewhere:
 
         assert "OMP_WAIT_POLICY" not in os.environ
 
-    def test_an_inherited_value_is_left_untouched(
-        self, install_host_config, monkeypatch
-    ):
+    def test_an_inherited_value_is_left_untouched(self, install_host_config, monkeypatch):
         monkeypatch.setattr("sys.platform", "linux")
         monkeypatch.setenv("OMP_WAIT_POLICY", "PASSIVE")
         install_host_config()
@@ -294,9 +276,7 @@ class TestWindowsSubsystemForLinux:
 
         assert os.environ["OMP_DYNAMIC"] == "FALSE"
 
-    def test_the_detection_is_a_substring_of_the_os_version(
-        self, install_host_config
-    ):
+    def test_the_detection_is_a_substring_of_the_os_version(self, install_host_config):
         """``"Microsoft" in osversion`` — capital M, and case-sensitive.
 
         WSL2 kernels report ``microsoft-standard-WSL2`` in lower case, so this
@@ -327,9 +307,7 @@ class TestEnvironmentHygiene:
     is the failure mode this suite exists to remove.
     """
 
-    def test_exactly_four_variables_are_written(
-        self, install_host_config, monkeypatch
-    ):
+    def test_exactly_four_variables_are_written(self, install_host_config, monkeypatch):
         """A fifth would be a silent change to how the solver runs."""
         monkeypatch.setattr("sys.platform", "linux")
         install_host_config()
@@ -399,9 +377,7 @@ class TestEnvironmentHygiene:
 
         assert dict(os.environ) == first
 
-    def test_the_second_call_sees_its_own_first_call(
-        self, install_host_config, monkeypatch
-    ):
+    def test_the_second_call_sees_its_own_first_call(self, install_host_config, monkeypatch):
         """A subtle consequence: the first call sets ``OMP_NUM_THREADS``.
 
         So the second takes the *inherited* branch rather than recomputing
@@ -413,3 +389,6 @@ class TestEnvironmentHygiene:
         set_omp_threads()
 
         assert set_omp_threads() == 6
+
+
+pytestmark = pytest.mark.unit

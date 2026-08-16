@@ -88,9 +88,7 @@ class TestModulePathResolution:
         assert spy_import.modules == ["gprMax.cython.pml_updates_magnetic_HORIPML"]
 
     @pytest.mark.parametrize("formulation", ["HORIPML", "MRIPML"])
-    def test_formulation_is_appended_to_the_module_name(
-        self, ready_pml, spy_import, formulation
-    ):
+    def test_formulation_is_appended_to_the_module_name(self, ready_pml, spy_import, formulation):
         """Expects the grid's ``pmls["formulation"]`` string to become the
         module suffix, so the formulation switch selects compiled code as well
         as coefficient algebra. (2 parameter sets)"""
@@ -124,9 +122,7 @@ class TestFunctionNameResolution:
         assert spy_import.calls[0][0] == f"order1_{direction}"
 
     @pytest.mark.parametrize("order", [1, 2])
-    def test_cfs_count_selects_the_order(
-        self, make_pml_grid, make_cfs, spy_import, order
-    ):
+    def test_cfs_count_selects_the_order(self, make_pml_grid, make_cfs, spy_import, order):
         """Expects ``order<N>`` to track ``len(CFS)``, so a two-pole PML calls
         a different kernel from a one-pole PML. (2 parameter sets)"""
         cfs = [make_cfs(kappa={"min": 1.0}) for _ in range(order)]
@@ -171,17 +167,13 @@ class TestForwardedArguments:
         ready_pml().update_electric()
         assert spy_import.calls[0][1][6] == 1
 
-    def test_electric_passes_the_electric_update_coefficients(
-        self, ready_pml, spy_import
-    ):
+    def test_electric_passes_the_electric_update_coefficients(self, ready_pml, spy_import):
         """Expects ``G.updatecoeffsE`` in position 7, not the magnetic set."""
         pml = ready_pml()
         pml.update_electric()
         assert spy_import.calls[0][1][7] is pml.G.updatecoeffsE
 
-    def test_magnetic_passes_the_magnetic_update_coefficients(
-        self, ready_pml, spy_import
-    ):
+    def test_magnetic_passes_the_magnetic_update_coefficients(self, ready_pml, spy_import):
         """Expects ``G.updatecoeffsH`` in the same slot — the one positional
         difference in the shared head of the two signatures."""
         pml = ready_pml()
@@ -196,7 +188,9 @@ class TestForwardedArguments:
         args = spy_import.calls[0][1]
         g = pml.G
         assert args[8] is g.ID
-        assert [args[i] is arr for i, arr in enumerate([g.Ex, g.Ey, g.Ez, g.Hx, g.Hy, g.Hz], start=9)] == [True] * 6
+        assert [
+            args[i] is arr for i, arr in enumerate([g.Ex, g.Ey, g.Ez, g.Hx, g.Hy, g.Hz], start=9)
+        ] == [True] * 6
 
     def test_electric_forwards_its_own_phi_arrays(self, ready_pml, spy_import):
         """Expects ``EPhi1, EPhi2`` in positions 15-16 — the electric
@@ -274,9 +268,7 @@ class TestTheConventionResolvesAgainstTheRealExtensions:
     @pytest.mark.parametrize("polarity", ["electric", "magnetic"])
     @pytest.mark.parametrize("formulation", ["HORIPML", "MRIPML"])
     @pytest.mark.parametrize("order", [1, 2])
-    @pytest.mark.parametrize(
-        "direction", ["xminus", "xplus", "yminus", "yplus", "zminus", "zplus"]
-    )
+    @pytest.mark.parametrize("direction", ["xminus", "xplus", "yminus", "yplus", "zminus", "zplus"])
     def test_every_generated_name_exists(self, polarity, formulation, order, direction):
         """Expects ``order<N>_<direction>`` to resolve for orders 1 and 2 in
         all six directions, across both formulations and both polarities —
@@ -296,3 +288,6 @@ class TestTheConventionResolvesAgainstTheRealExtensions:
 
         module = import_module("gprMax.cython.pml_updates_electric_HORIPML")
         assert not hasattr(module, "order3_xminus")
+
+
+pytestmark = pytest.mark.unit

@@ -184,9 +184,7 @@ class TestUnsetSlots:
 
         assert "model 2" in caplog.text
 
-    def test_a_cursor_past_the_end_raises_index_error_not_value_error(
-        self, install_sim_config
-    ):
+    def test_a_cursor_past_the_end_raises_index_error_not_value_error(self, install_sim_config):
         """The out-of-range case is a different failure from the unset case.
 
         ``get_model_config`` indexes before it checks for ``None``, so a
@@ -206,9 +204,7 @@ class TestUnsetSlots:
 class TestTheModuleLevelHelper:
     """``config.get_model_config()`` — the function the whole package imports."""
 
-    def test_it_delegates_to_the_installed_simulation_config(
-        self, install_sim_config
-    ):
+    def test_it_delegates_to_the_installed_simulation_config(self, install_sim_config):
         from gprMax import config
 
         sim_config = install_sim_config(n=2)
@@ -296,10 +292,11 @@ class TestTheCursorAlsoSelectsTheScene:
 
         assert model_config.get_scene() == "second"
 
-    def test_scene_slots_and_config_slots_are_the_same_length(
-        self, install_sim_config
-    ):
+    def test_scene_slots_and_config_slots_are_the_same_length(self, install_sim_config):
         """Both default to ``number_of_models``, so one cursor addresses both."""
         sim_config = install_sim_config(n=5)
 
         assert len(sim_config.scenes) == len(sim_config.model_configs) == 5
+
+
+pytestmark = pytest.mark.unit

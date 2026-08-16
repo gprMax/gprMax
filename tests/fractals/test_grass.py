@@ -171,3 +171,6 @@ class TestRootGeometry:
         walk_a = [a.calculate_root_geometry(0, d) for d in range(6)]
         walk_b = [b.calculate_root_geometry(0, d) for d in range(6)]
         assert walk_a == walk_b
+
+
+pytestmark = pytest.mark.unit

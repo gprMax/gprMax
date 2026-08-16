@@ -57,7 +57,7 @@ class TestConstruction:
         """``__init__`` stores the grid and now also sets mode2d fields."""
         updates = CPUUpdates(make_wiring_grid())
         assert updates.grid is not None
-        assert hasattr(updates, 'mode2d')
+        assert hasattr(updates, "mode2d")
 
     def test_calculate_solve_time_before_time_start_raises(self, make_wiring_grid):
         """``self.timestart`` only exists after ``time_start()``.
@@ -197,7 +197,7 @@ class TestStoreSnapshots:
 
 
 class TestUpdateMagnetic:
-    """``update_magnetic`` — twelve positional arguments to one kernel."""
+    """``update_magnetic`` — thirteen positional arguments to one kernel."""
 
     def test_calls_the_magnetic_kernel_once(self, monkeypatch, make_wiring_grid, recorder):
         spy = recorder("update_magnetic")
@@ -218,11 +218,10 @@ class TestUpdateMagnetic:
         assert len(spy.args_of(0)) >= 13  # upstream added params
         assert spy.kwargs_of(0) == {}
 
-    @pytest.mark.xfail(reason="upstream kernel signature changed — needs re-verification")
     def test_argument_order_is_the_kernel_signature(
         self, monkeypatch, make_wiring_grid, recorder, updates_config
     ):
-        """``nx, ny, nz, nthreads, updatecoeffsH, ID, Ex..Ez, Hx..Hz``.
+        """``nx, ny, nz, mode2d, nthreads, updatecoeffsH, ID, Ex..Ez, Hx..Hz``.
 
         The six field arrays are all the same dtype and shape in production,
         so a transposition is invisible to the kernel and produces a silently
@@ -238,6 +237,7 @@ class TestUpdateMagnetic:
             4,
             5,
             6,
+            -1,
             updates_config.model_config.ompthreads,
             "updatecoeffsH",
             grid.ID,
@@ -249,7 +249,6 @@ class TestUpdateMagnetic:
             "Hz",
         )
 
-    @pytest.mark.xfail(reason="upstream kernel signature changed — needs re-verification")
     def test_uses_the_magnetic_coefficients_not_the_electric_ones(
         self, monkeypatch, make_wiring_grid, recorder
     ):
@@ -259,10 +258,9 @@ class TestUpdateMagnetic:
 
         CPUUpdates(make_wiring_grid()).update_magnetic()
 
-        assert spy.args_of(0)[4] == "updatecoeffsH"
+        assert spy.args_of(0)[5] == "updatecoeffsH"
         assert "updatecoeffsE" not in spy.args_of(0)
 
-    @pytest.mark.xfail(reason="upstream kernel signature changed — needs re-verification")
     def test_thread_count_is_read_from_config_at_call_time(
         self, monkeypatch, make_wiring_grid, recorder, updates_config
     ):
@@ -275,8 +273,8 @@ class TestUpdateMagnetic:
         updates_config.model_config.ompthreads = 8
         updates.update_magnetic()
 
-        assert spy.args_of(0)[3] == 1
-        assert spy.args_of(1)[3] == 8
+        assert spy.args_of(0)[4] == 1
+        assert spy.args_of(1)[4] == 8
 
 
 class TestUpdateElectricA:
@@ -292,7 +290,6 @@ class TestUpdateElectricA:
 
         assert spy.call_count == 1
 
-    @pytest.mark.xfail(reason="upstream kernel args changed — needs re-verification")
     def test_plain_kernel_receives_thirteen_positional_arguments(
         self, monkeypatch, make_wiring_grid, recorder, updates_config
     ):
@@ -307,6 +304,7 @@ class TestUpdateElectricA:
             4,
             5,
             6,
+            -1,
             updates_config.model_config.ompthreads,
             "updatecoeffsE",
             grid.ID,
@@ -331,7 +329,6 @@ class TestUpdateElectricA:
 
         assert spy.call_count == 1
 
-    @pytest.mark.xfail(reason="upstream kernel args changed — needs re-verification")
     def test_dispersive_call_receives_positional_arguments(
         self, make_wiring_grid, recorder, updates_config
     ):
@@ -350,6 +347,7 @@ class TestUpdateElectricA:
             4,
             5,
             6,
+            -1,
             updates_config.model_config.ompthreads,
             3,
             "updatecoeffsE",
@@ -365,7 +363,7 @@ class TestUpdateElectricA:
             "Hy",
             "Hz",
         )
-        assert len(spy.args_of(0)) >= 17  # dispersive kernel grew
+        assert len(spy.args_of(0)) == 18
 
     def test_dispersive_model_does_not_call_the_plain_kernel(
         self, monkeypatch, make_wiring_grid, recorder, updates_config
@@ -442,7 +440,6 @@ class TestUpdateElectricB:
 
         assert spy.call_count == 1
 
-    @pytest.mark.xfail(reason="upstream kernel args changed — needs re-verification")
     def test_dispersive_call_receives_positional_arguments(
         self, make_wiring_grid, recorder, updates_config
     ):
@@ -464,6 +461,7 @@ class TestUpdateElectricB:
             4,
             5,
             6,
+            -1,
             updates_config.model_config.ompthreads,
             2,
             "updatecoeffsdispersive",
@@ -475,7 +473,7 @@ class TestUpdateElectricB:
             "Ey",
             "Ez",
         )
-        assert len(spy.args_of(0)) >= 13  # upstream added params
+        assert len(spy.args_of(0)) == 14
 
     def test_b_half_does_not_receive_the_magnetic_field(
         self, make_wiring_grid, recorder, updates_config
@@ -537,9 +535,7 @@ class TestPmlUpdates:
 
         assert log == ["pmlE:x0"]
 
-    def test_electric_and_magnetic_read_the_same_slab_list(
-        self, make_wiring_grid, make_pml_slab
-    ):
+    def test_electric_and_magnetic_read_the_same_slab_list(self, make_wiring_grid, make_pml_slab):
         log = []
         slabs = [make_pml_slab("x0", log)]
         grid = make_wiring_grid(pml_slabs=slabs, log=log)
@@ -592,9 +588,8 @@ class TestSourceUpdateOrder:
 
         assert log[-2:] == ["E:h1", "E:h2"]
 
-    @pytest.mark.xfail(reason="upstream source update order changed")
     def test_magnetic_sources_run_line_then_dipole(self, make_wiring_grid, make_source):
-        """``transmissionlines + magneticdipoles`` — only two lists."""
+        """Transmission lines precede magnetic dipoles and frill sources."""
         log = []
         grid = make_wiring_grid(
             transmissionlines=[make_source("t", log)],
@@ -606,10 +601,7 @@ class TestSourceUpdateOrder:
 
         assert log == ["H:t", "H:m"]
 
-    @pytest.mark.xfail(reason="upstream source update order changed")
-    def test_transmission_lines_are_updated_by_both_paths(
-        self, make_wiring_grid, make_source
-    ):
+    def test_transmission_lines_are_updated_by_both_paths(self, make_wiring_grid, make_source):
         """A transmission line appears in the electric *and* magnetic lists."""
         log = []
         line = make_source("t", log)
@@ -621,10 +613,7 @@ class TestSourceUpdateOrder:
 
         assert log == ["H:t", "E:t"]
 
-    @pytest.mark.xfail(reason="upstream source update order changed")
-    def test_voltage_sources_are_not_updated_magnetically(
-        self, make_wiring_grid, make_source
-    ):
+    def test_voltage_sources_are_not_updated_magnetically(self, make_wiring_grid, make_source):
         log = []
         grid = make_wiring_grid(voltagesources=[make_source("v", log)], log=log)
 
@@ -632,9 +621,7 @@ class TestSourceUpdateOrder:
 
         assert log == []
 
-    def test_magnetic_dipoles_are_not_updated_electrically(
-        self, make_wiring_grid, make_source
-    ):
+    def test_magnetic_dipoles_are_not_updated_electrically(self, make_wiring_grid, make_source):
         log = []
         grid = make_wiring_grid(magneticdipoles=[make_source("m", log)], log=log)
 
@@ -642,7 +629,6 @@ class TestSourceUpdateOrder:
 
         assert log == []
 
-    @pytest.mark.xfail(reason="upstream source update order changed")
     def test_no_sources_is_a_no_op(self, make_wiring_grid):
         updates = CPUUpdates(make_wiring_grid())
         assert updates.update_electric_sources(0) is None
@@ -679,7 +665,6 @@ class TestSourceUpdateArguments:
             grid,
         )
 
-    @pytest.mark.xfail(reason="upstream source update signature changed")
     def test_magnetic_source_argument_tuple(self, make_wiring_grid, make_source):
         """``iteration, updatecoeffsH, ID, Hx, Hy, Hz, G``."""
         log = []
@@ -707,7 +692,6 @@ class TestSourceUpdateArguments:
 
         assert len(source.electric_calls[0]) == 7
 
-    @pytest.mark.xfail(reason="upstream source update signature changed")
     def test_magnetic_sources_receive_positional_arguments(self, make_wiring_grid, make_source):
         log = []
         source = make_source("m", log)
@@ -728,9 +712,7 @@ class TestSourceUpdateArguments:
         assert source.electric_calls[0][-1] is grid
 
     @pytest.mark.parametrize("iteration", [0, 1, 42, 9999])
-    def test_iteration_is_passed_through_unchanged(
-        self, make_wiring_grid, make_source, iteration
-    ):
+    def test_iteration_is_passed_through_unchanged(self, make_wiring_grid, make_source, iteration):
         """No off-by-one here, unlike ``store_snapshots``."""
         log = []
         source = make_source("v", log)
@@ -759,9 +741,7 @@ class TestPlaneWaves:
 
         assert log == ["PWE:pw"]
 
-    def test_electric_dispersive_branch_is_taken_when_flagged(
-        self, make_wiring_grid, make_source
-    ):
+    def test_electric_dispersive_branch_is_taken_when_flagged(self, make_wiring_grid, make_source):
         log = []
         wave = make_source("pw", log, dispersive=True)
         grid = make_wiring_grid(discreteplanewaves=[wave], log=log)
@@ -797,9 +777,7 @@ class TestPlaneWaves:
         args, _ = wave.plane_wave_calls[0]
         assert "updatecoeffsdispersive" not in args
 
-    def test_both_electric_branches_pass_the_same_two_keywords(
-        self, make_wiring_grid, make_source
-    ):
+    def test_both_electric_branches_pass_the_same_two_keywords(self, make_wiring_grid, make_source):
         """``cythonize=True, precompute=True`` — hard-coded either way."""
         log = []
         for dispersive in (False, True):
@@ -901,9 +879,7 @@ class TestTiming:
         assert updates.calculate_solve_time() == pytest.approx(1.0)
         assert updates.calculate_solve_time() == pytest.approx(2.0)
 
-    def test_time_start_can_be_called_again_to_restart(
-        self, monkeypatch, make_wiring_grid
-    ):
+    def test_time_start_can_be_called_again_to_restart(self, monkeypatch, make_wiring_grid):
         readings = iter([10.0, 50.0, 55.0])
         monkeypatch.setattr(cpu_updates_module, "timer", lambda: next(readings))
         updates = CPUUpdates(make_wiring_grid())
@@ -959,42 +935,32 @@ class TestRealKernels:
         assert np.array_equal(grid.Hx, before)
         assert np.any(grid.Ex)
 
-    @pytest.mark.xfail(reason="upstream magnetic write pattern changed — needs re-verification")
     def test_magnetic_update_writes_the_yee_staggered_region(self, ramped_grid):
-        """``Hx`` is written at ``[1:, :-1, :-1]`` and nowhere else.
+        """``Hx`` is written at ``[:, :-1, :-1]`` and nowhere else.
 
         The 3-D kernel runs one fused loop over *cells* and writes
-        ``Hx[i+1, j, k]``, so the touched region starts at 1 along x and stops
-        one short along y and z. This is the answer to the question the
-        upstream sketch left in a comment: the ``+1`` is each component's own
-        half-cell Yee offset, restored after fusing three loops into one.
+        ``Hx[i, j, k]``. It spans its own axis and stops one short along the
+        two transverse axes, matching the Yee allocation.
         """
         grid = ramped_grid(fill="E")
 
         CPUUpdates(grid).update_magnetic()
 
         expected = np.zeros(grid.Hx.shape, dtype=bool)
-        expected[1:, :-1, :-1] = True
+        expected[:, :-1, :-1] = True
 
         assert np.array_equal(grid.Hx != 0, expected)
 
     @pytest.mark.parametrize(
         "component,region",
         [
-            ("Hx", (slice(1, None), slice(None, -1), slice(None, -1))),
-            ("Hy", (slice(None, -1), slice(1, None), slice(None, -1))),
-            ("Hz", (slice(None, -1), slice(None, -1), slice(1, None))),
+            ("Hx", (slice(None), slice(None, -1), slice(None, -1))),
+            ("Hy", (slice(None, -1), slice(None), slice(None, -1))),
+            ("Hz", (slice(None, -1), slice(None, -1), slice(None))),
         ],
     )
-    @pytest.mark.xfail(reason="upstream magnetic write pattern changed — needs re-verification")
-    def test_each_magnetic_component_has_its_own_offset(
-        self, ramped_grid, component, region
-    ):
-        """The ``+1`` lands on a different axis for each component.
-
-        ``Hx`` on the x-face, ``Hy`` on the y-face, ``Hz`` on the z-face —
-        one fused cell loop, three different offsets.
-        """
+    def test_each_magnetic_component_spans_its_own_axis(self, ramped_grid, component, region):
+        """Each component is full on its own axis and trimmed transversely."""
         grid = ramped_grid(fill="E")
 
         CPUUpdates(grid).update_magnetic()
@@ -1052,23 +1018,16 @@ class TestRealKernels:
 
         assert np.array_equal(arr != 0, expected)
 
-    @pytest.mark.xfail(reason="upstream magnetic write pattern changed — needs re-verification")
-    def test_the_three_magnetic_components_cover_equal_cell_counts(self, ramped_grid):
-        """Every magnetic component is written exactly ``nx*ny*nz`` times.
-
-        One fused loop over cells, three writes per pass — so the counts must
-        agree, however the offsets are arranged.
-        """
+    def test_the_three_magnetic_components_cover_their_yee_extents(self, ramped_grid):
+        """Each magnetic array spans its own component axis."""
         grid = ramped_grid(fill="E", nx=4, ny=5, nz=6)
 
         CPUUpdates(grid).update_magnetic()
 
         counts = [int(np.count_nonzero(getattr(grid, n))) for n in ("Hx", "Hy", "Hz")]
-        assert counts == [4 * 5 * 6] * 3
+        assert counts == [(4 + 1) * 5 * 6, 4 * (5 + 1) * 6, 4 * 5 * (6 + 1)]
 
-    def test_the_three_electric_components_cover_different_cell_counts(
-        self, ramped_grid
-    ):
+    def test_the_three_electric_components_cover_different_cell_counts(self, ramped_grid):
         """The electric side is asymmetric, and the numbers say so.
 
         On a 4x5x6 grid: ``Ex`` 4x4x5 = 80, ``Ey`` 3x5x5 = 75,
@@ -1082,9 +1041,7 @@ class TestRealKernels:
         counts = [int(np.count_nonzero(getattr(grid, n))) for n in ("Ex", "Ey", "Ez")]
         assert counts == [80, 75, 72]
 
-    def test_a_dtype_mismatch_is_rejected_by_the_kernel(
-        self, make_kernel_grid, updates_config
-    ):
+    def test_a_dtype_mismatch_is_rejected_by_the_kernel(self, make_kernel_grid, updates_config):
         """Single-precision arrays against a double-precision config.
 
         The fused kernel signature binds one of ``float``/``double``, so a
@@ -1112,3 +1069,6 @@ class TestRealKernels:
 
         for name in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
             assert not np.any(getattr(grid, name))
+
+
+pytestmark = pytest.mark.unit

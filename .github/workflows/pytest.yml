@@ -39,4 +39,4 @@ jobs:
           python -m pip install --editable .
 
       - name: Run standard CPU test selection
-        run: python -m pytest -m "not gpu and not slow"
+        run: python -m pytest -m "not unit and not gpu and not slow"

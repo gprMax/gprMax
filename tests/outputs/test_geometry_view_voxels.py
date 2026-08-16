@@ -23,10 +23,7 @@ subgrid's position in the parent, scaled by the refinement ratio.
 import numpy as np
 import pytest
 
-from gprMax.geometry_outputs.geometry_view_voxels import (
-    GeometryViewVoxels,
-    MPIGeometryViewVoxels,
-)
+from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels, MPIGeometryViewVoxels
 from gprMax.geometry_outputs.geometry_views import GeometryView
 
 from .conftest import DL, DL_ANISO
@@ -175,6 +172,9 @@ class TestSubgridOrigin:
         g.initialise_geometry_arrays()
         g.i0, g.j0, g.k0 = 3, 4, 5
         g.ratio = 3
+        g.n_boundary_cells_x = 0
+        g.n_boundary_cells_y = 0
+        g.n_boundary_cells_z = 0
 
         view = GeometryViewVoxels(0, 0, 0, 4, 4, 4, 1, 1, 1, "sub", g)
         view.set_filename()
@@ -187,9 +187,7 @@ class TestSubgridOrigin:
 
         Without this, every subgrid would be drawn at the model origin, stacked
         on top of the main grid."""
-        assert subgrid_view.origin == pytest.approx(
-            [3 * DL * 3, 4 * DL * 3, 5 * DL * 3]
-        )
+        assert subgrid_view.origin == pytest.approx([3 * DL * 3, 4 * DL * 3, 5 * DL * 3])
 
     def test_the_three_axes_use_their_own_indices(self, subgrid_view):
         """Expects ``i0``, ``j0`` and ``k0`` to drive x, y and z respectively —
@@ -303,9 +301,10 @@ class TestMpiVariant:
             arrays={"solid": np.ones((8, 8, 8), dtype=np.uint32)},
         )
         grid.materials = make_materials(2)
-        grid.pmls = {"slabs": [], "thickness": dict.fromkeys(
-            ["x0", "y0", "z0", "xmax", "ymax", "zmax"], 0
-        )}
+        grid.pmls = {
+            "slabs": [],
+            "thickness": dict.fromkeys(["x0", "y0", "z0", "xmax", "ymax", "zmax"], 0),
+        }
         grid.nx, grid.ny, grid.nz = 8, 8, 8
         grid.rxs = []
         for name in ("hertziandipoles", "magneticdipoles", "voltagesources", "transmissionlines"):
@@ -314,3 +313,6 @@ class TestMpiVariant:
         view.set_filename()
         view.prep_vtk()
         assert view.origin == pytest.approx([10 * DL, 20 * DL, 30 * DL])
+
+
+pytestmark = pytest.mark.unit

@@ -183,7 +183,9 @@ class TestWriteHdf5Arrays:
         _, data = read_h5(written.filename_hdf5)
         assert data["data"].shape == tuple(written.grid_view.size)
 
-    def test_material_ids_are_compacted(self, make_geometry_object, null_pbar, make_view_grid, read_h5):
+    def test_material_ids_are_compacted(
+        self, make_geometry_object, null_pbar, make_view_grid, read_h5
+    ):
         """Expects renumbering from zero over the materials actually present.
 
         A view containing only material 2 exports it as 0, so the file's
@@ -196,7 +198,9 @@ class TestWriteHdf5Arrays:
         _, data = read_h5(obj.filename_hdf5)
         assert set(np.unique(data["data"])) == {0}
 
-    def test_progress_is_reported_in_three_steps(self, make_geometry_object, null_pbar, make_view_grid):
+    def test_progress_is_reported_in_three_steps(
+        self, make_geometry_object, null_pbar, make_view_grid
+    ):
         """Expects one update after the solid array, one after both rigid
         arrays, and one after ``ID``."""
         g = make_view_grid(nx=8, ny=8, nz=8)
@@ -204,7 +208,9 @@ class TestWriteHdf5Arrays:
         obj.write_hdf5("t", null_pbar)
         assert null_pbar.updates == [obj.solidsize, obj.rigidsize, obj.IDsize]
 
-    def test_reported_bytes_total_the_declared_size(self, make_geometry_object, null_pbar, make_view_grid):
+    def test_reported_bytes_total_the_declared_size(
+        self, make_geometry_object, null_pbar, make_view_grid
+    ):
         """Expects the progress total to match ``datawritesize``."""
         g = make_view_grid(nx=8, ny=8, nz=8)
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
@@ -221,7 +227,9 @@ class TestMaterialsFile:
         obj.write_hdf5("t", null_pbar)
         assert len(obj.filename_materials.read_text().strip().splitlines()) == 1
 
-    def test_lines_are_valid_material_commands(self, make_geometry_object, null_pbar, make_view_grid):
+    def test_lines_are_valid_material_commands(
+        self, make_geometry_object, null_pbar, make_view_grid
+    ):
         """Expects gprMax input syntax — ``#material: er se mr sm name`` —
         because the reader feeds these lines straight back through the parser."""
         g = make_view_grid(nx=8, ny=8, nz=8, materials=2)
@@ -231,7 +239,9 @@ class TestMaterialsFile:
         assert first.startswith("#material: ")
         assert len(first.split()) == 6
 
-    def test_the_constitutive_parameters_are_written(self, make_geometry_object, null_pbar, make_view_grid):
+    def test_the_constitutive_parameters_are_written(
+        self, make_geometry_object, null_pbar, make_view_grid
+    ):
         """Expects permittivity, conductivity, permeability and magnetic loss
         in that order, followed by the name."""
         g = make_view_grid(nx=8, ny=8, nz=8, materials=2)
@@ -252,7 +262,14 @@ class TestMaterialsFile:
         [("debye", "#add_dispersion_debye", 2), ("drude", "#add_dispersion_drude", 2)],
     )
     def test_dispersive_materials_get_a_second_line(
-        self, make_geometry_object, null_pbar, make_view_grid, make_dispersive, model, command, per_pole
+        self,
+        make_geometry_object,
+        null_pbar,
+        make_view_grid,
+        make_dispersive,
+        model,
+        command,
+        per_pole,
     ):
         """Expects a dispersion command alongside the material line, so the
         frequency dependence survives the round trip. (2 parameter sets)"""
@@ -286,7 +303,8 @@ class TestMaterialsFile:
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
         line = [
-            l for l in obj.filename_materials.read_text().splitlines()
+            l
+            for l in obj.filename_materials.read_text().splitlines()
             if l.startswith("#add_dispersion")
         ][0]
         assert line.startswith("#add_dispersion_lorenz: 1 ")
@@ -369,3 +387,6 @@ class TestMpiVariant:
 
         source = inspect.getsource(MPIGeometryObject.write_hdf5)
         assert 'driver="mpio"' in source
+
+
+pytestmark = pytest.mark.unit

@@ -34,7 +34,6 @@ from gprMax.hash_cmds_file import (
 )
 from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow
 
-
 # ---------------------------------------------------------------------------
 # process_python_include_code
 # ---------------------------------------------------------------------------
@@ -79,11 +78,7 @@ class TestProcessPythonIncludeCode:
 
     def test_python_block_namespace_passthrough(self):
         # ``usernamespace`` is exposed to the executed block
-        text = io.StringIO(
-            "#python:\n"
-            "print(f'#title: hello {NAME}')\n"
-            "#end_python:\n"
-        )
+        text = io.StringIO("#python:\n" "print(f'#title: hello {NAME}')\n" "#end_python:\n")
         out = process_python_include_code(text, {"NAME": "world"})
         assert out == ["#title: hello world\n"]
 
@@ -97,11 +92,7 @@ class TestProcessPythonIncludeCode:
         # explicit ``sys.stdout = sys.__stdout__`` line — so after the
         # block, ``sys.stdout`` is the OS stdout (not whatever wrapper
         # the surrounding test runner had in place).
-        text = io.StringIO(
-            "#python:\n"
-            "print('#title: demo')\n"
-            "#end_python:\n"
-        )
+        text = io.StringIO("#python:\n" "print('#title: demo')\n" "#end_python:\n")
         process_python_include_code(text, {})
         assert sys.stdout is sys.__stdout__
 
@@ -127,12 +118,7 @@ class TestProcessIncludeFiles:
 
     def test_include_file_drops_comments_and_blanks(self, tmp_path):
         included = tmp_path / "with_comments.in"
-        included.write_text(
-            "## this is a comment\n"
-            "\n"
-            "#title: kept\n"
-            "## trailing comment\n"
-        )
+        included.write_text("## this is a comment\n" "\n" "#title: kept\n" "## trailing comment\n")
         cmds = [f"#include_file: {included}\n"]
         out = process_include_files(cmds)
         assert out == ["#title: kept\n"]
@@ -141,9 +127,7 @@ class TestProcessIncludeFiles:
         with pytest.raises(ValueError):
             process_include_files(["#include_file: a b\n"])
 
-    def test_relative_path_falls_back_to_input_file_parent(
-        self, tmp_path, monkeypatch
-    ):
+    def test_relative_path_falls_back_to_input_file_parent(self, tmp_path, monkeypatch):
         # Place the included file next to a faked input file
         included = tmp_path / "sidecar.in"
         included.write_text("#title: sidecar wins\n")
@@ -292,7 +276,8 @@ class TestGetUserObjects:
         assert names.index("Box") > names.index("Waveform")
 
     def test_skip_essential_check_allows_minimal_input(self):
-        objs = get_user_objects(
-            ["#waveform: gaussian 1.0 1e9 wf1\n"], checkessential=False
-        )
+        objs = get_user_objects(["#waveform: gaussian 1.0 1e9 wf1\n"], checkessential=False)
         assert len(objs) == 1
+
+
+pytestmark = pytest.mark.unit

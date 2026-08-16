@@ -1,4 +1,4 @@
-name: tests
+name: Unit tests
 
 on:
   pull_request:
@@ -9,6 +9,10 @@ on:
     branches:
       - devel
       - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: tests-${{ github.workflow }}-${{ github.ref }}
@@ -16,8 +20,15 @@ concurrency:
 
 jobs:
   unit:
-    name: unit (${{ matrix.os }})
+    name: Unit tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      FI_PROVIDER: shm
+      MPI4PY_RC_FINALIZE: "0"
+      OMP_NUM_THREADS: "1"
+      PYTHONFAULTHANDLER: "1"
+      PYTHONUNBUFFERED: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -27,37 +38,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: |
-            setup.py
-            pyproject.toml
+          cache-dependency-path: requirements.txt
 
       - name: Set up MPI runtime
         uses: mpi4py/setup-mpi@v1
 
-      - name: Upgrade pip tooling
-        run: python -m pip install --upgrade pip setuptools wheel
-
-      - name: Install mpi4py (pulled by gprMax import chain)
-        run: pip install mpi4py
-
-      - name: Install gprMax (builds Cython extensions)
-        run: pip install -e .
-
-      - name: Install test dependencies
-        run: pip install pytest
+      - name: Install gprMax and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install --editable .
 
       - name: Import smoke test
         run: python -u -c "import gprMax; from gprMax.fractals.fractal_surface import FractalSurface; print('imports ok')"
 
       - name: Run unit tests
-        run: python -u -m pytest tests/ -v
-        env:
-          PYTHONUNBUFFERED: "1"
-          PYTHONFAULTHANDLER: "1"
-          OMP_NUM_THREADS: "1"
-          MPI4PY_RC_FINALIZE: "0"
+        run: python -u -m pytest -m unit

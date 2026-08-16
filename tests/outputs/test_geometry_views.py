@@ -370,7 +370,9 @@ class TestWriteToVtkhdf:
         make_metadata(grid=g).write_to_vtkhdf(handler)
         assert {"receiver_ids", "receivers"} <= set(handler.fields)
 
-    def test_materials_only_writes_nothing_extra(self, make_metadata, pml_grid, make_view_grid, make_rx):
+    def test_materials_only_writes_nothing_extra(
+        self, make_metadata, pml_grid, make_view_grid, make_rx
+    ):
         """Expects exactly the four core fields even when the grid has PMLs,
         sources and receivers to report."""
         g = pml_grid()
@@ -392,9 +394,10 @@ class TestMpiMetadata:
             arrays={"ID": np.ones((6, 9, 9, 9), dtype=np.uint32)},
         )
         grid.materials = make_materials(2)
-        grid.pmls = {"slabs": [], "thickness": dict.fromkeys(
-            ["x0", "y0", "z0", "xmax", "ymax", "zmax"], 0
-        )}
+        grid.pmls = {
+            "slabs": [],
+            "thickness": dict.fromkeys(["x0", "y0", "z0", "xmax", "ymax", "zmax"], 0),
+        }
         grid.nx, grid.ny, grid.nz = 8, 8, 8
         grid.rxs = []
         grid.hertziandipoles = []
@@ -520,3 +523,6 @@ class _SpyView:
 
     def write_vtk(self):
         self.calls.append("write_vtk")
+
+
+pytestmark = pytest.mark.unit

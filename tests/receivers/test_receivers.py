@@ -20,7 +20,6 @@ import pytest
 
 from gprMax.receivers import Rx, dtoh_rx_array, htod_rx_arrays
 
-
 # ---------------------------------------------------------------------------
 # Helpers shared across tests
 # ---------------------------------------------------------------------------
@@ -207,9 +206,7 @@ class TestHtodRxArraysCuda:
         assert rxs_dev.shape[1:] == (10, 2)
         assert np.all(rxs_dev == 0)
 
-    def test_packs_receiver_coords_in_declaration_order(
-        self, fake_grid, monkeypatch
-    ):
+    def test_packs_receiver_coords_in_declaration_order(self, fake_grid, monkeypatch):
         from gprMax import config
 
         config.sim_config.general["solver"] = "cuda"
@@ -224,9 +221,7 @@ class TestHtodRxArraysCuda:
 
         rxcoords_dev, *_ = htod_rx_arrays(G)
 
-        expected = np.array(
-            [[10, 11, 12], [20, 21, 22], [30, 31, 32]], dtype=np.int32
-        )
+        expected = np.array([[10, 11, 12], [20, 21, 22], [30, 31, 32]], dtype=np.int32)
         assert np.array_equal(rxcoords_dev, expected)
 
 
@@ -256,8 +251,8 @@ class TestDtohRxArrayHostPath:
         # rxs_dev shape: (n_outputs_dev=6, iterations=3, n_rxs=2)
         rxs_dev = np.zeros((len(Rx.allowableoutputs_dev), 3, 2))
         ex_idx = Rx.allowableoutputs_dev.index("Ex")
-        rxs_dev[ex_idx, :, 0] = [1.0, 2.0, 3.0]   # rx0's Ex time series
-        rxs_dev[ex_idx, :, 1] = [4.0, 5.0, 6.0]   # rx1's Ex time series
+        rxs_dev[ex_idx, :, 0] = [1.0, 2.0, 3.0]  # rx0's Ex time series
+        rxs_dev[ex_idx, :, 1] = [4.0, 5.0, 6.0]  # rx1's Ex time series
 
         dtoh_rx_array(rxs_dev, rxcoords_dev, G)
 
@@ -265,9 +260,7 @@ class TestDtohRxArrayHostPath:
         assert np.array_equal(rx1.outputs["Ex"], [4.0, 5.0, 6.0])
 
     def test_copies_multiple_outputs_for_one_rx(self, fake_grid):
-        rx = _make_rx(
-            x=0, y=0, z=0, outputs={"Ex": np.zeros(2), "Hy": np.zeros(2)}
-        )
+        rx = _make_rx(x=0, y=0, z=0, outputs={"Ex": np.zeros(2), "Hy": np.zeros(2)})
         G = fake_grid(rxs=[rx])
         rxcoords_dev = np.array([[0, 0, 0]], dtype=np.int32)
         rxs_dev = np.zeros((len(Rx.allowableoutputs_dev), 2, 1))
@@ -283,9 +276,7 @@ class TestDtohRxArrayHostPath:
         """Upstream now validates coords match; raises RuntimeError for
         receivers whose coordinates don't match any device row."""
         rx_present = _make_rx(x=1, y=1, z=1, outputs={"Ex": np.zeros(2)})
-        rx_missing = _make_rx(
-            x=9, y=9, z=9, outputs={"Ex": np.full(2, fill_value=77.0)}
-        )
+        rx_missing = _make_rx(x=9, y=9, z=9, outputs={"Ex": np.full(2, fill_value=77.0)})
         G = fake_grid(rxs=[rx_present, rx_missing])
         rxcoords_dev = np.array([[1, 1, 1], [2, 2, 2]], dtype=np.int32)
         rxs_dev = np.zeros((len(Rx.allowableoutputs_dev), 2, 2))
@@ -307,3 +298,6 @@ class TestDtohRxArrayLoopBoundBug:
 
         with pytest.raises(RuntimeError):
             dtoh_rx_array(rxs_dev, rxcoords_dev, G)
+
+
+pytestmark = pytest.mark.unit

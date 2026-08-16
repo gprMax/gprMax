@@ -19,7 +19,7 @@ from scipy.constants import c, epsilon_0, mu_0
 
 
 @pytest.fixture(autouse=True)
-def source_config(monkeypatch):
+def source_config(monkeypatch, request):
     """Patch ``gprMax.config`` so sources methods run in isolation.
 
     Defaults to the CPU solver and double-precision float arrays. Tests
@@ -27,6 +27,9 @@ def source_config(monkeypatch):
     ``monkeypatch.setattr(config.sim_config.general, "solver", "cuda")``
     inside the test body.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     sim_cfg = SimpleNamespace(

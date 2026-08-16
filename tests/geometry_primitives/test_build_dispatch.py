@@ -16,9 +16,10 @@ integration territory (HDF5 + materials files and the scene builder);
 its array stamping is covered directly in ``test_array_builders.py``.
 """
 
+from unittest import mock
+
 import numpy as np
 import pytest
-from unittest import mock
 
 from gprMax.user_objects.cmds_geometry.cone import Cone
 from gprMax.user_objects.cmds_geometry.cylinder import Cylinder
@@ -75,15 +76,13 @@ class TestEdgeBuild:
 
     def test_diagonal_edge_raises(self, dispatch_grid):
         g = dispatch_grid()
-        edge = Edge(p1=(2 * DL, 2 * DL, 2 * DL), p2=(3 * DL, 3 * DL, 2 * DL),
-                    material_id="metal")
+        edge = Edge(p1=(2 * DL, 2 * DL, 2 * DL), p2=(3 * DL, 3 * DL, 2 * DL), material_id="metal")
         with pytest.raises(ValueError):
             edge.build(g)
 
     def test_unknown_material_raises(self, dispatch_grid):
         g = dispatch_grid()
-        edge = Edge(p1=(2 * DL, 3 * DL, 4 * DL), p2=(5 * DL, 3 * DL, 4 * DL),
-                    material_id="ghost")
+        edge = Edge(p1=(2 * DL, 3 * DL, 4 * DL), p2=(5 * DL, 3 * DL, 4 * DL), material_id="ghost")
         with pytest.raises(ValueError):
             edge.build(g)
 
@@ -97,8 +96,7 @@ class TestEdgeBuild:
         # first point) becomes y-oriented — _do_rotate rewrites the p1/p2
         # kwargs through rotate_2point_object.
         g = dispatch_grid()
-        edge = Edge(p1=(2 * DL, 2 * DL, 2 * DL), p2=(5 * DL, 2 * DL, 2 * DL),
-                    material_id="metal")
+        edge = Edge(p1=(2 * DL, 2 * DL, 2 * DL), p2=(5 * DL, 2 * DL, 2 * DL), material_id="metal")
         edge.rotate("z", 90, origin=(2 * DL, 2 * DL, 0.0))
         assert edge.do_rotate
         edge._do_rotate(g)
@@ -114,8 +112,7 @@ class TestPlateBuild:
 
     def test_xy_plate_stamps_face_edges(self, dispatch_grid):
         g = dispatch_grid()
-        plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL),
-                      material_id="metal")
+        plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL), material_id="metal")
         plate.build(g)
 
         expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {
@@ -132,8 +129,11 @@ class TestPlateBuild:
 
     def test_anisotropic_plate_uses_per_direction_materials(self, dispatch_grid):
         g = dispatch_grid()
-        plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL),
-                      material_ids=["mat_a", "mat_b"])
+        plate = Plate(
+            p1=(1 * DL, 1 * DL, 2 * DL),
+            p2=(4 * DL, 3 * DL, 2 * DL),
+            material_ids=["mat_a", "mat_b"],
+        )
         plate.build(g)
 
         # xy-plate: first material feeds the x-edges, second the y-edges.
@@ -142,22 +142,19 @@ class TestPlateBuild:
 
     def test_volume_raises(self, dispatch_grid):
         g = dispatch_grid()
-        plate = Plate(p1=(1 * DL, 1 * DL, 1 * DL), p2=(3 * DL, 3 * DL, 3 * DL),
-                      material_id="metal")
+        plate = Plate(p1=(1 * DL, 1 * DL, 1 * DL), p2=(3 * DL, 3 * DL, 3 * DL), material_id="metal")
         with pytest.raises(ValueError):
             plate.build(g)
 
     def test_line_raises(self, dispatch_grid):
         g = dispatch_grid()
-        plate = Plate(p1=(1 * DL, 2 * DL, 2 * DL), p2=(4 * DL, 2 * DL, 2 * DL),
-                      material_id="metal")
+        plate = Plate(p1=(1 * DL, 2 * DL, 2 * DL), p2=(4 * DL, 2 * DL, 2 * DL), material_id="metal")
         with pytest.raises(ValueError):
             plate.build(g)
 
     def test_unknown_material_raises(self, dispatch_grid):
         g = dispatch_grid()
-        plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL),
-                      material_id="ghost")
+        plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL), material_id="ghost")
         with pytest.raises(ValueError):
             plate.build(g)
 
@@ -227,8 +224,12 @@ class TestCylinderBuild:
 
     def test_z_aligned_cylinder_matches_direct_rasterisation(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                            r=1.5 * DL, material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r=1.5 * DL,
+            material_id="metal",
+        )
         cylinder.build(g)
 
         expected = {(i, j, k) for (i, j) in self.CROSS_SECTION for k in range(2, 6)}
@@ -239,8 +240,13 @@ class TestCylinderBuild:
 
     def test_averaging_off_kwarg_sets_rigid(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                            r=1.5 * DL, material_id="metal", averaging="n")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r=1.5 * DL,
+            material_id="metal",
+            averaging="n",
+        )
         cylinder.build(g)
 
         for cell in nonzero_set(g.solid):
@@ -248,22 +254,28 @@ class TestCylinderBuild:
 
     def test_non_positive_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                            r=0.0, material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal"
+        )
         with pytest.raises(ValueError):
             cylinder.build(g)
 
     def test_unknown_material_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                            r=1.5 * DL, material_id="ghost")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r=1.5 * DL,
+            material_id="ghost",
+        )
         with pytest.raises(ValueError):
             cylinder.build(g)
 
     def test_missing_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                            material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal"
+        )
         with pytest.raises(KeyError):
             cylinder.build(g)
 
@@ -271,8 +283,13 @@ class TestCylinderBuild:
 class TestConeBuild:
     def test_tapering_cone_matches_direct_rasterisation(self, dispatch_grid):
         g = dispatch_grid()
-        cone = Cone(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                    r1=2.5 * DL, r2=0.5 * DL, material_id="metal")
+        cone = Cone(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r1=2.5 * DL,
+            r2=0.5 * DL,
+            material_id="metal",
+        )
         cone.build(g)
 
         layer_counts = [np.count_nonzero(g.solid[:, :, k]) for k in range(8)]
@@ -280,22 +297,36 @@ class TestConeBuild:
 
     def test_both_radii_zero_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cone = Cone(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                    r1=0.0, r2=0.0, material_id="metal")
+        cone = Cone(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r1=0.0,
+            r2=0.0,
+            material_id="metal",
+        )
         with pytest.raises(ValueError):
             cone.build(g)
 
     def test_negative_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cone = Cone(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                    r1=-1.0 * DL, r2=1.0 * DL, material_id="metal")
+        cone = Cone(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r1=-1.0 * DL,
+            r2=1.0 * DL,
+            material_id="metal",
+        )
         with pytest.raises(ValueError):
             cone.build(g)
 
     def test_missing_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cone = Cone(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL),
-                    r1=1.0 * DL, material_id="metal")
+        cone = Cone(
+            p1=(5 * DL, 5 * DL, 2 * DL),
+            p2=(5 * DL, 5 * DL, 6 * DL),
+            r1=1.0 * DL,
+            material_id="metal",
+        )
         with pytest.raises(KeyError):
             cone.build(g)
 
@@ -351,3 +382,6 @@ class TestGeometryObjectsReadBuild:
         g = dispatch_grid()
         with pytest.raises(KeyError):
             GeometryObjectsRead(p1=(0.0, 0.0, 0.0)).build(g)
+
+
+pytestmark = pytest.mark.unit

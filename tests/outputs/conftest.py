@@ -39,8 +39,8 @@ from types import SimpleNamespace
 import h5py
 import numpy as np
 import pytest
-from scipy.constants import epsilon_0, mu_0
 from scipy.constants import c as C_LIGHT
+from scipy.constants import epsilon_0, mu_0
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
@@ -59,12 +59,15 @@ FIELDS = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]
 
 
 @pytest.fixture(autouse=True)
-def outputs_config(monkeypatch, tmp_path):
+def outputs_config(monkeypatch, tmp_path, request):
     """Patch ``gprMax.config`` for the output modules.
 
     ``output_file_path`` and ``input_file_path`` point into ``tmp_path`` so
     that any test which lets a filename be derived writes somewhere harmless.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     snapshot_dir = tmp_path / "snapshots"
@@ -105,6 +108,7 @@ def outputs_config(monkeypatch, tmp_path):
         number_of_models=1,
         current_model=0,
         model_end=1,
+        study=None,
     )
 
     monkeypatch.setattr(config, "sim_config", sim_cfg)
@@ -114,12 +118,16 @@ def outputs_config(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def reset_snapshot_class_state():
+def reset_snapshot_class_state(request):
     """Restore ``Snapshot``'s mutable class attributes after every test.
 
     ``htod_snapshot_array`` writes ``Snapshot.nx_max`` and friends on the
     *class*, not the instance, so they persist for the rest of the session.
     """
+    if request.node.get_closest_marker("unit") is None:
+        yield
+        return
+
     from gprMax.snapshots import Snapshot
 
     saved = (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max, Snapshot.bpg)
@@ -192,6 +200,7 @@ def make_view_grid(make_materials):
         else:
             g.dl = np.array(dl, dtype=np.float64)
         g.dt = dt
+        g.iterations = 5
         g.materials = make_materials(materials)
         g.initialise_geometry_arrays()
         g.initialise_field_arrays()
@@ -340,9 +349,17 @@ def make_tl():
 
     def _make(position=(2, 2, 2), resistance=50.0, dl=DL, iterations=5, antpos=1):
         return SimpleNamespace(
+            ID="tl1",
             xcoord=position[0],
             ycoord=position[1],
             zcoord=position[2],
+            coord=position,
+            polarisation="x",
+            start=0.0,
+            stop=iterations * DT,
+            waveformID="wf",
+            waveformvalues_wholedt=np.zeros(iterations + 1),
+            waveformvalues_halfdt=np.zeros(iterations + 1),
             resistance=resistance,
             dl=dl,
             antpos=antpos,

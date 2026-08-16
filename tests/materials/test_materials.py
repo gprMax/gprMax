@@ -29,7 +29,6 @@ from gprMax.materials import (
     process_materials,
 )
 
-
 # ---------------------------------------------------------------------------
 # Material — defaults and identity
 # ---------------------------------------------------------------------------
@@ -224,9 +223,7 @@ class TestUpdateCoeffsE:
         assert m.CBx == m.CBy == m.CBz == 0
         assert m.srce == 0
 
-    def test_pec_by_infinite_conductivity_zeros_all_coefficients(
-        self, make_material, fake_grid
-    ):
+    def test_pec_by_infinite_conductivity_zeros_all_coefficients(self, make_material, fake_grid):
         m = make_material(ID="metal", se=float("inf"))
         G = fake_grid()
         m.calculate_update_coeffsE(G)
@@ -271,45 +268,24 @@ class TestDispersiveCalculateER:
 
         Lossless (se=0) keeps the conductivity term out of the picture.
         """
-        m = make_dispersive(
-            model="debye", er=4.9, se=0.0, poles=[(73.2, 9.231e-12, 0.0)]
-        )
+        m = make_dispersive(model="debye", er=4.9, se=0.0, poles=[(73.2, 9.231e-12, 0.0)])
         er_dc = m.calculate_er(freq=1.0)  # 1 Hz ≈ DC for ps-scale tau
         assert er_dc.real == pytest.approx(4.9 + 73.2, rel=1e-6)
 
     def test_debye_high_frequency_limit_returns_er_infinity(self, make_dispersive):
-        m = make_dispersive(
-            model="debye", er=4.9, se=0.0, poles=[(73.2, 9.231e-12, 0.0)]
-        )
+        m = make_dispersive(model="debye", er=4.9, se=0.0, poles=[(73.2, 9.231e-12, 0.0)])
         er_hi = m.calculate_er(freq=1e15)
         assert er_hi.real == pytest.approx(4.9, abs=1e-3)
 
     def test_lorentz_dc_limit_returns_static_permittivity(self, make_dispersive):
         """At w=0, the Lorentz term reduces to deltaer * tau^2 / tau^2 = deltaer."""
-        m = make_dispersive(
-            model="lorentz", er=2.0, se=0.0, poles=[(3.0, 2 * math.pi * 1e9, 1e8)]
-        )
+        m = make_dispersive(model="lorentz", er=2.0, se=0.0, poles=[(3.0, 2 * math.pi * 1e9, 1e8)])
         er_dc = m.calculate_er(freq=1.0)
         assert er_dc.real == pytest.approx(2.0 + 3.0, rel=1e-6)
 
 
-class TestDispersiveDrudeBug:
-    """Pin the double-subtract bug in ``calculate_er`` for multi-pole Drude.
-
-    Source: ``materials.py:309-313`` — ``er -= ersum`` is *inside* the
-    pole loop, so pole 0 is subtracted on every iteration. Single-pole
-    Drude is unaffected; the bug only triggers for ``poles >= 2``.
-
-    When fixed, swap this assertion for the correct sum-of-poles form.
-    """
-
-    @pytest.mark.xfail(reason="upstream Drude formula changed — needs re-verification")
-    def test_two_poles_match_current_buggy_formula(self, make_dispersive):
-        """The upstream code no longer has the double-subtract bug.
-
-        With the bug fixed, multi-pole Drude ``calculate_er`` returns the
-        correct sum-of-poles formula.  This test pins that correct formula.
-        """
+class TestDispersiveDrude:
+    def test_two_poles_match_the_sum_of_poles_formula(self, make_dispersive):
         t0, a0 = 1e10, 1e9
         t1, a1 = 2e10, 5e9
         m = make_dispersive(
@@ -320,8 +296,8 @@ class TestDispersiveDrudeBug:
         )
         f = 2e9
         w = 2 * math.pi * f
-        pole0 = t0**2 / (w**2 - 1j * w * a0)
-        pole1 = t1**2 / (w**2 - 1j * w * a1)
+        pole0 = (2 * math.pi * t0) ** 2 / (w**2 - 1j * w * a0)
+        pole1 = (2 * math.pi * t1) ** 2 / (w**2 - 1j * w * a1)
         cond = 0.0 / (1j * w * epsilon_0)  # se = 0
         correct = 1.0 + cond - pole0 - pole1
         assert m.calculate_er(f) == pytest.approx(correct)
@@ -334,23 +310,17 @@ class TestDispersiveDrudeBug:
 
 class TestDispersiveUpdateCoeffsE:
     def test_debye_single_pole_assigns_finite_CA(self, make_dispersive, fake_grid):
-        m = make_dispersive(
-            model="debye", er=4.9, se=0.0, poles=[(73.2, 9.231e-12, 0.0)]
-        )
+        m = make_dispersive(model="debye", er=4.9, se=0.0, poles=[(73.2, 9.231e-12, 0.0)])
         G = fake_grid()
         m.calculate_update_coeffsE(G)
         assert math.isfinite(m.CA.real)
         assert math.isfinite(m.CBx.real)
 
-    def test_debye_zero_pole_recovers_non_dispersive_CA(
-        self, make_dispersive, fake_grid
-    ):
+    def test_debye_zero_pole_recovers_non_dispersive_CA(self, make_dispersive, fake_grid):
         """A 'dispersive' material with zero deltaer should behave like
         a plain dielectric: CA = 1 when se = 0.
         """
-        m = make_dispersive(
-            model="debye", er=4.9, se=0.0, poles=[(0.0, 1e-12, 0.0)]
-        )
+        m = make_dispersive(model="debye", er=4.9, se=0.0, poles=[(0.0, 1e-12, 0.0)])
         G = fake_grid()
         m.calculate_update_coeffsE(G)
         assert m.CA.real == pytest.approx(1.0, abs=1e-12)
@@ -368,9 +338,7 @@ class TestDispersiveDrudeSelfMutationBug:
     """
 
     def test_se_grows_between_consecutive_calls(self, make_dispersive, fake_grid):
-        m = make_dispersive(
-            model="drude", er=1.0, se=0.0, poles=[(0.0, 1e10, 1e9)]
-        )
+        m = make_dispersive(model="drude", er=1.0, se=0.0, poles=[(0.0, 1e10, 1e9)])
         G = fake_grid()
         m.calculate_update_coeffsE(G)
         se_after_first = m.se
@@ -584,9 +552,7 @@ class TestProcessMaterials:
         G.updatecoeffsdispersive = np.zeros((n_materials, 3 * max(maxpoles, 1)))
         return G
 
-    def test_fills_E_coeffs_for_each_material(
-        self, make_material, fake_grid, material_config
-    ):
+    def test_fills_E_coeffs_for_each_material(self, make_material, fake_grid, material_config):
         material_config.materials["maxpoles"] = 0
         m1 = make_material(ID="m1", numID=0, er=1.0)
         m2 = make_material(ID="m2", numID=1, er=4.0)
@@ -607,3 +573,6 @@ class TestProcessMaterials:
         G.materials = [m1, m2]
         table = process_materials(G)
         assert len(table) == 1 + 2  # header + two materials
+
+
+pytestmark = pytest.mark.unit

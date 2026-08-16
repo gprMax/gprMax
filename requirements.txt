@@ -8,6 +8,7 @@ humanize
 jinja2
 jupyter
 matplotlib
+mpi4py
 numpy
 numpy-stl
 pandas
@@ -38,10 +39,8 @@ wheel
 # pyobjc-framework-metal
 
 
-# If running with mpi domain decomposition, the following dependencies
-# are also required (require a system MPI runtime — Open MPI, MPICH, or MS-MPI):
+# Distributed fractal generation additionally requires:
 
-# mpi4py
 # mpi4py-fft
 
 

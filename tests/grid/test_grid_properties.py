@@ -411,3 +411,6 @@ class TestGridIdentity:
 
     def test_average_volume_objects_defaults_true(self):
         assert FDTDGrid().averagevolumeobjects is True
+
+
+pytestmark = pytest.mark.unit

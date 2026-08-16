@@ -27,12 +27,11 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from scipy.constants import c as C_LIGHT
 from scipy.constants import epsilon_0, mu_0
 
-from gprMax.materials import Material
-from scipy.constants import c as C_LIGHT
-
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
 
 # Uniform spatial discretisation shared by most tests.
 DL = 0.001
@@ -44,12 +43,15 @@ DL_ANISO = (0.001, 0.002, 0.004)
 
 
 @pytest.fixture(autouse=True)
-def grid_config(monkeypatch):
+def grid_config(monkeypatch, request):
     """Patch ``gprMax.config`` for the grid modules.
 
     Double precision arrays, a single OpenMP thread, 3D mode, no dispersive
     poles, and the stock numerical-dispersion thresholds.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     model_cfg = SimpleNamespace(

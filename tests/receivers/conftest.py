@@ -17,8 +17,11 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def receiver_config(monkeypatch):
+def receiver_config(monkeypatch, request):
     """Patch ``gprMax.config`` so receivers methods run in isolation."""
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     sim_cfg = SimpleNamespace(

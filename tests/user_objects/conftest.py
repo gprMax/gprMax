@@ -20,7 +20,7 @@ from scipy.constants import c, epsilon_0, mu_0
 
 
 @pytest.fixture(autouse=True)
-def user_object_config(monkeypatch, tmp_path):
+def user_object_config(monkeypatch, tmp_path, request):
     """Patch ``gprMax.config`` so ``build()`` calls run in isolation.
 
     Defaults to cpu solver, double-precision floats, free-space EM
@@ -28,6 +28,9 @@ def user_object_config(monkeypatch, tmp_path):
     assignments are no-ops. Subgrid disabled by default. Tests can
     override any value via ``monkeypatch.setattr`` in the test body.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     model_cfg = SimpleNamespace(

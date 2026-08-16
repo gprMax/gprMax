@@ -78,9 +78,7 @@ def fake_gpu_modules(monkeypatch):
     calls = []
 
     gpuarray = SimpleNamespace(to_gpu=lambda a: calls.append(("cuda", a.shape)) or a)
-    clarray = SimpleNamespace(
-        to_device=lambda q, a: calls.append(("opencl", q, a.shape)) or a
-    )
+    clarray = SimpleNamespace(to_device=lambda q, a: calls.append(("opencl", q, a.shape)) or a)
     pycuda = SimpleNamespace(gpuarray=gpuarray)
     pyopencl = SimpleNamespace(array=clarray)
 
@@ -319,9 +317,7 @@ def make_mpi_snapshot(make_mpi_grid, tmp_path):
         }
         for field, array in arrays.items():
             array[...] = 2.0
-        grid = make_mpi_grid(
-            size=size, negative_halo_offset=negative_halo_offset, arrays=arrays
-        )
+        grid = make_mpi_grid(size=size, negative_halo_offset=negative_halo_offset, arrays=arrays)
         return MPISnapshot(
             *start,
             *stop,
@@ -485,3 +481,6 @@ class _NullBar:
 
     def close(self):
         pass
+
+
+pytestmark = pytest.mark.unit

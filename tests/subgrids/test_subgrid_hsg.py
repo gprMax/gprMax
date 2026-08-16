@@ -345,3 +345,6 @@ class TestPrintInfo:
         with caplog.at_level("INFO"):
             coupled.sub.print_info()
         assert "Time step" in caplog.text
+
+
+pytestmark = pytest.mark.unit

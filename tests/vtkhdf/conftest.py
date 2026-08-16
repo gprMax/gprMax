@@ -116,9 +116,7 @@ def make_image_data(vtkhdf_path):
     from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 
     def _make(name="image.vtkhdf", shape=(2, 3, 4), **kwargs):
-        return VtkImageData(
-            vtkhdf_path(name), np.array(shape, dtype=np.int32), **kwargs
-        )
+        return VtkImageData(vtkhdf_path(name), np.array(shape, dtype=np.int32), **kwargs)
 
     return _make
 
@@ -131,9 +129,7 @@ def make_unstructured_grid(vtkhdf_path):
     writes, since a line-mode geometry view is a collection of two-point
     edges.
     """
-    from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import (
-        VtkUnstructuredGrid,
-    )
+    from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
 
     def _make(
         name="grid.vtkhdf",
@@ -166,18 +162,21 @@ def line_grid_arrays():
     """
     return {
         "points": np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]),
-        "cell_types": np.array(
-            [VtkCellType.LINE, VtkCellType.LINE], dtype=np.uint8
-        ),
+        "cell_types": np.array([VtkCellType.LINE, VtkCellType.LINE], dtype=np.uint8),
         "connectivity": np.array([0, 1, 1, 2], dtype=np.int32),
         "cell_offsets": np.array([0, 2, 4], dtype=np.int32),
     }
 
 
 @pytest.fixture(autouse=True)
-def _reset_gprmax_logger():
+def _reset_gprmax_logger(request):
     """Reset gprMax logger so caplog works after upstream tests pollute it."""
+    if request.node.get_closest_marker("unit") is None:
+        yield
+        return
+
     import logging
+
     logger = logging.getLogger("gprMax")
     logger.handlers.clear()
     logger.setLevel(logging.INFO)

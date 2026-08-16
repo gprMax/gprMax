@@ -35,7 +35,6 @@ from gprMax.user_objects.cmds_multiuse import (
 )
 from gprMax.user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
 
-
 # ---------------------------------------------------------------------------
 # Sanity / shared behaviour
 # ---------------------------------------------------------------------------
@@ -205,12 +204,11 @@ class TestTransmissionLine:
         assert isinstance(tl, TransmissionLine)
         assert tl.resistance == 50.0
 
-    def test_eight_token_with_window_strings(self, multicmds_template):
-        # start/stop are passed through as *strings* (not floats) in TL branch
+    def test_eight_token_with_numeric_window(self, multicmds_template):
         multicmds_template["#transmission_line"] = ["x 0 0 0 50 wf1 1e-9 5e-9"]
         objs = process_multicmds(multicmds_template)
-        assert objs[0].start == "1e-9"
-        assert objs[0].stop == "5e-9"
+        assert objs[0].start == pytest.approx(1e-9)
+        assert objs[0].stop == pytest.approx(5e-9)
 
     @pytest.mark.parametrize(
         "payload",
@@ -229,9 +227,7 @@ class TestTransmissionLine:
 
 class TestPlaneWaveAngles:
     def test_ten_token_minimum(self, multicmds_template):
-        multicmds_template["#plane_wave_angles"] = [
-            "0 0 0 0.1 0.1 0.1 30 60 90 wf1"
-        ]
+        multicmds_template["#plane_wave_angles"] = ["0 0 0 0.1 0.1 0.1 30 60 90 wf1"]
         objs = process_multicmds(multicmds_template)
         assert isinstance(objs[0], DiscretePlaneWaveAngles)
         assert objs[0].kwargs["theta"] == 30.0
@@ -240,16 +236,12 @@ class TestPlaneWaveAngles:
         assert objs[0].kwargs["waveform_id"] == "wf1"
 
     def test_eleven_token_with_material(self, multicmds_template):
-        multicmds_template["#plane_wave_angles"] = [
-            "0 0 0 0.1 0.1 0.1 30 60 90 wf1 air"
-        ]
+        multicmds_template["#plane_wave_angles"] = ["0 0 0 0.1 0.1 0.1 30 60 90 wf1 air"]
         objs = process_multicmds(multicmds_template)
         assert objs[0].kwargs["material_id"] == "air"
 
     def test_thirteen_token_with_window(self, multicmds_template):
-        multicmds_template["#plane_wave_angles"] = [
-            "0 0 0 0.1 0.1 0.1 30 60 90 wf1 air 1e-9 5e-9"
-        ]
+        multicmds_template["#plane_wave_angles"] = ["0 0 0 0.1 0.1 0.1 30 60 90 wf1 air 1e-9 5e-9"]
         objs = process_multicmds(multicmds_template)
         assert objs[0].kwargs["start"] == 1e-9
         assert objs[0].kwargs["stop"] == 5e-9
@@ -269,18 +261,14 @@ class TestPlaneWaveAngles:
 
 class TestPlaneWaveAxial:
     def test_nine_token_minimum(self, multicmds_template):
-        multicmds_template["#plane_wave_axial"] = [
-            "0 0 0 0.1 0.1 0.1 90 X wf1"
-        ]
+        multicmds_template["#plane_wave_axial"] = ["0 0 0 0.1 0.1 0.1 90 X wf1"]
         objs = process_multicmds(multicmds_template)
         assert isinstance(objs[0], DiscretePlaneWaveAxial)
         # axis is lowercased before being passed in
         assert objs[0].kwargs["axis"] == "x"
 
     def test_eleven_token_with_window(self, multicmds_template):
-        multicmds_template["#plane_wave_axial"] = [
-            "0 0 0 0.1 0.1 0.1 90 y wf1 1e-9 5e-9"
-        ]
+        multicmds_template["#plane_wave_axial"] = ["0 0 0 0.1 0.1 0.1 90 y wf1 1e-9 5e-9"]
         objs = process_multicmds(multicmds_template)
         assert objs[0].kwargs["start"] == 1e-9
         assert objs[0].kwargs["stop"] == 5e-9
@@ -301,9 +289,7 @@ class TestPlaneWaveAxial:
 
 class TestPlaneWaveVector:
     def test_eleven_token_minimum(self, multicmds_template):
-        multicmds_template["#plane_wave_vector"] = [
-            "0 0 0 0.1 0.1 0.1 1 0 0 90 wf1"
-        ]
+        multicmds_template["#plane_wave_vector"] = ["0 0 0 0.1 0.1 0.1 1 0 0 90 wf1"]
         objs = process_multicmds(multicmds_template)
         pw = objs[0]
         assert isinstance(pw, DiscretePlaneWaveVector)
@@ -312,9 +298,7 @@ class TestPlaneWaveVector:
         assert pw.kwargs["waveform_id"] == "wf1"
 
     def test_twelve_token_with_material(self, multicmds_template):
-        multicmds_template["#plane_wave_vector"] = [
-            "0 0 0 0.1 0.1 0.1 1 0 0 90 wf1 air"
-        ]
+        multicmds_template["#plane_wave_vector"] = ["0 0 0 0.1 0.1 0.1 1 0 0 90 wf1 air"]
         objs = process_multicmds(multicmds_template)
         assert objs[0].kwargs["material_id"] == "air"
 
@@ -347,9 +331,7 @@ class TestPlaneWaveVectorIndexBug:
     def test_thirteen_token_branch_now_value_error(self, multicmds_template):
         """Upstream commit d6fc8069 fixed swapped token-count checks.
         The 13-token branch now correctly rejects with ValueError."""
-        multicmds_template["#plane_wave_vector"] = [
-            "0 0 0 0.1 0.1 0.1 1 0 0 90 wf1 air 1e-9"
-        ]
+        multicmds_template["#plane_wave_vector"] = ["0 0 0 0.1 0.1 0.1 1 0 0 90 wf1 air 1e-9"]
         with pytest.raises(ValueError):
             process_multicmds(multicmds_template)
 
@@ -371,7 +353,7 @@ class TestExcitationFile:
         objs = process_multicmds(multicmds_template)
         assert objs[0].kwargs["filepath"] == "my.txt"
         assert objs[0].kwargs["kind"] == "linear"
-        assert objs[0].kwargs["fill_value"] == "0.0"
+        assert objs[0].kwargs["fill_value"] == 0.0
 
     @pytest.mark.parametrize("payload", ["a b", "a b c d"])
     def test_invalid_arity_rejected(self, multicmds_template, payload):
@@ -413,9 +395,7 @@ class TestRx:
 
 class TestRxArray:
     def test_nine_token_form(self, multicmds_template):
-        multicmds_template["#rx_array"] = [
-            "0 0 0 0.1 0.1 0.1 0.01 0.01 0.01"
-        ]
+        multicmds_template["#rx_array"] = ["0 0 0 0.1 0.1 0.1 0.01 0.01 0.01"]
         objs = process_multicmds(multicmds_template)
         rxa = objs[0]
         assert isinstance(rxa, RxArray)
@@ -440,9 +420,7 @@ class TestRxArray:
 
 class TestSnapshot:
     def test_integer_iterations_branch(self, multicmds_template):
-        multicmds_template["#snapshot"] = [
-            "0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 100 snap.vti"
-        ]
+        multicmds_template["#snapshot"] = ["0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 100 snap.vti"]
         objs = process_multicmds(multicmds_template)
         snap = objs[0]
         assert isinstance(snap, Snapshot)
@@ -453,18 +431,14 @@ class TestSnapshot:
 
     def test_float_time_branch(self, multicmds_template):
         # int("1e-9") raises -> fall through to time branch
-        multicmds_template["#snapshot"] = [
-            "0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 1e-9 snap.h5"
-        ]
+        multicmds_template["#snapshot"] = ["0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 1e-9 snap.h5"]
         objs = process_multicmds(multicmds_template)
         snap = objs[0]
         assert snap.kwargs["time"] == 1e-9
         assert snap.kwargs["fileext"] == ".h5"
 
     def test_filename_without_extension_sets_none(self, multicmds_template):
-        multicmds_template["#snapshot"] = [
-            "0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 100 plain_name"
-        ]
+        multicmds_template["#snapshot"] = ["0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 100 plain_name"]
         objs = process_multicmds(multicmds_template)
         assert objs[0].kwargs["fileext"] is None
 
@@ -493,9 +467,7 @@ class TestMaterial:
             "id": "concrete",
         }
 
-    @pytest.mark.parametrize(
-        "payload", ["4.0 0.01 1.0 0.0", "4.0 0.01 1.0 0.0 concrete extra"]
-    )
+    @pytest.mark.parametrize("payload", ["4.0 0.01 1.0 0.0", "4.0 0.01 1.0 0.0 concrete extra"])
     def test_invalid_arity_rejected(self, multicmds_template, payload):
         multicmds_template["#material"] = [payload]
         with pytest.raises(ValueError):
@@ -516,9 +488,7 @@ class TestAddDispersionDebye:
 
     def test_two_poles_multiple_materials(self, multicmds_template):
         # poles=2 -> 2 pairs (4 floats), then any number of material ids
-        multicmds_template["#add_dispersion_debye"] = [
-            "2 5.0 1e-12 3.0 2e-12 m1 m2"
-        ]
+        multicmds_template["#add_dispersion_debye"] = ["2 5.0 1e-12 3.0 2e-12 m1 m2"]
         objs = process_multicmds(multicmds_template)
         d = objs[0]
         assert d.kwargs["poles"] == 2
@@ -571,9 +541,7 @@ class TestAddDispersionDrude:
 
 class TestSoilPeplinski:
     def test_seven_token_form(self, multicmds_template):
-        multicmds_template["#soil_peplinski"] = [
-            "0.5 0.3 1.5 2.6 0.05 0.2 soil1"
-        ]
+        multicmds_template["#soil_peplinski"] = ["0.5 0.3 1.5 2.6 0.05 0.2 soil1"]
         objs = process_multicmds(multicmds_template)
         soil = objs[0]
         assert isinstance(soil, SoilPeplinski)
@@ -599,9 +567,7 @@ class TestSoilPeplinski:
 
 class TestMaterialRange:
     def test_nine_token_form(self, multicmds_template):
-        multicmds_template["#material_range"] = [
-            "1.0 5.0 0.0 0.1 1.0 1.5 0.5 2.0 my_range"
-        ]
+        multicmds_template["#material_range"] = ["1.0 5.0 0.0 0.1 1.0 1.5 0.5 2.0 my_range"]
         objs = process_multicmds(multicmds_template)
         mr = objs[0]
         assert isinstance(mr, MaterialRange)
@@ -645,9 +611,7 @@ class TestMaterialList:
 
 class TestGeometryView:
     def test_eleven_token_form(self, multicmds_template):
-        multicmds_template["#geometry_view"] = [
-            "0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 view1 n"
-        ]
+        multicmds_template["#geometry_view"] = ["0 0 0 0.1 0.1 0.1 0.01 0.01 0.01 view1 n"]
         objs = process_multicmds(multicmds_template)
         gv = objs[0]
         assert isinstance(gv, GeometryView)
@@ -662,9 +626,7 @@ class TestGeometryView:
 
 class TestGeometryObjectsWrite:
     def test_seven_token_form(self, multicmds_template):
-        multicmds_template["#geometry_objects_write"] = [
-            "0 0 0 0.1 0.1 0.1 outfile"
-        ]
+        multicmds_template["#geometry_objects_write"] = ["0 0 0 0.1 0.1 0.1 outfile"]
         objs = process_multicmds(multicmds_template)
         gow = objs[0]
         assert isinstance(gow, GeometryObjectsWrite)
@@ -717,3 +679,6 @@ class TestMultiFamilyDispatch:
         assert Material in types
         assert types.index(Waveform) < types.index(Rx)
         assert types.index(Rx) < types.index(Material)
+
+
+pytestmark = pytest.mark.unit

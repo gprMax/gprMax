@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 
 from gprMax.user_objects.cmds_multiuse import (
+    PMLCFS,
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
@@ -32,7 +33,6 @@ from gprMax.user_objects.cmds_multiuse import (
     Material,
     MaterialList,
     MaterialRange,
-    PMLCFS,
     Rx,
     RxArray,
     SoilPeplinski,
@@ -42,7 +42,6 @@ from gprMax.user_objects.cmds_multiuse import (
 )
 
 from .conftest import make_waveform
-
 
 # ---------------------------------------------------------------------------
 # ExcitationFile
@@ -185,8 +184,12 @@ class TestVoltageSource:
     def test_validate_rejects_negative_start(self, stub_grid):
         stub_grid.waveforms.append(make_waveform("wf1"))
         v = VoltageSource(
-            p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1",
-            start=-1.0, stop=1.0,
+            p1=(0, 0, 0),
+            polarisation="x",
+            resistance=50,
+            waveform_id="wf1",
+            start=-1.0,
+            stop=1.0,
         )
         with pytest.raises(ValueError):
             v._validate_parameters(stub_grid)
@@ -194,8 +197,12 @@ class TestVoltageSource:
     def test_validate_rejects_zero_duration(self, stub_grid):
         stub_grid.waveforms.append(make_waveform("wf1"))
         v = VoltageSource(
-            p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1",
-            start=1.0, stop=1.0,
+            p1=(0, 0, 0),
+            polarisation="x",
+            resistance=50,
+            waveform_id="wf1",
+            start=1.0,
+            stop=1.0,
         )
         with pytest.raises(ValueError):
             v._validate_parameters(stub_grid)
@@ -256,16 +263,12 @@ class TestMagneticDipole:
 
 class TestTransmissionLine:
     def test_constructor_stores_attributes_and_kwargs(self):
-        t = TransmissionLine(
-            p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1"
-        )
+        t = TransmissionLine(p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1")
         assert t.resistance == 50
         assert t.kwargs["polarisation"] == "x"
 
     def test_order_and_hash(self):
-        t = TransmissionLine(
-            p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1"
-        )
+        t = TransmissionLine(p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1")
         assert t.order == 6
         assert t.hash == "#transmission_line"
 
@@ -273,24 +276,18 @@ class TestTransmissionLine:
         """Upstream removed the CUDA-solver rejection for transmission lines."""
         user_object_config.sim_config.general["solver"] = "cuda"
         stub_grid.waveforms.append(make_waveform("wf1"))
-        t = TransmissionLine(
-            p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1"
-        )
+        t = TransmissionLine(p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1")
         t._validate_parameters(stub_grid)  # no longer raises
 
     def test_validate_rejects_zero_resistance(self, stub_grid):
         stub_grid.waveforms.append(make_waveform("wf1"))
-        t = TransmissionLine(
-            p1=(0, 0, 0), polarisation="x", resistance=0, waveform_id="wf1"
-        )
+        t = TransmissionLine(p1=(0, 0, 0), polarisation="x", resistance=0, waveform_id="wf1")
         with pytest.raises(ValueError):
             t._validate_parameters(stub_grid)
 
     def test_validate_rejects_resistance_above_free_space_impedance(self, stub_grid):
         stub_grid.waveforms.append(make_waveform("wf1"))
-        t = TransmissionLine(
-            p1=(0, 0, 0), polarisation="x", resistance=400.0, waveform_id="wf1"
-        )
+        t = TransmissionLine(p1=(0, 0, 0), polarisation="x", resistance=400.0, waveform_id="wf1")
         with pytest.raises(ValueError):
             t._validate_parameters(stub_grid)
 
@@ -303,8 +300,11 @@ class TestTransmissionLine:
 class TestDiscretePlaneWaveAngles:
     def test_constructor_stores_kwargs(self):
         d = DiscretePlaneWaveAngles(
-            theta=30, phi=45, psi=0,
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0.1),
+            theta=30,
+            phi=45,
+            psi=0,
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0.1),
             waveform_id="wf1",
         )
         assert d.kwargs["theta"] == 30
@@ -320,8 +320,10 @@ class TestDiscretePlaneWaveAngles:
 class TestDiscretePlaneWaveVector:
     def test_constructor_stores_kwargs(self):
         d = DiscretePlaneWaveVector(
-            m_vec=(1, 0, 0), psi=0,
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0.1),
+            m_vec=(1, 0, 0),
+            psi=0,
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0.1),
             waveform_id="wf1",
         )
         assert d.kwargs["m_vec"] == (1, 0, 0)
@@ -335,8 +337,10 @@ class TestDiscretePlaneWaveVector:
 class TestDiscretePlaneWaveAxial:
     def test_constructor_stores_kwargs(self):
         d = DiscretePlaneWaveAxial(
-            axis="x", psi=0,
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0.1),
+            axis="x",
+            psi=0,
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0.1),
             waveform_id="wf1",
         )
         assert d.kwargs["axis"] == "x"
@@ -364,6 +368,7 @@ class TestDPWVectorMOverwriteBug:
         (allocates the array) but ``m_vec`` is now copied into it instead
         of being discarded."""
         import inspect
+
         src = inspect.getsource(DiscretePlaneWaveVector.build)
         assert "DPW.m[:3] = np.array(m_vec" in src
 
@@ -453,9 +458,7 @@ class TestRxArrayUpperBoundBug:
     argument should become ``upper_point``.
     """
 
-    def test_both_check_src_rx_calls_currently_receive_lower_point(
-        self, stub_grid
-    ):
+    def test_both_check_src_rx_calls_currently_receive_lower_point(self, stub_grid):
         a = RxArray(p1=(0.0, 0.0, 0.0), p2=(0.1, 0.2, 0.3), dl=(0.01, 0.01, 0.01))
 
         uip = MagicMock()
@@ -546,9 +549,7 @@ class TestMaterial:
 
 class TestAddDebyeDispersion:
     def test_constructor_stores_kwargs(self):
-        d = AddDebyeDispersion(
-            poles=2, er_delta=(1.0, 2.0), tau=(1e-9, 2e-9), material_ids=["m1"]
-        )
+        d = AddDebyeDispersion(poles=2, er_delta=(1.0, 2.0), tau=(1e-9, 2e-9), material_ids=["m1"])
         assert d.kwargs["poles"] == 2
         assert d.kwargs["material_ids"] == ["m1"]
 
@@ -558,16 +559,12 @@ class TestAddDebyeDispersion:
         assert d.hash == "#add_dispersion_debye"
 
     def test_build_negative_poles_raises(self, stub_grid):
-        d = AddDebyeDispersion(
-            poles=-1, er_delta=(1.0,), tau=(1e-9,), material_ids=["free_space"]
-        )
+        d = AddDebyeDispersion(poles=-1, er_delta=(1.0,), tau=(1e-9,), material_ids=["free_space"])
         with pytest.raises(ValueError):
             d.build(stub_grid)
 
     def test_build_unknown_material_raises(self, stub_grid):
-        d = AddDebyeDispersion(
-            poles=1, er_delta=(1.0,), tau=(1e-9,), material_ids=["ghost"]
-        )
+        d = AddDebyeDispersion(poles=1, er_delta=(1.0,), tau=(1e-9,), material_ids=["ghost"])
         with pytest.raises(ValueError):
             d.build(stub_grid)
 
@@ -587,9 +584,7 @@ class TestAddLorentzDispersion:
 
 class TestAddDrudeDispersion:
     def test_constructor_stores_kwargs(self):
-        d = AddDrudeDispersion(
-            poles=1, omega=(1e9,), alpha=(1e7,), material_ids=["m1"]
-        )
+        d = AddDrudeDispersion(poles=1, omega=(1e9,), alpha=(1e7,), material_ids=["m1"])
         assert d.kwargs["poles"] == 1
 
     def test_order_and_hash(self):
@@ -606,8 +601,12 @@ class TestAddDrudeDispersion:
 class TestSoilPeplinski:
     def test_constructor_stores_kwargs(self):
         s = SoilPeplinski(
-            sand_fraction=0.5, clay_fraction=0.3, bulk_density=2.0,
-            sand_density=2.66, water_fraction_lower=0.001, water_fraction_upper=0.25,
+            sand_fraction=0.5,
+            clay_fraction=0.3,
+            bulk_density=2.0,
+            sand_density=2.66,
+            water_fraction_lower=0.001,
+            water_fraction_upper=0.25,
             id="soil1",
         )
         assert s.kwargs["sand_fraction"] == 0.5
@@ -627,10 +626,14 @@ class TestSoilPeplinski:
 class TestMaterialRange:
     def test_constructor_stores_kwargs(self):
         m = MaterialRange(
-            er_lower=1.0, er_upper=2.0,
-            sigma_lower=0.0, sigma_upper=0.1,
-            mr_lower=1.0, mr_upper=2.0,
-            ro_lower=0.0, ro_upper=0.1,
+            er_lower=1.0,
+            er_upper=2.0,
+            sigma_lower=0.0,
+            sigma_upper=0.1,
+            mr_lower=1.0,
+            mr_upper=2.0,
+            ro_lower=0.0,
+            ro_upper=0.1,
             id="rng",
         )
         assert m.kwargs["er_upper"] == 2.0
@@ -647,25 +650,13 @@ class TestMaterialList:
         assert m.kwargs["list_of_materials"] == ["m1", "m2"]
 
 
-class TestMaterialListHashCollisionBug:
-    """Bug tripwire: ``cmds_multiuse.py:2116``.
-
-    ``MaterialList.hash`` returns ``"#material_range"`` — the same hash
-    used by ``MaterialRange``. Two distinct classes claiming the same
-    hash command makes ``__str__()`` round-trip ambiguous (the parser
-    has no way to know which class to instantiate).
-
-    The hash should be ``"#material_list"``. When fixed, this tripwire
-    flips to assert the correct hash and that the two classes do not
-    collide.
-    """
-
-    def test_material_list_currently_collides_with_material_range(self):
+class TestMaterialListHash:
+    def test_material_list_and_range_have_distinct_hashes(self):
         ml = MaterialList()
         mr = MaterialRange()
-        assert ml.hash == "#material_range"
+        assert ml.hash == "#material_list"
         assert mr.hash == "#material_range"
-        assert ml.hash == mr.hash  # The collision
+        assert ml.hash != mr.hash
 
 
 # ---------------------------------------------------------------------------
@@ -676,12 +667,18 @@ class TestMaterialListHashCollisionBug:
 class TestPMLCFS:
     def test_constructor_stores_kwargs(self):
         p = PMLCFS(
-            alphascalingprofile="constant", alphascalingdirection="forward",
-            alphamin=0.0, alphamax=1.0,
-            kappascalingprofile="constant", kappascalingdirection="forward",
-            kappamin=1.0, kappamax=1.0,
-            sigmascalingprofile="quartic", sigmascalingdirection="forward",
-            sigmamin=0.0, sigmamax=1.0,
+            alphascalingprofile="constant",
+            alphascalingdirection="forward",
+            alphamin=0.0,
+            alphamax=1.0,
+            kappascalingprofile="constant",
+            kappascalingdirection="forward",
+            kappamin=1.0,
+            kappamax=1.0,
+            sigmascalingprofile="quartic",
+            sigmascalingdirection="forward",
+            sigmamin=0.0,
+            sigmamax=1.0,
         )
         assert p.kwargs["alphascalingprofile"] == "constant"
 
@@ -689,3 +686,6 @@ class TestPMLCFS:
         p = PMLCFS()
         assert p.order == 19
         assert p.hash == "#pml_cfs"
+
+
+pytestmark = pytest.mark.unit

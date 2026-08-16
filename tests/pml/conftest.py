@@ -24,8 +24,8 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from scipy.constants import epsilon_0, mu_0
 from scipy.constants import c as C_LIGHT
+from scipy.constants import epsilon_0, mu_0
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
@@ -58,7 +58,7 @@ ID_TO_DIRECTION = {
 
 
 @pytest.fixture(autouse=True)
-def pml_config(monkeypatch):
+def pml_config(monkeypatch, request):
     """Patch ``gprMax.config`` for the PML modules.
 
     Double precision arrays and a single OpenMP thread. The electromagnetic
@@ -66,6 +66,9 @@ def pml_config(monkeypatch):
     closed-form coefficient assertions are checking gprMax's algebra rather
     than a made-up value of ``e0``.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     model_cfg = SimpleNamespace(

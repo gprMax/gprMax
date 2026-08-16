@@ -180,3 +180,6 @@ class TestCreateGrid:
 
     def test_returns_a_new_grid_each_call(self, model):
         assert model._create_grid() is not model._create_grid()
+
+
+pytestmark = pytest.mark.unit

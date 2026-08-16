@@ -151,9 +151,7 @@ class TestEveryNameResolves:
 class TestPoleSwitch:
     """``maxpoles > 1`` selects ``multipole``, otherwise ``1pole``."""
 
-    def test_one_pole_selects_the_single_pole_kernel(
-        self, configure, make_wiring_grid
-    ):
+    def test_one_pole_selects_the_single_pole_kernel(self, configure, make_wiring_grid):
         configure(maxpoles=1)
         updates = CPUUpdates(make_wiring_grid())
 
@@ -172,9 +170,7 @@ class TestPoleSwitch:
 
         assert "_multipole_" in updates.dispersive_update_a.__name__
 
-    def test_zero_poles_still_binds_the_single_pole_kernel(
-        self, configure, make_wiring_grid
-    ):
+    def test_zero_poles_still_binds_the_single_pole_kernel(self, configure, make_wiring_grid):
         """``maxpoles == 0`` is not rejected — it selects ``1pole``.
 
         ``create_solver`` guards the call with ``maxpoles != 0``, so this
@@ -206,9 +202,7 @@ class TestPrecisionSwitch:
     """``precision == "single"`` selects ``float``; everything else
     selects ``double``."""
 
-    def test_single_precision_selects_the_float_kernel(
-        self, configure, make_wiring_grid
-    ):
+    def test_single_precision_selects_the_float_kernel(self, configure, make_wiring_grid):
         configure(precision="single")
         updates = CPUUpdates(make_wiring_grid())
 
@@ -216,9 +210,7 @@ class TestPrecisionSwitch:
 
         assert updates.dispersive_update_a.__name__.endswith("_float_real")
 
-    def test_double_precision_selects_the_double_kernel(
-        self, configure, make_wiring_grid
-    ):
+    def test_double_precision_selects_the_double_kernel(self, configure, make_wiring_grid):
         configure(precision="double")
         updates = CPUUpdates(make_wiring_grid())
 
@@ -252,9 +244,7 @@ class TestPrecisionSwitch:
 class TestDispersionSwitch:
     """``dispersivedtype == dtypes["complex"]`` selects ``complex``."""
 
-    def test_matching_complex_dtype_selects_the_complex_kernel(
-        self, configure, make_wiring_grid
-    ):
+    def test_matching_complex_dtype_selects_the_complex_kernel(self, configure, make_wiring_grid):
         configure(dispersion="complex")
         updates = CPUUpdates(make_wiring_grid())
 
@@ -288,9 +278,7 @@ class TestDispersionSwitch:
 
         assert updates.dispersive_update_a.__name__.endswith("_real")
 
-    def test_unset_dispersive_dtype_silently_selects_real(
-        self, updates_config, make_wiring_grid
-    ):
+    def test_unset_dispersive_dtype_silently_selects_real(self, updates_config, make_wiring_grid):
         """``dispersivedtype`` defaults to ``None`` until it is derived.
 
         ``ModelConfig`` initialises the key to ``None``, and only
@@ -345,9 +333,7 @@ class TestBinding:
         name_b = updates.dispersive_update_b.__name__
         assert name_a.replace("_A_", "_B_") == name_b
 
-    def test_binding_is_per_instance_not_per_class(
-        self, configure, make_wiring_grid
-    ):
+    def test_binding_is_per_instance_not_per_class(self, configure, make_wiring_grid):
         """Two updaters can hold different kernels simultaneously.
 
         Subgrid runs do exactly this: ``create_solver`` configures the parent
@@ -364,9 +350,7 @@ class TestBinding:
         assert "_1pole_" in first.dispersive_update_a.__name__
         assert "_multipole_" in second.dispersive_update_a.__name__
 
-    def test_calling_twice_rebinds_to_the_new_configuration(
-        self, configure, make_wiring_grid
-    ):
+    def test_calling_twice_rebinds_to_the_new_configuration(self, configure, make_wiring_grid):
         """The method is idempotent in effect but not cached."""
         configure(maxpoles=1)
         updates = CPUUpdates(make_wiring_grid())
@@ -379,9 +363,7 @@ class TestBinding:
         assert updates.dispersive_update_a is not first
         assert "_multipole_" in updates.dispersive_update_a.__name__
 
-    def test_bound_functions_are_plain_functions_not_methods(
-        self, configure, make_wiring_grid
-    ):
+    def test_bound_functions_are_plain_functions_not_methods(self, configure, make_wiring_grid):
         """Assigned to the *instance*, so no ``self`` is passed.
 
         This is why ``update_electric_a`` calls ``self.dispersive_update_a(nx,
@@ -422,9 +404,7 @@ class TestModulePath:
 
         assert set(seen) == {DISPERSIVE_MODULE}
 
-    def test_the_module_is_imported_once_per_half(
-        self, configure, make_wiring_grid, monkeypatch
-    ):
+    def test_the_module_is_imported_once_per_half(self, configure, make_wiring_grid, monkeypatch):
         """Two calls, one per half — the result is not reused.
 
         Harmless because ``import_module`` hits ``sys.modules``, but worth
@@ -465,3 +445,6 @@ class TestModulePath:
 
         with pytest.raises(AttributeError, match="update_electric_dispersive"):
             CPUUpdates(make_wiring_grid()).set_dispersive_updates()
+
+
+pytestmark = pytest.mark.unit

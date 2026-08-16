@@ -11,8 +11,8 @@ branch is exercised in isolation — no file I/O, no globals.
 
 import pytest
 
-from gprMax.hash_cmds_singleuse import process_singlecmds
 from gprMax.hash_cmds_multiuse import process_multicmds
+from gprMax.hash_cmds_singleuse import process_singlecmds
 from gprMax.user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
@@ -195,9 +195,7 @@ class TestPMLCells:
         assert isinstance(objs[0], PMLThickness)
         assert objs[0].thickness == 10
 
-    @pytest.mark.parametrize(
-        "payload", ["10 10", "10 10 10", "10 10 10 10", "10 10 10 10 10"]
-    )
+    @pytest.mark.parametrize("payload", ["10 10", "10 10 10", "10 10 10 10", "10 10 10 10 10"])
     def test_invalid_arity_rejected(self, singlecmds_template, payload):
         singlecmds_template["#pml_cells"] = payload
         with pytest.raises(ValueError):
@@ -269,3 +267,6 @@ class TestObjectOrder:
             Domain,
             TimeWindow,
         ]
+
+
+pytestmark = pytest.mark.unit

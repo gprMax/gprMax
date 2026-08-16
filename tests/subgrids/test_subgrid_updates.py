@@ -93,17 +93,13 @@ class TestSubgridUpdaterState:
 
     def test_electric_sources_advance_the_iteration(self, updater, monkeypatch):
         u, _ = updater
-        monkeypatch.setattr(
-            type(u).__mro__[1], "update_electric_sources", lambda self, it: None
-        )
+        monkeypatch.setattr(type(u).__mro__[1], "update_electric_sources", lambda self, it: None)
         u.update_electric_sources()
         assert u.iteration == 1
 
     def test_magnetic_sources_do_not_advance_the_iteration(self, updater, monkeypatch):
         u, _ = updater
-        monkeypatch.setattr(
-            type(u).__mro__[1], "update_magnetic_sources", lambda self, it: None
-        )
+        monkeypatch.setattr(type(u).__mro__[1], "update_magnetic_sources", lambda self, it: None)
         u.update_magnetic_sources()
         assert u.iteration == 0
 
@@ -157,9 +153,7 @@ class TestHsgPhaseOne:
         assert calls.count("precursors.interpolate_magnetic_in_time") == expected
 
     @pytest.mark.parametrize("ratio,expected", [(3, 2), (5, 3), (7, 4)])
-    def test_electric_substeps_equal_interpolated_plus_one(
-        self, phase, ratio, expected
-    ):
+    def test_electric_substeps_equal_interpolated_plus_one(self, phase, ratio, expected):
         """Each loop iteration plus the trailing exact step."""
         u, calls, _ = phase(ratio=ratio)
         u.hsg_1()
@@ -222,9 +216,7 @@ class TestHsgPhaseTwo:
         assert calls.count("precursors.interpolate_electric_in_time") == expected
 
     @pytest.mark.parametrize("ratio,expected", [(3, 2), (5, 3), (7, 4)])
-    def test_magnetic_substeps_equal_interpolated_plus_one(
-        self, phase, ratio, expected
-    ):
+    def test_magnetic_substeps_equal_interpolated_plus_one(self, phase, ratio, expected):
         u, calls, _ = phase(ratio=ratio)
         u.hsg_2()
         assert calls.count("update_magnetic") == expected
@@ -274,3 +266,6 @@ class TestSubgridUpdatesFanOut:
     def test_no_updaters_is_a_no_op(self, coupled_grids):
         c = coupled_grids()
         SubgridUpdates(c.main, []).hsg_1()
+
+
+pytestmark = pytest.mark.unit

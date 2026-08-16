@@ -84,9 +84,7 @@ class TestConstruction:
 
         assert set(model_config.device) == {"dev", "deviceID", "snapsgpu2cpu"}
 
-    def test_snapshot_transfer_starts_disabled(
-        self, make_model_config, monkeypatch, fake_device
-    ):
+    def test_snapshot_transfer_starts_disabled(self, make_model_config, monkeypatch, fake_device):
         """Enabled later only if snapshots would not fit in device memory."""
         from gprMax import config
 
@@ -259,8 +257,7 @@ class TestSetDispersiveMaterialTypes:
             model_config.set_dispersive_material_types()
 
             assert (
-                model_config.materials["dispersivedtype"]
-                is config.sim_config.dtypes[expected_key]
+                model_config.materials["dispersivedtype"] is config.sim_config.dtypes[expected_key]
             )
 
 
@@ -362,3 +359,6 @@ class TestUserNamespace:
             "current_model_run",
             "inputfile",
         }
+
+
+pytestmark = pytest.mark.unit

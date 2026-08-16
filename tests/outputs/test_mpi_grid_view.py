@@ -50,9 +50,15 @@ def make_mpi_view(make_mpi_grid):
         grid=None,
         **grid_kwargs,
     ):
-        g = grid if grid is not None else make_mpi_grid(
-            size=size, negative_halo_offset=negative_halo_offset, origin=origin,
-            **grid_kwargs,
+        g = (
+            grid
+            if grid is not None
+            else make_mpi_grid(
+                size=size,
+                negative_halo_offset=negative_halo_offset,
+                origin=origin,
+                **grid_kwargs,
+            )
         )
         return MPIGridView(g, *start, *stop, *step)
 
@@ -77,7 +83,9 @@ def edge_view(make_mpi_view):
     and the class must behave identically to the serial ``GridView``.
     """
     return make_mpi_view(
-        start=(0, 0, 0), stop=(10, 10, 10), step=(1, 1, 1),
+        start=(0, 0, 0),
+        stop=(10, 10, 10),
+        step=(1, 1, 1),
         negative_halo_offset=(0, 0, 0),
     )
 
@@ -191,9 +199,7 @@ class TestNeighbourDetection:
     def test_axes_are_detected_independently(self, make_mpi_view):
         """Expects a per-axis decision, so a view can abut a neighbour in x and
         the domain edge in z."""
-        view = make_mpi_view(
-            start=(0, 4, 4), stop=(12, 8, 8), step=(2, 2, 2)
-        )
+        view = make_mpi_view(start=(0, 4, 4), stop=(12, 8, 8), step=(2, 2, 2))
         assert view.has_negative_neighbour.tolist() == [True, False, False]
 
 
@@ -211,8 +217,11 @@ class TestClamping:
         clamped start is 4 — not 2. Snapping naively to the halo boundary would
         shift every exported sample by one cell."""
         view = make_mpi_view(
-            start=(1, 1, 1), stop=(16, 16, 16), step=(3, 3, 3),
-            size=(12, 12, 12), negative_halo_offset=(2, 2, 2),
+            start=(1, 1, 1),
+            stop=(16, 16, 16),
+            step=(3, 3, 3),
+            size=(12, 12, 12),
+            negative_halo_offset=(2, 2, 2),
         )
         assert view.start.tolist() == [4, 4, 4]
 
@@ -227,8 +236,11 @@ class TestClamping:
         With ``stop=16``, ``size=12``, ``step=3``: ``(16-12) % 3 == 1``, so the
         clamped stop is 13."""
         view = make_mpi_view(
-            start=(1, 1, 1), stop=(16, 16, 16), step=(3, 3, 3),
-            size=(12, 12, 12), negative_halo_offset=(2, 2, 2),
+            start=(1, 1, 1),
+            stop=(16, 16, 16),
+            step=(3, 3, 3),
+            size=(12, 12, 12),
+            negative_halo_offset=(2, 2, 2),
         )
         assert view.stop.tolist() == [13, 13, 13]
 
@@ -246,8 +258,11 @@ class TestClamping:
         """Expects each axis to be clamped against its own halo and grid
         extent."""
         view = make_mpi_view(
-            start=(0, 3, 3), stop=(12, 9, 9), step=(1, 1, 1),
-            size=(10, 10, 10), negative_halo_offset=(2, 0, 0),
+            start=(0, 3, 3),
+            stop=(12, 9, 9),
+            step=(1, 1, 1),
+            size=(10, 10, 10),
+            negative_halo_offset=(2, 0, 0),
         )
         assert view.start.tolist() == [2, 3, 3]
         assert view.stop.tolist() == [10, 9, 9]
@@ -268,8 +283,11 @@ class TestOffset:
         """Expects the division by ``step``, so a stride-3 view moved three
         grid cells shifts by one output cell."""
         view = make_mpi_view(
-            start=(0, 0, 0), stop=(15, 15, 15), step=(3, 3, 3),
-            size=(12, 12, 12), negative_halo_offset=(3, 3, 3),
+            start=(0, 0, 0),
+            stop=(15, 15, 15),
+            step=(3, 3, 3),
+            size=(12, 12, 12),
+            negative_halo_offset=(3, 3, 3),
         )
         assert view.start.tolist() == [3, 3, 3]
         assert view.offset.tolist() == [1, 1, 1]
@@ -302,8 +320,11 @@ class TestGetterSliceOverride:
         """Expects the extra node on an axis at the domain edge and not on one
         abutting a neighbour, within the same view."""
         view = make_mpi_view(
-            start=(0, 0, 0), stop=(12, 8, 8), step=(2, 2, 2),
-            size=(10, 10, 10), negative_halo_offset=(2, 2, 2),
+            start=(0, 0, 0),
+            stop=(12, 8, 8),
+            step=(2, 2, 2),
+            size=(10, 10, 10),
+            negative_halo_offset=(2, 2, 2),
         )
         assert view.getter_slice(0, upper_bound_exclusive=False).stop == 10
         assert view.getter_slice(1, upper_bound_exclusive=False).stop == 10
@@ -380,9 +401,7 @@ class TestReadSliceOverride:
         for exclusive in (True, False):
             read = interior_view.get_read_slice(0, exclusive)
             setter = interior_view.setter_slice(0, exclusive)
-            assert read.stop - read.start == len(
-                range(setter.start, setter.stop, setter.step)
-            )
+            assert read.stop - read.start == len(range(setter.start, setter.stop, setter.step))
 
     def test_read_and_output_slices_diverge(self, interior_view):
         """Expects the two to differ — in the serial class they are the same
@@ -465,3 +484,6 @@ class TestMaterialsAcrossRanks:
         material_view.initialise_materials(filter_materials=False)
         numids = [m.numID for m in material_view.materials]
         assert numids == sorted(set(numids))
+
+
+pytestmark = pytest.mark.unit

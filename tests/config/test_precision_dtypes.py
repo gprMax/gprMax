@@ -117,9 +117,10 @@ class TestSinglePrecision:
         """A complex value is two floats of the chosen width."""
         dtypes = make_sim_config().dtypes
 
-        assert np.zeros(1, dtype=dtypes["complex"]).itemsize == 2 * np.zeros(
-            1, dtype=dtypes["float_or_double"]
-        ).itemsize
+        assert (
+            np.zeros(1, dtype=dtypes["complex"]).itemsize
+            == 2 * np.zeros(1, dtype=dtypes["float_or_double"]).itemsize
+        )
 
     def test_cython_type_is_the_float_shadow(self, make_sim_config):
         """Identity, not equality — the shadow types are singletons.
@@ -204,9 +205,7 @@ class TestCComplexPerSolver:
         "precision,solver",
         list(itertools.product(["single", "double"], ["cpu", "cuda", "opencl", "metal"])),
     )
-    def test_real_dtypes_are_unaffected_by_the_solver(
-        self, make_sim_config, precision, solver
-    ):
+    def test_real_dtypes_are_unaffected_by_the_solver(self, make_sim_config, precision, solver):
         """Only ``C_complex`` varies with the backend; the other five do not."""
         sim_config = make_sim_config()
         sim_config.general["precision"] = precision
@@ -261,13 +260,9 @@ class TestUnknownPrecision:
         sim_config = make_sim_config(**ARGS_FOR_PRECISION[precision])
 
         assert set(sim_config.dtypes) == DTYPE_KEYS
-        assert all(
-            sim_config.dtypes[key] is not None for key in DTYPE_KEYS - {"C_complex"}
-        )
+        assert all(sim_config.dtypes[key] is not None for key in DTYPE_KEYS - {"C_complex"})
 
-    def test_only_two_precision_values_are_reachable_from_the_arguments(
-        self, make_sim_config
-    ):
+    def test_only_two_precision_values_are_reachable_from_the_arguments(self, make_sim_config):
         """There is no ``--precision`` flag.
 
         Single is the default and double is reached only via ``subgrid``, so
@@ -311,8 +306,13 @@ class TestConsistencyWithTheKernelDispatch:
         ],
     )
     def test_array_dtype_and_kernel_name_agree(
-        self, make_sim_config, install_sim_config, monkeypatch,
-        precision, marker, expected_dtype,
+        self,
+        make_sim_config,
+        install_sim_config,
+        monkeypatch,
+        precision,
+        marker,
+        expected_dtype,
     ):
         from types import SimpleNamespace
 
@@ -342,3 +342,6 @@ class TestConsistencyWithTheKernelDispatch:
             sim_config = make_sim_config(**kwargs)
             assert sim_config.dtypes["C_float_or_double"] == c_name
             assert np.zeros(1, dtype=sim_config.dtypes["float_or_double"]).itemsize == itemsize
+
+
+pytestmark = pytest.mark.unit

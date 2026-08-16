@@ -28,10 +28,7 @@ import numpy as np
 import pytest
 
 from gprMax.cython.geometry_outputs import get_line_properties
-from gprMax.geometry_outputs.geometry_view_lines import (
-    GeometryViewLines,
-    MPIGeometryViewLines,
-)
+from gprMax.geometry_outputs.geometry_view_lines import GeometryViewLines, MPIGeometryViewLines
 from gprMax.geometry_outputs.geometry_views import GeometryView
 
 from .conftest import DL, DL_ANISO
@@ -44,11 +41,7 @@ def _total_lines(nx, ny, nz):
     y-directed edges: (nx+1) * ny * (nz+1)
     z-directed edges: (nx+1) * (ny+1) * nz
     """
-    return (
-        nx * (ny + 1) * (nz + 1)
-        + ny * (nx + 1) * (nz + 1)
-        + nz * (nx + 1) * (ny + 1)
-    )
+    return nx * (ny + 1) * (nz + 1) + ny * (nx + 1) * (nz + 1) + nz * (nx + 1) * (ny + 1)
 
 
 @pytest.fixture
@@ -116,9 +109,30 @@ class TestLinePropertiesKernel:
         ID = np.zeros((6, nx + 1, ny + 1, nz + 1), dtype=np.uint32)
         connectivity, _ = get_line_properties(n, nx, ny, nz, ID)
         assert connectivity.tolist() == [
-            0, 4, 1, 5, 2, 6, 3, 7,   # x-edges
-            0, 2, 1, 3, 4, 6, 5, 7,   # y-edges
-            0, 1, 2, 3, 4, 5, 6, 7,   # z-edges
+            0,
+            4,
+            1,
+            5,
+            2,
+            6,
+            3,
+            7,  # x-edges
+            0,
+            2,
+            1,
+            3,
+            4,
+            6,
+            5,
+            7,  # y-edges
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,  # z-edges
         ]
 
     def test_two_cells_along_x_skip_the_far_edge_points(self):
@@ -427,3 +441,6 @@ class TestMpiVariant:
         view.set_filename()
         view.prep_vtk()
         assert view.points.min() == pytest.approx(10 * DL)
+
+
+pytestmark = pytest.mark.unit

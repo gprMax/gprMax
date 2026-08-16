@@ -51,7 +51,7 @@ DT = 1e-12
 
 
 @pytest.fixture(autouse=True)
-def updates_config(monkeypatch):
+def updates_config(monkeypatch, request):
     """Patch ``gprMax.config`` for the update modules.
 
     Double precision throughout, one OpenMP thread, and no dispersive
@@ -59,6 +59,9 @@ def updates_config(monkeypatch):
     branch unless a test says otherwise, which is the common case in
     production too.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     model_cfg = SimpleNamespace(
@@ -216,6 +219,7 @@ def make_wiring_grid():
         transmissionlines=(),
         hertziandipoles=(),
         magneticdipoles=(),
+        magneticfrillsources=(),
         discreteplanewaves=(),
         pml_slabs=(),
         snapshots=(),
@@ -247,6 +251,7 @@ def make_wiring_grid():
             transmissionlines=list(transmissionlines),
             hertziandipoles=list(hertziandipoles),
             magneticdipoles=list(magneticdipoles),
+            magneticfrillsources=list(magneticfrillsources),
             discreteplanewaves=list(discreteplanewaves),
             pmls={"slabs": list(pml_slabs)},
             snapshots=list(snapshots),

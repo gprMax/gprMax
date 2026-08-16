@@ -20,13 +20,16 @@ from scipy.constants import epsilon_0, mu_0
 
 
 @pytest.fixture(autouse=True)
-def material_config(monkeypatch):
+def material_config(monkeypatch, request):
     """Patch ``gprMax.config`` so materials methods run in isolation.
 
     Returns a ``SimpleNamespace`` exposing the values the patched config
     holds, so individual tests can reference them in assertions without
     re-importing scipy constants.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     from gprMax import config
 
     em_consts = {
@@ -44,7 +47,9 @@ def material_config(monkeypatch):
         "crealfunc": None,
     }
 
-    model_cfg = SimpleNamespace(materials=materials_cfg, debye_averaging=True, dispersive_averaging=True)
+    model_cfg = SimpleNamespace(
+        materials=materials_cfg, debye_averaging=True, dispersive_averaging=True
+    )
     sim_cfg = SimpleNamespace(em_consts=em_consts)
 
     monkeypatch.setattr(config, "sim_config", sim_cfg)

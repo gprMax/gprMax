@@ -1,20 +1,15 @@
-"""``MPIPML`` — one rank derives ``sigma_max``, everyone else is told.
+"""Unit tests for the MPI PML coefficient path.
 
 Under MPI the domain is split across ranks, and a PML slab that straddles the
 split would otherwise have each rank compute ``sigma_max`` from only the
 material it can see locally. The ranks would then disagree about how absorbing
 their share of the same slab is, and the seam would reflect.
 
-``MPIPML.calculate_update_coeffs`` fixes that by having rank 0 compute the
-value and broadcast it, before delegating the rest of the work to the base
-class unchanged.
-
-**Why the broadcast is non-blocking.** A rank holding two slabs reaches the
-second broadcast only after finishing the first, while a rank holding one
-slab is already waiting. A blocking ``Bcast`` would deadlock; ``Ibcast`` plus
-``Wait`` will not. The comment in the source says as much, and the tests below
-pin the mechanism (``Ibcast`` is used, and the value that arrives is the one
-that gets used) rather than trying to reproduce a deadlock.
+``MPIGrid`` reduces the backing material properties over each slab's face
+communicator before this method is called. Every participating rank can then
+derive the same ``sigma_max`` locally. This is intentionally collective-free:
+ranks can own different numbers of boundary slabs when symmetry is active, so
+a broadcast per local slab can deadlock.
 
 **What one rank can and cannot show.** These tests run on ``MPI.COMM_SELF``,
 where rank 0 is the only rank, so the coordinator branch is exercised and the
@@ -27,7 +22,7 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
-from gprMax.pml import PML, MPIPML
+from gprMax.pml import MPIPML, PML
 
 from .conftest import ID_TO_DIRECTION
 
@@ -67,9 +62,7 @@ class TestClassSurface:
         """Expects construction, validation, array allocation and both update
         methods to be inherited unchanged — the MPI concern is confined to one
         method."""
-        overridden = {
-            name for name in MPIPML.__dict__ if not name.startswith("__")
-        }
+        overridden = {name for name in MPIPML.__dict__ if not name.startswith("__")}
         assert overridden == {"COORDINATOR_RANK", "calculate_update_coeffs"}
 
     def test_rank_zero_coordinates(self):
@@ -122,139 +115,27 @@ class TestCoordinatorPath:
         assert calls == []
         assert pml.CFS[0].sigma.max == 4.0
 
-    def test_uses_a_non_blocking_broadcast(self, make_mpi_pml):
-        """Expects ``Ibcast(...).Wait()`` rather than ``Bcast``. A rank holding
-        two slabs reaches its second broadcast late; the blocking form would
-        deadlock against a rank already waiting."""
-        used = []
+    def test_automatic_sigma_calculation_is_collective_free(self, make_mpi_pml):
+        class NoCollectives:
+            def __getattr__(self, name):
+                raise AssertionError(f"MPI collective {name} must not be used")
 
-        class RecordingComm:
-            rank = 0
-
-            def Ibcast(self, buffer, root):
-                used.append(("Ibcast", root))
-                return self
-
-            def Wait(self):
-                used.append(("Wait", None))
-
-            def Bcast(self, *args, **kwargs):  # pragma: no cover - must not run
-                raise AssertionError("blocking Bcast would deadlock")
-
-        pml = make_mpi_pml(comm=RecordingComm())
+        pml = make_mpi_pml(comm=NoCollectives())
         pml.calculate_update_coeffs(1.0, 1.0)
-        assert used == [("Ibcast", 0), ("Wait", None)]
+        assert pml.CFS[0].sigma.max > 0
 
-    def test_broadcasts_from_the_coordinator_rank(self, make_mpi_pml):
-        """Expects ``COORDINATOR_RANK`` to be passed as the broadcast root, so
-        every rank agrees on who is authoritative."""
-        roots = []
-
-        class RootRecordingComm:
-            rank = 0
-
-            def Ibcast(self, buffer, root):
-                roots.append(root)
-                return self
-
-            def Wait(self):
-                pass
-
-        pml = make_mpi_pml(comm=RootRecordingComm())
-        pml.calculate_update_coeffs(1.0, 1.0)
-        assert roots == [MPIPML.COORDINATOR_RANK]
-
-    def test_one_broadcast_per_cfs_term(self, make_mpi_pml, make_cfs):
-        """Expects a two-pole PML to exchange two values — each CFS term has
-        its own ``sigma_max``."""
-        count = []
-
-        class CountingComm:
-            rank = 0
-
-            def Ibcast(self, buffer, root):
-                count.append(root)
-                return self
-
-            def Wait(self):
-                pass
-
+    def test_each_cfs_term_is_derived_locally(self, make_mpi_pml, make_cfs):
         cfs = [make_cfs(kappa={"min": 0.5}), make_cfs(kappa={"min": 0.5})]
-        pml = make_mpi_pml(cfs=cfs, comm=CountingComm())
+        pml = make_mpi_pml(cfs=cfs)
         pml.calculate_update_coeffs(1.0, 1.0)
-        assert len(count) == 2
-
-
-class TestFollowerPath:
-    """Ranks other than 0 allocate an empty buffer and take what arrives."""
-
-    def test_a_follower_adopts_the_broadcast_value(self, make_mpi_pml):
-        """Expects a non-coordinator rank to skip the local computation and use
-        whatever the broadcast delivers.
-
-        A one-rank ``COMM_SELF`` cannot produce a real follower, so the
-        communicator is faked to report a non-zero rank and to fill the receive
-        buffer the way a real broadcast would."""
-
-        class FollowerComm:
-            rank = 3
-
-            def Ibcast(self, buffer, root):
-                buffer[0] = 12.5
-                return self
-
-            def Wait(self):
-                pass
-
-        pml = make_mpi_pml(comm=FollowerComm())
-        pml.calculate_update_coeffs(1.0, 1.0)
-        assert pml.CFS[0].sigma.max == 12.5
-
-    def test_a_follower_does_not_compute_locally(self, make_mpi_pml):
-        """Expects the received value to win even when it differs from what the
-        local material would have given — the whole point of the exchange."""
-
-        class FollowerComm:
-            rank = 1
-
-            def Ibcast(self, buffer, root):
-                buffer[0] = 1.0
-                return self
-
-            def Wait(self):
-                pass
-
-        pml = make_mpi_pml(comm=FollowerComm())
-        pml.calculate_update_coeffs(1.0, 1.0)
-        assert pml.CFS[0].sigma.max == 1.0
-
-    def test_the_received_value_drives_the_coefficients(self, make_mpi_pml):
-        """Expects the broadcast ``sigma_max`` to flow through into ``ERF``, so
-        every rank builds identical coefficient arrays for a shared slab."""
-
-        class FollowerComm:
-            rank = 1
-
-            def Ibcast(self, buffer, root):
-                buffer[0] = 6.0
-                return self
-
-            def Wait(self):
-                pass
-
-        mpi_pml = make_mpi_pml(comm=FollowerComm())
-        mpi_pml.calculate_update_coeffs(1.0, 1.0)
-        assert mpi_pml.CFS[0].sigma.max == 6.0
-        assert np.any(mpi_pml.ERF)
+        assert all(term.sigma.max > 0 for term in pml.CFS)
 
 
 class TestAgreementWithTheSerialPath:
     """The override must not change any arithmetic."""
 
     @pytest.mark.parametrize("formulation", ["HORIPML", "MRIPML"])
-    def test_single_rank_matches_a_plain_pml(
-        self, make_mpi_pml, make_pml, formulation
-    ):
+    def test_single_rank_matches_a_plain_pml(self, make_mpi_pml, make_pml, formulation):
         """Expects every coefficient array to be identical to the serial one at
         one rank, for both formulations. (2 parameter sets)"""
         mpi_pml = make_mpi_pml(formulation=formulation)
@@ -327,3 +208,6 @@ class TestRealCommunicator:
         pml.global_comm = ForbiddenComm()
         pml.calculate_update_coeffs(1.0, 1.0)
         assert pml.CFS[0].sigma.max == first
+
+
+pytestmark = pytest.mark.unit

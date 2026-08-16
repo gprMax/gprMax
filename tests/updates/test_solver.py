@@ -258,9 +258,7 @@ class TestIterationOrder:
         body = [c for c in recording_updates.calls if c not in PROLOGUE + EPILOGUE]
         assert body == CPU_ITERATION_ORDER
 
-    def test_magnetic_field_is_updated_before_the_electric_field(
-        self, recording_updates
-    ):
+    def test_magnetic_field_is_updated_before_the_electric_field(self, recording_updates):
         """The leapfrog: H advances half a step, then E uses the new H."""
         Solver(recording_updates).solve(range(1))
         calls = recording_updates.calls
@@ -324,18 +322,12 @@ class TestIterationOrder:
 
         assert calls.index("update_electric_sources") < calls.index("update_electric_b")
 
-    def test_plane_waves_follow_the_discrete_sources_in_each_half(
-        self, recording_updates
-    ):
+    def test_plane_waves_follow_the_discrete_sources_in_each_half(self, recording_updates):
         Solver(recording_updates).solve(range(1))
         calls = recording_updates.calls
 
-        assert calls.index("update_magnetic_sources") < calls.index(
-            "update_plane_waves_magnetic"
-        )
-        assert calls.index("update_electric_sources") < calls.index(
-            "update_plane_waves_electric"
-        )
+        assert calls.index("update_magnetic_sources") < calls.index("update_plane_waves_magnetic")
+        assert calls.index("update_electric_sources") < calls.index("update_plane_waves_electric")
 
     def test_there_are_eighteen_steps_in_an_iteration(self, recording_updates):
         Solver(recording_updates).solve(range(1))
@@ -596,3 +588,6 @@ class TestCreateSolver:
                 create_solver(make_model(object()))
 
         assert "Unknown grid type" in caplog.text
+
+
+pytestmark = pytest.mark.unit

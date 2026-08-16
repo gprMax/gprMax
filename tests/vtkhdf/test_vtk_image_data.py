@@ -144,9 +144,7 @@ class TestShapePadding:
         with pytest.raises(ValueError, match="more than 3 dimensions"):
             make_image_data(shape=(1, 2, 3, 4))
 
-    def test_the_padded_shape_is_what_cell_data_must_match(
-        self, make_image_data
-    ):
+    def test_the_padded_shape_is_what_cell_data_must_match(self, make_image_data):
         """The padding is not cosmetic: it changes the validation downstream."""
         with make_image_data(shape=(2, 3)) as handler:
             with pytest.raises(ValueError):
@@ -184,9 +182,7 @@ class TestOrigin:
                 handler.set_origin(np.zeros(4, dtype=np.float32))
 
     def test_it_persists_to_disk(self, make_image_data, read_h5):
-        with make_image_data(
-            origin=np.array([1.0, 2.0, 3.0], dtype=np.float32)
-        ) as handler:
+        with make_image_data(origin=np.array([1.0, 2.0, 3.0], dtype=np.float32)) as handler:
             path = handler.filename
 
         attrs, _ = read_h5(path)
@@ -226,9 +222,7 @@ class TestSpacing:
                 handler.set_spacing(np.array([1.0, 1.0], dtype=np.float32))
 
     def test_it_persists_to_disk(self, make_image_data, read_h5):
-        with make_image_data(
-            spacing=np.array([0.002, 0.002, 0.002], dtype=np.float32)
-        ) as handler:
+        with make_image_data(spacing=np.array([0.002, 0.002, 0.002], dtype=np.float32)) as handler:
             path = handler.filename
 
         attrs, _ = read_h5(path)
@@ -244,18 +238,14 @@ class TestDirection:
             assert list(handler.direction) == [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
     def test_a_flat_array_is_accepted(self, make_image_data):
-        direction = np.array(
-            [0, 1, 0, 1, 0, 0, 0, 0, 1], dtype=np.float32
-        )
+        direction = np.array([0, 1, 0, 1, 0, 0, 0, 0, 1], dtype=np.float32)
 
         with make_image_data(direction=direction) as handler:
             assert list(handler.direction) == [0, 1, 0, 1, 0, 0, 0, 0, 1]
 
     def test_a_nested_array_is_flattened(self, make_image_data):
         """The docstring promises the two forms are equivalent."""
-        direction = np.array(
-            [[0, 1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32
-        )
+        direction = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32)
 
         with make_image_data(direction=direction) as handler:
             assert list(handler.direction) == [0, 1, 0, 1, 0, 0, 0, 0, 1]
@@ -329,9 +319,7 @@ class TestAddCellData:
     def test_a_partial_write_bypasses_the_shape_check(self, make_image_data):
         """With an offset, the array is a slab and need not match."""
         with make_image_data(shape=(2, 3, 4)) as handler:
-            handler.add_cell_data(
-                "Material", np.ones((1, 3, 4)), offset=np.array([0, 0, 0])
-            )
+            handler.add_cell_data("Material", np.ones((1, 3, 4)), offset=np.array([0, 0, 0]))
 
             assert handler._get_dataset("VTKHDF/CellData/Material").shape == (
                 4,
@@ -342,9 +330,7 @@ class TestAddCellData:
     def test_the_slab_lands_at_the_offset(self, make_image_data, tmp_path):
         """The MPI case: each rank writes its own x-slab."""
         with make_image_data(shape=(2, 3, 4)) as handler:
-            handler.add_cell_data(
-                "Material", np.full((1, 3, 4), 7.0), offset=np.array([1, 0, 0])
-            )
+            handler.add_cell_data("Material", np.full((1, 3, 4), 7.0), offset=np.array([1, 0, 0]))
 
         with h5py.File(tmp_path / "image.vtkhdf", "r") as f:
             stored = f["VTKHDF/CellData/Material"][()]
@@ -368,9 +354,7 @@ class TestAddCellData:
     def test_the_dtype_is_preserved(self, make_image_data, read_h5):
         """Material IDs are integers; storing them as floats doubles the file."""
         with make_image_data(shape=(2, 3, 4)) as handler:
-            handler.add_cell_data(
-                "Material", np.zeros((2, 3, 4), dtype=np.int32)
-            )
+            handler.add_cell_data("Material", np.zeros((2, 3, 4), dtype=np.int32))
             path = handler.filename
 
         _, datasets = read_h5(path)
@@ -381,9 +365,7 @@ class TestAddCellData:
 class TestAddPointData:
     """One value per *point* — one more than the cells in each direction."""
 
-    def test_an_array_one_larger_in_each_dimension_is_accepted(
-        self, make_image_data, read_h5
-    ):
+    def test_an_array_one_larger_in_each_dimension_is_accepted(self, make_image_data, read_h5):
         with make_image_data(shape=(2, 3, 4)) as handler:
             handler.add_point_data("Field", np.ones((3, 4, 5)))
             path = handler.filename
@@ -412,9 +394,7 @@ class TestAddPointData:
 
     def test_a_partial_write_bypasses_the_shape_check(self, make_image_data):
         with make_image_data(shape=(2, 3, 4)) as handler:
-            handler.add_point_data(
-                "Field", np.ones((1, 4, 5)), offset=np.array([0, 0, 0])
-            )
+            handler.add_point_data("Field", np.ones((1, 4, 5)), offset=np.array([0, 0, 0]))
 
             assert handler._get_dataset("VTKHDF/PointData/Field").shape == (
                 5,
@@ -434,3 +414,6 @@ class TestAddPointData:
             "VTKHDF/CellData/Material",
             "VTKHDF/PointData/Field",
         ]
+
+
+pytestmark = pytest.mark.unit

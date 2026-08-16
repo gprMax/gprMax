@@ -367,3 +367,6 @@ class TestConstructionIsIndependentOfGridSize:
         aniso = make_pml(pml_id="y0", thickness=3, dl=DL_ANISO)
         assert uniform.EPhi1.shape == aniso.EPhi1.shape
         assert uniform.d != aniso.d
+
+
+pytestmark = pytest.mark.unit

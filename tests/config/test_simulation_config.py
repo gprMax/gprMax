@@ -94,9 +94,7 @@ class TestDefaults:
             ("write_processed_input_file", False),
         ],
     )
-    def test_argument_is_copied_onto_the_config(
-        self, make_sim_config, attribute, expected
-    ):
+    def test_argument_is_copied_onto_the_config(self, make_sim_config, attribute, expected):
         """Each of these is a straight copy from the namespace."""
         assert getattr(make_sim_config(), attribute) == expected
 
@@ -171,9 +169,7 @@ class TestElectromagneticConstants:
 
         assert make_sim_config().em_consts["m0"] == mu_0
 
-    def test_em_consts_is_a_class_attribute_shared_by_all_instances(
-        self, make_sim_config
-    ):
+    def test_em_consts_is_a_class_attribute_shared_by_all_instances(self, make_sim_config):
         """Every instance sees the same dictionary object.
 
         A test — or any caller — that mutated a key through one instance
@@ -303,9 +299,7 @@ class TestSolverSelection:
         assert make_sim_config(metal=[0]).general["solver"] == "metal"
 
     @pytest.mark.parametrize("accelerator", ["gpu", "opencl", "metal"])
-    def test_every_accelerator_forces_single_precision(
-        self, make_sim_config, accelerator
-    ):
+    def test_every_accelerator_forces_single_precision(self, make_sim_config, accelerator):
         """Both precisions work on a GPU; single is chosen for speed."""
         sim_config = make_sim_config(**{accelerator: [0]})
 
@@ -324,9 +318,7 @@ class TestSolverSelection:
         assert make_sim_config(gpu=[]).general["solver"] == "cuda"
 
     @pytest.mark.parametrize("accelerator", ["gpu", "opencl", "metal"])
-    def test_accelerator_runs_get_a_devices_dictionary(
-        self, make_sim_config, accelerator
-    ):
+    def test_accelerator_runs_get_a_devices_dictionary(self, make_sim_config, accelerator):
         sim_config = make_sim_config(**{accelerator: [0]})
 
         assert "devs" in sim_config.devices
@@ -359,9 +351,7 @@ class TestSolverSelection:
         assert make_sim_config(gpu=[0]).devices["nvcc_opts"] is None
 
     @pytest.mark.parametrize("accelerator", ["opencl", "metal"])
-    def test_non_cuda_devices_carry_compiler_options(
-        self, make_sim_config, accelerator
-    ):
+    def test_non_cuda_devices_carry_compiler_options(self, make_sim_config, accelerator):
         sim_config = make_sim_config(**{accelerator: [0]})
 
         assert "compiler_opts" in sim_config.devices
@@ -375,9 +365,7 @@ class TestInputFilePath:
 
         assert make_sim_config().input_file_path == Path("model.in")
 
-    def test_the_output_file_is_used_when_no_input_file_is_given(
-        self, make_sim_config
-    ):
+    def test_the_output_file_is_used_when_no_input_file_is_given(self, make_sim_config):
         """The API can supply a scene and an output name with no input file."""
         from pathlib import Path
 
@@ -421,9 +409,7 @@ class TestModelStartAndEnd:
         with pytest.raises(ValueError):
             make_sim_config(i=0, n=3)
 
-    def test_the_model_config_list_is_not_resized_for_a_restart(
-        self, make_sim_config
-    ):
+    def test_the_model_config_list_is_not_resized_for_a_restart(self, make_sim_config):
         """``model_configs`` is sized ``n`` but indices run to ``(i-1)+n``.
 
         With ``-i 5 -n 3`` the run iterates models 4, 5 and 6 while the list
@@ -470,3 +456,6 @@ class TestSceneStorage:
         sim_config.set_scene("current")
 
         assert sim_config.scenes == [None, "current"]
+
+
+pytestmark = pytest.mark.unit

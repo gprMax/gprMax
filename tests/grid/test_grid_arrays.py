@@ -84,10 +84,7 @@ class TestInitialiseFieldArrays:
     @pytest.mark.parametrize("name", ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"])
     def test_dtype_comes_from_config(self, make_grid, grid_config, name):
         g = make_grid(nx=4, ny=4, nz=4)
-        assert (
-            getattr(g, name).dtype
-            == grid_config.sim_config.dtypes["float_or_double"]
-        )
+        assert getattr(g, name).dtype == grid_config.sim_config.dtypes["float_or_double"]
 
     def test_components_are_distinct_arrays(self, make_grid):
         """Aliasing any two would couple unrelated field components."""
@@ -168,9 +165,7 @@ class TestResetFields:
         g.reset_fields()
         assert g.solid[1, 1, 1] == 7
 
-    def test_allocates_dispersive_arrays_when_poles_present(
-        self, make_grid, grid_config
-    ):
+    def test_allocates_dispersive_arrays_when_poles_present(self, make_grid, grid_config):
         grid_config.model_config.materials["maxpoles"] = 1
         g = make_grid(nx=4, ny=4, nz=4)
         g.pmls["slabs"] = []
@@ -203,9 +198,7 @@ class TestMemoryEstimates:
         grid_config.model_config.materials["maxpoles"] = 2
         nx = ny = nz = 4
         g = make_grid(nx=nx, ny=ny, nz=nz)
-        expected = (
-            3 * 2 * (nx + 1) * (ny + 1) * (nz + 1) * np.dtype(np.complex128).itemsize
-        )
+        expected = 3 * 2 * (nx + 1) * (ny + 1) * (nz + 1) * np.dtype(np.complex128).itemsize
         assert g.mem_est_dispersive() == expected
 
     def test_dispersive_is_zero_without_poles(self, make_grid, grid_config):
@@ -284,3 +277,6 @@ class TestTwoDimensionalModes:
         once = g.ID.copy()
         g.tmz()
         assert np.array_equal(g.ID, once)
+
+
+pytestmark = pytest.mark.unit

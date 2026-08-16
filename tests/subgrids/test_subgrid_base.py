@@ -132,9 +132,7 @@ class TestAbstractBase:
         with pytest.raises(TypeError):
             SubGridBaseGrid(**subgrid_kwargs)
 
-    def test_subclass_missing_an_abstract_method_cannot_be_instantiated(
-        self, subgrid_kwargs
-    ):
+    def test_subclass_missing_an_abstract_method_cannot_be_instantiated(self, subgrid_kwargs):
         class Incomplete(SubGridBaseGrid):
             def update_magnetic_is(self, precursors):
                 pass
@@ -220,3 +218,6 @@ class TestInheritsFdtdGrid:
         sg = make_subgrid()
         sg.calculate_dt()
         assert sg.dt == pytest.approx((DL / 3) / (c * np.sqrt(3)))
+
+
+pytestmark = pytest.mark.unit

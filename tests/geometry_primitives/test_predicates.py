@@ -199,3 +199,6 @@ class TestPointInPolygon:
     def test_concave_polygon(self, px, py, expected):
         # Concavity exercises the multi-crossing path of the ray-caster.
         assert point_in_polygon(px, py, L_SHAPE) is expected
+
+
+pytestmark = pytest.mark.unit

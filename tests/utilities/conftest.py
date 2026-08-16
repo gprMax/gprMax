@@ -55,13 +55,17 @@ HOST_RAM = 16 * 1024**3
 
 
 @pytest.fixture(autouse=True)
-def restore_sim_config():
+def restore_sim_config(request):
     """Save and restore ``config.sim_config`` around every test.
 
     Several functions under test read the global at call time, and some
     tests replace it. Restoring keeps the rest of ``tests/unit/`` unaffected
     by ordering.
     """
+    if request.node.get_closest_marker("unit") is None:
+        yield
+        return
+
     from gprMax import config
 
     saved = config.sim_config
@@ -70,13 +74,16 @@ def restore_sim_config():
 
 
 @pytest.fixture(autouse=True)
-def clean_omp_environment(monkeypatch):
+def clean_omp_environment(monkeypatch, request):
     """Remove any inherited OpenMP variables before each test.
 
     ``set_omp_threads`` branches on whether ``OMP_NUM_THREADS`` is already
     set, so a developer's shell export would change the result. ``monkeypatch``
     restores the real environment afterwards.
     """
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     for name in (
         "OMP_NUM_THREADS",
         "OMP_WAIT_POLICY",
@@ -147,9 +154,7 @@ def fake_subprocess(monkeypatch):
             try:
                 result = self.table[tuple(argv)]
             except KeyError:
-                raise FileNotFoundError(
-                    f"no fake registered for {list(argv)}"
-                ) from None
+                raise FileNotFoundError(f"no fake registered for {list(argv)}") from None
             if isinstance(result, BaseException):
                 raise result
             return result
@@ -176,9 +181,7 @@ def fake_cpu_counts(monkeypatch):
             "cpu_count",
             lambda logical=True, _l=logical, _p=physical: _l if logical else _p,
         )
-        monkeypatch.setattr(
-            psutil, "virtual_memory", lambda: SimpleNamespace(total=ram)
-        )
+        monkeypatch.setattr(psutil, "virtual_memory", lambda: SimpleNamespace(total=ram))
 
     return _fake
 
@@ -217,15 +220,9 @@ def windows_host(monkeypatch, fake_subprocess, fake_platform, fake_cpu_counts):
     monkeypatch.setattr("sys.platform", "win32")
     fake_cpu_counts()
 
-    fake_subprocess.register(
-        ["wmic", "csproduct", "get", "vendor"], b"Vendor\nTest Manufacturer\n"
-    )
-    fake_subprocess.register(
-        ["wmic", "computersystem", "get", "model"], b"Model\nTest Model\n"
-    )
-    fake_subprocess.register(
-        ["wmic", "cpu", "get", "Name"], b"Name\nTest CPU @ 1.00GHz\n"
-    )
+    fake_subprocess.register(["wmic", "csproduct", "get", "vendor"], b"Vendor\nTest Manufacturer\n")
+    fake_subprocess.register(["wmic", "computersystem", "get", "model"], b"Model\nTest Model\n")
+    fake_subprocess.register(["wmic", "cpu", "get", "Name"], b"Name\nTest CPU @ 1.00GHz\n")
     return fake_subprocess
 
 
@@ -255,8 +252,7 @@ def powershell_commands():
             "powershell",
             "-NoProfile",
             "-Command",
-            "Get-CimInstance -ClassName Win32_Processor"
-            " | Select-Object -ExpandProperty Name",
+            "Get-CimInstance -ClassName Win32_Processor" " | Select-Object -ExpandProperty Name",
         ],
     }
 
@@ -269,9 +265,7 @@ def macos_host(monkeypatch, fake_subprocess, fake_platform, fake_cpu_counts):
 
     fake_subprocess.register(["sysctl", "-n", "hw.model"], b"TestMac1,1\n")
     fake_subprocess.register(["sysctl", "-n", "hw.packages"], b"2\n")
-    fake_subprocess.register(
-        ["sysctl", "-n", "machdep.cpu.brand_string"], b"Test CPU @ 1.00GHz\n"
-    )
+    fake_subprocess.register(["sysctl", "-n", "machdep.cpu.brand_string"], b"Test CPU @ 1.00GHz\n")
     return fake_subprocess
 
 
@@ -285,12 +279,8 @@ def linux_host(monkeypatch, fake_subprocess, fake_platform, fake_cpu_counts):
     monkeypatch.setattr("sys.platform", "linux")
     fake_cpu_counts()
 
-    fake_subprocess.register(
-        ["cat", "/sys/class/dmi/id/sys_vendor"], b"Test Manufacturer\n"
-    )
-    fake_subprocess.register(
-        ["cat", "/sys/class/dmi/id/product_name"], b"Test Model\n"
-    )
+    fake_subprocess.register(["cat", "/sys/class/dmi/id/sys_vendor"], b"Test Manufacturer\n")
+    fake_subprocess.register(["cat", "/sys/class/dmi/id/product_name"], b"Test Model\n")
     fake_subprocess.register(
         ["cat", "/proc/cpuinfo"],
         b"processor\t: 0\nmodel name\t: Test CPU @ 1.00GHz\n"
@@ -298,9 +288,7 @@ def linux_host(monkeypatch, fake_subprocess, fake_platform, fake_cpu_counts):
     )
     fake_subprocess.register(
         ["lscpu"],
-        b"Architecture:        x86_64\n"
-        b"Thread(s) per core:  2\n"
-        b"Socket(s):           2\n",
+        b"Architecture:        x86_64\n" b"Thread(s) per core:  2\n" b"Socket(s):           2\n",
     )
     return fake_subprocess
 
@@ -362,9 +350,14 @@ def install_model_config(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _reset_gprmax_logger():
+def _reset_gprmax_logger(request):
     """Reset the gprMax logger so caplog works after upstream tests pollute it."""
+    if request.node.get_closest_marker("unit") is None:
+        yield
+        return
+
     import logging
+
     logger = logging.getLogger("gprMax")
     logger.handlers.clear()
     logger.setLevel(logging.INFO)

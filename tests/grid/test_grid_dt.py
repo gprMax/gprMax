@@ -222,6 +222,7 @@ class TestCalculateCurrents:
         g.Hy[3, 3, 2] = 1.0
         g.Hz[3, 3, 3] = 1.0
         # dy * (Hy[x,y,z-1] - Hy[x,y,z]) + dz * (Hz[x,y,z] - Hz[x,y-1,z])
-        assert g.calculate_Ix(3, 3, 3) == pytest.approx(
-            DL_ANISO[1] * 1.0 + DL_ANISO[2] * 1.0
-        )
+        assert g.calculate_Ix(3, 3, 3) == pytest.approx(DL_ANISO[1] * 1.0 + DL_ANISO[2] * 1.0)
+
+
+pytestmark = pytest.mark.unit

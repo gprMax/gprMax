@@ -265,8 +265,7 @@ class TestBuildWithoutSurfaces:
 
         assert set(np.unique(g.solid[2:10, 2:10, 2:10])) == SOIL_IDS
 
-    @pytest.mark.xfail(reason="Cython extension needs rebuild — Python 3.14/Cython compiler incompatibility")
-    def test_the_stamped_materials_match_the_generated_volume(self, fractal_grid):
+    def test_temporary_fractal_volume_is_released_after_stamping(self, fractal_grid):
         g = fractal_grid()
         add_mixing_model(g)
         box = make_box()
@@ -274,7 +273,7 @@ class TestBuildWithoutSurfaces:
         box.build(g)
 
         volume = g.fractalvolumes[0]
-        assert np.array_equal(g.solid[2:10, 2:10, 2:10], volume.fractalvolume.astype(np.uint32))
+        assert volume.fractalvolume is None
 
     def test_averaging_off_marks_the_cells_rigid(self, fractal_grid):
         g = fractal_grid()
@@ -397,3 +396,6 @@ class TestBuildWithASurface:
             box.build(g)
             solids.append(g.solid.copy())
         assert np.array_equal(*solids)
+
+
+pytestmark = pytest.mark.unit

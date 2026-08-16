@@ -26,9 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
-from gprMax.user_objects.cmds_geometry.add_surface_roughness import (
-    AddSurfaceRoughness,
-)
+from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
 from gprMax.user_objects.cmds_geometry.box import Box
 from gprMax.user_objects.cmds_geometry.cone import Cone
@@ -37,13 +35,10 @@ from gprMax.user_objects.cmds_geometry.cylindrical_sector import CylindricalSect
 from gprMax.user_objects.cmds_geometry.edge import Edge
 from gprMax.user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
-from gprMax.user_objects.cmds_geometry.geometry_objects_read import (
-    GeometryObjectsRead,
-)
+from gprMax.user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
 from gprMax.user_objects.cmds_geometry.plate import Plate
 from gprMax.user_objects.cmds_geometry.sphere import Sphere
 from gprMax.user_objects.cmds_geometry.triangle import Triangle
-
 
 # ---------------------------------------------------------------------------
 # Common contract: every geometry class has order == 1 and the right hash
@@ -190,7 +185,10 @@ class TestSphere:
 class TestEllipsoid:
     def test_constructor_kwargs(self):
         e = Ellipsoid(
-            p1=(0.05, 0.05, 0.05), xr=0.02, yr=0.03, zr=0.04,
+            p1=(0.05, 0.05, 0.05),
+            xr=0.02,
+            yr=0.03,
+            zr=0.04,
             material_id="free_space",
         )
         assert e.kwargs["xr"] == 0.02
@@ -210,16 +208,17 @@ class TestEllipsoid:
 
 class TestCylinder:
     def test_constructor_kwargs(self):
-        c = Cylinder(
-            p1=(0, 0, 0), p2=(0.1, 0, 0), r=0.02, material_id="free_space"
-        )
+        c = Cylinder(p1=(0, 0, 0), p2=(0.1, 0, 0), r=0.02, material_id="free_space")
         assert c.kwargs["r"] == 0.02
 
 
 class TestCone:
     def test_constructor_kwargs(self):
         c = Cone(
-            p1=(0, 0, 0), p2=(0.1, 0, 0), r1=0.02, r2=0.01,
+            p1=(0, 0, 0),
+            p2=(0.1, 0, 0),
+            r1=0.02,
+            r2=0.01,
             material_id="free_space",
         )
         assert c.kwargs["r1"] == 0.02
@@ -229,8 +228,14 @@ class TestCone:
 class TestCylindricalSector:
     def test_constructor_kwargs(self):
         c = CylindricalSector(
-            axis="z", ctr1=0.05, ctr2=0.05, t1=0.0, t2=0.05,
-            r=0.02, sectorstartangle=0.0, sectorangle=90.0,
+            axis="z",
+            ctr1=0.05,
+            ctr2=0.05,
+            t1=0.0,
+            t2=0.05,
+            r=0.02,
+            sectorstartangle=0.0,
+            sectorangle=90.0,
             material_id="free_space",
         )
         assert c.kwargs["axis"] == "z"
@@ -262,8 +267,11 @@ class TestPlate:
 class TestTriangle:
     def test_constructor_kwargs(self):
         t = Triangle(
-            p1=(0, 0, 0), p2=(0.1, 0, 0), p3=(0, 0.1, 0),
-            thickness=0.01, material_id="free_space",
+            p1=(0, 0, 0),
+            p2=(0.1, 0, 0),
+            p3=(0, 0.1, 0),
+            thickness=0.01,
+            material_id="free_space",
         )
         assert t.kwargs["thickness"] == 0.01
         assert t.kwargs["p3"] == (0, 0.1, 0)
@@ -277,10 +285,14 @@ class TestTriangle:
 class TestFractalBox:
     def test_constructor_kwargs(self):
         f = FractalBox(
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0.1),
-            frac_dim=1.5, weighting=(1, 1, 1),
-            n_materials=1, mixing_model_id="m1",
-            id="fb1", seed=42,
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0.1),
+            frac_dim=1.5,
+            weighting=(1, 1, 1),
+            n_materials=1,
+            mixing_model_id="m1",
+            id="fb1",
+            seed=42,
         )
         assert f.kwargs["frac_dim"] == 1.5
         assert f.kwargs["seed"] == 42
@@ -293,8 +305,12 @@ class TestFractalBox:
     def test_pre_build_missing_kwarg_raises(self, stub_grid):
         # ``mixing_model_id`` missing
         f = FractalBox(
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0.1),
-            frac_dim=1.5, weighting=(1, 1, 1), n_materials=1, id="fb1",
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0.1),
+            frac_dim=1.5,
+            weighting=(1, 1, 1),
+            n_materials=1,
+            id="fb1",
         )
         with pytest.raises(KeyError):
             f.pre_build(stub_grid)
@@ -305,26 +321,36 @@ class TestModifiers:
 
     def test_add_surface_roughness_kwargs(self):
         r = AddSurfaceRoughness(
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0),
-            frac_dim=1.5, weighting=(1, 1),
-            limits=(0.0, 0.005), fractal_box_id="fb1", seed=1,
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0),
+            frac_dim=1.5,
+            weighting=(1, 1),
+            limits=(0.0, 0.005),
+            fractal_box_id="fb1",
+            seed=1,
         )
         assert r.kwargs["fractal_box_id"] == "fb1"
         assert r.kwargs["limits"] == (0.0, 0.005)
 
     def test_add_surface_water_kwargs(self):
         w = AddSurfaceWater(
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0),
-            depth=0.005, fractal_box_id="fb1",
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0),
+            depth=0.005,
+            fractal_box_id="fb1",
         )
         assert w.kwargs["depth"] == 0.005
         assert w.kwargs["fractal_box_id"] == "fb1"
 
     def test_add_grass_kwargs(self):
         g = AddGrass(
-            p1=(0, 0, 0), p2=(0.1, 0.1, 0),
-            frac_dim=1.5, limits=(0.0, 0.005),
-            n_blades=10, fractal_box_id="fb1", seed=1,
+            p1=(0, 0, 0),
+            p2=(0.1, 0.1, 0),
+            frac_dim=1.5,
+            limits=(0.0, 0.005),
+            n_blades=10,
+            fractal_box_id="fb1",
+            seed=1,
         )
         assert g.kwargs["n_blades"] == 10
         assert g.kwargs["fractal_box_id"] == "fb1"
@@ -337,8 +363,9 @@ class TestModifiers:
 
 class TestGeometryObjectsRead:
     def test_constructor_kwargs(self):
-        g = GeometryObjectsRead(
-            p1=(0, 0, 0), geofile="objs.h5", matfile="objs_materials.txt"
-        )
+        g = GeometryObjectsRead(p1=(0, 0, 0), geofile="objs.h5", matfile="objs_materials.txt")
         assert g.kwargs["geofile"] == "objs.h5"
         assert g.kwargs["matfile"] == "objs_materials.txt"
+
+
+pytestmark = pytest.mark.unit
