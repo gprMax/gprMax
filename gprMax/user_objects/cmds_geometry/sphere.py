@@ -57,6 +57,11 @@ class Sphere(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify a point and a radius.")
             raise
 
+        if r <= 0:
+            message = f"{self.__str__()} the radius {r:g} should be a positive value."
+            logger.error(message)
+            raise ValueError(message)
+
         # Check averaging
         try:
             # Try user-specified averaging
@@ -87,7 +92,9 @@ class Sphere(GeometryUserObject):
 
         if len(materials) != len(materialsrequested):
             found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
             message = f"{self.__str__()} material(s) {notfound} do not exist"
             logger.error(message)
             raise ValueError(message)

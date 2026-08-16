@@ -91,15 +91,23 @@ class Cylinder(GeometryUserObject):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r <= 0:
-            logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
-            raise ValueError
+            message = f"{self.__str__()} the radius {r:g} should be a positive value."
+            logger.error(message)
+            raise ValueError(message)
+
+        if (x1, y1, z1) == (x2, y2, z2):
+            message = f"{self.__str__()} the two face centres must occupy different grid points."
+            logger.error(message)
+            raise ValueError(message)
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
             message = f"{self.__str__()} material(s) {notfound} do not exist"
             logger.error(message)
             raise ValueError(message)

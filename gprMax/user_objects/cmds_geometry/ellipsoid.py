@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -62,6 +62,14 @@ class Ellipsoid(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify a point and the three semiaxes.")
             raise
 
+        if xr <= 0 or yr <= 0 or zr <= 0:
+            message = (
+                f"{self.__str__()} the semiaxes ({xr:g}, {yr:g}, {zr:g}) "
+                "should all be positive values."
+            )
+            logger.error(message)
+            raise ValueError(message)
+
         # Check averaging
         try:
             # Try user-specified averaging
@@ -92,7 +100,9 @@ class Ellipsoid(GeometryUserObject):
 
         if len(materials) != len(materialsrequested):
             found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
             message = f"{self.__str__()} material(s) {notfound} do not exist"
             logger.error(message)
             raise ValueError(message)

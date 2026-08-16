@@ -169,7 +169,9 @@ class CylindricalSector(GeometryUserObject):
         sectorangle = 2 * np.pi * (end / 360)
 
         if r <= 0:
-            logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
+            message = f"{self.__str__()} the radius {r:g} should be a positive value."
+            logger.error(message)
+            raise ValueError(message)
         if sectorstartangle < 0 or sectorangle <= 0:
             logger.exception(
                 f"{self.__str__()} the starting angle and sector angle should be a positive values."
@@ -186,7 +188,9 @@ class CylindricalSector(GeometryUserObject):
 
         if len(materials) != len(materialsrequested):
             found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
             message = f"{self.__str__()} material(s) {notfound} do not exist"
             logger.error(message)
             raise ValueError(message)

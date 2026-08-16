@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -102,6 +102,11 @@ class Cone(GeometryUserObject):
         x1, y1, z1 = uip.round_to_grid(p1)
         x2, y2, z2 = uip.round_to_grid(p2)
 
+        if (x1, y1, z1) == (x2, y2, z2):
+            message = f"{self.__str__()} the two face centres must occupy different grid points."
+            logger.error(message)
+            raise ValueError(message)
+
         if r1 < 0:
             logger.exception(
                 f"{self.__str__()} the radius of the first face {r1:g} should be a positive value."
@@ -123,7 +128,9 @@ class Cone(GeometryUserObject):
 
         if len(materials) != len(materialsrequested):
             found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
             message = f"{self.__str__()} material(s) {notfound} do not exist"
             logger.error(message)
             raise ValueError(message)

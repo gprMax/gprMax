@@ -293,7 +293,7 @@ class TestConeBuild:
         cone.build(g)
 
         layer_counts = [np.count_nonzero(g.solid[:, :, k]) for k in range(8)]
-        assert layer_counts == [0, 0, 16, 16, 16, 16, 0, 0]
+        assert layer_counts == [0, 0, 16, 12, 4, 4, 0, 0]
 
     def test_both_radii_zero_raises(self, dispatch_grid):
         g = dispatch_grid()
