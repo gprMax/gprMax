@@ -205,7 +205,7 @@ def run(
             geometry views but do not run the simulation.
         geometry_fixed: optional boolean to run a series of models where
             the geometry does not change between models.
-        study: optional Study instance defining per-run source and receiver
+        study: optional Study instance defining validated per-run object
             states while reusing one geometry.
         write_processed: optional boolean to write another input file
             after any #python blocks (which are deprecated) in the

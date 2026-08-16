@@ -27,6 +27,7 @@ from .studies import (
     PlaneWaveStudy,
     PortStudy,
     PortStudyResult,
+    SourceStudy,
     Study,
     StudyCase,
     combine_embedded_modal_responses,

@@ -26,6 +26,8 @@ Eigenmode studies reuse phase-aligned FDFD modal bases and assemble a full
 modal S matrix from one active port/mode channel per run.
 Plane-wave studies rebuild only the auxiliary DPW source and declarative NTFF
 accumulators while retaining the main Yee geometry.
+Source studies reset fixed-topology transmission-line, magnetic-frill, and
+rational-network terminals while varying only their generator drives.
 """
 
 from __future__ import annotations
@@ -52,6 +54,7 @@ _POSITION_COLUMNS = ("x_m", "y_m", "z_m")
 _SOURCE_PARAMETERS = {"active", "position", "waveform_id", "start", "stop", "scale"}
 _RECEIVER_PARAMETERS = {"position", "record"}
 _PLANE_WAVE_COMMON_PARAMETERS = {"psi", "waveform_id", "start", "stop", "scale"}
+_STATEFUL_SOURCE_PARAMETERS = {"active", "waveform_id", "start", "stop", "scale"}
 _CSV_COLUMNS = {
     "case_id",
     "object_id",
@@ -251,6 +254,8 @@ class Study:
             return EigenmodeStudy(cases, source_path=path, source_text=text)
         if str(type).strip().lower() == "plane_wave":
             return PlaneWaveStudy(cases, source_path=path, source_text=text)
+        if str(type).strip().lower() == "source":
+            return SourceStudy(cases, source_path=path, source_text=text)
         return cls(type, cases, source_path=path, source_text=text)
 
     def bind_scene(self, scene) -> None:
@@ -622,6 +627,250 @@ class GPRStudy(Study):
         super().__init__("gpr", cases)
 
 
+class SourceStudy(Study):
+    """Reusable study for fixed-topology stateful terminal sources.
+
+    Transmission-line resistance, magnetic-frill geometry/Z0, and rational
+    network topology remain fixed. Cases may select the active generators and
+    change only their waveform, time window, and scale. An omitted or inactive
+    source retains its physical terminal with a zero generator drive.
+    """
+
+    supported_types = ("source",)
+
+    def __init__(
+        self,
+        cases: Sequence[StudyCase],
+        *,
+        source_path: Optional[Union[str, Path]] = None,
+        source_text: Optional[str] = None,
+    ):
+        super().__init__(
+            "source",
+            cases,
+            source_path=source_path,
+            source_text=source_text,
+        )
+
+    def bind_scene(self, scene) -> None:
+        """Bind fixed main-grid terminal definitions and validate cases."""
+
+        if self._scene_bound:
+            return
+
+        from gprMax.user_objects.cmds_multiuse import (
+            DiscretePlaneWaveAngles,
+            DiscretePlaneWaveAxial,
+            DiscretePlaneWaveVector,
+            EigenmodeExcitation,
+            HertzianDipole,
+            MagneticDipole,
+            MagneticFrillSource,
+            NetworkExcitation,
+            TransmissionLine,
+            VoltageSource,
+        )
+
+        supported = (
+            (TransmissionLine, "transmission_line"),
+            (MagneticFrillSource, "magnetic_frill_source"),
+            (NetworkExcitation, "network_excitation"),
+        )
+        unsupported_types = (
+            VoltageSource,
+            HertzianDipole,
+            MagneticDipole,
+            DiscretePlaneWaveAngles,
+            DiscretePlaneWaveAxial,
+            DiscretePlaneWaveVector,
+            EigenmodeExcitation,
+        )
+        supported_types = tuple(item_type for item_type, _ in supported)
+        all_source_types = supported_types + unsupported_types
+        unsupported = [
+            type(item).__name__
+            for item in scene.grid_objects
+            if isinstance(item, unsupported_types)
+        ]
+        subgrid_sources = [
+            f"{type(item).__name__} on subgrid {subgrid.kwargs.get('id', '')!r}"
+            for subgrid in scene.subgrid_objects
+            for item in subgrid.children_grid
+            if isinstance(item, all_source_types)
+        ]
+        if unsupported or subgrid_sources:
+            details = sorted(set(unsupported + subgrid_sources))
+            raise ValueError(
+                "SourceStudy supports only main-grid TransmissionLine, "
+                "MagneticFrillSource, and NetworkExcitation objects; remove "
+                + ", ".join(details)
+                + "."
+            )
+
+        registry: dict[str, Any] = {}
+        reference_ids: dict[int, str] = {}
+        for object_type, prefix in supported:
+            index = 0
+            for item in scene.grid_objects:
+                if not isinstance(item, object_type):
+                    continue
+                index += 1
+                study_id = f"{prefix}_{index}"
+                setattr(item, "_study_id", study_id)
+                registry[study_id] = item
+                reference_ids[id(item)] = study_id
+
+        if not registry:
+            raise ValueError(
+                "SourceStudy requires at least one TransmissionLine, "
+                "MagneticFrillSource, or NetworkExcitation."
+            )
+
+        for case in self.cases:
+            seen: set[str] = set()
+            for state in case.states:
+                if isinstance(state.object, str):
+                    study_id = state.object.strip()
+                else:
+                    try:
+                        study_id = reference_ids[id(state.object)]
+                    except KeyError as exc:
+                        raise ValueError(
+                            f"SourceStudy case '{case.id}' references an object that is not "
+                            "a supported main-grid source in its Scene."
+                        ) from exc
+                if study_id not in registry:
+                    available = ", ".join(sorted(registry))
+                    raise ValueError(
+                        f"SourceStudy case '{case.id}' references unknown object "
+                        f"'{study_id}'. Available objects: {available}."
+                    )
+                if study_id in seen:
+                    raise ValueError(
+                        f"SourceStudy case '{case.id}' contains duplicate state for "
+                        f"'{study_id}'."
+                    )
+                unknown = set(state.parameters) - _STATEFUL_SOURCE_PARAMETERS
+                if unknown:
+                    raise ValueError(
+                        f"SourceStudy object '{study_id}' does not support parameter(s) "
+                        f"{', '.join(sorted(unknown))}. Allowed parameters: "
+                        f"{', '.join(sorted(_STATEFUL_SOURCE_PARAMETERS))}."
+                    )
+                if "scale" in state.parameters:
+                    scale = float(state.parameters["scale"])
+                    if not math.isfinite(scale):
+                        raise ValueError(f"SourceStudy case '{case.id}' scale must be finite.")
+                if "active" in state.parameters and not isinstance(
+                    state.parameters["active"], (bool, np.bool_)
+                ):
+                    raise ValueError(f"SourceStudy case '{case.id}' active must be a boolean.")
+                state.object = study_id
+                seen.add(study_id)
+
+        self.registry = registry
+        self.aliases = {}
+        self._scene_bound = True
+        logger.info(
+            "SourceStudy objects: "
+            + ", ".join(
+                f"{study_id} ({type(item).__name__})" for study_id, item in registry.items()
+            )
+            + "\n"
+        )
+
+    def _runtime_registry(self, model) -> dict[str, Any]:
+        runtime: dict[str, Any] = {}
+        for item in (
+            list(model.G.transmissionlines)
+            + list(model.G.magneticfrillsources)
+            + list(model.G.networkterminals)
+        ):
+            study_id = getattr(item, "study_id", None)
+            if study_id:
+                runtime[study_id] = item
+        expected = set(self.registry)
+        if set(runtime) != expected:
+            missing = ", ".join(sorted(expected - set(runtime)))
+            raise RuntimeError(
+                f"SourceStudy runtime object binding is incomplete; missing: {missing}."
+            )
+        return runtime
+
+    def _capture_baselines(self, runtime: Mapping[str, Any]) -> None:
+        if self._runtime_baselines:
+            return
+        for study_id, item in runtime.items():
+            self._runtime_baselines[study_id] = {
+                "waveform_id": item.waveformID,
+                "start": float(item.start),
+                "stop": float(item.stop),
+            }
+
+    def apply_case(self, model) -> None:
+        """Reset every terminal and apply the current absolute drive state."""
+
+        import gprMax.config as config
+
+        case_index = config.sim_config.current_model
+        if case_index < 0 or case_index >= len(self.cases):
+            raise ValueError(
+                f"SourceStudy case index {case_index + 1} is outside the "
+                f"{len(self.cases)} available cases."
+            )
+
+        runtime = self._runtime_registry(model)
+        self._capture_baselines(runtime)
+        states = {str(state.object): state for state in self.cases[case_index].states}
+        resolved: dict[str, Any] = {
+            "case_id": self.cases[case_index].id,
+            "objects": {},
+        }
+        for study_id, item in runtime.items():
+            baseline = self._runtime_baselines[study_id]
+            parameters = dict(states[study_id].parameters) if study_id in states else {}
+            active = bool(parameters.pop("active", study_id in states))
+            waveform_id = str(parameters.pop("waveform_id", baseline["waveform_id"]))
+            start = float(parameters.pop("start", baseline["start"]))
+            stop = min(
+                float(parameters.pop("stop", baseline["stop"])),
+                float(model.G.timewindow),
+            )
+            scale = float(parameters.pop("scale", 1.0)) if active else 0.0
+            item.configure_study_excitation(
+                model.G,
+                waveform_id=waveform_id,
+                start=start,
+                stop=stop,
+                scale=scale,
+            )
+            resolved["objects"][study_id] = {
+                "type": type(self.registry[study_id]).__name__,
+                "active": bool(scale != 0),
+                "waveform_id": waveform_id,
+                "start": start,
+                "stop": stop,
+                "scale": scale,
+            }
+            if hasattr(item, "coord"):
+                resolved["objects"][study_id]["position"] = [
+                    float(item.coord[index] * model.G.dl[index]) for index in range(3)
+                ]
+            if hasattr(item, "ID"):
+                resolved["objects"][study_id]["terminal_id"] = str(item.ID)
+
+        for receiver in model.G.rxs:
+            for values in receiver.outputs.values():
+                values.fill(0)
+        for monitor in getattr(model.G, "port_monitors", ()):
+            reset = getattr(monitor, "reset_run_state", None)
+            if reset is not None:
+                reset()
+
+        _recompile_declarative_ntff(model, model.G, "SourceStudy")
+        self._current_resolved_case = resolved
+
+
 class PlaneWaveStudy(Study):
     """Reusable-geometry study with one rebuilt discrete plane wave per case.
 
@@ -788,9 +1037,7 @@ class PlaneWaveStudy(Study):
         self.registry = {"plane_wave_1": definition}
         self.aliases = {}
         self._scene_bound = True
-        logger.info(
-            f"PlaneWaveStudy object: plane_wave_1 ({self._definition_type.__name__})\n"
-        )
+        logger.info(f"PlaneWaveStudy object: plane_wave_1 ({self._definition_type.__name__})\n")
 
     def apply_case(self, model) -> None:
         """Rebuild the case DPW and all declarative NTFF accumulator state."""
@@ -838,7 +1085,7 @@ class PlaneWaveStudy(Study):
             for values in receiver.outputs.values():
                 values.fill(0)
 
-        self._recompile_ntff(model, grid)
+        _recompile_declarative_ntff(model, grid, "PlaneWaveStudy")
         self._current_resolved_case = {
             "case_id": case.id,
             "objects": {
@@ -858,36 +1105,36 @@ class PlaneWaveStudy(Study):
             },
         }
 
-    @staticmethod
-    def _recompile_ntff(model, grid) -> None:
-        """Replace declarative NTFF monitors with pristine case instances."""
 
-        if not grid.ntff_monitors and not grid.ntff_output_writers:
-            return
-        if not grid.ntff_output_writers:
-            raise ValueError(
-                "PlaneWaveStudy cannot reset directly constructed NTFF monitors; use the "
-                "declarative NTFF surface/transform/output API or hash commands."
-            )
+def _recompile_declarative_ntff(model, grid, study_name: str) -> None:
+    """Replace declarative NTFF monitors with pristine per-case instances."""
 
-        referenced = set()
-        for writer in grid.ntff_output_writers:
-            referenced.update(writer.frequency_monitors.values())
-            for mapping_name in ("time_bindings", "time_far_bindings"):
-                for binding in getattr(writer, mapping_name, {}).values():
-                    referenced.add(binding[0])
-        unmanaged = [monitor for monitor in grid.ntff_monitors if monitor not in referenced]
-        if unmanaged:
-            raise ValueError(
-                "PlaneWaveStudy found NTFF monitors outside the declarative reusable interface; "
-                "these cannot be reset safely between cases."
-            )
+    if not grid.ntff_monitors and not grid.ntff_output_writers:
+        return
+    if not grid.ntff_output_writers:
+        raise ValueError(
+            f"{study_name} cannot reset directly constructed NTFF monitors; use the "
+            "declarative NTFF surface/transform/output API or hash commands."
+        )
 
-        grid.ntff_monitors.clear()
-        grid.ntff_output_writers.clear()
-        from gprMax.ntff.interface import compile_ntff_outputs
+    referenced = set()
+    for writer in grid.ntff_output_writers:
+        referenced.update(writer.frequency_monitors.values())
+        for mapping_name in ("time_bindings", "time_far_bindings"):
+            for binding in getattr(writer, mapping_name, {}).values():
+                referenced.add(binding[0])
+    unmanaged = [monitor for monitor in grid.ntff_monitors if monitor not in referenced]
+    if unmanaged:
+        raise ValueError(
+            f"{study_name} found NTFF monitors outside the declarative reusable "
+            "interface; these cannot be reset safely between cases."
+        )
 
-        compile_ntff_outputs(model, grid)
+    grid.ntff_monitors.clear()
+    grid.ntff_output_writers.clear()
+    from gprMax.ntff.interface import compile_ntff_outputs
+
+    compile_ntff_outputs(model, grid)
 
 
 @dataclass(frozen=True)
@@ -1858,7 +2105,7 @@ def preflight_study_args(args) -> Optional[Study]:
         raise ValueError("Studies do not yet support MPI task farming.")
     if getattr(args, "mpi", None) is not None:
         raise ValueError("Studies do not yet support MPI domain decomposition.")
-    if isinstance(study, (PortStudy, EigenmodeStudy, PlaneWaveStudy)) and getattr(
+    if isinstance(study, (PortStudy, EigenmodeStudy, PlaneWaveStudy, SourceStudy)) and getattr(
         args, "geometry_only", False
     ):
         raise ValueError(
@@ -1975,9 +2222,7 @@ def _parse_int(value: str, path: Path, line: int, name: str) -> int:
     try:
         return int(value)
     except ValueError as exc:
-        raise ValueError(
-            f"Study CSV '{path}', line {line}: {name} must be an integer."
-        ) from exc
+        raise ValueError(f"Study CSV '{path}', line {line}: {name} must be an integer.") from exc
 
 
 def _safe_divide(numerator, denominator, complex_dtype):

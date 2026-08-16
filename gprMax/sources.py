@@ -3041,6 +3041,7 @@ class TransmissionLine(Source):
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
         self.nl = round_value(0.667 * self.iterations)
+        self._incident_nl = self.nl
 
         # Cell position of the one-way injector excitation in the transmission line
         self.srcpos = 5
@@ -3063,7 +3064,7 @@ class TransmissionLine(Source):
         # processing is post-solve.
         self.port_output = None
 
-    def calculate_waveform_values(self, G):
+    def calculate_waveform_values(self, G, reuse_existing=True):
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
@@ -3075,12 +3076,13 @@ class TransmissionLine(Source):
         # pre-calculated waveform values, otherwise calculate them.
         src_match = False
 
-        if self.start == 0 and self.stop == G.timewindow:
+        if reuse_existing and self.start == 0 and self.stop == G.timewindow:
             for src in G.transmissionlines:
-                if src.waveformID == self.waveformID:
+                if src is not self and src.waveformID == self.waveformID:
                     src_match = True
                     self.waveformvalues_wholedt = src.waveformvalues_wholedt
                     self.waveformvalues_halfdt = src.waveformvalues_halfdt
+                    break
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
@@ -3115,6 +3117,7 @@ class TransmissionLine(Source):
         # use separate output histories, but they advance the same internal
         # line voltage/current vectors and ABC memories. Always start the
         # preliminary line from rest and clear any old incident histories.
+        self.nl = self._incident_nl
         self._reset_update_state()
         self.Vinc.fill(0)
         self.Iinc.fill(0)
@@ -3131,6 +3134,34 @@ class TransmissionLine(Source):
         # Vinc/Iinc retain the completed incident histories, but the actual
         # coupled source must begin with zero line fields and zero ABC memory.
         self._reset_update_state()
+
+    def configure_study_excitation(self, G, waveform_id, start, stop, scale):
+        """Apply one fixed-geometry study drive and return the line to rest."""
+
+        if not any(waveform.ID == waveform_id for waveform in G.waveforms):
+            raise ValueError(f"{self.ID} study drive references unknown waveform {waveform_id!r}.")
+        start = float(start)
+        stop = min(float(stop), float(G.timewindow))
+        scale = float(scale)
+        if not np.isfinite(scale):
+            raise ValueError(f"{self.ID} study scale must be finite.")
+        if start < 0 or stop <= start:
+            raise ValueError(
+                f"{self.ID} study drive requires 0 <= start < stop <= the model time window."
+            )
+
+        self.waveformID = waveform_id
+        self.start = start
+        self.stop = stop
+        self.calculate_waveform_values(G, reuse_existing=False)
+        self.waveformvalues_wholedt *= scale
+        self.waveformvalues_halfdt *= scale
+        self.calculate_incident_V_I(G)
+        self.Vtotal.fill(0)
+        self.Itotal.fill(0)
+        self.study_scale = scale
+        if self.port_output is not None:
+            self.port_output.result = None
 
     def _reset_update_state(self):
         """Reset mutable line and absorbing-boundary state to rest."""
@@ -3498,6 +3529,34 @@ class MagneticFrillSource(Source):
             if time >= self.start and time <= self.stop:
                 time -= self.start
                 self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
+
+    def configure_study_excitation(self, G, waveform_id, start, stop, scale):
+        """Apply one fixed-geometry study drive and clear terminal histories."""
+
+        if not any(waveform.ID == waveform_id for waveform in G.waveforms):
+            raise ValueError(f"{self.ID} study drive references unknown waveform {waveform_id!r}.")
+        start = float(start)
+        stop = min(float(stop), float(G.timewindow))
+        scale = float(scale)
+        if not np.isfinite(scale):
+            raise ValueError(f"{self.ID} study scale must be finite.")
+        if start < 0 or stop <= start:
+            raise ValueError(
+                f"{self.ID} study drive requires 0 <= start < stop <= the model time window."
+            )
+
+        self.waveformID = waveform_id
+        self.start = start
+        self.stop = stop
+        self.calculate_waveform_values(G)
+        self.waveformvalues_wholedt *= scale
+        self.Vinc.fill(0)
+        self.Vtotal.fill(0)
+        self.Itot.fill(0)
+        self._previous_half_current = 0.0
+        self.study_scale = scale
+        if self.port_output is not None:
+            self.port_output.result = None
 
     def _validate_geometry(self, G):
         """Bind the attached thin wire and check the local PEC ground plane."""

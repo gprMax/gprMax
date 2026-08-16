@@ -433,7 +433,11 @@ class NetworkTerminal(GridUserObject):
     def build(self, grid: FDTDGrid):
         if config.get_model_config().mode != "3D":
             raise ValueError(f"{self.params_str()} currently supports only 3-D models")
-        if config.sim_config.args.geometry_fixed:
+        from gprMax.studies import SourceStudy
+
+        if config.sim_config.args.geometry_fixed and not isinstance(
+            config.sim_config.study, SourceStudy
+        ):
             raise ValueError(f"{self.params_str()} does not yet support geometry-fixed runs")
         self.polarisation = self.polarisation.lower()
         if self.polarisation not in ("x", "y", "z"):
@@ -531,6 +535,7 @@ class NetworkExcitation(GridUserObject):
                 return
             raise RuntimeError(f"{self.params_str()} terminal definition was not instantiated")
         terminal.set_excitation(self.waveform_id, self.start, self.stop)
+        terminal.study_id = getattr(self, "_study_id", None)
         logger.info(
             self.grid_name(grid) + f"Network terminal {self.terminal_id!r} excited by waveform "
             f"{self.waveform_id!r}."
@@ -1246,6 +1251,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         t.ID = f"{t.__class__.__name__}({x},{y},{z})"
+        t.study_id = getattr(self, "_study_id", None)
         t.resistance = self.resistance
         t.waveformID = self.waveform_id
 
@@ -1427,6 +1433,7 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         f.ID = f"{f.__class__.__name__}({x},{y},{z})"
+        f.study_id = getattr(self, "_study_id", None)
         f.Z0 = self.zcoax
         f.waveformID = self.waveform_id
 
