@@ -1947,12 +1947,14 @@ case that produced it. The syntax is:
 
 The study type may be ``gpr`` for irregular source/receiver acquisition,
 ``port`` for a finite-resistance voltage-source S-parameter study, or
-``eigenmode`` for a modal-port S-parameter study:
+``eigenmode`` for a modal-port S-parameter study, or ``plane_wave`` for an
+angular TFSF/RCS study:
 
 .. code-block:: none
 
     #study: port file1
     #study: eigenmode file1
+    #study: plane_wave file1
 
 ``file1`` is a CSV table. Its path is resolved relative to the main input
 file. The required columns are ``case_id`` and ``object_id``. The optional
@@ -1961,6 +1963,27 @@ columns are ``active``, ``x_m``, ``y_m``, ``z_m``, ``waveform_id``,
 cells mean "use the object's baseline value". All three position columns must
 be supplied together and contain absolute coordinates in metres. ``port`` and
 ``mode`` are positive integers used only by an eigenmode study.
+
+A plane-wave table uses the deterministic object ID ``plane_wave_1``. Its
+additional optional columns are ``theta_deg``, ``phi_deg``, ``psi_deg``,
+``axis``, ``m_x``, ``m_y``, and ``m_z``. The permitted columns follow the
+plane-wave command used in the model: angles use theta/phi/psi, vector sources
+use all three integer mapping columns and psi, and axial sources use axis and
+psi. ``waveform_id``, ``start_s``, ``stop_s``, and a non-zero ``scale`` are
+available for every form. For example:
+
+.. code-block:: text
+
+    case_id,object_id,theta_deg,phi_deg,psi_deg,scale
+    x_incidence,plane_wave_1,90,0,90,1
+    y_incidence,plane_wave_1,90,90,90,1
+
+The TFSF box and its background material remain fixed. gprMax rebuilds the
+auxiliary one-dimensional discrete plane wave and resets/recompiles
+declarative NTFF accumulators for each row, while retaining the main model
+geometry. NTFF observation directions also remain fixed: request all angles
+needed across the cases in the input file and select the appropriate direction
+from each numbered output file.
 
 For example:
 

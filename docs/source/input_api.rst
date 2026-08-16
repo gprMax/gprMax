@@ -149,8 +149,8 @@ Reusable parameter studies
 
 A :class:`gprMax.Study` runs an ordered set of source and receiver states while
 reusing one built geometry. It is intended for arbitrary GPR acquisition
-patterns and is the foundation for later multiport, antenna-array, and
-plane-wave studies. Every case restores the original object state before its
+patterns and underlies the specialised multiport, antenna-array, and
+plane-wave workflows. Every case restores the original object state before its
 overrides are applied, so parameters cannot accidentally accumulate between
 runs.
 
@@ -347,6 +347,69 @@ frequency and whose selected channel axis follows ``channel_ports`` and
 
 .. autofunction:: gprMax.studies.combine_embedded_modal_responses
 
+Plane-wave and RCS studies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A :class:`gprMax.PlaneWaveStudy` evaluates several incident plane waves while
+building the main Yee geometry only once. The Scene contains exactly one
+discrete-plane-wave object, which acts as the reusable template, and each case
+changes its direction, polarisation, timing, waveform, or amplitude. Other
+active source types are rejected so that scattered-field and RCS results have
+an unambiguous incident wave.
+
+.. code-block:: python
+
+    plane_wave = gprMax.DiscretePlaneWaveAngles(
+        p1=(0.03, 0.03, 0.03),
+        p2=(0.07, 0.07, 0.07),
+        theta=90,
+        phi=0,
+        psi=90,
+        waveform_id='pulse',
+    )
+    scene.add(plane_wave)
+
+    study = gprMax.PlaneWaveStudy([
+        gprMax.StudyCase('x_incidence', [
+            gprMax.ObjectState(plane_wave, theta=90, phi=0, psi=90),
+        ]),
+        gprMax.StudyCase('y_incidence', [
+            gprMax.ObjectState(plane_wave, theta=90, phi=90, psi=90),
+        ]),
+    ])
+
+    gprMax.run(scenes=[scene], study=study, outputfile='angular_rcs')
+
+The TFSF box, background material, and angular-approximation tolerance remain
+fixed because they define the reusable source topology. The parameters which
+may change depend on the template:
+
+* :class:`gprMax.DiscretePlaneWaveAngles`: ``theta``, ``phi``, and ``psi``;
+* :class:`gprMax.DiscretePlaneWaveVector`: ``m_vec`` and ``psi``;
+* :class:`gprMax.DiscretePlaneWaveAxial`: ``axis`` and ``psi``.
+
+All three forms also accept per-case ``waveform_id``, ``start``, ``stop``, and
+non-zero dimensionless ``scale``. The principal Yee arrays and material IDs
+are retained, but the small auxiliary one-dimensional DPW grid is rebuilt for
+each case. This is necessary because its length, rational integer mapping,
+field projections, material profile, and PML state depend on the propagation
+direction.
+
+Declarative NTFF transforms are also reconstructed for every case. Their
+surface geometry is reused, while all time/frequency accumulators and the
+incident-wave DFT are new. Consequently an RCS result cannot contain state
+from an earlier direction. Each numbered HDF5 file records the requested
+study case under ``/study`` and the actual rationalised plane-wave parameters
+under the frequency transform's ``plane_wave`` group. A complete subgrid may
+be enclosed by the fixed TFSF and NTFF surfaces, subject to the normal
+enclosure rules, but it cannot contain another excitation. Far-field
+observation directions are part of the fixed output definition rather than a
+case parameter. Request every direction needed by the study (for example a
+complete angular sweep), then select the appropriate monostatic or bistatic
+direction from each case file.
+
+.. autoclass:: gprMax.studies.PlaneWaveStudy
+
 .. autoclass:: gprMax.studies.StudyCase
 
 .. autoclass:: gprMax.studies.ObjectState
@@ -354,10 +417,11 @@ frequency and whose selected channel axis follows ``channel_ports`` and
 .. note::
 
     MPI/task-farm studies, transmission lines, rational networks,
-    magnetic-frill sources, and plane waves are not yet enabled. General GPR
-    study objects remain main-grid only. Eigenmode studies support the owning
-    main grid or subgrid and reset direct and virtual-waveguide modal state
-    explicitly.
+    magnetic-frill sources are not yet enabled. General GPR study objects
+    remain main-grid only. Eigenmode studies support the owning main grid or
+    subgrid and reset direct and virtual-waveguide modal state explicitly.
+    Plane-wave studies use a main-grid TFSF source but may enclose complete
+    subgrids.
 
 Typical general settings are added directly to the scene:
 

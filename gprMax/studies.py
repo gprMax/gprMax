@@ -24,10 +24,13 @@ Port studies additionally manage source-bound voltage-port monitors and
 assemble their frequency-domain response after the reused solves.
 Eigenmode studies reuse phase-aligned FDFD modal bases and assemble a full
 modal S matrix from one active port/mode channel per run.
+Plane-wave studies rebuild only the auxiliary DPW source and declarative NTFF
+accumulators while retaining the main Yee geometry.
 """
 
 from __future__ import annotations
 
+import copy
 import csv
 import json
 import logging
@@ -48,6 +51,7 @@ logger = logging.getLogger(__name__)
 _POSITION_COLUMNS = ("x_m", "y_m", "z_m")
 _SOURCE_PARAMETERS = {"active", "position", "waveform_id", "start", "stop", "scale"}
 _RECEIVER_PARAMETERS = {"position", "record"}
+_PLANE_WAVE_COMMON_PARAMETERS = {"psi", "waveform_id", "start", "stop", "scale"}
 _CSV_COLUMNS = {
     "case_id",
     "object_id",
@@ -60,6 +64,13 @@ _CSV_COLUMNS = {
     "record",
     "port",
     "mode",
+    "theta_deg",
+    "phi_deg",
+    "psi_deg",
+    "axis",
+    "m_x",
+    "m_y",
+    "m_z",
 }
 
 
@@ -206,6 +217,28 @@ class Study:
             for name in ("port", "mode"):
                 if row.get(name, ""):
                     parameters[name] = _parse_positive_int(row[name], path, line_number, name)
+            for csv_name, parameter_name in (
+                ("theta_deg", "theta"),
+                ("phi_deg", "phi"),
+                ("psi_deg", "psi"),
+            ):
+                if row.get(csv_name, ""):
+                    parameters[parameter_name] = _parse_finite_float(
+                        row[csv_name], path, line_number, csv_name
+                    )
+            mapping_values = [row.get(name, "") for name in ("m_x", "m_y", "m_z")]
+            if any(mapping_values) and not all(mapping_values):
+                raise ValueError(
+                    f"Study CSV '{path}', line {line_number}: m_x, m_y, and m_z must be "
+                    "provided together."
+                )
+            if all(mapping_values):
+                parameters["m_vec"] = tuple(
+                    _parse_int(value, path, line_number, name)
+                    for name, value in zip(("m_x", "m_y", "m_z"), mapping_values)
+                )
+            if row.get("axis", ""):
+                parameters["axis"] = row["axis"]
             if row.get("record", ""):
                 parameters["record"] = _parse_bool(row["record"], path, line_number, "record")
 
@@ -216,6 +249,8 @@ class Study:
             return PortStudy(cases, source_path=path, source_text=text)
         if str(type).strip().lower() == "eigenmode":
             return EigenmodeStudy(cases, source_path=path, source_text=text)
+        if str(type).strip().lower() == "plane_wave":
+            return PlaneWaveStudy(cases, source_path=path, source_text=text)
         return cls(type, cases, source_path=path, source_text=text)
 
     def bind_scene(self, scene) -> None:
@@ -585,6 +620,274 @@ class GPRStudy(Study):
 
     def __init__(self, cases: Sequence[StudyCase]):
         super().__init__("gpr", cases)
+
+
+class PlaneWaveStudy(Study):
+    """Reusable-geometry study with one rebuilt discrete plane wave per case.
+
+    The main Yee geometry is retained, but the auxiliary one-dimensional DPW
+    grid is deliberately reconstructed because its integer direction mapping,
+    length, projections, material profile, and PML state depend on the case.
+    Declarative NTFF monitors are reconstructed with it so their accumulated
+    DFT and incident-wave normalisation state cannot leak between cases.
+    """
+
+    supported_types = ("plane_wave",)
+
+    def __init__(
+        self,
+        cases: Sequence[StudyCase],
+        *,
+        source_path: Optional[Union[str, Path]] = None,
+        source_text: Optional[str] = None,
+    ):
+        super().__init__(
+            "plane_wave",
+            cases,
+            source_path=source_path,
+            source_text=source_text,
+        )
+        self._definition = None
+        self._definition_type = None
+        self._baseline_kwargs: dict[str, Any] = {}
+
+    def reset_runtime(self) -> None:
+        super().reset_runtime()
+        self._definition = None
+        self._definition_type = None
+        self._baseline_kwargs = {}
+
+    def bind_scene(self, scene) -> None:
+        """Bind one main-grid DPW template and validate every case override."""
+
+        if self._scene_bound:
+            return
+
+        from gprMax.user_objects.cmds_multiuse import (
+            DiscretePlaneWaveAngles,
+            DiscretePlaneWaveAxial,
+            DiscretePlaneWaveVector,
+            EigenmodeExcitation,
+            HertzianDipole,
+            MagneticDipole,
+            MagneticFrillSource,
+            NetworkExcitation,
+            TransmissionLine,
+            VoltageSource,
+        )
+
+        plane_wave_types = (
+            DiscretePlaneWaveAngles,
+            DiscretePlaneWaveAxial,
+            DiscretePlaneWaveVector,
+        )
+        containers = [("main grid", list(scene.grid_objects))]
+        containers.extend(
+            (
+                f"subgrid {subgrid.kwargs.get('id', '')!r}",
+                list(subgrid.children_grid),
+            )
+            for subgrid in scene.subgrid_objects
+        )
+        definitions = [item for item in scene.grid_objects if isinstance(item, plane_wave_types)]
+        subgrid_plane_waves = [
+            label
+            for label, objects in containers[1:]
+            for item in objects
+            if isinstance(item, plane_wave_types)
+        ]
+        if subgrid_plane_waves:
+            raise ValueError(
+                "PlaneWaveStudy requires its plane-wave template on the main grid; "
+                "plane waves were also found on "
+                + ", ".join(sorted(set(subgrid_plane_waves)))
+                + "."
+            )
+        if len(definitions) != 1:
+            raise ValueError(
+                "PlaneWaveStudy requires exactly one plane-wave template on the main grid; "
+                f"found {len(definitions)}."
+            )
+        other_source_types = (
+            VoltageSource,
+            HertzianDipole,
+            MagneticDipole,
+            TransmissionLine,
+            MagneticFrillSource,
+            NetworkExcitation,
+            EigenmodeExcitation,
+        )
+        other_sources = [
+            f"{type(item).__name__} on {label}"
+            for label, objects in containers
+            for item in objects
+            if isinstance(item, other_source_types)
+        ]
+        if other_sources:
+            raise ValueError(
+                "PlaneWaveStudy requires the plane wave to be the only excitation; remove "
+                + ", ".join(sorted(set(other_sources)))
+                + "."
+            )
+
+        definition = definitions[0]
+        setattr(definition, "_study_id", "plane_wave_1")
+        if isinstance(definition, DiscretePlaneWaveAngles):
+            allowed = _PLANE_WAVE_COMMON_PARAMETERS | {"theta", "phi"}
+        elif isinstance(definition, DiscretePlaneWaveVector):
+            allowed = _PLANE_WAVE_COMMON_PARAMETERS | {"m_vec"}
+        else:
+            allowed = _PLANE_WAVE_COMMON_PARAMETERS | {"axis"}
+
+        for case in self.cases:
+            if len(case.states) != 1:
+                raise ValueError(
+                    f"PlaneWaveStudy case '{case.id}' must contain exactly one plane-wave state."
+                )
+            state = case.states[0]
+            if isinstance(state.object, str):
+                if state.object.strip() != "plane_wave_1":
+                    raise ValueError(
+                        f"PlaneWaveStudy case '{case.id}' references '{state.object}', "
+                        "expected 'plane_wave_1'."
+                    )
+            elif state.object is not definition:
+                raise ValueError(
+                    f"PlaneWaveStudy case '{case.id}' must reference its Scene's plane wave."
+                )
+            unknown = set(state.parameters) - allowed
+            if unknown:
+                raise ValueError(
+                    f"PlaneWaveStudy case '{case.id}' has unsupported parameter(s) "
+                    f"{', '.join(sorted(unknown))}. Allowed parameters: "
+                    f"{', '.join(sorted(allowed))}."
+                )
+            if "m_vec" in state.parameters:
+                mapping = tuple(state.parameters["m_vec"])
+                if len(mapping) != 3 or not all(
+                    isinstance(value, (int, np.integer)) for value in mapping
+                ):
+                    raise ValueError(
+                        f"PlaneWaveStudy case '{case.id}' m_vec must contain three integers."
+                    )
+                if not any(mapping):
+                    raise ValueError(
+                        f"PlaneWaveStudy case '{case.id}' m_vec cannot be the zero vector."
+                    )
+                state.parameters["m_vec"] = mapping
+            scale = float(state.parameters.get("scale", 1.0))
+            if not math.isfinite(scale) or scale == 0:
+                raise ValueError(
+                    f"PlaneWaveStudy case '{case.id}' scale must be finite and non-zero."
+                )
+            state.object = "plane_wave_1"
+
+        self._definition = definition
+        self._definition_type = type(definition)
+        self._baseline_kwargs = copy.deepcopy(definition.kwargs)
+        self.registry = {"plane_wave_1": definition}
+        self.aliases = {}
+        self._scene_bound = True
+        logger.info(
+            f"PlaneWaveStudy object: plane_wave_1 ({self._definition_type.__name__})\n"
+        )
+
+    def apply_case(self, model) -> None:
+        """Rebuild the case DPW and all declarative NTFF accumulator state."""
+
+        import gprMax.config as config
+
+        if self._definition_type is None:
+            raise RuntimeError("PlaneWaveStudy was not bound to a Scene before model build.")
+        case_index = config.sim_config.current_model
+        if case_index < 0 or case_index >= len(self.cases):
+            raise ValueError(
+                f"PlaneWaveStudy case index {case_index + 1} is outside the "
+                f"{len(self.cases)} available cases."
+            )
+
+        case = self.cases[case_index]
+        parameters = dict(case.states[0].parameters)
+        scale = float(parameters.pop("scale", 1.0))
+        kwargs = copy.deepcopy(self._baseline_kwargs)
+        kwargs.update(parameters)
+        definition = self._definition_type(**kwargs)
+
+        grid = model.G
+        previous = list(grid.discreteplanewaves)
+        try:
+            definition.build(grid)
+            plane_wave = grid.discreteplanewaves[-1]
+            grid.discreteplanewaves[:] = [plane_wave]
+            if plane_wave.axial != 0:
+                plane_wave.grid_init(grid)
+        except Exception:
+            grid.discreteplanewaves[:] = previous
+            raise
+
+        for name in ("waveformvalues_wholedt", "waveformvalues_halfdt"):
+            values = getattr(plane_wave, name, None)
+            if values is not None:
+                values *= scale
+        plane_wave.study_id = "plane_wave_1"
+        plane_wave.study_scale = scale
+
+        # Receiver histories are ordinary per-run outputs, but reset_fields()
+        # intentionally clears only field/PML state. Clear them explicitly.
+        for receiver in grid.rxs:
+            for values in receiver.outputs.values():
+                values.fill(0)
+
+        self._recompile_ntff(model, grid)
+        self._current_resolved_case = {
+            "case_id": case.id,
+            "objects": {
+                "plane_wave_1": {
+                    "type": self._definition_type.__name__,
+                    "theta": float(plane_wave.theta),
+                    "phi": float(plane_wave.phi),
+                    "psi": float(plane_wave.psi),
+                    "actual_angles": [float(value) for value in plane_wave.actual_angles],
+                    "integer_mapping": [int(value) for value in plane_wave.m[:3]],
+                    "waveform_id": plane_wave.waveformID,
+                    "start": float(plane_wave.start),
+                    "stop": float(plane_wave.stop),
+                    "scale": scale,
+                    "tfsf_corners": [int(value) for value in plane_wave.corners],
+                }
+            },
+        }
+
+    @staticmethod
+    def _recompile_ntff(model, grid) -> None:
+        """Replace declarative NTFF monitors with pristine case instances."""
+
+        if not grid.ntff_monitors and not grid.ntff_output_writers:
+            return
+        if not grid.ntff_output_writers:
+            raise ValueError(
+                "PlaneWaveStudy cannot reset directly constructed NTFF monitors; use the "
+                "declarative NTFF surface/transform/output API or hash commands."
+            )
+
+        referenced = set()
+        for writer in grid.ntff_output_writers:
+            referenced.update(writer.frequency_monitors.values())
+            for mapping_name in ("time_bindings", "time_far_bindings"):
+                for binding in getattr(writer, mapping_name, {}).values():
+                    referenced.add(binding[0])
+        unmanaged = [monitor for monitor in grid.ntff_monitors if monitor not in referenced]
+        if unmanaged:
+            raise ValueError(
+                "PlaneWaveStudy found NTFF monitors outside the declarative reusable interface; "
+                "these cannot be reset safely between cases."
+            )
+
+        grid.ntff_monitors.clear()
+        grid.ntff_output_writers.clear()
+        from gprMax.ntff.interface import compile_ntff_outputs
+
+        compile_ntff_outputs(model, grid)
 
 
 @dataclass(frozen=True)
@@ -1555,7 +1858,9 @@ def preflight_study_args(args) -> Optional[Study]:
         raise ValueError("Studies do not yet support MPI task farming.")
     if getattr(args, "mpi", None) is not None:
         raise ValueError("Studies do not yet support MPI domain decomposition.")
-    if isinstance(study, (PortStudy, EigenmodeStudy)) and getattr(args, "geometry_only", False):
+    if isinstance(study, (PortStudy, EigenmodeStudy, PlaneWaveStudy)) and getattr(
+        args, "geometry_only", False
+    ):
         raise ValueError(
             f"{type(study).__name__} requires a field solve and cannot use geometry_only."
         )
@@ -1664,6 +1969,15 @@ def _parse_positive_int(value: str, path: Path, line: int, name: str) -> int:
     if result < 1:
         raise ValueError(f"Study CSV '{path}', line {line}: {name} must be a positive integer.")
     return result
+
+
+def _parse_int(value: str, path: Path, line: int, name: str) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise ValueError(
+            f"Study CSV '{path}', line {line}: {name} must be an integer."
+        ) from exc
 
 
 def _safe_divide(numerator, denominator, complex_dtype):

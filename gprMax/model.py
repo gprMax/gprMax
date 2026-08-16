@@ -521,7 +521,11 @@ class Model:
                     "repeat the identical, contaminated source. Run a single model "
                     "instead, or use #voltage_source if you need geometry_fixed."
                 )
-            if any(grid.discreteplanewaves for grid in grids):
+            from gprMax.studies import PlaneWaveStudy
+
+            if not isinstance(config.sim_config.study, PlaneWaveStudy) and any(
+                grid.discreteplanewaves for grid in grids
+            ):
                 raise ValueError(
                     "A discrete plane wave command cannot be used with "
                     "geometry_fixed when more than one model is requested (n > 1) "

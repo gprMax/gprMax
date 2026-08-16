@@ -1521,6 +1521,10 @@ class NTFFCompiledOutputs:
             group.attrs["solver"] = monitor.solver_backend
             group.attrs["collection_backend"] = monitor.collection_backend
             group["frequencies"] = monitor.frequencies
+            if monitor.plane_wave_metadata is not None:
+                plane_wave_group = group.create_group("plane_wave")
+                for name, value in monitor.plane_wave_metadata.items():
+                    plane_wave_group.attrs[name] = value
             if transform.save_surface_dft:
                 dft_group = group.create_group("surface_dft")
                 for component, data in monitor.surface_data.items():
