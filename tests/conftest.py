@@ -1,12 +1,14 @@
 """Shared pytest configuration for the gprMax test suite."""
 
 import os
+import sys
 from types import SimpleNamespace
 
 # Some Linux MPI/OFI installations otherwise try to select an unavailable
 # network provider while pytest imports gprMax. An explicit user setting is
 # always preserved.
-os.environ.setdefault("FI_PROVIDER", "shm")
+if sys.platform.startswith("linux"):
+    os.environ.setdefault("FI_PROVIDER", "shm")
 
 import pytest
 
@@ -189,9 +191,7 @@ def fake_grid():
             ID=ID,
             rxs=rxs if rxs is not None else [],
             ntff_monitors=ntff_monitors if ntff_monitors is not None else [],
-            magneticfrillsources=(
-                magneticfrillsources if magneticfrillsources is not None else []
-            ),
+            magneticfrillsources=(magneticfrillsources if magneticfrillsources is not None else []),
             pmls=pmls,
             mode=mode,
         )

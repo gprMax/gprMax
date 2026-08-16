@@ -13,7 +13,10 @@ and mask dispatch, and the material-ID offsetting.
 import numpy as np
 import pytest
 
-from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
+from gprMax.cython.geometry_primitives import (
+    build_voxels_from_array,
+    build_voxels_from_array_mask,
+)
 
 from .conftest import nonzero_set
 
@@ -26,8 +29,11 @@ def make_mask(*shape, fill=0):
     return np.full(shape, fill, dtype=np.int8)
 
 
-# Empty lookups for tests that don't need PEC or averagable awareness.
-_NO_LOOKUP = np.array([], dtype=np.uint8)
+# Material-property lookups must cover every material ID passed to the Cython
+# rasterisers. Empty arrays would make the unchecked memoryview indexing
+# undefined and therefore platform-dependent.
+_NON_PEC_LOOKUP = np.zeros(256, dtype=np.uint8)
+_AVERAGABLE_LOOKUP = np.ones(256, dtype=np.uint8)
 
 
 class TestBuildVoxelsFromArray:
@@ -40,7 +46,18 @@ class TestBuildVoxelsFromArray:
                     data[i, j, k] = i * 4 + j * 2 + k  # values 0..7
 
         build_voxels_from_array(
-            1, 2, 3, 10, True, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+            1,
+            2,
+            3,
+            10,
+            True,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
         )
 
         # data[i, j, k] maps to solid[xs + i, ys + j, zs + k], offset by
@@ -62,7 +79,18 @@ class TestBuildVoxelsFromArray:
         data[1, 0, 0] = 0
 
         build_voxels_from_array(
-            2, 2, 2, 5, True, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+            2,
+            2,
+            2,
+            5,
+            True,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
         )
 
         # Only the non-negative entry is written (0 + numexistmaterials).
@@ -82,7 +110,18 @@ class TestBuildVoxelsFromArray:
             data[i, 0, 0] = i + 1
 
         build_voxels_from_array(
-            6, 0, 0, 0, True, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+            6,
+            0,
+            0,
+            0,
+            True,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
         )
 
         assert nonzero_set(g.solid) == {(6, 0, 0), (7, 0, 0)}
@@ -94,7 +133,18 @@ class TestBuildVoxelsFromArray:
         data = make_data(1, 1, 1, fill=5)
 
         build_voxels_from_array(
-            2, 2, 2, 1, False, _NO_LOOKUP, _NO_LOOKUP, data, g.solid, g.rigidE, g.rigidH, g.ID
+            2,
+            2,
+            2,
+            1,
+            False,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
         )
 
         assert g.solid[2, 2, 2] == 6
@@ -123,8 +173,8 @@ class TestBuildVoxelsFromArrayMask:
             20,
             30,
             True,
-            _NO_LOOKUP,
-            _NO_LOOKUP,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
             mask,
             data,
             g.solid,
@@ -154,8 +204,8 @@ class TestBuildVoxelsFromArrayMask:
             20,
             30,
             True,
-            _NO_LOOKUP,
-            _NO_LOOKUP,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
             mask,
             data,
             g.solid,
@@ -181,8 +231,8 @@ class TestBuildVoxelsFromArrayMask:
             20,
             30,
             False,
-            _NO_LOOKUP,
-            _NO_LOOKUP,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
             mask,
             data,
             g.solid,
@@ -209,8 +259,8 @@ class TestBuildVoxelsFromArrayMask:
             20,
             30,
             True,
-            _NO_LOOKUP,
-            _NO_LOOKUP,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
             mask,
             data,
             g.solid,
