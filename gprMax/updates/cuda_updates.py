@@ -308,9 +308,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 self.subs_name_args,
                 substitutions,
             )
-            module_a = self.source_module(
-                source, options=config.sim_config.devices["nvcc_opts"]
-            )
+            module_a = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
             self.update_electric_pmc_dispersive_dev = module_a.get_function(
                 "update_electric_pmc_dispersive"
             )
@@ -320,9 +318,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 self.subs_name_args,
                 self.subs_func,
             )
-            module_b = self.source_module(
-                source, options=config.sim_config.devices["nvcc_opts"]
-            )
+            module_b = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
             self.update_electric_pmc_dispersive_b_dev = module_b.get_function(
                 "update_electric_pmc_dispersive_b"
             )
@@ -491,8 +487,10 @@ class CUDAUpdates(Updates[CUDAGrid]):
     def _set_eigenmode_source_knls(self):
         """Upload modal bases and compile device TF/SF source kernels."""
 
-        if not hasattr(self.grid, "updatecoeffsE_dev"):
-            self.grid.htod_mat_coeff_arrays()
+        # Geometry reuse creates a fresh CUDA context for every run.  Python
+        # attributes from the former context can still exist on the retained
+        # grid, so presence is not evidence that a device pointer is valid.
+        self.grid.htod_mat_coeff_arrays()
         for source in self.grid.eigenmodesources:
             prepare_device_eigenmode_source(source, "cuda")
         self.eigenmode_tpb = (128, 1, 1)
@@ -1719,9 +1717,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             return
         dispersive = config.get_model_config().materials["maxpoles"] > 0
         kernel = (
-            self.update_electric_pmc_dispersive_dev
-            if dispersive
-            else self.update_electric_pmc_dev
+            self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
         )
         leading = [
             np.int32(self.grid.nx),
@@ -1743,15 +1739,17 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     self.grid.Tz_dev.gpudata,
                 ]
             )
-        arguments.extend([
-            self.grid.ID_dev.gpudata,
-            self.grid.Ex_dev.gpudata,
-            self.grid.Ey_dev.gpudata,
-            self.grid.Ez_dev.gpudata,
-            self.grid.Hx_dev.gpudata,
-            self.grid.Hy_dev.gpudata,
-            self.grid.Hz_dev.gpudata,
-        ])
+        arguments.extend(
+            [
+                self.grid.ID_dev.gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+            ]
+        )
         kernel(
             *arguments,
             block=self.grid.tpb,
@@ -1766,13 +1764,21 @@ class CUDAUpdates(Updates[CUDAGrid]):
         ):
             return
         self.update_electric_pmc_dispersive_b_dev(
-            np.int32(self.grid.nx), np.int32(self.grid.ny), np.int32(self.grid.nz),
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
             np.int32(config.get_model_config().materials["maxpoles"]),
-            *self._pmc_flags(), self.grid.updatecoeffsdispersive_dev.gpudata,
-            self.grid.Tx_dev.gpudata, self.grid.Ty_dev.gpudata,
-            self.grid.Tz_dev.gpudata, self.grid.ID_dev.gpudata,
-            self.grid.Ex_dev.gpudata, self.grid.Ey_dev.gpudata,
-            self.grid.Ez_dev.gpudata, block=self.grid.tpb, grid=self.grid.bpg,
+            *self._pmc_flags(),
+            self.grid.updatecoeffsdispersive_dev.gpudata,
+            self.grid.Tx_dev.gpudata,
+            self.grid.Ty_dev.gpudata,
+            self.grid.Tz_dev.gpudata,
+            self.grid.ID_dev.gpudata,
+            self.grid.Ex_dev.gpudata,
+            self.grid.Ey_dev.gpudata,
+            self.grid.Ez_dev.gpudata,
+            block=self.grid.tpb,
+            grid=self.grid.bpg,
         )
 
     def update_electric_pml(self):

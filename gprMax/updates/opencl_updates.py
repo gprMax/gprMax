@@ -312,9 +312,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             }
             self.update_electric_pmc_dispersive_dev = self.elwiseknl(
                 self.ctx,
-                knl_symmetry_boundaries.update_electric_pmc_dispersive[
-                    "args_opencl"
-                ].substitute(arguments),
+                knl_symmetry_boundaries.update_electric_pmc_dispersive["args_opencl"].substitute(
+                    arguments
+                ),
                 knl_symmetry_boundaries.update_electric_pmc_dispersive["func"].substitute(
                     dispersive
                 ),
@@ -324,9 +324,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             )
             self.update_electric_pmc_dispersive_b_dev = self.elwiseknl(
                 self.ctx,
-                knl_symmetry_boundaries.update_electric_pmc_dispersive_b[
-                    "args_opencl"
-                ].substitute(arguments),
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b["args_opencl"].substitute(
+                    arguments
+                ),
                 knl_symmetry_boundaries.update_electric_pmc_dispersive_b["func"].substitute(
                     substitutions
                 ),
@@ -567,8 +567,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
     def _set_eigenmode_source_knls(self):
         """Upload modal bases and compile device TF/SF source kernels."""
 
-        if not hasattr(self.grid, "updatecoeffsE_dev"):
-            self.grid.htod_mat_coeff_arrays(self.queue)
+        # A reused grid retains Python attributes but receives a fresh OpenCL
+        # queue.  Always re-upload pointer arguments to that current queue.
+        self.grid.htod_mat_coeff_arrays(self.queue)
         for source in self.grid.eigenmodesources:
             prepare_device_eigenmode_source(source, "opencl", queue=self.queue)
         arguments = {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -2045,9 +2046,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             return
         dispersive = config.get_model_config().materials["maxpoles"] > 0
         kernel = (
-            self.update_electric_pmc_dispersive_dev
-            if dispersive
-            else self.update_electric_pmc_dev
+            self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
         )
         leading = [
             np.int32(self.grid.nx),
@@ -2077,15 +2076,17 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 ]
             )
         else:
-            arguments.extend([
-            self.grid.ID_dev,
-            self.grid.Ex_dev,
-            self.grid.Ey_dev,
-            self.grid.Ez_dev,
-            self.grid.Hx_dev,
-            self.grid.Hy_dev,
-            self.grid.Hz_dev,
-            ])
+            arguments.extend(
+                [
+                    self.grid.ID_dev,
+                    self.grid.Ex_dev,
+                    self.grid.Ey_dev,
+                    self.grid.Ez_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
+                ]
+            )
         kernel(*arguments)
 
     def update_symmetry_boundaries_electric_b(self):
@@ -2096,12 +2097,19 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         ):
             return
         self.update_electric_pmc_dispersive_b_dev(
-            np.int32(self.grid.nx), np.int32(self.grid.ny), np.int32(self.grid.nz),
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
             np.int32(config.get_model_config().materials["maxpoles"]),
-            *self._pmc_flags(), self.grid.ID_dev, self.grid.Ex_dev,
-            self.grid.Ey_dev, self.grid.Ez_dev,
-            self.grid.updatecoeffsdispersive_dev, self.grid.Tx_dev,
-            self.grid.Ty_dev, self.grid.Tz_dev,
+            *self._pmc_flags(),
+            self.grid.ID_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
+            self.grid.updatecoeffsdispersive_dev,
+            self.grid.Tx_dev,
+            self.grid.Ty_dev,
+            self.grid.Tz_dev,
         )
 
     def update_electric_pml(self):

@@ -189,6 +189,45 @@ Try changing one thing at a time:
   conversion terms are no longer available; the unmeasured field has not
   physically disappeared.
 
+Build the complete modal S matrix without rebuilding
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A normal run excites the single port and mode selected by
+``#eigenmode_excitation`` and therefore produces one column of a modal S
+matrix. To characterize every declared port/mode channel, add an eigenmode
+study whose CSV selects each channel exactly once:
+
+.. code-block:: text
+
+   case_id,object_id,port,mode
+   p1m1,eigenmode_excitation_1,1,1
+   p1m2,eigenmode_excitation_1,1,2
+   p2m1,eigenmode_excitation_1,2,1
+   p2m2,eigenmode_excitation_1,2,2
+
+Reference it from the input file with:
+
+.. code-block:: none
+
+   #study: eigenmode modal_cases.csv
+
+gprMax solves the FDFD modal anchors for every port during the first geometry
+build. Each later case resets the FDTD fields, modal DFT phases and
+accumulators, and any virtual-waveguide fields and PML histories, then
+synthesizes the selected source from the cached phase-aligned modal basis. It
+does not repeat the FDFD solves. This works when the complete eigenmode setup
+belongs either to the main grid or to one HSG subgrid; ports from different
+grids cannot be combined in one modal study.
+
+The per-case files identify their input port and mode. The aggregate
+``<output>_study.h5`` stores the complete matrix using
+``S[frequency, output_channel, input_channel]``; ``channel_ports`` and
+``channel_modes`` map both channel axes. The physical and generalized
+validity masks remain separate. Use ``-i N`` to restart at case ``N`` while
+retaining compatible columns already stored in the aggregate file. The
+Python API additionally provides modal power/phase/delay weights for array
+synthesis; see :ref:`input-api`.
+
 Example 2: a curved waveguide
 -----------------------------
 

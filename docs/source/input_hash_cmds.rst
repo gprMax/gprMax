@@ -1945,19 +1945,22 @@ case that produced it. The syntax is:
 
     #study: gpr file1
 
-The study type may be ``gpr`` for irregular source/receiver acquisition or
-``port`` for a finite-resistance voltage-source S-parameter study:
+The study type may be ``gpr`` for irregular source/receiver acquisition,
+``port`` for a finite-resistance voltage-source S-parameter study, or
+``eigenmode`` for a modal-port S-parameter study:
 
 .. code-block:: none
 
     #study: port file1
+    #study: eigenmode file1
 
 ``file1`` is a CSV table. Its path is resolved relative to the main input
 file. The required columns are ``case_id`` and ``object_id``. The optional
 columns are ``active``, ``x_m``, ``y_m``, ``z_m``, ``waveform_id``,
-``start_s``, ``stop_s``, ``scale``, and ``record``. Blank cells mean "use the
-object's baseline value". All three position columns must be supplied
-together and contain absolute coordinates in metres.
+``start_s``, ``stop_s``, ``scale``, ``record``, ``port``, and ``mode``. Blank
+cells mean "use the object's baseline value". All three position columns must
+be supplied together and contain absolute coordinates in metres. ``port`` and
+``mode`` are positive integers used only by an eigenmode study.
 
 For example:
 
@@ -2002,6 +2005,23 @@ gap-corrected matrices using
 gap capacitances/conductances through the full admittance matrix, including
 the coupled off-diagonal terms.
 
+For an ``eigenmode`` study, every case contains the single deterministic
+object ``eigenmode_excitation_1`` and selects one declared port/mode channel.
+Every mode on every ``#eigenmode_port`` must be selected exactly once:
+
+.. code-block:: text
+
+    case_id,object_id,port,mode
+    p1m1,eigenmode_excitation_1,1,1
+    p2m1,eigenmode_excitation_1,2,1
+
+All port modal anchors are solved during the first geometry build, including
+source-grade spectral-guard anchors. Later cases reuse those bases, reset the
+modal DFT and any ``#virtual_waveguide`` fields/PML history, and switch the
+active channel without another FDFD solve. The aggregate file stores
+``S[frequency, output_channel, input_channel]`` together with ``channel_ports``
+and ``channel_modes``.
+
 The number of CSV cases determines the number of model runs, so ``-n`` is not
 required. ``-i N`` restarts at case ``N`` and retains absolute output numbering.
 The original geometry, materials, PMLs, and grid allocation are reused, but
@@ -2013,12 +2033,11 @@ of the CSV source.
 
     GPR studies support top-level ``#hertzian_dipole``,
     ``#magnetic_dipole``, and ``#rx`` objects; port studies additionally
-    support finite-resistance ``#voltage_source``/``#rx_port`` pairs. MPI
-    domain decomposition, task farming, subgrid study objects, plane waves,
-    transmission lines, rational/frill ports, and eigenmode objects are
-    rejected until their family-specific state reset and rebuild hooks are
-    implemented. This explicit restriction prevents contaminated results from
-    persistent source or transform state.
+    support finite-resistance ``#voltage_source``/``#rx_port`` pairs;
+    eigenmode studies support ``#eigenmode_port``, ``#eigenmode_excitation``,
+    and ``#virtual_waveguide``. MPI domain decomposition, task farming, plane
+    waves, transmission lines, and rational/frill ports remain excluded from
+    studies until their family-specific state reset hooks are implemented.
 
 #snapshot:
 ----------

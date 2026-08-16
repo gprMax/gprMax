@@ -399,6 +399,43 @@ class VirtualWaveguide:
         source.port_monitor = None
         return source
 
+    def set_active_source(self, source):
+        """Install a configured cached modal source in the auxiliary guide."""
+
+        self.port = source
+        self.aux_source = copy.copy(source)
+        self.aux_source.transverse_start = np.asarray((0, 0), dtype=np.int32)
+        self.aux_source.transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
+        distance = self.spec.length_cells - self.spec.pml_cells - self.spec.source_clearance_cells
+        self.aux_source.plane_index = (
+            distance if self.direction_sign < 0 else self.spec.length_cells - distance
+        )
+        self.aux_source.global_plane_index = self.aux_source.plane_index
+        self.aux_source.global_transverse_start = np.asarray((0, 0), dtype=np.int32)
+        self.aux_source.global_transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
+        self.aux_source.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+        self.aux_source.tfsf_owned_upper = np.asarray(self.aux_grid.size + 1, dtype=np.int32)
+        self.aux_source.port_monitor = None
+        self.aux_grid.eigenmodesources[:] = [self.aux_source]
+
+    def clear_active_source(self):
+        """Leave this guide as a passive matched modal load."""
+
+        self.aux_source = None
+        self.aux_grid.eigenmodesources.clear()
+
+    def reset_run_state(self):
+        """Clear auxiliary fields/PML history and stale accelerator bindings."""
+
+        self.aux_grid.reset_fields()
+        if config.sim_config.general["solver"] == "cpu":
+            self.aux_updates = CPUUpdates(self.aux_grid)
+        else:
+            # Device update objects share their parent's context/queue.  A new
+            # parent is created for every reused run, so the auxiliary object
+            # must be rebound as well.
+            self.aux_updates = None
+
     def initialise_device(self, parent_updates):
         """Create the auxiliary solver in the parent's accelerator context."""
 
@@ -406,13 +443,15 @@ class VirtualWaveguide:
             return
         self.aux_updates = type(parent_updates)(self.aux_grid, shared=parent_updates)
         solver = config.sim_config.general["solver"]
-        if not hasattr(self.aux_grid, "updatecoeffsE_dev"):
-            if solver == "cuda":
-                self.aux_grid.htod_mat_coeff_arrays()
-            elif solver == "opencl":
-                self.aux_grid.htod_mat_coeff_arrays(parent_updates.queue)
-            else:
-                self.aux_grid.htod_material_arrays(parent_updates.dev)
+        # Always refresh these arrays: a geometry-reuse run creates a new
+        # accelerator context/queue, while Python attributes from the former
+        # context may still exist on the persistent auxiliary grid.
+        if solver == "cuda":
+            self.aux_grid.htod_mat_coeff_arrays()
+        elif solver == "opencl":
+            self.aux_grid.htod_mat_coeff_arrays(parent_updates.queue)
+        else:
+            self.aux_grid.htod_material_arrays(parent_updates.dev)
 
     def _mpi_owned_global_bounds(self):
         lower = np.asarray(

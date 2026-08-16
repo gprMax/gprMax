@@ -370,6 +370,116 @@ class EigenmodeSource(Source):
             self._prepare_single_frequency_injection(G)
         self._register_port_monitor(G)
 
+    def configure_cached_excitation(self, G, mode_index, waveform):
+        """Prepare one excitation from this port's cached modal anchor bank.
+
+        The transverse FDFD problems are deliberately not solved here.  This
+        method is used by reusable eigenmode studies after the first geometry
+        build, when every declared port already owns a phase-aligned anchor
+        bank prepared by :meth:`grid_init`.
+        """
+
+        mode_index = int(mode_index)
+        mode_indices = tuple(int(value) for value in self.mode_indices)
+        if mode_index not in mode_indices:
+            raise ValueError(
+                f"Eigenmode port {self.port_index} does not monitor mode "
+                f"{mode_index}; available modes are {mode_indices}."
+            )
+        if self.port_anchor_frequencies is None or self.port_anchor_mode_valid is None:
+            raise RuntimeError(
+                f"Eigenmode port {self.port_index} has no reusable modal anchor bank."
+            )
+
+        mode_position = mode_indices.index(mode_index)
+        used = np.flatnonzero(self.port_anchor_mode_valid[:, mode_position])
+        if used.size == 0:
+            raise ValueError(
+                f"Eigenmode port {self.port_index} mode {mode_index} has no "
+                "propagating anchor suitable for excitation."
+            )
+
+        self.mode_index = mode_index
+        self.waveform = waveform
+        self.waveformID = waveform.ID
+        self.start = 0
+        self.stop = G.timewindow
+        self.uses_quadrature = False
+        self.broadband_e_envelopes = None
+        self.broadband_h_envelopes = None
+        self.broadband_modal_e_real = None
+        self.broadband_modal_e_imag = None
+        self.broadband_modal_h_real = None
+        self.broadband_modal_h_imag = None
+        self.broadband_input_waveform = None
+        self.broadband_reconstructed_waveform = None
+        self.broadband_waveform_error = None
+        self.complex_profile_phase = None
+        self.complex_profile_residual = None
+        self.representative_frequency = None
+
+        frequencies = tuple(float(self.port_anchor_frequencies[index]) for index in used)
+        self.frequencies = frequencies
+        self.anchor_modal_e = [
+            [
+                np.array(field, dtype=np.complex128, copy=True)
+                for field in self.port_anchor_e[index][mode_position]
+            ]
+            for index in used
+        ]
+        self.anchor_modal_h = [
+            [
+                np.array(field, dtype=np.complex128, copy=True)
+                for field in self.port_anchor_h[index][mode_position]
+            ]
+            for index in used
+        ]
+        self.anchor_complex_neff = np.asarray(
+            [self.port_anchor_neff[index, mode_position] for index in used],
+            dtype=np.complex128,
+        )
+        self.mode_solvers = [self.port_mode_solvers[index] for index in used]
+
+        policy = self.port_mode_anchor_policies[mode_position]
+        # This value may have been relaxed for a different mode in the
+        # preceding reusable case.  Start from the normal source policy and
+        # relax it only when this selected mode's resolved anchor policy
+        # explicitly permits trimmed waveform coverage.
+        self.spectrum_coverage_policy = "error"
+        if "nonpropagating_trimmed" in policy or (
+            self._automatic_anchor_policy()
+            and ("guard_trimmed" in policy or policy == "auto_single_fallback")
+        ):
+            self.spectrum_coverage_policy = "allow"
+
+        if len(frequencies) == 1 or policy == "auto_single_fallback":
+            representative = 0
+            self.frequency = frequencies[representative]
+            self.modal_e = [field.copy() for field in self.anchor_modal_e[representative]]
+            self.modal_h = [field.copy() for field in self.anchor_modal_h[representative]]
+            self.mode_solver = self.mode_solvers[representative]
+            self.complex_neff = self.anchor_complex_neff[representative]
+            self.neff = float(np.real(self.complex_neff))
+            self._prepare_single_frequency_injection(G)
+            return
+
+        self._prepare_broadband_time_traces(G, frequencies)
+        representative = (
+            len(frequencies) // 2
+            if self.representative_frequency is None
+            else min(
+                range(len(frequencies)),
+                key=lambda index: abs(frequencies[index] - self.representative_frequency),
+            )
+        )
+        self.frequency = frequencies[representative]
+        self.modal_e = [field.copy() for field in self.anchor_modal_e[representative]]
+        self.modal_h = [field.copy() for field in self.anchor_modal_h[representative]]
+        self.mode_solver = self.mode_solvers[representative]
+        self.complex_neff = self.anchor_complex_neff[representative]
+        self.neff = float(np.real(self.complex_neff))
+        self._store_real_modal_fields()
+
     def _fallback_to_single_anchor(self, G, mismatch):
         frequency = float(self.fallback_frequency)
         if self.mpi_coordinator:

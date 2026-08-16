@@ -18,7 +18,19 @@ from .ntff import (
     spherical_observation_points,
 )
 from .scene import Scene
-from .studies import GPRStudy, ObjectState, PortStudy, PortStudyResult, Study, StudyCase
+from .studies import (
+    EigenmodeStudy,
+    EigenmodeStudyResult,
+    GPRStudy,
+    ModalWeight,
+    ObjectState,
+    PortStudy,
+    PortStudyResult,
+    Study,
+    StudyCase,
+    combine_embedded_modal_responses,
+    modal_array_weights,
+)
 from .subgrids.user_objects import SubGridHSG
 from .user_objects.cmds_geometry.add_grass import AddGrass
 from .user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness

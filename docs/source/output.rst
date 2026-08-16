@@ -75,6 +75,21 @@ columns from an existing aggregate file and replaces the newly evaluated
 columns; an incompatible existing file is rejected rather than mixed with new
 results.
 
+Every eigenmode-study case instead contains
+``study/eigenmode_response``. ``InputPort`` and ``InputMode`` identify the
+incident modal channel; ``S_column`` is ordered by ``channel_ports`` and
+``channel_modes``. ``valid_S_column`` selects physical propagating power-wave
+coefficients, while ``generalized_valid_S_column`` also permits conditioned
+generalized coefficients that are not valid for power accounting.
+
+The eigenmode aggregate ``<output>_study.h5`` contains ``frequency``,
+``channel_ports``, ``channel_modes``, ``case_ids``, ``S``, ``valid_S``, and
+``generalized_valid_S``. Its convention is
+``S[frequency, output_channel, input_channel]``. Modal channels can represent
+different mode counts on different ports; the two channel-index datasets are
+therefore authoritative and should be used instead of assuming one mode per
+port.
+
 .. code-block:: none
 
     /
@@ -90,6 +105,13 @@ results.
                 gap_correction_c
                 S_source_column
                 valid_S_source_column
+            eigenmode_response/ [eigenmode studies]
+                channel_ports
+                channel_modes
+                frequency
+                S_column
+                valid_S_column
+                generalized_valid_S_column
         rxs/
             rx1/
                 Name

@@ -2376,10 +2376,11 @@ class EigenmodeExcitation(GridUserObject):
             waveform = matches[0]
         band.resolve_spectrum(grid, waveform, generated_waveform=generated_waveform)
 
+        reusable_study = bool(getattr(self, "_reusable_study", False))
         for port_number in sorted(grid.eigenmodeportdefs):
             port = grid.eigenmodeportdefs[port_number]
             is_source = port_number == source_port_number
-            port.resolve_anchors(band, is_source=is_source)
+            port.resolve_anchors(band, is_source=(is_source or reusable_study))
             common = self._runtime_plane_kwargs(port, band)
             if is_source:
                 common.update(
@@ -2399,6 +2400,7 @@ class EigenmodeExcitation(GridUserObject):
                 _EigenmodeReceiverBuilder(**common).build(grid)
                 runtime = grid.eigenmodereceivers[-1]
                 runtime.mode_indices = port.modes
+                runtime.spectral_threshold = band.spectral_threshold
             runtime.anchor_policy = port.anchor_policy
             runtime.requested_anchor_policy = port.anchor_policy
             runtime.resolved_anchor_policy = port.anchor_policy

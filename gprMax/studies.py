@@ -17,11 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Reusable-geometry parameter and finite-resistance multiport studies.
+"""Reusable-geometry source, receiver, and port studies.
 
 General GPR studies manage stateless local sources and ordinary receivers.
 Port studies additionally manage source-bound voltage-port monitors and
 assemble their frequency-domain response after the reused solves.
+Eigenmode studies reuse phase-aligned FDFD modal bases and assemble a full
+modal S matrix from one active port/mode channel per run.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ import csv
 import json
 import logging
 import math
+import operator
 import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +58,8 @@ _CSV_COLUMNS = {
     "stop_s",
     "scale",
     "record",
+    "port",
+    "mode",
 }
 
 
@@ -198,6 +203,9 @@ class Study:
                     parameters[parameter_name] = _parse_finite_float(
                         row[csv_name], path, line_number, csv_name
                     )
+            for name in ("port", "mode"):
+                if row.get(name, ""):
+                    parameters[name] = _parse_positive_int(row[name], path, line_number, name)
             if row.get("record", ""):
                 parameters["record"] = _parse_bool(row["record"], path, line_number, "record")
 
@@ -206,6 +214,8 @@ class Study:
         cases = [StudyCase(case_id, states) for case_id, states in case_rows.items()]
         if str(type).strip().lower() == "port":
             return PortStudy(cases, source_path=path, source_text=text)
+        if str(type).strip().lower() == "eigenmode":
+            return EigenmodeStudy(cases, source_path=path, source_text=text)
         return cls(type, cases, source_path=path, source_text=text)
 
     def bind_scene(self, scene) -> None:
@@ -976,6 +986,554 @@ class PortStudy(Study):
             output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
 
 
+@dataclass(frozen=True)
+class EigenmodeStudyResult:
+    """Assembled modal S matrix from one active port/mode per run."""
+
+    frequency: npt.NDArray[np.floating]
+    channel_ports: npt.NDArray[np.integer]
+    channel_modes: npt.NDArray[np.integer]
+    case_ids: tuple[str, ...]
+    s: npt.NDArray[np.complexfloating]
+    valid_s: npt.NDArray[np.bool_]
+    generalized_valid_s: npt.NDArray[np.bool_]
+    output_file: Path
+
+    def excitation_weights(self, excitations: Iterable["ModalWeight"]):
+        """Return frequency-dependent incident power-wave weights."""
+
+        return modal_array_weights(
+            self.frequency,
+            self.channel_ports,
+            self.channel_modes,
+            excitations,
+        )
+
+    def outgoing(self, excitations: Iterable["ModalWeight"]):
+        """Apply the assembled S matrix to a weighted incident-wave vector.
+
+        Zero-weight channels are omitted rather than multiplied by their
+        stored NaNs.  An output is NaN when any active input lacks a valid
+        generalized coefficient to that output.  Use ``valid_s`` separately
+        when the result must also represent propagating real-power waves.
+        """
+
+        incident = self.excitation_weights(excitations)
+        active = np.abs(incident) > 0
+        selected_s = np.where(active[:, np.newaxis, :], self.s, 0)
+        result = np.einsum("foi,fi->fo", selected_s, incident)
+        valid = np.all(
+            ~active[:, np.newaxis, :] | self.generalized_valid_s,
+            axis=-1,
+        )
+        result[~valid] = np.nan + 1j * np.nan
+        return result
+
+
+@dataclass(frozen=True)
+class ModalWeight:
+    """One modal array weight using power, phase, and/or true time delay."""
+
+    port: int
+    mode: int
+    power: float = 1.0
+    phase_deg: float = 0.0
+    delay_s: float = 0.0
+
+
+def modal_array_weights(
+    frequency,
+    channel_ports,
+    channel_modes,
+    excitations: Iterable[ModalWeight],
+):
+    """Build incident modal power waves using the engineering FFT convention.
+
+    A constant phase shifter contributes ``exp(+j phase)``.  A true time
+    delay contributes ``exp(-j 2 pi f delay)``.  The coefficient magnitude is
+    the square root of the requested incident power in watts.
+    """
+
+    frequency = np.asarray(frequency)
+    channel_ports = np.asarray(channel_ports, dtype=np.int64)
+    channel_modes = np.asarray(channel_modes, dtype=np.int64)
+    if frequency.ndim != 1:
+        raise ValueError("Modal array frequencies must be one-dimensional.")
+    if channel_ports.shape != channel_modes.shape or channel_ports.ndim != 1:
+        raise ValueError("Modal channel port/mode arrays must be matching vectors.")
+    channels = {
+        (int(port), int(mode)): index
+        for index, (port, mode) in enumerate(zip(channel_ports, channel_modes))
+    }
+    if len(channels) != channel_ports.size:
+        raise ValueError("Modal channel port/mode pairs must be unique.")
+    result = np.zeros((frequency.size, channel_ports.size), dtype=np.complex128)
+    seen = set()
+    for excitation in excitations:
+        if not isinstance(excitation, ModalWeight):
+            raise TypeError("Modal excitations must be ModalWeight instances.")
+        channel = (int(excitation.port), int(excitation.mode))
+        if channel not in channels:
+            raise ValueError(
+                f"Modal weight references unavailable port {channel[0]}, mode {channel[1]}."
+            )
+        if channel in seen:
+            raise ValueError(
+                f"Modal weight for port {channel[0]}, mode {channel[1]} is duplicated."
+            )
+        seen.add(channel)
+        values = (excitation.power, excitation.phase_deg, excitation.delay_s)
+        if not all(np.isfinite(value) for value in values) or excitation.power < 0:
+            raise ValueError(
+                "Modal weight power must be finite and non-negative; phase and "
+                "delay must be finite."
+            )
+        phase = np.deg2rad(excitation.phase_deg) - 2 * np.pi * frequency * excitation.delay_s
+        result[:, channels[channel]] = np.sqrt(excitation.power) * np.exp(1j * phase)
+    return result
+
+
+def combine_embedded_modal_responses(responses, weights, *, channel_axis=-1):
+    """Linearly combine complex embedded responses with modal weights.
+
+    ``responses`` must have frequency as its first axis and one axis ordered
+    like the study's modal channels.  All intervening axes (observation point,
+    angle, field component, and so on) are retained.
+    """
+
+    responses = np.asarray(responses)
+    weights = np.asarray(weights)
+    if weights.ndim != 2:
+        raise ValueError("Modal weights must have shape (frequency, channel).")
+    if responses.ndim < 2:
+        raise ValueError("Embedded responses require frequency and channel axes.")
+    try:
+        channel_axis = operator.index(channel_axis)
+    except TypeError as exc:
+        raise TypeError("The embedded-response channel axis must be an integer.") from exc
+    if not -responses.ndim <= channel_axis < responses.ndim:
+        raise ValueError("The embedded-response channel axis is outside the response array.")
+    channel_axis %= responses.ndim
+    if channel_axis == 0:
+        raise ValueError("The embedded-response channel axis cannot be its frequency axis.")
+    moved = np.moveaxis(responses, channel_axis, -1)
+    if moved.shape[0] != weights.shape[0]:
+        raise ValueError("Embedded responses and weights require the same frequency axis.")
+    if moved.shape[-1] != weights.shape[1]:
+        raise ValueError("Embedded response channels do not match modal weights.")
+    shape = (weights.shape[0],) + (1,) * (moved.ndim - 2) + (weights.shape[1],)
+    reshaped_weights = weights.reshape(shape)
+    selected = np.where(np.abs(reshaped_weights) > 0, moved, 0)
+    return np.sum(selected * reshaped_weights, axis=-1)
+
+
+class EigenmodeStudy(Study):
+    """One-active-modal-channel-per-case reusable eigenmode-port study.
+
+    All transverse modal anchor problems are solved during the first geometry
+    build.  Later cases only synthesize an injection from those cached bases,
+    clear modal/virtual-guide state, and select a new active ``(port, mode)``.
+    """
+
+    supported_types = ("eigenmode",)
+
+    def __init__(
+        self,
+        cases: Sequence[StudyCase],
+        *,
+        source_path: Optional[Union[str, Path]] = None,
+        source_text: Optional[str] = None,
+    ):
+        super().__init__(
+            "eigenmode",
+            cases,
+            source_path=source_path,
+            source_text=source_text,
+        )
+        self._excitation = None
+        self._case_channels: list[tuple[int, int]] = []
+        self._channels: tuple[tuple[int, int], ...] = ()
+        self._runtime_grid = None
+        self._runtime_ports: dict[int, Any] = {}
+        self._runtime_monitors: dict[int, Any] = {}
+        self._runtime_guides: dict[int, Any] = {}
+        self._waveform = None
+        self._columns: dict[tuple[int, int], dict[str, Any]] = {}
+        self._current_column: Optional[dict[str, Any]] = None
+        self._aggregate_output_path: Optional[Path] = None
+        self.result: Optional[EigenmodeStudyResult] = None
+
+    def reset_runtime(self) -> None:
+        super().reset_runtime()
+        self._runtime_grid = None
+        self._runtime_ports.clear()
+        self._runtime_monitors.clear()
+        self._runtime_guides.clear()
+        self._waveform = None
+        self._columns.clear()
+        self._current_column = None
+        self._aggregate_output_path = None
+        self.result = None
+
+    def bind_scene(self, scene) -> None:
+        """Validate a complete, unambiguous modal-channel schedule."""
+
+        if self._scene_bound:
+            return
+        from gprMax.user_objects.cmds_multiuse import EigenmodeExcitation, EigenmodePort
+
+        containers = [("main grid", list(scene.grid_objects) + list(scene.output_objects))]
+        containers.extend(
+            (
+                f"subgrid {subgrid.kwargs.get('id', '')!r}",
+                list(subgrid.children_grid) + list(subgrid.children_output),
+            )
+            for subgrid in scene.subgrid_objects
+        )
+        excitations = [
+            (label, objects, item)
+            for label, objects in containers
+            for item in objects
+            if isinstance(item, EigenmodeExcitation)
+        ]
+        if len(excitations) != 1:
+            raise ValueError(
+                "EigenmodeStudy requires exactly one EigenmodeExcitation in its Scene; "
+                f"found {len(excitations)}."
+            )
+        owner_label, owner_objects, excitation = excitations[0]
+        ports = [item for item in owner_objects if isinstance(item, EigenmodePort)]
+        if not ports:
+            raise ValueError("EigenmodeStudy requires at least one EigenmodePort.")
+        foreign_ports = [
+            label
+            for label, objects in containers
+            if objects is not owner_objects
+            for item in objects
+            if isinstance(item, EigenmodePort)
+        ]
+        if foreign_ports:
+            raise ValueError(
+                "EigenmodeStudy requires its excitation and every eigenmode port to "
+                f"belong to one grid ({owner_label}); ports were also found on "
+                + ", ".join(sorted(set(foreign_ports)))
+                + "."
+            )
+
+        study_id = "eigenmode_excitation_1"
+        setattr(excitation, "_study_id", study_id)
+        # The builder uses this marker to resolve source-grade anchor coverage
+        # at every port, not only at the initially selected source.
+        setattr(excitation, "_reusable_study", True)
+        self._excitation = excitation
+        self.registry = {study_id: excitation}
+        self.aliases = {}
+
+        available: set[tuple[int, int]] = set()
+        for port in ports:
+            port_number = int(port.kwargs["port"])
+            modes = port.kwargs.get("modes", (1,))
+            if np.isscalar(modes):
+                modes = tuple(range(1, int(modes) + 1))
+            available.update((port_number, int(mode)) for mode in modes)
+
+        scheduled: list[tuple[int, int]] = []
+        for case in self.cases:
+            if len(case.states) != 1:
+                raise ValueError(
+                    f"EigenmodeStudy case '{case.id}' must contain exactly one "
+                    "EigenmodeExcitation state."
+                )
+            state = case.states[0]
+            if isinstance(state.object, str):
+                requested = state.object.strip()
+                if requested != study_id:
+                    raise ValueError(
+                        f"EigenmodeStudy case '{case.id}' references '{requested}', "
+                        f"expected '{study_id}'."
+                    )
+            elif state.object is not excitation:
+                raise ValueError(
+                    f"EigenmodeStudy case '{case.id}' must reference the Scene's "
+                    "EigenmodeExcitation object."
+                )
+            unknown = set(state.parameters) - {"port", "mode"}
+            if unknown:
+                raise ValueError(
+                    f"EigenmodeStudy case '{case.id}' has unsupported parameter(s) "
+                    f"{', '.join(sorted(unknown))}; allowed parameters are port and mode."
+                )
+            if "port" not in state.parameters or "mode" not in state.parameters:
+                raise ValueError(f"EigenmodeStudy case '{case.id}' requires both port and mode.")
+            channel = (int(state.parameters["port"]), int(state.parameters["mode"]))
+            if channel not in available:
+                raise ValueError(
+                    f"EigenmodeStudy case '{case.id}' requests unavailable channel "
+                    f"port {channel[0]}, mode {channel[1]}."
+                )
+            state.object = study_id
+            scheduled.append(channel)
+
+        if len(scheduled) != len(set(scheduled)):
+            raise ValueError("EigenmodeStudy may excite each port/mode channel only once.")
+        if set(scheduled) != available:
+            missing = ", ".join(
+                f"port {port}, mode {mode}" for port, mode in sorted(available - set(scheduled))
+            )
+            raise ValueError(
+                "EigenmodeStudy requires one case for every declared modal channel; "
+                f"missing {missing}."
+            )
+        self._case_channels = scheduled
+        self._channels = tuple(sorted(available))
+        self._scene_bound = True
+        logger.info(
+            "EigenmodeStudy channels: "
+            + ", ".join(f"port {port}/mode {mode}" for port, mode in self._channels)
+            + "\n"
+        )
+
+    def _bind_runtime(self, model) -> None:
+        if self._runtime_grid is not None:
+            return
+        grids = [model.G] + list(model.subgrids)
+        matches = [grid for grid in grids if grid.eigenmodeexcitation is self._excitation]
+        if len(matches) != 1:
+            raise RuntimeError(
+                "EigenmodeStudy could not identify exactly one built grid for its excitation."
+            )
+        grid = matches[0]
+        monitors = {int(monitor.port_index): monitor for monitor in grid.eigenmodeports}
+        ports = {port_number: monitor.owner for port_number, monitor in monitors.items()}
+        expected_ports = {port for port, _ in self._channels}
+        if set(ports) != expected_ports:
+            raise RuntimeError(
+                "EigenmodeStudy runtime ports do not match its declared modal channels."
+            )
+        guides = {int(guide.spec.port): guide for guide in grid.virtual_waveguides}
+        waveforms = [
+            port.waveform for port in ports.values() if getattr(port, "waveform", None) is not None
+        ]
+        if len(waveforms) != 1:
+            raise RuntimeError("EigenmodeStudy requires exactly one baseline excitation waveform.")
+        self._runtime_grid = grid
+        self._runtime_ports = ports
+        self._runtime_monitors = monitors
+        self._runtime_guides = guides
+        self._waveform = waveforms[0]
+
+    def apply_case(self, model) -> None:
+        """Reset persistent state and activate the scheduled modal channel."""
+
+        import gprMax.config as config
+
+        self._bind_runtime(model)
+        grid = self._runtime_grid
+        case_index = config.sim_config.current_model
+        port_number, mode_index = self._case_channels[case_index]
+
+        for monitor in self._runtime_monitors.values():
+            monitor.reset_run_state(grid)
+            monitor.is_source = False
+            monitor.excitation_mode_index = None
+            monitor.magnetic_side = 1 if int(monitor.port_index) in self._runtime_guides else -1
+        for guide in self._runtime_guides.values():
+            guide.clear_active_source()
+            guide.reset_run_state()
+
+        all_ports = list(self._runtime_ports.values())
+        grid.eigenmodesources.clear()
+        grid.eigenmodereceivers[:] = all_ports
+
+        source = self._runtime_ports[port_number]
+        source.spectral_threshold = grid.eigenmodeband.spectral_threshold
+        source.configure_cached_excitation(grid, mode_index, self._waveform)
+        monitor = self._runtime_monitors[port_number]
+        monitor.is_source = True
+        monitor.excitation_mode_index = mode_index
+        monitor.magnetic_side = 1
+        guide = self._runtime_guides.get(port_number)
+        if guide is None:
+            grid.eigenmodereceivers.remove(source)
+            grid.eigenmodesources.append(source)
+        else:
+            guide.set_active_source(source)
+
+        case = self.cases[case_index]
+        self._current_resolved_case = {
+            "case_id": case.id,
+            "objects": {
+                "eigenmode_excitation_1": {
+                    "port": port_number,
+                    "mode": mode_index,
+                }
+            },
+        }
+        if self._aggregate_output_path is None:
+            model_config = config.get_model_config()
+            base = Path(model_config.output_file_path)
+            suffix = model_config.appendmodelnumber
+            if suffix and base.name.endswith(suffix):
+                base = base.with_name(base.name[: -len(suffix)])
+            self._aggregate_output_path = base.with_name(base.name + "_study").with_suffix(".h5")
+
+    def collect_case(self, model) -> None:
+        """Collect one modal S-matrix column from finalised port monitors."""
+
+        import gprMax.config as config
+
+        grid = self._runtime_grid
+        input_channel = self._case_channels[config.sim_config.current_model]
+        first = self._runtime_monitors[self._channels[0][0]]
+        frequency = np.asarray(first.result.frequency)
+        complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+        column = np.full(
+            (frequency.size, len(self._channels)),
+            np.nan + 1j * np.nan,
+            dtype=complex_dtype,
+        )
+        valid = np.zeros(column.shape, dtype=bool)
+        generalized_valid = np.zeros(column.shape, dtype=bool)
+        for output_index, (port_number, mode_index) in enumerate(self._channels):
+            monitor = self._runtime_monitors[port_number]
+            if not np.array_equal(monitor.result.frequency, frequency):
+                raise ValueError("All EigenmodeStudy ports must use identical DFT bins.")
+            mode_position = monitor.mode_indices.index(mode_index)
+            column[:, output_index] = monitor.s_parameters[mode_position]
+            valid[:, output_index] = monitor.s_valid[mode_position]
+            generalized_valid[:, output_index] = monitor.s_generalized_valid[mode_position]
+
+        data = {
+            "case_id": self.cases[config.sim_config.current_model].id,
+            "input_channel": input_channel,
+            "frequency": frequency.copy(),
+            "column": column,
+            "valid": valid,
+            "generalized_valid": generalized_valid,
+        }
+        self._columns[input_channel] = data
+        self._current_column = data
+
+    def write_hdf5(self, h5file) -> None:
+        super().write_hdf5(h5file)
+        if self._current_column is None:
+            raise RuntimeError("EigenmodeStudy case data was not collected before HDF5 output.")
+        data = self._current_column
+        group = h5file["study"].create_group("eigenmode_response")
+        group.attrs["InputPort"] = data["input_channel"][0]
+        group.attrs["InputMode"] = data["input_channel"][1]
+        group.attrs["MatrixConvention"] = "S[frequency, output_channel, input_channel]"
+        group.create_dataset("channel_ports", data=[item[0] for item in self._channels])
+        group.create_dataset("channel_modes", data=[item[1] for item in self._channels])
+        group.create_dataset("frequency", data=data["frequency"])
+        group.create_dataset("S_column", data=data["column"])
+        group.create_dataset("valid_S_column", data=data["valid"].astype(np.uint8))
+        group.create_dataset(
+            "generalized_valid_S_column",
+            data=data["generalized_valid"].astype(np.uint8),
+        )
+        if self._aggregate_output_path is not None:
+            group.attrs["AggregateOutput"] = str(self._aggregate_output_path)
+
+    def finalise(self) -> Optional[EigenmodeStudyResult]:
+        """Assemble and store the complete modal S matrix."""
+
+        if not self._columns or self._aggregate_output_path is None:
+            return None
+        first = next(iter(self._columns.values()))
+        frequency = first["frequency"]
+        channel_count = len(self._channels)
+        shape = (frequency.size, channel_count, channel_count)
+        s = np.full(shape, np.nan + 1j * np.nan, dtype=first["column"].dtype)
+        valid = np.zeros(shape, dtype=bool)
+        generalized_valid = np.zeros(shape, dtype=bool)
+        case_ids = [""] * channel_count
+
+        if len(self._columns) < channel_count and self._aggregate_output_path.exists():
+            with h5py.File(self._aggregate_output_path, "r") as previous:
+                previous_channels = tuple(
+                    zip(
+                        previous["channel_ports"][...].astype(int),
+                        previous["channel_modes"][...].astype(int),
+                    )
+                )
+                compatible = (
+                    previous.attrs.get("StudyType", "") == "eigenmode"
+                    and previous_channels == self._channels
+                    and np.array_equal(previous["frequency"][...], frequency)
+                )
+                if not compatible:
+                    raise ValueError(
+                        f"Existing EigenmodeStudy output '{self._aggregate_output_path}' "
+                        "is not compatible with this restarted study."
+                    )
+                s[...] = previous["S"][...]
+                valid[...] = previous["valid_S"][...].astype(bool)
+                generalized_valid[...] = previous["generalized_valid_S"][...].astype(bool)
+                case_ids = [item.decode() for item in previous["case_ids"][...]]
+        elif len(self._columns) < channel_count:
+            logger.warning(
+                "EigenmodeStudy is incomplete and no compatible aggregate output "
+                "exists from an earlier run; uncomputed S-matrix columns will be NaN."
+            )
+
+        for input_index, channel in enumerate(self._channels):
+            data = self._columns.get(channel)
+            if data is None:
+                continue
+            if not np.array_equal(data["frequency"], frequency):
+                raise RuntimeError("EigenmodeStudy collected inconsistent frequency axes.")
+            s[:, :, input_index] = data["column"]
+            valid[:, :, input_index] = data["valid"]
+            generalized_valid[:, :, input_index] = data["generalized_valid"]
+            case_ids[input_index] = data["case_id"]
+
+        self.result = EigenmodeStudyResult(
+            frequency=np.asarray(frequency),
+            channel_ports=np.asarray([item[0] for item in self._channels], dtype=np.int32),
+            channel_modes=np.asarray([item[1] for item in self._channels], dtype=np.int32),
+            case_ids=tuple(case_ids),
+            s=s,
+            valid_s=valid,
+            generalized_valid_s=generalized_valid,
+            output_file=self._aggregate_output_path,
+        )
+        self._write_aggregate_hdf5()
+        logger.info(f"Written EigenmodeStudy output file: {self._aggregate_output_path.name}\n")
+        return self.result
+
+    def _write_aggregate_hdf5(self) -> None:
+        if self.result is None:
+            return
+        from gprMax._version import __version__
+        from gprMax.ntff.conventions import FORWARD_TRANSFORM_KERNEL, PHASOR_TIME_DEPENDENCE
+
+        result = self.result
+        with h5py.File(result.output_file, "w") as output:
+            output.attrs["gprMax"] = __version__
+            output.attrs["StudyType"] = self.type
+            output.attrs["MatrixConvention"] = "S[frequency, output_channel, input_channel]"
+            output.attrs["WaveNormalisation"] = "modal_power_wave"
+            output.attrs["phasor_time_sign"] = PHASOR_TIME_DEPENDENCE
+            output.attrs["forward_transform_sign"] = FORWARD_TRANSFORM_KERNEL
+            output.attrs["CasesCompleted"] = sum(bool(case_id) for case_id in result.case_ids)
+            output.attrs["CaseCount"] = len(self.cases)
+            output.attrs["Complete"] = all(bool(case_id) for case_id in result.case_ids)
+            if self.source_path is not None:
+                output.attrs["SourcePath"] = str(self.source_path)
+            if self.source_text is not None:
+                output.create_dataset("source", data=self.source_text)
+            output.create_dataset("frequency", data=result.frequency)
+            output.create_dataset("channel_ports", data=result.channel_ports)
+            output.create_dataset("channel_modes", data=result.channel_modes)
+            output.create_dataset("case_ids", data=np.asarray(result.case_ids, dtype="S"))
+            output.create_dataset("S", data=result.s)
+            output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
+            output.create_dataset(
+                "generalized_valid_S", data=result.generalized_valid_s.astype(np.uint8)
+            )
+
+
 def preflight_study_args(args) -> Optional[Study]:
     """Resolve API/hash study input before SimulationConfig sizes its run."""
 
@@ -997,8 +1555,10 @@ def preflight_study_args(args) -> Optional[Study]:
         raise ValueError("Studies do not yet support MPI task farming.")
     if getattr(args, "mpi", None) is not None:
         raise ValueError("Studies do not yet support MPI domain decomposition.")
-    if isinstance(study, PortStudy) and getattr(args, "geometry_only", False):
-        raise ValueError("PortStudy requires a field solve and cannot use geometry_only.")
+    if isinstance(study, (PortStudy, EigenmodeStudy)) and getattr(args, "geometry_only", False):
+        raise ValueError(
+            f"{type(study).__name__} requires a field solve and cannot use geometry_only."
+        )
     scenes = getattr(args, "scenes", None)
     if scenes is not None and len(scenes) != 1:
         raise ValueError("A study requires exactly one reusable Scene.")
@@ -1091,6 +1651,18 @@ def _parse_finite_float(value: str, path: Path, line: int, name: str) -> float:
         raise ValueError(f"Study CSV '{path}', line {line}: {name} must be a number.") from exc
     if not math.isfinite(result):
         raise ValueError(f"Study CSV '{path}', line {line}: {name} must be finite.")
+    return result
+
+
+def _parse_positive_int(value: str, path: Path, line: int, name: str) -> int:
+    try:
+        result = int(value)
+    except ValueError as exc:
+        raise ValueError(
+            f"Study CSV '{path}', line {line}: {name} must be a positive integer."
+        ) from exc
+    if result < 1:
+        raise ValueError(f"Study CSV '{path}', line {line}: {name} must be a positive integer.")
     return result
 
 
