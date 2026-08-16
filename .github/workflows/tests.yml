@@ -24,7 +24,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
-      FI_PROVIDER: shm
       MPI4PY_RC_FINALIZE: "0"
       OMP_NUM_THREADS: "1"
       PYTHONFAULTHANDLER: "1"
@@ -47,6 +46,11 @@ jobs:
 
       - name: Set up MPI runtime
         uses: mpi4py/setup-mpi@v1
+
+      - name: Configure Linux MPI transport
+        if: runner.os == 'Linux'
+        shell: bash
+        run: echo "FI_PROVIDER=shm" >> "$GITHUB_ENV"
 
       - name: Install gprMax and test dependencies
         run: |
