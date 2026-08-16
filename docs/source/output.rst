@@ -48,6 +48,33 @@ and implicitly disabled sources.
 Study-managed source and receiver groups also carry a ``StudyID`` attribute,
 which provides an unambiguous link back to the case table.
 
+Every case in a finite-resistance voltage-port study additionally contains
+``study/port_response``. ``DrivenSourceID`` and ``DrivenPortID`` identify its
+input port; ``S_source_column`` contains the power-normalised raw source-plane
+response for every output port. ``gap_correction_c`` stores the dimensionless
+parallel-gap admittance :math:`Z_{0,p}Y_{\mathrm{gap},p}` used by the matrix
+correction.
+
+After all requested cases finish, gprMax writes ``<output>_study.h5``. Its
+principal datasets are:
+
+- ``frequency``: common frequency axis;
+- ``port_ids`` and ``source_ids``: output-port and deterministic source order;
+- ``case_ids``: case contributing each input-port column;
+- ``reference_impedance``: positive real wave-reference impedance per port;
+- ``gap_correction_c``: numerical gap shunt correction for every frequency and
+  port;
+- ``S_source``: uncorrected source-plane S matrix;
+- ``S``: matrix after removing all numerical gap admittances;
+- ``valid_S_source`` and ``valid_S``: element validity masks.
+
+Both matrices use axis order
+``S[frequency, output_port, input_port]``. The ``Complete`` attribute states
+whether every input-port column is present. A restarted study loads compatible
+columns from an existing aggregate file and replaces the newly evaluated
+columns; an incompatible existing file is rejected rather than mixed with new
+results.
+
 .. code-block:: none
 
     /
@@ -55,6 +82,14 @@ which provides an unambiguous link back to the case table.
             source [CSV studies]
             definition
             resolved_case
+            port_response/ [port studies]
+                port_ids
+                source_ids
+                frequency
+                reference_impedance
+                gap_correction_c
+                S_source_column
+                valid_S_source_column
         rxs/
             rx1/
                 Name

@@ -1945,6 +1945,13 @@ case that produced it. The syntax is:
 
     #study: gpr file1
 
+The study type may be ``gpr`` for irregular source/receiver acquisition or
+``port`` for a finite-resistance voltage-source S-parameter study:
+
+.. code-block:: none
+
+    #study: port file1
+
 ``file1`` is a CSV table. Its path is resolved relative to the main input
 file. The required columns are ``case_id`` and ``object_id``. The optional
 columns are ``active``, ``x_m``, ``y_m``, ``z_m``, ``waveform_id``,
@@ -1964,12 +1971,36 @@ For example:
 
 Objects receive deterministic IDs from their order of appearance within each
 object family: ``hertzian_dipole_1``, ``hertzian_dipole_2``,
-``magnetic_dipole_1``, and ``rx_1``. An explicit ``#rx`` identifier is also
-accepted as an alias. A source listed in a case is active by default; a source
-omitted from that case, or listed with ``active=false``, is inactive. A
-receiver omitted from a case remains at its baseline position and is still
-recorded. ``record=false`` is reserved for future selective-output support and
-is currently rejected rather than silently ignored.
+``magnetic_dipole_1``, ``voltage_source_1``, and ``rx_1``. An explicit
+``#rx`` identifier is also accepted as an alias. A source listed in a case is
+active by default; a source omitted from that case, or listed with
+``active=false``, is inactive. A receiver omitted from a case remains at its
+baseline position and is still recorded. ``record=false`` is reserved for
+future selective-output support and is currently rejected rather than
+silently ignored.
+
+For a ``port`` study, every ``#voltage_source`` must have finite, non-zero
+resistance and a coincident ``#rx_port`` with a unique ID. The CSV must contain
+one case for every voltage source and drive exactly one source in each case.
+Omitted sources retain their fixed source resistance but receive a zero
+generator waveform, so they behave as passive matched terminations. For
+example, a two-port schedule is:
+
+.. code-block:: text
+
+    case_id,object_id,active,scale
+    drive_port1,voltage_source_1,true,1
+    drive_port2,voltage_source_2,true,1
+
+Source position and resistance cannot vary in a port study because they are
+part of the built electric-edge material. Hard sources are not accepted: zero
+drive on a hard source enforces zero field and is not a matched termination.
+Each case output stores its source-plane S-matrix column. After the cases
+finish, ``<output>_study.h5`` stores the complete source-plane and
+gap-corrected matrices using
+``S[frequency, output_port, input_port]``. The correction removes all numerical
+gap capacitances/conductances through the full admittance matrix, including
+the coupled off-diagonal terms.
 
 The number of CSV cases determines the number of model runs, so ``-n`` is not
 required. ``-i N`` restarts at case ``N`` and retains absolute output numbering.
@@ -1980,10 +2011,11 @@ of the CSV source.
 
 .. note::
 
-    The first implementation supports top-level ``#hertzian_dipole``,
-    ``#magnetic_dipole``, and ``#rx`` objects on the main grid. MPI domain
-    decomposition, task farming, subgrid objects, plane waves, voltage and
-    transmission-line sources, rational/frill ports, and eigenmode objects are
+    GPR studies support top-level ``#hertzian_dipole``,
+    ``#magnetic_dipole``, and ``#rx`` objects; port studies additionally
+    support finite-resistance ``#voltage_source``/``#rx_port`` pairs. MPI
+    domain decomposition, task farming, subgrid study objects, plane waves,
+    transmission lines, rational/frill ports, and eigenmode objects are
     rejected until their family-specific state reset and rebuild hooks are
     implemented. This explicit restriction prevents contaminated results from
     persistent source or transform state.

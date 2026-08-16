@@ -103,9 +103,15 @@ class Context:
         for i in self.model_range:
             self._run_model(i)
 
+        results = {}
+        if config.sim_config.study is not None:
+            study_result = config.sim_config.study.finalise()
+            if study_result is not None:
+                results["study"] = study_result
+
         self._end_simulation()
 
-        return {}
+        return results
 
     def _run_model(self, model_num: int) -> None:
         """Process for running a single model.

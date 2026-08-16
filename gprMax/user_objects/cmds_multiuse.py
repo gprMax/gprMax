@@ -698,9 +698,11 @@ class VoltageSource(RotatableMixin, GridUserObject):
         voltage_source = VoltageSourceUser()
         voltage_source.polarisation = self.polarisation
         voltage_source.coord = coord
+        voltage_source.coordorigin = coord.copy()
         uip = self._create_uip(grid)
         x, y, z = uip.discretise_static_point(self.point)
         voltage_source.ID = f"{voltage_source.__class__.__name__}({x},{y},{z})"
+        voltage_source.study_id = getattr(self, "_study_id", None)
         voltage_source.resistance = self.resistance
         voltage_source.reference_impedance = (
             float(self.reference_impedance)

@@ -242,11 +242,7 @@ def evaluate_port_power_spectrum(
         power_wave_valid = np.asarray(power_wave_valid_value, dtype=bool)
         result_valid = np.asarray(output.result.valid, dtype=bool)
         power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)
-        modal_valid = (
-            result_valid
-            & power_wave_valid.T
-            & power_matrix_valid[np.newaxis, :]
-        )
+        modal_valid = result_valid & power_wave_valid.T & power_matrix_valid[np.newaxis, :]
         physical_power_valid = np.zeros(frequency.shape, dtype=bool)
         for frequency_index in range(frequency.size):
             physical_modes = np.flatnonzero(power_wave_valid[frequency_index])
@@ -764,6 +760,56 @@ def correct_s11_for_parallel_gap(s11_source, gap_correction, complex_dtype=None)
     return _safe_complex_divide(numerator, denominator, complex_dtype)
 
 
+def correct_smatrix_for_parallel_gaps(s_source, gap_correction, complex_dtype=None):
+    """Remove the Yee-gap shunt admittances from a multiport S matrix.
+
+    ``s_source`` uses power-wave normalisation and has shape
+    ``(nfrequency, nport, nport)``. ``gap_correction`` is the dimensionless
+    diagonal admittance ``Z0 * Ygap`` for every frequency and port, with
+    shape ``(nfrequency, nport)``. The conversion is performed through the
+    normalised admittance matrix so coupling terms are corrected consistently
+    rather than treating every matrix element as an independent S11.
+
+    Returns the corrected matrix and one validity flag per frequency.
+    """
+
+    if complex_dtype is None:
+        complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+    else:
+        complex_dtype = np.dtype(complex_dtype)
+    source = np.asarray(s_source, dtype=complex_dtype)
+    correction = np.asarray(gap_correction, dtype=complex_dtype)
+    if source.ndim != 3 or source.shape[1] != source.shape[2]:
+        raise ValueError("s_source must have shape (nfrequency, nport, nport)")
+    if correction.shape != source.shape[:2]:
+        raise ValueError("gap_correction must have shape (nfrequency, nport)")
+
+    corrected = np.full(source.shape, np.nan + 1j * np.nan, dtype=complex_dtype)
+    valid = np.zeros(source.shape[0], dtype=bool)
+    identity = np.eye(source.shape[1], dtype=complex_dtype)
+    for index, (matrix, gaps) in enumerate(zip(source, correction)):
+        if not np.all(np.isfinite(matrix)) or not np.all(np.isfinite(gaps)):
+            continue
+        try:
+            # y_source = (I - S_source) (I + S_source)^-1. The transpose
+            # form applies the right-hand inverse using numpy's left solve.
+            y_source = np.linalg.solve(
+                (identity + matrix).T,
+                (identity - matrix).T,
+            ).T
+            y_corrected = y_source - np.diag(gaps)
+            matrix_corrected = np.linalg.solve(
+                identity + y_corrected,
+                identity - y_corrected,
+            )
+        except np.linalg.LinAlgError:
+            continue
+        if np.all(np.isfinite(matrix_corrected)):
+            corrected[index] = np.asarray(matrix_corrected, dtype=complex_dtype)
+            valid[index] = True
+    return corrected, valid
+
+
 def impedance_from_s11(s11, reference_impedance, complex_dtype=None):
     """Calculate input impedance from S11 with a separate validity mask."""
 
@@ -1198,6 +1244,22 @@ class VoltageSourcePortMonitor:
     @property
     def component(self):
         return f"E{self.source.polarisation}"
+
+    def reset_run_state(self) -> None:
+        """Clear histories and derived results before a reused-geometry run."""
+
+        for values in self.receiver.outputs.values():
+            values.fill(0)
+        self.result = None
+        for name in (
+            "_hard_current_time",
+            "_hard_loop_current",
+            "_hard_loop_current_spectrum",
+            "_hard_terminal_current_spectrum",
+            "_hard_source_plane_valid",
+        ):
+            if hasattr(self, name):
+                delattr(self, name)
 
     def rebind_after_mpi_gather(self, grid: "FDTDGrid") -> None:
         """Reconnect gathered monitor state to the coordinator's grid objects."""
