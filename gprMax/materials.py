@@ -26,6 +26,49 @@ import gprMax.config as config
 logger = logging.getLogger(__name__)
 
 
+def validate_lorentz_pole(frequency_hz: float, damping_per_s: float, dt: float) -> None:
+    """Validate a Lorentz pole for the recursive material formulation.
+
+    Lorentz resonance frequencies are supplied in hertz, whereas the
+    coefficient construction uses the angular frequency ``2 * pi * f``.
+    The simple conjugate-pole representation used by gprMax is valid only for
+    an underdamped pole.
+    """
+
+    if frequency_hz <= 0:
+        raise ValueError("Lorentz resonance frequency must be positive")
+    if damping_per_s < 0:
+        raise ValueError("Lorentz damping coefficient must be non-negative")
+    if frequency_hz >= 1.0 / dt:
+        raise ValueError("Lorentz resonance frequency must be below 1 / dt")
+    if damping_per_s >= 1.0 / dt:
+        raise ValueError("Lorentz damping coefficient must be below 1 / dt")
+
+    angular_frequency = 2.0 * np.pi * frequency_hz
+    if damping_per_s >= angular_frequency or np.isclose(
+        damping_per_s,
+        angular_frequency,
+        rtol=1e-12,
+        atol=0.0,
+    ):
+        raise ValueError(
+            "Lorentz damping coefficient must be below 2 * pi * resonance frequency"
+        )
+
+
+def validate_drude_pole(frequency_hz: float, collision_per_s: float, dt: float) -> None:
+    """Validate a Drude pole for the recursive material formulation."""
+
+    if frequency_hz <= 0:
+        raise ValueError("Drude plasma frequency must be positive")
+    if collision_per_s <= 0:
+        raise ValueError("Drude collision frequency must be positive")
+    if frequency_hz >= 1.0 / dt:
+        raise ValueError("Drude plasma frequency must be below 1 / dt")
+    if collision_per_s >= 1.0 / dt:
+        raise ValueError("Drude collision frequency must be below 1 / dt")
+
+
 class Material:
     """Super-class to describe generic, non-dispersive materials,
     their properties and update coefficients.

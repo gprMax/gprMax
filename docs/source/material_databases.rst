@@ -130,6 +130,13 @@ and the general inclusive pole representation used internally by gprMax.
 Field names carry units explicitly; for example a Debye pole uses
 ``relative_permittivity_difference`` and ``relaxation_time_s``. Perfect
 conductors use the ``builtin`` model rather than non-standard JSON infinity.
+Lorentz and Drude resonance or plasma frequencies are specified in hertz,
+whereas their damping and collision coefficients are specified per second.
+The recursive formulation requires pole frequencies below ``1 / dt``; this
+coefficient-construction limit must not be mistaken for the stricter Nyquist
+limit on resolved simulation output. The Lorentz representation is
+underdamped and therefore also requires the damping coefficient to be less
+than ``2 * pi`` times the resonance frequency.
 
 Each selected material records the database ID, database version, entry key,
 canonical entry SHA-256, source path, and whether it came from an official
@@ -145,9 +152,8 @@ trade name. FR-4, soils, concrete, and biological tissues can vary strongly
 with composition, manufacture, moisture, temperature, and frequency. New
 official empirical entries should therefore include traceable citations,
 explicit validity bands and conditions, and fit-quality information for fitted
-dispersion models. The migrated Eccosorb fits are explicitly marked as legacy
-where that information was not retained. A generic engineering estimate must
-be labelled as such rather than presented as a measured vendor grade.
+dispersion models. A generic engineering estimate must be labelled as such
+rather than presented as a measured vendor grade.
 
 Curation workflow
 =================
@@ -196,3 +202,10 @@ The source files are not modified. The converter copies all HDF5 arrays and
 attributes, adds stable material keys, writes JSON, and verifies that every
 non-negative material index is declared. This works with voxel-only v3 files
 and current files containing ``ID``, ``rigidE``, and ``rigidH``.
+
+The converter's array-preservation check is the evidence that a legacy file
+was migrated without changing its geometry. By contrast, regenerating a
+geometry object with a newer gprMax version can legitimately change material
+catalogues or component IDs because of unrelated developments in geometry
+construction and material averaging. Such differences must not be attributed
+to the database format without a separate numerical comparison.

@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+from gprMax.materials import Material as RuntimeMaterial
 from gprMax.user_objects.cmds_multiuse import (
     PMLCFS,
     AddDebyeDispersion,
@@ -581,6 +582,35 @@ class TestAddLorentzDispersion:
         assert d.order == 12
         assert d.hash == "#add_dispersion_lorentz"
 
+    def test_build_rejects_critical_pole(self, stub_grid, user_object_config):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        frequency = 10e9
+        dispersion = AddLorentzDispersion(
+            poles=1,
+            er_delta=(1.0,),
+            omega=(frequency,),
+            delta=(2.0 * np.pi * frequency,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match=r"damping coefficient.*2 \* pi"):
+            dispersion.build(stub_grid)
+
+    def test_build_rejects_frequency_at_timestep_limit(self, stub_grid, user_object_config):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        dispersion = AddLorentzDispersion(
+            poles=1,
+            er_delta=(1.0,),
+            omega=(1.0 / stub_grid.dt,),
+            delta=(1e8,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match=r"frequency must be below 1 / dt"):
+            dispersion.build(stub_grid)
+
 
 class TestAddDrudeDispersion:
     def test_constructor_stores_kwargs(self):
@@ -591,6 +621,19 @@ class TestAddDrudeDispersion:
         d = AddDrudeDispersion()
         assert d.order == 13
         assert d.hash == "#add_dispersion_drude"
+
+    def test_build_rejects_frequency_at_timestep_limit(self, stub_grid, user_object_config):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        dispersion = AddDrudeDispersion(
+            poles=1,
+            omega=(1.0 / stub_grid.dt,),
+            alpha=(1e8,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match=r"frequency must be below 1 / dt"):
+            dispersion.build(stub_grid)
 
 
 # ---------------------------------------------------------------------------

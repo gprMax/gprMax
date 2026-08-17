@@ -32,7 +32,12 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.materials import DispersiveMaterial, Material
+from gprMax.materials import (
+    DispersiveMaterial,
+    Material,
+    validate_drude_pole,
+    validate_lorentz_pole,
+)
 
 SCHEMA_NAME = "gprMax-material-database"
 SCHEMA_VERSION = 1
@@ -562,25 +567,19 @@ def build_material_from_spec(grid: FDTDGrid, spec: MaterialSpec, material_id: st
             result.deltaer = [pole["relative_permittivity_difference"] for pole in spec.poles]
             result.tau = [pole["resonance_frequency_hz"] for pole in spec.poles]
             result.alpha = [pole["damping_coefficient_per_s"] for pole in spec.poles]
-            if any(
-                frequency >= (2.0 * np.pi) / grid.dt
-                or damping >= 1.0 / grid.dt
-                or frequency == damping
-                for frequency, damping in zip(result.tau, result.alpha)
-            ):
-                raise ValueError(
-                    f"Lorentz material '{material_id}' has a pole incompatible with dt={grid.dt:g} s"
-                )
+            for frequency, damping in zip(result.tau, result.alpha):
+                try:
+                    validate_lorentz_pole(frequency, damping, grid.dt)
+                except ValueError as exc:
+                    raise ValueError(f"Lorentz material '{material_id}': {exc}") from exc
         elif spec.model == "drude":
             result.tau = [pole["plasma_frequency_hz"] for pole in spec.poles]
             result.alpha = [pole["collision_frequency_per_s"] for pole in spec.poles]
-            if any(
-                frequency >= (2.0 * np.pi) / grid.dt or collision >= 1.0 / grid.dt
-                for frequency, collision in zip(result.tau, result.alpha)
-            ):
-                raise ValueError(
-                    f"Drude material '{material_id}' has a pole incompatible with dt={grid.dt:g} s"
-                )
+            for frequency, collision in zip(result.tau, result.alpha):
+                try:
+                    validate_drude_pole(frequency, collision, grid.dt)
+                except ValueError as exc:
+                    raise ValueError(f"Drude material '{material_id}': {exc}") from exc
         else:
             result.inclusive_w = [pole["w_per_s"] for pole in spec.poles]
             result.inclusive_q = [pole["q_per_s"] for pole in spec.poles]
