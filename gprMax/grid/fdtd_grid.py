@@ -107,6 +107,10 @@ class FDTDGrid:
         self.rigidE: npt.NDArray[np.int8]
         self.rigidH: npt.NDArray[np.int8]
         self.ID: npt.NDArray[np.uint32]
+        # Optional cell-centred semantic metadata. It is independent of
+        # material IDs and deliberately remains on the host.
+        self.geometry_tag_registry = None
+        self.geometry_tag_map = None
 
         # Update Coefficient Arrays
         self.updatecoeffsE: npt.NDArray[np.float32]
@@ -1593,6 +1597,7 @@ class FDTDGrid:
         """
 
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
+        tagarray = self.geometry_tag_map.nbytes if self.geometry_tag_map is not None else 0
 
         # 12 x rigidE array components + 6 x rigidH array components
         rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
@@ -1626,7 +1631,7 @@ class FDTDGrid:
                     pmlarrays += (self.nx + 1) * self.ny * v
                     pmlarrays += self.nx * (self.ny + 1) * v
 
-        mem_use = fieldarrays + solidarray + rigidarrays + pmlarrays
+        mem_use = fieldarrays + solidarray + tagarray + rigidarrays + pmlarrays
 
         return mem_use
 

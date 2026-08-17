@@ -55,6 +55,7 @@ class Model:
 
     def __init__(self):
         self.title = ""
+        self.geometry_tag_registry = None
 
         self.dt_mod = 1.0  # Time step stability factor
 

@@ -21,6 +21,7 @@ from typing import List, Sequence
 
 import numpy as np
 
+from gprMax.geometry_tags import GeometryTagMap, GeometryTagRegistry
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import create_built_in_materials
@@ -247,6 +248,41 @@ class Scene:
             self.process_geometry_objects(subgrid_object.children_geometry, subgrid)
             self._build_internal_pml_enclosures(subgrid)
 
+    def initialise_geometry_tags(self, model: Model):
+        """Create one model-wide registry and optional cell maps per grid."""
+
+        registry = GeometryTagRegistry()
+        grid_objects = [(model.G, self.geometry_objects)]
+        grid_objects.extend(
+            (subgrid_object.subgrid, subgrid_object.children_geometry)
+            for subgrid_object in self.subgrid_objects
+        )
+
+        declared_by_grid = []
+        for grid, objects in grid_objects:
+            declared = tuple(
+                tag for obj in objects for tag in obj.declared_geometry_tags()
+            )
+            registry.register_many(declared)
+            declared_by_grid.append((grid, declared))
+
+        registry.freeze()
+        if not registry.has_tags:
+            model.geometry_tag_registry = None
+            for grid, _ in declared_by_grid:
+                grid.geometry_tag_registry = None
+                grid.geometry_tag_map = None
+            return
+
+        model.geometry_tag_registry = registry
+        for grid, declared in declared_by_grid:
+            grid.geometry_tag_registry = registry
+            grid.geometry_tag_map = (
+                GeometryTagMap(tuple(int(value) for value in grid.size), registry)
+                if declared
+                else None
+            )
+
     def create_internal_objects(self, model: Model):
         """Calls the UserObject.build() function in the correct way - API
         presents the user with UserObjects in order to build the internal
@@ -261,6 +297,10 @@ class Scene:
 
         # Process multiple commands
         self.process_multi_use_objects(model)
+
+        # Discover semantic tags, including catalogues stored in imported
+        # geometry, before selecting the compact map dtype.
+        self.initialise_geometry_tags(model)
 
         # Initialise geometry arrays for main and subgrids
         for grid in [model.G] + model.subgrids:

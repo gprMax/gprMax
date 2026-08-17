@@ -119,6 +119,49 @@ def test_pec_only_region_round_trips_as_pec(tmp_path, monkeypatch):
     assert materials_by_id["free_space"].type == "builtin"
 
 
+def test_semantic_tags_round_trip_and_are_remapped_by_name(tmp_path, monkeypatch):
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(
+        gprMax.Box(
+            p1=(0.004, 0.004, 0.004),
+            p2=(0.012, 0.012, 0.012),
+            material_id="pec",
+            tag="housing",
+        )
+    )
+    scene.add(
+        gprMax.Box(
+            p1=(0.006, 0.006, 0.006),
+            p2=(0.010, 0.010, 0.010),
+            material_id="free_space",
+        )
+    )
+    outdir = tmp_path / "tagged_write"
+    scene.add(
+        gprMax.GeometryObjectsWrite(
+            p1=(0.0, 0.0, 0.0), p2=(0.02, 0.02, 0.02), filename=str(outdir)
+        )
+    )
+    gprMax.run(
+        scenes=[scene], n=1, geometry_only=True, outputfile=outdir, hide_progress_bars=True
+    )
+
+    grid = _read_geometry_and_get_grid(
+        tmp_path,
+        outdir.with_suffix(".h5"),
+        Path(f"{outdir}_materials.json"),
+        monkeypatch,
+    )
+    assert grid.geometry_tag_registry.names == ("untagged", "housing")
+    tags = grid.geometry_tag_map.data
+    assert np.all(tags[4:6, 4:6, 4:6] == 1)
+    assert np.all(tags[6:10, 6:10, 6:10] == 0)
+
+
 def test_pec_pmc_and_custom_material_round_trip_correctly(tmp_path, monkeypatch):
     """General case: PEC, PMC, free_space (background) and a custom
     material all present in the same exported region. Builtins must be

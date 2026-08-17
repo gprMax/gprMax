@@ -24,7 +24,7 @@ import numpy as np
 from gprMax.cython.geometry_primitives import build_cylinder
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
-from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging
+from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, geometry_tag_args
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -144,6 +144,7 @@ class Cylinder(GeometryUserObject):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
+        tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
         build_cylinder(
             x1,
             y1,
@@ -167,6 +168,8 @@ class Cylinder(GeometryUserObject):
             grid.rigidE,
             grid.rigidH,
             grid.ID,
+            tag_data,
+            tag_id,
         )
 
         dielectricsmoothing = "on" if averaging else "off"

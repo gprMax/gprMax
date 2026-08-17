@@ -27,6 +27,17 @@ import gprMax.config as config
 logger = logging.getLogger(__name__)
 
 
+def geometry_tag_args(grid, tag):
+    """Return the optional dense map and compact ID expected by Cython builders."""
+
+    tag_map = getattr(grid, "geometry_tag_map", None)
+    if tag_map is None:
+        if tag is not None:
+            raise RuntimeError(f"Geometry tag '{tag}' was not registered before rasterisation")
+        return None, 0
+    return tag_map.data, tag_map.id_for(tag)
+
+
 def check_averaging(averaging):
     """Check and set material averaging value.
 

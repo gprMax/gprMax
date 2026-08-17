@@ -25,6 +25,7 @@ import pytest
 
 from gprMax.geometry_outputs.geometry_view_voxels import GeometryViewVoxels, MPIGeometryViewVoxels
 from gprMax.geometry_outputs.geometry_views import GeometryView
+from gprMax.geometry_tags import GeometryTagMap, GeometryTagRegistry
 
 from .conftest import DL, DL_ANISO
 
@@ -215,6 +216,32 @@ class TestWriteVtk:
         view.write_vtk()
         _, data = read_h5(view.filename)
         assert "VTKHDF/CellData/Material" in data
+
+    def test_semantic_tags_and_registry_are_written_when_present(
+        self, make_voxel_view, make_view_grid, read_h5
+    ):
+        grid = make_view_grid(nx=8, ny=8, nz=8)
+        registry = GeometryTagRegistry()
+        registry.register("housing")
+        registry.freeze()
+        grid.geometry_tag_registry = registry
+        grid.geometry_tag_map = GeometryTagMap((8, 8, 8), registry)
+        grid.geometry_tag_map.data[1:3, 1:3, 1:3] = 1
+
+        view = make_voxel_view(grid=grid, stop=(4, 4, 4))
+        view.write_vtk()
+        _, data = read_h5(view.filename)
+
+        assert "VTKHDF/CellData/TagID" in data
+        assert data["VTKHDF/CellData/TagID"].shape == (4, 4, 4)
+        assert "VTKHDF/FieldData/geometry_tag_ids" in data
+        assert "VTKHDF/FieldData/geometry_tag_names" in data
+
+    def test_tag_data_is_absent_when_geometry_has_no_tags(self, make_voxel_view, read_h5):
+        view = make_voxel_view()
+        view.write_vtk()
+        _, data = read_h5(view.filename)
+        assert "VTKHDF/CellData/TagID" not in data
 
     def test_cell_data_is_written_in_zyx_order(self, make_voxel_view, read_h5):
         """Expects the transpose the VTKHDF specification requires, as for

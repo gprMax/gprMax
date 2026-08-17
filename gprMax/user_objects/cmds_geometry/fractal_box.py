@@ -25,7 +25,11 @@ import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import ListMaterial
-from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, rotate_2point_object
+from gprMax.user_objects.cmds_geometry.cmds_geometry import (
+    check_averaging,
+    geometry_tag_args,
+    rotate_2point_object,
+)
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
@@ -756,6 +760,7 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 is_averagable_lookup = np.array(
                     [m.averagable for m in grid.materials], dtype=np.uint8
                 )
+                tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
                 build_voxels_from_array_mask(
                     self.volume.xs,
                     self.volume.ys,
@@ -771,6 +776,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     grid.rigidE,
                     grid.rigidH,
                     grid.ID,
+                    tag_data,
+                    tag_id,
+                    0,
+                    0,
                 )
 
                 # fractalvolume/mask are only needed to build the voxel data
@@ -811,6 +820,7 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 is_averagable_lookup = np.array(
                     [m.averagable for m in grid.materials], dtype=np.uint8
                 )
+                tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
                 build_voxels_from_array(
                     self.volume.xs,
                     self.volume.ys,
@@ -824,6 +834,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                     grid.rigidE,
                     grid.rigidH,
                     grid.ID,
+                    tag_data,
+                    tag_id,
                 )
 
                 # See the comment on the equivalent free in the

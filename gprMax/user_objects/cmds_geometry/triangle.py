@@ -28,7 +28,7 @@ from gprMax.materials import Material
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import check_averaging, rotate_point
+from .cmds_geometry import check_averaging, geometry_tag_args, rotate_point
 
 logger = logging.getLogger(__name__)
 
@@ -229,6 +229,10 @@ class Triangle(RotatableMixin, GeometryUserObject):
                 pec_y = materials[1].is_pec
                 pec_z = materials[2].is_pec
 
+        tag = self.kwargs.get("tag")
+        if tag is not None and thickness <= 0:
+            raise ValueError(f"{self.params_str()} a cell-centred tag requires a volumetric prism")
+        tag_data, tag_id = geometry_tag_args(grid, tag)
         build_triangle(
             x1,
             y1,
@@ -256,6 +260,8 @@ class Triangle(RotatableMixin, GeometryUserObject):
             grid.rigidE,
             grid.rigidH,
             grid.ID,
+            tag_data,
+            tag_id,
         )
 
         p4 = uip.round_to_grid_static_point(up1)

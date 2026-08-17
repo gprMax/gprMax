@@ -28,7 +28,7 @@ from gprMax.materials import Material
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import check_averaging, rotate_2point_object
+from .cmds_geometry import check_averaging, geometry_tag_args, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +149,7 @@ class Box(RotatableMixin, GeometryUserObject):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
+        tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
         build_box(
             xs,
             xf,
@@ -168,6 +169,8 @@ class Box(RotatableMixin, GeometryUserObject):
             grid.rigidE,
             grid.rigidH,
             grid.ID,
+            tag_data,
+            tag_id,
         )
 
         dielectricsmoothing = "on" if averaging else "off"

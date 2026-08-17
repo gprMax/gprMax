@@ -62,6 +62,36 @@ class GeometryObjectsRead(GeometryUserObject):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._declared_tags_cache = None
+
+    def _resolve_geofile(self) -> Path:
+        geofile = Path(self.kwargs["geofile"])
+        if not geofile.exists():
+            geofile = Path(config.sim_config.input_file_path.parent, geofile)
+        if not geofile.is_file():
+            raise FileNotFoundError(f"Geometry object file '{geofile}' does not exist")
+        return geofile
+
+    def declared_geometry_tags(self) -> tuple[str, ...]:
+        """Read the compact tag catalogue before destination map allocation."""
+
+        if self._declared_tags_cache is None:
+            geofile = self._resolve_geofile()
+            with h5py.File(geofile, "r") as geometry:
+                if "/tag_names" not in geometry:
+                    self._declared_tags_cache = ()
+                else:
+                    raw_names = geometry["/tag_names"][:]
+                    names = tuple(
+                        value.decode("utf-8") if isinstance(value, bytes) else str(value)
+                        for value in raw_names
+                    )
+                    if not names or names[0] != "untagged":
+                        raise ValueError(
+                            f"Geometry file '{geofile}' has an invalid /tag_names catalogue"
+                        )
+                    self._declared_tags_cache = names[1:]
+        return self._declared_tags_cache
 
     def build(self, grid: FDTDGrid):
         """Creates the object and adds it to the grid."""
@@ -78,11 +108,7 @@ class GeometryObjectsRead(GeometryUserObject):
                 f"{self.params_str()} requires exactly one of material_database or legacy matfile"
             )
 
-        geofile = Path(geofile)
-        if not geofile.exists():
-            geofile = Path(config.sim_config.input_file_path.parent, geofile)
-        if not geofile.is_file():
-            raise FileNotFoundError(f"Geometry object file '{geofile}' does not exist")
+        geofile = self._resolve_geofile()
 
         if material_database is not None:
             material_id_map, material_description = self._build_database_material_map(
@@ -138,6 +164,7 @@ class GeometryObjectsRead(GeometryUserObject):
                 f.read_ID()
                 f.read_rigidE()
                 f.read_rigidH()
+                f.read_tags()
 
                 logger.info(
                     f"{self.grid_name(grid)}Geometry objects from file {geofile}"
@@ -168,6 +195,7 @@ class GeometryObjectsRead(GeometryUserObject):
                         grid.rigidH,
                         grid.ID,
                     )
+                f.read_tags()
                 logger.info(
                     f"{self.grid_name(grid)}Geometry objects from file "
                     f"(voxels only) {geofile} inserted at {p2[0]:g}m, "

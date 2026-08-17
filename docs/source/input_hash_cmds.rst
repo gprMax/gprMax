@@ -767,11 +767,30 @@ For example to specify a xy oriented plate that is a perfect electric conductor,
 #triangle:
 ----------
 
+.. _geometry-tags-hash:
+
+The volumetric commands ``#triangle`` (non-zero thickness), ``#box``,
+``#sphere``, ``#cylinder``, ``#cylindrical_sector``, ``#cone``,
+``#ellipsoid``, and ``#fractal_box`` accept an optional final positional
+``tag_name`` string. Geometry tags are cell-centred semantic metadata and
+are independent of materials. They follow normal ordered geometry semantics:
+a later tagged volume replaces the older tag in its cells, while a later
+untagged volume clears those cells to tag ID zero. Consequently
+``#cylinder: ... plastic n container`` followed by a smaller untagged
+free-space cylinder creates a tagged hollow shell. The tag must always be the
+last argument. To keep the positional grammar unambiguous and backward
+compatible, hash-command users must explicitly provide the preceding ``y`` or
+``n`` smoothing argument whenever a tag is present. A tagged
+``#fractal_box`` must therefore provide its seed and smoothing arguments
+before the tag. Tags may contain letters, digits, ``_``, ``-``, ``.``, and
+``:``; spaces are not permitted. The Python API does not require an explicit
+smoothing argument when ``tag`` is used.
+
 Allows you to introduce a triangular patch or a triangular prism with specific properties into the model. The patch is just a triangular surface made as a collection of staircased Yee cells, and the triangular prism extends the triangular patch in the direction perpendicular to the plane. The syntax of the command is:
 
 .. code-block:: none
 
-    #triangle: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1 [c1]
+    #triangle: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the first apex of the triangle, ``f4 f5 f6`` the coordinates (x,y,z) of the second apex, and ``f7 f8 f9`` the coordinates (x,y,z) of the third apex.
 * ``f10`` is the thickness of the triangular prism. If the thickness is zero then a triangular patch is created.
@@ -787,7 +806,7 @@ Allows you to introduce an orthogonal parallelepiped with specific properties in
 
 .. code-block:: none
 
-    #box: f1 f2 f3 f4 f5 f6 str1 [c1]
+    #box: f1 f2 f3 f4 f5 f6 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
@@ -800,7 +819,7 @@ Allows you to introduce a spherical object with specific parameters into the mod
 
 .. code-block:: none
 
-    #sphere: f1 f2 f3 f4 str1 [c1]
+    #sphere: f1 f2 f3 f4 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the sphere.
 * ``f4`` is its radius.
@@ -820,7 +839,7 @@ Allows you to introduce a circular cylinder into the model. The orientation of t
 
 .. code-block:: none
 
-    #cylinder: f1 f2 f3 f4 f5 f6 f7 str1 [c1]
+    #cylinder: f1 f2 f3 f4 f5 f6 f7 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of one face of the cylinder, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
 * ``f7`` is the radius of the cylinder.
@@ -841,7 +860,7 @@ Allows you to introduce a cylindrical sector (shaped like a slice of pie) into t
 
 .. code-block:: none
 
-    #cylindrical_sector: c1 f1 f2 f3 f4 f5 f6 f7 str1 [c1]
+    #cylindrical_sector: c1 f1 f2 f3 f4 f5 f6 f7 str1 [c1 [tag_name]]
 
 * ``c1`` is the direction of the axis of the cylinder from which the sector is defined and can be ``x``, ``y``, or ``z``.
 * ``f1 f2`` are the coordinates of the centre of the cylindrical sector.
@@ -865,7 +884,7 @@ Allows you to introduce a cone into the model. The orientation of the cylinder a
 
 .. code-block:: none
 
-    #cone: f1 f2 f3 f4 f5 f6 f7 f8 str1 [c1]
+    #cone: f1 f2 f3 f4 f5 f6 f7 f8 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the first face of the cone, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
 * ``f7`` is the radius of the first face of the cone, and ``f8`` is the radius of the other face of the cone.
@@ -885,7 +904,7 @@ Allows you to introduce an ellipsoid into the model. The syntax of the command i
 
 .. code-block:: none
 
-    #ellipsoid: f1 f2 f3 f4 f5 f6 str1 [c1]
+    #ellipsoid: f1 f2 f3 f4 f5 f6 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the ellipsoid.
 * ``f4 f5 f6`` are the coordinates (x,y,z) of the semi-axes of the ellipsoid.
@@ -907,7 +926,7 @@ Allows you to introduce an orthogonal parallelepiped with fractal distributed pr
 
 .. code-block:: none
 
-    #fractal_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 str2 [i2] [c1]
+    #fractal_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 str2 [i2 [c1 [tag_name]]]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``f7`` is the fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
@@ -1022,7 +1041,7 @@ AustinMan_v2.6_2x2x2_gprmax.h5 AustinMan_v2_6_2mm_materials``.
 #geometry_objects_write:
 ------------------------
 
-Allows you to write geometry generated in a model to file. The file can be read back into gprMax using the ``#geometry_objects_read`` command. This allows complex geometry that can take some time to generate to be saved to file and more quickly imported into subsequent models. Geometry arrays and stable material keys are saved in HDF5 and corresponding material definitions are saved in a versioned ``_materials.json`` database. The syntax of the command is:
+Allows you to write geometry generated in a model to file. The file can be read back into gprMax using the ``#geometry_objects_read`` command. This allows complex geometry that can take some time to generate to be saved to file and more quickly imported into subsequent models. Geometry arrays, cell-centred semantic tags (when present), their ID-to-name table, and stable material keys are saved in HDF5. Corresponding material definitions are saved in a versioned ``_materials.json`` database. The syntax of the command is:
 
 .. code-block:: none
 

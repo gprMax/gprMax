@@ -68,7 +68,16 @@ class GeometryObject(Generic[GridType]):
         self.solidsize = (float)(np.prod(self.grid_view.size) * np.dtype(np.uint32).itemsize)
         self.rigidsize = (float)(18 * np.prod(self.grid_view.size) * np.dtype(np.int8).itemsize)
         self.IDsize = (float)(6 * np.prod(self.grid_view.size + 1) * np.dtype(np.uint32).itemsize)
-        self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
+        self._base_datawritesize = self.solidsize + self.rigidsize + self.IDsize
+
+    @property
+    def datawritesize(self):
+        tag_size = 0
+        if getattr(self.grid, "geometry_tag_map", None) is not None:
+            tag_size = float(
+                np.prod(self.grid_view.size) * self.grid.geometry_tag_map.data.dtype.itemsize
+            )
+        return self._base_datawritesize + tag_size
 
     @property
     def grid(self) -> GridType:
@@ -124,6 +133,11 @@ class GeometryObject(Generic[GridType]):
         data = self.grid_view.get_solid().astype(np.int16)
         rigidE = self.grid_view.get_rigidE()
         rigidH = self.grid_view.get_rigidH()
+        tag_data = (
+            self.grid_view.get_geometry_tags()
+            if getattr(self.grid, "geometry_tag_map", None) is not None
+            else None
+        )
 
         ID = self.grid_view.map_to_view_materials(ID)
         data = self.grid_view.map_to_view_materials(data)
@@ -141,6 +155,15 @@ class GeometryObject(Generic[GridType]):
 
             fdata["/ID"] = ID
             pbar.update(self.IDsize)
+
+            if tag_data is not None:
+                fdata["/tag_data"] = tag_data
+                fdata.create_dataset(
+                    "/tag_names",
+                    data=np.asarray(self.grid.geometry_tag_registry.names, dtype="S"),
+                )
+                fdata.attrs["GeometryTagsSchemaVersion"] = 1
+                pbar.update(tag_data.nbytes)
 
             fdata.create_dataset("/material_keys", data=np.asarray(material_keys, dtype="S"))
             fdata.attrs["MaterialDatabase"] = self.filename_materials.stem
@@ -204,6 +227,11 @@ class MPIGeometryObject(GeometryObject[MPIGrid]):
         data = self.grid_view.get_solid().astype(np.int16)
         rigidE = self.grid_view.get_rigidE()
         rigidH = self.grid_view.get_rigidH()
+        tag_data = (
+            self.grid_view.get_geometry_tags()
+            if getattr(self.grid, "geometry_tag_map", None) is not None
+            else None
+        )
 
         rigidE = self._merge_negative_rigid_halos(rigidE, self.grid.rigidE, 4100)
         rigidH = self._merge_negative_rigid_halos(rigidH, self.grid.rigidH, 4200)
@@ -239,6 +267,19 @@ class MPIGeometryObject(GeometryObject[MPIGrid]):
             )
             dset[:, dset_slice[0], dset_slice[1], dset_slice[2]] = ID
             pbar.update(self.IDsize)
+
+            if tag_data is not None:
+                tag_slice = self.grid_view.get_3d_output_slice()
+                tag_dataset = fdata.create_dataset(
+                    "/tag_data", self.grid_view.global_size, dtype=tag_data.dtype
+                )
+                tag_dataset[tag_slice] = tag_data
+                fdata.create_dataset(
+                    "/tag_names",
+                    data=np.asarray(self.grid.geometry_tag_registry.names, dtype="S"),
+                )
+                fdata.attrs["GeometryTagsSchemaVersion"] = 1
+                pbar.update(tag_data.nbytes)
 
             fdata.create_dataset("/material_keys", data=np.asarray(material_keys, dtype="S"))
             fdata.attrs["MaterialDatabase"] = self.filename_materials.stem

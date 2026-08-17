@@ -23,6 +23,7 @@ discretisation.
 import numpy as np
 import pytest
 
+from gprMax.geometry_tags import GeometryTagMap, GeometryTagRegistry
 from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
 
@@ -162,6 +163,26 @@ class TestAveraging:
         add_mixing_model(g)
         make_box(averaging="n").build(g)
         assert g.fractalvolumes[0].averaging is False
+
+
+class TestSemanticTags:
+    def test_final_fractal_shape_is_tagged_without_a_second_geometry_pass(self, fractal_grid):
+        g = fractal_grid()
+        add_mixing_model(g)
+        registry = GeometryTagRegistry()
+        registry.register("geological_layer")
+        registry.freeze()
+        g.geometry_tag_registry = registry
+        g.geometry_tag_map = GeometryTagMap((g.nx, g.ny, g.nz), registry)
+
+        box = make_box(tag="geological_layer")
+        box.build(g)
+        box.build(g)
+
+        occupied = g.solid != 0
+        assert occupied.any()
+        assert np.all(g.geometry_tag_map.data[occupied] == 1)
+        assert np.all(g.geometry_tag_map.data[~occupied] == 0)
 
 
 class TestPreBuildValidation:

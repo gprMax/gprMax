@@ -154,6 +154,18 @@ class TestBox:
         with pytest.raises(ValueError):
             process_geometrycmds(["#box: 0 0 0 0.1 0.1 0.1 mx my mz extra"])
 
+    def test_trailing_positional_tag_is_unambiguous_and_preserves_averaging(self):
+        box = process_geometrycmds(
+            ["#box: 0 0 0 0.1 0.1 0.1 m1 n housing"]
+        )[0]
+        assert box.kwargs["averaging"] == "n"
+        assert box.kwargs["tag"] == "housing"
+
+    def test_extra_string_without_explicit_smoothing_retains_legacy_interpretation(self):
+        box = process_geometrycmds(["#box: 0 0 0 0.1 0.1 0.1 m1 housing"])[0]
+        assert box.kwargs["averaging"] == "housing"
+        assert box.kwargs.get("tag") is None
+
 
 # ---------------------------------------------------------------------------
 # Cylinder (9 / 10 / 11)
@@ -343,6 +355,13 @@ class TestFractalBox:
     def test_sixteen_token_with_seed_and_averaging(self):
         objs = process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42 y"])
         assert objs[0].kwargs["averaging"] == "y"
+
+    def test_positional_tag_after_seed_and_averaging(self):
+        objs = process_geometrycmds(
+            ["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42 y soil_layer"]
+        )
+        assert objs[0].kwargs["averaging"] == "y"
+        assert objs[0].kwargs["tag"] == "soil_layer"
 
     def test_too_few_tokens_rejected(self):
         with pytest.raises(ValueError):
