@@ -54,6 +54,7 @@ def threshold_materials(source: SourceProxy, view: Proxy, material_ids: vtkStrin
     pvv = GetParaViewVersion()
 
     for index in range(material_ids.GetNumberOfValues()):
+        material_name = material_ids.GetValue(index)
         threshold = Threshold(Input=source, Scalars=COLOUR_SCALARS)
 
         if pvv.major == 5 and pvv.minor < 10:
@@ -62,10 +63,15 @@ def threshold_materials(source: SourceProxy, view: Proxy, material_ids: vtkStrin
             threshold.LowerThreshold = index
             threshold.UpperThreshold = index
 
-        RenameSource(material_ids.GetValue(index), threshold)
+        RenameSource(material_name, threshold)
 
         # Show data in view, except for free_space
-        if index != 1:
+        #
+        # Material indices are not fixed: built-ins have changed as gprMax
+        # has developed, and partial/imported geometry views may remap them.
+        # The accompanying FieldData provides the authoritative name for
+        # every index, so identify the background by that name.
+        if material_name != "free_space":
             Show(threshold, view)
 
         threshold.UpdatePipeline()
