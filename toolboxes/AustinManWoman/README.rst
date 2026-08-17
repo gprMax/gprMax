@@ -11,11 +11,15 @@ Information
 
 **Contact**: Ali E. Yılmaz (ayilmaz@mail.utexas.edu), The University of Texas at Austin
 
-**License**: `Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License <http://creativecommons.org/licenses/by-nc-nd/3.0/>`_
+**License**: `Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License <https://creativecommons.org/licenses/by-nc-nd/3.0/>`_
 
-**Attribution/cite**: Please follow the instructions at http://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/citing_the_model/index.html
+**Attribution/cite**: Please follow the `AustinMan citation instructions <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/citing_the_model/>`_ and cite `Massey et al. (2016) <https://doi.org/10.1109/EMBC.2016.7591444>`_.
 
-`AustinMan and AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/index.html>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/ea>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
+`AustinMan and AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/>`_ are publicly available electromagnetic voxel models of the human body developed by the Computational Electromagnetics Group at `The University of Texas at Austin <https://www.utexas.edu>`_. The models are based on the `National Library of Medicine's Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_. The current AustinMan and AustinWoman release is v2.6 (2018); HDF5 files suitable for gprMax have been supplied since v2.3.
+
+.. important::
+
+    The model licence permits research, teaching, and other non-commercial use, but prohibits redistribution and derivative distribution. The model files are therefore not bundled with gprMax. Download them from the authors and follow their conditions of use. A cropped or otherwise modified model must not be redistributed as AustinMan or AustinWoman without the authors' permission.
 
 .. figure:: ../../images_shared/AustinMan_head.png
     :width: 600 px
@@ -37,6 +41,20 @@ AustinWoman 2x2x2                      342 x 187 x 865
 AustinWoman 1x1x1                      683 x 374 x 1730
 =========== ========================== ==================
 
+Tissue properties
+=================
+
+Biological-tissue properties are frequency dependent and vary with temperature, water content, age, physiological condition, and measurement method. The two files retained here reproduce the historical gprMax mapping used by the Austin models:
+
+* ``AustinManWoman_materials.txt`` contains non-dispersive values at 900 MHz based on the Gabriel tissue-property compilation. It is a narrowband approximation.
+* ``AustinManWoman_materials_dispersive.txt`` contains the historical three-pole Debye fits over 1 MHz--100 GHz from `Fujii (2012) <https://doi.org/10.1109/LMWC.2011.2180371>`_ for the tissues covered by that study. Tissues without a published fit retain their 900 MHz constant values.
+
+These are legacy, reproducible model definitions rather than a current general-purpose BioEM catalogue. For new work, consult the `IT'IS Tissue Properties Database <https://itis.swiss/virtual-population/tissue-properties/database>`_. Its versioned downloads include frequency-dependent dielectric properties, references, and known limitations. At the time of writing, v5.0 is identified by DOI `10.13099/VIP21000-05-0 <https://doi.org/10.13099/VIP21000-05-0>`_. IT'IS permits access for scientific use but its website terms do not permit gprMax to redistribute the database without written consent, so its numerical data are not copied into this toolbox. Exported dielectric spectra can be fitted to a causal multi-pole Debye model with the :doc:`DebyeFit toolbox <inc_DebyeFit>`.
+
+.. note::
+
+    The dispersive file contains three-pole models for 24 Austin tissue labels; several labels intentionally share a fit. The remaining labels are constant 900 MHz approximations. The model time step must be smaller than every relaxation time used, which generally restricts the historical fit to the 1 mm and 2 mm voxel models.
+
 Package contents
 ================
 
@@ -46,42 +64,47 @@ Package contents
     AustinManWoman_materials_dispersive.txt
     head_only_h5.py
 
-* `AustinManWoman_materials.txt` is a text file containing `non-dispersive material properties at 900 MHz <http://niremf.ifac.cnr.it/tissprop/>`_.
-* `AustinManWoman_materials_dispersive.txt` is a text file containing `dispersive material properties using a 3-pole Debye model <http://dx.doi.org/10.1109/LMWC.2011.2180371>`_.
-
-.. note::
-
-    * The main body tissues are described using a 3-pole Debye model, but not all materials have a dispersive description.
-    * The dispersive material properties can only be used with the 1x1x1mm or 2x2x2mm AustinMan/Woman models. This is because the time step of the model must always be less than any of the relaxation times of the poles of the Debye models used for the dispersive material properties.
-
 * ``head_only_h5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
 For example:
 
 .. code-block:: none
 
-    python -m toolboxes.AustinManWoman.head_only_h5 AustinMan_v2.3_2x2x2.h5
+    python -m toolboxes.AustinManWoman.head_only_h5 AustinMan_v2.6_2x2x2.h5
 
-This writes ``AustinMan_v2.3_2x2x2_head.h5``. Use ``--output`` to choose a
-different output filename.
+This writes ``AustinMan_v2.6_2x2x2_head.h5``. Use ``--output`` to choose a different output filename. The historical default retains the upper eighth of the model. ``--first-plane`` selects an explicit zero-based first z plane when another anatomical extent is required. The output preserves compression, root attributes, material keys, and any other metadata in a modern geometry file.
 
 How to use the package
 ======================
 
 The AustinMan and AustinWoman models themselves are not included in this sub-package.
 
-* `Download a HDF5 file (.h5) of AustinMan or AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/download/index.html>`_ at the resolution you wish to use
+* `Download an HDF5 file (.h5) of AustinMan or AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/download/>`_ at the resolution you wish to use.
 
-To insert either AustinMan or AustinWoman models into a simulation use the ``#geometry_objects_read``.
+The legacy HDF5 files contain integer material indices but no stable material keys. Convert a downloaded model and one of the material files non-destructively to the current HDF5/JSON format:
+
+.. code-block:: console
+
+    python -m toolboxes.MaterialDatabase convert-geometry \
+        AustinMan_v2.6_2x2x2.h5 \
+        toolboxes/AustinManWoman/AustinManWoman_materials_dispersive.txt \
+        --output-geometry AustinMan_v2.6_2x2x2_gprmax.h5 \
+        --output-database AustinMan_v2_6_2mm_materials.json
+
+The source model is not changed. The converted HDF5 file gains ``/material_keys`` and provenance attributes, and the material definitions are written to the adjacent JSON database. The material database filename without ``.json`` is then used by ``#geometry_objects_read``.
+
+To insert either AustinMan or AustinWoman into a simulation use ``#geometry_objects_read``.
 
 Example
 -------
 
-To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from the origin of the domain, using disperive material properties, and with no dielectric smoothing, use the command:
+To insert the converted 2 mm AustinMan with its lower-left corner 40 mm from the domain origin, use:
 
 .. code-block:: none
 
-    #geometry_objects_read: 0.04 0.04 0.04 ../toolboxes/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../toolboxes/AustinManWoman/AustinManWoman_materials_dispersive.txt
+    #geometry_objects_read: 0.04 0.04 0.04 AustinMan_v2.6_2x2x2_gprmax.h5 AustinMan_v2_6_2mm_materials
+
+Legacy use with the original HDF5 file and ``.txt`` material file remains supported for existing models, but the JSON form records stable keys and material provenance in simulation output and is recommended for new work.
 
 For further information on the ``#geometry_objects_read`` command see the section on :ref:`object contruction commands<object-construction-commands>`.
 

@@ -568,8 +568,21 @@ class Model:
             # array for a grid whose materials need complex pole
             # coefficients, silently truncating them (numpy raises only a
             # ComplexWarning on such an assignment, not an error).
+            def requires_complex_coefficients(material):
+                if "drude" in material.type or "lorentz" in material.type:
+                    return True
+                return any(
+                    complex(value).imag != 0
+                    for value in (
+                        *getattr(material, "inclusive_w", ()),
+                        *getattr(material, "inclusive_q", ()),
+                    )
+                )
+
             config.get_model_config().materials["drudelorentz"] = any(
-                "drude" in m.type or "lorentz" in m.type for grid in grids for m in grid.materials
+                requires_complex_coefficients(material)
+                for grid in grids
+                for material in grid.materials
             )
 
             # Set data type if any dispersive materials (must be done before memory checks)

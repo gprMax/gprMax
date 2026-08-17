@@ -1,0 +1,38 @@
+{
+  "schema": "gprMax-material-database",
+  "schema_version": 1,
+  "database": {
+    "id": "fundamental",
+    "name": "Fundamental electromagnetic materials",
+    "version": "1.0.0",
+    "description": "Reference materials whose definitions are exact rather than empirical.",
+    "licence": "GPL-3.0-or-later"
+  },
+  "materials": {
+    "vacuum": {
+      "name": "Vacuum",
+      "model": "builtin",
+      "builtin": "free_space",
+      "metadata": {
+        "quality": "exact",
+        "notes": "Uses the electromagnetic constants configured by gprMax."
+      }
+    },
+    "pec": {
+      "name": "Perfect electric conductor",
+      "model": "builtin",
+      "builtin": "pec",
+      "metadata": {
+        "quality": "idealisation"
+      }
+    },
+    "pmc": {
+      "name": "Perfect magnetic conductor",
+      "model": "builtin",
+      "builtin": "pmc",
+      "metadata": {
+        "quality": "idealisation"
+      }
+    }
+  }
+}

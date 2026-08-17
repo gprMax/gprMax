@@ -38,6 +38,7 @@ from gprMax.eigenmode_config import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.material_database import build_material_from_spec, load_material_spec
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
@@ -3271,6 +3272,60 @@ class Material(GridUserObject):
         )
 
         grid.materials.append(m)
+
+
+class MaterialFromDatabase(GridUserObject):
+    """Create a material from a versioned JSON material database.
+
+    Official databases are installed with gprMax. A user database is a JSON
+    file named ``<database>.json`` beside the input file, or in the current
+    working directory for a direct Python API model.
+
+    Attributes:
+        database: official or local database name.
+        material: material entry key in the database.
+        id: optional local material ID; defaults to ``material``. This can
+            provide a model-specific name, avoid a collision, or match the
+            material name expected by imported geometry.
+    """
+
+    @property
+    def order(self):
+        return 10
+
+    @property
+    def hash(self):
+        return "#material_from_database"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            database = self.kwargs["database"]
+            material_key = self.kwargs["material"]
+        except KeyError:
+            logger.exception(f"{self.params_str()} requires a database and material key")
+            raise
+        material_id = self.kwargs.get("id") or material_key
+
+        # Hash-command models resolve local databases beside the input file;
+        # direct API models deliberately use the execution directory even if
+        # their output file is placed somewhere else.
+        inputfile = getattr(config.sim_config.args, "inputfile", None)
+        search_directory = config.sim_config.input_file_path.parent if inputfile else Path.cwd()
+        spec = load_material_spec(
+            database,
+            material_key,
+            search_directory=search_directory,
+        )
+        created = build_material_from_spec(grid, spec, material_id)
+        logger.info(
+            f"{self.grid_name(grid)}Material {created.ID} created from "
+            f"{spec.source.database_id}:{spec.key} "
+            f"(database version {spec.source.database_version}, "
+            f"entry SHA-256 {spec.entry_sha256[:12]}...)."
+        )
 
 
 def _reject_perfect_conductor_dispersion(user_object, materials, formulation):

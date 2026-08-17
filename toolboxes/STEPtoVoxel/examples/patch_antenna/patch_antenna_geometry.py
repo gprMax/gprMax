@@ -43,7 +43,7 @@ else:
         raise FileNotFoundError("Run the STEP conversion before using --reuse-conversion")
     manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
     geometry_file = output_dir / "geometry.h5"
-    materials_file = output_dir / "materials.txt"
+    materials_file = output_dir / "materials.json"
     markers_file = output_dir / "markers.json"
     reference_geometry_cad_file = output_dir / "reference_geometry_cad.vtp"
     shape = tuple(manifest["shape_cells"])
@@ -57,12 +57,12 @@ domain = tuple((cells + 2 * padding) * dl for cells in shape)
 # GeometryView uses model coordinates after GeometryObjectsRead applies p1.
 # Write a translated reference copy that overlays the latter directly.
 gprmax_reference_file = output_dir / "reference_geometry_gprmax.vtp"
-if reference_geometry_cad_file is not None and Path(reference_geometry_cad_file).is_file() and (
-    not args.reuse_conversion or not gprmax_reference_file.is_file()
+if (
+    reference_geometry_cad_file is not None
+    and Path(reference_geometry_cad_file).is_file()
+    and (not args.reuse_conversion or not gprmax_reference_file.is_file())
 ):
-    translation = tuple(
-        import_origin[axis] - voxel_grid_origin[axis] for axis in range(3)
-    )
+    translation = tuple(import_origin[axis] - voxel_grid_origin[axis] for axis in range(3))
     translate_reference_geometry(
         Path(reference_geometry_cad_file),
         gprmax_reference_file,
@@ -98,7 +98,7 @@ scene.add(
     gprMax.GeometryObjectsRead(
         p1=import_origin,
         geofile=geometry_file,
-        matfile=materials_file,
+        material_database=materials_file.stem,
     )
 )
 scene.add(

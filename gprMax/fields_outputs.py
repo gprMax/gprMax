@@ -314,6 +314,29 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     basegrp.attrs["nports"] = len(getattr(grid, "port_monitors", ()))
     basegrp.attrs["neigenmodeports"] = len(getattr(grid, "eigenmodeports", ()))
 
+    # Preserve the identity of externally curated material definitions. The
+    # simulation still stores its normal local numeric IDs elsewhere; this
+    # group is provenance, not an alternate material-indexing mechanism.
+    database_materials = [
+        material
+        for material in getattr(grid, "materials", ())
+        if hasattr(material, "database_provenance")
+    ]
+    if database_materials:
+        provenance_group = basegrp.create_group("material_database_provenance")
+        provenance_group.attrs["SchemaVersion"] = 1
+        for material in database_materials:
+            group = provenance_group.create_group(f"material{material.numID}")
+            group.attrs["MaterialID"] = material.ID
+            group.attrs["NumericID"] = material.numID
+            provenance = material.database_provenance
+            group.attrs["DatabaseID"] = provenance["database_id"]
+            group.attrs["DatabaseVersion"] = provenance["database_version"]
+            group.attrs["EntryKey"] = provenance["entry_key"]
+            group.attrs["EntrySHA256"] = provenance["entry_sha256"]
+            group.attrs["Official"] = provenance["official"]
+            group.attrs["Source"] = provenance["source"]
+
     if is_subgrid:
         # Write additional meta data about subgrid
         basegrp.attrs["Iterations"] = grid.iterations

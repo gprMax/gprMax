@@ -500,6 +500,13 @@ Material
 --------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.Material
 
+Material from database
+----------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialFromDatabase
+
+See :doc:`material_databases` for database lookup, schema, provenance, and
+geometry-file migration.
+
 Debye Dispersion
 ----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.AddDebyeDispersion
@@ -760,7 +767,7 @@ In a different scene, the saved geometry can be inserted at a chosen origin:
     scene.add(gprMax.GeometryObjectsRead(
         p1=(0.05, 0.05, 0),
         geofile='reusable_geometry.h5',
-        matfile='reusable_geometry_materials.txt',
+        material_database='reusable_geometry_materials',
     ))
 
 Source and output functions

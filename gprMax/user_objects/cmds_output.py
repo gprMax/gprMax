@@ -1704,5 +1704,6 @@ class GeometryObjectsWrite(OutputUserObject):
                 f"Geometry objects in the volume from {p1[0]:g}m,"
                 f" {p1[1]:g}m, {p1[2]:g}m, to {p2[0]:g}m, {p2[1]:g}m,"
                 f" {p2[2]:g}m, will be written to {g.filename_hdf5},"
-                f" with materials written to {g.filename_materials}"
+                f" with materials written to {g.filename_materials}. Read it back using "
+                f"material database name '{g.filename_materials.stem}'."
             )

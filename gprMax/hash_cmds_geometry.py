@@ -106,7 +106,18 @@ def process_geometrycmds(geometry):
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
 
-            gor = GeometryObjectsRead(p1=p1, geofile=tmp[4], matfile=tmp[5])
+            # Legacy files supplied a .txt list of executable material
+            # commands. New files use a database name (without .json); keep
+            # the distinction positional so the established hash-command
+            # syntax remains familiar.
+            if tmp[5].lower().endswith(".txt"):
+                gor = GeometryObjectsRead(p1=p1, geofile=tmp[4], matfile=tmp[5])
+            else:
+                gor = GeometryObjectsRead(
+                    p1=p1,
+                    geofile=tmp[4],
+                    material_database=tmp[5],
+                )
             scene_objects.append(gor)
 
         elif tmp[0] == "#edge:":

@@ -90,7 +90,7 @@ After editing the CSV, perform the conversion:
 This creates:
 
 * ``geometry.h5`` -- the ``int16`` material grid read by gprMax;
-* ``materials.txt`` -- material commands whose order matches the grid values;
+* ``materials.json`` -- a versioned material database whose keys are stored in ``geometry.h5``;
 * ``markers.json`` -- reusable CAD source, receiver and port coordinates;
 * ``geometry.vti`` -- component-labelled VTK ImageData for ParaView;
 * ``reference_geometry_cad.vtp`` -- non-physical CAD ports, source edges,
@@ -99,6 +99,27 @@ This creates:
   counts.
 
 Use ``--no-vtk`` if PyVista is not installed.
+
+STEP files describe geometry and component names, but do not provide the
+electromagnetic constitutive properties required by gprMax. The assignment
+CSV and generated JSON database therefore serve different purposes. Use the
+CSV to select and group CAD components, set overlap priority, and map them to
+stable material names. Its property columns can seed simple constant values,
+but they are not inferred from STEP and must be supplied by the user.
+
+``GeometryObjectsRead`` consumes the generated ``materials.json`` together
+with ``geometry.h5``. This JSON file is the authoritative runtime database:
+review or edit it directly to provide the required properties, dispersion,
+metadata, and citations. Keep the HDF5 and JSON files as a pair. A later
+conversion preserves an existing JSON file when its stable material keys
+still match. If the component-to-material mapping changes, the converter
+stops and asks the user to move the old JSON aside rather than silently
+discarding its edited properties.
+
+Only ``material_name`` is required for an included CSV row. Constitutive
+property columns may be left blank; the converter then writes ``null`` values
+to make the missing assignments explicit. gprMax will reject such an entry
+until the corresponding values in ``materials.json`` have been completed.
 
 Coordinate systems
 ------------------
@@ -152,7 +173,7 @@ the gprMax domain:
         gprMax.GeometryObjectsRead(
             p1=(0.01, 0.01, 0.01),
             geofile="output/geometry.h5",
-            matfile="output/materials.txt",
+            material_database="materials",
         )
     )
 
@@ -402,6 +423,14 @@ direct ParaView overlay:
 
     python toolboxes/STEPtoVoxel/examples/patch_antenna/patch_antenna_geometry.py
 
+That Python example performs conversion and import in one run. After it has
+created the ``output`` directory, the equivalent hash-command example can be
+run with:
+
+.. code-block:: console
+
+    python -m gprMax toolboxes/STEPtoVoxel/examples/patch_antenna/patch_antenna_geometry.in --geometry-only
+
 The essential import is:
 
 .. code-block:: python
@@ -414,7 +443,7 @@ The essential import is:
         gprMax.GeometryObjectsRead(
             p1=import_origin,
             geofile="patch_output/geometry.h5",
-            matfile="patch_output/materials.txt",
+            material_database="materials",
         )
     )
 

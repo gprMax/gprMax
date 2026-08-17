@@ -387,6 +387,31 @@ class TestWriteGridMetadata:
         attrs, _ = read_h5(written)
         assert attrs["nrx"] == 1
 
+    def test_records_material_database_provenance(self, grid_with_everything, tmp_path, read_h5):
+        """A selected database entry remains identifiable in the output."""
+
+        import h5py
+
+        material = grid_with_everything.materials[0]
+        material.database_provenance = {
+            "database_id": "antenna",
+            "database_version": "1.0.0",
+            "entry_key": "example",
+            "entry_sha256": "a" * 64,
+            "official": True,
+            "source": "/installed/antenna.json",
+        }
+        path = tmp_path / "provenance.h5"
+        with h5py.File(path, "w") as f:
+            write_hd5_data(f, grid_with_everything)
+
+        attrs, _ = read_h5(path)
+        prefix = f"material_database_provenance/material{material.numID}"
+        assert attrs[f"{prefix}/MaterialID"] == material.ID
+        assert attrs[f"{prefix}/DatabaseID"] == "antenna"
+        assert attrs[f"{prefix}/EntrySHA256"] == "a" * 64
+        assert attrs[f"{prefix}/Official"]
+
 
 class TestWriteSources:
     @pytest.fixture

@@ -1,0 +1,12 @@
+{
+  "schema": "gprMax-material-database",
+  "schema_version": 1,
+  "database": {
+    "id": "bioem",
+    "name": "Bioelectromagnetic materials",
+    "version": "1.0.0",
+    "description": "Curated biological-tissue fits with explicit source, temperature, band, and fit-quality metadata.",
+    "licence": "GPL-3.0-or-later"
+  },
+  "materials": {}
+}

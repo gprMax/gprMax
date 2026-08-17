@@ -6,6 +6,7 @@ import pytest
 
 pytest.importorskip("OCC", reason="optional pythonocc-core dependency is not installed")
 
+from gprMax.material_database import load_material_spec
 from toolboxes.STEPtoVoxel import (
     ConversionConfig,
     convert_step,
@@ -52,10 +53,45 @@ def test_probe_fed_patch_step_conversion(tmp_path):
 
     assert result.component_cell_counts["PATCH"] > 0
     assert "port1" not in result.component_cell_counts
-    assert result.reference_geometry_cad_file.name == "reference_geometry_cad.vtp"
+    assert result.vtk_file is None
+    assert result.reference_geometry_cad_file is None
     with h5py.File(result.geometry_file) as f:
         assert f["data"].dtype == "int16"
         assert tuple(f.attrs["dx_dy_dz"]) == (0.2e-3, 0.2e-3, 0.2e-3)
+        assert f.attrs["MaterialDatabase"] == "materials"
+        material_keys = [value.decode() for value in f["material_keys"][:]]
+    database = json.loads(result.materials_file.read_text(encoding="utf-8"))
+    assert material_keys == list(database["materials"])
+    assert database["schema"] == "gprMax-material-database"
+    assert "Infinity" not in result.materials_file.read_text(encoding="utf-8")
+
+    specs = {
+        key: load_material_spec("materials", key, search_directory=tmp_path)
+        for key in material_keys
+    }
+    pec_specs = [spec for spec in specs.values() if spec.electric_conductivity == float("inf")]
+    assert len(pec_specs) == 1
+    assert pec_specs[0].metadata["original_id"] == "pec"
+    assert (
+        specs[next(key for key in material_keys if key.endswith("substrate"))].relative_permittivity
+        == 2.2
+    )
+
+    # The generated JSON is the user's runtime database. A repeated
+    # conversion must not discard properties or metadata edited after the
+    # initial STEP conversion.
+    first_key = material_keys[0]
+    database["materials"][first_key]["metadata"]["user_note"] = "preserve me"
+    result.materials_file.write_text(json.dumps(database), encoding="utf-8")
+    repeated = convert_step(
+        step_file,
+        example / "materials.csv",
+        tmp_path,
+        ConversionConfig(voxel_size=(0.2e-3, 0.2e-3, 0.2e-3)),
+        write_vtk=False,
+    )
+    preserved = json.loads(repeated.materials_file.read_text(encoding="utf-8"))
+    assert preserved["materials"][first_key]["metadata"]["user_note"] == "preserve me"
 
     markers = json.loads(result.markers_file.read_text(encoding="utf-8"))["markers"]
     assert len(markers) == 1

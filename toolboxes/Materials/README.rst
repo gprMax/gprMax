@@ -7,7 +7,11 @@ Materials
 Information
 ===========
 
-The package is intended to provide a database of electromagnetic properties of different materials. It currently includes the following material libraries:
+This legacy package contains the original gprMax fitted material data and fit
+figures. ``eccosorb.txt`` is retained so existing models continue to run. The
+fits have not yet been promoted to the versioned ``antenna`` material
+database: that requires a separate review of their source band, fit error,
+current product data, and redistribution status.
 
 * ``eccosorb.txt`` contains information on some of the `Eccosorb LS series <http://www.eccosorb.com/products-eccosorb-ls.htm>`_ of electromagnetic absorber materials manufactured by `Laird NV <http://www.eccosorb.eu>`_ (formerly Emerson & Cuming Microwave Products NV). LS 14, 16, 18, 20, 22, 26, 28, and 30 are included. They are simulated using a 3-pole Debye model.
 
@@ -17,12 +21,17 @@ How to use the package
 Example
 -------
 
-The simplest way to access any of the material libraries is to use the ``#include_file`` command, after which the name of the material can then be used with any object construction command:
+Existing models can include the legacy definitions with:
 
 .. code-block:: none
 
     #include_file: toolboxes/Materials/eccosorb.txt
     #box: 0 0 0 0.5 0.5 0.5 eccosorb_ls22
+
+For a new project, inspect the documented fits and current manufacturer data
+before relying on these historical coefficients. A reviewed definition can
+instead be copied into a project-local JSON database using the schema in the
+main :doc:`material database documentation <material_databases>`.
 
 Eccosorb
 ========

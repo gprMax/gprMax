@@ -1,16 +1,11 @@
 """``GeometryObject`` — exporting a model's raw arrays for later reuse.
 
 Not a picture: a working copy. This writer dumps ``solid``, ``rigidE``,
-``rigidH`` and ``ID`` into a plain ``.h5``, alongside a ``_materials.txt`` that
-names what the numbers mean in gprMax's own input syntax. The point is that an
-expensive antenna geometry can be built once and then read straight back into
-later models with ``#geometry_objects_read``.
-
-**The materials file is executable input.** Each line is a literal
-``#material:`` or ``#add_dispersion_*:`` command. That is what makes the pair
-self-contained — the ``.h5`` holds indices, the ``.txt`` turns them back into
-physics, and both are consumed by the reader tested in
-``test_geometry_objects_read.py``.
+``rigidH`` and ``ID`` into a plain ``.h5``, alongside a versioned
+``_materials.json`` database. The HDF5 ``/material_keys`` dataset maps compact
+array indices to stable database keys. The point is that an expensive antenna
+geometry can be built once and then read straight back into later models with
+``#geometry_objects_read`` without executing generated input commands.
 
 **Material IDs are compacted.** ``write_hdf5`` calls ``initialise_materials()``
 with filtering on, so the exported arrays are renumbered from zero over just
@@ -21,6 +16,8 @@ materials that were only used elsewhere in the source model.
 folds them into a single factor of 18, which is worth naming because ``18``
 appearing alone in a size calculation is otherwise unexplained.
 """
+
+import json
 
 import numpy as np
 import pytest
@@ -55,11 +52,17 @@ class TestConstruction:
         """Expects ``<name>.h5`` for the array file."""
         assert make_geometry_object(filename="antenna").filename_hdf5.name == "antenna.h5"
 
-    def test_the_materials_filename_is_suffixed_and_txt(self, make_geometry_object):
-        """Expects ``<name>_materials.txt`` beside it — the naming the reader
-        relies on to find the pair."""
+    def test_the_materials_filename_is_suffixed_and_json(self, make_geometry_object):
+        """Expects a schema-versioned JSON database beside the HDF5 file."""
         obj = make_geometry_object(filename="antenna")
-        assert obj.filename_materials.name == "antenna_materials.txt"
+        assert obj.filename_materials.name == "antenna_materials.json"
+
+    def test_generated_database_name_is_safe_for_hash_commands(self, make_geometry_object):
+        """Spaces in an API output basename do not make the pair unreadable."""
+
+        obj = make_geometry_object(filename="antenna geometry")
+        assert obj.filename_hdf5.name == "antenna geometry.h5"
+        assert obj.filename_materials.name == "antenna_geometry_materials.json"
 
     def test_files_land_beside_the_input_file(self, make_geometry_object, outputs_config):
         """Expects the input file's directory, not the output directory —
@@ -152,7 +155,7 @@ class TestWriteHdf5Arrays:
         """Expects ``/data``, ``/rigidE``, ``/rigidH`` and ``/ID`` — everything
         needed to rebuild the geometry without re-running the build step."""
         _, data = read_h5(written.filename_hdf5)
-        assert set(data) == {"data", "rigidE", "rigidH", "ID"}
+        assert set(data) == {"data", "rigidE", "rigidH", "ID", "material_keys"}
 
     def test_data_is_cell_shaped(self, written, read_h5):
         """Expects ``(nx, ny, nz)`` for the solid array."""
@@ -219,25 +222,28 @@ class TestWriteHdf5Arrays:
 
 
 class TestMaterialsFile:
-    def test_writes_one_line_per_material(self, make_geometry_object, null_pbar, make_view_grid):
-        """Expects a line for each material in the compacted list."""
+    @staticmethod
+    def _entries(obj):
+        return json.loads(obj.filename_materials.read_text())["materials"]
+
+    def test_writes_one_entry_per_material(self, make_geometry_object, null_pbar, make_view_grid):
+        """Expects one JSON entry for each material in the compacted list."""
         g = make_view_grid(nx=8, ny=8, nz=8, materials=3)
         g.ID[...] = 1
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        assert len(obj.filename_materials.read_text().strip().splitlines()) == 1
+        assert len(self._entries(obj)) == 1
 
-    def test_lines_are_valid_material_commands(
+    def test_writes_versioned_database_schema(
         self, make_geometry_object, null_pbar, make_view_grid
     ):
-        """Expects gprMax input syntax — ``#material: er se mr sm name`` —
-        because the reader feeds these lines straight back through the parser."""
+        """Expects the public material-database schema rather than executable input."""
         g = make_view_grid(nx=8, ny=8, nz=8, materials=2)
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        first = obj.filename_materials.read_text().splitlines()[0]
-        assert first.startswith("#material: ")
-        assert len(first.split()) == 6
+        document = json.loads(obj.filename_materials.read_text())
+        assert document["schema"] == "gprMax-material-database"
+        assert document["schema_version"] == 1
 
     def test_the_constitutive_parameters_are_written(
         self, make_geometry_object, null_pbar, make_view_grid
@@ -253,13 +259,17 @@ class TestMaterialsFile:
         g.materials[0].mr, g.materials[0].sm = 1.5, 0.02
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        assert obj.filename_materials.read_text().splitlines()[0] == (
-            "#material: 4.5 0.01 1.5 0.02 pec"
-        )
+        entry = next(iter(self._entries(obj).values()))
+        assert entry["base"] == {
+            "relative_permittivity": 4.5,
+            "electric_conductivity_s_per_m": 0.01,
+            "relative_permeability": 1.5,
+            "magnetic_conductivity_s_per_m": 0.02,
+        }
 
     @pytest.mark.parametrize(
-        "model,command,per_pole",
-        [("debye", "#add_dispersion_debye", 2), ("drude", "#add_dispersion_drude", 2)],
+        "model",
+        ["debye", "drude"],
     )
     def test_dispersive_materials_get_a_second_line(
         self,
@@ -268,11 +278,8 @@ class TestMaterialsFile:
         make_view_grid,
         make_dispersive,
         model,
-        command,
-        per_pole,
     ):
-        """Expects a dispersion command alongside the material line, so the
-        frequency dependence survives the round trip. (2 parameter sets)"""
+        """Expects the dispersion model and pole to survive serialisation."""
         g = make_view_grid(nx=8, ny=8, nz=8, materials=2)
         # ``ID`` and ``solid`` both initialise to 1 (free space in a full
         # model); these grids define only material 0.
@@ -282,33 +289,33 @@ class TestMaterialsFile:
         g.materials = [disp]
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        text = obj.filename_materials.read_text()
-        assert command in text
+        entry = next(iter(self._entries(obj).values()))
+        assert entry["model"] == model
+        assert len(entry["poles"]) == 1
 
-    def test_lorenz_dispersion_writes_three_values_per_pole(
+    def test_lorentz_dispersion_writes_three_values_per_pole(
         self, make_geometry_object, null_pbar, make_view_grid, make_dispersive
     ):
         """Expects ``deltaer``, ``tau`` and ``alpha`` for a Lorentz pole —
         one more than Debye needs.
 
-        Note the command is spelled ``#add_dispersion_lorenz``, matching
-        gprMax's own input syntax."""
+        """
         g = make_view_grid(nx=8, ny=8, nz=8, materials=2)
         # ``ID`` and ``solid`` both initialise to 1 (free space in a full
         # model); these grids define only material 0.
         g.ID[...] = 0
         g.solid[...] = 0
-        disp = make_dispersive(ID="soil", numID=0, model="lorenz", poles=[(2.0, 1e-9, 0.5)])
+        disp = make_dispersive(ID="soil", numID=0, model="lorentz", poles=[(2.0, 1e-9, 0.5)])
         g.materials = [disp]
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        line = [
-            l
-            for l in obj.filename_materials.read_text().splitlines()
-            if l.startswith("#add_dispersion")
-        ][0]
-        assert line.startswith("#add_dispersion_lorenz: 1 ")
-        assert len(line.split()) == 6
+        entry = next(iter(self._entries(obj).values()))
+        assert entry["model"] == "lorentz"
+        assert set(entry["poles"][0]) == {
+            "relative_permittivity_difference",
+            "resonance_frequency_hz",
+            "damping_coefficient_per_s",
+        }
 
     def test_the_material_name_ends_each_dispersion_line(
         self, make_geometry_object, null_pbar, make_view_grid, make_dispersive
@@ -324,7 +331,8 @@ class TestMaterialsFile:
         g.materials = [disp]
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        assert obj.filename_materials.read_text().strip().endswith("soil")
+        entry = next(iter(self._entries(obj).values()))
+        assert entry["metadata"]["original_id"] == "soil"
 
     def test_non_dispersive_materials_get_no_second_line(
         self, make_geometry_object, null_pbar, make_view_grid
@@ -337,7 +345,9 @@ class TestMaterialsFile:
         g.solid[...] = 0
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        assert "#add_dispersion" not in obj.filename_materials.read_text()
+        entry = next(iter(self._entries(obj).values()))
+        assert entry["model"] == "constant"
+        assert "poles" not in entry
 
     def test_materials_are_written_in_compacted_order(
         self, make_geometry_object, null_pbar, make_view_grid
@@ -347,7 +357,7 @@ class TestMaterialsFile:
         g = make_view_grid(nx=8, ny=8, nz=8, materials=3)
         obj = make_geometry_object(grid=g, stop=(4, 4, 4))
         obj.write_hdf5("t", null_pbar)
-        names = [l.split()[-1] for l in obj.filename_materials.read_text().splitlines()]
+        names = [entry["metadata"]["original_id"] for entry in self._entries(obj).values()]
         assert names == [m.ID for m in obj.grid_view.materials]
 
 

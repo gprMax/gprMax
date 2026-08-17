@@ -12,6 +12,24 @@ repository root:
 
     python toolboxes/STEPtoVoxel/examples/patch_antenna/patch_antenna_geometry.py
 
+The Python example performs both stages and obtains its domain dimensions
+from the conversion manifest. To inspect the same converted files through
+the traditional hash-command interface, first run the conversion above and
+then use:
+
+.. code-block:: console
+
+    python -m gprMax toolboxes/STEPtoVoxel/examples/patch_antenna/patch_antenna_geometry.in --geometry-only
+
+The STEP file supplies geometry and component names, not electromagnetic
+properties. ``materials.csv`` maps its components to stable material names
+and seeds the illustrative constant values used by this example. The
+generated ``output/materials.json`` is the versioned material database
+consumed by gprMax and must remain paired with ``output/geometry.h5``. Review
+or edit that JSON before simulation when the actual substrate, coaxial fill,
+or conductor model differs. Rerunning an unchanged conversion preserves this
+file; if the stable keys change, the converter refuses to overwrite it.
+
 Generated HDF5, VTI, VTK-HDF, JSON and cache files should not be committed.
 The conversion recognises ``port1`` as a non-physical CAD port marker and
 writes its centre, aperture bounds and normal axis to ``markers.json``. The

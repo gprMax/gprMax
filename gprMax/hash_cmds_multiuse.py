@@ -37,6 +37,7 @@ from .user_objects.cmds_multiuse import (
     MagneticDipole,
     MagneticFrillSource,
     Material,
+    MaterialFromDatabase,
     MaterialList,
     MaterialRange,
     NetworkExcitation,
@@ -998,6 +999,23 @@ def process_multicmds(multicmds):
                 er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), id=tmp[4]
             )
             scene_objects.append(material)
+
+    cmdname = "#material_from_database"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) not in (2, 3):
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a database name, a material key, "
+                    "and optionally a local material ID"
+                )
+            scene_objects.append(
+                MaterialFromDatabase(
+                    database=tokens[0],
+                    material=tokens[1],
+                    id=tokens[2] if len(tokens) == 3 else None,
+                )
+            )
 
     cmdname = "#add_dispersion_debye"
     if multicmds[cmdname] is not None:
