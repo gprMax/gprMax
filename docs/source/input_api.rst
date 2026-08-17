@@ -576,6 +576,44 @@ Object construction functions
 
 Object construction commands are processed in the order they appear in the scene. Therefore space in the model allocated to a specific material using for example the :class:`gprMax.user_objects.cmds_geometry.box.Box` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
 
+Cell-centred geometry tags
+--------------------------
+
+The volumetric commands ``Box``, ``Sphere``, ``Cylinder``, ``Cone``,
+``CylindricalSector``, ``Ellipsoid``, a ``Triangle`` with non-zero thickness,
+and ``FractalBox`` accept the optional keyword ``tag``. A tag is semantic
+metadata independent of the electromagnetic material, for example
+``tag='cranial_bone'``. Reusing the same string on several primitives makes
+them one semantic region without retaining a list of the individual
+primitives.
+
+Tags follow the same ordered overwrite semantics as geometry. A tagged
+primitive writes its tag to every cell it occupies; an untagged primitive
+writes tag ID zero and therefore clears an older tag in its cells. This makes
+constructive geometry work naturally. For example, an untagged free-space
+cylinder drawn inside a tagged material cylinder leaves a tagged shell and an
+untagged hollow interior. A free-space volume may itself be tagged when that
+region is intentionally significant. Dielectric smoothing does not alter tag
+membership.
+
+.. code-block:: python
+
+    scene.add(gprMax.Cylinder(
+        p1=(0.10, 0.10, 0.05), p2=(0.10, 0.10, 0.15),
+        r=0.04, material_id='plastic', tag='container',
+    ))
+    scene.add(gprMax.Cylinder(
+        p1=(0.10, 0.10, 0.05), p2=(0.10, 0.10, 0.15),
+        r=0.03, material_id='free_space',
+    ))
+
+Tag ID zero is permanently reserved for ``untagged``. The model stores one
+compact integer per cell only when at least one tag is present; tag arrays are
+not part of the FDTD field update and are not transferred to accelerators.
+Tags are flat rather than hierarchical. Larger groups such as ``head`` can be
+formed later by selecting several leaf tags such as ``brain``, ``eyes``, and
+``cranial_bone``.
+
 Box
 ---
 .. autoclass:: gprMax.user_objects.cmds_geometry.box.Box
@@ -711,7 +749,7 @@ fractal box by its ID and must be added after it:
     scene.add(gprMax.FractalBox(
         p1=(0, 0, 0), p2=(0.30, 0.20, 0.10),
         frac_dim=1.5, weighting=(1, 1, 1), n_materials=20,
-        mixing_model_id='soil_mix', id='ground', seed=1,
+        mixing_model_id='soil_mix', id='ground', seed=1, tag='soil_layer_1',
     ))
     scene.add(gprMax.AddSurfaceRoughness(
         p1=(0, 0, 0.10), p2=(0.30, 0.20, 0.10),
@@ -741,7 +779,10 @@ Geometry Objects Write
 .. autoclass:: gprMax.user_objects.cmds_output.GeometryObjectsWrite
 
 Geometry views are visualisations. Geometry-object files instead preserve
-material-index geometry for insertion into another model:
+material-index geometry for insertion into another model. If semantic tags
+exist, both outputs also preserve their cell IDs and the ID-to-name table.
+This permits a costly tagged anatomy or geological model to be written once
+and inserted into later simulations without rebuilding it:
 
 .. code-block:: python
 

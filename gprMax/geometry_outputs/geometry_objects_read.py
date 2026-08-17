@@ -299,6 +299,38 @@ class ReadGeometryObject(AbstractContextManager):
         rigidH_class = self.file_handler.get("rigidH", getclass=True)
         return rigidE_class == h5py.Dataset and rigidH_class == h5py.Dataset
 
+    def has_tag_data(self) -> bool:
+        return (
+            self.file_handler.get("tag_data", getclass=True) == h5py.Dataset
+            and self.file_handler.get("tag_names", getclass=True) == h5py.Dataset
+        )
+
+    def read_tags(self) -> None:
+        """Import or clear semantic tags wherever the geometry writes cells."""
+
+        if self.grid_view is None or self.grid_view.grid.geometry_tag_map is None:
+            return
+
+        raw_data = self.file_handler["/data"]
+        assert isinstance(raw_data, h5py.Dataset)
+        raw_data = self._read_spatial_dataset(raw_data)
+        existing = self.grid_view.get_geometry_tags()
+
+        if self.has_tag_data():
+            tag_data = self.file_handler["/tag_data"]
+            assert isinstance(tag_data, h5py.Dataset)
+            tag_data = self._read_spatial_dataset(tag_data)
+            raw_names = self.file_handler["/tag_names"][:]
+            names = tuple(
+                value.decode("utf-8") if isinstance(value, bytes) else str(value)
+                for value in raw_names
+            )
+            imported = self.grid_view.grid.geometry_tag_map.remap_file_ids(tag_data, names)
+        else:
+            imported = np.zeros(raw_data.shape, dtype=existing.dtype)
+
+        self.grid_view.set_geometry_tags(np.where(raw_data < 0, existing, imported))
+
     def read_data(self):
         if self.grid_view is None:
             return

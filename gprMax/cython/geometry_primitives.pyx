@@ -20,6 +20,7 @@
 
 import numpy as np
 
+cimport cython
 cimport numpy as np
 from libc.math cimport ceil, cos, sin
 
@@ -38,6 +39,29 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
 )
 
 from gprMax.utilities.utilities import round_value
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void set_geometry_tag(
+    np.uint8_t[::1] tag_bytes,
+    int itemsize,
+    Py_ssize_t ny,
+    Py_ssize_t nz,
+    Py_ssize_t i,
+    Py_ssize_t j,
+    Py_ssize_t k,
+    unsigned int tag_id,
+) noexcept nogil:
+    """Write an adaptively sized tag ID to a flattened C-contiguous map."""
+
+    cdef Py_ssize_t offset = ((i * ny + j) * nz + k) * itemsize
+    if itemsize == 1:
+        tag_bytes[offset] = <np.uint8_t>tag_id
+    elif itemsize == 2:
+        (<np.uint16_t*>&tag_bytes[offset])[0] = <np.uint16_t>tag_id
+    else:
+        (<np.uint32_t*>&tag_bytes[offset])[0] = <np.uint32_t>tag_id
 
 
 cpdef bint are_clockwise(
@@ -508,7 +532,9 @@ cpdef void build_triangle(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """
     Builds triangles and triangular prisms which sets values in the solid,
@@ -534,6 +560,18 @@ cpdef void build_triangle(
     cdef long long bu, bv, cu, cv, qu2, qv2
     cdef long long denominator, s_num2, t_num2
     cdef bint inside
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Work from snapped cell indices and relative coordinates. This avoids
     # subtracting large absolute floating-point coordinates, so translating an
@@ -620,14 +658,23 @@ cpdef void build_triangle(
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], k, i, j, tag_id)
                         elif normal == 'y':
                             build_voxel(i, k, j, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], i, k, j, tag_id)
                         elif normal == 'z':
                             build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_cylindrical_sector(
@@ -653,7 +700,9 @@ cpdef void build_cylindrical_sector(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """
     Builds cylindrical sectors which sets values in the solid, rigid and ID
@@ -684,6 +733,18 @@ cpdef void build_cylindrical_sector(
     cdef int x1, x2, y1, y2, z1, z2, thicknesscells, ctr1cell, ctr2cell
     cdef int radiuscells1, radiuscells2
     cdef double rel1, rel2
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     if normal == 'x':
         # Angles are defined from zero degrees on the positive y-axis going
@@ -717,6 +778,9 @@ cpdef void build_cylindrical_sector(
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], x, y, z, tag_id)
 
     elif normal == 'y':
         # Angles are defined from zero degrees on the positive x-axis going
@@ -750,6 +814,9 @@ cpdef void build_cylindrical_sector(
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], x, y, z, tag_id)
 
     elif normal == 'z':
         # Angles are defined from zero degrees on the positive x-axis going
@@ -783,6 +850,9 @@ cpdef void build_cylindrical_sector(
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], x, y, z, tag_id)
 
 
 cpdef void build_box(
@@ -803,7 +873,9 @@ cpdef void build_box(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds boxes which sets values in the solid, rigid and ID arrays.
 
@@ -818,12 +890,29 @@ cpdef void build_box(
     """
 
     cdef Py_ssize_t i, j, k
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        if tag_array.shape != (solid.shape[0], solid.shape[1], solid.shape[2]):
+            raise ValueError("Geometry tag map shape must match the solid array")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     if averaging:
         for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
                     unset_rigid_E(i, j, k, rigidE)
                     unset_rigid_H(i, j, k, rigidH)
     else:
@@ -831,6 +920,9 @@ cpdef void build_box(
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
                     set_rigid_E(i, j, k, rigidE)
 
         # Each E/H component gets its own full-range loop. Ex/Ey/Ez are
@@ -908,7 +1000,9 @@ cpdef void build_cylinder(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds cylinders which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -932,6 +1026,18 @@ cpdef void build_cylinder(
     cdef int rx, ry, rz
     cdef double ax, ay, az, axis2, qx, qy, qz, projection, t
     cdef double radial2, radius2
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
     ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
@@ -958,6 +1064,9 @@ cpdef void build_cylinder(
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, pec_x, pec_y, pec_z,
                                     solid, rigidE, rigidH, ID)
+                        if tag_itemsize:
+                            set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                             solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_cone(
@@ -983,7 +1092,9 @@ cpdef void build_cone(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds cones which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -1008,6 +1119,18 @@ cpdef void build_cone(
     cdef int rx, ry, rz
     cdef double ax, ay, az, axis2, qx, qy, qz, projection, t
     cdef double radial2, radius, Rmax
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
     ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
@@ -1035,6 +1158,9 @@ cpdef void build_cone(
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                     averaging, pec_x, pec_y, pec_z,
                                     solid, rigidE, rigidH, ID)
+                        if tag_itemsize:
+                            set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                             solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_sphere(
@@ -1056,7 +1182,9 @@ cpdef void build_sphere(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds spheres which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -1076,6 +1204,18 @@ cpdef void build_sphere(
     cdef Py_ssize_t i, j, k
     cdef int xs, xf, ys, yf, zs, zf, rx, ry, rz
     cdef double qx, qy, qz
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Calculate a bounding box for sphere
     rx, ry, rz = <int>ceil(r / dx), <int>ceil(r / dy), <int>ceil(r / dz)
@@ -1105,6 +1245,9 @@ cpdef void build_sphere(
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 averaging, pec_x, pec_y, pec_z,
                                 solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                         solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_ellipsoid(
@@ -1128,7 +1271,9 @@ cpdef void build_ellipsoid(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds ellipsoids which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -1150,6 +1295,18 @@ cpdef void build_ellipsoid(
     cdef Py_ssize_t i, j, k
     cdef int xs, xf, ys, yf, zs, zf, rxcells, rycells, rzcells
     cdef double qx, qy, qz
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Calculate an origin-independent bounding box.
     rxcells, rycells, rzcells = <int>ceil(xr / dx), <int>ceil(yr / dy), <int>ceil(zr / dz)
@@ -1179,6 +1336,9 @@ cpdef void build_ellipsoid(
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 averaging, pec_x, pec_y, pec_z,
                                 solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                         solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_voxels_from_array(
@@ -1193,7 +1353,9 @@ cpdef void build_voxels_from_array(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds Yee voxels by reading integers from an array.
 
@@ -1222,6 +1384,18 @@ cpdef void build_voxels_from_array(
     cdef Py_ssize_t i, j, k
     cdef int xf, yf, zf, numID
     cdef bint pec, voxel_averaging
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1255,6 +1429,9 @@ cpdef void build_voxels_from_array(
                     voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numID, numID, numID, voxel_averaging,
                                 pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
 
 
 cpdef void build_voxels_from_array_mask(
@@ -1271,7 +1448,11 @@ cpdef void build_voxels_from_array_mask(
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0,
+    unsigned int water_tag_id=0,
+    unsigned int grass_tag_id=0
 ):
     """Builds Yee voxels by reading integers from an array.
 
@@ -1294,6 +1475,18 @@ cpdef void build_voxels_from_array_mask(
     cdef Py_ssize_t i, j, k
     cdef int xf, yf, zf, numID, numIDx, numIDy, numIDz
     cdef bint pec, voxel_averaging
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Set upper bounds
     xf = xs + data.shape[0]
@@ -1309,15 +1502,24 @@ cpdef void build_voxels_from_array_mask(
                     voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
                 elif mask[i - xs, j - ys, k - zs] == 2:
                     numID = numIDx = numIDy = numIDz = waternumID
                     pec = is_pec_lookup[numID]
                     voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, water_tag_id)
                 elif mask[i - xs, j - ys, k - zs] == 3:
                     numID = numIDx = numIDy = numIDz = grassnumID
                     pec = is_pec_lookup[numID]
                     voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
                                 voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, grass_tag_id)

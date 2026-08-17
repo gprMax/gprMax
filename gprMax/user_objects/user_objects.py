@@ -174,3 +174,11 @@ class GeometryUserObject(GridUserObject):
         They should be built in the order they were added to the scene.
         """
         return 1
+
+    def declared_geometry_tags(self) -> tuple[str, ...]:
+        """Return semantic tag names that must exist before rasterisation."""
+
+        from gprMax.geometry_tags import validate_geometry_tag
+
+        tag = validate_geometry_tag(self.kwargs.get("tag"))
+        return () if tag is None else (tag,)

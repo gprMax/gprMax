@@ -1046,6 +1046,15 @@ Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.
 
 The ``#geometry_view:`` command produces either ImageData for a per-cell geometry view, or UnstructuredGrid for a per-cell-edge geometry view. The following are steps to get started with viewing geometry files in Paraview:
 
+If the model contains semantic geometry tags, a normal per-cell geometry view
+also contains the integer cell array ``TagID``. VTKHDF field data stores the
+matching ``geometry_tag_ids`` and ``geometry_tag_names`` arrays; ID zero means
+``untagged``. The tag array records the final voxelised geometry after ordered
+overwrites and is not affected by dielectric smoothing. It is omitted
+entirely for models without tags. Per-cell-edge geometry views do not export
+tags because zero-thickness edge and plate objects do not yet have tag
+semantics.
+
 .. _pv_toolbar:
 
 .. figure:: ../../images_shared/paraview_toolbar.png

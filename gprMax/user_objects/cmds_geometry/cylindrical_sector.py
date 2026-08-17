@@ -25,7 +25,7 @@ import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_cylindrical_sector
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
-from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging
+from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, geometry_tag_args
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -244,6 +244,10 @@ class CylindricalSector(GeometryUserObject):
                 pec_y = materials[1].is_pec
                 pec_z = materials[2].is_pec
 
+        tag = self.kwargs.get("tag")
+        if tag is not None and thickness <= 0:
+            raise ValueError(f"{self.params_str()} a cell-centred tag requires a volumetric sector")
+        tag_data, tag_id = geometry_tag_args(grid, tag)
         build_cylindrical_sector(
             ctr1,
             ctr2,
@@ -268,6 +272,8 @@ class CylindricalSector(GeometryUserObject):
             grid.rigidE,
             grid.rigidH,
             grid.ID,
+            tag_data,
+            tag_id,
         )
 
         if thickness > 0:

@@ -442,6 +442,20 @@ class GridView(Generic[GridType]):
         """
         self.set_array_slice(self.grid.solid, value)
 
+    def get_geometry_tags(self) -> npt.NDArray:
+        """Get cell-centred semantic tag IDs for this view."""
+
+        if getattr(self.grid, "geometry_tag_map", None) is None:
+            raise RuntimeError("This grid has no geometry tag map")
+        return self.get_array_slice(self.grid.geometry_tag_map.data)
+
+    def set_geometry_tags(self, value: npt.NDArray):
+        """Set cell-centred semantic tag IDs for this view."""
+
+        if getattr(self.grid, "geometry_tag_map", None) is None:
+            raise RuntimeError("This grid has no geometry tag map")
+        self.set_array_slice(self.grid.geometry_tag_map.data, value)
+
     def get_rigidE(self) -> npt.NDArray[np.int8]:
         """Get a view of the rigidE array.
 

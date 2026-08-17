@@ -55,8 +55,8 @@ def _validate_fractal_modifier_targets(geometry):
         tokens for tokens in tokenised if tokens and tokens[0] == "#fractal_box:"
     ]
     for tokens in fractal_box_commands:
-        if len(tokens) not in (14, 15, 16):
-            raise ValueError(f"'{' '.join(tokens)}' requires 13, 14, or 15 parameters")
+        if len(tokens) not in (14, 15, 16, 17):
+            raise ValueError(f"'{' '.join(tokens)}' requires 13 to 16 parameters")
     fractal_box_ids = {tokens[13] for tokens in fractal_box_commands}
     if len(fractal_box_ids) != len(fractal_box_commands):
         raise ValueError("#fractal_box identifiers must be unique")
@@ -96,6 +96,30 @@ def process_geometrycmds(geometry):
 
     for object in geometry:
         tmp = object.split()
+        tag = None
+
+        # Geometry hash commands use positional arguments only. A tag is
+        # accepted only after an explicit y/n smoothing argument. Requiring
+        # that marker keeps all existing isotropic and anisotropic forms
+        # unambiguous and backward compatible.
+        base_lengths = {
+            "#triangle:": 12,
+            "#box:": 8,
+            "#cylinder:": 9,
+            "#cone:": 10,
+            "#cylindrical_sector:": 10,
+            "#sphere:": 6,
+            "#ellipsoid:": 8,
+        }
+        base_length = base_lengths.get(tmp[0])
+        if base_length is not None:
+            if len(tmp) == base_length + 2 and tmp[-2].lower() in {"y", "n"}:
+                tag, tmp = tmp[-1], tmp[:-1]
+
+        # A fractal tag follows the existing seed and y/n smoothing values.
+        elif tmp[0] == "#fractal_box:":
+            if len(tmp) == 17 and tmp[-2].lower() in {"y", "n"}:
+                tag, tmp = tmp[-1], tmp[:-1]
 
         if tmp[0] == "#geometry_objects_read:":
             from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
@@ -196,7 +220,10 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 12:
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11])
+                triangle = Triangle(
+                    p1=p1, p2=p2, p3=p3, thickness=thickness,
+                    material_id=tmp[11], tag=tag
+                )
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 13:
@@ -207,11 +234,15 @@ def process_geometrycmds(geometry):
                     thickness=thickness,
                     material_id=tmp[11],
                     averaging=tmp[12],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 14:
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_ids=tmp[11:])
+                triangle = Triangle(
+                    p1=p1, p2=p2, p3=p3, thickness=thickness,
+                    material_ids=tmp[11:], tag=tag
+                )
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -229,15 +260,15 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 8:
-                box = Box(p1=p1, p2=p2, material_id=tmp[7])
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8])
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8], tag=tag)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
-                box = Box(p1=p1, p2=p2, material_ids=tmp[7:])
+                box = Box(p1=p1, p2=p2, material_ids=tmp[7:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -256,15 +287,17 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 9:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8])
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 10:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9])
+                cylinder = Cylinder(
+                    p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9], tag=tag
+                )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:])
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -284,7 +317,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 10:
-                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9])
+                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
@@ -295,11 +328,12 @@ def process_geometrycmds(geometry):
                     r2=r2,
                     material_id=tmp[9],
                     averaging=tmp[10],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
-                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_ids=tmp[9:])
+                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_ids=tmp[9:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -333,6 +367,7 @@ def process_geometrycmds(geometry):
                     start=start,
                     end=end,
                     material_id=tmp[9],
+                    tag=tag,
                 )
 
             # Isotropic case with user specified averaging
@@ -348,6 +383,7 @@ def process_geometrycmds(geometry):
                     end=end,
                     averaging=tmp[10],
                     material_id=tmp[9],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
@@ -362,6 +398,7 @@ def process_geometrycmds(geometry):
                     start=start,
                     end=end,
                     material_ids=tmp[9:],
+                    tag=tag,
                 )
 
             else:
@@ -380,15 +417,15 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 6:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5])
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 7:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6])
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6], tag=tag)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
-                sphere = Sphere(p1=p1, r=r, material_ids=tmp[5:])
+                sphere = Sphere(p1=p1, r=r, material_ids=tmp[5:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -408,7 +445,9 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 8:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7])
+                ellipsoid = Ellipsoid(
+                    p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], tag=tag
+                )
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
@@ -419,11 +458,14 @@ def process_geometrycmds(geometry):
                     zr=zr,
                     material_id=tmp[7],
                     averaging=tmp[8],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:])
+                ellipsoid = Ellipsoid(
+                    p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:], tag=tag
+                )
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -457,6 +499,7 @@ def process_geometrycmds(geometry):
                     n_materials=n_materials,
                     mixing_model_id=mixing_model_id,
                     id=ID,
+                    tag=tag,
                 )
             elif len(tmp) == 15:
                 fb = FractalBox(
@@ -468,6 +511,7 @@ def process_geometrycmds(geometry):
                     mixing_model_id=mixing_model_id,
                     id=ID,
                     seed=tmp[14],
+                    tag=tag,
                 )
             elif len(tmp) == 16:
                 fb = FractalBox(
@@ -480,6 +524,7 @@ def process_geometrycmds(geometry):
                     id=ID,
                     seed=tmp[14],
                     averaging=tmp[15],
+                    tag=tag,
                 )
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
