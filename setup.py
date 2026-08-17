@@ -287,6 +287,7 @@ else:
             "jinja2",
             "matplotlib",
             "numpy",
+            "Pillow",
             "psutil",
             "scipy",
             "terminaltables",

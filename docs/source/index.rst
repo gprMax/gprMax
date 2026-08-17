@@ -41,6 +41,7 @@ gprMax User Guide
     inc_Materials
     inc_STLtoVoxel
     inc_STEPtoVoxel
+    inc_gprMaxLogo
     inc_ImpulseResponse
     inc_SFCW
     inc_FMCW

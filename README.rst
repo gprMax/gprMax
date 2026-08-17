@@ -63,7 +63,7 @@ Package overview
 * ``reframe_tests/`` contains regression tests run using
   `ReFrame <https://reframe-hpc.readthedocs.io>`_. The regression checks are currently specific to the `ARCHER2 <https://www.archer2.ac.uk/>`_ system and additional work wil be required to make them portable between systems.
 * ``testing/`` is a sub-package which contains test modules and input files.
-* ``toolboxes/`` is a sub-package where useful modules contributed by users are stored.
+* ``toolboxes/`` is a sub-package where useful modules contributed by users are stored, including the reproducible ``gprMaxLogo`` FDTD model and branding assets.
 * ``CITATION.cff`` is a plain text file with human- and machine-readable citation information for gprMax.
 * ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
 * ``CONTRIBUTING.md`` is guide on how to contribute to gprMax.

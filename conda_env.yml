@@ -11,6 +11,7 @@ dependencies:
 - jupyter
 - matplotlib
 - numpy
+- pillow
 - pip
 - psutil
 - pytest>=7
