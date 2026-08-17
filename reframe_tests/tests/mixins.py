@@ -121,7 +121,7 @@ class GeometryObjectMixinBase(GprMaxMixin):
         Args:
             geometry_object: Name of the geometry object.
         """
-        return Path(f"{geometry_object}_materials").with_suffix(".txt")
+        return Path(f"{geometry_object}_materials").with_suffix(".json")
 
 
 class GeometryObjectsReadMixin(GeometryObjectMixinBase):
@@ -185,7 +185,11 @@ class GeometryObjectsReadMixin(GeometryObjectMixinBase):
             )
             geometry_object_output_file = Path(self.stagedir, geometry_object_output_file)
 
-            materials_output_file = self.build_materials_filepath(geometry_object_output)
+            # The database ID is part of the JSON document and is also
+            # recorded in the HDF5 file. Unlike a legacy command file, the
+            # database must therefore retain its original basename when the
+            # geometry object itself is renamed for the dependent test.
+            materials_output_file = materials_input_file.name
             materials_output_file = Path(self.stagedir, materials_output_file)
 
             copyfile(geometry_object_input_file, geometry_object_output_file)

@@ -10,4 +10,4 @@
 
 #rx: 0.08 0.08 0.08
 
-#geometry_objects_read: 0 0 0 full_volume_read.h5 full_volume_read_materials.txt
+#geometry_objects_read: 0 0 0 full_volume_read.h5 full_volume_materials

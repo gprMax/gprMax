@@ -1,0 +1,12 @@
+{
+  "schema": "gprMax-material-database",
+  "schema_version": 1,
+  "database": {
+    "id": "gpr",
+    "name": "Ground-penetrating radar materials",
+    "version": "1.0.0",
+    "description": "Reserved for curated GPR material models with traceable sources and validity metadata.",
+    "licence": "GPL-3.0-or-later"
+  },
+  "materials": {}
+}

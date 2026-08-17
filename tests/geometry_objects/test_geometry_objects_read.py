@@ -17,11 +17,12 @@ against the target grid rather than assuming a fixed builtin count/order).
 """
 from pathlib import Path
 
-import gprMax
-import gprMax.model as model_mod
 import h5py
 import numpy as np
 import pytest
+
+import gprMax
+import gprMax.model as model_mod
 
 
 def _capture_built_grid(monkeypatch):
@@ -41,7 +42,7 @@ def _capture_built_grid(monkeypatch):
 
 def _write_geometry(tmp_path: Path, boxes: list[tuple[tuple, tuple, str]], custom_materials=()):
     """Builds a small domain with the given (p1, p2, material_id) boxes and
-    exports it via #geometry_objects_write. Returns (geofile, matfile).
+    exports it via #geometry_objects_write. Returns (geofile, database file).
     """
     dl = 1e-3
     scene = gprMax.Scene()
@@ -57,13 +58,15 @@ def _write_geometry(tmp_path: Path, boxes: list[tuple[tuple, tuple, str]], custo
         scene.add(gprMax.Box(p1=p1, p2=p2, material_id=material_id))
 
     outdir = tmp_path / "write"
-    scene.add(gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, 0.0), p2=(0.02, 0.02, 0.02), filename=str(outdir)))
+    scene.add(
+        gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, 0.0), p2=(0.02, 0.02, 0.02), filename=str(outdir))
+    )
     gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=outdir, hide_progress_bars=True)
 
-    return outdir.with_suffix(".h5"), Path(f"{outdir}_materials.txt")
+    return outdir.with_suffix(".h5"), Path(f"{outdir}_materials.json")
 
 
-def _read_geometry_and_get_grid(tmp_path: Path, geofile: Path, matfile: Path, monkeypatch):
+def _read_geometry_and_get_grid(tmp_path: Path, geofile: Path, database_file: Path, monkeypatch):
     dl = 1e-3
     scene = gprMax.Scene()
     scene.add(gprMax.Title(name="read"))
@@ -71,7 +74,13 @@ def _read_geometry_and_get_grid(tmp_path: Path, geofile: Path, matfile: Path, mo
     scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(time=1e-12))
-    scene.add(gprMax.GeometryObjectsRead(p1=(0.0, 0.0, 0.0), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0.0, 0.0, 0.0),
+            geofile=str(geofile),
+            material_database=database_file.stem,
+        )
+    )
 
     captured = _capture_built_grid(monkeypatch)
     outfile = tmp_path / "read"
@@ -144,10 +153,122 @@ def test_pec_pmc_and_custom_material_round_trip_correctly(tmp_path, monkeypatch)
 
     # Exactly one custom material was created (not a duplicate per-box) and
     # it got a fresh numID after the three builtins.
-    custom_materials = [m for m in grid.materials if m.ID.startswith("custom_mat") and "+" not in m.ID]
+    custom_materials = [
+        m for m in grid.materials if m.ID.startswith("custom_mat") and "+" not in m.ID
+    ]
     assert len(custom_materials) == 1
     assert custom_materials[0].numID == 3
     assert custom_materials[0].type == "imported"
+
+
+def test_same_database_geometry_can_be_inserted_more_than_once(tmp_path, monkeypatch):
+    """Repeated inserts reuse their namespaced material instead of colliding."""
+
+    custom = gprMax.Material(er=3.0, se=0.01, mr=1.0, sm=0.0, id="custom_mat")
+    geofile, database_file = _write_geometry(
+        tmp_path,
+        boxes=[((0.002, 0.002, 0.002), (0.006, 0.006, 0.006), "custom_mat")],
+        custom_materials=[custom],
+    )
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.04, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    for x in (0.0, 0.02):
+        scene.add(
+            gprMax.GeometryObjectsRead(
+                p1=(x, 0.0, 0.0),
+                geofile=str(geofile),
+                material_database=database_file.stem,
+            )
+        )
+
+    captured = _capture_built_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "read_twice",
+        hide_progress_bars=True,
+    )
+    imported = [
+        material
+        for material in captured["grid"].materials
+        if material.ID.startswith("custom_mat{") and "+" not in material.ID
+    ]
+    assert len(imported) == 1
+
+
+def test_import_namespaces_a_conflicting_existing_material(tmp_path, monkeypatch):
+    """A local material ID must not prevent importing a different CAD material."""
+
+    custom = gprMax.Material(er=3.0, se=0.01, mr=1.0, sm=0.0, id="custom_mat")
+    geofile, database_file = _write_geometry(
+        tmp_path,
+        boxes=[((0.002, 0.002, 0.002), (0.006, 0.006, 0.006), "custom_mat")],
+        custom_materials=[custom],
+    )
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(gprMax.Material(er=8.0, se=0.0, mr=1.0, sm=0.0, id="custom_mat"))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0.0, 0.0, 0.0),
+            geofile=str(geofile),
+            material_database=database_file.stem,
+        )
+    )
+
+    captured = _capture_built_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "read_conflict",
+        hide_progress_bars=True,
+    )
+
+    materials = {material.ID: material for material in captured["grid"].materials}
+    assert materials["custom_mat"].er == pytest.approx(8.0)
+    imported_id = f"custom_mat{{{database_file.stem}}}"
+    assert materials[imported_id].er == pytest.approx(3.0)
+
+
+def test_geometry_rejects_a_different_companion_database_name(tmp_path, monkeypatch):
+    custom = gprMax.Material(er=3.0, se=0.01, mr=1.0, sm=0.0, id="custom_mat")
+    geofile, _ = _write_geometry(
+        tmp_path,
+        boxes=[((0.002, 0.002, 0.002), (0.006, 0.006, 0.006), "custom_mat")],
+        custom_materials=[custom],
+    )
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0.0, 0.0, 0.0),
+            geofile=str(geofile),
+            material_database="another_database",
+        )
+    )
+
+    with pytest.raises(ValueError, match="records material database.*not 'another_database'"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "database_mismatch",
+            hide_progress_bars=True,
+        )
 
 
 def test_background_voxels_map_to_free_space_in_an_empty_model(tmp_path, monkeypatch):
@@ -228,7 +349,11 @@ def test_background_voxels_preserve_prior_geometry(tmp_path, monkeypatch, with_r
         )
     )
     # Placed so the imported 6x6x6 region sits fully inside the soil box.
-    scene.add(gprMax.GeometryObjectsRead(p1=(8 * dl, 8 * dl, 8 * dl), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(8 * dl, 8 * dl, 8 * dl), geofile=str(geofile), matfile=str(matfile)
+        )
+    )
 
     captured = _capture_built_grid(monkeypatch)
     gprMax.run(
@@ -240,7 +365,9 @@ def test_background_voxels_preserve_prior_geometry(tmp_path, monkeypatch, with_r
     )
     grid = captured["grid"]
 
-    material_at = lambda i, j, k: next(m.ID for m in grid.materials if m.numID == grid.solid[i, j, k])
+    material_at = lambda i, j, k: next(
+        m.ID for m in grid.materials if m.numID == grid.solid[i, j, k]
+    )
 
     assert material_at(10, 10, 10) == "pec"  # the actual target voxel
     assert material_at(8, 8, 8) == "soil"  # -1 in the file, inside the imported bounding box
@@ -278,7 +405,9 @@ def test_reads_genuinely_external_materials_file(tmp_path, monkeypatch):
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
     scene.add(gprMax.Domain(p1=(n * dl, n * dl, n * dl)))
     scene.add(gprMax.TimeWindow(time=1e-12))
-    scene.add(gprMax.GeometryObjectsRead(p1=(0.0, 0.0, 0.0), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(p1=(0.0, 0.0, 0.0), geofile=str(geofile), matfile=str(matfile))
+    )
 
     captured = _capture_built_grid(monkeypatch)
     gprMax.run(
@@ -331,6 +460,9 @@ def test_incomplete_materials_file_raises_clear_error(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="only declares 1 material"):
         gprMax.run(
-            scenes=[scene], n=1, geometry_only=True,
-            outputfile=tmp_path / "read", hide_progress_bars=True,
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "read",
+            hide_progress_bars=True,
         )

@@ -77,13 +77,21 @@ To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bu
 
 Since the number of voxels are 108 x 88 x 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108m.
 
-The following is an example of a ``materials.txt`` file that can be used with the generated geometry file (HDF5 format) when importing into gprMax. The material index used in the HDF5 geometry file corresponds to the number of STL files converted, e.g. it will be zero if only a single STL file is converted.
+The converter also creates an editable ``_materials.json`` database beside
+the generated HDF5 file. Its
+constitutive values are initially ``null`` because the STL file contains no
+electromagnetic properties. They must be filled in before running gprMax. The
+stable keys in the database are also stored in ``/material_keys`` in the HDF5
+file, so their order cannot become detached from the voxel indices. Rerunning
+the conversion preserves an existing database when its material keys still
+match, so user-entered properties are not overwritten.
 
-.. literalinclude:: ../../toolboxes/STLtoVoxel/examples/materials.txt
-    :language: none
+.. literalinclude:: ../../toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny_geo_materials.json
+    :language: json
     :linenos:
 
-The following Python script (using our Python API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model. The bunny material will be sand, i.e. index zero in the materials file.
+The following Python script imports the generated geometry and selects its
+database by name. The example database assigns sand to the bunny.
 
 .. literalinclude:: ../../toolboxes/STLtoVoxel/examples/bunny.py
     :language: python

@@ -57,13 +57,19 @@ def _write_te_geometry(tmp_path, monkeypatch):
     scene.add(gprMax.Box(p1=(0.003, 0.003, INF), p2=(0.007, 0.007, INF), material_id="diel"))
 
     outfile = tmp_path / "te_export"
-    scene.add(gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, INF), p2=(0.01, 0.01, INF), filename=str(outfile)))
+    scene.add(
+        gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, INF), p2=(0.01, 0.01, INF), filename=str(outfile))
+    )
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(
-        scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "write_te", hide_progress_bars=True
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "write_te",
+        hide_progress_bars=True,
     )
-    return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "te_export_materials.txt"
+    return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "te_export_materials.json"
 
 
 def _write_tm_geometry(tmp_path, monkeypatch):
@@ -78,13 +84,19 @@ def _write_tm_geometry(tmp_path, monkeypatch):
     scene.add(gprMax.Box(p1=(0.003, 0.003, INF), p2=(0.007, 0.007, INF), material_id="diel"))
 
     outfile = tmp_path / "tm_export"
-    scene.add(gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, INF), p2=(0.01, 0.01, INF), filename=str(outfile)))
+    scene.add(
+        gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, INF), p2=(0.01, 0.01, INF), filename=str(outfile))
+    )
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(
-        scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "write_tm", hide_progress_bars=True
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "write_tm",
+        hide_progress_bars=True,
     )
-    return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "tm_export_materials.txt"
+    return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "tm_export_materials.json"
 
 
 def test_geometry_objects_read_broadcasts_tm_file_into_te_model(tmp_path, monkeypatch, capsys):
@@ -106,7 +118,13 @@ def test_geometry_objects_read_broadcasts_tm_file_into_te_model(tmp_path, monkey
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(time=1e-11))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
-    scene.add(gprMax.GeometryObjectsRead(p1=(INF, INF, INF), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(INF, INF, INF),
+            geofile=str(geofile),
+            material_database=matfile.stem,
+        )
+    )
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(
@@ -139,7 +157,13 @@ def test_geometry_objects_read_reduces_te_file_into_tm_model(tmp_path, monkeypat
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(time=1e-11))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
-    scene.add(gprMax.GeometryObjectsRead(p1=(INF, INF, INF), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(INF, INF, INF),
+            geofile=str(geofile),
+            material_database=matfile.stem,
+        )
+    )
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(
@@ -176,11 +200,17 @@ def test_geometry_objects_read_te_to_tm_solves_identically_to_direct_build(tmp_p
         scene.add(gprMax.Rx(p1=(0.002, 0.002, INF)))
         if use_import:
             scene.add(
-                gprMax.GeometryObjectsRead(p1=(INF, INF, INF), geofile=str(geofile), matfile=str(matfile))
+                gprMax.GeometryObjectsRead(
+                    p1=(INF, INF, INF),
+                    geofile=str(geofile),
+                    material_database=matfile.stem,
+                )
             )
         else:
             scene.add(gprMax.Material(er=5, se=0, mr=1, sm=0, id="diel"))
-            scene.add(gprMax.Box(p1=(0.003, 0.003, INF), p2=(0.007, 0.007, INF), material_id="diel"))
+            scene.add(
+                gprMax.Box(p1=(0.003, 0.003, INF), p2=(0.007, 0.007, INF), material_id="diel")
+            )
         outfile = tmp_path / ("imported_solve" if use_import else "direct_solve")
         gprMax.run(scenes=[scene], n=1, outputfile=outfile, hide_progress_bars=True)
         return outfile.with_suffix(".h5")
@@ -208,7 +238,9 @@ def test_geometry_objects_write_accepts_inf_and_produces_invariant_export(tmp_pa
     assert matfile.exists()
 
 
-def test_geometry_objects_read_with_inf_fills_both_te_cells_from_lower_corner(tmp_path, monkeypatch):
+def test_geometry_objects_read_with_inf_fills_both_te_cells_from_lower_corner(
+    tmp_path, monkeypatch
+):
     grid_written, geofile, matfile = _write_te_geometry(tmp_path, monkeypatch)
 
     scene = gprMax.Scene()
@@ -218,11 +250,21 @@ def test_geometry_objects_read_with_inf_fills_both_te_cells_from_lower_corner(tm
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(time=1e-11))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
-    scene.add(gprMax.GeometryObjectsRead(p1=(0.0, 0.0, INF), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0.0, 0.0, INF),
+            geofile=str(geofile),
+            material_database=matfile.stem,
+        )
+    )
 
     captured = _capture_grid(monkeypatch)
     gprMax.run(
-        scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "read_te", hide_progress_bars=True
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "read_te",
+        hide_progress_bars=True,
     )
     grid = captured["grid"]
 
@@ -243,7 +285,13 @@ def test_geometry_objects_read_inf_rejected_in_3d(tmp_path, monkeypatch):
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(time=1e-11))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
-    scene.add(gprMax.GeometryObjectsRead(p1=(0.0, 0.0, INF), geofile=str(geofile), matfile=str(matfile)))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0.0, 0.0, INF),
+            geofile=str(geofile),
+            material_database=matfile.stem,
+        )
+    )
 
     with pytest.raises(ValueError, match="2D"):
         gprMax.run(

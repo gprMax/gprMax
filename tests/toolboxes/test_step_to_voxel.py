@@ -6,13 +6,9 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.STEPtoVoxel.converter import _read_assignments
+from toolboxes.STEPtoVoxel.converter import _Material, _read_assignments, _write_material_database
 from toolboxes.STEPtoVoxel.grouping import suggest_material_groups
-from toolboxes.STEPtoVoxel.markers import (
-    classify_marker_name,
-    load_markers,
-    marker_record,
-)
+from toolboxes.STEPtoVoxel.markers import classify_marker_name, load_markers, marker_record
 from toolboxes.STEPtoVoxel.step_metadata import StepMetadata, parse_step_entities
 from toolboxes.STEPtoVoxel.voxeliser import (
     GridSpec,
@@ -104,7 +100,9 @@ def test_thin_closed_solid_preservation_is_axis_independent(thin_axis):
     )
 
     assert preserved.any()
-    occupied_layers = np.flatnonzero(np.any(preserved, axis=tuple(axis for axis in range(3) if axis != thin_axis)))
+    occupied_layers = np.flatnonzero(
+        np.any(preserved, axis=tuple(axis for axis in range(3) if axis != thin_axis))
+    )
     np.testing.assert_array_equal(occupied_layers, (2,))
 
 
@@ -224,6 +222,50 @@ def test_repeated_material_assignments_are_compacted_by_value(tmp_path):
     assert assignments["patch"].material == assignments["ground"].material
 
 
+def test_blank_step_properties_create_an_editable_material_assignment(tmp_path):
+    path = tmp_path / "materials.csv"
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            (
+                "part_name",
+                "include",
+                "priority",
+                "material_name",
+                "relative_permittivity",
+                "conductivity",
+                "relative_permeability",
+                "magnetic_loss",
+            )
+        )
+        writer.writerow(("substrate", "y", 1, "substrate", "", "", "", ""))
+
+    material = _read_assignments(path)["substrate"].material
+    assert material is not None
+    assert (material.er, material.se, material.mr, material.sm) == (None, None, None, None)
+
+
+def test_step_material_database_preserves_user_edits(tmp_path):
+    path = tmp_path / "materials.json"
+    material = _Material("substrate", 2.2, 0.0, 1.0, 0.0)
+    keys = _write_material_database(path, [material])
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["materials"][keys[0]]["metadata"]["user_note"] = "preserve me"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    assert _write_material_database(path, [material]) == keys
+    preserved = json.loads(path.read_text(encoding="utf-8"))
+    assert preserved["materials"][keys[0]]["metadata"]["user_note"] == "preserve me"
+
+
+def test_step_material_database_rejects_stale_keys(tmp_path):
+    path = tmp_path / "materials.json"
+    _write_material_database(path, [_Material("substrate", None, None, None, None)])
+
+    with pytest.raises(ValueError, match="material keys that do not match"):
+        _write_material_database(path, [_Material("different", None, None, None, None)])
+
+
 def _part(name, entity_id, *, volume=1.0, area=6.0, moments=(1.0, 1.0, 1.0)):
     return SimpleNamespace(
         name=name,
@@ -251,7 +293,10 @@ def test_exact_grouping_combines_repeated_step_instances_only():
     repeated = next(group for group in groups if group.confidence == "exact_instance")
     assert repeated.part_names == ("screw_1", "screw_2")
     assert repeated.similar_group
-    assert next(group for group in groups if group.part_names == ("plastic_copy",)).confidence == "unique"
+    assert (
+        next(group for group in groups if group.part_names == ("plastic_copy",)).confidence
+        == "unique"
+    )
 
 
 def test_similar_grouping_is_explicit_and_uses_rotation_invariant_metrics():

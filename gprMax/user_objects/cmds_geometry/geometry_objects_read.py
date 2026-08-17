@@ -28,6 +28,11 @@ from gprMax.cython.geometry_primitives import build_voxels_from_array
 from gprMax.geometry_outputs.geometry_objects_read import ReadGeometryObject
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.hash_cmds_file import get_user_objects
+from gprMax.material_database import (
+    build_material_from_spec,
+    load_material_spec,
+    material_matches_spec,
+)
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -36,9 +41,10 @@ logger = logging.getLogger(__name__)
 class GeometryObjectsRead(GeometryUserObject):
     """Allows you to insert pre-defined geometry into a model.
 
-    The geometry is specified using a 3D array of integer numbers stored
-    in a HDF5 file. The integer numbers must correspond to the order of
-    a list of ``#material`` commands specified in a text file.
+    The geometry is specified using integer arrays in an HDF5 file. New files
+    contain ``/material_keys`` which map their compact integer indices to a
+    versioned JSON material database. Legacy ``#material`` text files remain
+    readable for compatibility.
 
     Attributes:
         p1: list of lower left (x,y,z) coordinates in the domain where
@@ -46,8 +52,8 @@ class GeometryObjectsRead(GeometryUserObject):
             placed.
         geofile: string path to and filename of the HDF5 file that
             contains an integer array which defines the geometry.
-        matfile: string path to and filename of the text file that
-            contains ``#material`` commands.
+        material_database: database name for a new-format geometry file.
+        matfile: legacy text material file (deprecated).
     """
 
     @property
@@ -62,10 +68,173 @@ class GeometryObjectsRead(GeometryUserObject):
         try:
             p1 = self.kwargs["p1"]
             geofile = self.kwargs["geofile"]
-            matfile = self.kwargs["matfile"]
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly five parameters")
             raise
+        material_database = self.kwargs.get("material_database")
+        matfile = self.kwargs.get("matfile")
+        if (material_database is None) == (matfile is None):
+            raise ValueError(
+                f"{self.params_str()} requires exactly one of material_database or legacy matfile"
+            )
+
+        geofile = Path(geofile)
+        if not geofile.exists():
+            geofile = Path(config.sim_config.input_file_path.parent, geofile)
+        if not geofile.is_file():
+            raise FileNotFoundError(f"Geometry object file '{geofile}' does not exist")
+
+        if material_database is not None:
+            material_id_map, material_description = self._build_database_material_map(
+                grid, geofile, material_database
+            )
+        else:
+            material_id_map, material_description = self._build_legacy_material_map(grid, matfile)
+
+        # Discretise the point using uip object. This has different behaviour
+        # depending on the type of uip object. So we can use it for
+        # the main grid, MPI grids or the subgrid.
+        uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        discretised_p1 = uip.discretise_point(p1)
+        p2 = uip.round_to_grid_static_point(p1)
+
+        mode = config.get_model_config().mode
+        invariant_axis = None
+        target_invariant_size = None
+        if mode.startswith("2D"):
+            invariant_axis = "xyz".index(mode[-1])
+            target_invariant_size = 2 if "TE" in mode else 1
+
+            with h5py.File(geofile, "r") as check_file:
+                file_invariant_size = check_file["/data"].shape[invariant_axis]
+            if file_invariant_size != target_invariant_size:
+                action = (
+                    "broadcasting" if file_invariant_size < target_invariant_size else "reducing"
+                )
+                logger.info(
+                    f"{self.__str__()} imported file has {file_invariant_size} cell(s) on the "
+                    f"invariant axis but this model ({mode}) needs {target_invariant_size} - "
+                    f"{action} automatically."
+                )
+
+        with ReadGeometryObject(
+            geofile,
+            grid,
+            discretised_p1,
+            material_id_map,
+            invariant_axis=invariant_axis,
+            target_invariant_size=target_invariant_size,
+        ) as f:
+            if not f.has_valid_discritisation():
+                raise ValueError(
+                    f"{self.__str__()} requires the spatial resolution "
+                    "of the geometry objects file to match the spatial "
+                    "resolution of the model"
+                )
+
+            if f.has_rigid_arrays() and f.has_ID_array():
+                f.read_data()
+                f.read_ID()
+                f.read_rigidE()
+                f.read_rigidH()
+
+                logger.info(
+                    f"{self.grid_name(grid)}Geometry objects from file {geofile}"
+                    f" inserted at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
+                    f" with {material_description}."
+                )
+            else:
+                data = f.get_data()
+                if data is not None:
+                    data_start = f.get_local_data_start()
+                    assert data_start is not None
+                    averaging = False
+                    is_pec_lookup = np.array([m.is_pec for m in grid.materials], dtype=np.uint8)
+                    is_averagable_lookup = np.array(
+                        [m.averagable for m in grid.materials], dtype=np.uint8
+                    )
+                    build_voxels_from_array(
+                        data_start[0],
+                        data_start[1],
+                        data_start[2],
+                        0,
+                        averaging,
+                        is_pec_lookup,
+                        is_averagable_lookup,
+                        data,
+                        grid.solid,
+                        grid.rigidE,
+                        grid.rigidH,
+                        grid.ID,
+                    )
+                logger.info(
+                    f"{self.grid_name(grid)}Geometry objects from file "
+                    f"(voxels only) {geofile} inserted at {p2[0]:g}m, "
+                    f"{p2[1]:g}m, {p2[2]:g}m, with {material_description}."
+                )
+
+    def _build_database_material_map(self, grid, geofile, database):
+        # Geometry databases are a paired artefact and therefore resolve
+        # beside the HDF5 file. This remains deterministic even when an API
+        # model writes outputs to a directory other than its working folder.
+        search_directory = Path(geofile).parent
+        with h5py.File(geofile, "r") as geometry:
+            if "/material_keys" not in geometry:
+                raise ValueError(
+                    f"Geometry file '{geofile}' has no /material_keys dataset; "
+                    "supply its legacy matfile instead"
+                )
+            recorded_database = geometry.attrs.get("MaterialDatabase")
+            if isinstance(recorded_database, bytes):
+                recorded_database = recorded_database.decode("utf-8")
+            if recorded_database is not None and recorded_database != database:
+                raise ValueError(
+                    f"Geometry file '{geofile}' records material database "
+                    f"'{recorded_database}', not '{database}'"
+                )
+            raw_keys = geometry["/material_keys"][:]
+        keys = [
+            value.decode("utf-8") if isinstance(value, bytes) else str(value) for value in raw_keys
+        ]
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"Geometry file '{geofile}' contains duplicate material keys")
+
+        existing_by_id = {material.ID: material for material in grid.materials}
+        material_id_map = np.empty(len(keys), dtype=np.int32)
+        namespace = database
+        for index, key in enumerate(keys):
+            spec = load_material_spec(database, key, search_directory=search_directory)
+            original_id = spec.metadata.get("original_id", key)
+            if not isinstance(original_id, str) or not original_id:
+                raise ValueError(f"Material '{database}:{key}' metadata original_id is invalid")
+            namespaced_id = f"{original_id}{{{namespace}}}"
+            original = existing_by_id.get(original_id)
+            if original is not None and material_matches_spec(original, spec):
+                material_id_map[index] = original.numID
+                continue
+
+            namespaced = existing_by_id.get(namespaced_id)
+            if namespaced is not None:
+                if not material_matches_spec(namespaced, spec):
+                    raise ValueError(
+                        f"Geometry material '{namespaced_id}' conflicts with a material already "
+                        "defined in the model"
+                    )
+                material_id_map[index] = namespaced.numID
+                continue
+
+            # An unrelated model material may legitimately use the original
+            # CAD/material ID with different properties. Keep both by giving
+            # the imported definition its deterministic database namespace.
+            created = build_material_from_spec(grid, spec, namespaced_id)
+            created.type = f"{created.type},\nimported" if created.type else "imported"
+            existing_by_id[namespaced_id] = created
+            material_id_map[index] = created.numID
+        return material_id_map, f"material database {database}"
+
+    def _build_legacy_material_map(self, grid, matfile):
+        """Build the mapping used by pre-database geometry object pairs."""
 
         # See if material file exists at specified path and if not try input
         # file directory
@@ -136,116 +305,4 @@ class GeometryObjectsRead(GeometryUserObject):
             material = materials_by_id[namespaced_id]
             material_id_map[index] = material.numID
             material.type = f"{material.type},\nimported" if material.type else "imported"
-
-        # See if geometry object file exists at specified path and if not try
-        # input file directory.
-        geofile = Path(geofile)
-        if not geofile.exists():
-            geofile = Path(config.sim_config.input_file_path.parent, geofile)
-
-        # Discretise the point using uip object. This has different behaviour
-        # depending on the type of uip object. So we can use it for
-        # the main grid, MPI grids or the subgrid.
-        uip = self._create_uip(grid)
-        # p1 is the array's lower-left paste corner, not a single reference
-        # point - role="lower" so `inf` on the invariant axis resolves to 0
-        # (letting a full-thickness imported array occupy both TM/TE cells
-        # starting from the domain's own edge), matching Box's p1. The
-        # single-point role=None resolution used here previously redirected
-        # to the TE interior reference layer (index 1) instead, which is
-        # wrong for a corner and left no room for a 2-cell-thick imported
-        # array to fit (confirmed via a real write/read round-trip: it
-        # crashed with a shape-mismatch error pasting a (nx,ny,2) array into
-        # a (nx,ny,1) target region starting at z=1).
-        p1 = uip.resolve_inf_point(p1, role="lower")
-        discretised_p1 = uip.discretise_point(p1)
-        p2 = uip.round_to_grid_static_point(p1)
-
-        # A 2D model's geometry has the same physical intention regardless
-        # of whether the file was exported from a 1-cell TM reduction or a
-        # 2-cell TE one (see FractalVolume/FractalSurface/AddGrass, which
-        # all keep the invariant axis's cells identical for exactly this
-        # reason) - so a file whose own thickness on this axis doesn't
-        # match what this model needs is adapted automatically
-        # (broadcast 1->2, or reduced 2->1) rather than crashing or
-        # silently leaving part of the domain unfilled.
-        mode = config.get_model_config().mode
-        invariant_axis = None
-        target_invariant_size = None
-        if mode.startswith("2D"):
-            invariant_axis = "xyz".index(mode[-1])
-            target_invariant_size = 2 if "TE" in mode else 1
-
-            with h5py.File(geofile, "r") as check_file:
-                file_invariant_size = check_file["/data"].shape[invariant_axis]
-            if file_invariant_size != target_invariant_size:
-                action = (
-                    "broadcasting" if file_invariant_size < target_invariant_size else "reducing"
-                )
-                logger.info(
-                    f"{self.__str__()} imported file has {file_invariant_size} cell(s) on the "
-                    f"invariant axis but this model ({mode}) needs {target_invariant_size} - "
-                    f"{action} automatically."
-                )
-
-        with ReadGeometryObject(
-            geofile,
-            grid,
-            discretised_p1,
-            material_id_map,
-            invariant_axis=invariant_axis,
-            target_invariant_size=target_invariant_size,
-        ) as f:
-            # Check spatial resolution attribute
-            if not f.has_valid_discritisation():
-                raise ValueError(
-                    f"{self.__str__()} requires the spatial resolution "
-                    "of the geometry objects file to match the spatial "
-                    "resolution of the model"
-                )
-
-            if f.has_rigid_arrays() and f.has_ID_array():
-                f.read_data()
-                f.read_ID()
-                f.read_rigidE()
-                f.read_rigidH()
-
-                logger.info(
-                    f"{self.grid_name(grid)}Geometry objects from file {geofile}"
-                    f" inserted at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
-                    f" with corresponding materials file"
-                    f" {matfile}."
-                )
-            else:
-                # get_data() already remaps material indices to numIDs in
-                # this grid (see ReadGeometryObject.get_data()), so no
-                # further offset is needed here.
-                data = f.get_data()
-                if data is not None:
-                    data_start = f.get_local_data_start()
-                    assert data_start is not None
-                    averaging = False
-                    is_pec_lookup = np.array([m.is_pec for m in grid.materials], dtype=np.uint8)
-                    is_averagable_lookup = np.array(
-                        [m.averagable for m in grid.materials], dtype=np.uint8
-                    )
-                    build_voxels_from_array(
-                        data_start[0],
-                        data_start[1],
-                        data_start[2],
-                        0,
-                        averaging,
-                        is_pec_lookup,
-                        is_averagable_lookup,
-                        data,
-                        grid.solid,
-                        grid.rigidE,
-                        grid.rigidH,
-                        grid.ID,
-                    )
-                logger.info(
-                    f"{self.grid_name(grid)}Geometry objects from file "
-                    f"(voxels only){geofile} inserted at {p2[0]:g}m, "
-                    f"{p2[1]:g}m, {p2[2]:g}m, with corresponding "
-                    f"materials file {matfile}."
-                )
+        return material_id_map, f"legacy materials file {matfile}"

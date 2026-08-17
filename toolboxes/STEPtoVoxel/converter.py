@@ -18,16 +18,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
+import h5py
 import numpy as np
+
+from gprMax.material_database import create_database_document, write_database
 
 from .grouping import suggest_material_groups
 from .markers import classify_marker_name, marker_record
-from .voxeliser import (
-    TriangleMesh,
-    resolve_sweep_axis,
-    voxelise_material_grid,
-    write_gprmax_hdf5,
-)
+from .voxeliser import TriangleMesh, resolve_sweep_axis, voxelise_material_grid, write_gprmax_hdf5
 
 LEGACY_MATERIAL_COLUMNS = (
     "part_name",
@@ -109,10 +107,10 @@ class ConversionResult:
 @dataclass(frozen=True)
 class _Material:
     name: str
-    er: float
-    se: float
-    mr: float
-    sm: float
+    er: float | None
+    se: float | None
+    mr: float | None
+    sm: float | None
 
 
 @dataclass(frozen=True)
@@ -248,6 +246,30 @@ def _float(value: str, field: str, part_name: str) -> float:
         raise ValueError(f"{part_name}: {field} must be numeric, got {value!r}") from exc
 
 
+def _optional_float(value: str, field: str, part_name: str) -> float | None:
+    """Return ``None`` for an unassigned template value."""
+
+    return None if not value.strip() else _float(value, field, part_name)
+
+
+def _validate_material(material: _Material, assignment_name: str) -> None:
+    """Reject values which cannot form a valid material-database entry."""
+
+    for field, value in (
+        ("relative_permittivity", material.er),
+        ("relative_permeability", material.mr),
+    ):
+        if value is None:
+            continue
+        if not np.isfinite(value) or value < 1:
+            raise ValueError(f"{assignment_name}: {field} must be finite and at least one")
+    for field, value in (("conductivity", material.se), ("magnetic_loss", material.sm)):
+        if value is None:
+            continue
+        if np.isnan(value) or np.isneginf(value) or value < 0:
+            raise ValueError(f"{assignment_name}: {field} must be non-negative")
+
+
 def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
     assignments: dict[str, _Assignment] = {}
     with csv_file.open(encoding="utf-8", newline="") as f:
@@ -262,7 +284,9 @@ def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
             if grouped:
                 group_id = row["group_id"].strip()
                 group_confidence = row["group_confidence"].strip() or "unknown"
-                part_names = tuple(name.strip() for name in row["part_names"].split("|") if name.strip())
+                part_names = tuple(
+                    name.strip() for name in row["part_names"].split("|") if name.strip()
+                )
                 if not group_id or not part_names:
                     raise ValueError("group_id and part_names must be non-empty")
                 try:
@@ -284,19 +308,34 @@ def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
             try:
                 priority = int(row["priority"])
             except ValueError as exc:
-                raise ValueError(f"{group_id or part_names[0]}: priority must be an integer") from exc
+                raise ValueError(
+                    f"{group_id or part_names[0]}: priority must be an integer"
+                ) from exc
             material = None
             if include:
                 material_name = re.sub(r"\s+", "_", row["material_name"].strip())
                 if not material_name:
-                    raise ValueError(f"{group_id or part_names[0]}: material_name is required when include=y")
+                    raise ValueError(
+                        f"{group_id or part_names[0]}: material_name is required when include=y"
+                    )
                 material = _Material(
                     material_name,
-                    _float(row["relative_permittivity"], "relative_permittivity", group_id or part_names[0]),
-                    _float(row["conductivity"], "conductivity", group_id or part_names[0]),
-                    _float(row["relative_permeability"], "relative_permeability", group_id or part_names[0]),
-                    _float(row["magnetic_loss"], "magnetic_loss", group_id or part_names[0]),
+                    _optional_float(
+                        row["relative_permittivity"],
+                        "relative_permittivity",
+                        group_id or part_names[0],
+                    ),
+                    _optional_float(row["conductivity"], "conductivity", group_id or part_names[0]),
+                    _optional_float(
+                        row["relative_permeability"],
+                        "relative_permeability",
+                        group_id or part_names[0],
+                    ),
+                    _optional_float(
+                        row["magnetic_loss"], "magnetic_loss", group_id or part_names[0]
+                    ),
                 )
+                _validate_material(material, group_id or part_names[0])
             for part_name in part_names:
                 assignments[part_name] = _Assignment(
                     include,
@@ -308,15 +347,75 @@ def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
     return assignments
 
 
-def _write_materials_file(path: Path, materials: Sequence[_Material]) -> None:
-    lines = [
-        "## gprMax materials generated by the STEPtoVoxel toolbox",
-        "## Order corresponds to integer material indices in geometry.h5",
-        "",
-    ]
-    for material in materials:
-        lines.append(f"#material: {material.er:g} {material.se:g} " f"{material.mr:g} {material.sm:g} {material.name}")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+def _material_key(index: int, name: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_.-") or "material"
+    if not slug[0].isalpha():
+        slug = f"m_{slug}"
+    return f"material_{index:03d}_{slug}"
+
+
+def _write_material_database(path: Path, materials: Sequence[_Material]) -> list[str]:
+    """Write a material database once, preserving later user edits.
+
+    STEP carries geometry and names but not the constitutive data needed by
+    gprMax. The assignment CSV can seed constant values, while the generated
+    JSON is the authoritative runtime database and may subsequently be edited
+    to add dispersion or richer metadata.
+    """
+
+    keys = [_material_key(index, material.name) for index, material in enumerate(materials)]
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Existing material database {path} is invalid JSON: {exc.msg}"
+            ) from exc
+        if existing.get("database", {}).get("id") != path.stem:
+            raise ValueError(f"Existing material database {path} has the wrong database ID")
+        existing_materials = existing.get("materials")
+        if not isinstance(existing_materials, dict) or list(existing_materials) != keys:
+            raise ValueError(
+                f"Existing material database {path} has material keys that do not match the "
+                "STEP assignments; move it aside before converting the changed geometry"
+            )
+        return keys
+
+    entries = {}
+    for key, material in zip(keys, materials):
+        # JSON has no portable representation for infinity. gprMax material
+        # databases use the explicit string ``"inf"`` for ideal electric or
+        # magnetic conductivity, matching material_to_database_entry().
+        electric_conductivity = (
+            "inf" if material.se is not None and np.isposinf(material.se) else material.se
+        )
+        magnetic_conductivity = (
+            "inf" if material.sm is not None and np.isposinf(material.sm) else material.sm
+        )
+        entries[key] = {
+            "name": material.name,
+            "model": "constant",
+            "base": {
+                "relative_permittivity": material.er,
+                "electric_conductivity_s_per_m": electric_conductivity,
+                "relative_permeability": material.mr,
+                "magnetic_conductivity_s_per_m": magnetic_conductivity,
+            },
+            "metadata": {
+                "original_id": material.name,
+                "source": "STEPtoVoxel material assignment CSV",
+            },
+        }
+    write_database(
+        path,
+        create_database_document(
+            path.stem,
+            entries,
+            name="STEPtoVoxel material assignments",
+            description="Material order is fixed by /material_keys in geometry.h5.",
+        ),
+    )
+    return keys
 
 
 def convert_step(
@@ -343,21 +442,26 @@ def convert_step(
     missing = part_names - set(assignments)
     if unknown or missing:
         raise ValueError(
-            f"Material CSV does not match STEP components; unknown={sorted(unknown)}, " f"missing={sorted(missing)}"
+            f"Material CSV does not match STEP components; unknown={sorted(unknown)}, "
+            f"missing={sorted(missing)}"
         )
 
     selected = [part for part in parts if assignments[part.name].include]
     if not selected:
         raise ValueError("No components have include=y")
-    selected_markers = [part.name for part in selected if classify_marker_name(part.name) is not None]
+    selected_markers = [
+        part.name for part in selected if classify_marker_name(part.name) is not None
+    ]
     if selected_markers:
         raise ValueError(
-            "CAD source/receiver/port markers are non-physical and must use include=n: " + ", ".join(selected_markers)
+            "CAD source/receiver/port markers are non-physical and must use include=n: "
+            + ", ".join(selected_markers)
         )
     surfaces = [part.name for part in selected if float(part.cad.get("vol_m3") or 0.0) <= 0.0]
     if surfaces:
         raise ValueError(
-            "Open or zero-volume surfaces cannot be solid-voxelised; set include=n for " + ", ".join(surfaces)
+            "Open or zero-volume surfaces cannot be solid-voxelised; set include=n for "
+            + ", ".join(surfaces)
         )
 
     material_indices: dict[_Material, int] = {}
@@ -368,7 +472,8 @@ def convert_step(
     reference_parts = [
         part
         for part in parts
-        if float(part.cad.get("vol_m3") or 0.0) <= 0.0 or classify_marker_name(part.name) is not None
+        if float(part.cad.get("vol_m3") or 0.0) <= 0.0
+        or classify_marker_name(part.name) is not None
     ]
     reference_geometry = []
     reference_meshes = {}
@@ -427,13 +532,17 @@ def convert_step(
     material_grid[occupied] = material_map[component_grid[occupied]]
 
     geometry_file = output_dir / "geometry.h5"
-    materials_file = output_dir / "materials.txt"
+    materials_file = output_dir / "materials.json"
     manifest_file = output_dir / "conversion.json"
     markers_file = output_dir / "markers.json"
     vtk_file = output_dir / "geometry.vti" if write_vtk else None
     reference_geometry_cad_file = None
     write_gprmax_hdf5(str(geometry_file), material_grid, grid)
-    _write_materials_file(materials_file, materials)
+    material_keys = _write_material_database(materials_file, materials)
+    with h5py.File(geometry_file, "r+") as geometry:
+        geometry.create_dataset("material_keys", data=np.asarray(material_keys, dtype="S"))
+        geometry.attrs["MaterialDatabase"] = materials_file.stem
+        geometry.attrs["MaterialDatabaseSchemaVersion"] = 1
 
     if vtk_file is not None:
         try:
@@ -472,7 +581,10 @@ def convert_step(
     }
     markers_file.write_text(json.dumps(markers_payload, indent=2) + "\n", encoding="utf-8")
 
-    counts = {part.name: int(np.count_nonzero(component_grid == index)) for index, part in enumerate(selected)}
+    counts = {
+        part.name: int(np.count_nonzero(component_grid == index))
+        for index, part in enumerate(selected)
+    }
     manifest = {
         "source_step": str(step_file),
         "voxel_size_m": list(config.voxel_size),

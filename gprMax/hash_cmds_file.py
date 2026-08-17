@@ -246,6 +246,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#geometry_view",
             "#geometry_objects_write",
             "#material",
+            "#material_from_database",
             "#material_range",
             "#material_list",
             "#soil_peplinski",

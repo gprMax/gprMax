@@ -1,0 +1,11 @@
+#title: STEP-to-voxel probe-fed patch geometry
+#domain: 0.0217 0.0217 0.00427
+#dx_dy_dz: 0.00007 0.00007 0.00007
+#time_window: 1e-12
+#pml_cells: 0
+
+## Run the STEP conversion first. geometry.h5 records stable keys that map to
+## entries in output/materials.json; the database is selected by name only.
+#geometry_objects_read: 0.0007 0.0007 0.0007 output/geometry.h5 materials
+
+#geometry_view: 0 0 0 0.0217 0.0217 0.00427 0.00007 0.00007 0.00007 output/probe_fed_70um_gprmax_geometry_hash n

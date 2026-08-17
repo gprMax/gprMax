@@ -9,7 +9,7 @@
 #add_dispersion_debye: 3 370.48 9.1145e-8 21.866 4.6778e-10 15.38 0.94981e-11 Bladder
 
 #material: 7.5425 0.73265 1 0 Blood
-#add_dispersion_debye: 3 3529.4 8.8589e-8 110.21 5.4229e-9 53.637 0.89892 Blood
+#add_dispersion_debye: 3 3529.4 8.8589e-8 110.21 5.4229e-9 53.637 0.89892e-11 Blood
 
 #material: 44.77 0.6961 1 0 BloodVessel
 #material: 68.9 1.636 1 0 BodyFluid

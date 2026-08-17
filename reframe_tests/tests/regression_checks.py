@@ -155,6 +155,17 @@ class SnapshotRegressionCheck(H5RegressionCheck):
 class GeometryObjectRegressionCheck(H5RegressionCheck):
     """Run regression check on a GprMax GeometryObject."""
 
+    def __init__(
+        self, output_file: Union[str, PathLike], reference_file: Union[str, PathLike]
+    ) -> None:
+        super().__init__(output_file, reference_file)
+        # Material-key names deliberately acquire a database namespace after
+        # a geometry object is imported and written again. The compact arrays
+        # and the companion JSON regression establish physical equivalence;
+        # comparing this naming-only dataset would make the round-trip test
+        # fail despite identical geometry and component IDs.
+        self.options.extend(["--exclude-path", "/material_keys"])
+
     @property
     def error_msg(self) -> str:
         return f"GeometryObject '{self.output_file.name}' failed regression check"
