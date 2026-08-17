@@ -44,6 +44,7 @@ from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
 from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
 from gprMax.materials import RangeMaterial as RangeMaterialUser
+from gprMax.materials import validate_drude_pole, validate_lorentz_pole
 from gprMax.network_ports import RationalNetworkModel, RationalNetworkTerminal
 from gprMax.pml import CFS, CFSParameter, InternalPMLSpec
 from gprMax.receivers import Rx as RxUser
@@ -3479,8 +3480,8 @@ class AddLorentzDispersion(GridUserObject):
         er_delta: tuple required for difference between zero-frequency relative
                     permittivity and relative permittivity at infinite frequency
                     for each pole.
-        omega: tuple required for frequency (Hz) for each pole.
-        delta: tuple required for damping coefficient (Hz) for each pole.
+        omega: tuple required for resonance frequency (Hz) for each pole.
+        delta: tuple required for damping coefficient (per second) for each pole.
         material_ids: list required of material ids to apply disperive
                         properties.
     """
@@ -3538,24 +3539,17 @@ class AddLorentzDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
-                if (
-                    er_delta[i] > 0
-                    and omega[i] < (2.0 * np.pi) / grid.dt
-                    and delta[i] < 1.0 / grid.dt
-                    and omega[i] != delta[i]
-                ):
-                    disp_material.deltaer.append(er_delta[i])
-                    disp_material.tau.append(omega[i])
-                    disp_material.alpha.append(delta[i])
-                else:
-                    logger.exception(
-                        f"{self.params_str()} requires positive "
-                        "values for the permittivity difference "
-                        "and frequencies, and associated times "
-                        "that are greater than the inverse of the time step for "
-                        "the model."
+                if er_delta[i] <= 0:
+                    raise ValueError(
+                        f"{self.params_str()} requires positive relative-permittivity differences"
                     )
-                    raise ValueError
+                try:
+                    validate_lorentz_pole(omega[i], delta[i], grid.dt)
+                except ValueError as exc:
+                    raise ValueError(f"{self.params_str()}: {exc}") from exc
+                disp_material.deltaer.append(er_delta[i])
+                disp_material.tau.append(omega[i])
+                disp_material.alpha.append(delta[i])
             if disp_material.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
@@ -3568,7 +3562,7 @@ class AddLorentzDispersion(GridUserObject):
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
                 f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
                 f"omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} Hertz, "
-                f"and delta={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} Hertz, created."
+                f"and delta={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} per second, created."
             )
 
 
@@ -3582,8 +3576,8 @@ class AddDrudeDispersion(GridUserObject):
 
     Attributes:
         poles: float required for number of Drude poles.
-        omega: tuple required for frequency (Hz) for each pole.
-        alpha: tuple required for inverse of relaxation time (secs) for each pole.
+        omega: tuple required for plasma frequency (Hz) for each pole.
+        alpha: tuple required for inverse of relaxation time (per second) for each pole.
         material_ids: list required of material ids to apply disperive
                         properties.
     """
@@ -3639,17 +3633,12 @@ class AddDrudeDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
-                if omega[i] < (2.0 * np.pi) / grid.dt and alpha[i] < 1.0 / grid.dt:
-                    disp_material.tau.append(omega[i])
-                    disp_material.alpha.append(alpha[i])
-                else:
-                    logger.exception(
-                        f"{self.params_str()} requires positive "
-                        + "values for the frequencies, and "
-                        + "associated times that are greater than "
-                        + "the inverse of time step for the model."
-                    )
-                    raise ValueError
+                try:
+                    validate_drude_pole(omega[i], alpha[i], grid.dt)
+                except ValueError as exc:
+                    raise ValueError(f"{self.params_str()}: {exc}") from exc
+                disp_material.tau.append(omega[i])
+                disp_material.alpha.append(alpha[i])
             if disp_material.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
@@ -3661,7 +3650,7 @@ class AddDrudeDispersion(GridUserObject):
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
                 f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} Hertz, "
-                f"and alpha={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} Hertz created."
+                f"and alpha={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} per second created."
             )
 
 

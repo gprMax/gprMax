@@ -105,6 +105,87 @@ def test_debye_names_physical_quantities_explicitly(tmp_path, fake_grid):
     assert material.tau == [9e-12]
 
 
+@pytest.mark.parametrize("damping_ratio", (1.0, 1.01))
+def test_lorentz_database_rejects_critical_and_overdamped_poles(
+    tmp_path, fake_grid, damping_ratio
+):
+    frequency = 100e9
+    entry = _constant(er=2.0)
+    entry.update(
+        {
+            "model": "lorentz",
+            "poles": [
+                {
+                    "relative_permittivity_difference": 3.5,
+                    "resonance_frequency_hz": frequency,
+                    "damping_coefficient_per_s": damping_ratio * 2.0 * np.pi * frequency,
+                }
+            ],
+        }
+    )
+    (tmp_path / "local.json").write_text(json.dumps(_database({"critical": entry})))
+    spec = load_material_spec("local", "critical", search_directory=tmp_path)
+
+    with pytest.raises(ValueError, match=r"damping coefficient.*2 \* pi"):
+        build_material_from_spec(fake_grid(dt=1e-12), spec, "critical")
+
+
+@pytest.mark.parametrize(
+    "model, frequency_field, rate_field",
+    (
+        ("lorentz", "resonance_frequency_hz", "damping_coefficient_per_s"),
+        ("drude", "plasma_frequency_hz", "collision_frequency_per_s"),
+    ),
+)
+def test_database_pole_frequency_limit_uses_hertz_not_angular_frequency(
+    tmp_path, fake_grid, model, frequency_field, rate_field
+):
+    dt = 1e-12
+    pole = {frequency_field: 1.01 / dt, rate_field: 1e9}
+    if model == "lorentz":
+        pole["relative_permittivity_difference"] = 3.5
+    entry = _constant(er=2.0)
+    entry.update({"model": model, "poles": [pole]})
+    (tmp_path / "local.json").write_text(json.dumps(_database({"too_fast": entry})))
+    spec = load_material_spec("local", "too_fast", search_directory=tmp_path)
+
+    with pytest.raises(ValueError, match=r"frequency must be below 1 / dt"):
+        build_material_from_spec(fake_grid(dt=dt), spec, "too_fast")
+
+
+@pytest.mark.parametrize(
+    "model, pole",
+    (
+        (
+            "lorentz",
+            {
+                "relative_permittivity_difference": 3.5,
+                "resonance_frequency_hz": 0.99e12,
+                "damping_coefficient_per_s": 1e9,
+            },
+        ),
+        (
+            "drude",
+            {
+                "plasma_frequency_hz": 0.99e12,
+                "collision_frequency_per_s": 1e9,
+            },
+        ),
+    ),
+)
+def test_database_pole_frequency_just_below_timestep_limit_is_accepted(
+    tmp_path, fake_grid, model, pole
+):
+    entry = _constant(er=2.0)
+    entry.update({"model": model, "poles": [pole]})
+    (tmp_path / "local.json").write_text(json.dumps(_database({"valid": entry})))
+    spec = load_material_spec("local", "valid", search_directory=tmp_path)
+
+    material = build_material_from_spec(fake_grid(dt=1e-12), spec, "valid")
+
+    assert material.type == model
+
+
 def test_general_poles_round_trip_exactly(tmp_path, fake_grid):
     entry = _constant(er=2.0)
     entry.update(

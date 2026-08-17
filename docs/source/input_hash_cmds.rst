@@ -343,9 +343,9 @@ where
 
 .. math::
 
-    \beta_p = \sqrt{\omega_p^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{\omega_p^2 \Delta \epsilon_{rp}}{\beta_p},
+    \beta_p = \sqrt{(2\pi f_p)^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{(2\pi f_p)^2 \Delta \epsilon_{rp}}{\beta_p},
 
-where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity for the pole, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, :math:`\omega_p` is the frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (Hertz) , and :math:`j=\sqrt{-1}`.
+where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity for the pole, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, :math:`f_p` is the resonance frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (per second), and :math:`j=\sqrt{-1}`. The angular resonance frequency used in the formulation is :math:`\omega_p=2\pi f_p`.
 
 The syntax of the command is:
 
@@ -355,19 +355,19 @@ The syntax of the command is:
 
 * ``i1`` is the number of Lorentz poles.
 * ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty}` , for the first Lorentz pole.
-* ``f2`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Lorentz pole.
-* ``f3`` is the damping coefficient (Hertz), :math:`\delta_{p1}`, for the first Lorentz pole.
+* ``f2`` is the resonance frequency (Hertz), :math:`f_{p1}`, for the first Lorentz pole.
+* ``f3`` is the damping coefficient (per second), :math:`\delta_{p1}`, for the first Lorentz pole.
 * ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty}` , for the second Lorentz pole.
-* ``f5`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Lorentz pole.
-* ``f6`` is the damping coefficient (Hertz), :math:`\delta_{p2}`, for the second Lorentz pole.
+* ``f5`` is the resonance frequency (Hertz), :math:`f_{p2}`, for the second Lorentz pole.
+* ``f6`` is the damping coefficient (per second), :math:`\delta_{p2}`, for the second Lorentz pole.
 * ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`\omega_p` and :math:`\delta_p` for as many Lorentz poles as you have specified with ``i1``.
+    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`f_p` and :math:`\delta_p` for as many Lorentz poles as you have specified with ``i1``.
     * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * The recursive formulation requires :math:`f_p < 1/\Delta t`, :math:`\delta_p < 1/\Delta t`, and the underdamped condition :math:`\delta_p < 2\pi f_p`. These coefficient limits do not replace the stricter Nyquist and spatial-resolution limits on useful simulation output.
 
 
 #add_dispersion_drude:
@@ -377,9 +377,9 @@ Allows you to add dispersive properties to an already defined ``#material`` base
 
 .. math::
 
-    \chi_p (t) = \frac{\omega_p^2}{\gamma_p} (1-e^{-\gamma_p t}),
+    \chi_p (t) = \frac{(2\pi f_p)^2}{\gamma_p} (1-e^{-\gamma_p t}),
 
-where :math:`\omega_p` is the frequency (Hertz) of the pole, and :math:`\gamma_p` is the inverse of the pole relaxation time (Hertz).
+where :math:`f_p` is the plasma frequency (Hertz) of the pole, :math:`\omega_p=2\pi f_p` is its angular frequency, and :math:`\gamma_p` is the inverse of the pole relaxation time (per second).
 
 The syntax of the command is:
 
@@ -388,17 +388,17 @@ The syntax of the command is:
     #add_dispersion_drude: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Drude poles.
-* ``f1`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Drude pole.
-* ``f2`` is the inverse of the relaxation time (Hertz), :math:`\gamma_{p1}`, for the first Drude pole.
-* ``f3`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Drude pole.
-* ``f4`` is the inverse of the relaxation time (Hertz), :math:`\gamma_{p2}` for the second Drude pole.
+* ``f1`` is the plasma frequency (Hertz), :math:`f_{p1}`, for the first Drude pole.
+* ``f2`` is the inverse of the relaxation time (per second), :math:`\gamma_{p1}`, for the first Drude pole.
+* ``f3`` is the plasma frequency (Hertz), :math:`f_{p2}`, for the second Drude pole.
+* ``f4`` is the inverse of the relaxation time (per second), :math:`\gamma_{p2}` for the second Drude pole.
 * ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-    * You can continue to add pairs of values for :math:`\omega_p` and :math:`\gamma_p` for as many Drude poles as you have specified with ``i1``.
-    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * You can continue to add pairs of values for :math:`f_p` and :math:`\gamma_p` for as many Drude poles as you have specified with ``i1``.
+    * The recursive formulation requires :math:`f_p < 1/\Delta t` and :math:`\gamma_p < 1/\Delta t`. These coefficient limits do not replace the stricter Nyquist and spatial-resolution limits on useful simulation output.
 
 
 #material_range:
