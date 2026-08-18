@@ -492,5 +492,6 @@ def DLS(logt, rl, im, freq):
     )
     cost_i = np.sum(np.abs(ip - im)) / len(im)
     ee = np.mean(rl - rp)
+    ee = max(ee, 1)
     cost_r = np.sum(np.abs(rp + ee - rl)) / len(im)
     return cost_i, cost_r, x, ee, rp, ip

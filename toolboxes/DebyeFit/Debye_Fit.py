@@ -239,18 +239,6 @@ class Relaxation(object):
             material_prop (list(str)): Given material nad Debye expnasion parameters
                                        in a gprMax format.
         """
-        if ee < 1:
-            warnings.warn(
-                f"The fitted relative permittivity at infinite frequency "
-                f"(e_inf={ee:g}) for material '{self.material_name}' is below "
-                f"1, i.e. less than the permittivity of vacuum. This is not "
-                f"physically valid for a passive dielectric and usually means "
-                f"the fit has not converged well - try more Debye poles, "
-                f"different optimizer settings, or check the input "
-                f"parameters. gprMax's #material command will reject a "
-                f"material with er < 1."
-            )
-
         print("Debye expansion parameters: ")
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
