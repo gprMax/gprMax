@@ -32,6 +32,7 @@ from gprMax.user_objects.cmds_multiuse import (
     HertzianDipole,
     MagneticDipole,
     Material,
+    MaterialCrim,
     MaterialList,
     MaterialRange,
     Rx,
@@ -700,6 +701,77 @@ class TestMaterialListHash:
         assert ml.hash == "#material_list"
         assert mr.hash == "#material_range"
         assert ml.hash != mr.hash
+
+
+class TestMaterialCrim:
+    def test_constructor_stores_kwargs(self):
+        material = MaterialCrim(
+            matrix_id="sand",
+            matrix_fraction=0.6,
+            dispersive_id="water",
+            fraction_lower=0.02,
+            fraction_upper=0.35,
+            f_min=1e6,
+            f_max=3e9,
+            a=0.5,
+            id="wetsand",
+        )
+
+        assert material.kwargs["matrix_id"] == "sand"
+        assert material.kwargs["fraction_upper"] == 0.35
+        assert material.kwargs["id"] == "wetsand"
+
+    def test_order_and_hash(self):
+        material = MaterialCrim()
+        assert material.order == 15
+        assert material.hash == "#material_crim"
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            {"matrix_fraction": -0.1},
+            {"fraction_lower": -0.1},
+            {"fraction_lower": 0.4, "fraction_upper": 0.3},
+            {"matrix_fraction": 0.8, "fraction_upper": 0.3},
+            {"f_min": 0},
+            {"f_min": 2e9, "f_max": 1e9},
+            {"a": 0},
+            {"a": np.nan},
+        ],
+    )
+    def test_build_rejects_invalid_parameters(self, stub_grid, overrides):
+        kwargs = {
+            "matrix_id": "sand",
+            "matrix_fraction": 0.6,
+            "dispersive_id": "water",
+            "fraction_lower": 0.02,
+            "fraction_upper": 0.35,
+            "f_min": 1e6,
+            "f_max": 3e9,
+            "a": 0.5,
+            "id": "wetsand",
+        }
+        kwargs.update(overrides)
+
+        with pytest.raises(ValueError):
+            MaterialCrim(**kwargs).build(stub_grid)
+
+    def test_build_registers_mixing_model(self, stub_grid):
+        material = MaterialCrim(
+            matrix_id="sand",
+            matrix_fraction=0.6,
+            dispersive_id="water",
+            fraction_lower=0.02,
+            fraction_upper=0.35,
+            f_min=1e6,
+            f_max=3e9,
+            a=0.5,
+            id="wetsand",
+        )
+        material.build(stub_grid)
+
+        assert len(stub_grid.mixingmodels) == 1
+        assert stub_grid.mixingmodels[0].ID == "wetsand"
 
 
 # ---------------------------------------------------------------------------

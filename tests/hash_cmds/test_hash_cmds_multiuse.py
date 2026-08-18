@@ -24,6 +24,7 @@ from gprMax.user_objects.cmds_multiuse import (
     HertzianDipole,
     MagneticDipole,
     Material,
+    MaterialCrim,
     MaterialList,
     MaterialRange,
     Rx,
@@ -601,6 +602,38 @@ class TestMaterialList:
     def test_single_token_rejected(self, multicmds_template):
         multicmds_template["#material_list"] = ["solo"]
         with pytest.raises(ValueError):
+            process_multicmds(multicmds_template)
+
+
+class TestMaterialCrim:
+    def test_nine_token_form(self, multicmds_template):
+        multicmds_template["#material_crim"] = ["sand 0.6 water 0.02 0.35 1e6 3e9 0.5 wetsand"]
+        objs = process_multicmds(multicmds_template)
+        crim = objs[0]
+
+        assert isinstance(crim, MaterialCrim)
+        assert crim.kwargs == {
+            "matrix_id": "sand",
+            "matrix_fraction": 0.6,
+            "dispersive_id": "water",
+            "fraction_lower": 0.02,
+            "fraction_upper": 0.35,
+            "f_min": 1e6,
+            "f_max": 3e9,
+            "a": 0.5,
+            "id": "wetsand",
+        }
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            "sand 0.6 water 0.02 0.35 1e6 3e9 0.5",
+            "sand 0.6 water 0.02 0.35 1e6 3e9 0.5 wetsand extra",
+        ],
+    )
+    def test_wrong_arity_rejected(self, multicmds_template, payload):
+        multicmds_template["#material_crim"] = [payload]
+        with pytest.raises(ValueError, match="requires exactly nine parameters"):
             process_multicmds(multicmds_template)
 
 

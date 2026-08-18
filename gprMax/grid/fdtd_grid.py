@@ -42,7 +42,14 @@ from gprMax.cython.pml_build import pml_average_er_mr
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.fractal_volume import FractalVolume
-from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
+from gprMax.materials import (
+    CrimMixture,
+    ListMaterial,
+    Material,
+    PeplinskiSoil,
+    RangeMaterial,
+    process_materials,
+)
 from gprMax.pml import CFS, PML, InternalPMLSpec, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.sources import (
@@ -143,7 +150,7 @@ class FDTDGrid:
 
         # Materials used by this grid
         self.materials: List[Material] = []
-        self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
+        self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial, CrimMixture]] = []
         self.fractalvolumes: List[FractalVolume] = []
         # Thin-wire geometry is registered while parsing the scene, then
         # applied after normal Yee-component averaging has resolved the

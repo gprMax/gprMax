@@ -190,16 +190,17 @@ class Relaxation(object):
                 "##########\n",
                 sep="",
             )
-            error = np.infty  # artificial best error starting value
             self.number_of_debye_poles = 1
             iteration = 1
             # stop increasing number of Debye poles if error is smaller then 5%
             # or 20 debye poles is reached
-            while error > 5 and iteration < 21:
+            while True:
                 # Calling the main optimisation module
                 tau, weights, ee, rl, im = self.optimize()
                 err_real, err_imag = self.error(rl + ee, im)
                 error = err_real + err_imag
+                if error <= 5 or iteration >= 20:
+                    break
                 self.number_of_debye_poles += 1
                 iteration += 1
         else:
@@ -231,7 +232,8 @@ class Relaxation(object):
             tau (ndarray): The best known position form optimization module
                            (optimal design).
             weights (ndarray): Resulting optimised weights for the given relaxation times.
-            ee (float): Average error between the actual and the approximated real part.
+            ee (float): Fitted relative permittivity at infinite frequency
+                        (e_inf), written into the returned #material command.
 
         Returns:
             material_prop (list(str)): Given material nad Debye expnasion parameters
@@ -690,7 +692,7 @@ class Crim(Relaxation):
     def calculation(self):
         """Calculates the Crim function for the given parameters"""
         return np.sum(
-            np.repeat(self.volumetric_fractions, len(self.freq)).reshape((-1, len(self.materials)))
+            self.volumetric_fractions
             * (
                 self.materials[:, 0]
                 + self.materials[:, 1]

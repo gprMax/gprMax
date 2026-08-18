@@ -790,6 +790,223 @@ class ListMaterial:
             self.matID.append(material.numID)
 
 
+class CrimMixture:
+    """Mixing model based on the Complex Refractive Index Model (CRIM) for
+    stochastic (fractal) spatial distributions. Combines a fixed-fraction
+    non-dispersive matrix material with a single-pole Debye dispersive
+    material (e.g. water or brine) whose volumetric fraction varies between
+    bins; the remaining volume fraction is assumed to be air.
+    """
+
+    def __init__(
+        self,
+        ID,
+        matrix_id,
+        matrix_fraction,
+        dispersive_id,
+        fraction_lower,
+        fraction_upper,
+        f_min,
+        f_max,
+        a=0.5,
+    ):
+        """
+        Args:
+            ID: string for name of the CRIM mixing model.
+            matrix_id: string for ID of an existing non-dispersive material
+                        used for the fixed-fraction matrix (solid) phase.
+            matrix_fraction: float for fixed volumetric fraction of the
+                                matrix phase.
+            dispersive_id: string for ID of an existing single-pole Debye
+                            material used for the dispersive phase (e.g.
+                            water or brine).
+            fraction_lower: float for lower bound of the volumetric fraction
+                                of the dispersive phase.
+            fraction_upper: float for upper bound of the volumetric fraction
+                                of the dispersive phase.
+            f_min: float for lower bound of the frequency range (Hz) used to
+                    fit the CRIM mixing curve.
+            f_max: float for upper bound of the frequency range (Hz) used to
+                    fit the CRIM mixing curve.
+            a: float for CRIM shape factor (Default: 0.5).
+        """
+
+        self.ID = ID
+        self.matrix_id = matrix_id
+        self.matrix_fraction = matrix_fraction
+        self.dispersive_id = dispersive_id
+        self.mu = (fraction_lower, fraction_upper)
+        self.f_min = f_min
+        self.f_max = f_max
+        self.a = a
+        # Store all of the material IDs which allows for more general mixing models.
+        self.matID = []
+
+    def calculate_properties(self, nbins, G):
+        """Calculates a single-pole Debye material for each bin by fitting
+        the dielectric CRIM mixing curve of the matrix, dispersive, and
+        (assumed) air phases over the given frequency range. The dispersive
+        phase's own relaxation time is kept fixed and reused for every bin.
+        The DC conductivity is mixed separately by volume fraction.
+
+        Args:
+            nbins: int for number of bins to use to create the different materials.
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        matrix = next((m for m in G.materials if m.ID == self.matrix_id), None)
+        if not matrix:
+            logger.exception(f"{self.ID} material {self.matrix_id!r} does not exist")
+            raise ValueError
+        if isinstance(matrix, DispersiveMaterial) and matrix.poles > 0:
+            logger.exception(f"{self.ID} matrix material {self.matrix_id!r} must be non-dispersive")
+            raise ValueError
+        if matrix.is_pec or matrix.is_pmc:
+            logger.exception(
+                f"{self.ID} matrix material {self.matrix_id!r} cannot be a perfect conductor"
+            )
+            raise ValueError
+
+        dispersive = next((m for m in G.materials if m.ID == self.dispersive_id), None)
+        if not dispersive:
+            logger.exception(f"{self.ID} material {self.dispersive_id!r} does not exist")
+            raise ValueError
+        if (
+            not isinstance(dispersive, DispersiveMaterial)
+            or dispersive.type != "debye"
+            or dispersive.poles != 1
+        ):
+            logger.exception(
+                f"{self.ID} dispersive material {self.dispersive_id!r} must be a "
+                "single-pole Debye material"
+            )
+            raise ValueError
+
+        # CRIM is an electric-permittivity mixing model. Silently copying a
+        # magnetic matrix property to every mixture bin would not represent
+        # the stated three-phase mixture, so restrict the current model to
+        # ordinary non-magnetic dielectrics.
+        for role, material in (("matrix", matrix), ("dispersive", dispersive)):
+            if not np.isclose(material.mr, 1.0) or not np.isclose(material.sm, 0.0):
+                logger.exception(
+                    f"{self.ID} {role} material {material.ID!r} must be non-magnetic "
+                    "(mr=1 and sm=0)"
+                )
+                raise ValueError
+
+        properties = (
+            matrix.er,
+            matrix.se,
+            dispersive.er,
+            dispersive.se,
+            dispersive.deltaer[0],
+            dispersive.tau[0],
+        )
+        if not all(np.isfinite(value) for value in properties):
+            logger.exception(f"{self.ID} constituent material properties must be finite")
+            raise ValueError
+        if matrix.er < 1 or matrix.se < 0:
+            logger.exception(
+                f"{self.ID} matrix material {matrix.ID!r} must have er >= 1 and se >= 0"
+            )
+            raise ValueError
+        if (
+            dispersive.er < 1
+            or dispersive.se < 0
+            or dispersive.deltaer[0] < 0
+            or dispersive.tau[0] <= 0
+        ):
+            logger.exception(
+                f"{self.ID} dispersive material {dispersive.ID!r} must define a passive "
+                "single-pole Debye response"
+            )
+            raise ValueError
+
+        eps_matrix = matrix.er
+        sigma_matrix = matrix.se
+        eps_inf_disp = dispersive.er
+        deltaer_disp = dispersive.deltaer[0]
+        tau_disp = dispersive.tau[0]
+        sigma_disp = dispersive.se
+
+        # Dielectric CRIM curve evaluated across the fitting frequency range.
+        freq = np.logspace(np.log10(self.f_min), np.log10(self.f_max), 50)
+        w = 2 * np.pi * freq
+        eps_disp_w = eps_inf_disp + deltaer_disp / (1 + 1j * w * tau_disp)
+
+        # Design matrix for a linear least-squares fit of [e_inf, deltaer]
+        # against the exact CRIM curve, keeping tau fixed at the dispersive
+        # phase's own known relaxation time (reused unchanged for every
+        # bin, mirroring PeplinskiSoil's treatment of water's relaxation
+        # time above).
+        denom = 1 + (w * tau_disp) ** 2
+        A = np.concatenate(
+            [
+                np.column_stack([np.ones_like(w), 1 / denom]),
+                np.column_stack([np.zeros_like(w), -w * tau_disp / denom]),
+            ]
+        )
+
+        # Generate a set of bins based on the given volumetric fraction
+        # values of the dispersive phase, using the mid-point of each bin.
+        fracbins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
+        fracmaterials = 0.5 * (fracbins[1 : nbins + 1] + fracbins[0:nbins])
+
+        for f_disp in fracmaterials:
+            f_air = 1.0 - self.matrix_fraction - f_disp
+            if f_air < 0:
+                logger.exception(
+                    f"{self.ID} matrix fraction {self.matrix_fraction:g} plus dispersive "
+                    f"fraction {f_disp:g} exceeds 1 (implied air fraction is negative)"
+                )
+                raise ValueError
+
+            mix = (
+                self.matrix_fraction * eps_matrix**self.a
+                + f_disp * eps_disp_w**self.a
+                + f_air * 1.0**self.a
+            ) ** (1 / self.a)
+
+            b = np.concatenate([mix.real, mix.imag])
+            solution, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+            eri, deltaer = solution
+
+            sigma_bin = self.matrix_fraction * sigma_matrix + f_disp * sigma_disp
+
+            if (
+                not np.isfinite(eri)
+                or not np.isfinite(deltaer)
+                or not np.isfinite(sigma_bin)
+                or eri < 1
+                or deltaer < 0
+                or sigma_bin < 0
+            ):
+                logger.exception(
+                    f"{self.ID} produced a non-passive Debye fit for dispersive fraction "
+                    f"{f_disp:g} (er={eri:g}, deltaer={deltaer:g}, se={sigma_bin:g}); "
+                    "check the constituent materials, fractions, frequency range, and "
+                    "shape factor"
+                )
+                raise ValueError
+
+            # Create individual materials
+            m = DispersiveMaterial(len(G.materials), None)
+            m.type = "debye"
+            m.averagable = config.get_model_config().dispersive_averaging
+            m.poles = 1
+            if m.poles > config.get_model_config().materials["maxpoles"]:
+                config.get_model_config().materials["maxpoles"] = m.poles
+            m.er = eri
+            m.se = sigma_bin
+            m.mr = matrix.mr
+            m.sm = matrix.sm
+            m.deltaer.append(deltaer)
+            m.tau.append(tau_disp)
+            m.ID = f"|{float(m.er):.4f}+{float(m.se):.4f}+{float(m.mr):.4f}+{float(m.sm):.4f}|"
+            G.materials.append(m)
+            self.matID.append(m.numID)
+
+
 def create_built_in_materials(G):
     """Creates pre-defined (built-in) materials.
 

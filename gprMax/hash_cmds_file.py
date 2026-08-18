@@ -250,6 +250,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#material_density",
             "#material_range",
             "#material_list",
+            "#material_crim",
             "#soil_peplinski",
             "#add_dispersion_debye",
             "#add_dispersion_lorentz",

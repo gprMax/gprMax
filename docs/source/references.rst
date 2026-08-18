@@ -5,6 +5,7 @@ References
 .. [ANT2022] Antonelli, M., Reinke, A., Bakas, S., et al. (2022). The Medical Segmentation Decathlon. *Nature Communications*, 13, 4128. (https://doi.org/10.1038/s41467-022-30695-9)
 .. [BAL2005] Balanis, C. A. (2005). Antenna theory: analysis and design (Vol. 1). John Wiley & Sons.
 .. [BER1998] Bergmann, T., Robertsson, J. O., & Holliger, K. (1998). Finite-difference modeling of electromagnetic wave propagation in dispersive and attenuating media. Geophysics, 63(3), 856-867. (http://dx.doi.org/10.1190/1.1444396)
+.. [BIR1974] Birchak, J. R., Gardner, C. G., Hipp, J. E., & Victor, J. M. (1974). High dielectric constant microwave probes for sensing soil moisture. Proceedings of the IEEE, 62(1), 93-98. (https://doi.org/10.1109/PROC.1974.9388)
 .. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
 .. [BUR1981] Burrough, P. A. (1981). Fractal dimensions of landscapes and other environmental data. Nature, 294(5838), 240-242. (http://dx.doi.org/10.1038/294240a0)
 .. [CHE2007] Chen, Z.-H., & Chu, Q.-X. (2007). FDTD Modeling of Arbitrary Linear Lumped Networks Using Piecewise Linear Recursive Convolution Technique. Progress In Electromagnetics Research, 73, 327-341. (https://doi.org/10.2528/PIER07042002)

@@ -66,6 +66,7 @@ from .user_objects.cmds_multiuse import (
     MagneticDipole,
     MagneticFrillSource,
     Material,
+    MaterialCrim,
     MaterialDensity,
     MaterialFromDatabase,
     MaterialList,
