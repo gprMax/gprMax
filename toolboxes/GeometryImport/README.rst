@@ -239,6 +239,37 @@ The input-versus-voxel documentation figures are reproducible with:
     The surface path uses plane-sweep/scanline filling; the unstructured-volume
     path queries the containing element at each FDTD cell centre.
 
+Open external-volume checks
+---------------------------
+
+The three supported labelled-volume families have also been exercised with
+publicly available medical-image data. The source data and generated gprMax
+geometry are not distributed with gprMax; follow the links below and review
+the source licence before downloading or redistributing a dataset:
+
+* the `Medical Segmentation Decathlon Task04 Hippocampus dataset
+  <https://msd-for-monai.s3-us-west-2.amazonaws.com/Task04_Hippocampus.tar>`_
+  provides multi-label NIfTI segmentations under CC BY-SA 4.0 [ANT2022]_.
+* the `HNCMA atlas NRRD label map
+  <https://data.kitware.com/api/v1/file/hashsum/sha512/968e3a05df5e5c21d7f7ac4e75e04405696a30f2f80b1ced0f538ebc57af9f9229449095c221a9274d16dc9599632175ba16125519264940884184bbcac867eb/download>`_
+  is used by the `SimpleITK image-display notebook
+  <https://insightsoftwareconsortium.github.io/SimpleITK-Notebooks/Python_html/10_matplotlib's_imshow.html>`_
+  [YAN2018]_.
+* the `manually segmented liver-tumour MetaImage file
+  <https://data.kitware.com/api/v1/file/hashsum/sha512/e94fb4d96e5cc5dca3c68fc67f63e895b8a71011f5343b4399e122b8f6a43ec5d5055f939299e3d9955e59cd841ebeb2d2395568c10ce29a597c518db784a337/download>`_
+  accompanies the `SimpleITK segmentation-evaluation notebook
+  <https://insightsoftwareconsortium.github.io/SimpleITK-Notebooks/R_html/34_Segmentation_Evaluation.html>`_
+  and its cited tumour-volume data source [POP2006]_.
+
+.. figure:: ../../images_shared/geometry_import_open_medical_volumes.png
+    :width: 100%
+    :alt: Public NIfTI, NRRD, and MetaImage labels and imported gprMax tags
+
+    Representative slices from the downloaded label maps (top) and converted
+    gprMax ``TagID`` volumes (bottom). For these checks, non-background
+    occupancy and the cell population of every source label were preserved
+    exactly. The full 256 cubed NRRD atlas exercised 314 non-zero regions.
+
 Locally licensed multi-part anatomy
 -----------------------------------
 
