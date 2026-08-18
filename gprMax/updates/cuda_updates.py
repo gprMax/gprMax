@@ -50,6 +50,7 @@ from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import CUDACombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
+from gprMax.sar_device import CUDASARCollector
 from gprMax.snapshots import (
     Snapshot,
     _snapshot_axis_strides,
@@ -155,6 +156,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
             self.ntff_compiler_options = config.sim_config.devices["nvcc_opts"]
             self.ntff_collector = CUDACombinedKSIRCollector(self)
+        self.sar_collector = CUDASARCollector(self) if self.grid.sar_monitors else None
         if self.grid.virtual_waveguides:
             self._set_virtual_waveguide_knls()
         for guide in self.grid.virtual_waveguides:
@@ -1394,6 +1396,13 @@ class CUDAUpdates(Updates[CUDAGrid]):
         collector = getattr(self, "ntff_collector", None)
         if collector is not None:
             collector.observe_magnetic(iteration)
+
+    def observe_sar_electric(self, iteration):
+        """Collect sparse electric-field DFTs for SAR on CUDA."""
+
+        collector = getattr(self, "sar_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
 
     def observe_eigenmode_ports(self, iteration):
         """Project modal port fields and accumulate DFTs on CUDA."""
@@ -3008,6 +3017,9 @@ class CUDAUpdates(Updates[CUDAGrid]):
         collector = getattr(self, "ntff_collector", None)
         if collector is not None:
             collector.finalise()
+        sar_collector = getattr(self, "sar_collector", None)
+        if sar_collector is not None:
+            sar_collector.finalise()
 
         if getattr(self.grid, "eigenmodeports", ()):
             finalise_device_eigenmode_monitors(self.grid.eigenmodeports, "cuda")

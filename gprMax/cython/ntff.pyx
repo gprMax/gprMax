@@ -219,6 +219,33 @@ cpdef void accumulate_surface_dft(
             )
 
 
+cpdef void accumulate_sparse_dft(
+    int nthreads,
+    const np.int64_t[::1] field_indices,
+    const float_or_double[::1] field,
+    const float_or_double_complex[::1] multiplier,
+    float_or_double_complex[:, ::1] output,
+):
+    """Gather sparse Yee edges and accumulate arbitrary-frequency DFTs."""
+
+    cdef Py_ssize_t frequency, point
+    cdef Py_ssize_t nfrequencies = multiplier.shape[0]
+    cdef Py_ssize_t npoints = field_indices.shape[0]
+    cdef float_or_double value
+    cdef float_or_double_complex phase
+
+    for point in prange(
+        npoints,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        value = field[field_indices[point]]
+        for frequency in range(nfrequencies):
+            phase = multiplier[frequency]
+            output[frequency, point] = output[frequency, point] + phase * value
+
+
 cpdef void gather_time_domain_surface(
     int nthreads,
     const np.int64_t[::1] inside_indices,

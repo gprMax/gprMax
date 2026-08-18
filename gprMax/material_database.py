@@ -68,6 +68,7 @@ class MaterialSpec:
     electric_conductivity: float
     relative_permeability: float
     magnetic_conductivity: float
+    mass_density: Optional[float]
     poles: Tuple[Mapping[str, Any], ...]
     inclusive_conductivity: float
     averagable: Optional[bool]
@@ -410,20 +411,45 @@ def load_material_spec(
     if model not in SUPPORTED_MODELS:
         raise ValueError(f"{context} has unsupported model {model!r}")
     model_fields = {
-        "constant": ("name", "model", "base", "averagable", "metadata"),
-        "debye": ("name", "model", "base", "poles", "averagable", "metadata"),
-        "lorentz": ("name", "model", "base", "poles", "averagable", "metadata"),
-        "drude": ("name", "model", "base", "poles", "averagable", "metadata"),
+        "constant": ("name", "model", "base", "mass_density_kg_per_m3", "averagable", "metadata"),
+        "debye": (
+            "name",
+            "model",
+            "base",
+            "poles",
+            "mass_density_kg_per_m3",
+            "averagable",
+            "metadata",
+        ),
+        "lorentz": (
+            "name",
+            "model",
+            "base",
+            "poles",
+            "mass_density_kg_per_m3",
+            "averagable",
+            "metadata",
+        ),
+        "drude": (
+            "name",
+            "model",
+            "base",
+            "poles",
+            "mass_density_kg_per_m3",
+            "averagable",
+            "metadata",
+        ),
         "general": (
             "name",
             "model",
             "base",
             "poles",
             "inclusive_conductivity_s_per_m",
+            "mass_density_kg_per_m3",
             "averagable",
             "metadata",
         ),
-        "builtin": ("name", "model", "builtin", "averagable", "metadata"),
+        "builtin": ("name", "model", "builtin", "mass_density_kg_per_m3", "averagable", "metadata"),
     }
     required_fields = ("model", "builtin") if model == "builtin" else ("model", "base")
     _check_keys(
@@ -491,6 +517,17 @@ def load_material_spec(
     if averagable is None:
         averagable = default_averagable
 
+    mass_density_value = entry.get("mass_density_kg_per_m3")
+    mass_density = (
+        None
+        if mass_density_value is None
+        else _finite_number(
+            mass_density_value,
+            "mass_density_kg_per_m3",
+            minimum=np.nextafter(0.0, 1.0),
+        )
+    )
+
     metadata = entry.get("metadata", {})
     if not isinstance(metadata, dict):
         raise ValueError(f"{context} field 'metadata' must be an object")
@@ -502,6 +539,7 @@ def load_material_spec(
         electric_conductivity=se,
         relative_permeability=mr,
         magnetic_conductivity=sm,
+        mass_density=mass_density,
         poles=poles,
         inclusive_conductivity=inclusive_conductivity,
         averagable=averagable,
@@ -555,6 +593,7 @@ def build_material_from_spec(grid: FDTDGrid, spec: MaterialSpec, material_id: st
     result.se = spec.electric_conductivity
     result.mr = spec.relative_permeability
     result.sm = spec.magnetic_conductivity
+    result.mass_density = spec.mass_density
     result.averagable = bool(spec.averagable)
 
     if isinstance(result, DispersiveMaterial):
@@ -613,6 +652,11 @@ def material_matches_spec(material: Material, spec: MaterialSpec) -> bool:
     )
     if not all(np.isclose(actual, expected, equal_nan=False) for actual, expected in scalar_values):
         return False
+    if material.mass_density is None or spec.mass_density is None:
+        if material.mass_density is not spec.mass_density:
+            return False
+    elif not np.isclose(material.mass_density, spec.mass_density):
+        return False
     if spec.model in ("constant", "builtin"):
         return not isinstance(material, DispersiveMaterial) or material.poles == 0
     if not isinstance(material, DispersiveMaterial) or material.poles != len(spec.poles):
@@ -669,6 +713,8 @@ def material_to_database_entry(material: Material) -> Mapping[str, Any]:
         "base": base,
         "averagable": bool(material.averagable),
     }
+    if material.mass_density is not None:
+        entry["mass_density_kg_per_m3"] = float(material.mass_density)
     if not isinstance(material, DispersiveMaterial) or material.poles == 0:
         return entry
 

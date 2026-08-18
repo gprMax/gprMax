@@ -67,6 +67,7 @@ class Solver:
             self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
             self.updates.observe_ntff_electric(iteration)
+            self.updates.observe_sar_electric(iteration)
 
             # time loop at this point is working at fields updated to be at n+1/2
             self.updates.update_magnetic()

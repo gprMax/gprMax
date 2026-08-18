@@ -65,6 +65,11 @@ class Updates(Generic[GridType], ABC):
 
         pass
 
+    def observe_sar_electric(self, iteration: int) -> None:
+        """Observe electric fields for tagged-cell SAR monitors."""
+
+        pass
+
     @abstractmethod
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""

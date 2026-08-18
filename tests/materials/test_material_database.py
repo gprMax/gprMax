@@ -15,8 +15,12 @@ from gprMax.material_database import (
     material_to_database_entry,
     validate_material_database,
 )
-from gprMax.materials import DispersiveMaterial
-from gprMax.user_objects.cmds_multiuse import MaterialFromDatabase
+from gprMax.materials import DispersiveMaterial, Material
+from gprMax.user_objects.cmds_multiuse import (
+    AddDebyeDispersion,
+    MaterialDensity,
+    MaterialFromDatabase,
+)
 from toolboxes.MaterialDatabase import convert_geometry
 
 
@@ -29,8 +33,8 @@ def _database(materials, database_id="local"):
     }
 
 
-def _constant(er=4.0):
-    return {
+def _constant(er=4.0, mass_density=None):
+    entry = {
         "name": "Test dielectric",
         "model": "constant",
         "base": {
@@ -41,6 +45,9 @@ def _constant(er=4.0):
         },
         "metadata": {"validity": {"frequency_hz": [1e6, 1e9]}},
     }
+    if mass_density is not None:
+        entry["mass_density_kg_per_m3"] = mass_density
+    return entry
 
 
 def test_official_database_names_are_reserved(tmp_path):
@@ -83,6 +90,30 @@ def test_local_constant_material_builds_with_provenance(tmp_path, fake_grid):
     assert not material_matches_spec(material, spec)
 
 
+def test_database_mass_density_builds_compares_and_round_trips(tmp_path, fake_grid):
+    entry = _constant(mass_density=1040.0)
+    (tmp_path / "local.json").write_text(json.dumps(_database({"tissue": entry})))
+    spec = load_material_spec("local", "tissue", search_directory=tmp_path)
+    material = build_material_from_spec(fake_grid(dt=1e-12), spec, "tissue")
+
+    assert spec.mass_density == 1040.0
+    assert material.mass_density == 1040.0
+    assert material_matches_spec(material, spec)
+    assert material_to_database_entry(material)["mass_density_kg_per_m3"] == 1040.0
+
+    material.mass_density = 1030.0
+    assert not material_matches_spec(material, spec)
+
+
+@pytest.mark.parametrize("density", (0, -1, float("inf"), float("nan")))
+def test_database_rejects_invalid_mass_density(tmp_path, density):
+    (tmp_path / "local.json").write_text(
+        json.dumps(_database({"bad": _constant(mass_density=density)}))
+    )
+    with pytest.raises(ValueError, match="mass_density_kg_per_m3"):
+        load_material_spec("local", "bad", search_directory=tmp_path)
+
+
 def test_debye_names_physical_quantities_explicitly(tmp_path, fake_grid):
     entry = _constant(er=2.0)
     entry.update(
@@ -106,9 +137,7 @@ def test_debye_names_physical_quantities_explicitly(tmp_path, fake_grid):
 
 
 @pytest.mark.parametrize("damping_ratio", (1.0, 1.01))
-def test_lorentz_database_rejects_critical_and_overdamped_poles(
-    tmp_path, fake_grid, damping_ratio
-):
+def test_lorentz_database_rejects_critical_and_overdamped_poles(tmp_path, fake_grid, damping_ratio):
     frequency = 100e9
     entry = _constant(er=2.0)
     entry.update(
@@ -244,6 +273,63 @@ def test_hash_command_accepts_optional_local_id():
         "material": "fr4_vendor",
         "id": "grade_a",
     }
+
+
+def test_material_density_hash_command_is_positional():
+    objects = get_user_objects(
+        ["#material_density: 1040 brain white_matter\n"],
+        checkessential=False,
+    )
+    assert len(objects) == 1
+    assert isinstance(objects[0], MaterialDensity)
+    assert objects[0].kwargs == {
+        "density": 1040.0,
+        "material_ids": ["brain", "white_matter"],
+    }
+
+
+def test_material_density_assigns_without_changing_em_properties(fake_grid):
+    grid = fake_grid(dt=1e-12)
+    material = Material(0, "brain")
+    material.er = 45.0
+    material.se = 0.8
+    grid.materials.append(material)
+
+    MaterialDensity(density=1040.0, material_ids=["brain"]).build(grid)
+
+    assert material.mass_density == 1040.0
+    assert material.er == 45.0
+    assert material.se == 0.8
+
+
+@pytest.mark.parametrize("density", (0, -1, float("inf"), float("nan")))
+def test_material_density_rejects_non_positive_or_non_finite_values(fake_grid, density):
+    grid = fake_grid(dt=1e-12)
+    grid.materials.append(Material(0, "brain"))
+    with pytest.raises(ValueError, match="finite and greater than zero"):
+        MaterialDensity(density=density, material_ids=["brain"]).build(grid)
+
+
+def test_material_density_rejects_unknown_material(fake_grid):
+    with pytest.raises(ValueError, match="do not exist"):
+        MaterialDensity(density=1040.0, material_ids=["brain"]).build(fake_grid(dt=1e-12))
+
+
+def test_dispersion_conversion_preserves_existing_mass_density(fake_grid):
+    grid = fake_grid(dt=1e-12)
+    material = Material(0, "brain")
+    material.mass_density = 1040.0
+    grid.materials.append(material)
+
+    AddDebyeDispersion(
+        poles=1,
+        er_delta=[20.0],
+        tau=[10e-12],
+        material_ids=["brain"],
+    ).build(grid)
+
+    assert isinstance(grid.materials[0], DispersiveMaterial)
+    assert grid.materials[0].mass_density == 1040.0
 
 
 def test_legacy_conversion_copies_arrays_and_adds_keys(tmp_path):

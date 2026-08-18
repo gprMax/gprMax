@@ -46,6 +46,7 @@ from gprMax.eigenmode_device import (
 from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import MetalCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
+from gprMax.sar_device import MetalSARCollector
 from gprMax.snapshots import (
     Snapshot,
     _snapshot_axis_strides,
@@ -55,8 +56,8 @@ from gprMax.snapshots import (
 )
 from gprMax.sources import (
     MAGNETIC_FRILL_MAX_TERMS,
-    dtoh_transmission_line_outputs,
     dtoh_magnetic_frill_source_outputs,
+    dtoh_transmission_line_outputs,
     htod_magnetic_frill_source_arrays,
     htod_src_arrays,
     htod_transmission_line_arrays,
@@ -162,6 +163,7 @@ class MetalUpdates:
         if self.grid.ntff_monitors:
             self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
             self.ntff_collector = MetalCombinedKSIRCollector(self)
+        self.sar_collector = MetalSARCollector(self) if self.grid.sar_monitors else None
         if self.grid.virtual_waveguides:
             self._set_virtual_waveguide_knls()
         for guide in self.grid.virtual_waveguides:
@@ -889,6 +891,13 @@ class MetalUpdates:
         if collector is not None:
             collector.observe_magnetic(iteration)
 
+    def observe_sar_electric(self, iteration):
+        """Collect sparse electric-field DFTs for SAR on Metal."""
+
+        collector = getattr(self, "sar_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
     def _dispatch_1d(self, pipeline, scalars, buffers, npoints):
         """Bind and execute one bounds-checked one-dimensional Metal kernel."""
 
@@ -1145,15 +1154,24 @@ class MetalUpdates:
             self._dispatch_1d(
                 self.pso_transmission_line_magnetic,
                 (
-                    np.int32(len(self.grid.transmissionlines)), np.int32(iteration),
-                    real(self.grid.dx), real(self.grid.dy), real(self.grid.dz),
+                    np.int32(len(self.grid.transmissionlines)),
+                    np.int32(iteration),
+                    real(self.grid.dx),
+                    real(self.grid.dy),
+                    real(self.grid.dz),
                     self.tl_line_coefficient,
                 ),
                 (
-                    self.tl_info_dev, self.tl_resistance_dev,
-                    self.tl_waveform_half_dev, self.tl_voltage_dev,
-                    self.tl_current_dev, self.tl_Vtotal_dev, self.tl_Itotal_dev,
-                    self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev,
+                    self.tl_info_dev,
+                    self.tl_resistance_dev,
+                    self.tl_waveform_half_dev,
+                    self.tl_voltage_dev,
+                    self.tl_current_dev,
+                    self.tl_Vtotal_dev,
+                    self.tl_Itotal_dev,
+                    self.grid.Hx_dev,
+                    self.grid.Hy_dev,
+                    self.grid.Hz_dev,
                 ),
                 len(self.grid.transmissionlines),
             )
@@ -1400,9 +1418,7 @@ class MetalUpdates:
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
         dispersive = config.get_model_config().materials["maxpoles"] > 0
-        pipeline = (
-            self.pso_electric_pmc_dispersive if dispersive else self.pso_electric_pmc
-        )
+        pipeline = self.pso_electric_pmc_dispersive if dispersive else self.pso_electric_pmc
         command = self.cmdqueue.commandBuffer()
         encoder = command.computeCommandEncoder()
         encoder.setComputePipelineState_(pipeline)
@@ -1426,15 +1442,17 @@ class MetalUpdates:
                     self.grid.Tz_dev,
                 ]
             )
-        buffers.extend([
-            self.grid.ID_dev,
-            self.grid.Ex_dev,
-            self.grid.Ey_dev,
-            self.grid.Ez_dev,
-            self.grid.Hx_dev,
-            self.grid.Hy_dev,
-            self.grid.Hz_dev,
-        ])
+        buffers.extend(
+            [
+                self.grid.ID_dev,
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+            ]
+        )
         for index, buffer in enumerate(buffers, start=len(scalars)):
             encoder.setBuffer_offset_atIndex_(buffer, 0, index)
 
@@ -1696,16 +1714,23 @@ class MetalUpdates:
         pipeline = self.pso_electric_pmc_dispersive_b
         encoder.setComputePipelineState_(pipeline)
         scalars = (
-            np.int32(self.grid.nx), np.int32(self.grid.ny), np.int32(self.grid.nz),
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
             np.int32(config.get_model_config().materials["maxpoles"]),
             *self._pmc_flags(),
         )
         for index, value in enumerate(scalars):
             encoder.setBytes_length_atIndex_(value.tobytes(), 4, index)
         buffers = (
-            self.grid.updatecoeffsdispersive_dev, self.grid.Tx_dev,
-            self.grid.Ty_dev, self.grid.Tz_dev, self.grid.ID_dev,
-            self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev,
+            self.grid.updatecoeffsdispersive_dev,
+            self.grid.Tx_dev,
+            self.grid.Ty_dev,
+            self.grid.Tz_dev,
+            self.grid.ID_dev,
+            self.grid.Ex_dev,
+            self.grid.Ey_dev,
+            self.grid.Ez_dev,
         )
         for index, buffer in enumerate(buffers, start=len(scalars)):
             encoder.setBuffer_offset_atIndex_(buffer, 0, index)
@@ -1741,6 +1766,9 @@ class MetalUpdates:
         collector = getattr(self, "ntff_collector", None)
         if collector is not None:
             collector.finalise()
+        sar_collector = getattr(self, "sar_collector", None)
+        if sar_collector is not None:
+            sar_collector.finalise()
 
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
@@ -1760,9 +1788,7 @@ class MetalUpdates:
             )
 
         if getattr(self.grid, "transmissionlines", ()):
-            dtoh_transmission_line_outputs(
-                self.tl_Vtotal_dev, self.tl_Itotal_dev, self.grid
-            )
+            dtoh_transmission_line_outputs(self.tl_Vtotal_dev, self.tl_Itotal_dev, self.grid)
 
         if getattr(self.grid, "networkterminals", ()):
             dtoh_rational_network_outputs(self.rn_voltage_dev, self.rn_current_dev, self.grid)

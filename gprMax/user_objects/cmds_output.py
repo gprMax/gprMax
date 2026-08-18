@@ -47,6 +47,7 @@ from gprMax.ntff.interface import (
     validate_identifier,
 )
 from gprMax.ports import (
+    DEFAULT_INCIDENT_FLOOR_DB,
     DEFAULT_MINIMUM_WAVELENGTH_CELLS,
     RationalNetworkPortOutput,
     RxPortOverride,
@@ -54,6 +55,7 @@ from gprMax.ports import (
     validate_spectrum_limit,
 )
 from gprMax.receivers import Rx as RxUser
+from gprMax.sar import SARSpec
 from gprMax.snapshots import Snapshot as SnapshotUser
 from gprMax.sources import MagneticFrillSource
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -398,6 +400,139 @@ class NetworkPort(OutputUserObject):
         logger.info(
             self.grid_name(grid) + f"NetworkPort {self.terminal_id!r}: reference impedance "
             f"{self.reference_impedance:g} Ohms."
+        )
+
+
+class SAR(OutputUserObject):
+    """Request frequency-domain SAR over one or more geometry tags.
+
+    The electric fields are transformed on the fly at the requested
+    frequencies. Results are normalised to ``target_amplitude`` using the
+    spectrum of exactly one active source associated with ``waveform_id``.
+
+    Args:
+        frequencies: Strictly increasing positive frequencies in Hz.
+        waveform_id: Waveform attached to the normalising source.
+        tags: Geometry tag string or iterable of tag strings.
+        id: Unique HDF5 output identifier.
+        target_amplitude: Peak phasor amplitude represented by the normalised
+            source spectrum.
+        spectrum_limit: Minimum cells per shortest material wavelength
+            (default 10), or ``"nyquist"`` for explicit research output.
+        source_floor_db: Frequencies below this relative source-spectrum level
+            are stored as invalid/NaN.
+        window: ``"rectangular"`` or ``"hann"``.
+        averaging_masses: Optional spatial averaging masses in kg. The
+            default empty tuple writes local cell SAR only. For example,
+            ``(0.001, 0.01)`` requests the standard 1 g and 10 g results.
+        normalisation: ``"waveform"`` (default), ``"incident_power"``, or
+            ``"accepted_power"``.
+        port_id: Required for either power normalisation.
+        target_power: Required positive power in watts for either power
+            normalisation.
+    """
+
+    @property
+    def order(self):
+        return 16
+
+    @property
+    def hash(self):
+        return "#sar"
+
+    def __init__(
+        self,
+        frequencies,
+        waveform_id: str,
+        tags,
+        id: str = "sar1",
+        target_amplitude: float = 1.0,
+        spectrum_limit=DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+        source_floor_db: float = DEFAULT_INCIDENT_FLOOR_DB,
+        window: str = "rectangular",
+        averaging_masses=(),
+        normalisation: str = "waveform",
+        port_id: str | None = None,
+        target_power: float | None = None,
+    ):
+        if isinstance(tags, str):
+            tags = (tags,)
+        else:
+            tags = tuple(tags)
+        super().__init__(
+            frequencies=frequencies,
+            waveform_id=waveform_id,
+            tags=tags,
+            id=id,
+            target_amplitude=target_amplitude,
+            spectrum_limit=spectrum_limit,
+            source_floor_db=source_floor_db,
+            window=window,
+            averaging_masses=averaging_masses,
+            normalisation=normalisation,
+            port_id=port_id,
+            target_power=target_power,
+        )
+        self.frequencies = frequencies
+        self.waveform_id = str(waveform_id)
+        self.tags = tags
+        self.ID = str(id)
+        self.target_amplitude = target_amplitude
+        self.spectrum_limit = spectrum_limit
+        self.source_floor_db = source_floor_db
+        self.window = window
+        self.averaging_masses = tuple(averaging_masses)
+        self.normalisation = str(normalisation)
+        self.port_id = port_id
+        self.target_power = target_power
+        self._monitor = None
+
+    @property
+    def result(self):
+        if self._monitor is None or self._monitor.result is None:
+            raise RuntimeError("SAR result is not available until the model has solved")
+        return self._monitor.result
+
+    def build(self, model: Model, grid: FDTDGrid):
+        if isinstance(grid, SubGridBaseGrid):
+            raise ValueError(f"{self.params_str()} is not yet supported in a subgrid")
+        if grid is not model.G:
+            raise ValueError(f"{self.params_str()} must be attached to the main grid")
+        if config.sim_config.mpi:
+            raise ValueError(f"{self.params_str()} is not yet supported by the MPI solver")
+        if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
+            raise ValueError(f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers")
+        if config.get_model_config().mode != "3D":
+            raise ValueError(f"{self.params_str()} currently requires a 3-D model")
+        validate_identifier("SAR output ID", self.ID)
+        if any(spec.output_id == self.ID for spec in grid.sar_specs):
+            raise ValueError(f"{self.params_str()} output ID is already in use")
+        frequencies = np.asarray(self.frequencies, dtype=np.float64)
+        if frequencies.ndim == 0:
+            frequencies = frequencies.reshape(1)
+        if frequencies.ndim != 1 or frequencies.size == 0:
+            raise ValueError(f"{self.params_str()} frequencies must be a non-empty 1-D array")
+        spectrum_limit = validate_spectrum_limit(self.spectrum_limit)
+        grid.sar_specs.append(
+            SARSpec(
+                output_id=self.ID,
+                frequencies=tuple(float(value) for value in frequencies),
+                tags=tuple(str(tag) for tag in self.tags),
+                waveform_id=self.waveform_id,
+                target_amplitude=float(self.target_amplitude),
+                spectrum_limit=spectrum_limit,
+                source_floor_db=float(self.source_floor_db),
+                window=str(self.window),
+                averaging_masses=tuple(float(value) for value in self.averaging_masses),
+                normalisation=self.normalisation,
+                port_id=self.port_id,
+                target_power=self.target_power,
+                owner=self,
+            )
+        )
+        logger.info(
+            f"{self.grid_name(grid)}SAR output {self.ID!r} registered for "
+            f"{len(frequencies)} frequency/frequencies and tag(s) {self.tags}"
         )
 
 

@@ -291,6 +291,27 @@ official ``vacuum`` entry and uses ``vacuum`` as its local ID. To refer to the
 same material as ``model_vacuum`` within the model, use
 ``#material_from_database: fundamental vacuum model_vacuum``.
 
+#material_density:
+------------------
+
+Assigns an optional physical mass density to one or more existing materials.
+The syntax is:
+
+.. code-block:: none
+
+    #material_density: f1 str1 [str2 ...]
+
+* ``f1`` is a finite, positive mass density in :math:`\mathrm{kg\,m^{-3}}`.
+* ``str1``, ``str2``, ... are existing material identifiers.
+
+For example, ``#material_density: 1040 brain white_matter`` assigns the same
+mass density to the two named materials. Density remains a cell-centred
+property of the final volumetric material assignment. It is not included in
+dielectric smoothing and has no effect on ordinary electromagnetic updates.
+Materials without this command retain an unspecified density; this is valid
+for ordinary simulations, but a dosimetry request will reject selected cells
+whose material has no density.
+
 .. note::
 
     The Debye, Lorentz, and Drude commands below describe **electric** dispersion. They cannot be applied to PEC or PMC materials, including user-defined materials with infinite electric or magnetic conductivity.
@@ -1938,6 +1959,67 @@ material are reported when the model is built.
     * A time trace that has not decayed before the end of the model window can
       contaminate the spectrum. gprMax reports a tail-level warning rather
       than hiding or clipping the result.
+
+#sar:
+-----
+
+Requests on-the-fly frequency-domain specific absorption rate (SAR) over one
+or more semantic geometry tags.
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 f3 f4|nyquist str2 str3 [str4 ...]
+
+where ``f1`` and ``f2`` are the start and stop frequencies in Hz, ``i1`` is
+the number of linearly spaced frequency points, ``str1`` is the waveform ID,
+``f3`` is the positive target peak-phasor amplitude, ``f4`` is the minimum
+number of cells per shortest material wavelength, ``str2`` is the output ID,
+and the remaining strings are geometry tags. For one frequency, ``f1`` and
+``f2`` must be equal. The target amplitude uses the source's native units
+(for example V/m for a discrete plane wave and V for a voltage source). For
+example:
+
+.. code-block:: none
+
+    #material_density: 1040 brain
+    #sar: 8e8 1.2e9 41 pulse 1 10 brain_sar brain_region
+
+The positional syntax deliberately requires every parameter. ``nyquist`` may
+replace ``f4`` only as an explicit research override; it bypasses the spatial
+wavelength criterion but not the temporal Nyquist check. The default Python
+API criterion is lambda/10, and lambda/8 is requested by supplying ``8``.
+Every material in the selected final tagged cells must have a positive mass
+density. Tagged cells inside boundary or internal PML regions are excluded
+automatically. Three-dimensional CPU, CUDA, OpenCL, and Metal models are
+supported; MPI domain decomposition and SAR regions inside a subgrid are not
+yet supported. See :ref:`sar-output` for the formulation and datasets.
+
+For port-power normalisation, replace the numeric target amplitude by
+``incident_power`` or ``accepted_power`` and insert the target power in watts
+and port ID before the spectrum limit:
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 incident_power f3 str2 f4|nyquist str3 str4 [str5 ...]
+    #sar: 8e8 1.2e9 41 pulse accepted_power 1 feed 10 brain_sar brain_region
+
+The original numeric-amplitude form remains unchanged. By default the output
+contains local cell SAR, absorbed-power density, and per-tag summaries only.
+To request spatial mass averages, insert the literal ``spatial_average``, the
+number of target masses, and those masses in kg immediately before the
+geometry tags:
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 f3 f4|nyquist str2 spatial_average i2 f5 [f6 ...] str3 [str4 ...]
+    #sar: 8e8 1.2e9 41 pulse 1 10 brain_sar spatial_average 2 0.001 0.01 brain_region
+
+Here ``i2`` must be positive and determines exactly how many following values
+are interpreted as masses. This explicit positional marker keeps arbitrary
+geometry-tag names distinguishable from numeric masses. Omitting the marker
+requests no spatial averaging. The same suffix follows ``str3`` (the output
+ID) in the port-power form.
+
 
 #network_port:
 --------------

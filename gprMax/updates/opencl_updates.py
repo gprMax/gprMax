@@ -49,6 +49,7 @@ from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import OpenCLCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
+from gprMax.sar_device import OpenCLSARCollector
 from gprMax.snapshots import (
     Snapshot,
     _snapshot_axis_strides,
@@ -135,6 +136,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
             self.ntff_compiler_options = config.sim_config.devices["compiler_opts"]
             self.ntff_collector = OpenCLCombinedKSIRCollector(self)
+        self.sar_collector = OpenCLSARCollector(self) if self.grid.sar_monitors else None
         if self.grid.virtual_waveguides:
             self._set_virtual_waveguide_knls()
         for guide in self.grid.virtual_waveguides:
@@ -1733,6 +1735,13 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         if collector is not None:
             collector.observe_magnetic(iteration)
 
+    def observe_sar_electric(self, iteration):
+        """Collect sparse electric-field DFTs for SAR on OpenCL."""
+
+        collector = getattr(self, "sar_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
     def observe_eigenmode_ports(self, iteration):
         """Project modal port fields and accumulate DFTs on OpenCL."""
 
@@ -2261,6 +2270,9 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         collector = getattr(self, "ntff_collector", None)
         if collector is not None:
             collector.finalise()
+        sar_collector = getattr(self, "sar_collector", None)
+        if sar_collector is not None:
+            sar_collector.finalise()
 
         if getattr(self.grid, "eigenmodeports", ()):
             finalise_device_eigenmode_monitors(self.grid.eigenmodeports, "opencl")

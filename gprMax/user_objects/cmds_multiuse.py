@@ -3329,6 +3329,68 @@ class MaterialFromDatabase(GridUserObject):
         )
 
 
+class MaterialDensity(GridUserObject):
+    """Assign a physical mass density to one or more existing materials.
+
+    Density is cell-centred metadata used by derived quantities such as SAR;
+    it does not alter electromagnetic update coefficients or material
+    averaging.
+
+    Attributes:
+        density: Finite mass density greater than zero in kg/m3.
+        material_ids: Material identifiers to which the density is assigned.
+    """
+
+    @property
+    def order(self):
+        # Run after every dispersion modifier. Those commands replace the
+        # original Material instance while retaining its numeric ID.
+        return 14
+
+    @property
+    def hash(self):
+        return "#material_density"
+
+    def __init__(self, *, density, material_ids):
+        super().__init__(density=density, material_ids=material_ids)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            density = float(self.kwargs["density"])
+            raw_material_ids = self.kwargs["material_ids"]
+            material_ids = (
+                [raw_material_ids] if isinstance(raw_material_ids, str) else list(raw_material_ids)
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{self.params_str()} requires a density and at least one material identifier"
+            ) from exc
+
+        if not np.isfinite(density) or density <= 0:
+            raise ValueError(
+                f"{self.params_str()} density must be finite and greater than zero kg/m3"
+            )
+        if not material_ids or any(not isinstance(item, str) or not item for item in material_ids):
+            raise ValueError(
+                f"{self.params_str()} requires at least one non-empty material identifier"
+            )
+        if len(set(material_ids)) != len(material_ids):
+            raise ValueError(f"{self.params_str()} material identifiers must not be duplicated")
+
+        by_id = {material.ID: material for material in grid.materials}
+        missing = [material_id for material_id in material_ids if material_id not in by_id]
+        if missing:
+            raise ValueError(f"{self.params_str()} material(s) {missing} do not exist")
+
+        for material_id in material_ids:
+            by_id[material_id].mass_density = density
+
+        logger.info(
+            f"{self.grid_name(grid)}Mass density {density:g} kg/m3 assigned to material(s) "
+            f"{', '.join(material_ids)}."
+        )
+
+
 def _reject_perfect_conductor_dispersion(user_object, materials, formulation):
     """Reject electric dispersion on ideal electric or magnetic conductors."""
 
@@ -3439,6 +3501,7 @@ class AddDebyeDispersion(GridUserObject):
             disp_material.se = material.se
             disp_material.mr = material.mr
             disp_material.sm = material.sm
+            disp_material.mass_density = material.mass_density
             disp_material.type = "debye"
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
@@ -3535,6 +3598,7 @@ class AddLorentzDispersion(GridUserObject):
             disp_material.se = material.se
             disp_material.mr = material.mr
             disp_material.sm = material.sm
+            disp_material.mass_density = material.mass_density
             disp_material.type = "lorentz"
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
@@ -3629,6 +3693,7 @@ class AddDrudeDispersion(GridUserObject):
             disp_material.se = material.se
             disp_material.mr = material.mr
             disp_material.sm = material.sm
+            disp_material.mass_density = material.mass_density
             disp_material.type = "drude"
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
