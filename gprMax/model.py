@@ -367,19 +367,26 @@ class Model:
             if not self.G.ntff_output_writers:
                 compile_ntff_outputs(self, self.G)
 
+        grids = [self.G] + self.subgrids
+
         # SAR requests use final Yee material IDs and therefore compile only
-        # after the geometry build. Accelerator backends collect the same
-        # sparse edge DFTs on device and download only those compact arrays.
-        if getattr(self.G, "sar_specs", None) and not self.G.sar_monitors:
+        # after the geometry build. Each monitor samples fields on its owning
+        # grid, while source and port normalisation are resolved model-wide.
+        # This lets, for example, a main-grid plane wave illuminate tagged
+        # tissue built and sampled on a fine subgrid.
+        sar_grids = [
+            grid for grid in grids if getattr(grid, "sar_specs", None) and not grid.sar_monitors
+        ]
+        if sar_grids:
             from gprMax.sar import compile_sar_outputs
 
-            compile_sar_outputs(self.G)
+            for grid in sar_grids:
+                compile_sar_outputs(grid, model=self)
 
         logger.info(
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
 
-        grids = [self.G] + self.subgrids
         for grid in grids:
             grid.update_sources_and_recievers()
 
@@ -390,8 +397,9 @@ class Model:
         if config.sim_config.study is not None:
             config.sim_config.study.apply_case(self)
 
-        for monitor in self.G.sar_monitors:
-            monitor.prepare_run(self.G)
+        for grid in grids:
+            for monitor in grid.sar_monitors:
+                monitor.prepare_run()
 
         # Magnetic-frill sources bind the attached thin-wire radius, resolve
         # symmetry, validate the PEC ground plane, and precompute their
@@ -678,8 +686,9 @@ class Model:
         for grid in [self.G] + self.subgrids:
             finalise_transmission_line_ports(grid)
             finalise_magnetic_frill_ports(grid)
-        for monitor in self.G.sar_monitors:
-            monitor.finalise()
+        for grid in grids:
+            for monitor in grid.sar_monitors:
+                monitor.finalise()
 
         if config.sim_config.study is not None:
             config.sim_config.study.collect_case(self)
@@ -689,6 +698,7 @@ class Model:
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
         sg_frills = [True for sg in self.subgrids if sg.magneticfrillsources]
         sg_ports = [True for sg in self.subgrids if sg.port_monitors]
+        sg_sar = [True for sg in self.subgrids if sg.sar_monitors]
         ntff_outputs = [
             monitor
             for monitor in self.G.ntff_monitors
@@ -703,6 +713,7 @@ class Model:
             or self.G.magneticfrillsources
             or sg_frills
             or sg_ports
+            or sg_sar
             or ntff_outputs
             or self.G.port_monitors
             or self.G.eigenmodeports

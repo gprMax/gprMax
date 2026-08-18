@@ -1990,9 +1990,13 @@ wavelength criterion but not the temporal Nyquist check. The default Python
 API criterion is lambda/10, and lambda/8 is requested by supplying ``8``.
 Every material in the selected final tagged cells must have a positive mass
 density. Tagged cells inside boundary or internal PML regions are excluded
-automatically. Three-dimensional CPU, CUDA, OpenCL, and Metal models are
-supported; MPI domain decomposition and SAR regions inside a subgrid are not
-yet supported. See :ref:`sar-output` for the formulation and datasets.
+automatically. Three-dimensional CPU, CUDA, OpenCL, and Metal main-grid models
+and three-dimensional CPU HSG subgrids are supported; MPI domain decomposition
+is not yet supported. A ``#sar`` command inside a subgrid block samples the
+fine grid at its own timestep and writes
+``/subgrids/<subgrid ID>/sar/<output ID>``. Its normalising source may belong
+to the main grid or the subgrid. See :ref:`sar-output` for the formulation and
+datasets.
 
 For port-power normalisation, replace the numeric target amplitude by
 ``incident_power`` or ``accepted_power`` and insert the target power in watts

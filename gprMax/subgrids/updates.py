@@ -92,6 +92,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
     def store_outputs(self):
         super().store_outputs(self.iteration)
         super().store_snapshots(self.iteration)
+        super().observe_sar_electric(self.iteration)
 
     def update_electric_sources(self):
         iteration = self.iteration

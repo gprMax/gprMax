@@ -1406,13 +1406,24 @@ each requested frequency.
 Selected tagged cells that lie in boundary or internal PML regions are
 excluded automatically because PML loss is not physical material absorption.
 
+``SAR`` may be added to a :class:`SubGridHSG` in the same way as other
+subgrid outputs. Fields are transformed using the fine-grid ``dt`` and the
+result is written below ``/subgrids/<subgrid ID>/sar/<output ID>``. The
+normalising source may be on the main grid or the subgrid; its waveform DFT
+uses the timestep of the grid that owns the source. This is useful when a
+main-grid plane wave or antenna illuminates finely resolved tagged tissue.
+Mass averaging is local to the selected subgrid tag volume, so the complete
+tissue region required by an averaging cube should be contained inside the
+subgrid working region.
+
 The default permits output only while the shortest wavelength in any model
 material is sampled by at least ten cells. Use ``spectrum_limit=8`` for a
 lambda/8 criterion. ``spectrum_limit='nyquist'`` is an explicit research
 override: it retains the requested frequencies but does not imply spatial
-accuracy. Three-dimensional CPU, CUDA, OpenCL, and Metal models are supported.
-MPI domain decomposition and SAR regions inside a subgrid are not yet
-supported. See :ref:`sar-output` for the formulation and HDF5 schema.
+accuracy. Three-dimensional CPU, CUDA, OpenCL, and Metal models are supported
+on the main grid. Three-dimensional CPU HSG subgrids are also supported. MPI
+domain decomposition is not yet supported. See :ref:`sar-output` for the
+formulation and HDF5 schema.
 
 Rational-network S11 and input impedance
 -----------------------------------------
