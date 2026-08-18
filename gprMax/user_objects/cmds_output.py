@@ -494,10 +494,6 @@ class SAR(OutputUserObject):
         return self._monitor.result
 
     def build(self, model: Model, grid: FDTDGrid):
-        if isinstance(grid, SubGridBaseGrid):
-            raise ValueError(f"{self.params_str()} is not yet supported in a subgrid")
-        if grid is not model.G:
-            raise ValueError(f"{self.params_str()} must be attached to the main grid")
         if config.sim_config.mpi:
             raise ValueError(f"{self.params_str()} is not yet supported by the MPI solver")
         if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):

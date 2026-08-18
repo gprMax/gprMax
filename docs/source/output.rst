@@ -43,7 +43,8 @@ further groups for each named or numbered output.
 Absorbed power density and specific absorption rate
 ---------------------------------------------------
 
-A requested SAR output adds ``/sar/<id>``. gprMax transforms only the unique
+A requested main-grid SAR output adds ``/sar/<id>``; an output attached to a
+subgrid adds ``/subgrids/<subgrid ID>/sar/<id>``. gprMax transforms only the unique
 Yee electric edges required by the selected tagged cells and only at the
 requested frequencies; it does not store a full time history for every cell.
 The serial CPU solver uses a Cython/OpenMP sparse transform. CUDA, OpenCL, and
@@ -92,6 +93,11 @@ The requested port power is obtained through the same terminal/modal power
 adapter used for antenna gain. Non-positive, non-finite, or invalid port
 powers produce invalid SAR bins rather than unbounded scaling. Frequencies
 below ``SourceFloorDB`` are likewise marked invalid and stored as NaN.
+Source and port normalisation are resolved across the complete model rather
+than only the grid containing the SAR output. Consequently, a source on the
+main grid can illuminate and normalise tagged tissue sampled at every fine
+timestep inside a subgrid. A subgrid port uses the model-wide qualified
+reference ``<subgrid ID>/<port ID>``.
 
 The datasets include ``frequency``, ``cell_indices``, ``tag_id``,
 ``material_id``, ``density``, ``source_spectrum``, ``source_relative_db``,
@@ -99,6 +105,9 @@ The datasets include ``frequency``, ``cell_indices``, ``tag_id``,
 ``limiting_material``, ``absorbed_power_density``, and ``sar``. Each
 ``tags/<name>`` subgroup contains cell count, total mass, absorbed power,
 mass-average SAR, and peak voxel SAR.
+``CellIndexOrigin`` and ``CellCentreOffset`` map the integer
+``cell_indices`` to physical cell-centre positions. ``CellIndexFrame`` is
+``main-grid`` for a normal output and ``subgrid-local`` for an HSG output.
 
 Spatial averaging is not performed by default. This keeps the application-
 neutral local quantities available without imposing a bioelectromagnetic

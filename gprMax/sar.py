@@ -31,6 +31,7 @@ from gprMax.ports import (
     DEFAULT_MINIMUM_WAVELENGTH_CELLS,
     evaluate_port_power_spectrum,
     minimum_wavelength_sampling,
+    model_port_output_registry,
     port_output_registry,
     validate_spectrum_limit,
 )
@@ -38,6 +39,7 @@ from gprMax.sar_averaging import apply_spatial_average_plan, build_spatial_avera
 
 if TYPE_CHECKING:
     from gprMax.grid.fdtd_grid import FDTDGrid
+    from gprMax.model import Model
 
 
 logger = logging.getLogger(__name__)
@@ -193,6 +195,7 @@ class SARMonitor:
         normalisation: str = "waveform",
         port_id: str | None = None,
         target_power: float | None = None,
+        model: "Model | None" = None,
     ) -> None:
         if grid.geometry_tag_map is None or grid.geometry_tag_registry is None:
             raise ValueError("SAR requires at least one tagged volumetric geometry object")
@@ -217,7 +220,12 @@ class SARMonitor:
             "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
         )
         self.waveform_id = str(waveform_id)
-        if not any(waveform.ID == self.waveform_id for waveform in grid.waveforms):
+        waveform_grids = (grid,) if model is None else (model.G, *model.subgrids)
+        if not any(
+            waveform.ID == self.waveform_id
+            for waveform_grid in waveform_grids
+            for waveform in waveform_grid.waveforms
+        ):
             raise ValueError(f"SAR references unknown waveform {self.waveform_id!r}")
         self.target_amplitude = float(target_amplitude)
         if not np.isfinite(self.target_amplitude) or self.target_amplitude <= 0:
@@ -347,56 +355,78 @@ class SARMonitor:
         self.grid_shape = (int(grid.nx), int(grid.ny), int(grid.nz))
         self.grid_spacing = (float(grid.dx), float(grid.dy), float(grid.dz))
         self.cell_volume = float(grid.dx * grid.dy * grid.dz)
+        if hasattr(grid, "local_to_global"):
+            self.cell_index_frame = "subgrid-local"
+            self.cell_index_origin = np.asarray(grid.local_to_global((0, 0, 0)), dtype=np.float64)
+        else:
+            self.cell_index_frame = "main-grid"
+            self.cell_index_origin = np.zeros(3, dtype=np.float64)
         self.grid = grid
+        self.model = model
         self._source_samples = np.empty(0, dtype=self.real_dtype)
+        self._source_dt = float(grid.dt)
+        self._source_window = np.empty(0, dtype=self.real_dtype)
         self._spatial_average_plans = None
-        self.prepare_run(grid)
 
-    def _build_source_samples(self, grid: "FDTDGrid") -> npt.NDArray[np.floating]:
-        source_groups = (
-            grid.voltagesources,
-            grid.hertziandipoles,
-            grid.magneticdipoles,
-            grid.transmissionlines,
-            grid.magneticfrillsources,
-            grid.discreteplanewaves,
-        )
-        sources = [
-            source
-            for group in source_groups
-            for source in group
-            if source.waveformID == self.waveform_id
-        ]
-        if not sources:
+    def _model_grids(self):
+        if self.model is None:
+            return (self.grid,)
+        return (self.model.G, *self.model.subgrids)
+
+    def _build_source_samples(self):
+        bindings = []
+        for source_grid in self._model_grids():
+            source_groups = (
+                source_grid.voltagesources,
+                source_grid.hertziandipoles,
+                source_grid.magneticdipoles,
+                source_grid.transmissionlines,
+                source_grid.magneticfrillsources,
+                source_grid.discreteplanewaves,
+            )
+            bindings.extend(
+                (source, source_grid)
+                for group in source_groups
+                for source in group
+                if source.waveformID == self.waveform_id
+            )
+        if not bindings:
             raise ValueError(
                 f"SAR waveform {self.waveform_id!r} is not associated with an active source"
             )
-        active_sources = [source for source in sources if getattr(source, "study_scale", 1.0) != 0]
-        if len(active_sources) != 1:
+        active_bindings = [
+            binding for binding in bindings if getattr(binding[0], "study_scale", 1.0) != 0
+        ]
+        if len(active_bindings) != 1:
             raise ValueError(
                 f"SAR waveform {self.waveform_id!r} must identify exactly one active "
-                f"source; found {len(active_sources)}"
+                f"source across the model; found {len(active_bindings)}"
             )
-        source = active_sources[0]
-        windows = {(float(source.start), float(source.stop))}
-        if len(windows) != 1:
+        source, source_grid = active_bindings[0]
+        start, stop = float(source.start), float(source.stop)
+        waveforms = [item for item in source_grid.waveforms if item.ID == self.waveform_id]
+        if len(waveforms) != 1:
             raise ValueError(
-                "SAR sources sharing the normalising waveform must use the same start and stop"
+                f"SAR waveform {self.waveform_id!r} is not uniquely defined on its source grid"
             )
-        start, stop = next(iter(windows))
-        waveform = next(item for item in grid.waveforms if item.ID == self.waveform_id)
+        waveform = waveforms[0]
         source_scale = float(getattr(source, "study_scale", 1.0))
-        samples = np.zeros(grid.iterations, dtype=self.real_dtype)
-        for iteration in range(grid.iterations):
-            time = iteration * grid.dt
+        samples = np.zeros(source_grid.iterations, dtype=self.real_dtype)
+        for iteration in range(source_grid.iterations):
+            time = iteration * source_grid.dt
             if start <= time < stop:
-                samples[iteration] = source_scale * waveform.calculate_value(time - start, grid.dt)
-        return samples
+                samples[iteration] = source_scale * waveform.calculate_value(
+                    time - start, source_grid.dt
+                )
+        return samples, float(source_grid.dt)
 
-    def prepare_run(self, grid: "FDTDGrid") -> None:
+    def prepare_run(self) -> None:
         """Refresh source normalisation after geometry-fixed study changes."""
 
-        self._source_samples = self._build_source_samples(grid)
+        self._source_samples, self._source_dt = self._build_source_samples()
+        self._source_window = _window(
+            self.window_name, self._source_samples.size, np.dtype(np.float64)
+        )
 
     @property
     def nbytes(self) -> int:
@@ -411,6 +441,7 @@ class SARMonitor:
             + self.density.nbytes
             + self.window.nbytes
             + self._source_samples.nbytes
+            + self._source_window.nbytes
             + sum(plan.nbytes for plan in (self._spatial_average_plans or ()))
         )
 
@@ -474,12 +505,14 @@ class SARMonitor:
     def finalise(self) -> SARResult:
         if self._next_iteration != self.grid_iterations:
             raise RuntimeError("SAR monitor cannot be finalised before every timestep is observed")
+        source_dt = getattr(self, "_source_dt", self.grid_dt)
+        source_window = getattr(self, "_source_window", self.window)
         source_spectrum = np.asarray(
             engineering_dft(
                 self._source_samples,
                 self.frequencies,
-                self.grid_dt,
-                window=self.window,
+                source_dt,
+                window=source_window,
             ),
             dtype=self.complex_dtype,
         )
@@ -505,11 +538,21 @@ class SARMonitor:
                 where=defined,
             )
         else:
-            registry = port_output_registry(self.grid)
-            if self.port_id not in registry:
-                raise ValueError(f"SAR references unknown main-grid port {self.port_id!r}")
+            if getattr(self, "model", None) is None:
+                registry = port_output_registry(self.grid)
+                if self.port_id not in registry:
+                    raise ValueError(f"SAR references unknown model port {self.port_id!r}")
+                output = registry[self.port_id]
+                port_grid = self.grid
+            else:
+                registry = model_port_output_registry(self.model)
+                if self.port_id not in registry:
+                    raise ValueError(f"SAR references unknown model port {self.port_id!r}")
+                binding = registry[self.port_id]
+                output = binding.output
+                port_grid = binding.grid
             spectrum = evaluate_port_power_spectrum(
-                registry[self.port_id], self.grid, self.frequencies, window=self.window_name
+                output, port_grid, self.frequencies, window=self.window_name
             )
             normalising_power = np.asarray(
                 spectrum.incident_power
@@ -637,6 +680,11 @@ class SARMonitor:
         group.attrs["CollectionBackend"] = self.collection_backend
         group.attrs["PMLCellPolicy"] = "excluded"
         group.attrs["ExcludedPMLCellCount"] = self.excluded_pml_cell_count
+        group.attrs["CellIndexFrame"] = self.cell_index_frame
+        group.attrs["CellIndexOrigin"] = self.cell_index_origin
+        group.attrs["CellIndexOriginUnits"] = "m"
+        group.attrs["CellCentreOffset"] = np.asarray(self.grid_spacing) / 2
+        group.attrs["CellCentreOffsetUnits"] = "m"
         group.attrs["SourceFloorDB"] = self.source_floor_db
         group.attrs["SpectrumLimitMode"] = self.spectrum_limit_mode
         group.attrs["MinimumWavelengthCells"] = self.minimum_wavelength_cells
@@ -708,7 +756,7 @@ class SARMonitor:
             tag_group["peak_voxel_sar"] = peak_sar
 
 
-def compile_sar_outputs(grid: "FDTDGrid") -> None:
+def compile_sar_outputs(grid: "FDTDGrid", *, model: "Model | None" = None) -> None:
     """Compile deferred SAR requests after material IDs are available."""
 
     if grid.sar_monitors:
@@ -728,6 +776,7 @@ def compile_sar_outputs(grid: "FDTDGrid") -> None:
             normalisation=spec.normalisation,
             port_id=spec.port_id,
             target_power=spec.target_power,
+            model=model,
         )
         grid.sar_monitors.append(monitor)
         if spec.owner is not None:

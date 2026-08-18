@@ -261,7 +261,8 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
         sg_frills = [True for sg in model.subgrids if sg.magneticfrillsources]
         sg_ports = [True for sg in model.subgrids if sg.port_monitors]
         sg_eigenmode_ports = [True for sg in model.subgrids if sg.eigenmodeports]
-        if sg_rxs or sg_tls or sg_frills or sg_ports or sg_eigenmode_ports:
+        sg_sar = [True for sg in model.subgrids if getattr(sg, "sar_monitors", ())]
+        if sg_rxs or sg_tls or sg_frills or sg_ports or sg_eigenmode_ports or sg_sar:
             for sg in model.subgrids:
                 grp = f.create_group(f"/subgrids/{sg.name}")
                 write_hd5_data(grp, sg, is_subgrid=True)
