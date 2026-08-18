@@ -34,7 +34,7 @@ from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.fractals.fractal_surface import MPIFractalSurface
 from gprMax.fractals.fractal_volume import MPIFractalVolume
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.pml import InternalPMLSpec, MPIPML, PML
+from gprMax.pml import MPIPML, PML, InternalPMLSpec
 from gprMax.receivers import Rx
 from gprMax.sources import Source
 from gprMax.utilities.mpi import Dim, Dir, mpi_datatype_for_dtype
@@ -456,6 +456,40 @@ class MPIGrid(FDTDGrid):
             if self.is_coordinator():
                 port.electric_dft = electric
                 port.magnetic_dft = magnetic
+
+    def gather_sar_payloads(self):
+        """Gather owned-cell SAR payloads once after time stepping.
+
+        Electric-field DFTs remain rank-local during the solve. Each monitor
+        contributes its owned semantic cells and uniquely owned sparse Yee-edge
+        DFTs. The coordinator performs global cell-centre collocation before
+        source/port normalisation and mass averaging, after the complete model
+        output state has been gathered.
+        """
+
+        if not self.sar_monitors:
+            return None
+
+        signatures = tuple(
+            (
+                monitor.output_id,
+                tuple(float(value) for value in monitor.frequencies),
+                monitor.tag_names,
+            )
+            for monitor in self.sar_monitors
+        )
+        all_signatures = self.comm.allgather(signatures)
+        if any(value != signatures for value in all_signatures):
+            raise RuntimeError("MPI ranks constructed inconsistent SAR monitors.")
+
+        local_payloads = [monitor.local_payload() for monitor in self.sar_monitors]
+        gathered = self.comm.gather(local_payloads, root=self.COORDINATOR_RANK)
+        if gathered is None:
+            return None
+        return [
+            [rank_payloads[index] for rank_payloads in gathered]
+            for index in range(len(self.sar_monitors))
+        ]
 
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
         """Perform a halo swap in the specifed dimension and direction.

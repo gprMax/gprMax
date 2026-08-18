@@ -243,6 +243,7 @@ class MPIModel(Model):
             save_snapshots(self.G.snapshots)
 
         self.G.reduce_eigenmode_ports()
+        sar_payloads = self.G.gather_sar_payloads()
 
         # TODO: Output sources and receivers using parallel I/O
         with self.G.gathered_output_state():
@@ -255,6 +256,7 @@ class MPIModel(Model):
                 or self.G.port_monitors
                 or self.G.eigenmodeports
                 or self.G.ntff_output_writers
+                or self.G.sar_monitors
             ):
                 self.G.size = self.G.global_size
                 from gprMax.eigenmode_ports import finalise_eigenmode_ports
@@ -283,6 +285,9 @@ class MPIModel(Model):
                 prepare_magnetic_frill_ports(self.G)
                 finalise_magnetic_frill_ports(self.G)
                 self._rebind_mpi_frill_port_owners()
+                if sar_payloads is not None:
+                    for monitor, payloads in zip(self.G.sar_monitors, sar_payloads):
+                        monitor.finalise_mpi(payloads, self.G.global_size)
                 write_hdf5_outputfile(
                     config.get_model_config().output_file_path_ext, self.title, self
                 )

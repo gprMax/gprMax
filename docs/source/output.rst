@@ -51,6 +51,15 @@ The serial CPU solver uses a Cython/OpenMP sparse transform. CUDA, OpenCL, and
 Metal accumulate the same sparse transforms in device memory and download only
 the completed complex edge spectra. Local SAR and any requested spatial mass
 averages are then evaluated on the host using the common implementation.
+With MPI domain decomposition, every rank transforms only the sparse electric
+edges needed near its selected tagged cells. After time stepping, uniquely
+owned edge spectra and owned-cell metadata are gathered once. The coordinator
+then collocates the global Yee-edge spectra, applies source or port
+normalisation, and performs any mass averaging on the complete tag volume.
+This avoids additional collectives inside the timestep loop and permits both
+tag regions and averaging cubes to cross rank boundaries. It also avoids
+depending on diagonal MPI halo values, which the field solver does not require
+and therefore does not exchange.
 The transform uses the engineering convention
 
 .. math::
@@ -108,6 +117,10 @@ mass-average SAR, and peak voxel SAR.
 ``CellIndexOrigin`` and ``CellCentreOffset`` map the integer
 ``cell_indices`` to physical cell-centre positions. ``CellIndexFrame`` is
 ``main-grid`` for a normal output and ``subgrid-local`` for an HSG output.
+MPI output uses globally sorted main-grid cell indices and the same HDF5 schema
+as the serial solver. The gathered sparse spectra and completed frequency-by-
+cell arrays reside on the coordinator during finalisation; for extremely large
+tag volumes this coordinator memory is the present scalability limit.
 
 Spatial averaging is not performed by default. This keeps the application-
 neutral local quantities available without imposing a bioelectromagnetic

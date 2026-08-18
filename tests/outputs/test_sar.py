@@ -8,10 +8,18 @@ import pytest
 
 import gprMax
 from gprMax import config
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.hash_cmds_file import get_user_objects
 from gprMax.materials import DispersiveMaterial
 from gprMax.ports import PortPowerSpectrum
-from gprMax.sar import SARMonitor, _material_loss_conductivity, _pml_cell_mask
+from gprMax.sar import (
+    EDGE_OFFSETS,
+    SARLocalPayload,
+    SARMonitor,
+    _material_loss_conductivity,
+    _mpi_owned_edge_mask,
+    _pml_cell_mask,
+)
 from gprMax.user_objects.cmds_output import SAR
 
 
@@ -203,6 +211,107 @@ def test_sar_cell_formula_matches_homogeneous_analytical_value():
 
     assert result.absorbed_power_density[0, 0] == pytest.approx(25.0)
     assert result.sar[0, 0] == pytest.approx(0.025)
+
+
+def test_mpi_sar_edge_ownership_is_unique_and_includes_outer_boundary():
+    lower = SimpleNamespace(
+        lower_extent=np.asarray((0, 0, 0), dtype=np.int32),
+        upper_extent=np.asarray((5, 4, 4), dtype=np.int32),
+        negative_halo_offset=np.asarray((0, 0, 0), dtype=bool),
+        global_size=np.asarray((10, 4, 4), dtype=np.int32),
+    )
+    upper = SimpleNamespace(
+        lower_extent=np.asarray((4, 0, 0), dtype=np.int32),
+        upper_extent=np.asarray((10, 4, 4), dtype=np.int32),
+        negative_halo_offset=np.asarray((1, 0, 0), dtype=bool),
+        global_size=np.asarray((10, 4, 4), dtype=np.int32),
+    )
+    coordinates = np.asarray(((4, 2, 2), (5, 2, 2), (10, 2, 2)), dtype=np.int32)
+
+    np.testing.assert_array_equal(
+        _mpi_owned_edge_mask(lower, coordinates), (True, False, False)
+    )
+    np.testing.assert_array_equal(
+        _mpi_owned_edge_mask(upper, coordinates), (False, True, True)
+    )
+
+
+def test_mpi_sar_gather_adds_no_collective_when_no_monitors():
+    grid = SimpleNamespace(sar_monitors=[])
+
+    assert MPIGrid.gather_sar_payloads(grid) is None
+
+
+def test_mpi_sar_internal_pml_mask_is_localised_from_global_coordinates():
+    spec = SimpleNamespace(xs=3, xf=7, ys=1, yf=3, zs=2, zf=4)
+    grid = SimpleNamespace(
+        nx=6,
+        ny=5,
+        nz=5,
+        lower_extent=np.asarray((4, 0, 0), dtype=np.int32),
+        pmls={
+            "thickness": {name: 0 for name in ("x0", "xmax", "y0", "ymax", "z0", "zmax")},
+            "internal_specs": [spec],
+        },
+    )
+
+    mask = _pml_cell_mask(grid)
+
+    expected = np.zeros((6, 5, 5), dtype=bool)
+    expected[0:3, 1:3, 2:4] = True
+    np.testing.assert_array_equal(mask, expected)
+
+
+def test_mpi_sar_payload_collocates_edges_across_partition_corner(monkeypatch):
+    cell = np.asarray(((5, 5, 5),), dtype=np.int32)
+    required = {
+        component: cell[:, np.newaxis, :] + offsets[np.newaxis, :, :]
+        for component, offsets in EDGE_OFFSETS.items()
+    }
+    payloads = []
+    for rank in range(2):
+        edge_coordinates = {}
+        edge_dft = {}
+        for component, coordinates in required.items():
+            coordinates = coordinates.reshape(-1, 3)
+            selection = np.arange(coordinates.shape[0]) % 2 == rank
+            edge_coordinates[component] = coordinates[selection]
+            value = 2.0 if component == "Ex" else 0.0
+            edge_dft[component] = np.full(
+                (1, np.count_nonzero(selection)), value, dtype=np.complex128
+            )
+        payloads.append(
+            SARLocalPayload(
+                cell_indices=cell if rank == 0 else np.empty((0, 3), dtype=np.int32),
+                tag_id=np.asarray((1,), dtype=np.uint8)
+                if rank == 0
+                else np.empty(0, dtype=np.uint8),
+                material_id=np.asarray((3,), dtype=np.uint32)
+                if rank == 0
+                else np.empty(0, dtype=np.uint32),
+                density=np.asarray((1000.0,)) if rank == 0 else np.empty(0),
+                absorbed_power_density=np.zeros((1, 1 if rank == 0 else 0)),
+                excluded_pml_cell_count=rank,
+                edge_coordinates=edge_coordinates,
+                edge_dft=edge_dft,
+            )
+        )
+
+    monitor = SARMonitor.__new__(SARMonitor)
+    monitor.frequencies = np.asarray((1e9,))
+    monitor.real_dtype = np.dtype(np.float64)
+    monitor.grid = SimpleNamespace()
+    monkeypatch.setattr(
+        "gprMax.sar._material_loss_conductivity",
+        lambda *args: np.ones((1, 1), dtype=np.float64),
+    )
+
+    merged = monitor.merge_local_payloads(payloads)
+    collocated = monitor._collocate_mpi_payload(merged, (10, 10, 10))
+
+    np.testing.assert_array_equal(collocated.cell_indices, cell)
+    assert collocated.absorbed_power_density[0, 0] == pytest.approx(2.0)
+    assert collocated.excluded_pml_cell_count == 1
 
 
 def test_sar_debye_loss_conductivity_matches_closed_form(monkeypatch):

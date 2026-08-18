@@ -1468,9 +1468,11 @@ material is sampled by at least ten cells. Use ``spectrum_limit=8`` for a
 lambda/8 criterion. ``spectrum_limit='nyquist'`` is an explicit research
 override: it retains the requested frequencies but does not imply spatial
 accuracy. Three-dimensional CPU, CUDA, OpenCL, and Metal models are supported
-on the main grid. Three-dimensional CPU HSG subgrids are also supported. MPI
-domain decomposition is not yet supported. See :ref:`sar-output` for the
-formulation and HDF5 schema.
+on the main grid. MPI domain-decomposed CPU models and three-dimensional CPU
+HSG subgrids are also supported. Under MPI, source and port normalisation and
+any requested spatial mass averaging are completed globally on the coordinator,
+so tag volumes and averaging cubes may cross rank boundaries. See
+:ref:`sar-output` for the formulation and HDF5 schema.
 
 Rational-network S11 and input impedance
 -----------------------------------------

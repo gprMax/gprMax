@@ -70,8 +70,38 @@ def _pml_cell_mask(grid: "FDTDGrid") -> npt.NDArray[np.bool_]:
     if thickness["zmax"]:
         mask[:, :, grid.nz - thickness["zmax"] :] = True
     for spec in grid.pmls["internal_specs"]:
-        mask[spec.xs : spec.xf, spec.ys : spec.yf, spec.zs : spec.zf] = True
+        lower = np.asarray((spec.xs, spec.ys, spec.zs), dtype=np.int64)
+        upper = np.asarray((spec.xf, spec.yf, spec.zf), dtype=np.int64)
+        if hasattr(grid, "lower_extent"):
+            lower -= np.asarray(grid.lower_extent, dtype=np.int64)
+            upper -= np.asarray(grid.lower_extent, dtype=np.int64)
+        lower = np.maximum(lower, 0)
+        upper = np.minimum(upper, np.asarray(mask.shape, dtype=np.int64))
+        if np.all(lower < upper):
+            mask[
+                lower[0] : upper[0],
+                lower[1] : upper[1],
+                lower[2] : upper[2],
+            ] = True
     return mask
+
+
+def _mpi_owned_edge_mask(grid, global_coordinates) -> npt.NDArray[np.bool_]:
+    """Return which global Yee-edge coordinates are owned by one MPI rank."""
+
+    global_coordinates = np.asarray(global_coordinates, dtype=np.int32)
+    owned_lower = np.asarray(
+        grid.lower_extent + grid.negative_halo_offset.astype(np.int32), dtype=np.int32
+    )
+    owned_upper = np.asarray(grid.upper_extent, dtype=np.int32)
+    global_shape = np.asarray(grid.global_size, dtype=np.int32)
+    owned = np.all(global_coordinates >= owned_lower, axis=1)
+    for dimension in range(3):
+        if owned_upper[dimension] == global_shape[dimension]:
+            owned &= global_coordinates[:, dimension] <= owned_upper[dimension]
+        else:
+            owned &= global_coordinates[:, dimension] < owned_upper[dimension]
+    return owned
 
 
 @dataclass(frozen=True)
@@ -128,6 +158,20 @@ class SARSpatialAverageResult:
     orientation: npt.NDArray[np.int8]
     peak_sar: npt.NDArray[np.floating]
     peak_cell: npt.NDArray[np.integer]
+
+
+@dataclass(frozen=True)
+class SARLocalPayload:
+    """Rank-local SAR data independent of source or port normalisation."""
+
+    cell_indices: npt.NDArray[np.integer]
+    tag_id: npt.NDArray[np.integer]
+    material_id: npt.NDArray[np.integer]
+    density: npt.NDArray[np.floating]
+    absorbed_power_density: npt.NDArray[np.floating]
+    excluded_pml_cell_count: int
+    edge_coordinates: dict[str, npt.NDArray[np.integer]] | None = None
+    edge_dft: dict[str, npt.NDArray[np.complexfloating]] | None = None
 
 
 def _window(name: str, count: int, dtype: np.dtype) -> npt.NDArray[np.floating]:
@@ -275,11 +319,35 @@ class SARMonitor:
         )
         tag_data = grid.geometry_tag_map.data
         tagged_mask = np.isin(tag_data, self.tag_ids)
+        owned_mask = np.ones(tag_data.shape, dtype=bool)
+        self._mpi_distributed = hasattr(grid, "comm") and hasattr(grid, "lower_extent")
+        if self._mpi_distributed:
+            halo = np.asarray(grid.negative_halo_offset, dtype=np.int32)
+            if halo[0]:
+                owned_mask[: halo[0], :, :] = False
+            if halo[1]:
+                owned_mask[:, : halo[1], :] = False
+            if halo[2]:
+                owned_mask[:, :, : halo[2]] = False
         pml_mask = _pml_cell_mask(grid)
-        self.excluded_pml_cell_count = int(np.count_nonzero(tagged_mask & pml_mask))
-        mask = tagged_mask & ~pml_mask
+        self.excluded_pml_cell_count = int(
+            np.count_nonzero(tagged_mask & pml_mask & owned_mask)
+        )
+        sampling_mask = tagged_mask & ~pml_mask
+        mask = sampling_mask & owned_mask
         self.cells = np.asarray(np.argwhere(mask), dtype=np.int32)
-        if self.cells.size == 0:
+        self.sampling_cells = (
+            np.asarray(np.argwhere(sampling_mask), dtype=np.int32)
+            if self._mpi_distributed
+            else self.cells
+        )
+        local_cell_count = int(self.cells.shape[0])
+        global_cell_count = (
+            int(grid.comm.allreduce(local_cell_count))
+            if self._mpi_distributed
+            else local_cell_count
+        )
+        if global_cell_count == 0:
             raise ValueError(
                 "SAR selected geometry tags contain no physical cells outside PML regions"
             )
@@ -294,6 +362,14 @@ class SARMonitor:
                 if material_by_id[int(material_id)].mass_density is None
             }
         )
+        if self._mpi_distributed:
+            missing_density = sorted(
+                {
+                    name
+                    for rank_names in grid.comm.allgather(tuple(missing_density))
+                    for name in rank_names
+                }
+            )
         if missing_density:
             raise ValueError(
                 "SAR requires finite positive mass density for selected material(s): "
@@ -306,14 +382,18 @@ class SARMonitor:
 
         self.edge_flat_indices = {}
         self.cell_edge_indices = {}
+        self.edge_coordinates = {}
         for component, offsets in EDGE_OFFSETS.items():
-            expanded = (self.cells[:, np.newaxis, :] + offsets[np.newaxis, :, :]).reshape(-1, 3)
+            expanded = (
+                self.sampling_cells[:, np.newaxis, :] + offsets[np.newaxis, :, :]
+            ).reshape(-1, 3)
             unique, inverse = np.unique(expanded, axis=0, return_inverse=True)
+            self.edge_coordinates[component] = np.asarray(unique, dtype=np.int32)
             self.edge_flat_indices[component] = np.asarray(
                 np.ravel_multi_index(unique.T, (grid.nx + 1, grid.ny + 1, grid.nz + 1)),
                 dtype=np.int64,
             )
-            self.cell_edge_indices[component] = inverse.reshape(self.cells.shape[0], 4)
+            self.cell_edge_indices[component] = inverse.reshape(self.sampling_cells.shape[0], 4)
         self.cell_material_loss = _material_loss_conductivity(
             grid, self.cell_material_ids, self.frequencies
         )
@@ -323,6 +403,22 @@ class SARMonitor:
         )
         self.cells_per_wavelength = np.asarray(cells_per_wavelength, dtype=np.float64)
         self.limiting_material = np.asarray(limiting_material, dtype=str)
+        if self._mpi_distributed:
+            rank_sampling = grid.comm.allgather(
+                (self.cells_per_wavelength, self.limiting_material)
+            )
+            values = np.stack([item[0] for item in rank_sampling], axis=0)
+            limiting_ranks = np.argmin(values, axis=0)
+            self.cells_per_wavelength = values[
+                limiting_ranks, np.arange(self.frequencies.size)
+            ]
+            self.limiting_material = np.asarray(
+                [
+                    rank_sampling[int(rank)][1][frequency_index]
+                    for frequency_index, rank in enumerate(limiting_ranks)
+                ],
+                dtype=str,
+            )
         self.mesh_valid = self.cells_per_wavelength >= self.minimum_wavelength_cells
         if self.spectrum_limit != "nyquist" and not np.all(self.mesh_valid):
             first = int(np.flatnonzero(~self.mesh_valid)[0])
@@ -355,7 +451,10 @@ class SARMonitor:
         self.grid_shape = (int(grid.nx), int(grid.ny), int(grid.nz))
         self.grid_spacing = (float(grid.dx), float(grid.dy), float(grid.dz))
         self.cell_volume = float(grid.dx * grid.dy * grid.dz)
-        if hasattr(grid, "local_to_global"):
+        if self._mpi_distributed:
+            self.cell_index_frame = "main-grid"
+            self.cell_index_origin = np.zeros(3, dtype=np.float64)
+        elif hasattr(grid, "local_to_global"):
             self.cell_index_frame = "subgrid-local"
             self.cell_index_origin = np.asarray(grid.local_to_global((0, 0, 0)), dtype=np.float64)
         else:
@@ -423,6 +522,12 @@ class SARMonitor:
     def prepare_run(self) -> None:
         """Refresh source normalisation after geometry-fixed study changes."""
 
+        # MPI sources are partitioned between ranks. Their complete state is
+        # available only on the coordinator inside gathered_output_state().
+        if self._mpi_distributed:
+            self._source_samples = np.empty(0, dtype=self.real_dtype)
+            self._source_window = np.empty(0, dtype=self.real_dtype)
+            return
         self._source_samples, self._source_dt = self._build_source_samples()
         self._source_window = _window(
             self.window_name, self._source_samples.size, np.dtype(np.float64)
@@ -434,8 +539,10 @@ class SARMonitor:
             sum(array.nbytes for array in self.accumulators.values())
             + sum(array.nbytes for array in self.edge_flat_indices.values())
             + sum(array.nbytes for array in self.cell_edge_indices.values())
+            + sum(array.nbytes for array in self.edge_coordinates.values())
             + self.cell_material_loss.nbytes
             + self.cells.nbytes
+            + (0 if self.sampling_cells is self.cells else self.sampling_cells.nbytes)
             + self.cell_tag_ids.nbytes
             + self.cell_material_ids.nbytes
             + self.density.nbytes
@@ -502,9 +609,156 @@ class SARMonitor:
             )
         self.accumulators[component][...] = data
 
-    def finalise(self) -> SARResult:
+    def local_payload(self) -> SARLocalPayload:
+        """Return owned-cell absorbed power before source normalisation."""
+
         if self._next_iteration != self.grid_iterations:
             raise RuntimeError("SAR monitor cannot be finalised before every timestep is observed")
+        absorbed = np.zeros((self.frequencies.size, self.cells.shape[0]), dtype=self.real_dtype)
+        edge_coordinates = None
+        edge_dft = None
+        if getattr(self, "_mpi_distributed", False):
+            edge_coordinates = {}
+            edge_dft = {}
+            for component, local_coordinates in self.edge_coordinates.items():
+                global_coordinates = (
+                    local_coordinates + np.asarray(self.grid.lower_extent, dtype=np.int32)
+                )
+                owned = _mpi_owned_edge_mask(self.grid, global_coordinates)
+                edge_coordinates[component] = global_coordinates[owned]
+                edge_dft[component] = self.accumulators[component][:, owned].copy()
+        else:
+            for component in EDGE_OFFSETS:
+                edge_indices = self.cell_edge_indices[component]
+                cell_field = np.mean(self.accumulators[component][:, edge_indices], axis=2)
+                absorbed += np.asarray(
+                    0.5 * self.cell_material_loss * np.abs(cell_field) ** 2,
+                    dtype=self.real_dtype,
+                )
+
+        cells = self.cells.copy()
+        if getattr(self, "_mpi_distributed", False):
+            cells += np.asarray(self.grid.lower_extent, dtype=np.int32)
+        return SARLocalPayload(
+            cell_indices=cells,
+            tag_id=self.cell_tag_ids.copy(),
+            material_id=self.cell_material_ids.copy(),
+            density=np.asarray(self.density, dtype=self.real_dtype),
+            absorbed_power_density=absorbed,
+            excluded_pml_cell_count=getattr(self, "excluded_pml_cell_count", 0),
+            edge_coordinates=edge_coordinates,
+            edge_dft=edge_dft,
+        )
+
+    @staticmethod
+    def merge_local_payloads(payloads: list[SARLocalPayload]) -> SARLocalPayload:
+        """Merge rank payloads into deterministic global-cell order."""
+
+        if not payloads:
+            raise ValueError("cannot merge an empty collection of MPI SAR payloads")
+        cell_indices = np.concatenate([payload.cell_indices for payload in payloads], axis=0)
+        tag_id = np.concatenate([payload.tag_id for payload in payloads])
+        material_id = np.concatenate([payload.material_id for payload in payloads])
+        density = np.concatenate([payload.density for payload in payloads])
+        absorbed = np.concatenate(
+            [payload.absorbed_power_density for payload in payloads], axis=1
+        )
+        if cell_indices.shape[0] == 0:
+            raise ValueError("MPI SAR selected no physical cells outside PML regions")
+        order = np.lexsort((cell_indices[:, 2], cell_indices[:, 1], cell_indices[:, 0]))
+        cell_indices = cell_indices[order]
+        if cell_indices.shape[0] > 1 and np.any(
+            np.all(cell_indices[1:] == cell_indices[:-1], axis=1)
+        ):
+            raise RuntimeError("MPI SAR aggregation found duplicate owned global cells")
+        merged_edge_coordinates = None
+        merged_edge_dft = None
+        if any(payload.edge_coordinates is not None for payload in payloads):
+            if any(
+                payload.edge_coordinates is None or payload.edge_dft is None
+                for payload in payloads
+            ):
+                raise RuntimeError("MPI SAR payloads contain inconsistent edge DFT data")
+            merged_edge_coordinates = {}
+            merged_edge_dft = {}
+            for component in EDGE_OFFSETS:
+                coordinates = np.concatenate(
+                    [payload.edge_coordinates[component] for payload in payloads], axis=0
+                )
+                dft = np.concatenate(
+                    [payload.edge_dft[component] for payload in payloads], axis=1
+                )
+                edge_order = np.lexsort(
+                    (coordinates[:, 2], coordinates[:, 1], coordinates[:, 0])
+                )
+                coordinates = coordinates[edge_order]
+                if coordinates.shape[0] > 1 and np.any(
+                    np.all(coordinates[1:] == coordinates[:-1], axis=1)
+                ):
+                    raise RuntimeError(
+                        f"MPI SAR aggregation found duplicate owned {component} edges"
+                    )
+                merged_edge_coordinates[component] = coordinates
+                merged_edge_dft[component] = dft[:, edge_order]
+        return SARLocalPayload(
+            cell_indices=cell_indices,
+            tag_id=tag_id[order],
+            material_id=material_id[order],
+            density=density[order],
+            absorbed_power_density=absorbed[:, order],
+            excluded_pml_cell_count=sum(
+                payload.excluded_pml_cell_count for payload in payloads
+            ),
+            edge_coordinates=merged_edge_coordinates,
+            edge_dft=merged_edge_dft,
+        )
+
+    def _collocate_mpi_payload(self, payload: SARLocalPayload, global_shape) -> SARLocalPayload:
+        """Collocate gathered global Yee-edge DFTs at gathered cell centres."""
+
+        if payload.edge_coordinates is None or payload.edge_dft is None:
+            raise RuntimeError("MPI SAR payload does not contain electric-edge DFTs")
+        field_shape = tuple(int(value) + 1 for value in global_shape)
+        material_loss = _material_loss_conductivity(
+            self.grid, payload.material_id, self.frequencies
+        )
+        absorbed = np.zeros(
+            (self.frequencies.size, payload.cell_indices.shape[0]), dtype=self.real_dtype
+        )
+        for component, offsets in EDGE_OFFSETS.items():
+            coordinates = payload.edge_coordinates[component]
+            available = np.ravel_multi_index(coordinates.T, field_shape)
+            required_coordinates = (
+                payload.cell_indices[:, np.newaxis, :] + offsets[np.newaxis, :, :]
+            ).reshape(-1, 3)
+            required = np.ravel_multi_index(required_coordinates.T, field_shape)
+            positions = np.searchsorted(available, required)
+            if np.any(positions >= available.size) or np.any(available[positions] != required):
+                raise RuntimeError(
+                    f"MPI SAR aggregation is missing required global {component} edges"
+                )
+            cell_field = np.mean(
+                payload.edge_dft[component][:, positions].reshape(
+                    self.frequencies.size, payload.cell_indices.shape[0], 4
+                ),
+                axis=2,
+            )
+            absorbed += np.asarray(
+                0.5 * material_loss * np.abs(cell_field) ** 2,
+                dtype=self.real_dtype,
+            )
+        return SARLocalPayload(
+            cell_indices=payload.cell_indices,
+            tag_id=payload.tag_id,
+            material_id=payload.material_id,
+            density=payload.density,
+            absorbed_power_density=absorbed,
+            excluded_pml_cell_count=payload.excluded_pml_cell_count,
+        )
+
+    def _normalisation_data(self):
+        """Return source/port spectra, validity masks, and field scaling."""
+
         source_dt = getattr(self, "_source_dt", self.grid_dt)
         source_window = getattr(self, "_source_window", self.window)
         source_spectrum = np.asarray(
@@ -571,22 +825,30 @@ class SARMonitor:
             scale[power_defined] = np.sqrt(
                 self.target_power / normalising_power[power_defined]
             ).astype(self.complex_dtype)
-        absorbed = np.zeros((self.frequencies.size, self.cells.shape[0]), dtype=self.real_dtype)
-        for component in EDGE_OFFSETS:
-            normalised = self.accumulators[component] * scale[:, np.newaxis]
-            edge_indices = self.cell_edge_indices[component]
-            cell_field = np.mean(normalised[:, edge_indices], axis=2)
-            absorbed += np.asarray(
-                0.5 * self.cell_material_loss * np.abs(cell_field) ** 2,
-                dtype=self.real_dtype,
-            )
-        sar = np.asarray(absorbed / self.density[np.newaxis, :], dtype=self.real_dtype)
+        return source_spectrum, relative_db, source_valid, valid, scale, normalising_power
+
+    def _finalise_payload(
+        self, payload: SARLocalPayload, grid_shape: tuple[int, int, int]
+    ) -> SARResult:
+        (
+            source_spectrum,
+            relative_db,
+            source_valid,
+            valid,
+            scale,
+            normalising_power,
+        ) = self._normalisation_data()
+        absorbed = np.asarray(
+            payload.absorbed_power_density * np.abs(scale[:, np.newaxis]) ** 2,
+            dtype=self.real_dtype,
+        )
+        sar = np.asarray(absorbed / payload.density[np.newaxis, :], dtype=self.real_dtype)
         absorbed[~valid, :] = np.nan
         sar[~valid, :] = np.nan
         spatial_results = []
         if self.averaging_masses:
-            density_volume = np.full(self.grid_shape, np.nan, dtype=np.float64)
-            density_volume[tuple(self.cells.T)] = self.density
+            density_volume = np.full(grid_shape, np.nan, dtype=np.float64)
+            density_volume[tuple(payload.cell_indices.T)] = payload.density
             if self._spatial_average_plans is None:
                 self._spatial_average_plans = tuple(
                     build_spatial_average_plan(
@@ -606,10 +868,10 @@ class SARMonitor:
             peak_sar = np.full(self.frequencies.shape, np.nan, dtype=self.real_dtype)
             peak_cell = np.full((self.frequencies.size, 3), -1, dtype=np.int32)
             for frequency_index in np.flatnonzero(valid):
-                local_volume = np.zeros(self.grid_shape, dtype=np.float64)
-                local_volume[tuple(self.cells.T)] = sar[frequency_index]
+                local_volume = np.zeros(grid_shape, dtype=np.float64)
+                local_volume[tuple(payload.cell_indices.T)] = sar[frequency_index]
                 averaged = apply_spatial_average_plan(plan, local_volume, density_volume)
-                selection = tuple(self.cells.T)
+                selection = tuple(payload.cell_indices.T)
                 averaged_sar[frequency_index] = averaged.sar[selection]
                 status[frequency_index] = averaged.status[selection]
                 averaging_mass[frequency_index] = averaged.averaging_mass[selection]
@@ -632,10 +894,10 @@ class SARMonitor:
             )
         self.result = SARResult(
             frequency=np.asarray(self.frequencies, dtype=self.real_dtype),
-            cell_indices=self.cells.copy(),
-            tag_id=self.cell_tag_ids.copy(),
-            material_id=self.cell_material_ids.copy(),
-            density=np.asarray(self.density, dtype=self.real_dtype),
+            cell_indices=payload.cell_indices.copy(),
+            tag_id=payload.tag_id.copy(),
+            material_id=payload.material_id.copy(),
+            density=np.asarray(payload.density, dtype=self.real_dtype),
             source_spectrum=source_spectrum,
             source_relative_db=relative_db,
             source_valid=np.asarray(source_valid, dtype=bool),
@@ -650,6 +912,32 @@ class SARMonitor:
             normalising_power=normalising_power,
         )
         return self.result
+
+    def finalise(self) -> SARResult:
+        payload = self.local_payload()
+        grid_shape = getattr(
+            self,
+            "grid_shape",
+            tuple(int(value) for value in np.max(payload.cell_indices, axis=0) + 1),
+        )
+        return self._finalise_payload(payload, grid_shape)
+
+    def finalise_mpi(self, payloads: list[SARLocalPayload], global_shape) -> SARResult:
+        """Finalise gathered rank payloads on the MPI coordinator."""
+
+        if not self._mpi_distributed:
+            raise RuntimeError("finalise_mpi requires an MPI SAR monitor")
+        self._source_samples, self._source_dt = self._build_source_samples()
+        self._source_window = _window(
+            self.window_name, self._source_samples.size, np.dtype(np.float64)
+        )
+        payload = self.merge_local_payloads(payloads)
+        payload = self._collocate_mpi_payload(payload, global_shape)
+        self.excluded_pml_cell_count = payload.excluded_pml_cell_count
+        self.grid_shape = tuple(int(value) for value in global_shape)
+        self.cell_index_frame = "main-grid"
+        self.cell_index_origin = np.zeros(3, dtype=np.float64)
+        return self._finalise_payload(payload, self.grid_shape)
 
     def write_hdf5(self, basegrp) -> None:
         if self.result is None:
