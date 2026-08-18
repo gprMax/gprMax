@@ -7,19 +7,22 @@ import pytest
 import gprMax
 
 
-def _subgrid_sar_scene(*, source_on_main_grid=False):
+def _subgrid_sar_scene(
+    *, source_on_main_grid=False, main_spacing=0.003, ratio=3, filtering=True, threads=1
+):
     scene = gprMax.Scene()
     scene.add(gprMax.Domain(p1=(0.09, 0.09, 0.09)))
-    scene.add(gprMax.Discretisation(p1=(0.003, 0.003, 0.003)))
+    scene.add(gprMax.Discretisation(p1=(main_spacing,) * 3))
     scene.add(gprMax.TimeWindow(time=4e-10))
     scene.add(gprMax.PMLThickness(thickness=0))
-    scene.add(gprMax.OMPThreads(1))
+    scene.add(gprMax.OMPThreads(threads))
 
     subgrid = gprMax.SubGridHSG(
         p1=(0.03, 0.03, 0.03),
         p2=(0.06, 0.06, 0.06),
-        ratio=3,
+        ratio=ratio,
         id="fine_grid",
+        filter=filtering,
     )
     scene.add(subgrid)
     subgrid.add(gprMax.Material(er=4, se=0.5, mr=1, sm=0, id="tissue"))
@@ -242,6 +245,66 @@ def test_subgrid_sar_agrees_with_uniform_fine_grid(tmp_path):
         for path in paths:
             np.testing.assert_allclose(
                 nested_sar[path][...], uniform_sar[path][...], rtol=0.05, atol=0
+            )
+
+
+@pytest.mark.integration
+def test_ratio_one_subgrid_sar_matches_identical_uniform_grid(tmp_path):
+    uniform_path = tmp_path / "uniform_ratio_one"
+    subgrid_path = tmp_path / "subgrid_ratio_one"
+    subgrid_scene, _ = _subgrid_sar_scene(main_spacing=0.001, ratio=1, threads=8)
+
+    gprMax.run(
+        scenes=[_uniform_fine_sar_scene()],
+        n=1,
+        outputfile=uniform_path,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+    gprMax.run(
+        scenes=[subgrid_scene],
+        n=1,
+        outputfile=subgrid_path,
+        subgrid=True,
+        autotranslate=True,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(uniform_path.with_suffix(".h5"), "r") as uniform, h5py.File(
+        subgrid_path.with_suffix(".h5"), "r"
+    ) as nested:
+        uniform_sar = uniform["sar/fine_sar"]
+        nested_sar = nested["subgrids/fine_grid/sar/fine_sar"]
+        uniform_centres = (
+            uniform_sar["cell_indices"][...] * 0.001
+            + uniform_sar.attrs["CellIndexOrigin"]
+            + uniform_sar.attrs["CellCentreOffset"]
+        )
+        nested_centres = (
+            nested_sar["cell_indices"][...] * 0.001
+            + nested_sar.attrs["CellIndexOrigin"]
+            + nested_sar.attrs["CellCentreOffset"]
+        )
+        uniform_order = np.lexsort(uniform_centres.T[::-1])
+        nested_order = np.lexsort(nested_centres.T[::-1])
+
+        np.testing.assert_allclose(
+            nested_centres[nested_order], uniform_centres[uniform_order], rtol=0, atol=1e-15
+        )
+        uniform_cells = uniform_sar["sar"][0][uniform_order]
+        nested_cells = nested_sar["sar"][0][nested_order]
+        cell_delta = nested_cells - uniform_cells
+        assert np.linalg.norm(cell_delta) / np.linalg.norm(uniform_cells) < 1e-7
+        assert np.max(np.abs(cell_delta)) / np.max(uniform_cells) < 1e-7
+        for path in (
+            "tags/target/absorbed_power",
+            "tags/target/mass_average_sar",
+            "tags/target/peak_voxel_sar",
+            "spatial_average/1g/peak_sar",
+        ):
+            np.testing.assert_allclose(
+                nested_sar[path][...], uniform_sar[path][...], rtol=1e-7, atol=0
             )
 
 
