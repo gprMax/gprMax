@@ -7,7 +7,8 @@ voxel grids that can be imported by gprMax with
 ``GeometryObjectsRead``/``#geometry_objects_read``. It preserves assembly
 components, provides an editable part-to-material mapping, resolves overlaps
 using explicit priorities, and can export a VTK ImageData file for inspection
-in ParaView.
+in ParaView. Every included component also becomes a cell-centred semantic
+geometry tag by default.
 
 The toolbox is based on the `STEP-to-gprMax project
 <https://github.com/mahdeeabir1710/STEP-to-gprMax>`_ developed by **Mahdee
@@ -62,6 +63,13 @@ member and ``group_confidence=exact_instance`` explains why they were grouped.
 The user can split a row into two rows and partition ``part_names`` whenever
 instances require different materials.
 
+The optional ``geometry_tag`` column is independent of ``material_name``. A
+blank value gives every source component its own sanitised component-name tag.
+Enter one shared value, for example ``fasteners``, when all components in a
+row should be selected collectively in later output processing. Several
+components may share a material without sharing a tag, or share a tag while
+using different materials.
+
 The ``similar_group`` column reports geometrically similar candidates without
 combining them. Approximate grouping is available explicitly when preparing
 the file:
@@ -89,7 +97,8 @@ After editing the CSV, perform the conversion:
 
 This creates:
 
-* ``geometry.h5`` -- the ``int16`` material grid read by gprMax;
+* ``geometry.h5`` -- the ``int16`` material grid and compact semantic tag
+  grid read by gprMax;
 * ``materials.json`` -- a versioned material database whose keys are stored in ``geometry.h5``;
 * ``markers.json`` -- reusable CAD source, receiver and port coordinates;
 * ``geometry.vti`` -- component-labelled VTK ImageData for ParaView;

@@ -2,6 +2,7 @@
 References
 **********
 
+.. [ANT2022] Antonelli, M., Reinke, A., Bakas, S., et al. (2022). The Medical Segmentation Decathlon. *Nature Communications*, 13, 4128. (https://doi.org/10.1038/s41467-022-30695-9)
 .. [BAL2005] Balanis, C. A. (2005). Antenna theory: analysis and design (Vol. 1). John Wiley & Sons.
 .. [BER1998] Bergmann, T., Robertsson, J. O., & Holliger, K. (1998). Finite-difference modeling of electromagnetic wave propagation in dispersive and attenuating media. Geophysics, 63(3), 856-867. (http://dx.doi.org/10.1190/1.1444396)
 .. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
@@ -36,6 +37,7 @@ References
 .. [MAL1994] Maloney, J. G., Shlager, K. L., & Smith, G. S. (1994). A simple FDTD model for transient excitation of antennas by transmission lines. Antennas and Propagation, IEEE Transactions on, 42(2), 289-292.
 .. [PER1999] Pereda, J. A., Alimenti, F., Mezzanotte, P., Roselli, L., & Sorrentino, R. (1999). A New Algorithm for the Incorporation of Arbitrary Linear Lumped Networks into FDTD Simulators. IEEE Transactions on Microwave Theory and Techniques, 47(6), 943-949. (https://doi.org/10.1109/22.769330)
 .. [PIE2009] Pieraccini, M., Bicci, A., Mecatti, D., Macaluso, G., & Atzeni, C. (2009). Propagation of large bandwidth microwave signals in water. Antennas and Propagation, IEEE Transactions on, 57(11), 3612-3618. (http://dx.doi.org/10.1109/tap.2009.2025674)
+.. [POP2006] Popa, T., Ibáñez, L., Levy, E., White, A., Bruno, J., & Cleary, K. (2006). Tumor volume measurement and volume measurement comparison plug-ins for VolView using ITK. In *Medical Imaging 2006: Visualization, Image-Guided Procedures, and Display*, Proceedings of SPIE, 6141, 61411B. (https://doi.org/10.1117/12.655213)
 .. [RAM1997] Ramahi, O. M. (1997). Near- and far-field calculations in FDTD simulations using Kirchhoff surface integral representation. IEEE Transactions on Antennas and Propagation, 45(5), 753-759, May 1997. (https://doi.org/10.1109/8.575616)
 .. [STA2017] Stadler, S. (2017). A Forward Modeling Study for the Investigation of the Vertical Water-Content Distribution of Using Guided GPR Waves (Master’s Thesis, Freiberg University of Mining and Technology, Germany) (https://app.box.com/s/h2n2ytsdllcm77du1o9lknumngmq8vq8)
 .. [TAF2005] Taflove, A., & Hagness, S. C. (2005). Computational electrodynamics. Artech house.
@@ -50,4 +52,5 @@ References
 .. [WEN2007a] Weng, W. C., Yang, F., & Elsherbeni, A. (2007). Electromagnetics and antenna optimization using Taguchi’s method. Synthesis Lectures on Computational Electromagnetics, 2(1), 1-94.
 .. [WEN2007b] Weng, W. C., Yang, F., & Elsherbeni, A. Z. (2007). Linear antenna array synthesis using Taguchi's method: A novel optimization technique in electromagnetics. Antennas and Propagation, IEEE Transactions on, 55(3), 723-730.
 .. [WHI2009] Whittow, W. G., & Edwards, R. M. (2009). Effects of averaging procedures for electrical properties at the interface of dissimilar tissues in the human head with finite-difference time-domain modelling. Science, Measurement & Technology, IET, 3(1), 51-58.
+.. [YAN2018] Yaniv, Z., Lowekamp, B. C., Johnson, H. J., & Beare, R. (2018). SimpleITK Image-Analysis Notebooks: a collaborative environment for education and reproducible research. *Journal of Digital Imaging*, 31(3), 290-303. (https://doi.org/10.1007/s10278-017-0037-8)
 .. [YEE1966] Yee, K. S. (1966). Numerical solution of initial boundary value problems involving Maxwell’s equations in isotropic media. IEEE Trans. Antennas Propag, 14(3), 302-307. (http://dx.doi.org/10.1109/TAP.1966.1138693)

@@ -51,6 +51,20 @@ class TestGeometryObjectsRead:
         assert gor.kwargs["p1"] == (0.0, 0.0, 0.0)
         assert gor.kwargs["geofile"] == "geo.bin"
         assert gor.kwargs["matfile"] == "mat.txt"
+        assert gor.kwargs["averaging"] == "n"
+
+    def test_optional_averaging_flag(self):
+        from gprMax.user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
+
+        objs = process_geometrycmds(["#geometry_objects_read: 0 0 0 geo.h5 tissues y"])
+        gor = objs[0]
+        assert isinstance(gor, GeometryObjectsRead)
+        assert gor.kwargs["material_database"] == "tissues"
+        assert gor.kwargs["averaging"] == "y"
+
+    def test_invalid_averaging_flag_rejected(self):
+        with pytest.raises(ValueError, match="averaging flag"):
+            process_geometrycmds(["#geometry_objects_read: 0 0 0 geo.h5 tissues maybe"])
 
     def test_wrong_arity_rejected(self):
         with pytest.raises(ValueError):

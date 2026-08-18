@@ -1038,11 +1038,15 @@ database. The syntax of the command is:
 
 .. code-block:: none
 
-    #geometry_objects_read: f1 f2 f3 file1 file2
+    #geometry_objects_read: f1 f2 f3 file1 file2 [y/n]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates in the domain where the lower left corner of the geometry array should be placed.
 * ``file1`` is the path to and filename of the HDF5 file that contains an integer array which defines the geometry.
 * ``file2`` is the material database name without ``.json``. It is resolved beside ``file1``.
+* The optional ``y/n`` parameter controls dielectric interface averaging when
+  reconstructing a *voxel-only* file. The default is ``n``. Use ``y`` for
+  voxelised tissue or other dielectric models when smoothed interfaces are
+  desired.
 
 .. note::
 
@@ -1052,12 +1056,21 @@ database. The syntax of the command is:
     * The spatial resolution of the geometry objects must match the spatial resolution defined in the model.
     * The spatial resolution must be specified as a root attribute of the HDF5 file with the name ``dx_dy_dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
     * Legacy material command files remain supported. Supply the ``.txt`` filename as ``file2``; files ending in ``.txt`` select the legacy reader.
+    * Averaging is applied only when the imported file contains cell material
+      indices but no complete Yee-component arrays. A file containing
+      ``/ID``, ``/rigidE``, and ``/rigidH`` records an authoritative component
+      mesh, so the optional averaging flag is ignored.
+    * For imported dispersive dielectrics, also enable
+      ``#dispersive_averaging: y``. Without that global option, dispersive
+      materials remain non-smoothable even if this command requests averaging.
+      Cell-centred material density and geometry tags are never averaged.
 
 For example, after converting a downloaded 2 mm AustinMan model to the
 current HDF5/JSON format as described in the :doc:`AustinMan/AustinWoman
 toolbox <inc_AustinMan>`, insert it with its lower-left corner 40 mm from the
-domain origin using ``#geometry_objects_read: 0.04 0.04 0.04
-AustinMan_v2.6_2x2x2_gprmax.h5 AustinMan_v2_6_2mm_materials``.
+domain origin and enable tissue-interface averaging using
+``#geometry_objects_read: 0.04 0.04 0.04
+AustinMan_v2.6_2x2x2_gprmax.h5 AustinMan_v2_6_2mm_materials y``.
 
 #geometry_objects_write:
 ------------------------

@@ -23,11 +23,24 @@ def convert_meshes(meshes, discretization, parallel=False):
     return vol, scale, shift
 
 
-def convert_file(input_file_path, discretization, pad=1, parallel=False):
-    return convert_files([input_file_path], discretization, pad=pad, parallel=parallel)
+def convert_file(input_file_path, discretization, pad=1, parallel=False, source_unit="mm"):
+    return convert_files(
+        [input_file_path],
+        discretization,
+        pad=pad,
+        parallel=parallel,
+        source_unit=source_unit,
+    )
 
 
-def convert_files(input_file_paths, discretization, colors=None, pad=0, parallel=False):
+def convert_files(
+    input_file_paths,
+    discretization,
+    colors=None,
+    pad=0,
+    parallel=False,
+    source_unit="mm",
+):
     """Convert one or more STL files to a gprMax material-index array.
 
     ``colors`` is retained for compatibility with the upstream API but is not
@@ -35,6 +48,12 @@ def convert_files(input_file_paths, discretization, colors=None, pad=0, parallel
     """
     if pad < 0:
         raise ValueError("pad must be non-negative")
+
+    unit_to_mm = {"m": 1000.0, "mm": 1.0, "um": 1e-3}
+    try:
+        source_scale = unit_to_mm[source_unit.lower().replace("µ", "u")]
+    except KeyError as exc:
+        raise ValueError("source_unit must be m, mm, or um") from exc
 
     meshes = []
 
@@ -47,6 +66,7 @@ def convert_files(input_file_paths, discretization, colors=None, pad=0, parallel
                 mesh_obj.v2[:, np.newaxis],
             )
         )
+        org_mesh *= source_scale
         meshes.append(org_mesh)
     vol, scale, shift = convert_meshes(meshes, discretization, parallel)
     vol = np.transpose(vol)

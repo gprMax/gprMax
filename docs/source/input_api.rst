@@ -818,7 +818,15 @@ In a different scene, the saved geometry can be inserted at a chosen origin:
         p1=(0.05, 0.05, 0),
         geofile='reusable_geometry.h5',
         material_database='reusable_geometry_materials',
+        averaging='y',
     ))
+
+``averaging='y'`` reconstructs a voxel-only file with dielectric interface
+averaging; its backward-compatible default is ``'n'``. If the file contains
+complete ``/ID``, ``/rigidE``, and ``/rigidH`` arrays, those Yee-component
+arrays are authoritative and the option is ignored. Dispersive tissue
+interfaces additionally require ``gprMax.DispersiveAveraging(enabled=True)``.
+Material density and cell-centred geometry tags remain discrete per cell.
 
 Source and output functions
 ===========================

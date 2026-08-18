@@ -40,6 +40,7 @@ gprMax User Guide
     inc_DebyeFit
     inc_LandmineModels
     inc_Materials
+    inc_GeometryImport
     inc_STLtoVoxel
     inc_STEPtoVoxel
     inc_gprMaxLogo

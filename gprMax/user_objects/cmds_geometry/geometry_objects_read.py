@@ -54,6 +54,10 @@ class GeometryObjectsRead(GeometryUserObject):
             contains an integer array which defines the geometry.
         material_database: database name for a new-format geometry file.
         matfile: legacy text material file (deprecated).
+        averaging: optional ``"y"``/``"n"`` flag controlling interface
+            averaging when a voxel-only file is reconstructed. The default
+            is ``"n"``. Files containing complete ``/ID``, ``/rigidE``, and
+            ``/rigidH`` arrays are authoritative and ignore this option.
     """
 
     @property
@@ -71,6 +75,16 @@ class GeometryObjectsRead(GeometryUserObject):
         if not geofile.is_file():
             raise FileNotFoundError(f"Geometry object file '{geofile}' does not exist")
         return geofile
+
+    def _resolve_averaging(self) -> bool:
+        """Return the requested voxel-reconstruction averaging policy."""
+
+        averaging = self.kwargs.get("averaging", "n")
+        if isinstance(averaging, (bool, np.bool_)):
+            return bool(averaging)
+        if not isinstance(averaging, str) or averaging.lower() not in {"y", "n"}:
+            raise ValueError(f"{self.params_str()} averaging must be 'y', 'n', True, or False")
+        return averaging.lower() == "y"
 
     def declared_geometry_tags(self) -> tuple[str, ...]:
         """Read the compact tag catalogue before destination map allocation."""
@@ -103,6 +117,7 @@ class GeometryObjectsRead(GeometryUserObject):
             raise
         material_database = self.kwargs.get("material_database")
         matfile = self.kwargs.get("matfile")
+        averaging = self._resolve_averaging()
         if (material_database is None) == (matfile is None):
             raise ValueError(
                 f"{self.params_str()} requires exactly one of material_database or legacy matfile"
@@ -160,6 +175,12 @@ class GeometryObjectsRead(GeometryUserObject):
                 )
 
             if f.has_rigid_arrays() and f.has_ID_array():
+                if averaging:
+                    logger.warning(
+                        f"{self.grid_name(grid)}Geometry file {geofile} contains complete "
+                        "/ID, /rigidE, and /rigidH component arrays; averaging='y' is ignored "
+                        "because these arrays define the requested Yee-component model."
+                    )
                 f.read_data()
                 f.read_ID()
                 f.read_rigidE()
@@ -176,7 +197,6 @@ class GeometryObjectsRead(GeometryUserObject):
                 if data is not None:
                     data_start = f.get_local_data_start()
                     assert data_start is not None
-                    averaging = False
                     is_pec_lookup = np.array([m.is_pec for m in grid.materials], dtype=np.uint8)
                     is_averagable_lookup = np.array(
                         [m.averagable for m in grid.materials], dtype=np.uint8
@@ -200,6 +220,7 @@ class GeometryObjectsRead(GeometryUserObject):
                     f"{self.grid_name(grid)}Geometry objects from file "
                     f"(voxels only) {geofile} inserted at {p2[0]:g}m, "
                     f"{p2[1]:g}m, {p2[2]:g}m, with {material_description}."
+                    f" Interface averaging is {'enabled' if averaging else 'disabled'}."
                 )
 
     def _build_database_material_map(self, grid, geofile, database):

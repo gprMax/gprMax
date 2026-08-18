@@ -48,7 +48,11 @@ def test_cli_writes_stable_material_keys_and_editable_json(tmp_path, monkeypatch
     stl = tmp_path / "patch metal.stl"
     stl.touch()
     model = np.asarray([[[0]], [[-1]]], dtype=np.int16)
-    monkeypatch.setattr(stltovoxel, "convert_files", lambda files, dxdydz: model)
+    monkeypatch.setattr(
+        stltovoxel,
+        "convert_files",
+        lambda files, dxdydz, source_unit="mm": model,
+    )
     monkeypatch.setattr(sys, "argv", ["stltovoxel", str(stl), "-dxdydz", "0.001"])
 
     stltovoxel.main()
@@ -59,6 +63,11 @@ def test_cli_writes_stable_material_keys_and_editable_json(tmp_path, monkeypatch
         keys = [value.decode() for value in geometry["material_keys"][:]]
         assert keys == ["material_000_patch_metal"]
         assert geometry.attrs["MaterialDatabase"] == "patch_metal_geo_materials"
+        assert [value.decode() for value in geometry["tag_names"][:]] == [
+            "untagged",
+            "patch_metal",
+        ]
+        np.testing.assert_array_equal(geometry["tag_data"][:].ravel(), [1, 0])
     database = json.loads(database_path.read_text(encoding="utf-8"))
     assert list(database["materials"]) == keys
     entry = database["materials"][keys[0]]
@@ -78,3 +87,55 @@ def test_cli_writes_stable_material_keys_and_editable_json(tmp_path, monkeypatch
     stltovoxel.main()
     preserved = json.loads(database_path.read_text(encoding="utf-8"))
     assert preserved["materials"][keys[0]]["base"]["relative_permittivity"] == 4.0
+
+
+def test_assignments_separate_part_tags_from_shared_material(tmp_path):
+    first = tmp_path / "left eye.stl"
+    second = tmp_path / "right eye.stl"
+    first.touch()
+    second.touch()
+    assignments = tmp_path / "anatomy.csv"
+    assignments.write_text(
+        "file,include,priority,material_name,geometry_tag\n"
+        "left eye.stl,y,0,vitreous,left_eye\n"
+        "right eye.stl,y,1,vitreous,right_eye\n",
+        encoding="utf-8",
+    )
+
+    result = stltovoxel.read_assignments([first, second], assignments)
+
+    assert [item.material_name for item in result] == ["vitreous", "vitreous"]
+    assert [item.geometry_tag for item in result] == ["left_eye", "right_eye"]
+
+
+def test_excluded_stl_may_leave_material_and_tag_blank(tmp_path):
+    source = tmp_path / "external surface.stl"
+    source.touch()
+    assignments = tmp_path / "anatomy.csv"
+    assignments.write_text(
+        "file,include,priority,material_name,geometry_tag\n" "external surface.stl,n,0,,\n",
+        encoding="utf-8",
+    )
+
+    result = stltovoxel.read_assignments([source], assignments)
+
+    assert result[0].include is False
+    assert result[0].material_name is None
+    assert result[0].geometry_tag is None
+
+
+def test_prepare_assignments_does_not_require_voxel_size(tmp_path, monkeypatch):
+    source = tmp_path / "organ.stl"
+    source.touch()
+    assignments = tmp_path / "anatomy.csv"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["stltovoxel", str(source), "--prepare", str(assignments)],
+    )
+
+    stltovoxel.main()
+
+    assert assignments.read_text(encoding="utf-8").startswith(
+        "file,include,priority,material_name,geometry_tag\n"
+    )
