@@ -459,6 +459,58 @@ Allows you to create a list of pre-defined materials that can be used in conjunc
 For example to create a fractal distribution of two different sand materials and water use: ``#material: 3 0 1 0 sand1``, ``#material: 4 0.1 1 0 sand2``, ``#material: 4.9 0.001 1 0 my_water``, ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``, ``#material_list: sand1 sand2 my_water my_list``, ``#fractal_box: 0 0 0 0.15 0.15 0.15 1.5 1 1 1 3 my_list my_frac_box``.
 
 
+.. _material_crim:
+
+#material_crim:
+---------------
+
+Allows you to use the Complex Refractive Index Model (CRIM) to mix a fixed-fraction non-dispersive matrix material with a single-pole Debye dispersive material (e.g. water or brine), with the remaining volume fraction assumed to be air. The command is designed to be used in conjunction with the ``#fractal_box`` command for creating media, such as wet soils, wet concrete, or brine-bearing ice, with realistic dielectric and geometric properties. Both the matrix and dispersive materials must already exist, i.e. be defined using ``#material`` (and, for the dispersive material, ``#add_dispersion_debye`` with exactly one pole) before this command is used.
+
+CRIM is a general power-law mixing formula for the bulk complex permittivity of a multi-phase medium [BIR1974]_, widely used for estimating the permittivity of soils, snow, ice, and other granular or porous media from the properties and volume fractions of their constituents. It takes the general form
+
+.. math::
+
+    \varepsilon_{\mathrm{mix}}(\omega)^{a} = \sum_{i} f_i \, \varepsilon_i(\omega)^{a},
+
+where :math:`f_i` and :math:`\varepsilon_i(\omega)` are the volumetric fraction and complex relative permittivity of constituent :math:`i` (with :math:`\sum_i f_i = 1`), and :math:`a` is an empirical shape factor that encodes the geometry of the mixed phases relative to the applied field: :math:`a=1` reduces to a simple volumetric (linear) average of permittivities, :math:`a=0.5` is the square-root, or "refractive index", form most commonly used for soils and other granular GPR media, and as :math:`a \to 0` the model approaches logarithmic (Lichtenecker) mixing.
+
+The syntax of the command is:
+
+.. code-block:: none
+
+    #material_crim: str1 f1 str2 f2 f3 f4 f5 f6 str3
+
+* ``str1`` is an identifier for an existing non-dispersive material used for the fixed-fraction matrix (solid) phase.
+* ``f1`` is the fixed volumetric fraction of the matrix phase.
+* ``str2`` is an identifier for an existing single-pole Debye material used for the dispersive phase.
+* ``f2`` and ``f3`` define a range for the volumetric fraction of the dispersive phase.
+* ``f4`` and ``f5`` are the lower and upper bounds of the frequency range (Hz) used to fit the CRIM mixing curve.
+* ``f6`` is the CRIM shape factor, :math:`a`, described above.
+* ``str3`` is an identifier for the CRIM mixing model.
+
+For this command, the mixture has exactly three phases - the fixed-fraction matrix, the dispersive phase, and air - so :math:`\varepsilon_i` is specialised to
+
+.. math::
+
+    \varepsilon_{\mathrm{mix}}(\omega)^{a} = f_1 \, \varepsilon_{\mathrm{matrix}}^{a} + f_{\mathrm{disp}} \left[\varepsilon_{\infty} + \frac{\Delta\varepsilon}{1+j\omega\tau}\right]^{a} + f_{\mathrm{air}} \, (1)^{a},
+
+where :math:`\varepsilon_{\infty}`, :math:`\Delta\varepsilon`, and :math:`\tau` are the dispersive material's own Debye parameters (taken directly from its ``#add_dispersion_debye`` definition), :math:`f_{\mathrm{disp}}` is a value between ``f2`` and ``f3`` for each bin, and the implied air fraction is :math:`f_{\mathrm{air}} = 1 - f_1 - f_{\mathrm{disp}}` (so ``f1`` plus ``f3`` must not exceed 1). For each of the ``n_materials`` bins created by the associated ``#fractal_box`` command, a single-pole Debye material is fitted by linear least-squares over the frequency range ``f4`` to ``f5`` to this dielectric CRIM curve. The dispersive material's relaxation time :math:`\tau` is fixed and reused for every bin; the fit determines the pole weight and infinite-frequency permittivity.
+
+The constituent DC conductivities are not included inside the fractional power in the equation above. They are mixed separately using the volumetric rule
+
+.. math::
+
+    \sigma_{\mathrm{mix}} = f_1 \sigma_{\mathrm{matrix}} + f_{\mathrm{disp}} \sigma_{\mathrm{disp}},
+
+with zero conductivity assumed for the air phase. This is a defined approximation rather than a fit of the complete conductive complex permittivity. The current implementation is limited to non-magnetic constituents (:math:`\mu_r=1` and :math:`\sigma_m=0`).
+
+For example, to create a fractal distribution of wet sand, with a fixed sand fraction of 0.6 and a water fraction ranging from 0.02 to 0.35, fitted over 1 MHz to 3 GHz with the standard CRIM shape factor, use: ``#material: 5 0 1 0 sand``, ``#material: 4.9 0 1 0 water``, ``#add_dispersion_debye: 1 73.3389 8.0994e-12 water``, ``#material_crim: sand 0.6 water 0.02 0.35 1e6 3e9 0.5 wetsand``, and then specify the fractal box using ``#fractal_box: 0 0 0 0.1 0.1 0.08 1.5 1 1 1 10 wetsand my_fractal_box``.
+
+.. note::
+
+    Only passive, single-pole Debye materials are accepted for the dispersive phase - CRIM's dispersive constituent is conventionally assumed to be water or brine, which is well represented by a single relaxation. Using a material with more than one Debye pole, a non-Debye dispersive material, a perfect conductor, or a magnetic material will raise an error.
+
+
 #soil_peplinski:
 ----------------
 

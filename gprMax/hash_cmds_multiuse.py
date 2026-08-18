@@ -39,6 +39,7 @@ from .user_objects.cmds_multiuse import (
     MagneticDipole,
     MagneticFrillSource,
     Material,
+    MaterialCrim,
     MaterialDensity,
     MaterialFromDatabase,
     MaterialList,
@@ -1313,6 +1314,28 @@ def process_multicmds(multicmds):
 
             material_list = MaterialList(list_of_materials=lmats, id=tmp[tokens - 1])
             scene_objects.append(material_list)
+
+    cmdname = "#material_crim"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 9:
+                message = f"'{cmdname}: {' '.join(tmp)}' requires exactly nine parameters"
+                logger.error(message)
+                raise ValueError(message)
+            material_crim = MaterialCrim(
+                matrix_id=tmp[0],
+                matrix_fraction=float(tmp[1]),
+                dispersive_id=tmp[2],
+                fraction_lower=float(tmp[3]),
+                fraction_upper=float(tmp[4]),
+                f_min=float(tmp[5]),
+                f_max=float(tmp[6]),
+                a=float(tmp[7]),
+                id=tmp[8],
+            )
+            scene_objects.append(material_crim)
 
     cmdname = "#pml_formulation"
     if multicmds[cmdname] is not None:

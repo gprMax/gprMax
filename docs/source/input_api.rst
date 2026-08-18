@@ -528,6 +528,45 @@ Drude Dispersion
 ----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.AddDrudeDispersion
 
+Material CRIM
+-------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialCrim
+
+See :ref:`#material_crim <material_crim>` for the CRIM mixing formula and how it is
+specialised to the matrix/dispersive-phase/air case used here.
+
+The CRIM object, like the Peplinski object below, is a mixing model for a
+:class:`FractalBox`, rather than a homogeneous material. It combines a
+fixed-fraction non-dispersive matrix material with a single-pole Debye
+dispersive material (assumed water or brine); the remaining volume fraction
+is assumed to be air. Both materials must already exist in the scene, and
+the dispersive material must have exactly one Debye pole. Conductivity is
+mixed separately by volume fraction as described for the hash command:
+
+.. code-block:: python
+
+    scene.add(gprMax.Material(er=5, se=0, mr=1, sm=0, id='sand'))
+
+    scene.add(gprMax.Material(er=4.9, se=0, mr=1, sm=0, id='water'))
+    scene.add(gprMax.AddDebyeDispersion(
+        poles=1, er_delta=(73.3389,), tau=(8.0994e-12,),
+        material_ids=('water',),
+    ))
+
+    scene.add(gprMax.MaterialCrim(
+        matrix_id='sand', matrix_fraction=0.6,
+        dispersive_id='water', fraction_lower=0.02, fraction_upper=0.35,
+        f_min=1e6, f_max=3e9, a=0.5,
+        id='wetsand',
+    ))
+
+    scene.add(gprMax.FractalBox(
+        p1=(0, 0, 0), p2=(0.1, 0.1, 0.08),
+        frac_dim=1.5, weighting=(1, 1, 1),
+        n_materials=10, mixing_model_id='wetsand',
+        id='my_fractal_box',
+    ))
+
 Soil Peplinski
 --------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.SoilPeplinski

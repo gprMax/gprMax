@@ -190,16 +190,17 @@ class Relaxation(object):
                 "##########\n",
                 sep="",
             )
-            error = np.infty  # artificial best error starting value
             self.number_of_debye_poles = 1
             iteration = 1
             # stop increasing number of Debye poles if error is smaller then 5%
             # or 20 debye poles is reached
-            while error > 5 and iteration < 21:
+            while True:
                 # Calling the main optimisation module
                 tau, weights, ee, rl, im = self.optimize()
                 err_real, err_imag = self.error(rl + ee, im)
                 error = err_real + err_imag
+                if error <= 5 or iteration >= 20:
+                    break
                 self.number_of_debye_poles += 1
                 iteration += 1
         else:
@@ -231,12 +232,25 @@ class Relaxation(object):
             tau (ndarray): The best known position form optimization module
                            (optimal design).
             weights (ndarray): Resulting optimised weights for the given relaxation times.
-            ee (float): Average error between the actual and the approximated real part.
+            ee (float): Fitted relative permittivity at infinite frequency
+                        (e_inf), written into the returned #material command.
 
         Returns:
             material_prop (list(str)): Given material nad Debye expnasion parameters
                                        in a gprMax format.
         """
+        if ee < 1:
+            warnings.warn(
+                f"The fitted relative permittivity at infinite frequency "
+                f"(e_inf={ee:g}) for material '{self.material_name}' is below "
+                f"1, i.e. less than the permittivity of vacuum. This is not "
+                f"physically valid for a passive dielectric and usually means "
+                f"the fit has not converged well - try more Debye poles, "
+                f"different optimizer settings, or check the input "
+                f"parameters. gprMax's #material command will reject a "
+                f"material with er < 1."
+            )
+
         print("Debye expansion parameters: ")
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
@@ -690,7 +704,7 @@ class Crim(Relaxation):
     def calculation(self):
         """Calculates the Crim function for the given parameters"""
         return np.sum(
-            np.repeat(self.volumetric_fractions, len(self.freq)).reshape((-1, len(self.materials)))
+            self.volumetric_fractions
             * (
                 self.materials[:, 0]
                 + self.materials[:, 1]

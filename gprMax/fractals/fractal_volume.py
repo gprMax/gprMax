@@ -29,7 +29,7 @@ from gprMax import config
 from gprMax.cython.fractals_generate import generate_fractal3D
 from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
-from gprMax.materials import ListMaterial, PeplinskiSoil, RangeMaterial
+from gprMax.materials import CrimMixture, ListMaterial, PeplinskiSoil, RangeMaterial
 from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,9 @@ class FractalVolume:
         )
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
-        self.mixingmodel: Optional[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = None
+        self.mixingmodel: Optional[
+            Union[PeplinskiSoil, RangeMaterial, ListMaterial, CrimMixture]
+        ] = None
         self.fractalsurfaces: List[FractalSurface] = []
 
     @property
@@ -490,9 +492,7 @@ class MPIFractalVolume(FractalVolume):
         # Take the real part (numerical errors can give rise to an imaginary part)
         # of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        A = np.ascontiguousarray(
-            np.real(A), dtype=config.sim_config.dtypes["float_or_double"]
-        )
+        A = np.ascontiguousarray(np.real(A), dtype=config.sim_config.dtypes["float_or_double"])
 
         # Allreduce to get min and max values in the fractal volume
         min_value = np.array(np.amin(A), dtype=config.sim_config.dtypes["float_or_double"])

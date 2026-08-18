@@ -39,6 +39,7 @@ from gprMax.eigenmode_config import (
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.material_database import build_material_from_spec, load_material_spec
+from gprMax.materials import CrimMixture as CrimMixtureUser
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
 from gprMax.materials import ListMaterial as ListMaterialUser
 from gprMax.materials import Material as MaterialUser
@@ -3971,6 +3972,128 @@ class MaterialList(GridUserObject):
 
         logger.info(
             f"{self.grid_name(grid)}A list of materials used to create {s.ID} that includes {s.mat}, created"
+        )
+
+        grid.mixingmodels.append(s)
+
+
+class MaterialCrim(GridUserObject):
+    """Mixing model based on the Complex Refractive Index Model (CRIM),
+    combining a fixed-fraction non-dispersive matrix material with a
+    single-pole Debye dispersive material (e.g. water or brine); the
+    remaining volume fraction is assumed to be air.
+
+    Attributes:
+        matrix_id: string for ID of an existing non-dispersive material used
+                    for the fixed-fraction matrix (solid) phase.
+        matrix_fraction: float required for fixed volumetric fraction of the
+                            matrix phase.
+        dispersive_id: string for ID of an existing single-pole Debye
+                        material used for the dispersive phase.
+        fraction_lower: float required for lower boundary of the volumetric
+                            fraction of the dispersive phase.
+        fraction_upper: float required for upper boundary of the volumetric
+                            fraction of the dispersive phase.
+        f_min: float required for lower bound of the frequency range (Hz)
+                used to fit the CRIM mixing curve.
+        f_max: float required for upper bound of the frequency range (Hz)
+                used to fit the CRIM mixing curve.
+        a: float required for the CRIM shape factor.
+        id: string used as identifier for this CRIM mixing model.
+    """
+
+    @property
+    def order(self):
+        return 15
+
+    @property
+    def hash(self):
+        return "#material_crim"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def build(self, grid: FDTDGrid):
+        try:
+            matrix_id = self.kwargs["matrix_id"]
+            matrix_fraction = float(self.kwargs["matrix_fraction"])
+            dispersive_id = self.kwargs["dispersive_id"]
+            fraction_lower = float(self.kwargs["fraction_lower"])
+            fraction_upper = float(self.kwargs["fraction_upper"])
+            f_min = float(self.kwargs["f_min"])
+            f_max = float(self.kwargs["f_max"])
+            a = float(self.kwargs["a"])
+            ID = self.kwargs["id"]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{self.params_str()} requires exactly nine parameters with numeric fractions, "
+                "frequencies, and shape factor"
+            ) from exc
+
+        if not np.all(
+            np.isfinite([matrix_fraction, fraction_lower, fraction_upper, f_min, f_max, a])
+        ):
+            raise ValueError(f"{self.params_str()} requires all numeric parameters to be finite")
+
+        if not (0 <= matrix_fraction <= 1):
+            logger.exception(
+                f"{self.params_str()} requires the matrix fraction to be between 0 and 1."
+            )
+            raise ValueError
+        if fraction_lower < 0:
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the lower limit of the "
+                "dispersive volumetric fraction."
+            )
+            raise ValueError
+        if fraction_upper <= 0:
+            logger.exception(
+                f"{self.params_str()} requires a value greater than zero for the upper limit of "
+                "the dispersive volumetric fraction."
+            )
+            raise ValueError
+        if fraction_lower > fraction_upper:
+            logger.exception(
+                f"{self.params_str()} requires the lower limit of the dispersive volumetric "
+                "fraction to be less than or equal to the upper limit."
+            )
+            raise ValueError
+        if matrix_fraction + fraction_upper > 1:
+            logger.exception(
+                f"{self.params_str()} requires the matrix fraction plus the upper limit of the "
+                "dispersive volumetric fraction to not exceed 1."
+            )
+            raise ValueError
+        if f_min <= 0 or f_max <= 0:
+            logger.exception(f"{self.params_str()} requires positive values for f_min and f_max.")
+            raise ValueError
+        if f_min >= f_max:
+            logger.exception(f"{self.params_str()} requires f_min to be less than f_max.")
+            raise ValueError
+        if a <= 0:
+            logger.exception(f"{self.params_str()} requires a positive value for the shape factor.")
+            raise ValueError
+        if any(x.ID == ID for x in grid.mixingmodels):
+            logger.exception(f"{self.params_str()} with ID {ID} already exists")
+            raise ValueError
+
+        s = CrimMixtureUser(
+            ID,
+            matrix_id,
+            matrix_fraction,
+            dispersive_id,
+            fraction_lower,
+            fraction_upper,
+            f_min,
+            f_max,
+            a,
+        )
+
+        logger.info(
+            f"{self.grid_name(grid)}Mixing model (CRIM) used to create {s.ID} with matrix "
+            f"material {matrix_id!r} (fraction {matrix_fraction:g}), dispersive material "
+            f"{dispersive_id!r} (fraction {fraction_lower:g} to {fraction_upper:g}), shape "
+            f"factor {a:g}, created."
         )
 
         grid.mixingmodels.append(s)
