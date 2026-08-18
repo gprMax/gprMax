@@ -38,6 +38,121 @@ voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
 Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
 further groups for each named or numbered output.
 
+.. _sar-output:
+
+Absorbed power density and specific absorption rate
+---------------------------------------------------
+
+A requested SAR output adds ``/sar/<id>``. gprMax transforms only the unique
+Yee electric edges required by the selected tagged cells and only at the
+requested frequencies; it does not store a full time history for every cell.
+The serial CPU solver uses a Cython/OpenMP sparse transform. CUDA, OpenCL, and
+Metal accumulate the same sparse transforms in device memory and download only
+the completed complex edge spectra. Local SAR and any requested spatial mass
+averages are then evaluated on the host using the common implementation.
+The transform uses the engineering convention
+
+.. math::
+
+   \tilde{E}(f)=\int E(t)\exp(-j2\pi ft)\,\mathrm{d}t.
+
+The four parallel Yee edges of each electric component are averaged as
+complex phasors to the cell centre. With peak (not RMS) phasors, the local
+time-average absorbed power density and SAR are
+[IEEE62704-3]_
+
+.. math::
+
+   \begin{aligned}
+   p_{\mathrm{abs}}(f) &= \frac{1}{2}\sigma_{\mathrm{eff}}(f)
+       \left(|E_x(f)|^2+|E_y(f)|^2+|E_z(f)|^2\right),\\
+   \mathrm{SAR}(f) &= \frac{p_{\mathrm{abs}}(f)}{\rho},\\
+   \sigma_{\mathrm{eff}}(f) &= -\omega\epsilon_0
+       \operatorname{Im}\{\epsilon_r(f)\}.
+   \end{aligned}
+
+Thus ``absorbed_power_density`` is in W/m\ :sup:`3`, ``density`` is in
+kg/m\ :sup:`3`, and ``sar`` is in W/kg. This evaluates dielectric/conductive
+loss directly and does not explicitly form a current-density array. The cell
+material supplies :math:`\sigma_{\mathrm{eff}}` and :math:`\rho`; dielectric
+smoothing of Yee-edge update coefficients does not average mass density or
+tag membership.
+
+Because a finite transient spectrum is not itself a continuous-wave
+excitation, waveform normalisation divides the field DFT by the DFT of the
+selected source waveform and multiplies it by ``TargetAmplitude``. Exactly
+one active source may use that waveform. Alternatively, incident- or
+accepted-power normalisation multiplies the field DFT by
+
+.. math::
+
+   C_P(f)=\sqrt{\frac{P_{\mathrm{target}}}{P_{\mathrm{port}}(f)}}.
+
+The requested port power is obtained through the same terminal/modal power
+adapter used for antenna gain. Non-positive, non-finite, or invalid port
+powers produce invalid SAR bins rather than unbounded scaling. Frequencies
+below ``SourceFloorDB`` are likewise marked invalid and stored as NaN.
+
+The datasets include ``frequency``, ``cell_indices``, ``tag_id``,
+``material_id``, ``density``, ``source_spectrum``, ``source_relative_db``,
+``source_valid``, ``mesh_valid``, ``valid``, ``cells_per_wavelength``,
+``limiting_material``, ``absorbed_power_density``, and ``sar``. Each
+``tags/<name>`` subgroup contains cell count, total mass, absorbed power,
+mass-average SAR, and peak voxel SAR.
+
+Spatial averaging is not performed by default. This keeps the application-
+neutral local quantities available without imposing a bioelectromagnetic
+1 g/10 g convention or its potentially substantial post-processing cost.
+When one or more target masses are explicitly requested, the output also
+writes ``spatial_average/<mass>g``. The standard 1 g and 10 g outputs are
+requested with ``averaging_masses=(0.001, 0.01)``. They use the two-step
+cubical mass-averaging procedure of IEC/IEEE 62704-1 [IEEE62704-1]_: first a
+cube is expanded symmetrically about each tissue voxel; remaining boundary
+voxels are then evaluated with six face-centred cubes. During centred-cube
+growth every complete voxel shell is checked to ensure that each of its six
+faces touches or intersects tissue. A cell is marked as covered when more
+than 99.9% of its volume lies in a valid centred cube. Fractional
+boundary-voxel volumes are used to reach the target mass. Density is
+piecewise constant within each tagged FDTD cell: a fractional contribution
+has mass
+
+.. math::
+
+   \Delta m_i = q_i\,\rho_i\,\Delta x\Delta y\Delta z,
+
+where :math:`0\leq q_i\leq1` is only the geometrical fraction inside the
+averaging cube. Density is not interpolated or Yee-edge averaged. The selected
+tags collectively define tissue; cells outside them are background. Each mass
+group contains ``sar``, ``status``, ``averaging_mass``,
+``averaging_volume``, ``orientation``, ``peak_sar``, and ``peak_cell``.
+Status values are 0 invalid/background, 1 unused boundary, 2 covered by a
+valid centred cube, and 3 a valid centred-cube location. Orientation 7 is a
+centred cube and 1--6 identify the face-centred directions.
+
+The density-, tag-, and grid-dependent averaging-cube geometry is constructed
+once for each requested mass and reused for every frequency. The compiled
+OpenMP implementation therefore avoids repeating the expensive target-mass
+search for a frequency sweep.
+
+The local ``absorbed_power_density`` and per-tag ``absorbed_power`` datasets
+are not restricted to dosimetry. They can also support absorption studies for
+GPR targets and media, and provide an electromagnetic input to radiometric
+post-processing. gprMax does not yet convert these quantities into brightness
+temperature or a receiver-weighted radiometer observable; those require
+physical-temperature and measurement-model information beyond SAR itself.
+
+Cells inside either a domain-boundary PML or an internal PML slab are always
+excluded, even when their geometry tag is selected. PML attenuation is a
+numerical coordinate stretching and must not be counted as physical material
+absorption, tissue mass, or SAR. The group attributes ``PMLCellPolicy`` and
+``ExcludedPMLCellCount`` record this operation.
+
+The requested frequencies must be below temporal Nyquist. By default they
+must also have at least ten cells per shortest wavelength in every model
+material; a lambda/8 criterion may be selected. The ``nyquist`` research mode
+retains frequencies outside that spatial criterion and records the mesh
+validity metadata, but does not make those results physically reliable.
+
 Reusable parameter studies add a root ``study`` group. Its attributes are
 ``Type``, ``CaseID``, ``CaseIndex`` (one based), ``CaseCount``,
 ``GeometryReused``, and, for CSV studies, ``SourcePath``. The ``source``

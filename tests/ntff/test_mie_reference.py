@@ -7,6 +7,7 @@ from scipy.constants import c
 
 from testing.validation.mie_dielectric import (
     dielectric_mie_coefficients,
+    dielectric_sphere_absorption_cross_section,
     dielectric_sphere_bistatic_rcs,
 )
 from testing.validation.mie_pec import (
@@ -104,6 +105,19 @@ def test_small_dielectric_sphere_backscatter_approaches_rayleigh_limit():
     expected = 4 * np.pi * wavenumber**4 * radius**6 * abs(contrast) ** 2
 
     assert_allclose(actual, expected, rtol=2e-4)
+
+
+def test_lossless_dielectric_sphere_has_zero_absorption():
+    actual = dielectric_sphere_absorption_cross_section(1e9, 0.01, 4.0)
+
+    assert actual == pytest.approx(0.0, abs=2e-18)
+
+
+def test_passive_lossy_dielectric_sphere_has_positive_absorption():
+    actual = dielectric_sphere_absorption_cross_section(1e9, 0.01, 4.0 - 0.5j)
+
+    assert np.isfinite(actual)
+    assert actual > 0
 
 
 @pytest.mark.parametrize(

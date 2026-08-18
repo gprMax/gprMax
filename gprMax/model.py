@@ -367,6 +367,14 @@ class Model:
             if not self.G.ntff_output_writers:
                 compile_ntff_outputs(self, self.G)
 
+        # SAR requests use final Yee material IDs and therefore compile only
+        # after the geometry build. Accelerator backends collect the same
+        # sparse edge DFTs on device and download only those compact arrays.
+        if getattr(self.G, "sar_specs", None) and not self.G.sar_monitors:
+            from gprMax.sar import compile_sar_outputs
+
+            compile_sar_outputs(self.G)
+
         logger.info(
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
@@ -381,6 +389,9 @@ class Model:
         # leaking from one reused-geometry run into the next.
         if config.sim_config.study is not None:
             config.sim_config.study.apply_case(self)
+
+        for monitor in self.G.sar_monitors:
+            monitor.prepare_run(self.G)
 
         # Magnetic-frill sources bind the attached thin-wire radius, resolve
         # symmetry, validate the PEC ground plane, and precompute their
@@ -667,6 +678,8 @@ class Model:
         for grid in [self.G] + self.subgrids:
             finalise_transmission_line_ports(grid)
             finalise_magnetic_frill_ports(grid)
+        for monitor in self.G.sar_monitors:
+            monitor.finalise()
 
         if config.sim_config.study is not None:
             config.sim_config.study.collect_case(self)
@@ -693,6 +706,7 @@ class Model:
             or ntff_outputs
             or self.G.port_monitors
             or self.G.eigenmodeports
+            or self.G.sar_monitors
             or any(grid.eigenmodeports for grid in self.subgrids)
         ):
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)

@@ -70,6 +70,19 @@ def test_two_single_pole_media_make_exact_two_pole_average(monkeypatch):
     assert model_config.materials["maxpoles"] == 2
 
 
+def test_interface_average_does_not_average_cell_mass_density(monkeypatch):
+    model_config = _MaterialConfig()
+    monkeypatch.setattr(config, "get_model_config", lambda: model_config)
+    a = _debye(3, "a", 2.0, 0.1, (6.0,), (1e-11,))
+    b = _debye(4, "b", 4.0, 0.3, (10.0,), (3e-11,))
+    a.mass_density = 1000.0
+    b.mass_density = 1200.0
+
+    averaged = create_electric_average_material(5, "a+a+b+b", (a, a, b, b))
+
+    assert averaged.mass_density is None
+
+
 def test_repeated_relaxation_times_are_merged_exactly(monkeypatch):
     model_config = _MaterialConfig()
     monkeypatch.setattr(config, "get_model_config", lambda: model_config)

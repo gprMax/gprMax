@@ -394,6 +394,114 @@ relative L2 error from 8.77% to 6.01% and the RMS logarithmic error from
 <../../testing/validation/dispersive_averaging/validate_core_shell_fdtd.py>`
 to regenerate the full comparison.
 
+Tagged-cell SAR in a lossy half space
+=====================================
+
+The :download:`SAR validation driver
+<../../testing/validation/validate_sar_lossy_halfspace.py>` launches a
+normally incident unit-amplitude plane wave onto a homogeneous conductive
+half space whose declared interface uses dielectric averaging. It compares
+cell-centred SAR along the central propagation line with the Fresnel
+transmitted field and its analytical attenuation. The analytical field is
+integrated over the cell volume, as recommended for comparisons of FDTD SAR
+algorithms [LAA2010]_. A secondary implementation-matched comparison averages
+the two tangential electric-field phasors on the bounding faces of the cell:
+
+.. math::
+
+   \begin{aligned}
+    E(z) &= \frac{2\eta_2}{\eta_1+\eta_2}\exp(-\gamma_2 z),\\
+    E_c(z) &= \frac{E(z-\Delta x/2)+E(z+\Delta x/2)}{2},\\
+    \overline{\mathrm{SAR}}(z) &= \frac{1}{\Delta x}
+      \int_{z-\Delta x/2}^{z+\Delta x/2}
+      \frac{\sigma |E(u)|^2}{2\rho}\,\mathrm{d}u.
+   \end{aligned}
+
+For the supplied 1 GHz, 2 mm-grid case, the production on-the-fly transform
+has a relative L2 error of 0.113% and a maximum pointwise relative error of
+0.150% against the exact cell-volume average over 16 interior depth samples.
+The implementation-matched Yee-collocated errors are 0.072% and 0.093%.
+
+One broadband run also evaluates 14 frequencies from 0.5 to 7 GHz. The
+cell-average L2 error rises smoothly from 0.040% at 0.5 GHz to 5.69% at
+7 GHz, where the shortest wavelength has 10.7 cells. The corresponding
+maximum pointwise errors are 0.041% and 7.00%. This shows both the accuracy
+of the on-the-fly multi-frequency transform and the expected deterioration
+as the grid approaches its lambda/10 limit. The script enforces conservative
+5% and 6% limits for its default 1 GHz test and writes plots plus JSON metrics.
+
+This is the local-SAR analytical validation. The separate
+:download:`spatial-average validation driver
+<../../testing/validation/validate_sar_spatial_averaging.py>` compares the
+production 1 g/10 g algorithm with the independent Apache-2.0 STASIS
+implementation of IEC/IEEE 62704-1. For its heterogeneous two-density test,
+all voxel-status classifications agree. The maximum relative differences in
+spatial-average SAR are :math:`5.14\times10^{-8}` for 1 g and
+:math:`9.90\times10^{-6}` for 10 g; the residual is attributable to the two
+implementations' independent cubic-root searches. The external reference
+repository is not bundled with gprMax and must be supplied to the driver.
+
+The exhaustive comparison with the official uniform-grid SAR Star reports
+uses a :math:`281^3` grid containing 1,498,184 tissue voxels. For both 1 g
+and 10 g there are zero tissue-status, background-status, and unambiguous
+orientation mismatches. For 1 g, the maximum relative mass, volume, and SAR
+differences are :math:`2.17\times10^{-7}`, :math:`1.95\times10^{-7}`, and
+:math:`7.55\times10^{-7}`. For 10 g they are
+:math:`2.00\times10^{-7}`, :math:`1.75\times10^{-7}`, and
+:math:`7.50\times10^{-7}`. With reusable averaging geometry and compiled
+OpenMP processing, the complete 1 g and 10 g cases took 20.9 s and 36.9 s,
+respectively, on the validation server. Before this optimisation the same
+production algorithm took 4,710 s and 3,555 s. These full-size comparisons
+remain manual release validations rather than routine CI tests.
+
+Tagged-cell SAR in a lossy dielectric sphere
+=============================================
+
+The :download:`lossy-sphere SAR driver
+<../../testing/validation/validate_sar_lossy_sphere.py>` supplies an
+independent three-dimensional check that includes a curved, staircased
+material boundary. A unit-amplitude plane wave illuminates a homogeneous
+conductive dielectric sphere. The exact Mie absorption cross-section is
+
+.. math::
+
+   C_{\mathrm{abs}} = \frac{2\pi}{k_0^2}
+   \sum_{n=1}^{\infty}(2n+1)
+   \left[\Re(a_n+b_n)-|a_n|^2-|b_n|^2\right],
+
+where :math:`a_n` and :math:`b_n` are the homogeneous-sphere Mie
+coefficients [MIE1908]_. For an incident peak electric-field phasor
+:math:`E_0`, the reference absorbed power is
+
+.. math::
+
+   P_{\mathrm{abs}}^{\mathrm{Mie}}
+   = C_{\mathrm{abs}}\frac{|E_0|^2}{2\eta_0}.
+
+The production gprMax result is evaluated independently by integrating the
+tagged-cell absorbed-power-density output,
+:math:`P_{\mathrm{abs}}^{\mathrm{FDTD}}=\sum_i p_{\mathrm{abs},i}\Delta V`.
+For the supplied 18 mm-radius, :math:`\epsilon_r=4`,
+:math:`\sigma=0.3` S/m sphere at 1 GHz, the relative absorbed-power errors
+decrease from 12.29% to 8.81% and 6.37% as the resolution increases from 12
+to 18 and 24 cells per radius. Double-precision CUDA runs at 36 and 48 cells
+per radius reduce the error further to 4.27% and 3.29%, respectively. The
+monotonic convergence is consistent with curved-interface staircasing and
+ordinary FDTD discretisation, rather than agreement to numerical precision.
+
+Power-normalisation consistency
+===============================
+
+The :download:`power-normalisation driver
+<../../testing/validation/validate_sar_power_normalisation.py>` exercises an
+actual voltage source and ``RxPort`` through the complete solver and output
+path. Requesting 4 W rather than 1 W incident power multiplies every SAR value
+by four exactly. Normalising the same fields to accepted rather than incident
+power agrees with the independently evaluated port-power ratio to
+:math:`8.9\times10^{-16}` relative. This test establishes implementation
+consistency; unlike the half-space and sphere cases, it is not an independent
+electromagnetic reference solution.
+
 Running the validation suite
 ============================
 
@@ -408,6 +516,13 @@ Run the studies from the repository root, for example:
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
+    python -m testing.validation.validate_sar_lossy_halfspace
+    python -m testing.validation.validate_sar_lossy_sphere
+    python -m testing.validation.validate_sar_power_normalisation
+    python testing/validation/validate_sar_spatial_averaging.py \
+        --reference /path/to/IEC-IEEE-62704-1-spatial-average-SAR
+    python -m testing.validation.validate_sar_star \
+        /path/to/62704-1_supplemental_files.zip
     python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
     python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
     python -m gprMax \

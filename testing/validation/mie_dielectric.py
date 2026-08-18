@@ -135,3 +135,37 @@ def dielectric_sphere_bistatic_rcs(
     else:
         raise ValueError("polarisation must be 'perpendicular' or 'parallel'")
     return np.asarray(4 * np.pi * np.abs(amplitude) ** 2 / wavenumber**2)
+
+
+def dielectric_sphere_absorption_cross_section(
+    frequency: float,
+    radius: float,
+    relative_permittivity: complex,
+) -> float:
+    """Return the exact Mie absorption cross-section in square metres.
+
+    The result is the extinction cross-section minus the scattering
+    cross-section. The phasor and passive-permittivity convention is the same
+    as :func:`dielectric_mie_coefficients`.
+    """
+
+    if not np.isfinite(frequency) or frequency <= 0:
+        raise ValueError("frequency must be finite and greater than zero")
+    if not np.isfinite(radius) or radius <= 0:
+        raise ValueError("radius must be finite and greater than zero")
+    wavenumber = 2 * np.pi * frequency / c
+    electric, magnetic = dielectric_mie_coefficients(wavenumber * radius, relative_permittivity)
+    orders = np.arange(1, electric.size + 1, dtype=np.float64)
+    weights = 2 * orders + 1
+    factor = 2 * np.pi / wavenumber**2
+    extinction = factor * np.sum(weights * np.real(electric + magnetic))
+    scattering = factor * np.sum(weights * (np.abs(electric) ** 2 + np.abs(magnetic) ** 2))
+    absorption = float(extinction - scattering)
+    tolerance = (
+        256 * np.finfo(np.float64).eps * max(1.0, abs(float(extinction)), abs(float(scattering)))
+    )
+    if absorption < -tolerance:
+        raise FloatingPointError(
+            f"Mie absorption cross-section is unexpectedly negative ({absorption:g} m2)"
+        )
+    return max(0.0, absorption)

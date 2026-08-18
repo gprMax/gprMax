@@ -51,9 +51,7 @@ def validate_lorentz_pole(frequency_hz: float, damping_per_s: float, dt: float) 
         rtol=1e-12,
         atol=0.0,
     ):
-        raise ValueError(
-            "Lorentz damping coefficient must be below 2 * pi * resonance frequency"
-        )
+        raise ValueError("Lorentz damping coefficient must be below 2 * pi * resonance frequency")
 
 
 def validate_drude_pole(frequency_hz: float, collision_per_s: float, dt: float) -> None:
@@ -92,6 +90,12 @@ class Material:
         self.se = 0.0
         self.mr = 1.0
         self.sm = 0.0
+
+        # Optional cell-centred physical mass density in SI units. Density is
+        # deliberately not part of the electromagnetic update coefficients or
+        # dielectric smoothing: it belongs to the final volumetric material
+        # assignment and is consumed only by derived quantities such as SAR.
+        self.mass_density = None
 
     def __eq__(self, value: object) -> bool:
         if isinstance(value, Material):

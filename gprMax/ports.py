@@ -188,7 +188,7 @@ def evaluate_port_power_spectrum(
     """
 
     if window != "rectangular":
-        raise ValueError("antenna gain currently requires a rectangular NTFF transform window")
+        raise ValueError("port-power evaluation currently requires a rectangular transform window")
     real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
     complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
     frequency = np.asarray(frequencies, dtype=real_dtype)

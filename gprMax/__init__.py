@@ -66,6 +66,7 @@ from .user_objects.cmds_multiuse import (
     MagneticDipole,
     MagneticFrillSource,
     Material,
+    MaterialDensity,
     MaterialFromDatabase,
     MaterialList,
     MaterialRange,
@@ -83,6 +84,7 @@ from .user_objects.cmds_multiuse import (
     Waveform,
 )
 from .user_objects.cmds_output import (
+    SAR,
     GeometryObjectsWrite,
     GeometryView,
     KSIRAntennaPorts,

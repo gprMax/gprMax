@@ -95,6 +95,7 @@
         "builtin": {"enum": ["pec", "pmc", "free_space"]},
         "poles": {"type": "array", "minItems": 1, "items": {"type": "object"}},
         "inclusive_conductivity_s_per_m": {"type": "number", "minimum": 0},
+        "mass_density_kg_per_m3": {"type": "number", "exclusiveMinimum": 0},
         "averagable": {"type": "boolean"},
         "alias": {
           "type": "object",

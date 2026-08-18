@@ -507,6 +507,15 @@ Material from database
 See :doc:`material_databases` for database lookup, schema, provenance, and
 geometry-file migration.
 
+Material mass density
+---------------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialDensity
+
+Mass density is optional cell-centred physical metadata in SI units
+(:math:`\mathrm{kg\,m^{-3}}`). It does not alter electromagnetic update
+coefficients or dielectric smoothing. Derived dosimetry outputs require a
+finite, positive density for every selected material.
+
 Debye Dispersion
 ----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.AddDebyeDispersion
@@ -1344,6 +1353,66 @@ The result is stored at
 ``/subgrids/<subgrid ID>/ports/<port ID>``. The source and port must belong to
 the same grid object so that their discretised coordinates, material edge,
 ``dl``, and ``dt`` are unambiguous.
+
+Specific absorption rate (SAR)
+------------------------------
+
+.. autoclass:: gprMax.user_objects.cmds_output.SAR
+
+``SAR`` selects the final voxelised cells belonging to one or more semantic
+geometry tags. Every selected material must first have a mass density in
+kg/m\ :sup:`3`, assigned with :class:`MaterialDensity` or supplied by a
+material database. For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.MaterialDensity(density=1040, material_ids=('brain',)))
+    scene.add(gprMax.SAR(
+        frequencies=np.linspace(0.8e9, 1.2e9, 41),
+        waveform_id='pulse',
+        tags=('brain_region',),
+        id='brain_sar',
+        target_amplitude=1.0,
+        spectrum_limit=10,
+        averaging_masses=(0.001, 0.01),
+    ))
+
+``target_amplitude`` uses the source's native excitation units. In
+particular, it is incident electric-field amplitude in V/m for a discrete
+plane wave and generator voltage in V for a voltage source. The resulting
+SAR is therefore tied to that explicitly stated source normalisation.
+Spatial mass averaging is opt-in. With the default ``averaging_masses=()``,
+gprMax writes local cell SAR, absorbed-power density, and per-tag summaries
+without running the potentially expensive mass-averaging stage. Supply
+``(0.001, 0.01)`` to request the standard 1 g and 10 g results, or any other
+positive masses in kg for research applications. Density is constant within
+each final tagged cell; only the included volume fraction of a cell changes
+at an averaging-cube boundary.
+
+For a one-watt accepted-power result from a named port, use:
+
+.. code-block:: python
+
+    scene.add(gprMax.SAR(
+        frequencies=np.linspace(0.8e9, 1.2e9, 41),
+        waveform_id='pulse', tags=('brain_region',), id='brain_sar_1W',
+        normalisation='accepted_power', port_id='feed', target_power=1.0,
+    ))
+
+``incident_power`` is also available. Power normalisation currently requires
+a rectangular transform window and a physical, valid port-power result at
+each requested frequency.
+
+Selected tagged cells that lie in boundary or internal PML regions are
+excluded automatically because PML loss is not physical material absorption.
+
+The default permits output only while the shortest wavelength in any model
+material is sampled by at least ten cells. Use ``spectrum_limit=8`` for a
+lambda/8 criterion. ``spectrum_limit='nyquist'`` is an explicit research
+override: it retains the requested frequencies but does not imply spatial
+accuracy. Three-dimensional CPU, CUDA, OpenCL, and Metal models are supported.
+MPI domain decomposition and SAR regions inside a subgrid are not yet
+supported. See :ref:`sar-output` for the formulation and HDF5 schema.
 
 Rational-network S11 and input impedance
 -----------------------------------------

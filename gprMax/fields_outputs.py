@@ -252,7 +252,7 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
         f.attrs["rxsteps"] = model.rxsteps
         write_hd5_data(f, model.G)
 
-        if config.sim_config.study is not None:
+        if config.sim_config is not None and config.sim_config.study is not None:
             config.sim_config.study.write_hdf5(f)
 
         # Write meta data and data for any subgrids
@@ -466,6 +466,9 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
 
     for port in getattr(grid, "eigenmodeports", ()):
         port.write_hdf5(basegrp)
+
+    for monitor in getattr(grid, "sar_monitors", ()):
+        monitor.write_hdf5(basegrp)
 
 
 def Ix(x, y, z, Hx, Hy, Hz, G):

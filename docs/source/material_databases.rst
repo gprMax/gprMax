@@ -116,6 +116,7 @@ The machine-readable schema is supplied as
             "relative_permeability": 1.0,
             "magnetic_conductivity_s_per_m": 0.0
           },
+          "mass_density_kg_per_m3": 1040,
           "metadata": {
             "conditions": {"temperature_c": 20},
             "validity": {"frequency_hz": [100000000, 1000000000]},
@@ -130,6 +131,11 @@ and the general inclusive pole representation used internally by gprMax.
 Field names carry units explicitly; for example a Debye pole uses
 ``relative_permittivity_difference`` and ``relaxation_time_s``. Perfect
 conductors use the ``builtin`` model rather than non-standard JSON infinity.
+The optional ``mass_density_kg_per_m3`` field is finite and strictly positive.
+It is retained as cell-centred physical metadata and does not participate in
+electromagnetic material averaging. When omitted, density is unspecified;
+ordinary simulations remain valid, while derived dosimetry calculations must
+reject selected material cells without a density.
 Lorentz and Drude resonance or plasma frequencies are specified in hertz,
 whereas their damping and collision coefficients are specified per second.
 The recursive formulation requires pole frequencies below ``1 / dt``; this

@@ -19,6 +19,8 @@
 
 import logging
 
+import numpy as np
+
 import gprMax.config as config
 
 from .user_objects.cmds_multiuse import (
@@ -37,6 +39,7 @@ from .user_objects.cmds_multiuse import (
     MagneticDipole,
     MagneticFrillSource,
     Material,
+    MaterialDensity,
     MaterialFromDatabase,
     MaterialList,
     MaterialRange,
@@ -54,6 +57,7 @@ from .user_objects.cmds_multiuse import (
     Waveform,
 )
 from .user_objects.cmds_output import (
+    SAR,
     GeometryObjectsWrite,
     GeometryView,
     KSIRAntennaPorts,
@@ -687,6 +691,84 @@ def process_multicmds(multicmds):
                 )
             scene_objects.append(NetworkPort(terminal_id=tokens[0], **kwargs))
 
+    cmdname = "#sar"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 8:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires start and stop frequencies, "
+                    "number of points, waveform ID, normalisation, spectrum limit, "
+                    "output ID, and at least one geometry tag"
+                )
+            start = float(tokens[0])
+            stop = float(tokens[1])
+            points = int(tokens[2])
+            if points < 1:
+                raise ValueError(f"'{cmdname}' number of frequency points must be positive")
+            if points == 1 and start != stop:
+                raise ValueError(
+                    f"'{cmdname}' requires equal start/stop frequencies when points is one"
+                )
+            frequencies = np.linspace(start, stop, points)
+            power_mode = tokens[4].lower() in ("incident_power", "accepted_power")
+            if power_mode:
+                if len(tokens) < 10:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' power normalisation requires "
+                        "target power, port ID, spectrum limit, output ID, and a tag"
+                    )
+                target_power = float(tokens[5])
+                port_id = tokens[6]
+                spectrum_token = tokens[7]
+                output_id = tokens[8]
+                remaining = tokens[9:]
+            else:
+                target_power = None
+                port_id = None
+                spectrum_token = tokens[5]
+                output_id = tokens[6]
+                remaining = tokens[7:]
+            averaging_masses = ()
+            if remaining[0].lower() == "spatial_average":
+                if len(remaining) < 4:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' spatial_average requires a positive "
+                        "mass count, the masses in kg, and at least one geometry tag"
+                    )
+                mass_count = int(remaining[1])
+                if mass_count < 1:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' spatial_average mass count must be positive"
+                    )
+                mass_end = 2 + mass_count
+                if len(remaining) <= mass_end:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' spatial_average declares {mass_count} "
+                        "mass value(s) but does not supply them and at least one geometry tag"
+                    )
+                averaging_masses = tuple(float(value) for value in remaining[2:mass_end])
+                tags = remaining[mass_end:]
+            else:
+                tags = remaining
+            spectrum_limit = (
+                "nyquist" if spectrum_token.lower() == "nyquist" else float(spectrum_token)
+            )
+            scene_objects.append(
+                SAR(
+                    frequencies=frequencies,
+                    waveform_id=tokens[3],
+                    target_amplitude=1.0 if power_mode else float(tokens[4]),
+                    normalisation=tokens[4] if power_mode else "waveform",
+                    target_power=target_power,
+                    port_id=port_id,
+                    spectrum_limit=spectrum_limit,
+                    id=output_id,
+                    tags=tags,
+                    averaging_masses=averaging_masses,
+                )
+            )
+
     cmdname = "#snapshot"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -1014,6 +1096,22 @@ def process_multicmds(multicmds):
                     database=tokens[0],
                     material=tokens[1],
                     id=tokens[2] if len(tokens) == 3 else None,
+                )
+            )
+
+    cmdname = "#material_density"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 2:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a density in kg/m3 and at least "
+                    "one material identifier"
+                )
+            scene_objects.append(
+                MaterialDensity(
+                    density=float(tokens[0]),
+                    material_ids=tokens[1:],
                 )
             )
 

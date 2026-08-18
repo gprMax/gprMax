@@ -26,6 +26,17 @@ The main validations are:
   the homogeneous dispersive-sphere Mie series;
 * ``validate_pec_sphere_rcs.py`` -- broadband PEC-sphere monostatic RCS
   against the Mie series;
+* ``validate_sar_lossy_halfspace.py`` -- local SAR in a conductive dielectric
+  half space against the exact Fresnel/transmission solution;
+* ``validate_sar_lossy_sphere.py`` -- total absorbed power obtained by
+  integrating tagged-cell SAR in a lossy sphere against the exact Mie
+  absorption cross-section;
+* ``validate_sar_power_normalisation.py`` -- end-to-end incident- and
+  accepted-port-power normalisation identities;
+* ``validate_sar_spatial_averaging.py`` -- 1 g and 10 g spatial-average SAR
+  against the independent STASIS implementation of IEC/IEEE 62704-1;
+* ``validate_sar_star.py`` -- the complete uniform-grid 1 g and 10 g SAR Star
+  distributions against the official IEC/IEEE 62704-1 supplemental data;
 * ``fmcw/validate_paper_multilayer.py`` -- the short-pulse FMCW correction
   sequence of Eide *et al.* over 150--1200 MHz, compared with the exact
   normal-incidence reflection from a lossless multilayer; and
@@ -74,6 +85,13 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
+    python -m testing.validation.validate_sar_lossy_halfspace --backend cuda --sweep
+    python -m testing.validation.validate_sar_lossy_sphere --backend cuda --dl 0.000375
+    python -m testing.validation.validate_sar_power_normalisation
+    python testing/validation/validate_sar_spatial_averaging.py \
+        --reference /path/to/IEC-IEEE-62704-1-spatial-average-SAR
+    python -m testing.validation.validate_sar_star \
+        /path/to/62704-1_supplemental_files.zip
     python -m testing.validation.fmcw.validate_paper_multilayer --gpu 0
     python -m testing.validation.dispersive_averaging.validate_multilayer_fdtd
     python -m testing.validation.dispersive_averaging.validate_core_shell_fdtd --gpu 0
@@ -89,6 +107,20 @@ instead keeps its reproducible HDF5, CSV, and modal plots ignored beside the
 model while retaining only the analytical comparison plot. Working data may
 be retained locally for ``--reuse`` where supported, but it is not validation
 evidence and must not be committed.
+
+The spatial-average comparisons deliberately do not vendor their independent
+oracles. Clone and build the Apache-2.0 STASIS reference repository separately
+for the compact heterogeneous comparison. Download the official supplemental
+archive from the IEC supporting documents for the full SAR Star comparison,
+then pass those paths as shown above.
+
+The complete SAR Star cases are standards-scale manual validations. On the
+development server, reusable averaging geometry and compiled OpenMP processing
+complete the 1 g and 10 g production calls over the 281-cubed reference grid
+in approximately 20.9 and 36.9 seconds. The pre-optimisation implementation
+took approximately 78.5 and 59.2 minutes, respectively. The compact STASIS
+case remains the more convenient independent development check; the
+exhaustive cases are retained for release validation.
 
 Each analytical script applies conservative numerical tolerances after writing
 its outputs and exits with a non-zero status if the comparison fails. The

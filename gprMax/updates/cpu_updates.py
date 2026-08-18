@@ -84,6 +84,12 @@ class CPUUpdates(Updates[GridType]):
         for monitor in self.grid.ntff_monitors:
             monitor.observe_magnetic(iteration, self.grid.Hx, self.grid.Hy, self.grid.Hz)
 
+    def observe_sar_electric(self, iteration):
+        """Observe E at physical time ``iteration * dt`` for SAR."""
+
+        for monitor in getattr(self.grid, "sar_monitors", ()):
+            monitor.observe_electric(iteration, self.grid.Ex, self.grid.Ey, self.grid.Ez)
+
     def observe_eigenmode_ports(self, iteration):
         """Project E(n) and H(n+1/2) and advance each modal DFT bin once."""
         for monitor in getattr(self.grid, "eigenmodeports", ()):

@@ -50,6 +50,10 @@ class TestMaterialDefaults:
         assert m.mr == 1.0
         assert m.sm == 0.0
 
+    def test_init_leaves_mass_density_unspecified(self):
+        m = Material(0, "free_space")
+        assert m.mass_density is None
+
     def test_init_defaults_averagable_true(self):
         m = Material(0, "anything")
         assert m.averagable is True
