@@ -494,8 +494,6 @@ class SAR(OutputUserObject):
         return self._monitor.result
 
     def build(self, model: Model, grid: FDTDGrid):
-        if config.sim_config.mpi:
-            raise ValueError(f"{self.params_str()} is not yet supported by the MPI solver")
         if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
             raise ValueError(f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers")
         if config.get_model_config().mode != "3D":
