@@ -96,7 +96,9 @@ def make_grid_from_bbox(
     Create a voxel grid that encloses [vmin_world, vmax_world] with `pad` voxels margin.
 
     Robustness:
-      - snap origin to an integer voxel lattice using ROUND (stable for negatives)
+      - snap origin down to an enclosing integer voxel lattice
+      - treat values already numerically on a lattice plane as exact, avoiding
+        an accidental extra cell from floating-point round-off
       - keep origin/dxyz float64
     """
     vmin_world = np.asarray(vmin_world, dtype=np.float64)
@@ -107,10 +109,19 @@ def make_grid_from_bbox(
     if dz is None:
         dz = dx
     dxyz = np.array([dx, dy, dz], dtype=np.float64)
+    if not np.isfinite(dxyz).all() or np.any(dxyz <= 0):
+        raise ValueError("voxel spacing must contain three positive finite values")
+    if pad < 0:
+        raise ValueError("pad must be non-negative")
 
-    # Integer-lattice snap stable for negative coordinates:
-    # pick integer voxel index for vmin and rebuild origin from that.
-    k = np.round(vmin_world / dxyz).astype(np.int64)
+    scaled_min = vmin_world / dxyz
+    nearest = np.rint(scaled_min)
+    scaled_min = np.where(
+        np.isclose(scaled_min, nearest, rtol=0.0, atol=1e-9),
+        nearest,
+        scaled_min,
+    )
+    k = np.floor(scaled_min).astype(np.int64)
     origin = (k - pad) * dxyz
 
     # Ensure vmax fits with padding

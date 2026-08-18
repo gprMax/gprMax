@@ -33,6 +33,31 @@ The main script is ``stltovoxel.py`` which should be run at the command line and
 * ``path`` is base path to the folder containing the STL file(s) to convert.
 * ``-dxdydz`` is the spatial discretisation of the generated voxelised mesh. It should be given as a floating point number.
 
+STL has no standard coordinate unit. The historical toolbox assumed
+millimetres and this remains the default. Use ``--unit m``, ``--unit mm``, or
+``--unit um`` explicitly for new workflows.
+
+For a directory containing several parts, create an editable assignment table
+before conversion:
+
+.. code-block:: console
+
+    python -m toolboxes.STLtoVoxel.stltovoxel anatomy \
+        --prepare anatomy.csv
+
+Then convert with:
+
+.. code-block:: console
+
+    python -m toolboxes.STLtoVoxel.stltovoxel anatomy \
+        -dxdydz 0.002 --assignments anatomy.csv
+
+The CSV maps ``file`` independently to ``material_name`` and ``geometry_tag``.
+For example, left and right eyes may share a vitreous material while retaining
+separate tags. Higher-priority files overwrite lower-priority files wherever
+closed surfaces overlap. Filename stems become tags when no assignment file is
+provided.
+
 The physical dimensions of the voxelised object will depend on the size of the object in the original STL file and the spatial discretisation chosen.
 
 Method of rotating STL file
@@ -85,6 +110,11 @@ stable keys in the database are also stored in ``/material_keys`` in the HDF5
 file, so their order cannot become detached from the voxel indices. Rerunning
 the conversion preserves an existing database when its material keys still
 match, so user-entered properties are not overwritten.
+
+The HDF5 file also contains ``tag_data`` and ``tag_names``. Tag IDs describe
+the final voxelised cells after overlap resolution and are imported by
+``GeometryObjectsRead``. They are not material IDs and dielectric smoothing
+does not alter their membership.
 
 .. literalinclude:: ../../toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny_geo_materials.json
     :language: json

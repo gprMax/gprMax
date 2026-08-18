@@ -66,7 +66,14 @@ def _write_geometry(tmp_path: Path, boxes: list[tuple[tuple, tuple, str]], custo
     return outdir.with_suffix(".h5"), Path(f"{outdir}_materials.json")
 
 
-def _read_geometry_and_get_grid(tmp_path: Path, geofile: Path, database_file: Path, monkeypatch):
+def _read_geometry_and_get_grid(
+    tmp_path: Path,
+    geofile: Path,
+    database_file: Path,
+    monkeypatch,
+    *,
+    averaging="n",
+):
     dl = 1e-3
     scene = gprMax.Scene()
     scene.add(gprMax.Title(name="read"))
@@ -79,6 +86,7 @@ def _read_geometry_and_get_grid(tmp_path: Path, geofile: Path, database_file: Pa
             p1=(0.0, 0.0, 0.0),
             geofile=str(geofile),
             material_database=database_file.stem,
+            averaging=averaging,
         )
     )
 
@@ -95,6 +103,108 @@ def _material_histogram(grid):
         name = next(m.ID for m in grid.materials if m.numID == uid)
         by_name[name] = int(cnt)
     return by_name
+
+
+def _read_voxel_interface(tmp_path, monkeypatch, averaging, *, dispersive=False):
+    """Import two adjacent dielectric regions from a voxel-only file."""
+
+    dl = 1e-3
+    data = np.zeros((4, 4, 4), dtype=np.int16)
+    data[2:, :, :] = 1
+    suffix = "_dispersive" if dispersive else ""
+    geofile = tmp_path / f"voxel_interface_{averaging}{suffix}.h5"
+    with h5py.File(geofile, "w") as geometry:
+        geometry.attrs["dx_dy_dz"] = (dl, dl, dl)
+        geometry["/data"] = data
+
+    matfile = tmp_path / "voxel_interface_materials.txt"
+    material_text = (
+        "#material: 4 0 1 0 left_dielectric\n"
+        "#material: 9 0 1 0 right_dielectric\n"
+    )
+    if dispersive:
+        material_text = (
+            "#material: 4 0 1 0 left_dielectric\n"
+            "#add_dispersion_debye: 1 3 1e-11 left_dielectric\n"
+            "#material: 9 0 1 0 right_dielectric\n"
+            "#add_dispersion_debye: 1 5 2e-11 right_dielectric\n"
+        )
+    matfile.write_text(material_text)
+
+    scene = gprMax.Scene()
+    if dispersive:
+        scene.add(gprMax.DispersiveAveraging(enabled=True))
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(4 * dl, 4 * dl, 4 * dl)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(0, 0, 0),
+            geofile=str(geofile),
+            matfile=str(matfile),
+            averaging=averaging,
+        )
+    )
+
+    captured = _capture_built_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / f"voxel_interface_{averaging}{suffix}",
+        hide_progress_bars=True,
+    )
+    return captured["grid"]
+
+
+def test_voxel_only_import_can_enable_interface_averaging(tmp_path, monkeypatch):
+    grid = _read_voxel_interface(tmp_path, monkeypatch, "y")
+
+    assert any(
+        "left_dielectric" in material.ID and "right_dielectric" in material.ID
+        for material in grid.materials
+    )
+
+
+def test_voxel_only_import_averaging_remains_off_by_default(tmp_path, monkeypatch):
+    grid = _read_voxel_interface(tmp_path, monkeypatch, "n")
+
+    assert not any(
+        "left_dielectric" in material.ID and "right_dielectric" in material.ID
+        for material in grid.materials
+    )
+
+
+def test_voxel_only_import_uses_global_dispersive_averaging(tmp_path, monkeypatch):
+    grid = _read_voxel_interface(tmp_path, monkeypatch, "y", dispersive=True)
+
+    compound = next(
+        material
+        for material in grid.materials
+        if "left_dielectric" in material.ID and "right_dielectric" in material.ID
+    )
+    assert compound.poles == 2
+    assert compound.tau == pytest.approx([1e-11, 2e-11])
+    assert compound.deltaer == pytest.approx([1.5, 2.5])
+
+
+def test_full_component_import_ignores_averaging_request(tmp_path, monkeypatch, capsys):
+    geofile, database_file = _write_geometry(
+        tmp_path, [((0.005, 0.005, 0.005), (0.015, 0.015, 0.015), "pec")]
+    )
+
+    _read_geometry_and_get_grid(
+        tmp_path,
+        geofile,
+        database_file,
+        monkeypatch,
+        averaging="y",
+    )
+    output = capsys.readouterr().out
+
+    assert "component arrays" in output
+    assert "averaging='y' is ignored" in output
 
 
 def test_pec_only_region_round_trips_as_pec(tmp_path, monkeypatch):

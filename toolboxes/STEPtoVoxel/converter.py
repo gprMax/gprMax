@@ -18,14 +18,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-import h5py
 import numpy as np
 
 from gprMax.material_database import create_database_document, write_database
+from toolboxes.GeometryImport.common import (
+    build_tag_volume,
+    normalise_tag_name,
+    unique_normalised_tags,
+    write_geometry_hdf5,
+)
 
 from .grouping import suggest_material_groups
 from .markers import classify_marker_name, marker_record
-from .voxeliser import TriangleMesh, resolve_sweep_axis, voxelise_material_grid, write_gprmax_hdf5
+from .voxeliser import TriangleMesh, resolve_sweep_axis, voxelise_material_grid
 
 LEGACY_MATERIAL_COLUMNS = (
     "part_name",
@@ -47,11 +52,17 @@ MATERIAL_COLUMNS = (
     "include",
     "priority",
     "material_name",
+    "geometry_tag",
     "relative_permittivity",
     "conductivity",
     "relative_permeability",
     "magnetic_loss",
 )
+
+# ``geometry_tag`` was added after the original grouped assignment format.
+# It is intentionally optional when reading so existing assignment CSV files
+# remain valid.
+GROUPED_REQUIRED_COLUMNS = tuple(column for column in MATERIAL_COLUMNS if column != "geometry_tag")
 
 
 @dataclass(frozen=True)
@@ -72,7 +83,11 @@ class ConversionConfig:
     force_units_to_metres: bool = True
 
     def __post_init__(self) -> None:
-        if len(self.voxel_size) != 3 or any(value <= 0 for value in self.voxel_size):
+        if (
+            len(self.voxel_size) != 3
+            or not np.isfinite(self.voxel_size).all()
+            or any(value <= 0 for value in self.voxel_size)
+        ):
             raise ValueError("voxel_size must contain three positive values")
         if self.pad_cells < 0:
             raise ValueError("pad_cells must be non-negative")
@@ -118,6 +133,7 @@ class _Assignment:
     include: bool
     priority: int
     material: _Material | None
+    geometry_tag: str | None = None
     group_id: str = ""
     group_confidence: str = "legacy"
 
@@ -221,6 +237,7 @@ def write_material_template(
                     "include": "y" if is_solid and not is_marker else "n",
                     "priority": group.priority if is_solid else 0,
                     "material_name": "",
+                    "geometry_tag": "",
                     "relative_permittivity": "",
                     "conductivity": "",
                     "relative_permeability": 1,
@@ -275,8 +292,8 @@ def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
     with csv_file.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         fields = set(reader.fieldnames or ())
-        grouped = set(MATERIAL_COLUMNS).issubset(fields)
-        required = set(MATERIAL_COLUMNS if grouped else LEGACY_MATERIAL_COLUMNS)
+        grouped = set(GROUPED_REQUIRED_COLUMNS).issubset(fields)
+        required = set(GROUPED_REQUIRED_COLUMNS if grouped else LEGACY_MATERIAL_COLUMNS)
         missing = required - fields
         if missing:
             raise ValueError(f"{csv_file} is missing columns: {sorted(missing)}")
@@ -312,6 +329,8 @@ def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
                     f"{group_id or part_names[0]}: priority must be an integer"
                 ) from exc
             material = None
+            requested_tag = row.get("geometry_tag", "").strip()
+            geometry_tag = normalise_tag_name(requested_tag) if requested_tag else None
             if include:
                 material_name = re.sub(r"\s+", "_", row["material_name"].strip())
                 if not material_name:
@@ -341,6 +360,7 @@ def _read_assignments(csv_file: Path) -> dict[str, _Assignment]:
                     include,
                     priority,
                     material,
+                    geometry_tag=geometry_tag,
                     group_id=group_id,
                     group_confidence=group_confidence,
                 )
@@ -467,6 +487,8 @@ def convert_step(
     material_indices: dict[_Material, int] = {}
     materials: list[_Material] = []
     component_material_ids: list[int] = []
+    default_component_tags = unique_normalised_tags([str(part.name) for part in selected])
+    component_tags: list[str] = []
     meshes = []
     parser_config = _parser_config(config)
     reference_parts = [
@@ -498,6 +520,7 @@ def convert_step(
             material_indices[assignment.material] = len(materials)
             materials.append(assignment.material)
         component_material_ids.append(material_indices[assignment.material])
+        component_tags.append(assignment.geometry_tag or default_component_tags[component_id])
 
         vertices, triangles = step_parser.tessellate_shape(
             step_parser.shape_for_ops(part, parser_config),
@@ -526,10 +549,13 @@ def convert_step(
         sweep_axis=config.sweep_axis,
         preserve_thin_features=config.preserve_thin_features,
     )
+    if len(materials) > np.iinfo(np.int16).max + 1:
+        raise ValueError("Imported geometry exceeds the int16 material-index schema")
     material_grid = component_grid.copy()
     material_map = np.asarray(component_material_ids, dtype=np.int16)
     occupied = component_grid >= 0
     material_grid[occupied] = material_map[component_grid[occupied]]
+    tag_data, tag_names = build_tag_volume(component_grid, component_tags)
 
     geometry_file = output_dir / "geometry.h5"
     materials_file = output_dir / "materials.json"
@@ -537,12 +563,17 @@ def convert_step(
     markers_file = output_dir / "markers.json"
     vtk_file = output_dir / "geometry.vti" if write_vtk else None
     reference_geometry_cad_file = None
-    write_gprmax_hdf5(str(geometry_file), material_grid, grid)
     material_keys = _write_material_database(materials_file, materials)
-    with h5py.File(geometry_file, "r+") as geometry:
-        geometry.create_dataset("material_keys", data=np.asarray(material_keys, dtype="S"))
-        geometry.attrs["MaterialDatabase"] = materials_file.stem
-        geometry.attrs["MaterialDatabaseSchemaVersion"] = 1
+    write_geometry_hdf5(
+        geometry_file,
+        material_grid,
+        grid.dxyz_world,
+        origin=grid.origin_world,
+        material_keys=material_keys,
+        material_database=materials_file.stem,
+        tag_data=tag_data,
+        tag_names=tag_names,
+    )
 
     if vtk_file is not None:
         try:
@@ -606,6 +637,7 @@ def convert_step(
                 "name": part.name,
                 "material_id": component_material_ids[index],
                 "material_name": assignments[part.name].material.name,
+                "geometry_tag": component_tags[index],
                 "priority": assignments[part.name].priority,
                 "material_group": assignments[part.name].group_id,
                 "material_group_confidence": assignments[part.name].group_confidence,

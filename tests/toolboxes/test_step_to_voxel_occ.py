@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import h5py
+import numpy as np
 import pytest
 
 pytest.importorskip("OCC", reason="optional pythonocc-core dependency is not installed")
@@ -60,6 +61,9 @@ def test_probe_fed_patch_step_conversion(tmp_path):
         assert tuple(f.attrs["dx_dy_dz"]) == (0.2e-3, 0.2e-3, 0.2e-3)
         assert f.attrs["MaterialDatabase"] == "materials"
         material_keys = [value.decode() for value in f["material_keys"][:]]
+        tag_names = [value.decode() for value in f["tag_names"][:]]
+        assert tag_names == ["untagged", "PATCH", "SUB", "GROUND", "INNER", "DIE", "OUTER"]
+        assert set(np.unique(f["tag_data"][:])) == set(range(7))
     database = json.loads(result.materials_file.read_text(encoding="utf-8"))
     assert material_keys == list(database["materials"])
     assert database["schema"] == "gprMax-material-database"

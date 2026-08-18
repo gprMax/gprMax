@@ -124,8 +124,12 @@ def process_geometrycmds(geometry):
         if tmp[0] == "#geometry_objects_read:":
             from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
 
-            if len(tmp) != 6:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly five parameters")
+            if len(tmp) not in {6, 7}:
+                logger.exception(
+                    "'"
+                    + " ".join(tmp)
+                    + "' requires five parameters and an optional y/n averaging flag"
+                )
                 raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
@@ -134,13 +138,21 @@ def process_geometrycmds(geometry):
             # commands. New files use a database name (without .json); keep
             # the distinction positional so the established hash-command
             # syntax remains familiar.
+            averaging = tmp[6].lower() if len(tmp) == 7 else "n"
+            if averaging not in {"y", "n"}:
+                raise ValueError(
+                    "#geometry_objects_read optional averaging flag must be either y or n"
+                )
             if tmp[5].lower().endswith(".txt"):
-                gor = GeometryObjectsRead(p1=p1, geofile=tmp[4], matfile=tmp[5])
+                gor = GeometryObjectsRead(
+                    p1=p1, geofile=tmp[4], matfile=tmp[5], averaging=averaging
+                )
             else:
                 gor = GeometryObjectsRead(
                     p1=p1,
                     geofile=tmp[4],
                     material_database=tmp[5],
+                    averaging=averaging,
                 )
             scene_objects.append(gor)
 

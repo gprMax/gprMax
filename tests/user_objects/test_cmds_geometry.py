@@ -363,9 +363,15 @@ class TestModifiers:
 
 class TestGeometryObjectsRead:
     def test_constructor_kwargs(self):
-        g = GeometryObjectsRead(p1=(0, 0, 0), geofile="objs.h5", matfile="objs_materials.txt")
+        g = GeometryObjectsRead(
+            p1=(0, 0, 0),
+            geofile="objs.h5",
+            matfile="objs_materials.txt",
+            averaging="y",
+        )
         assert g.kwargs["geofile"] == "objs.h5"
         assert g.kwargs["matfile"] == "objs_materials.txt"
+        assert g.kwargs["averaging"] == "y"
 
 
 pytestmark = pytest.mark.unit

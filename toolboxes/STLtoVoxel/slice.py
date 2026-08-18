@@ -130,8 +130,12 @@ def where_line_crosses_z(p1, p2, z):
 
 def calculate_scale_shift(meshes, discretization):
     discretization = np.asarray(discretization, dtype=float)
-    if discretization.shape != (3,) or np.any(discretization <= 0):
-        raise ValueError("discretization must contain three positive values")
+    if (
+        discretization.shape != (3,)
+        or not np.isfinite(discretization).all()
+        or np.any(discretization <= 0)
+    ):
+        raise ValueError("discretization must contain three positive finite values")
 
     mesh_min = meshes[0].min(axis=(0, 1))
     mesh_max = meshes[0].max(axis=(0, 1))
