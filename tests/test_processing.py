@@ -157,7 +157,7 @@ class TestGainLabel:
         assert gain_label("constant", 2.5) == "constant gain x2.5"
 
     def test_carries_units_and_start(self):
-        assert gain_label("db", 6.0, start_ns=1.2) == "db gain 6 dB per ns from 1.2 ns"
+        assert gain_label("db", 6.0, start_ns=1.2) == "dB gain 6 dB per ns from 1.2 ns"
 
     def test_carries_clamp(self):
         label = gain_label("exponential", 2.0, max_gain=50.0)
@@ -199,3 +199,107 @@ class TestRemoveMeanTrace:
         original = matrix.copy()
         remove_mean_trace(matrix)
         assert matrix == pytest.approx(original)
+
+
+class TestPowerAndSecGain:
+    def test_power_floored_at_one(self):
+        # Bare t**b is 0 at t=0 and <1 below 1 ns, which would blank the start
+        # of a 3 ns gprMax window instead of amplifying anything.
+        t = np.linspace(0.0, 3.0, 61)
+        curve = gain_curve(t, "power", power=1.0)
+        assert curve[0] == pytest.approx(1.0)
+        assert np.all(curve >= 1.0)
+
+    def test_power_exact_where_it_amplifies(self):
+        t = np.linspace(0.0, 4.0, 81)
+        curve = gain_curve(t, "power", power=2.0)
+        above = t > 1.0
+        assert curve[above] == pytest.approx(t[above] ** 2.0)
+
+    def test_power_monotonic(self):
+        curve = gain_curve(np.linspace(0.0, 5.0, 101), "power", power=1.5)
+        assert np.all(np.diff(curve) >= 0)
+
+    def test_sec_is_product_of_its_two_terms(self):
+        # SEC is exp(a*t) * t**b. Pin the composition so the two halves can't
+        # drift apart from the standalone kinds.
+        t = np.linspace(0.0, 3.0, 61)
+        expo = gain_curve(t, "exponential", factor=0.4)
+        powr = gain_curve(t, "power", power=1.5)
+        sec = gain_curve(t, "sec", factor=0.4, power=1.5)
+        assert sec == pytest.approx(expo * powr)
+
+    def test_sec_with_zero_exponent_matches_exponential(self):
+        t = np.linspace(0.0, 3.0, 61)
+        sec = gain_curve(t, "sec", factor=0.4, power=0.0)
+        expo = gain_curve(t, "exponential", factor=0.4)
+        assert sec == pytest.approx(expo)
+
+    def test_sec_honours_start_and_clamp(self):
+        t = np.linspace(0.0, 5.0, 101)
+        curve = gain_curve(t, "sec", factor=1.0, power=2.0, start_ns=1.0, max_gain=20.0)
+        assert np.all(curve[t < 1.0] == 1.0)
+        assert curve.max() == pytest.approx(20.0)
+
+    def test_power_applies_across_matrix(self):
+        matrix = _matrix()
+        t = _time_ns()
+        gained, curve = apply_gain(matrix, t, "sec", factor=0.5, power=1.0)
+        for j in range(N_TRACES):
+            assert gained[:, j] == pytest.approx(matrix[:, j] * curve)
+
+    def test_every_kind_has_ui_metadata(self):
+        for kind, meta in GAIN_KINDS.items():
+            assert set(meta) == {"label", "factor_unit", "uses_power"}
+            gain_curve(_time_ns(), kind, factor=1.0, power=1.0)
+
+
+class TestGainLabelExtra:
+    def test_power(self):
+        assert gain_label("power", power=1.5) == "power gain t^1.5"
+
+    def test_sec(self):
+        assert gain_label("sec", 0.5, 1.5) == "SEC gain a=0.5 per ns, b=1.5"
+
+
+class TestMovingWindowBackgroundRemoval:
+    def test_window_removes_local_background(self):
+        matrix = np.column_stack([_trace()] * 9)
+        result, background = remove_mean_trace(matrix, window=3)
+        assert result == pytest.approx(np.zeros_like(matrix))
+        assert background.shape == matrix.shape
+
+    def test_window_preserves_a_dipping_event_global_mean_would_smear(self):
+        # A drifting background is exactly the case the moving window exists
+        # for: the global mean leaves residual, the window does not.
+        n_traces = 21
+        drift = np.linspace(0.0, 4.0, n_traces)
+        matrix = np.zeros((ITERATIONS, n_traces))
+        matrix[30, :] = drift
+        global_result, _ = remove_mean_trace(matrix)
+        window_result, _ = remove_mean_trace(matrix, window=3)
+        assert np.abs(window_result[30]).max() < np.abs(global_result[30]).max()
+
+    def test_window_wider_than_profile_matches_global_mean(self):
+        matrix = _matrix()
+        wide, _ = remove_mean_trace(matrix, window=N_TRACES * 10)
+        glob, _ = remove_mean_trace(matrix)
+        assert wide == pytest.approx(glob)
+
+    def test_window_of_one_is_a_no_op_removing_everything(self):
+        matrix = _matrix()
+        result, background = remove_mean_trace(matrix, window=1)
+        assert result == pytest.approx(np.zeros_like(matrix))
+        assert background == pytest.approx(matrix)
+
+    def test_window_below_one_rejected(self):
+        with pytest.raises(ValueError, match="at least 1 trace"):
+            remove_mean_trace(_matrix(), window=0)
+
+    def test_edge_columns_use_full_width_window(self):
+        # Clamped, not zero-padded: an edge trace must not be biased toward
+        # zero by averaging over a half-empty window.
+        matrix = np.tile(np.arange(5, dtype=float), (ITERATIONS, 1))
+        _, background = remove_mean_trace(matrix, window=3)
+        assert background[0, 0] == pytest.approx(1.0)
+        assert background[0, -1] == pytest.approx(3.0)
