@@ -1,9 +1,11 @@
-"""Validate volume-integrated SAR in a lossy sphere against Mie theory.
+"""Validate SAR and radiometric absorption in a lossy sphere against Mie theory.
 
 A unit-amplitude plane wave illuminates a homogeneous lossy dielectric sphere.
 The FDTD absorbed-power-density output is integrated over every tagged sphere
 cell and compared with the exact Mie absorption cross-section multiplied by
-the incident plane-wave power density.
+the incident plane-wave power density. The density-independent radiometry
+output is independently normalised by incident flux; its tag integral must
+therefore equal the Mie absorption cross-section directly.
 """
 
 from __future__ import annotations
@@ -82,6 +84,16 @@ def build_scene(dl=DL):
             averaging_masses=(0.001, 0.01),
         )
     )
+    scene.add(
+        gprMax.Radiometry(
+            frequencies=(FREQUENCY,),
+            waveform_id="pulse",
+            tags="lossy_sphere",
+            id="sphere_cross_section",
+            normalisation="incident_flux",
+            target_flux=1.0,
+        )
+    )
     return scene
 
 
@@ -129,9 +141,14 @@ def run(
         absorbed_density = np.asarray(group["absorbed_power_density"])[0]
         one_gram_peak = float(group["spatial_average/1g/peak_sar"][0])
         ten_gram_peak = float(group["spatial_average/10g/peak_sar"][0])
+        radiometry = output["radiometry/sphere_cross_section"]
+        numerical_cross_section = float(
+            radiometry["tags/lossy_sphere/normalised_absorption"][0]
+        )
     numerical_power = float(np.sum(absorbed_density) * dl**3)
     cross_section, incident_density, analytical_power = analytical_absorbed_power()
     relative_error = abs(numerical_power / analytical_power - 1)
+    cross_section_error = abs(numerical_cross_section / cross_section - 1)
     voxel_mass = cells.shape[0] * DENSITY * dl**3
 
     metrics = {
@@ -147,6 +164,8 @@ def run(
         "tagged_cells": int(cells.shape[0]),
         "voxelised_mass_kg": voxel_mass,
         "mie_absorption_cross_section_m2": cross_section,
+        "fdtd_radiometry_absorption_cross_section_m2": numerical_cross_section,
+        "relative_radiometry_cross_section_error": cross_section_error,
         "incident_power_density_W_per_m2": incident_density,
         "analytical_absorbed_power_W": analytical_power,
         "fdtd_absorbed_power_W": numerical_power,
@@ -174,11 +193,15 @@ def run(
     figure.colorbar(plot, ax=axes[0], label="Local SAR [W/kg]")
     axes[0].set(xlabel="x [mm]", ylabel="y [mm]", title="Central sphere slice")
     axes[1].bar(
-        ("Mie", "gprMax"),
-        (analytical_power * 1e6, numerical_power * 1e6),
-        color=("white", "0.5"),
+        ("Mie", "gprMax SAR", "gprMax radiometry"),
+        (
+            analytical_power * 1e6,
+            numerical_power * 1e6,
+            numerical_cross_section * incident_density * 1e6,
+        ),
+        color=("white", "0.5", "0.75"),
         edgecolor="black",
-        hatch=("", "//"),
+        hatch=("", "//", "xx"),
     )
     axes[1].set(ylabel="Absorbed power [uW]", title="Volume-integrated absorption")
     figure.tight_layout()
@@ -187,6 +210,11 @@ def run(
     if relative_error > RELATIVE_POWER_LIMIT:
         raise AssertionError(
             f"Sphere absorbed-power error {relative_error:.3%} exceeds "
+            f"{RELATIVE_POWER_LIMIT:.1%}"
+        )
+    if cross_section_error > RELATIVE_POWER_LIMIT:
+        raise AssertionError(
+            f"Sphere radiometry cross-section error {cross_section_error:.3%} exceeds "
             f"{RELATIVE_POWER_LIMIT:.1%}"
         )
     return metrics

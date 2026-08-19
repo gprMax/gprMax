@@ -58,6 +58,7 @@ from .user_objects.cmds_multiuse import (
     Waveform,
 )
 from .user_objects.cmds_output import (
+    Radiometry,
     SAR,
     GeometryObjectsWrite,
     GeometryView,
@@ -699,7 +700,7 @@ def process_multicmds(multicmds):
             if len(tokens) < 8:
                 raise ValueError(
                     f"'{cmdname}: {cmdinstance}' requires start and stop frequencies, "
-                    "number of points, waveform ID, normalisation, spectrum limit, "
+                    "number of points, a source or port normalisation, spectrum limit, "
                     "output ID, and at least one geometry tag"
                 )
             start = float(tokens[0])
@@ -712,20 +713,92 @@ def process_multicmds(multicmds):
                     f"'{cmdname}' requires equal start/stop frequencies when points is one"
                 )
             frequencies = np.linspace(start, stop, points)
-            power_mode = tokens[4].lower() in ("incident_power", "accepted_power")
-            if power_mode:
+            power_normalisations = ("incident_power", "accepted_power")
+            direct_power_mode = tokens[3].lower() in power_normalisations
+            legacy_power_mode = (
+                not direct_power_mode
+                and len(tokens) > 4
+                and tokens[4].lower() in power_normalisations
+            )
+            current_moment_mode = (
+                not direct_power_mode
+                and not legacy_power_mode
+                and len(tokens) > 4
+                and tokens[4].lower() == "current_moment"
+            )
+            incident_flux_mode = (
+                not direct_power_mode
+                and not legacy_power_mode
+                and len(tokens) > 4
+                and tokens[4].lower() == "incident_flux"
+            )
+            power_mode = direct_power_mode or legacy_power_mode
+            if direct_power_mode:
+                if len(tokens) < 9:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' power normalisation requires "
+                        "target power, port ID, spectrum limit, output ID, and a tag"
+                    )
+                waveform_id = None
+                normalisation = tokens[3].lower()
+                target_amplitude = 1.0
+                target_power = float(tokens[4])
+                target_flux = None
+                port_id = tokens[5]
+                spectrum_token = tokens[6]
+                output_id = tokens[7]
+                remaining = tokens[8:]
+            elif legacy_power_mode:
                 if len(tokens) < 10:
                     raise ValueError(
                         f"'{cmdname}: {cmdinstance}' power normalisation requires "
                         "target power, port ID, spectrum limit, output ID, and a tag"
                     )
+                waveform_id = tokens[3]
+                normalisation = tokens[4].lower()
+                target_amplitude = 1.0
                 target_power = float(tokens[5])
+                target_flux = None
                 port_id = tokens[6]
                 spectrum_token = tokens[7]
                 output_id = tokens[8]
                 remaining = tokens[9:]
-            else:
+            elif current_moment_mode:
+                if len(tokens) < 9:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' current_moment normalisation requires "
+                        "target current moment, spectrum limit, output ID, and a tag"
+                    )
+                waveform_id = tokens[3]
+                normalisation = "current_moment"
+                target_amplitude = float(tokens[5])
                 target_power = None
+                target_flux = None
+                port_id = None
+                spectrum_token = tokens[6]
+                output_id = tokens[7]
+                remaining = tokens[8:]
+            elif incident_flux_mode:
+                if len(tokens) < 9:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' incident_flux normalisation requires "
+                        "target flux, spectrum limit, output ID, and a tag"
+                    )
+                waveform_id = tokens[3]
+                normalisation = "incident_flux"
+                target_amplitude = 1.0
+                target_power = None
+                target_flux = float(tokens[5])
+                port_id = None
+                spectrum_token = tokens[6]
+                output_id = tokens[7]
+                remaining = tokens[8:]
+            else:
+                waveform_id = tokens[3]
+                normalisation = "waveform"
+                target_amplitude = float(tokens[4])
+                target_power = None
+                target_flux = None
                 port_id = None
                 spectrum_token = tokens[5]
                 output_id = tokens[6]
@@ -758,15 +831,100 @@ def process_multicmds(multicmds):
             scene_objects.append(
                 SAR(
                     frequencies=frequencies,
-                    waveform_id=tokens[3],
-                    target_amplitude=1.0 if power_mode else float(tokens[4]),
-                    normalisation=tokens[4] if power_mode else "waveform",
+                    waveform_id=waveform_id,
+                    target_amplitude=target_amplitude,
+                    normalisation=normalisation,
                     target_power=target_power,
+                    target_flux=target_flux,
                     port_id=port_id,
                     spectrum_limit=spectrum_limit,
                     id=output_id,
                     tags=tags,
                     averaging_masses=averaging_masses,
+                )
+            )
+
+    cmdname = "#radiometry"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 8:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires start and stop frequencies, "
+                    "number of points, a source or port normalisation, spectrum limit, "
+                    "output ID, and at least one geometry tag"
+                )
+            start = float(tokens[0])
+            stop = float(tokens[1])
+            points = int(tokens[2])
+            if points < 1 or (points == 1 and start != stop):
+                raise ValueError(
+                    f"'{cmdname}' requires a positive point count and equal start/stop "
+                    "frequencies when points is one"
+                )
+            frequencies = np.linspace(start, stop, points)
+            mode = tokens[3].lower()
+            if mode in ("incident_power", "accepted_power"):
+                if len(tokens) < 9:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' power normalisation requires "
+                        "target power, port ID, spectrum limit, output ID, and a tag"
+                    )
+                waveform_id = None
+                normalisation = mode
+                target_amplitude = 1.0
+                target_power = float(tokens[4])
+                target_flux = None
+                port_id = tokens[5]
+                spectrum_token = tokens[6]
+                output_id = tokens[7]
+                tags = tokens[8:]
+            else:
+                if len(tokens) >= 5 and tokens[4].lower() in (
+                    "current_moment",
+                    "incident_flux",
+                ):
+                    if len(tokens) < 9:
+                        raise ValueError(
+                            f"'{cmdname}: {cmdinstance}' {tokens[4]} normalisation "
+                            "requires its target, spectrum limit, output ID, and a tag"
+                        )
+                    waveform_id = tokens[3]
+                    normalisation = tokens[4].lower()
+                    target_amplitude = (
+                        float(tokens[5]) if normalisation == "current_moment" else 1.0
+                    )
+                    target_flux = float(tokens[5]) if normalisation == "incident_flux" else None
+                    target_power = None
+                    port_id = None
+                    spectrum_token = tokens[6]
+                    output_id = tokens[7]
+                    tags = tokens[8:]
+                else:
+                    waveform_id = tokens[3]
+                    normalisation = "waveform"
+                    target_amplitude = float(tokens[4])
+                    target_power = None
+                    target_flux = None
+                    port_id = None
+                    spectrum_token = tokens[5]
+                    output_id = tokens[6]
+                    tags = tokens[7:]
+            spectrum_limit = (
+                "nyquist" if spectrum_token.lower() == "nyquist" else float(spectrum_token)
+            )
+            scene_objects.append(
+                Radiometry(
+                    frequencies=frequencies,
+                    tags=tags,
+                    waveform_id=waveform_id,
+                    id=output_id,
+                    target_amplitude=target_amplitude,
+                    spectrum_limit=spectrum_limit,
+                    normalisation=normalisation,
+                    port_id=port_id,
+                    target_power=target_power,
+                    target_flux=target_flux,
                 )
             )
 

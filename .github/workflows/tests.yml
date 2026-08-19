@@ -31,7 +31,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            mpi: openmpi
+          - os: windows-latest
+            mpi: msmpi
+          - os: macos-latest
+            mpi: mpich
 
     steps:
       - name: Checkout
@@ -46,6 +52,9 @@ jobs:
 
       - name: Set up MPI runtime
         uses: mpi4py/setup-mpi@v1
+        timeout-minutes: 5
+        with:
+          mpi: ${{ matrix.mpi }}
 
       - name: Configure Linux MPI transport
         if: runner.os == 'Linux'

@@ -29,8 +29,18 @@ The main validations are:
 * ``validate_sar_lossy_halfspace.py`` -- local SAR in a conductive dielectric
   half space against the exact Fresnel/transmission solution;
 * ``validate_sar_lossy_sphere.py`` -- total absorbed power obtained by
-  integrating tagged-cell SAR in a lossy sphere against the exact Mie
-  absorption cross-section;
+  integrating tagged-cell SAR in a lossy sphere, and the incident-flux
+  normalised radiometric absorption cross-section, against the exact Mie
+  absorption solution;
+* ``validate_sar_2d_cylinder.py`` -- 2-D TM and TE local SAR plus absorbed
+  power per unit length in homogeneous lossy cylinders against the exact
+  cylindrical-Mie series. The muscle case uses parameters reported by
+  Gasmelseed (2026), whose graphical cylinder comparison does not include
+  numerical error estimates; the reported errors, fat and skin cases, and TE
+  solution are explicitly additional validations performed here;
+* ``plot_sar_2d_cylinder_materials.py`` -- combines completed fat, skin, and
+  muscle results into 2-D analytical/FDTD/error maps, boundary-depth error
+  profiles, and material/polarisation error summaries without rerunning FDTD;
 * ``validate_sar_power_normalisation.py`` -- end-to-end incident- and
   accepted-port-power normalisation identities;
 * ``validate_sar_spatial_averaging.py`` -- 1 g and 10 g spatial-average SAR
@@ -87,6 +97,8 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     python -m testing.validation.validate_sar_lossy_halfspace --backend cuda --sweep
     python -m testing.validation.validate_sar_lossy_sphere --backend cuda --dl 0.000375
+    python -m testing.validation.validate_sar_2d_cylinder \
+        --backend cuda --material muscle
     python -m testing.validation.validate_sar_power_normalisation
     python testing/validation/validate_sar_spatial_averaging.py \
         --reference /path/to/IEC-IEEE-62704-1-spatial-average-SAR

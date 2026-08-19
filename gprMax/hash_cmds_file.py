@@ -272,6 +272,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx_array",
             "#rx_port",
             "#sar",
+            "#radiometry",
             "#network_port",
             "#snapshot",
             "#ntff_surface",

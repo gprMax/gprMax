@@ -2055,22 +2055,40 @@ wavelength criterion but not the temporal Nyquist check. The default Python
 API criterion is lambda/10, and lambda/8 is requested by supplying ``8``.
 Every material in the selected final tagged cells must have a positive mass
 density. Tagged cells inside boundary or internal PML regions are excluded
-automatically. Three-dimensional CPU, CUDA, OpenCL, and Metal main-grid models,
-MPI domain-decomposed CPU models, and three-dimensional CPU HSG subgrids are
-supported. A ``#sar`` command inside a subgrid block samples the fine grid at
-its own timestep and writes
+automatically. Three- and two-dimensional CPU, CUDA, OpenCL, and Metal
+main-grid models, MPI domain-decomposed CPU models, and three-dimensional CPU
+HSG subgrids are supported. In 2-D, only invariant index zero for TM or index
+one for TE is sampled; tag mass and absorbed power are reported per unit
+invariant length. A ``#sar`` command inside a subgrid block samples the fine
+grid at its own timestep and writes
 ``/subgrids/<subgrid ID>/sar/<output ID>``. Its normalising source may belong
 to the main grid or the subgrid. See :ref:`sar-output` for the formulation and
-datasets.
+datasets, and :ref:`sar-2d-cylinder-validation` for analytical TMz and TEz
+validation against homogeneous lossy-cylinder series.
 
 For port-power normalisation, replace the numeric target amplitude by
 ``incident_power`` or ``accepted_power`` and insert the target power in watts
-and port ID before the spectrum limit:
+for 3-D, or watts per metre for 2-D, and port ID before the spectrum limit.
+No waveform ID is required because the named port supplies its own incident
+and accepted spectra:
 
 .. code-block:: none
 
-    #sar: f1 f2 i1 str1 incident_power f3 str2 f4|nyquist str3 str4 [str5 ...]
-    #sar: 8e8 1.2e9 41 pulse accepted_power 1 feed 10 brain_sar brain_region
+    #sar: f1 f2 i1 incident_power f3 str1 f4|nyquist str2 str3 [str4 ...]
+    #sar: 8e8 1.2e9 41 accepted_power 1 feed 10 brain_sar brain_region
+
+The older form containing an unused waveform ID before the power keyword is
+still accepted for input-file compatibility. A Hertzian current-moment or
+plane-wave incident-flux normalisation uses:
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 current_moment f3 f4|nyquist str2 str3 [str4 ...]
+    #sar: f1 f2 i1 str1 incident_flux f3 f4|nyquist str2 str3 [str4 ...]
+
+Here ``current_moment`` interprets ``f3`` as A m and is restricted to one
+active 3-D Hertzian dipole. ``incident_flux`` interprets it as W/m\ :sup:`2`
+and requires one active discrete plane wave using waveform ``str1``.
 
 The original numeric-amplitude form remains unchanged. By default the output
 contains local cell SAR, absorbed-power density, and per-tag summaries only.
@@ -2087,7 +2105,35 @@ Here ``i2`` must be positive and determines exactly how many following values
 are interpreted as masses. This explicit positional marker keeps arbitrary
 geometry-tag names distinguishable from numeric masses. Omitting the marker
 requests no spatial averaging. The same suffix follows ``str3`` (the output
-ID) in the port-power form.
+ID) in the port-power form. The ``spatial_average`` suffix is currently
+three-dimensional only; it is rejected in TM and TE models.
+
+
+#radiometry:
+-------------
+
+Requests density-independent absorbed-power and radiometric weighting over
+semantic geometry tags. The waveform, current-moment, plane-wave flux, and
+port-power forms mirror ``#sar`` but do not accept a spatial-average suffix:
+
+.. code-block:: none
+
+    #radiometry: f1 f2 i1 str1 f3 f4|nyquist str2 str3 [str4 ...]
+    #radiometry: f1 f2 i1 str1 current_moment f3 f4|nyquist str2 str3 [str4 ...]
+    #radiometry: f1 f2 i1 str1 incident_flux f3 f4|nyquist str2 str3 [str4 ...]
+    #radiometry: f1 f2 i1 accepted_power f3 str1 f4|nyquist str2 str3 [str4 ...]
+
+For example, a unit-flux plane-wave absorption cross section for a tagged
+layer is requested with:
+
+.. code-block:: none
+
+    #radiometry: 5e8 2e9 61 incident incident_flux 1 10 layer_absorption subsurface_layer
+
+The output is written to ``/radiometry/<output ID>`` and contains local
+absorbed-power density, normalised absorption density, and per-tag integrals.
+It does not require ``#material_density``. See :ref:`radiometry-output` for
+the dimensional meaning of each normalisation.
 
 
 #network_port:
@@ -2310,6 +2356,11 @@ or
 * ``file1`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
+
+In a reduced 2-D model, the invariant-axis range is collapsed to the genuine
+field plane: index zero for TM and index one for TE. The two-cell TE thickness
+is required by Yee staggering and is not exported as two physical snapshot
+planes.
 
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.

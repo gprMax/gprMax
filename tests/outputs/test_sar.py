@@ -173,6 +173,45 @@ def test_sar_hash_command_accepts_port_power_normalisation():
     assert output.tags == ("body",)
 
 
+def test_sar_hash_port_power_normalisation_does_not_require_waveform():
+    objects = get_user_objects(
+        ["#sar: 1e9 1e9 1 accepted_power 2.5 feed 10 dose body\n"],
+        checkessential=False,
+    )
+    output = objects[0]
+    assert output.waveform_id is None
+    assert output.normalisation == "accepted_power"
+    assert output.target_power == pytest.approx(2.5)
+    assert output.port_id == "feed"
+    assert output.tags == ("body",)
+
+
+def test_sar_hash_current_moment_normalisation_is_explicit():
+    objects = get_user_objects(
+        ["#sar: 1e9 1e9 1 pulse current_moment 0.25 10 dose body\n"],
+        checkessential=False,
+    )
+    output = objects[0]
+    assert output.waveform_id == "pulse"
+    assert output.normalisation == "current_moment"
+    assert output.target_amplitude == pytest.approx(0.25)
+    assert output.port_id is None
+    assert output.tags == ("body",)
+
+
+def test_sar_hash_plane_wave_incident_flux_normalisation_is_explicit():
+    output = get_user_objects(
+        ["#sar: 1e9 1e9 1 pulse incident_flux 2.5 10 dose body\n"],
+        checkessential=False,
+    )[0]
+
+    assert output.waveform_id == "pulse"
+    assert output.normalisation == "incident_flux"
+    assert output.target_flux == pytest.approx(2.5)
+    assert output.port_id is None
+    assert output.tags == ("body",)
+
+
 def test_sar_cell_formula_matches_homogeneous_analytical_value():
     """For a peak phasor, SAR = sigma |E|^2 / (2 rho)."""
 
@@ -228,12 +267,8 @@ def test_mpi_sar_edge_ownership_is_unique_and_includes_outer_boundary():
     )
     coordinates = np.asarray(((4, 2, 2), (5, 2, 2), (10, 2, 2)), dtype=np.int32)
 
-    np.testing.assert_array_equal(
-        _mpi_owned_edge_mask(lower, coordinates), (True, False, False)
-    )
-    np.testing.assert_array_equal(
-        _mpi_owned_edge_mask(upper, coordinates), (False, True, True)
-    )
+    np.testing.assert_array_equal(_mpi_owned_edge_mask(lower, coordinates), (True, False, False))
+    np.testing.assert_array_equal(_mpi_owned_edge_mask(upper, coordinates), (False, True, True))
 
 
 def test_mpi_sar_gather_adds_no_collective_when_no_monitors():
@@ -400,6 +435,49 @@ def test_sar_incident_power_normalisation_scales_quadratically(monkeypatch):
 
     assert result.normalisation_scale[0] == pytest.approx(2.0)
     assert result.sar[0, 0] == pytest.approx(0.1)
+    assert np.isnan(result.source_spectrum[0])
+    assert result.source_relative_db[0] == pytest.approx(0.0)
+    assert result.incident_power[0] == pytest.approx(2.0)
+
+
+def test_sar_current_moment_normalises_the_hertzian_source_length():
+    monitor = SARMonitor.__new__(SARMonitor)
+    monitor._next_iteration = monitor.grid_iterations = 1
+    monitor._source_samples = np.asarray([1.0])
+    monitor._source_length = 0.25
+    monitor.frequencies = np.asarray([1e9])
+    monitor.grid_dt = 1.0
+    monitor.window = np.ones(1)
+    monitor.complex_dtype = np.dtype(np.complex128)
+    monitor.real_dtype = np.dtype(np.float64)
+    monitor.target_amplitude = 1.0
+    monitor.source_floor_db = -40.0
+    monitor.mesh_valid = np.asarray([True])
+    monitor.cells_per_wavelength = np.asarray([20.0])
+    monitor.limiting_material = np.asarray(["tissue"])
+    monitor.cells = np.asarray([[0, 0, 0]], dtype=np.int32)
+    monitor.cell_tag_ids = np.asarray([1], dtype=np.uint8)
+    monitor.cell_material_ids = np.asarray([2], dtype=np.uint32)
+    monitor.density = np.asarray([1000.0])
+    monitor.cell_material_loss = np.asarray([[0.5]])
+    monitor.cell_edge_indices = {
+        component: np.asarray([[0, 1, 2, 3]]) for component in ("Ex", "Ey", "Ez")
+    }
+    monitor.accumulators = {
+        "Ex": np.full((1, 4), 10.0, dtype=np.complex128),
+        "Ey": np.zeros((1, 4), dtype=np.complex128),
+        "Ez": np.zeros((1, 4), dtype=np.complex128),
+    }
+    monitor.result = None
+    monitor.averaging_masses = ()
+    monitor.normalisation = "current_moment"
+
+    result = monitor.finalise()
+
+    # Unit current moment requires four times the field amplitude produced by
+    # the 0.25 m, unit-current source, hence sixteen times its SAR.
+    assert result.normalisation_scale[0] == pytest.approx(4.0)
+    assert result.sar[0, 0] == pytest.approx(0.4)
 
 
 def test_sar_real_port_power_normalisation_scales_with_target_power(tmp_path):
@@ -407,10 +485,10 @@ def test_sar_real_port_power_normalisation_scales_with_target_power(tmp_path):
     one_watt.normalisation = "incident_power"
     one_watt.port_id = "feed"
     one_watt.target_power = 1.0
+    one_watt.waveform_id = None
     scene.add(gprMax.RxPort(p1=(0.012, 0.012, 0.012), id="feed"))
     four_watt = SAR(
         frequencies=one_watt.frequencies,
-        waveform_id="pulse",
         tags="target",
         id="target_sar_4W",
         normalisation="incident_power",
@@ -430,6 +508,101 @@ def test_sar_real_port_power_normalisation_scales_with_target_power(tmp_path):
     assert np.all(one_watt.result.valid)
     assert np.all(four_watt.result.valid)
     np.testing.assert_allclose(four_watt.result.sar, 4 * one_watt.result.sar, rtol=2e-6)
+
+
+def test_sar_hertzian_current_and_current_moment_normalisations_agree(tmp_path):
+    dl = 0.002
+    scene = gprMax.Scene()
+    scene.add(gprMax.Domain(p1=(0.024, 0.024, 0.024)))
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.TimeWindow(time=2e-9))
+    scene.add(gprMax.PMLThickness(thickness=2))
+    scene.add(gprMax.OMPThreads(1))
+    scene.add(gprMax.Material(er=4, se=0.5, mr=1, sm=0, id="tissue"))
+    scene.add(gprMax.MaterialDensity(density=1000, material_ids="tissue"))
+    scene.add(
+        gprMax.Box(
+            p1=(0.004, 0.004, 0.004),
+            p2=(0.020, 0.020, 0.020),
+            material_id="tissue",
+            tag="target",
+        )
+    )
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=1e9, id="pulse"))
+    scene.add(
+        gprMax.HertzianDipole(p1=(0.012, 0.012, 0.012), polarisation="z", waveform_id="pulse")
+    )
+    current = gprMax.SAR(
+        frequencies=(1e9,),
+        waveform_id="pulse",
+        tags="target",
+        id="current",
+        target_amplitude=3.0,
+    )
+    moment = gprMax.SAR(
+        frequencies=(1e9,),
+        waveform_id="pulse",
+        tags="target",
+        id="moment",
+        target_amplitude=3.0 * dl,
+        normalisation="current_moment",
+    )
+    scene.add(current)
+    scene.add(moment)
+
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        outputfile=tmp_path / "hertzian_moment",
+        hide_progress_bars=True,
+    )
+
+    np.testing.assert_allclose(moment.result.sar, current.result.sar, rtol=2e-6)
+    assert moment._monitor._source_length == pytest.approx(dl)
+
+
+@pytest.mark.integration
+def test_sar_eigenmode_port_power_needs_no_waveform_id(tmp_path):
+    from tests.test_virtual_waveguide_integration import _uniform_waveguide_scene
+
+    scene = _uniform_waveguide_scene(normal_axis=0, direction="+")
+    # Keep the perturbing test load weak enough that the compact 1 mm guide
+    # remains above the solver's absolute three-cell propagation guard over
+    # the continuous-sine spectral estimate.
+    scene.add(gprMax.Material(er=1.0, se=1e-6, mr=1, sm=0, id="lossy"))
+    scene.add(gprMax.MaterialDensity(density=1000, material_ids="lossy"))
+    scene.add(
+        gprMax.Box(
+            p1=(0.030, 0.003, 0.003),
+            p2=(0.034, 0.007, 0.009),
+            material_id="lossy",
+            tag="target",
+        )
+    )
+    output = gprMax.SAR(
+        frequencies=(22e9,),
+        tags="target",
+        id="modal_sar",
+        normalisation="accepted_power",
+        port_id="port1",
+        target_power=1.0,
+        spectrum_limit="nyquist",
+    )
+    scene.add(output)
+
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        outputfile=tmp_path / "eigenmode_sar",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert output.waveform_id is None
+    assert output.result.valid[0]
+    assert output.result.incident_power[0] > 0
+    assert output.result.normalising_power[0] > 0
+    assert np.all(np.isfinite(output.result.sar[0]))
 
 
 def test_sar_state_is_reset_for_geometry_fixed_runs(tmp_path):

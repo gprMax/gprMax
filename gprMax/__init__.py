@@ -85,6 +85,7 @@ from .user_objects.cmds_multiuse import (
     Waveform,
 )
 from .user_objects.cmds_output import (
+    Radiometry,
     SAR,
     GeometryObjectsWrite,
     GeometryView,
