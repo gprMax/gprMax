@@ -23,6 +23,12 @@ def _():
         list_receivers,
         load_file,
     )
+    from toolboxes.Marimo.processing import (
+        GAIN_KINDS,
+        apply_gain,
+        gain_label,
+        remove_mean_trace,
+    )
     from toolboxes.Marimo.trace_matrix import process_trace, stack_traces
 
     # gprMax per-trace B-scan naming: <base><N>.h5, e.g. cylinder_Bscan_2D1.h5
@@ -58,6 +64,120 @@ def _():
                 found.append((int(m.group(2)), p))
         found.sort(key=lambda t: t[0])
         return found
+
+    def apply_processing(matrix, time_ns, processing):
+        """Background removal then gain, in that order. Returns
+        (display_matrix, gain_curve, summary, background).
+
+        Order is not arbitrary: the GPR literature is consistent that
+        background removal comes before gain, because gaining first
+        amplifies the stationary direct wave along with everything else and
+        leaves a much larger residual for the subtraction to cancel.
+        Display normalisation happens last, inside build_bscan_figure.
+
+        `summary` is the one-line description that goes into the plot title
+        and the CSV header, so an exported figure records what was done.
+        """
+        proc = processing or {}
+        kind = proc.get("kind", "none")
+        window = proc.get("background_window")
+        parts = []
+
+        display = matrix
+        background = None
+
+        if proc.get("remove_background"):
+            display, background = remove_mean_trace(display, window)
+            parts.append(
+                "background removed (all traces)"
+                if window is None
+                else f"background removed ({window}-trace window)"
+            )
+
+        curve = None
+        if kind != "none":
+            # Start is carried as a percentage so the control cell has no
+            # dependency on the data. A live B-scan rebuilds its time-window
+            # slider on every arriving trace, and an ns-valued start slider
+            # would be rebuilt with it, resetting gain mid-run.
+            window_ns = float(time_ns[-1]) if len(time_ns) else 0.0
+            start_ns = (proc.get("start_pct", 0.0) / 100.0) * window_ns
+            max_gain = proc.get("max_gain")
+            display, curve = apply_gain(
+                display,
+                time_ns,
+                kind,
+                factor=proc.get("factor", 1.0),
+                power=proc.get("power", 1.0),
+                start_ns=start_ns,
+                max_gain=max_gain,
+            )
+            # Only name the clamp when it actually bound. Reporting a limit
+            # the gain never reached puts a misleading number in a title.
+            bound = max_gain is not None and float(np.max(curve)) >= max_gain
+            parts.append(
+                gain_label(
+                    kind,
+                    proc.get("factor", 1.0),
+                    proc.get("power", 1.0),
+                    start_ns,
+                    max_gain if bound else None,
+                )
+            )
+
+        return display, curve, "  ·  ".join(parts), background
+
+    def build_gain_curve_figure(time_ns, curve, bg, font_size, time_range, line_colour="#7f7f7f"):
+        """Small standalone panel for the applied gain curve.
+
+        Its own figure rather than an extra axis on the radargram: a heatmap
+        has no spare y-axis, and a 3D surface has none at all. Time runs
+        horizontally here even though the radargram draws it vertically,
+        which keeps this panel identical to the one in ascan_dashboard.py.
+        """
+        is_dark = bg == "#0e1117"
+        fc = "#e8e8e8" if is_dark else "#1a1a1a"
+        lc = "rgba(255,255,255,0.25)" if is_dark else "rgba(0,0,0,0.18)"
+        gc = "rgba(255,255,255,0.1)" if is_dark else "rgba(0,0,0,0.07)"
+
+        fig = go.Figure(
+            data=go.Scatter(
+                x=time_ns,
+                y=curve,
+                mode="lines",
+                showlegend=False,
+                line=dict(color=line_colour, width=1.5),
+                hovertemplate="%{x:.4f} ns<br>x%{y:.4g}<extra>gain</extra>",
+            )
+        )
+        lo, hi = time_range if time_range is not None else (float(time_ns[0]), float(time_ns[-1]))
+        fig.update_layout(
+            xaxis=dict(
+                title="Time (ns)",
+                range=[lo, hi],
+                showgrid=True,
+                gridcolor=gc,
+                showline=True,
+                linecolor=lc,
+                tickfont=dict(size=font_size - 2, color=fc),
+                title_font=dict(size=font_size - 1, color=fc),
+            ),
+            yaxis=dict(
+                title="Gain (x)",
+                type="log" if float(np.min(curve)) > 0 else "linear",
+                showgrid=True,
+                gridcolor=gc,
+                showline=True,
+                linecolor=lc,
+                tickfont=dict(size=font_size - 2, color=fc),
+                title_font=dict(size=font_size - 1, color=fc),
+            ),
+            paper_bgcolor=bg,
+            plot_bgcolor=bg,
+            height=180,
+            margin=dict(l=72, r=32, t=10, b=44),
+        )
+        return fig
 
     def build_bscan_figure(matrix, x, y, x_title, unit, colourscale, bg, font_size, view_mode, title_text, time_range=None, normalize=False):
         """Heatmap or 3D Surface from an assembled (time x position) matrix."""
@@ -139,12 +259,26 @@ def _():
         )
         return fig
 
-    def render_bscan_section(matrix, positions_x, time_ns, component, all_positions_physical, index_label, colourscale, bg, font_size, view_mode, normalize, title_text, csv_filename, time_range=None, sample_file=None):
+    def render_bscan_section(matrix, positions_x, time_ns, component, all_positions_physical, index_label, colourscale, bg, font_size, view_mode, normalize, title_text, csv_filename, time_range=None, sample_file=None, processing=None):
         """Metadata banner + plot + CSV/SVG/PDF export. Shared by both the
         live and load-files renderer cells so the two don't drift apart.
+
+        Processing lives here rather than in the two renderer cells for the
+        same reason: one implementation, so background removal and gain
+        cannot behave differently between live monitoring and load-files.
         """
         if matrix is None:
             return mo.callout(mo.md("No traces to show yet."), kind="neutral")
+
+        display, gain_curve, proc_summary, _background = apply_processing(
+            matrix, time_ns, processing
+        )
+        proc = processing or {}
+        unit = get_unit_label(component or "Ez")
+        if proc.get("kind", "none") != "none":
+            unit += " (gained)"
+        if proc_summary:
+            title_text = f"{title_text}  ·  {proc_summary}"
 
         x_title = (
             "Source x-position (m)"
@@ -152,22 +286,29 @@ def _():
             else f"{index_label} (source position unavailable in one or more files)"
         )
         fig = build_bscan_figure(
-            matrix, positions_x, time_ns, x_title, get_unit_label(component or "Ez"),
+            display, positions_x, time_ns, x_title, unit,
             colourscale, bg, font_size, view_mode, title_text,
             time_range=time_range, normalize=normalize,
         )
 
-        # CSV always exports the full, unzoomed, un-normalized matrix —
-        # same convention ascan_dashboard.py uses for its time-zoom slider.
+        # CSV always exports the full, unzoomed, un-normalized, unprocessed
+        # matrix — same convention ascan_dashboard.py uses. The processing
+        # line is written whether or not any processing is active, so the
+        # file format never changes depending on a UI setting. Commas inside
+        # the summary become semicolons to keep it one unquoted field.
         try:
             buf = io.StringIO()
+            buf.write(
+                f"# processing: {(proc_summary or 'none').replace(',', ';')}. "
+                f"Values below are raw.\n"
+            )
             writer = csv.writer(buf)
             writer.writerow(["time_ns"] + [f"x={p:.4f}" for p in positions_x])
             for i in range(len(time_ns)):
                 writer.writerow([f"{time_ns[i]:.8g}"] + [f"{matrix[i, j]:.10g}" for j in range(matrix.shape[1])])
             csv_btn = mo.download(
                 data=buf.getvalue().encode("utf-8"), filename=csv_filename,
-                label="Download CSV (full matrix)", mimetype="text/csv",
+                label="Download CSV (full raw matrix)", mimetype="text/csv",
             )
         except Exception as e:
             csv_btn = mo.md(f"_CSV export error: `{e}`_")
@@ -203,17 +344,38 @@ def _():
                     "displaylogo": False,
                 },
             ),
+        ]
+
+        if gain_curve is not None and proc.get("show_curve"):
+            elements += [
+                mo.md(f"**Applied gain curve** — {proc_summary}"),
+                mo.ui.plotly(
+                    build_gain_curve_figure(time_ns, gain_curve, bg, font_size, time_range),
+                    config={"displaylogo": False, "displayModeBar": False},
+                ),
+            ]
+
+        notes = []
+        if proc_summary:
+            notes.append(
+                "_Radargram and image exports show processed amplitudes. "
+                "CSV stays raw, with the processing recorded on its first line._"
+            )
+        notes.append(
+            "_SVG/PDF need `plotly_get_chrome` run once. If either "
+            "fails, the camera icon in the plot toolbar above always "
+            "works and needs no setup._"
+        )
+
+        elements += [
             mo.md("**Export**"),
             mo.hstack([csv_btn, svg_btn, pdf_btn], gap="1rem", justify="start"),
-            mo.md(
-                "_SVG/PDF need `plotly_get_chrome` run once. If either "
-                "fails, the camera icon in the plot toolbar above always "
-                "works and needs no setup._"
-            ),
+            mo.md("  \n".join(notes)),
         ]
         return mo.vstack(elements, gap="0.5rem")
 
     return (
+        GAIN_KINDS,
         Path,
         discover_bases,
         find_trace_files,
@@ -534,7 +696,6 @@ def _(
     return
 
 
-
 # ── Step 5: Time window ─────────────────────────────────────────────────
 @app.cell
 def _(get_bscan_state, mo):
@@ -588,14 +749,111 @@ def _(mo):
     return live_bg, live_colourscale, live_font_size, live_normalize, live_view_mode
 
 
+# ── Step 6b: Processing controls ─────────────────────────────────────────
+# Widget creation only. live_gain_kind's .value drives the parameter cell
+# below, and reading it here would raise at runtime.
+@app.cell
+def _(GAIN_KINDS, mo):
+    live_gain_kind = mo.ui.dropdown(
+        options={_meta["label"]: _k for _k, _meta in GAIN_KINDS.items()},
+        value="None",
+        label="Gain function",
+    )
+    live_remove_bg = mo.ui.checkbox(label="Remove background (mean trace)", value=False)
+    live_bg_window = mo.ui.slider(
+        start=0, stop=51, step=1, value=0,
+        label="Background window (traces, 0 = all)", debounce=True,
+    )
+    live_show_curve = mo.ui.checkbox(label="Show gain curve", value=True)
+
+    mo.output.replace(
+        mo.vstack(
+            [
+                mo.md("### Step 6b — Processing"),
+                mo.md(
+                    "_Background removal runs first, then gain, then display "
+                    "normalisation, matching standard GPR processing order. "
+                    "CSV export stays raw throughout._"
+                ),
+                mo.hstack([live_remove_bg, live_bg_window], gap="1.5rem", justify="start"),
+                mo.hstack([live_gain_kind, live_show_curve], gap="1.5rem", justify="start"),
+            ],
+            gap="0.4rem",
+        )
+    )
+    return live_bg_window, live_gain_kind, live_remove_bg, live_show_curve
+
+
+# ── Step 6c: Gain parameters ─────────────────────────────────────────────
+# Depends on live_gain_kind alone. Anything derived from the accumulated
+# state would rebuild these widgets on every arriving trace and reset the
+# gain settings in the middle of a live run, which is why the gain start is
+# a percentage of the window rather than an absolute time.
+@app.cell
+def _(GAIN_KINDS, live_gain_kind, mo):
+    _FACTOR_SLIDERS = {
+        "constant": dict(start=0.1, stop=20.0, step=0.1, value=2.0, label="Factor (x)"),
+        "linear": dict(start=0.0, stop=10.0, step=0.1, value=1.0, label="Slope (per ns)"),
+        "exponential": dict(start=0.0, stop=5.0, step=0.05, value=1.0, label="Rate a (per ns)"),
+        "db": dict(start=0.0, stop=60.0, step=0.5, value=6.0, label="Gain (dB per ns)"),
+        "sec": dict(start=0.0, stop=5.0, step=0.05, value=0.5, label="Rate a (per ns)"),
+    }
+
+    _kind = live_gain_kind.value
+
+    if _kind == "none":
+        live_gain_factor = None
+        live_gain_power = None
+        live_gain_start = None
+        live_gain_clamp = None
+        live_gain_max = None
+        mo.output.replace(mo.md(""))
+    else:
+        _cfg = _FACTOR_SLIDERS.get(_kind)
+        live_gain_factor = mo.ui.slider(**_cfg, debounce=True) if _cfg else None
+        live_gain_power = (
+            mo.ui.slider(start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True)
+            if GAIN_KINDS[_kind]["uses_power"]
+            else None
+        )
+        live_gain_start = mo.ui.slider(
+            start=0.0, stop=100.0, step=0.5, value=0.0,
+            label="Gain start (% of window)", debounce=True,
+        )
+        live_gain_clamp = mo.ui.checkbox(label="Limit maximum gain", value=True)
+        live_gain_max = mo.ui.slider(
+            start=1, stop=1000, step=1, value=100, label="Maximum gain (x)", debounce=True
+        )
+        _params = [w for w in (live_gain_factor, live_gain_power, live_gain_start) if w is not None]
+        mo.output.replace(
+            mo.vstack(
+                [
+                    mo.hstack(_params, gap="1.5rem", justify="start"),
+                    mo.hstack([live_gain_clamp, live_gain_max], gap="1.5rem", justify="start"),
+                ],
+                gap="0.4rem",
+            )
+        )
+    return live_gain_clamp, live_gain_factor, live_gain_max, live_gain_power, live_gain_start
+
+
 # ── Live renderer + export ──────────────────────────────────────────────
 @app.cell
 def _(
     get_bscan_state,
     live_bg,
+    live_bg_window,
     live_colourscale,
     live_font_size,
+    live_gain_clamp,
+    live_gain_factor,
+    live_gain_kind,
+    live_gain_max,
+    live_gain_power,
+    live_gain_start,
     live_normalize,
+    live_remove_bg,
+    live_show_curve,
     live_time_range,
     live_view_mode,
     mo,
@@ -631,6 +889,20 @@ def _(
             csv_filename="gprmax_bscan_live.csv",
             time_range=tuple(live_time_range.value),
             sample_file=_state["sample_file"],
+            processing=dict(
+                kind=live_gain_kind.value,
+                factor=live_gain_factor.value if live_gain_factor is not None else 1.0,
+                power=live_gain_power.value if live_gain_power is not None else 1.0,
+                start_pct=live_gain_start.value if live_gain_start is not None else 0.0,
+                max_gain=(
+                    live_gain_max.value
+                    if (live_gain_clamp is not None and live_gain_clamp.value)
+                    else None
+                ),
+                remove_background=live_remove_bg.value,
+                background_window=(None if live_bg_window.value == 0 else live_bg_window.value),
+                show_curve=live_show_curve.value,
+            ),
         )
     )
     return
@@ -794,14 +1066,111 @@ def _(mo):
     return load_bg, load_colourscale, load_font_size, load_normalize, load_view_mode
 
 
+# ── Step 10b: Processing controls ─────────────────────────────────────────
+# Widget creation only. load_gain_kind's .value drives the parameter cell
+# below, and reading it here would raise at runtime.
+@app.cell
+def _(GAIN_KINDS, mo):
+    load_gain_kind = mo.ui.dropdown(
+        options={_meta["label"]: _k for _k, _meta in GAIN_KINDS.items()},
+        value="None",
+        label="Gain function",
+    )
+    load_remove_bg = mo.ui.checkbox(label="Remove background (mean trace)", value=False)
+    load_bg_window = mo.ui.slider(
+        start=0, stop=51, step=1, value=0,
+        label="Background window (traces, 0 = all)", debounce=True,
+    )
+    load_show_curve = mo.ui.checkbox(label="Show gain curve", value=True)
+
+    mo.output.replace(
+        mo.vstack(
+            [
+                mo.md("### Step 10b — Processing"),
+                mo.md(
+                    "_Background removal runs first, then gain, then display "
+                    "normalisation, matching standard GPR processing order. "
+                    "CSV export stays raw throughout._"
+                ),
+                mo.hstack([load_remove_bg, load_bg_window], gap="1.5rem", justify="start"),
+                mo.hstack([load_gain_kind, load_show_curve], gap="1.5rem", justify="start"),
+            ],
+            gap="0.4rem",
+        )
+    )
+    return load_bg_window, load_gain_kind, load_remove_bg, load_show_curve
+
+
+# ── Step 10c: Gain parameters ─────────────────────────────────────────────
+# Depends on load_gain_kind alone. Anything derived from the accumulated
+# state would rebuild these widgets on every arriving trace and reset the
+# gain settings in the middle of a live run, which is why the gain start is
+# a percentage of the window rather than an absolute time.
+@app.cell
+def _(GAIN_KINDS, load_gain_kind, mo):
+    _FACTOR_SLIDERS = {
+        "constant": dict(start=0.1, stop=20.0, step=0.1, value=2.0, label="Factor (x)"),
+        "linear": dict(start=0.0, stop=10.0, step=0.1, value=1.0, label="Slope (per ns)"),
+        "exponential": dict(start=0.0, stop=5.0, step=0.05, value=1.0, label="Rate a (per ns)"),
+        "db": dict(start=0.0, stop=60.0, step=0.5, value=6.0, label="Gain (dB per ns)"),
+        "sec": dict(start=0.0, stop=5.0, step=0.05, value=0.5, label="Rate a (per ns)"),
+    }
+
+    _kind = load_gain_kind.value
+
+    if _kind == "none":
+        load_gain_factor = None
+        load_gain_power = None
+        load_gain_start = None
+        load_gain_clamp = None
+        load_gain_max = None
+        mo.output.replace(mo.md(""))
+    else:
+        _cfg = _FACTOR_SLIDERS.get(_kind)
+        load_gain_factor = mo.ui.slider(**_cfg, debounce=True) if _cfg else None
+        load_gain_power = (
+            mo.ui.slider(start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True)
+            if GAIN_KINDS[_kind]["uses_power"]
+            else None
+        )
+        load_gain_start = mo.ui.slider(
+            start=0.0, stop=100.0, step=0.5, value=0.0,
+            label="Gain start (% of window)", debounce=True,
+        )
+        load_gain_clamp = mo.ui.checkbox(label="Limit maximum gain", value=True)
+        load_gain_max = mo.ui.slider(
+            start=1, stop=1000, step=1, value=100, label="Maximum gain (x)", debounce=True
+        )
+        _params = [w for w in (load_gain_factor, load_gain_power, load_gain_start) if w is not None]
+        mo.output.replace(
+            mo.vstack(
+                [
+                    mo.hstack(_params, gap="1.5rem", justify="start"),
+                    mo.hstack([load_gain_clamp, load_gain_max], gap="1.5rem", justify="start"),
+                ],
+                gap="0.4rem",
+            )
+        )
+    return load_gain_clamp, load_gain_factor, load_gain_max, load_gain_power, load_gain_start
+
+
 # ── Load-files renderer + export ────────────────────────────────────────
 @app.cell
 def _(
     load_bg,
+    load_bg_window,
     load_colourscale,
     load_font_size,
+    load_gain_clamp,
+    load_gain_factor,
+    load_gain_kind,
+    load_gain_max,
+    load_gain_power,
+    load_gain_start,
     load_normalize,
+    load_remove_bg,
     load_result,
+    load_show_curve,
     load_time_range,
     load_view_mode,
     mo,
@@ -830,6 +1199,20 @@ def _(
             csv_filename="gprmax_bscan_assembled.csv",
             time_range=tuple(load_time_range.value),
             sample_file=load_result["sample_file"],
+            processing=dict(
+                kind=load_gain_kind.value,
+                factor=load_gain_factor.value if load_gain_factor is not None else 1.0,
+                power=load_gain_power.value if load_gain_power is not None else 1.0,
+                start_pct=load_gain_start.value if load_gain_start is not None else 0.0,
+                max_gain=(
+                    load_gain_max.value
+                    if (load_gain_clamp is not None and load_gain_clamp.value)
+                    else None
+                ),
+                remove_background=load_remove_bg.value,
+                background_window=(None if load_bg_window.value == 0 else load_bg_window.value),
+                show_curve=load_show_curve.value,
+            ),
         )
     )
     return
@@ -850,12 +1233,16 @@ def _(mo):
             "without that metadata fall back to selection order, which "
             "may not reflect physical position.\n"
             "- No invert-polarity or time-shift controls. Antonis's "
-            "\"manipulate\" scope wasn't fully pinned down — zoom and "
-            "normalize are built, the rest is worth clarifying before "
-            "guessing further.\n"
-            "- Background subtraction and FFT are intentionally not here "
-            "— deferred for ascan_dashboard.py too, staying consistent "
-            "with that call."
+            "\"manipulate\" scope wasn't fully pinned down — zoom, "
+            "normalize, gain and background removal are built, the rest "
+            "is worth clarifying before guessing further.\n"
+            "- No AGC. It equalises amplitudes over a local window and "
+            "destroys relative reflectivity, which is precisely what an "
+            "FDTD simulation gets right and a field instrument does not.\n"
+            "- Bandpass and lowpass filters, and B-scan minus B-scan "
+            "subtraction, are not built. Same processing family as gain "
+            "and background removal, and they plug into the same "
+            "`processing.py` module when they are."
         ),
         kind="neutral",
     )

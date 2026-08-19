@@ -24,6 +24,13 @@ def _():
         list_receivers,
         load_files,
     )
+    from toolboxes.Marimo.processing import (
+        GAIN_KINDS,
+        apply_gain,
+        fft_spectrum,
+        gain_label,
+        spectrum_view_limit,
+    )
 
     # Research-quality colour palette (Matplotlib tab10, colorblind-friendly)
     PALETTE = [
@@ -56,11 +63,15 @@ def _():
 
     return (
         COLOUR_NAMES,
+        GAIN_KINDS,
         PALETTE,
         Path,
+        apply_gain,
         build_label,
         csv,
+        fft_spectrum,
         format_metadata_text,
+        gain_label,
         get_time_axis,
         get_trace,
         get_unit_label,
@@ -71,6 +82,7 @@ def _():
         load_files,
         mo,
         np,
+        spectrum_view_limit,
     )
 
 
@@ -429,12 +441,169 @@ def _(get_data, get_traces, mo):
     return (time_slider,)
 
 
+# ── SECTION 5b: Gain kind ─────────────────────────────────────────────────
+# Widget creation only. Its .value is read in the next cell, which builds the
+# parameter sliders for whichever kind is selected — reading .value in the
+# cell that creates the widget raises at runtime and marimo check misses it.
+@app.cell
+def _(GAIN_KINDS, get_traces, mo):
+    if not get_traces():
+        mo.stop(True, mo.md(""))
+
+    gain_kind = mo.ui.dropdown(
+        options={_meta["label"]: _k for _k, _meta in GAIN_KINDS.items()},
+        value="None",
+        label="Gain function",
+    )
+    mo.output.replace(
+        mo.vstack(
+            [
+                mo.md("### Step 5 — Gain"),
+                mo.md(
+                    "_Time-varying amplification to compensate spherical spreading "
+                    "and attenuation. Power is `t^b`, exponential is `exp(a·t)`, "
+                    "and SEC is their product, the gain most published GPR "
+                    "processing flows use. Display only: CSV export stays raw._"
+                ),
+                gain_kind,
+            ],
+            gap="0.4rem",
+        )
+    )
+    return (gain_kind,)
+
+
+# ── SECTION 5c: Gain parameters ───────────────────────────────────────────
+# Rebuilt per kind: `factor` means a multiplier, a slope, a rate, or dB per ns
+# depending on the kind, so one fixed slider range would be wrong for most of
+# them. All widgets are None when no gain is selected, same pattern the trace
+# picker uses for its remove controls.
+#
+# Depends on gain_kind alone, deliberately. Deriving the gain-start range from
+# the loaded time window would make this cell depend on get_traces through the
+# zoom slider, so adding a trace would rebuild these widgets and silently reset
+# every gain setting. Start is a percentage of the window instead; the renderer
+# resolves it against the real time axis and the resolved ns lands in the title.
+@app.cell
+def _(GAIN_KINDS, gain_kind, mo):
+    _FACTOR_SLIDERS = {
+        "constant": dict(start=0.1, stop=20.0, step=0.1, value=2.0, label="Factor (x)"),
+        "linear": dict(start=0.0, stop=10.0, step=0.1, value=1.0, label="Slope (per ns)"),
+        "exponential": dict(start=0.0, stop=5.0, step=0.05, value=1.0, label="Rate a (per ns)"),
+        "db": dict(start=0.0, stop=60.0, step=0.5, value=6.0, label="Gain (dB per ns)"),
+        "sec": dict(start=0.0, stop=5.0, step=0.05, value=0.5, label="Rate a (per ns)"),
+    }
+
+    _kind = gain_kind.value
+
+    if _kind == "none":
+        gain_factor = None
+        gain_power = None
+        gain_start = None
+        gain_clamp = None
+        gain_max = None
+        show_gain_curve = None
+        mo.output.replace(mo.md(""))
+    else:
+        _cfg = _FACTOR_SLIDERS.get(_kind)
+        gain_factor = mo.ui.slider(**_cfg, debounce=True) if _cfg else None
+        gain_power = (
+            mo.ui.slider(start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True)
+            if GAIN_KINDS[_kind]["uses_power"]
+            else None
+        )
+        gain_start = mo.ui.slider(
+            start=0.0,
+            stop=100.0,
+            step=0.5,
+            value=0.0,
+            label="Gain start (% of window)",
+            debounce=True,
+        )
+        gain_clamp = mo.ui.checkbox(label="Limit maximum gain", value=True)
+        gain_max = mo.ui.slider(
+            start=1, stop=1000, step=1, value=100, label="Maximum gain (x)", debounce=True
+        )
+        show_gain_curve = mo.ui.checkbox(label="Show gain curve", value=True)
+
+        _params = [w for w in (gain_factor, gain_power, gain_start) if w is not None]
+        mo.output.replace(
+            mo.vstack(
+                [
+                    mo.hstack(_params, gap="1.5rem", justify="start"),
+                    mo.hstack([gain_clamp, gain_max, show_gain_curve], gap="1.5rem", justify="start"),
+                    mo.md(
+                        "_Time before the gain start keeps a gain of exactly 1, so the "
+                        "direct wave can be left alone rather than saturating the plot._"
+                    ),
+                    mo.md("---"),
+                ],
+                gap="0.5rem",
+            )
+        )
+    return gain_clamp, gain_factor, gain_max, gain_power, gain_start, show_gain_curve
+
+
+# ── SECTION 5d: Domain ────────────────────────────────────────────────────
+# No data dependency, so switching domain or reference never disturbs the
+# gain settings and vice versa.
+@app.cell
+def _(get_traces, mo):
+    if not get_traces():
+        mo.stop(True, mo.md(""))
+
+    domain = mo.ui.dropdown(
+        options={"Time": "time", "Frequency (FFT)": "freq"},
+        value="Time",
+        label="Domain",
+    )
+    fft_reference = mo.ui.dropdown(
+        options={"Shared (compare amplitudes)": "shared", "Per trace (each peaks at 0 dB)": "own"},
+        value="Shared (compare amplitudes)",
+        label="dB reference",
+    )
+    fft_full_range = mo.ui.checkbox(label="Show full spectrum to Nyquist", value=False)
+
+    mo.output.replace(
+        mo.vstack(
+            [
+                mo.md("### Step 6 — Domain"),
+                mo.md(
+                    "_The spectrum comes from gprMax's own `fft_power`, so it matches "
+                    "`plot_Ascan.py`. That function normalises every trace against its "
+                    "own peak, which makes a loud trace and a quiet one look identical; "
+                    "the shared reference undoes that so overlaid spectra are "
+                    "comparable. Traces in different units (V/m against A/m) are "
+                    "referenced within their own unit, since a decibel difference "
+                    "across units means nothing._"
+                ),
+                mo.hstack([domain, fft_reference, fft_full_range], gap="1.5rem", justify="start"),
+                mo.md("---"),
+            ],
+            gap="0.4rem",
+        )
+    )
+    return domain, fft_full_range, fft_reference
+
+
 # ── SECTION 6: Figure renderer + export ───────────────────────────────────
 @app.cell
 def _(
+    apply_gain,
     bg_colour,
     csv,
+    domain,
+    fft_full_range,
+    fft_reference,
+    fft_spectrum,
     font_size,
+    gain_clamp,
+    gain_factor,
+    gain_kind,
+    gain_label,
+    gain_max,
+    gain_power,
+    gain_start,
     get_data,
     get_time_axis,
     get_trace,
@@ -444,7 +613,10 @@ def _(
     io,
     line_width,
     mo,
+    np,
+    show_gain_curve,
     show_grid,
+    spectrum_view_limit,
     time_slider,
 ):
     _traces = get_traces()
@@ -463,62 +635,20 @@ def _(
     _fc = "#e8e8e8" if _is_dark else "#1a1a1a"
     _gc = "rgba(255,255,255,0.1)" if _is_dark else "rgba(0,0,0,0.07)"
     _lc = "rgba(255,255,255,0.25)" if _is_dark else "rgba(0,0,0,0.18)"
+    _freq_mode = domain.value == "freq"
 
-    # ── Build figure ────────────────────────────────────────────────────────
-    _fig = go.Figure()
-    _has_e = False
-    _has_h = False
-    _comps_seen = []
-    _files_seen = []
-
-    # Store full arrays for CSV export (unaffected by zoom)
-    _csv_time: dict = {}
-    _csv_data: dict = {}
-
-    for _t in _traces:
-        _fdata = _files[_t["filename"]]
-        _arr = get_trace(_fdata, _t["component"], _t["receiver"])
-        _time = get_time_axis(_fdata, unit="ns")
-        _unit = get_unit_label(_t["component"])
-        _on_y2 = _unit == "A/m"
-
-        if _on_y2:
-            _has_h = True
-        else:
-            _has_e = True
-
-        # Track unique time axes by (n_steps, dt) tuple
-        _fmeta = _fdata["meta"]
-        _tax_key = (_fmeta["iterations"], round(_fmeta["dt"], 15))
-        if _tax_key not in _csv_time:
-            _csv_time[_tax_key] = _time
-        _csv_data[_t["label"]] = (_tax_key, _arr)
-
-        _fig.add_trace(
-            go.Scatter(
-                x=_time,
-                y=_arr,
-                mode="lines",
-                name=_t["label"],
-                line=dict(
-                    color=_t["colour"],
-                    width=line_width.value,
-                    dash="dash" if _on_y2 else "solid",
-                ),
-                yaxis="y2" if _on_y2 else "y",
-                hovertemplate=(
-                    "%{x:.4f} ns<br>%{y:.5g} " + _unit + "<extra>" + _t["label"] + "</extra>"
-                ),
-            )
-        )
-
-        if _t["component"] not in _comps_seen:
-            _comps_seen.append(_t["component"])
-        if _t["filename"] not in _files_seen:
-            _files_seen.append(_t["filename"])
-
-    _title = ", ".join(_comps_seen) + "  ·  " + "  +  ".join(_files_seen)
-    _dual = _has_e and _has_h
+    # ── Gain settings ───────────────────────────────────────────────────────
+    # Every parameter widget is None when gain is off, and gain_factor is also
+    # None for the power kind, which has no factor of its own.
+    _kind = gain_kind.value
+    _gain_on = _kind != "none" and not _freq_mode
+    _factor = gain_factor.value if gain_factor is not None else 1.0
+    _power = gain_power.value if gain_power is not None else 1.0
+    _max_gain = gain_max.value if (gain_clamp is not None and gain_clamp.value) else None
+    _window_ns = max(
+        f["meta"]["iterations"] * f["meta"]["dt"] * 1e9 for f in _files.values()
+    )
+    _start = (gain_start.value / 100.0) * _window_ns if gain_start is not None else 0.0
 
     _axis_base = dict(
         showgrid=show_grid.value,
@@ -533,99 +663,365 @@ def _(
         zerolinecolor=_lc,
         zerolinewidth=1,
     )
+    _files_seen = []
+    _comps_seen = []
+    for _t in _traces:
+        if _t["component"] not in _comps_seen:
+            _comps_seen.append(_t["component"])
+        if _t["filename"] not in _files_seen:
+            _files_seen.append(_t["filename"])
+    _source_title = ", ".join(_comps_seen) + "  ·  " + "  +  ".join(_files_seen)
 
-    if _dual:
-        _y1_label = "E-field [V/m]"
-    elif _has_e:
-        _y1_label = "Field strength [V/m]"
+    _fig = go.Figure()
+    _gain_panel = []
+    _flat_traces = []
+    _csv_x: dict = {}
+    _csv_data: dict = {}
+    _gain_curves: dict = {}
+
+    if _freq_mode:
+        # ── Frequency domain ────────────────────────────────────────────────
+        # Always transforms the raw trace, never the gained one. Gain
+        # multiplies in time, which convolves in frequency, so the centre
+        # frequency read off a gained spectrum would be wrong — and checking
+        # that the antenna behaved as specified is the reason for this view.
+        _spectra = []
+        for _t in _traces:
+            _fdata = _files[_t["filename"]]
+            _raw = get_trace(_fdata, _t["component"], _t["receiver"])
+            _dt = _fdata["meta"]["dt"]
+            _freqs, _pdb, _peak_db = fft_spectrum(_raw, _dt)
+            if _peak_db is None:
+                _flat_traces.append(_t["label"])
+                continue
+            _spectra.append(
+                dict(
+                    trace=_t,
+                    freqs=_freqs,
+                    power=_pdb,
+                    peak_db=_peak_db,
+                    unit=get_unit_label(_t["component"]),
+                )
+            )
+
+        if not _spectra:
+            mo.stop(
+                True,
+                mo.callout(
+                    mo.md(
+                        "**Nothing to transform.** Every selected trace is all "
+                        "zeros, so it has no spectrum: "
+                        + ", ".join(f"`{n}`" for n in _flat_traces)
+                        + ". A component that isn't excited by the model (Ex in a "
+                        "2D TMz run, for example) is stored as zeros."
+                    ),
+                    kind="warn",
+                ),
+            )
+
+        # Shared reference per unit family. Referencing a V/m trace against an
+        # A/m one would report a decibel difference between different
+        # quantities, which is not a physical statement.
+        _refs = {}
+        if fft_reference.value == "shared":
+            for _s in _spectra:
+                _refs[_s["unit"]] = max(_refs.get(_s["unit"], -np.inf), _s["peak_db"])
+
+        _limit_hz = 0.0
+        for _s in _spectra:
+            _offset = (
+                _s["peak_db"] - _refs[_s["unit"]] if fft_reference.value == "shared" else 0.0
+            )
+            _shown = _s["power"] + _offset
+            _t = _s["trace"]
+            _key = (len(_s["freqs"]), round(float(_s["freqs"][1] - _s["freqs"][0]), 6))
+            if _key not in _csv_x:
+                _csv_x[_key] = _s["freqs"]
+            _csv_data[_t["label"]] = (_key, _shown)
+            _limit_hz = max(_limit_hz, spectrum_view_limit(_s["freqs"], _s["power"]))
+            _fig.add_trace(
+                go.Scatter(
+                    x=_s["freqs"] / 1e9,
+                    y=_shown,
+                    mode="lines",
+                    name=_t["label"],
+                    line=dict(color=_t["colour"], width=line_width.value),
+                    hovertemplate=(
+                        "%{x:.4g} GHz<br>%{y:.4g} dB<extra>" + _t["label"] + "</extra>"
+                    ),
+                )
+            )
+
+        _x_range = (
+            None
+            if fft_full_range.value
+            else [0.0, max(_limit_hz / 1e9, 1e-6)]
+        )
+        _ref_text = (
+            "shared reference per unit"
+            if fft_reference.value == "shared"
+            else "each trace at its own 0 dB"
+        )
+        # Title names only what is actually drawn. _source_title covers every
+        # selected trace, including any dropped for having no spectrum, and an
+        # exported figure must not claim a component that isn't in it.
+        _plot_comps = []
+        _plot_files = []
+        for _s in _spectra:
+            if _s["trace"]["component"] not in _plot_comps:
+                _plot_comps.append(_s["trace"]["component"])
+            if _s["trace"]["filename"] not in _plot_files:
+                _plot_files.append(_s["trace"]["filename"])
+        _title = (
+            ", ".join(_plot_comps)
+            + "  ·  "
+            + "  +  ".join(_plot_files)
+            + f"  ·  power spectrum ({_ref_text})"
+        )
+        _layout = dict(
+            title=dict(
+                text=_title,
+                font=dict(size=font_size.value + 1, color=_fc),
+                x=0.0,
+                xanchor="left",
+            ),
+            xaxis=dict(title="Frequency (GHz)", range=_x_range, **_axis_base),
+            yaxis=dict(title="Power (dB)", **_axis_base),
+            paper_bgcolor=_bg,
+            plot_bgcolor=_bg,
+            legend=dict(
+                font=dict(size=font_size.value - 1, color=_fc),
+                bgcolor="rgba(0,0,0,0.0)",
+                bordercolor=_lc,
+                borderwidth=1,
+            ),
+            height=500,
+            margin=dict(l=72, r=32, t=55, b=60),
+            hovermode="x unified",
+        )
+        _fig.update_layout(**_layout)
+        _csv_first_col = "freq_hz"
+        _csv_filename = "gprmax_ascan_spectrum.csv"
+        _csv_comment = (
+            f"# domain: frequency ({_ref_text}). "
+            f"Power in dB, full positive spectrum, view range not applied."
+        )
+        _gain_text = "no gain"
+        _dual = False
+
     else:
-        _y1_label = "Field strength [A/m]"
+        # ── Time domain ─────────────────────────────────────────────────────
+        _has_e = False
+        _has_h = False
 
-    _t_start, _t_end = time_slider.value
+        for _t in _traces:
+            _fdata = _files[_t["filename"]]
+            _raw = get_trace(_fdata, _t["component"], _t["receiver"])
+            _time = get_time_axis(_fdata, unit="ns")
+            _unit = get_unit_label(_t["component"])
+            _on_y2 = _unit == "A/m"
 
-    _layout = dict(
-        title=dict(
-            text=_title,
-            font=dict(size=font_size.value + 1, color=_fc),
-            x=0.0,
-            xanchor="left",
-        ),
-        xaxis=dict(
-            title="Time (ns)",
-            range=[_t_start, _t_end],
-            **_axis_base,
-        ),
-        yaxis=dict(title=_y1_label, **_axis_base),
-        paper_bgcolor=_bg,
-        plot_bgcolor=_bg,
-        legend=dict(
-            font=dict(size=font_size.value - 1, color=_fc),
-            bgcolor="rgba(0,0,0,0.0)",
-            bordercolor=_lc,
-            borderwidth=1,
-        ),
-        height=500,
-        margin=dict(l=72, r=80 if _dual else 32, t=55, b=60),
-        hovermode="x unified",
-    )
+            if _on_y2:
+                _has_h = True
+            else:
+                _has_e = True
 
-    if _dual:
-        _layout["yaxis2"] = dict(
-            title="H-field [A/m]",
-            overlaying="y",
-            side="right",
-            showgrid=False,
-            showline=True,
-            linecolor=_lc,
-            linewidth=1,
-            tickfont=dict(size=font_size.value - 1, color=_fc),
-            title_font=dict(size=font_size.value, color=_fc),
-            zeroline=False,
+            _fmeta = _fdata["meta"]
+            _tax_key = (_fmeta["iterations"], round(_fmeta["dt"], 15))
+            if _tax_key not in _csv_x:
+                _csv_x[_tax_key] = _time
+            _csv_data[_t["label"]] = (_tax_key, _raw)
+
+            if _gain_on:
+                _arr, _curve = apply_gain(
+                    _raw,
+                    _time,
+                    _kind,
+                    factor=_factor,
+                    power=_power,
+                    start_ns=_start,
+                    max_gain=_max_gain,
+                )
+                if _tax_key not in _gain_curves:
+                    _gain_curves[_tax_key] = (_time, _curve)
+            else:
+                _arr = _raw
+
+            _fig.add_trace(
+                go.Scatter(
+                    x=_time,
+                    y=_arr,
+                    mode="lines",
+                    name=_t["label"],
+                    line=dict(
+                        color=_t["colour"],
+                        width=line_width.value,
+                        dash="dash" if _on_y2 else "solid",
+                    ),
+                    yaxis="y2" if _on_y2 else "y",
+                    hovertemplate=(
+                        "%{x:.4f} ns<br>%{y:.5g} " + _unit + "<extra>" + _t["label"] + "</extra>"
+                    ),
+                )
+            )
+
+        # Only report the clamp when it actually bound. Naming a limit the gain
+        # never reached puts a misleading number in an exported figure title.
+        _clamp_bound = _max_gain is not None and any(
+            float(np.max(_c)) >= _max_gain for _, _c in _gain_curves.values()
+        )
+        _gain_text = gain_label(_kind, _factor, _power, _start, _max_gain if _clamp_bound else None)
+
+        _title = _source_title
+        if _gain_on:
+            _title += "  ·  " + _gain_text
+        _dual = _has_e and _has_h
+
+        if _dual:
+            _y1_label = "E-field [V/m]"
+        elif _has_e:
+            _y1_label = "Field strength [V/m]"
+        else:
+            _y1_label = "Field strength [A/m]"
+        if _gain_on:
+            _y1_label += " (gained)"
+
+        _t_start, _t_end = time_slider.value
+
+        _layout = dict(
+            title=dict(
+                text=_title,
+                font=dict(size=font_size.value + 1, color=_fc),
+                x=0.0,
+                xanchor="left",
+            ),
+            xaxis=dict(title="Time (ns)", range=[_t_start, _t_end], **_axis_base),
+            yaxis=dict(title=_y1_label, **_axis_base),
+            paper_bgcolor=_bg,
+            plot_bgcolor=_bg,
+            legend=dict(
+                font=dict(size=font_size.value - 1, color=_fc),
+                bgcolor="rgba(0,0,0,0.0)",
+                bordercolor=_lc,
+                borderwidth=1,
+            ),
+            height=500,
+            margin=dict(l=72, r=80 if _dual else 32, t=55, b=60),
+            hovermode="x unified",
         )
 
-    _fig.update_layout(**_layout)
+        if _dual:
+            _layout["yaxis2"] = dict(
+                title="H-field [A/m]" + (" (gained)" if _gain_on else ""),
+                overlaying="y",
+                side="right",
+                showgrid=False,
+                showline=True,
+                linecolor=_lc,
+                linewidth=1,
+                tickfont=dict(size=font_size.value - 1, color=_fc),
+                title_font=dict(size=font_size.value, color=_fc),
+                zeroline=False,
+            )
+
+        _fig.update_layout(**_layout)
+        _csv_first_col = "time_ns"
+        _csv_filename = "gprmax_ascan.csv"
+        _csv_comment = f"# gain: {_gain_text.replace(',', ';')}. Values below are raw."
+
+        # ── Gain curve panel ────────────────────────────────────────────────
+        # Its own figure rather than a third overlaying y-axis on the main
+        # plot. The right axis is already taken whenever an H-field trace is
+        # active, so sharing it would make the curve appear or vanish
+        # depending on which traces happen to be added. A separate panel is
+        # also how RADAN and ReflexW present gain curves.
+        if _gain_on and show_gain_curve is not None and show_gain_curve.value and _gain_curves:
+            _gfig = go.Figure()
+            for _gt, _gcurve in _gain_curves.values():
+                _gfig.add_trace(
+                    go.Scatter(
+                        x=_gt,
+                        y=_gcurve,
+                        mode="lines",
+                        name="gain",
+                        showlegend=False,
+                        line=dict(color="#7f7f7f", width=line_width.value),
+                        hovertemplate="%{x:.4f} ns<br>x%{y:.4g}<extra>gain</extra>",
+                    )
+                )
+            _all_gain = np.concatenate([c for _, c in _gain_curves.values()])
+            _gfig.update_layout(
+                xaxis=dict(
+                    range=[_t_start, _t_end],
+                    showgrid=show_grid.value,
+                    gridcolor=_gc,
+                    showline=True,
+                    linecolor=_lc,
+                    tickfont=dict(size=font_size.value - 2, color=_fc),
+                ),
+                yaxis=dict(
+                    title="Gain (x)",
+                    type="log" if float(np.min(_all_gain)) > 0 else "linear",
+                    showgrid=show_grid.value,
+                    gridcolor=_gc,
+                    showline=True,
+                    linecolor=_lc,
+                    tickfont=dict(size=font_size.value - 2, color=_fc),
+                    title_font=dict(size=font_size.value - 1, color=_fc),
+                ),
+                paper_bgcolor=_bg,
+                plot_bgcolor=_bg,
+                height=170,
+                margin=dict(l=72, r=80 if _dual else 32, t=10, b=34),
+            )
+            _gain_panel = [
+                mo.md(f"**Applied gain curve** — {_gain_text}"),
+                mo.ui.plotly(_gfig, config={"displaylogo": False, "displayModeBar": False}),
+            ]
 
     # ── CSV export ──────────────────────────────────────────────────────────
-    # Always exports FULL data (not the zoomed window).
-    # If all traces share the same time axis: one time column.
-    # If traces come from files with different dt/iterations: paired columns.
+    # Always the full unzoomed data for whichever domain is on screen: raw
+    # amplitudes in time, full positive spectrum in frequency. The first line
+    # is written in both cases so the format never changes silently, and
+    # commas inside it become semicolons to keep it one unquoted field.
+    # One shared x column when every trace has the same axis, paired columns
+    # when they don't.
     try:
         _buf = io.StringIO()
+        _buf.write(_csv_comment.replace(",", ";") + "\n")
         _writer = csv.writer(_buf)
-
-        _single_axis = len(_csv_time) == 1
+        _single_axis = len(_csv_x) == 1
 
         if _single_axis:
-            _shared_time = list(_csv_time.values())[0]
-            _header_row = ["time_ns"] + [t["label"] for t in _traces]
-            _writer.writerow(_header_row)
-            for _i in range(len(_shared_time)):
-                _row = [f"{_shared_time[_i]:.8g}"] + [
-                    f"{_csv_data[t['label']][1][_i]:.10g}" for t in _traces
-                ]
-                _writer.writerow(_row)
+            _shared_x = list(_csv_x.values())[0]
+            _writer.writerow([_csv_first_col] + [t["label"] for t in _traces if t["label"] in _csv_data])
+            _cols = [t for t in _traces if t["label"] in _csv_data]
+            for _i in range(len(_shared_x)):
+                _writer.writerow(
+                    [f"{_shared_x[_i]:.8g}"]
+                    + [f"{_csv_data[t['label']][1][_i]:.10g}" for t in _cols]
+                )
         else:
-            # Paired time + value columns per trace
+            _cols = [t for t in _traces if t["label"] in _csv_data]
             _header_row = []
-            for _t in _traces:
-                _header_row.extend([f"time_ns ({_t['label']})", _t["label"]])
+            for _t in _cols:
+                _header_row.extend([f"{_csv_first_col} ({_t['label']})", _t["label"]])
             _writer.writerow(_header_row)
-            _max_len = max(len(_csv_data[t["label"]][1]) for t in _traces)
+            _max_len = max(len(_csv_data[t["label"]][1]) for t in _cols)
             for _i in range(_max_len):
                 _row = []
-                for _t in _traces:
-                    _tax_key, _arr = _csv_data[_t["label"]]
-                    _time = _csv_time[_tax_key]
-                    if _i < len(_arr):
-                        _row.extend([f"{_time[_i]:.8g}", f"{_arr[_i]:.10g}"])
+                for _t in _cols:
+                    _k, _vals = _csv_data[_t["label"]]
+                    _xs = _csv_x[_k]
+                    if _i < len(_vals):
+                        _row.extend([f"{_xs[_i]:.8g}", f"{_vals[_i]:.10g}"])
                     else:
                         _row.extend(["", ""])
                 _writer.writerow(_row)
 
-        _csv_bytes = _buf.getvalue().encode("utf-8")
         _csv_btn = mo.download(
-            data=_csv_bytes,
-            filename="gprmax_ascan.csv",
+            data=_buf.getvalue().encode("utf-8"),
+            filename=_csv_filename,
             label="Download CSV (full data)",
             mimetype="text/csv",
         )
@@ -634,50 +1030,71 @@ def _(
 
     # ── SVG/PDF export ─────────────────────────────────────────────────────
     # Lazy on purpose: mo.download accepts a zero-arg callable and only
-    # calls it when the button is clicked. kaleido spins up headless
-    # Chrome per export, which is slow — computing it eagerly here meant
-    # this cell paid that cost twice (SVG + PDF) on every re-render, which
-    # includes every appearance-control change and every drag tick of an
-    # undebounced slider. Same bug and same fix as bscan_dashboard.py.
+    # calls it when the button is clicked. kaleido spins up headless Chrome
+    # per export, which is slow — computing it eagerly here meant this cell
+    # paid that cost twice on every re-render, which includes every
+    # appearance-control change and every drag tick of an undebounced
+    # slider. Same bug and same fix as bscan_dashboard.py.
+    _stem = _csv_filename.rsplit(".", 1)[0]
+
     def _make_svg():
         import plotly.io as _pio
+
         return _pio.to_image(_fig, format="svg", width=1200, height=600, scale=2)
 
     def _make_pdf():
         import plotly.io as _pio
+
         return _pio.to_image(_fig, format="pdf", width=1200, height=600, scale=2)
 
-    _svg_btn = mo.download(
-        data=_make_svg, filename="gprmax_ascan.svg", label="Download SVG", mimetype="image/svg+xml"
-    )
-    _pdf_btn = mo.download(
-        data=_make_pdf, filename="gprmax_ascan.pdf", label="Download PDF", mimetype="application/pdf"
-    )
-
-    # ── Interactive HTML — no kaleido needed, but still lazy ───────────────
-    # to_html(include_plotlyjs=True) embeds the entire Plotly.js library
-    # (several MB) as base64 into the button's data on every render,
-    # regardless of how much actual trace data there is. Not slow like
-    # kaleido since there's no external process, but still pure waste to
-    # recompute on every appearance/zoom change for a download that may
-    # never be clicked.
     def _make_html():
         return _fig.to_html(full_html=True, include_plotlyjs=True).encode("utf-8")
 
+    _svg_btn = mo.download(
+        data=_make_svg, filename=f"{_stem}.svg", label="Download SVG", mimetype="image/svg+xml"
+    )
+    _pdf_btn = mo.download(
+        data=_make_pdf, filename=f"{_stem}.pdf", label="Download PDF", mimetype="application/pdf"
+    )
     _html_btn = mo.download(
         data=_make_html,
-        filename="gprmax_ascan.html",
+        filename=f"{_stem}.html",
         label="Download HTML (interactive)",
         mimetype="text/html",
     )
 
     # ── Notes ────────────────────────────────────────────────────────────────
     _notes = []
-    if _dual:
+    _warn = []
+    if _freq_mode:
         _notes.append(
-            "_Solid lines → E-field (left axis, V/m)  ·  "
-            "Dashed lines → H-field (right axis, A/m)_"
+            "_Spectra are computed from the raw traces. Gain is a time-domain "
+            "correction and reshapes a spectrum, so it is not applied here._"
         )
+        if _flat_traces:
+            _warn.append(
+                mo.callout(
+                    mo.md(
+                        "**Skipped, no spectrum:** "
+                        + ", ".join(f"`{n}`" for n in _flat_traces)
+                        + ". These traces are all zeros, which `fft_power` would "
+                        "otherwise render as a flat 0 dB line indistinguishable "
+                        "from real data."
+                    ),
+                    kind="warn",
+                )
+            )
+    else:
+        if _dual:
+            _notes.append(
+                "_Solid lines → E-field (left axis, V/m)  ·  "
+                "Dashed lines → H-field (right axis, A/m)_"
+            )
+        if _gain_on:
+            _notes.append(
+                "_Plot and image exports show gained amplitudes. "
+                "CSV stays raw, with the gain recorded on its first line._"
+            )
     _notes.append(
         "_Hover for exact values. "
         "Camera icon in toolbar → SVG (no kaleido needed via toolbar). "
@@ -687,12 +1104,13 @@ def _(
     mo.vstack(
         [
             mo.md("### Plot"),
+            *_warn,
             mo.ui.plotly(
                 _fig,
                 config={
                     "toImageButtonOptions": {
                         "format": "svg",
-                        "filename": "gprmax_ascan",
+                        "filename": _stem,
                         "height": 600,
                         "width": 1200,
                         "scale": 2,
@@ -701,6 +1119,7 @@ def _(
                     "modeBarButtonsToRemove": ["lasso2d", "select2d"],
                 },
             ),
+            *_gain_panel,
             mo.md("  \n".join(_notes)),
             mo.md("**Export**"),
             mo.hstack(
@@ -713,10 +1132,10 @@ def _(
                 mo.md(
                     "**Upcoming features**\n\n"
                     "- Background subtraction "
-                    "(target trace minus free-space trace)\n"
-                    "- FFT frequency spectrum toggle\n"
-                    "- Assemble multiple A-scan files → B-scan radargram\n"
-                    "- 3D surface viewer from multi-position A-scan data"
+                    "(target trace minus free-space trace)\n\n"
+                    "B-scan assembly from multiple A-scan files, the 3D surface "
+                    "viewer, gain and mean-trace background removal across a "
+                    "radargram are in `bscan_dashboard.py`."
                 ),
                 kind="neutral",
             ),
