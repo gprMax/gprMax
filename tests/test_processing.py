@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 from toolboxes.Marimo.processing import (
+    fft_spectrum,
+    spectrum_view_limit,
     GAIN_KINDS,
     apply_gain,
     gain_curve,
@@ -303,3 +305,103 @@ class TestMovingWindowBackgroundRemoval:
         _, background = remove_mean_trace(matrix, window=3)
         assert background[0, 0] == pytest.approx(1.0)
         assert background[0, -1] == pytest.approx(3.0)
+
+
+class TestFFTSpectrum:
+    """Exercises the wrapper around gprMax's own fft_power.
+
+    Skipped rather than failed when gprMax isn't importable, so the rest of
+    this suite still runs on a checkout without a built extension.
+    """
+
+    # 637 samples at this dt is the real cylinder_Ascan_2D window, 3.005 ns.
+    # ITERATIONS (100) is too short to hold one period of a 1.5 GHz Ricker,
+    # which would make any frequency assertion meaningless.
+    N_FFT = 637
+
+    @staticmethod
+    def _ricker(n=637, dt=DT, f0=1.5e9):
+        t = np.arange(n) * dt
+        tau = np.pi * f0 * (t - 1.0 / f0)
+        return (1.0 - 2.0 * tau**2) * np.exp(-(tau**2))
+
+    def test_positive_frequencies_only(self):
+        pytest.importorskip("gprMax.utilities.utilities")
+        freqs, power, _ = fft_spectrum(self._ricker(), DT)
+        assert np.all(freqs >= 0)
+        assert freqs.size == self.N_FFT // 2
+        assert power.size == freqs.size
+
+    def test_full_axis_includes_negative_frequencies(self):
+        # Pins why positive_only exists: the raw fft_power axis is mirrored.
+        pytest.importorskip("gprMax.utilities.utilities")
+        freqs, _, _ = fft_spectrum(self._ricker(), DT, positive_only=False)
+        assert freqs.size == self.N_FFT
+        assert np.any(freqs < 0)
+
+    def test_peak_frequency_matches_source(self):
+        pytest.importorskip("gprMax.utilities.utilities")
+        freqs, power, _ = fft_spectrum(self._ricker(f0=1.5e9), DT)
+        # A 3 ns window gives 0.333 GHz bins, so the best possible answer is
+        # the nearest bin to 1.5 GHz, not 1.5 GHz itself.
+        bin_hz = float(freqs[1] - freqs[0])
+        assert abs(freqs[int(np.argmax(power))] - 1.5e9) <= bin_hz
+
+    def test_power_is_relative_to_own_peak(self):
+        pytest.importorskip("gprMax.utilities.utilities")
+        _, power, _ = fft_spectrum(self._ricker(), DT)
+        assert power.max() == pytest.approx(0.0, abs=1e-9)
+
+    def test_peak_db_recovers_amplitude_difference(self):
+        # The whole reason peak_db is returned: fft_power alone makes a
+        # 1000x-larger trace look identical to the original.
+        pytest.importorskip("gprMax.utilities.utilities")
+        quiet = self._ricker()
+        loud = quiet * 1000.0
+        _, p_quiet, peak_quiet = fft_spectrum(quiet, DT)
+        _, p_loud, peak_loud = fft_spectrum(loud, DT)
+        assert p_quiet == pytest.approx(p_loud)
+        assert peak_loud - peak_quiet == pytest.approx(60.0, abs=0.01)
+
+    def test_flat_trace_reports_none_instead_of_a_fake_spectrum(self):
+        # Ex in a 2D TMz model. fft_power turns this into a flat 0 dB line
+        # that looks like real data.
+        pytest.importorskip("gprMax.utilities.utilities")
+        freqs, power, peak_db = fft_spectrum(np.zeros(self.N_FFT), DT)
+        assert peak_db is None
+        assert freqs.size == self.N_FFT // 2
+        assert np.all(power == 0.0)
+
+    def test_two_dimensional_input_rejected(self):
+        with pytest.raises(ValueError, match="must be 1D"):
+            fft_spectrum(np.zeros((10, 2)), DT)
+
+    def test_empty_input_rejected(self):
+        with pytest.raises(ValueError, match="empty"):
+            fft_spectrum(np.array([]), DT)
+
+
+class TestSpectrumViewLimit:
+    def test_limit_is_a_multiple_of_the_peak(self):
+        freqs = np.linspace(0.0, 100e9, 500)
+        power = np.full(500, -60.0)
+        power[10] = 0.0  # peak at freqs[10]
+        limit = spectrum_view_limit(freqs, power, multiple=4.0)
+        assert limit == pytest.approx(4.0 * freqs[10])
+
+    def test_clamped_to_available_maximum(self):
+        # plot_Ascan.py's index-based freqmaxpower*4 overshoots here.
+        freqs = np.linspace(0.0, 100e9, 500)
+        power = np.full(500, -60.0)
+        power[400] = 0.0
+        limit = spectrum_view_limit(freqs, power, multiple=4.0)
+        assert limit == pytest.approx(freqs.max())
+
+    def test_dc_peak_falls_back_to_full_range(self):
+        freqs = np.linspace(0.0, 100e9, 500)
+        power = np.full(500, -60.0)
+        power[0] = 0.0
+        assert spectrum_view_limit(freqs, power) == pytest.approx(freqs.max())
+
+    def test_empty_input_returns_zero(self):
+        assert spectrum_view_limit(np.array([]), np.array([])) == 0.0

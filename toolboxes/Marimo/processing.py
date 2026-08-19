@@ -268,3 +268,85 @@ def _moving_mean(arr: np.ndarray, window: int) -> np.ndarray:
         out[:, j] = (cumsum[:, hi] - cumsum[:, lo]) / (hi - lo)
 
     return out
+
+
+# Frequency domain
+
+
+def fft_spectrum(
+    waveform: np.ndarray,
+    dt: float,
+    positive_only: bool = True,
+) -> tuple[np.ndarray, np.ndarray, float | None]:
+    """Power spectrum of one trace. Returns (freqs_hz, power_db, peak_db).
+
+    The transform itself is gprMax's own `fft_power`, imported rather than
+    reimplemented so this stays consistent with `plot_Ascan.py`. Three things
+    about that function need handling at the call site:
+
+    1. It normalises each trace against its own maximum, so every spectrum
+       peaks at 0 dB no matter its absolute amplitude. Overlay a 1000 V/m
+       trace with a 3 A/m one and they look identical. `peak_db` is that
+       trace's absolute peak power in dB; adding it to `power_db` recovers
+       absolute values, which is what makes overlaid spectra comparable.
+    2. It returns the whole `fftfreq`, negative frequencies included, which
+       plots as a mirrored spectrum. `positive_only` slices to the first
+       half.
+    3. An all-zero trace produces -inf, which its own guard rewrites to 0,
+       which the shift then turns into a flat 0 dB line indistinguishable
+       from a real spectrum. Ex in a 2D TMz model is exactly this case.
+       `peak_db` is None for such a trace so the caller can say so instead
+       of drawing a meaningless flat line.
+
+    The import is deferred so that importing this module, and testing every
+    other function in it, does not require a built gprMax.
+    """
+    arr = np.asarray(waveform, dtype=float)
+    if arr.ndim != 1:
+        raise ValueError(f"waveform must be 1D, got shape {arr.shape}")
+    if arr.size == 0:
+        raise ValueError("waveform is empty")
+
+    from gprMax.utilities.utilities import fft_power
+
+    if not np.any(arr):
+        freqs = np.fft.fftfreq(arr.size, d=dt)
+        power = np.zeros(arr.size, dtype=float)
+        peak_db = None
+    else:
+        freqs, power = fft_power(arr, dt)
+        peak_db = float(10.0 * np.log10(np.max(np.abs(np.fft.fft(arr)) ** 2)))
+
+    if positive_only:
+        half = arr.size // 2
+        freqs, power = freqs[:half], power[:half]
+
+    return freqs, power, peak_db
+
+
+def spectrum_view_limit(
+    freqs: np.ndarray,
+    power_db: np.ndarray,
+    multiple: float = 4.0,
+) -> float:
+    """Upper frequency for a sensible default spectrum view, in Hz.
+
+    With dt around 4.7 ps the Nyquist frequency is above 100 GHz, while a
+    1.5 GHz antenna puts all of its energy in the first couple of percent of
+    that axis. Plotting to Nyquist shows a spike against a flat floor.
+
+    `plot_Ascan.py` solves this with `freqmaxpower * 4` as an array index,
+    which runs past the end of the array whenever the peak sits beyond a
+    quarter of the spectrum. Working in frequency and clamping to the
+    available maximum cannot overshoot.
+    """
+    if freqs.size == 0 or power_db.size == 0:
+        return 0.0
+
+    peak_hz = float(freqs[int(np.argmax(power_db))])
+    limit = multiple * peak_hz
+    available = float(np.max(freqs))
+
+    if limit <= 0.0 or limit > available:
+        return available
+    return limit
