@@ -85,7 +85,6 @@ from .user_objects.cmds_multiuse import (
     Waveform,
 )
 from .user_objects.cmds_output import (
-    Radiometry,
     SAR,
     GeometryObjectsWrite,
     GeometryView,
@@ -107,7 +106,7 @@ from .user_objects.cmds_output import (
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,
-    RxPort,
+    Radiometry,
     Snapshot,
 )
 from .user_objects.cmds_singleuse import (

@@ -74,9 +74,9 @@ def _antenna_scene():
             p1=(0.04, 0.04, 0.04),
             resistance=50,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=(0.04, 0.04, 0.04), id="feed"))
     scene.add(
         gprMax.NTFFSurface(
             p1=(0.028, 0.028, 0.028),
@@ -140,11 +140,7 @@ def _equivalent_current_time_scene():
     scene.add(gprMax.TimeWindow(time=3e-10))
     scene.add(gprMax.PMLThickness(thickness=3))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
-    scene.add(
-        gprMax.HertzianDipole(
-            polarisation="z", p1=(0.04, 0.04, 0.04), waveform_id="pulse"
-        )
-    )
+    scene.add(gprMax.HertzianDipole(polarisation="z", p1=(0.04, 0.04, 0.04), waveform_id="pulse"))
     scene.add(
         gprMax.NTFFSurface(
             p1=(0.028, 0.028, 0.028),
@@ -168,9 +164,7 @@ def _equivalent_current_time_scene():
     "precision,rtol",
     [("single", 3e-4), ("double", 2e-11)],
 )
-def test_cuda_equivalent_current_time_far_fields_match_cpu(
-    tmp_path, gpu_device, precision, rtol
-):
+def test_cuda_equivalent_current_time_far_fields_match_cpu(tmp_path, gpu_device, precision, rtol):
     cpu_scene, cpu_far = _equivalent_current_time_scene()
     cuda_scene, cuda_far = _equivalent_current_time_scene()
     gprMax.run(
@@ -189,8 +183,7 @@ def test_cuda_equivalent_current_time_far_fields_match_cpu(
 
     assert_allclose(cuda_far.result.times, cpu_far.result.times, rtol=0, atol=0)
     field_scale = max(
-        np.max(np.abs(cpu_far.result.fields[component]))
-        for component in ("Etheta", "Ephi")
+        np.max(np.abs(cpu_far.result.fields[component])) for component in ("Etheta", "Ephi")
     )
     assert field_scale > 0
     for component in ("Etheta", "Ephi"):

@@ -1357,20 +1357,40 @@ Allows you to introduce a voltage source at an electric field location. It can b
 
 .. code-block:: none
 
-    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6 [f7]]
+    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6 [f7 | str2 str3 [f7]]]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the source in the model.
 * ``f4`` is the internal resistance of the voltage source in Ohms. If ``f4`` is set to zero then the voltage source is a hard source. That means it prescribes the value of the electric field component. If the waveform becomes zero then the source is perfectly reflecting.
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the source. ``f6`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f5 f6`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
-* ``f7`` is the optional positive wave-reference impedance in Ohms used by a coincident ``#rx_port``. A hard source defaults to 50 Ohms. For a finite-resistance source, ``f7`` must equal ``f4``. In the positional hash syntax, ``f5`` and ``f6`` must be supplied before ``f7``; the Python API does not have this restriction.
+* ``str2`` is an optional port/output identifier. ``str3`` is then required
+  and is either the minimum cells per shortest material wavelength (default
+  10) or ``nyquist`` for every native non-negative FFT bin. Because hash
+  arguments are positional, ``f5`` and ``f6`` must be supplied before these
+  port options. If omitted, ``port1``, ``port2``, and so on are assigned.
+* ``f7`` is the optional positive wave-reference impedance in Ohms for a hard
+  source only; it is always the final positional value. A hard source defaults
+  to 50 Ohms. A finite-resistance source uses ``f4`` and must not supply
+  ``f7``.
 * ``str1`` is the identifier of the waveform that should be used with the source.
+
+Every 3-D voltage source automatically stores its terminal voltage and
+frequency-domain ``S11``, ``Zin``, and ``Yin``. No separate receiver-port
+command is required. For example:
+
+.. code-block:: none
+
+    #voltage_source: z 0.050 0.050 0.020 50 source_wave 0 10e-9 feed 10
+    #voltage_source: z 0.060 0.050 0.020 0 source_wave 0 10e-9 ideal_feed nyquist 75
 
 For example, to specify a y directed voltage source with an internal resistance of 50 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#voltage_source: y 0.05 0.05 0.05 50 my_gauss_pulse``.
 
 .. note::
 
     * Where a resistive voltage source is placed at a location that is not free space, the conductivity (determined from the resistance) of the voltage source will be added to the underlying conductivity of the existing material at that location. For example, if a resistive voltage source of 50 Ohms is placed at a location where the material has a relative permittivity of 4 and conductivity of 0.1 S/m, the conductivity of that cell edge will become 0.12 S/m.
+    * A finite-resistance source on a dispersive edge includes the complete
+      complex background permittivity in its Yee-gap correction. A hard source
+      on a dispersive edge is not yet supported.
 
 #transmission_line:
 -------------------
@@ -1393,7 +1413,7 @@ automatically after the simulation. The line resistance is used as the S11
 reference impedance; ``Zin`` is derived from S11, while an independently
 de-embedded current result is saved as ``Zin_current`` for verification. The
 frequency axis, validity masks, and lambda/10 mesh limit are stored with the
-results. No separate ``#rx_port`` command is required for a transmission-line
+results. No separate receiver-port command is required for a transmission-line
 source. The complete schema and equations are documented in the
 :ref:`Simulation Output <output>` section.
 
@@ -1424,7 +1444,7 @@ field deposit is applied by its owning rank. The syntax is:
 
 .. code-block:: none
 
-    #magnetic_frill_source: c1 f1 f2 f3 f4 str1 [f5 f6]
+    #magnetic_frill_source: c1 f1 f2 f3 f4 str1 [str2 | f5 f6 [str2]]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``
   - the antenna axis the source drives current along, following the same
@@ -1440,6 +1460,10 @@ field deposit is applied by its owning rank. The syntax is:
   waveform starts and a time at which that waveform stops. They gate only the
   incident wave; the coaxial terminal relation remains connected for the rest
   of the simulation so that late antenna reflections are treated correctly.
+* ``str2`` is an optional spectrum limit: either a numeric minimum number of
+  cells per shortest material wavelength or ``nyquist``. It may follow the
+  base command directly, or follow ``f5 f6`` when start and stop times are
+  supplied. The default is 10.
 
 The source must be co-located with a Yee edge of a ``#thin_wire`` of the same
 orientation. gprMax obtains the inner-conductor radius :math:`a`
@@ -1561,9 +1585,8 @@ Time histories of incident and total voltage (:math:`V_\mathrm{inc}`,
 :math:`V_\mathrm{ab}`) and total current (:math:`I_\mathrm{tot}`) are saved to
 the output file, along with automatically-calculated S11, input impedance, and
 input admittance, following the same conventions as ``#transmission_line``. No
-separate ``#rx_port`` command is required. If ``#rx_port`` is placed at the
-same position it does not create a second, independent measurement - it can
-only override the automatic output's spectrum limit. The complete schema and
+separate receiver-port command is required. Supply the optional
+``spectrum_limit`` directly on the magnetic-frill source when needed. The complete schema and
 equations are documented in the :ref:`Simulation Output <output>` section.
 
 For example, a z-directed, 0.1 mm radius inner conductor driven through a
@@ -1889,49 +1912,32 @@ Provides a simple method of defining multiple output points in the model. The sy
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output line/rectangle/volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output line/rectangle/volume.
 * ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. ``f7``, ``f8``, or  ``f9`` can be set to zero to prevent any output points in a particular direction. Otherwise, the minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
 
-#rx_port:
----------
+Automatic voltage-source port output
+------------------------------------
 
-Calculates the complex reflection coefficient and input impedance of a
-single-cell voltage-source port. The output point must coincide
-exactly with one ``#voltage_source`` after both positions have been resolved to
-the Yee grid. A separate ``#rx`` command is not required. The syntax is:
-
-.. code-block:: none
-
-    #rx_port: f1 f2 f3 [str1 [str2]]
-
-* ``f1 f2 f3`` are the source coordinates (x,y,z).
-* ``str1`` is the optional port/output identifier. If omitted, ``port1``,
-  ``port2``, and so on are generated.
-* ``str2`` is the optional spectrum limit. A number specifies the minimum
-  cells per shortest material wavelength; the default is 10. The keyword
-  ``nyquist`` requests every native non-negative FFT bin for research and
-  diagnostic use.
-
-The voltage source supplies the reference impedance :math:`Z_0`. For example:
+Every 3-D ``#voltage_source`` automatically calculates the complex reflection
+coefficient and input impedance of its single-cell feed edge. The hidden field
+monitor is placed at the source coordinate; a separate ``#rx`` command is not
+required. Two representative forms are:
 
 .. code-block:: none
 
-    #voltage_source: z 0.050 0.050 0.020 50 source_wave
-    #rx_port: 0.050 0.050 0.020 feed
-    #rx_port: 0.050 0.050 0.020 feed nyquist
-    #voltage_source: z 0.060 0.050 0.020 0 source_wave
-    #rx_port: 0.060 0.050 0.020 ideal_feed
-    # Custom 75 Ohm hard-source reference; start/stop precede it positionally
-    #voltage_source: z 0.070 0.050 0.020 0 source_wave 0 10e-9 75
-    #rx_port: 0.070 0.050 0.020 ideal_feed_75
+    #voltage_source: z 0.050 0.050 0.020 50 source_wave 0 10e-9 feed 10
+    #voltage_source: z 0.060 0.050 0.020 0 source_wave 0 10e-9 ideal_feed nyquist 75
 
-``#rx_port`` is supported in domain-decomposed MPI CPU models. The source and
+The automatic port is supported in domain-decomposed MPI CPU models. The source and
 its internal field monitor belong to one rank; for a hard source, magnetic
 halos are synchronised before the next current sample so an Ampere loop may
 cross an internal rank face or corner. Port histories are gathered and the
 frequency-domain quantities are calculated once on the coordinator rank.
 
+Finite-resistance sources on dispersive edges use the complete complex
+background permittivity in the Yee-gap correction. Hard sources on dispersive
+edges are not yet supported.
 
 For a finite-resistance source, the voltage-source resistance is the
-reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless
-``f7`` is supplied. At the source plane, the known generator
+reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless the
+final optional reference-impedance value is supplied. At the source plane, the known generator
 spectrum :math:`V_g` and sampled total gap voltage :math:`V` give
 
 .. math::
@@ -2278,7 +2284,7 @@ future selective-output support and is currently rejected rather than
 silently ignored.
 
 For a ``port`` study, every ``#voltage_source`` must have finite, non-zero
-resistance and a coincident ``#rx_port`` with a unique ID. The CSV must contain
+resistance and a unique automatic port ID. The CSV must contain
 one case for every voltage source and drive exactly one source in each case.
 Omitted sources retain their fixed source resistance but receive a zero
 generator waveform, so they behave as passive matched terminations. For
@@ -2328,7 +2334,7 @@ of the CSV source.
 
     GPR studies support top-level ``#hertzian_dipole``,
     ``#magnetic_dipole``, and ``#rx`` objects; port studies additionally
-    support finite-resistance ``#voltage_source``/``#rx_port`` pairs;
+    support finite-resistance ``#voltage_source`` ports;
     eigenmode studies support ``#eigenmode_port``, ``#eigenmode_excitation``,
     and ``#virtual_waveguide``. MPI domain decomposition, task farming, plane
     waves, transmission lines, and rational/frill ports remain excluded from
@@ -2626,7 +2632,8 @@ calculated:
 
     #ksir_antenna_ports: transform_id port_id1 [port_id2 ...]
 
-For a voltage source, ``port_id`` is the ID of the coincident ``#rx_port``.
+For a voltage source, ``port_id`` is the source's optional ID, or its
+automatically assigned ``portN`` ID.
 Transmission-line and magnetic-frill sources provide automatic port IDs
 ``tl1``, ``tl2``, ... and ``frill1``, ``frill2``, ... respectively, in source
 creation order. The association is not required for electric or magnetic far
@@ -2641,14 +2648,13 @@ commands ``#ntff_frequency``, ``#ntff_far_field`` or
 ``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
 
 A port on a subgrid is named as ``subgrid_id/port_id``. For example,
-``fine_grid/feed`` identifies an ``#rx_port`` called ``feed`` on subgrid
+``fine_grid/feed`` identifies a voltage source called ``feed`` on subgrid
 ``fine_grid``; automatic source ports use forms such as ``fine_grid/tl1`` and
 ``fine_grid/frill1``. Main-grid IDs remain unqualified. Each subgrid port is
 post-processed using its owning grid's finer spatial and temporal steps.
 
 The listed set must include **every** physical voltage, transmission-line, and
-magnetic-frill port in the model. Every voltage source must therefore have a
-coincident ``#rx_port``. This requirement makes the net accepted power
+magnetic-frill port in the model. This requirement makes the net accepted power
 unambiguous in coupled multiport antennas. A source whose waveform amplitude is
 zero is still a terminated physical port: list it normally. It has zero
 incident power, but coupling from driven ports can make its accepted power
@@ -2660,10 +2666,9 @@ Gain normalisation currently requires the transform to use the
 plane-wave sources cannot be mixed with a port-normalised antenna result,
 because their input power is not represented by this port set.
 The normal per-port wavelength-sampling limit also applies to gain validity.
-For a voltage-source port, an explicit ``nyquist`` research override on its
-``#rx_port`` retains the full temporal band, including spatially
-under-resolved values, as it does for S11 and impedance. A coincident
-``#rx_port`` can apply the same override to a magnetic-frill output.
+For a voltage-source or magnetic-frill port, an explicit ``nyquist`` research
+override on the source retains the full temporal band, including spatially
+under-resolved values, as it does for S11 and impedance.
 
 For example, a two-element array with one driven and one terminated element
 uses:
@@ -2672,10 +2677,8 @@ uses:
 
     #waveform: ricker 1 1e9 driven
     #waveform: ricker 0 1e9 terminated
-    #voltage_source: z 0.045 0.050 0.050 50 driven
-    #voltage_source: z 0.055 0.050 0.050 50 terminated
-    #rx_port: 0.045 0.050 0.050 element1
-    #rx_port: 0.055 0.050 0.050 element2
+    #voltage_source: z 0.045 0.050 0.050 50 driven 0 10e-9 element1 10
+    #voltage_source: z 0.055 0.050 0.050 50 terminated 0 10e-9 element2 10
     #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 rectangular
     #ksir_antenna_ports: antenna_band element1 element2
     #ksir_far_field_array: 0 180 2 0 360 2 antenna_band pattern gain realized_gain

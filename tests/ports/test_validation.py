@@ -1,4 +1,4 @@
-"""Build-time validation for the initial single-edge RxPort interface."""
+"""Build-time validation for source-owned voltage-port outputs."""
 
 import pytest
 
@@ -26,20 +26,14 @@ def _run_geometry(scene, tmp_path, name, **kwargs):
     )
 
 
-def test_port_requires_exactly_one_colocated_voltage_source(tmp_path):
-    scene = _base_scene()
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
-
-    with pytest.raises(ValueError, match="exactly one voltage source.*found 0"):
-        _run_geometry(scene, tmp_path, "no_source")
-
-
 def test_hard_voltage_source_defaults_to_50_ohm_reference_impedance(tmp_path):
     scene = _base_scene()
-    scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 0, "pulse"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
+    source = gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 0, "pulse")
+    scene.add(source)
 
     _run_geometry(scene, tmp_path, "hard_source")
+    assert source._source.reference_impedance == 50
+    assert source._monitor.output_id == "port1"
 
 
 def test_port_rejects_reference_impedance_different_from_finite_resistance(tmp_path):
@@ -53,29 +47,27 @@ def test_port_rejects_reference_impedance_different_from_finite_resistance(tmp_p
             reference_impedance=75,
         )
     )
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
-
-    with pytest.raises(ValueError, match="must equal the finite source resistance"):
+    with pytest.raises(ValueError, match="only valid for a zero-resistance hard source"):
         _run_geometry(scene, tmp_path, "finite_reference_mismatch")
 
 
-def test_port_rejects_ambiguous_colocated_sources(tmp_path):
+def test_colocated_sources_get_independent_automatic_ports(tmp_path):
+    scene = _base_scene()
+    first = gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse")
+    second = gprMax.VoltageSource((0.01, 0.01, 0.01), "x", 50, "pulse")
+    scene.add(first)
+    scene.add(second)
+
+    _run_geometry(scene, tmp_path, "colocated_sources")
+    assert first._monitor.output_id == "port1"
+    assert second._monitor.output_id == "port2"
+
+
+def test_port_supports_geometry_fixed_first_run(tmp_path):
     scene = _base_scene()
     scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse"))
-    scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "x", 50, "pulse"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
 
-    with pytest.raises(ValueError, match="exactly one voltage source.*found 2"):
-        _run_geometry(scene, tmp_path, "ambiguous_source")
-
-
-def test_port_rejects_geometry_fixed_even_for_first_run(tmp_path):
-    scene = _base_scene()
-    scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
-
-    with pytest.raises(ValueError, match="does not support geometry-fixed"):
-        _run_geometry(scene, tmp_path, "geometry_fixed", geometry_fixed=True)
+    _run_geometry(scene, tmp_path, "geometry_fixed", geometry_fixed=True)
 
 
 def test_port_rejects_voltage_source_on_pec_edge(tmp_path):
@@ -88,23 +80,21 @@ def test_port_rejects_voltage_source_on_pec_edge(tmp_path):
         )
     )
     scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
 
     with pytest.raises(ValueError, match="voltage source on a PEC edge"):
         _run_geometry(scene, tmp_path, "pec_source")
 
 
-def test_port_rejects_second_monitor_on_same_source(tmp_path):
+def test_port_rejects_duplicate_explicit_ids(tmp_path):
     scene = _base_scene()
-    scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed1"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed2"))
+    scene.add(gprMax.VoltageSource((0.008, 0.01, 0.01), "z", 50, "pulse", id="feed"))
+    scene.add(gprMax.VoltageSource((0.012, 0.01, 0.01), "z", 50, "pulse", id="feed"))
 
-    with pytest.raises(ValueError, match="source already has an RxPort output"):
+    with pytest.raises(ValueError, match="port output ID 'feed' is already in use"):
         _run_geometry(scene, tmp_path, "duplicate_source")
 
 
-def test_port_rejects_dispersive_material_on_source_edge(tmp_path):
+def test_finite_resistance_port_accepts_dispersive_material_on_source_edge(tmp_path):
     scene = _base_scene()
     scene.add(gprMax.Material(er=4, se=0, mr=1, sm=0, id="dispersive"))
     scene.add(
@@ -122,8 +112,8 @@ def test_port_rejects_dispersive_material_on_source_edge(tmp_path):
             material_id="dispersive",
         )
     )
-    scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse"))
-    scene.add(gprMax.RxPort((0.01, 0.01, 0.01), id="feed"))
+    source = gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse")
+    scene.add(source)
 
-    with pytest.raises(ValueError, match="dispersive material"):
-        _run_geometry(scene, tmp_path, "dispersive_source")
+    _run_geometry(scene, tmp_path, "dispersive_source")
+    assert source._monitor.background_is_dispersive

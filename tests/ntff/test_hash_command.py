@@ -478,8 +478,7 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
         "#time_window: 4e-10\n"
         "#pml_cells: 3\n"
         "#waveform: ricker 1 5e9 pulse\n"
-        "#voltage_source: z 0.04 0.04 0.04 50 pulse\n"
-        "#rx_port: 0.04 0.04 0.04 feed\n"
+        "#voltage_source: z 0.04 0.04 0.04 50 pulse 0 4e-10 feed 10\n"
         "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
         "#ksir_frequency: surf band 5e9 rectangular\n"
         "#ksir_antenna_ports: band feed\n"
@@ -501,7 +500,10 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
         group = output["ntff/surf/frequency/band/far_field/broadside"]
         assert group.attrs["radiation_quadrature_theta_order"] >= 12
         assert group.attrs["radiation_quadrature_phi_order"] >= 24
-        assert group.attrs["maximum_directivity_sampling"] == "full-sphere quadrature plus requested directions"
+        assert (
+            group.attrs["maximum_directivity_sampling"]
+            == "full-sphere quadrature plus requested directions"
+        )
         assert group["port_power/port_ids"].asstr()[...].tolist() == ["feed"]
         assert group["port_power/incident_voltage_per_port"].shape == (1, 1)
         assert group["port_power/terminal_voltage_per_port"].shape == (1, 1)
@@ -584,10 +586,8 @@ def test_multiport_gain_keeps_zero_amplitude_port_in_power_balance(tmp_path):
         "#pml_cells: 3\n"
         "#waveform: ricker 1 5e9 driven\n"
         "#waveform: ricker 0 5e9 terminated\n"
-        "#voltage_source: z 0.036 0.04 0.04 50 driven\n"
-        "#voltage_source: z 0.044 0.04 0.04 50 terminated\n"
-        "#rx_port: 0.036 0.04 0.04 element1\n"
-        "#rx_port: 0.044 0.04 0.04 element2\n"
+        "#voltage_source: z 0.036 0.04 0.04 50 driven 0 4e-10 element1 10\n"
+        "#voltage_source: z 0.044 0.04 0.04 50 terminated 0 4e-10 element2 10\n"
         "#ntff_surface: 0.024 0.028 0.028 0.056 0.052 0.052 surf\n"
         "#ksir_frequency: surf band 5e9 rectangular\n"
         "#ksir_antenna_ports: band element1 element2\n"

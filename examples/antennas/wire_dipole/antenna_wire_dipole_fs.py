@@ -1,6 +1,6 @@
 """Half-wavelength wire dipole excited by a one-cell voltage-source port.
 
-The coincident ``RxPort`` calculates and stores frequency, corrected complex
+The source-owned port calculates and stores frequency, corrected complex
 S11, input impedance, and input admittance under ``/ports/feed`` in the model
 HDF5 output. No post-processing of source voltage and current is required.
 """
@@ -37,9 +37,9 @@ scene.add(
         polarisation="z",
         resistance=50,
         waveform_id="mypulse",
+        id="feed",
     )
 )
-scene.add(gprMax.RxPort(p1=(0.025, 0.025, 0.100), id="feed"))
 scene.add(
     gprMax.GeometryView(
         p1=(0.020, 0.020, 0.020),

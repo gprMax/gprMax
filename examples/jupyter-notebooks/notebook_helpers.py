@@ -75,7 +75,7 @@ def ensure_bscan(force=False, traces=60):
 
 
 def ensure_port_demo(force=False):
-    """Run a compact voltage-source/RxPort model for plotting demonstrations."""
+    """Run a compact voltage-source-port model for plotting demonstrations."""
 
     output = OUTPUT_DIR / "wire_dipole_port_demo.h5"
     if force or not output.exists():
@@ -105,8 +105,8 @@ def ensure_port_demo(force=False):
                 polarisation="z",
                 resistance=50,
                 waveform_id="pulse",
+                id="feed",
             )
         )
-        scene.add(gprMax.RxPort(p1=(0.04, 0.04, 0.04), id="feed"))
         gprMax.run(scenes=[scene], outputfile=output, n=1, hide_progress_bars=True)
     return output

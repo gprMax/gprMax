@@ -51,17 +51,17 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Set up MPI runtime
+        if: runner.os != 'Linux'
         uses: mpi4py/setup-mpi@v1
-        timeout-minutes: 5
+        timeout-minutes: 15
         with:
           mpi: ${{ matrix.mpi }}
 
-      - name: Configure Linux MPI transport
+      - name: Set up Open MPI runtime on Linux
         if: runner.os == 'Linux'
-        shell: bash
         run: |
-          echo "FI_PROVIDER=shm" >> "$GITHUB_ENV"
-          echo "UCX_TLS=self,sm" >> "$GITHUB_ENV"
+          python -m pip install openmpi==5.0.10
+          mpiexec --version
 
       - name: Install gprMax and test dependencies
         run: |

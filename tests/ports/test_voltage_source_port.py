@@ -9,6 +9,8 @@ import gprMax.config as config
 from gprMax.materials import Material
 from gprMax.ntff.conventions import engineering_dft
 from gprMax.ports import (
+    _finite_source_gap_admittance,
+    _safe_complex_divide,
     admittance_from_s11,
     correct_s11_for_parallel_gap,
     engineering_rfft,
@@ -81,6 +83,45 @@ def test_gap_deembedding_recovers_known_load_and_impedance(port_config):
     assert admittance_valid.all()
     np.testing.assert_allclose(corrected_impedance, antenna_impedance, rtol=1e-13)
     np.testing.assert_allclose(corrected_admittance, 1 / antenna_impedance, rtol=1e-13)
+
+
+def test_dispersive_gap_admittance_uses_complete_complex_permittivity(port_config):
+    dt = 1e-11
+    frequency = np.asarray([0.0, 2e9, 8e9])
+    area = 2e-6
+    dl = 1e-3
+    conductivity = 0.2
+    epsilon0 = config.sim_config.em_consts["e0"]
+
+    def calculate_er(values):
+        omega = 2 * np.pi * np.asarray(values)
+        return 3.5 + 5 / (1 + 1j * omega * 8e-11) + conductivity / (1j * omega * epsilon0)
+
+    output = SimpleNamespace(
+        background_is_dispersive=True,
+        background_material=SimpleNamespace(calculate_er=calculate_er),
+        background_conductance=conductivity * area / dl,
+        area=area,
+        dl=dl,
+    )
+    actual = _finite_source_gap_admittance(output, frequency, dt, np.complex128)
+
+    omega_discrete = (2 / dt) * np.tan(np.pi * frequency[1:] * dt)
+    expected = np.empty(frequency.shape, dtype=np.complex128)
+    expected[0] = conductivity * area / dl
+    expected[1:] = 1j * omega_discrete * epsilon0 * calculate_er(omega_discrete / (2 * np.pi)) * area / dl
+    np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-18)
+
+
+def test_safe_complex_divide_keeps_independent_frequency_bins(port_config):
+    numerator = np.asarray([1 + 0j, 1 + 0j, 1 + 0j], dtype=np.complex64)
+    denominator = np.asarray([1 + 0j, 1e30 + 0j, 0 + 0j], dtype=np.complex64)
+
+    result, valid = _safe_complex_divide(numerator, denominator, np.complex64)
+
+    np.testing.assert_array_equal(valid, (True, True, False))
+    np.testing.assert_allclose(result[:2], (1, 1e-30), rtol=1e-6)
+    assert np.isnan(result[2])
 
 
 def test_open_and_short_keep_s11_valid_but_mask_singular_secondary_quantity(port_config):

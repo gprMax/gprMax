@@ -34,11 +34,6 @@ def test_antenna_metrics_use_subgrid_port_and_time_step(tmp_path):
             polarisation="z",
             resistance=50,
             waveform_id="pulse",
-        )
-    )
-    subgrid.add(
-        gprMax.RxPort(
-            p1=source_position,
             id="feed",
             spectrum_limit="nyquist",
         )

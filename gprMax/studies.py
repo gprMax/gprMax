@@ -313,7 +313,7 @@ class Study:
         ):
             raise ValueError(
                 "VoltageSource reuse is available through PortStudy so its fixed terminal "
-                "resistance and source-bound RxPort are validated together."
+                "resistance and automatic source-owned port are validated together."
             )
         for object_type, prefix in supported:
             index = 0
@@ -1197,7 +1197,6 @@ class PortStudy(Study):
 
         super().bind_scene(scene)
         from gprMax.user_objects.cmds_multiuse import HertzianDipole, MagneticDipole, VoltageSource
-        from gprMax.user_objects.cmds_output import RxPort
 
         other_sources = [
             study_id
@@ -1223,15 +1222,6 @@ class PortStudy(Study):
                     f"PortStudy source '{study_id}' must have a finite resistance greater "
                     "than zero; hard voltage sources are not matched passive ports."
                 )
-
-        rx_ports = [
-            user_object for user_object in scene.output_objects if isinstance(user_object, RxPort)
-        ]
-        if len(rx_ports) != len(voltage_ids):
-            raise ValueError(
-                "PortStudy requires exactly one RxPort at every VoltageSource; found "
-                f"{len(rx_ports)} RxPort object(s) for {len(voltage_ids)} source(s)."
-            )
 
         drive_ids: list[str] = []
         for case in self.cases:
@@ -1295,14 +1285,16 @@ class PortStudy(Study):
             study_id = getattr(monitor.source, "study_id", None)
             if study_id in voltage_ids:
                 if study_id in monitors:
-                    raise ValueError(f"PortStudy source '{study_id}' has more than one RxPort.")
+                    raise ValueError(
+                        f"PortStudy source '{study_id}' has more than one port monitor."
+                    )
                 monitors[study_id] = monitor
         if set(monitors) != set(voltage_ids):
             missing = ", ".join(study_id for study_id in voltage_ids if study_id not in monitors)
-            raise ValueError(f"PortStudy has no source-bound RxPort for: {missing}.")
+            raise ValueError(f"PortStudy has no source-owned port output for: {missing}.")
         port_ids = tuple(monitors[study_id].output_id for study_id in voltage_ids)
         if len(port_ids) != len(set(port_ids)):
-            raise ValueError("PortStudy RxPort output IDs must be unique.")
+            raise ValueError("PortStudy voltage-source port IDs must be unique.")
         self._port_source_ids = voltage_ids
         self._port_ids = port_ids
         self._port_monitors = monitors
@@ -1318,14 +1310,16 @@ class PortStudy(Study):
         ordered = [self._port_monitors[study_id] for study_id in self._port_source_ids]
         results = [monitor.result for monitor in ordered]
         if any(result is None for result in results):
-            raise RuntimeError("PortStudy results were collected before every RxPort finalised.")
+            raise RuntimeError(
+                "PortStudy results were collected before every voltage-source port finalised."
+            )
 
         frequency = np.asarray(results[0].frequency)
         for port_id, result in zip(self._port_ids[1:], results[1:]):
             if not np.array_equal(result.frequency, frequency):
                 raise ValueError(
                     f"PortStudy port '{port_id}' has a different frequency axis; use the "
-                    "same spectrum_limit for every RxPort."
+                    "same spectrum_limit for every voltage-source port."
                 )
 
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])

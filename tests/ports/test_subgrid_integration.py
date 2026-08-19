@@ -29,21 +29,16 @@ def subgrid_port_result(tmp_path_factory):
     )
     scene.add(subgrid)
     subgrid.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
-    subgrid.add(
-        gprMax.VoltageSource(
-            p1=source_position,
-            polarisation="z",
-            resistance=0,
-            waveform_id="pulse",
-            reference_impedance=50,
-        )
-    )
-    port = gprMax.RxPort(
+    source = gprMax.VoltageSource(
         p1=source_position,
+        polarisation="z",
+        resistance=0,
+        waveform_id="pulse",
         id="feed",
         spectrum_limit="nyquist",
+        reference_impedance=50,
     )
-    subgrid.add(port)
+    subgrid.add(source)
 
     gprMax.run(
         scenes=[scene],
@@ -53,7 +48,7 @@ def subgrid_port_result(tmp_path_factory):
         autotranslate=True,
         hide_progress_bars=True,
     )
-    return output.with_suffix(".h5"), port, source_position
+    return output.with_suffix(".h5"), source, source_position
 
 
 def test_subgrid_port_uses_owning_grid_and_returns_api_result(subgrid_port_result):

@@ -1,4 +1,4 @@
-"""Compare production RxPort output with MATLAB Antenna Toolbox models."""
+"""Compare source-owned voltage-port output with MATLAB Antenna Toolbox models."""
 
 import argparse
 import csv
@@ -146,7 +146,7 @@ def build_dipole_scene():
     case = CASES["dipole"]
     scene = _common_scene(
         case,
-        "RxPort MATLAB comparison: 150 mm grid dipole",
+        "Voltage-port MATLAB comparison: 150 mm grid dipole",
         (0.180, 0.180, 0.220),
     )
     wire_x = 0.090
@@ -177,9 +177,9 @@ def build_dipole_scene():
             polarisation="z",
             resistance=case.reference_impedance,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed, id="feed"))
     return scene
 
 
@@ -190,7 +190,7 @@ def build_bowtie_scene():
     case = CASES["bowtie"]
     scene = _common_scene(
         case,
-        "RxPort MATLAB comparison: triangular bow-tie",
+        "Voltage-port MATLAB comparison: triangular bow-tie",
         (0.160, 0.160, 0.080),
     )
     feed_x = 0.080
@@ -245,9 +245,9 @@ def build_bowtie_scene():
             polarisation="x",
             resistance=case.reference_impedance,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed, id="feed"))
     return scene
 
 
@@ -258,7 +258,7 @@ def build_monopole_scene():
     dl = MONOPOLE_DL
     scene = _common_scene(
         case,
-        "RxPort MATLAB comparison: finite-ground monopole",
+        "Voltage-port MATLAB comparison: finite-ground monopole",
         (0.250, 0.250, 0.250),
     )
     wire_x = 0.125
@@ -285,9 +285,9 @@ def build_monopole_scene():
             polarisation="z",
             resistance=case.reference_impedance,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed, id="feed"))
     return scene
 
 
@@ -298,7 +298,7 @@ def build_patch_scene():
     domain = (0.120, 0.100, 120 * PATCH_DZ)
     scene = _common_scene(
         case,
-        "RxPort MATLAB comparison: single-feed rectangular patch",
+        "Voltage-port MATLAB comparison: single-feed rectangular patch",
         domain,
     )
     centre_x = domain[0] / 2
@@ -336,9 +336,9 @@ def build_patch_scene():
             polarisation="z",
             resistance=case.reference_impedance,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed, id="feed"))
     return scene
 
 
@@ -604,7 +604,7 @@ def create_plots(results):
             color=colours["gprmax"],
             marker="o",
             markersize=3.5,
-            label="gprMax RxPort corrected",
+            label="gprMax voltage port",
         )
         axes_s11[row, 0].plot(
             frequency_ghz,
@@ -631,7 +631,7 @@ def create_plots(results):
             color=colours["gprmax"],
             marker="o",
             markersize=3.5,
-            label="gprMax RxPort corrected",
+            label="gprMax voltage port",
         )
         axes_s11[row, 1].plot(
             frequency_ghz,
@@ -686,7 +686,7 @@ def create_plots(results):
                 axis.grid(True, alpha=0.25)
                 axis.legend(fontsize=8)
 
-    fig_s11.suptitle("Production gprMax RxPort versus MATLAB Antenna Toolbox", fontsize=14)
+    fig_s11.suptitle("gprMax voltage ports versus MATLAB Antenna Toolbox", fontsize=14)
     fig_s11.tight_layout()
     s11_path = RESULTS_DIR / "rx_port_matlab_comparison.png"
     fig_s11.savefig(s11_path, dpi=220, bbox_inches="tight")

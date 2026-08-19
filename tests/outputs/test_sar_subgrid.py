@@ -121,9 +121,10 @@ def _subgrid_power_normalised_scene():
             polarisation="z",
             resistance=50,
             waveform_id="pulse",
+            id="feed",
+            spectrum_limit="nyquist",
         )
     )
-    fine.add(gprMax.RxPort(p1=(0.045, 0.045, 0.045), id="feed", spectrum_limit="nyquist"))
     output = gprMax.SAR(
         frequencies=(5e9,),
         waveform_id="pulse",

@@ -121,7 +121,10 @@ def test_radiometry_does_not_require_material_density(tmp_path):
 
 def test_radiometry_port_weighting_is_independent_of_requested_power(tmp_path):
     scene = _lossy_scene()
-    scene.add(gprMax.RxPort(p1=(0.012, 0.012, 0.012), id="feed"))
+    voltage_source = next(
+        item for item in scene.grid_objects if isinstance(item, gprMax.VoltageSource)
+    )
+    voltage_source.id = "feed"
     one_watt = gprMax.Radiometry(
         frequencies=(1e9,),
         tags="target",
@@ -180,9 +183,7 @@ def test_radiometry_state_is_reset_for_geometry_fixed_runs(tmp_path):
         hide_progress_bars=True,
     )
 
-    with h5py.File(f"{filename}1.h5", "r") as first, h5py.File(
-        f"{filename}2.h5", "r"
-    ) as second:
+    with h5py.File(f"{filename}1.h5", "r") as first, h5py.File(f"{filename}2.h5", "r") as second:
         np.testing.assert_array_equal(
             first["radiometry/reused/normalised_absorption_density"][...],
             second["radiometry/reused/normalised_absorption_density"][...],

@@ -1,9 +1,8 @@
-"""Hash-command coverage for the positional RxPort interface."""
+"""Hash-command coverage for automatic voltage-source ports."""
 
 import pytest
 
 from gprMax.hash_cmds_file import get_user_objects
-from gprMax.user_objects.cmds_output import RxPort
 from gprMax.user_objects.cmds_multiuse import VoltageSource
 
 
@@ -14,46 +13,53 @@ def _parse(command):
 @pytest.mark.parametrize(
     "command, output_id, spectrum_limit",
     [
-        ("#rx_port: 0.1 0.2 0.3", None, 10),
-        ("#rx_port: 0.1 0.2 0.3 feed", "feed", 10),
-        ("#rx_port: 0.1 0.2 0.3 feed 15", "feed", 15),
-        ("#rx_port: 0.1 0.2 0.3 feed nyquist", "feed", "nyquist"),
+        ("#voltage_source: z 0.1 0.2 0.3 50 pulse", None, 10),
+        ("#voltage_source: z 0.1 0.2 0.3 50 pulse 0 1e-9 feed 15", "feed", 15),
+        (
+            "#voltage_source: z 0.1 0.2 0.3 50 pulse 0 1e-9 feed nyquist",
+            "feed",
+            "nyquist",
+        ),
     ],
 )
-def test_rx_port_positional_forms(command, output_id, spectrum_limit):
+def test_voltage_source_port_positional_forms(command, output_id, spectrum_limit):
     objects = _parse(command)
 
     assert len(objects) == 1
-    assert isinstance(objects[0], RxPort)
-    assert objects[0].ID == output_id
+    assert isinstance(objects[0], VoltageSource)
+    assert objects[0].id == output_id
     assert objects[0].spectrum_limit == spectrum_limit
 
 
 @pytest.mark.parametrize(
     "command",
     [
-        "#rx_port: 0.1 0.2",
-        "#rx_port: 0.1 0.2 0.3 feed 10 50",
-        "#rx_port: 0.1 0.2 0.3 feed full",
-        "#rx_port: 0.1 0.2 0.3 feed 2",
-        "#rx_port: 0.1 0.2 0.3 feed nan",
+        "#voltage_source: z 0.1 0.2 0.3 50 pulse 0 1e-9 feed full",
+        "#voltage_source: z 0.1 0.2 0.3 50 pulse 0 1e-9 feed 2",
+        "#voltage_source: z 0.1 0.2 0.3 50 pulse 0 1e-9 feed nan",
     ],
 )
-def test_rx_port_rejects_malformed_spectrum_limit(command):
+def test_voltage_source_rejects_malformed_spectrum_limit(command):
     with pytest.raises(ValueError):
         _parse(command)
 
 
-def test_nondefault_api_limit_requires_id_for_positional_round_trip():
-    with pytest.raises(ValueError, match="requires an ID"):
-        RxPort((0.1, 0.2, 0.3), spectrum_limit="nyquist")
-
-
 def test_voltage_source_hash_accepts_reference_impedance_after_start_stop():
-    objects = _parse(
-        "#voltage_source: z 0.1 0.2 0.3 0 pulse 0 1e-9 75"
-    )
+    objects = _parse("#voltage_source: z 0.1 0.2 0.3 0 pulse 0 1e-9 75")
 
     assert len(objects) == 1
     assert isinstance(objects[0], VoltageSource)
     assert objects[0].reference_impedance == 75
+
+
+def test_voltage_source_hash_keeps_reference_impedance_last_with_port_options():
+    objects = _parse("#voltage_source: z 0.1 0.2 0.3 0 pulse 0 1e-9 feed nyquist 75")
+
+    assert objects[0].id == "feed"
+    assert objects[0].spectrum_limit == "nyquist"
+    assert objects[0].reference_impedance == 75
+
+
+def test_removed_rx_port_hash_command_is_rejected():
+    with pytest.raises(SyntaxError):
+        _parse("#rx_port: 0.1 0.2 0.3")

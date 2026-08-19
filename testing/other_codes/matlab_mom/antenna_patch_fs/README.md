@@ -228,7 +228,7 @@ the FDTD/MoM antenna-model comparison rather than the NTFF formulation.
 ## Full-sphere gain
 
 `patch_antenna_3d_gain.py` uses the standard-mesh single 50 Ohm gap feed and
-the native `RxPort`/`KSIRAntennaPorts` power normalisation. It evaluates a 2
+the native voltage-port/`KSIRAntennaPorts` power normalisation. It evaluates a 2
 degree full-sphere `KSIRFarFieldArray` at 2.37 GHz and reads the persisted gain
 and directivity datasets back from HDF5. Radiation intensity, realized gain,
 radiation efficiency, and total efficiency are retained as well. The script

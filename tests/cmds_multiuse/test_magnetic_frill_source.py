@@ -6,7 +6,7 @@ Covers: user-object parameter validation (fast, monkeypatched-grid unit
 tests, mirroring tests/cmds_multiuse/test_metal_gpu_restriction_gaps.py's
 style), finalise_setup()'s build-time geometry/symmetry/PML checks, a full
 CPU solve with sane HDF5 output, PEC box/plate ground planes, symmetry-plane
-placement, RxPort pairing, Hyun's terminal identity, and invariance of the
+placement, automatic port output, Hyun's terminal identity, and invariance of the
 feed-cell self-admittance under symmetry completion.
 
 The deeper physics validation ladder (open/short/matched-load analytic
@@ -85,8 +85,7 @@ def test_hash_command_builds_api_object(
     "command",
     [
         "#magnetic_frill_source: z 0.01 0.02 0.03 50",
-        "#magnetic_frill_source: z 0.01 0.02 0.03 50 w 1e-10",
-        "#magnetic_frill_source: z 0.01 0.02 0.03 50 w 1e-10 2e-10 extra",
+        "#magnetic_frill_source: z 0.01 0.02 0.03 50 w 1e-10 2e-10 10 extra",
     ],
 )
 def test_hash_command_rejects_invalid_parameter_count(command):
@@ -565,15 +564,18 @@ def test_zcoax_changes_reflection(tmp_path):
     assert not np.allclose(vtot_a, vtot_b)
 
 
-def test_rx_port_override_sets_marker_and_spectrum_limit(tmp_path):
+def test_source_sets_automatic_port_spectrum_limit(tmp_path):
     scene = _base_scene()
     scene.add(
         gprMax.MagneticFrillSource(
-            p1=(0.01, 0.01, 0.0), polarisation="z", zcoax=50, waveform_id="w"
+            p1=(0.01, 0.01, 0.0),
+            polarisation="z",
+            zcoax=50,
+            waveform_id="w",
+            spectrum_limit=5,
         )
     )
-    scene.add(gprMax.RxPort(p1=(0.01, 0.01, 0.0), id="override", spectrum_limit=5))
-    outputfile = tmp_path / "frill_rxport"
+    outputfile = tmp_path / "frill_spectrum_limit"
     gprMax.run(
         scenes=[scene],
         n=1,
@@ -586,37 +588,18 @@ def test_rx_port_override_sets_marker_and_spectrum_limit(tmp_path):
         assert grp.attrs["MinimumWavelengthCells"] == 5
 
 
-def test_rx_port_duplicate_rejected(tmp_path):
+def test_frill_automatic_port_keeps_fixed_identifier(tmp_path):
     scene = _base_scene()
     scene.add(
         gprMax.MagneticFrillSource(
-            p1=(0.01, 0.01, 0.0), polarisation="z", zcoax=50, waveform_id="w"
+            p1=(0.01, 0.01, 0.0),
+            polarisation="z",
+            zcoax=50,
+            waveform_id="w",
+            spectrum_limit=5,
         )
     )
-    scene.add(gprMax.RxPort(p1=(0.01, 0.01, 0.0)))
-    scene.add(gprMax.RxPort(p1=(0.01, 0.01, 0.0), id="second"))
-    with pytest.raises(ValueError, match="already has an RxPort"):
-        gprMax.run(
-            scenes=[scene],
-            n=1,
-            geometry_only=False,
-            outputfile=tmp_path / "frill_rxport_dup",
-            hide_progress_bars=True,
-        )
-
-
-def test_rx_port_id_ignored_for_frill_source(tmp_path):
-    """An id is accepted (RxPort.__init__ requires one whenever
-    spectrum_limit is non-default) but not used to name anything - the
-    automatic output keeps its fixed 'frillN' identifier regardless."""
-    scene = _base_scene()
-    scene.add(
-        gprMax.MagneticFrillSource(
-            p1=(0.01, 0.01, 0.0), polarisation="z", zcoax=50, waveform_id="w"
-        )
-    )
-    scene.add(gprMax.RxPort(p1=(0.01, 0.01, 0.0), id="named", spectrum_limit=5))
-    outputfile = tmp_path / "frill_rxport_id"
+    outputfile = tmp_path / "frill_port_id"
     gprMax.run(
         scenes=[scene],
         n=1,
@@ -626,4 +609,3 @@ def test_rx_port_id_ignored_for_frill_source(tmp_path):
     )
     with h5py.File(str(outputfile) + ".h5", "r") as f:
         assert "frills/frill1" in f
-        assert "named" not in f.get("ports", {})
