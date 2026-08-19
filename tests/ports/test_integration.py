@@ -1,4 +1,4 @@
-"""Small CPU integration tests for RxPort HDF5 output."""
+"""Small CPU integration tests for automatic voltage-source port output."""
 
 import h5py
 import numpy as np
@@ -58,22 +58,17 @@ def _scene(
                 material_id="remote_debye",
             )
         )
-    scene.add(
-        gprMax.VoltageSource(
-            p1=(0.01, 0.01, 0.01),
-            polarisation=polarisation,
-            resistance=resistance,
-            waveform_id="pulse",
-            reference_impedance=reference_impedance,
-        )
-    )
-    port = gprMax.RxPort(
+    source = gprMax.VoltageSource(
         p1=(0.01, 0.01, 0.01),
+        polarisation=polarisation,
+        resistance=resistance,
+        waveform_id="pulse",
         id="feed",
         spectrum_limit=spectrum_limit,
+        reference_impedance=reference_impedance,
     )
-    scene.add(port)
-    return scene, port
+    scene.add(source)
+    return scene, source
 
 
 def _run(
@@ -155,9 +150,15 @@ def test_nyquist_research_mode_retains_full_native_axis_and_validity_masks(tmp_p
         assert port.attrs["SpectrumLimitMode"] == "nyquist"
         assert frequency.size == expected_bins
         assert frequency[-1] > port.attrs["MeshFrequencyLimit"]
-        assert not port["mesh_valid"][...].astype(bool)[-1]
+        source_valid = port["source_valid"][...].astype(bool)
+        mesh_valid = port["mesh_valid"][...].astype(bool)
+        gap_valid = port["gap_correction_valid"][...].astype(bool)
+        assert not mesh_valid[-1]
+        resolved = source_valid & mesh_valid
+        assert resolved.any()
+        assert gap_valid[resolved].all()
         if (iterations - 1) % 2 == 0:
-            assert not port["gap_correction_valid"][...].astype(bool)[-1]
+            assert not gap_valid[-1]
             assert np.isnan(port["S11"][...][-1])
         np.testing.assert_allclose(port.attrs["FrequencyRange"], (frequency[0], frequency[-1]))
         for dataset in (
@@ -241,12 +242,8 @@ def test_hard_source_port_uses_phase_aligned_ampere_current(tmp_path, polarisati
         assert port.attrs["PortMode"] == "hard_delta_gap"
         assert port.attrs["ReferenceImpedance"] == 50
         assert port.attrs["ReferenceImpedanceSource"] == "voltage_source"
-        assert port.attrs["TimeSampleOffset"] == pytest.approx(
-            output.attrs["dt"]
-        )
-        assert port.attrs["CurrentTimeSampleOffset"] == pytest.approx(
-            0.5 * output.attrs["dt"]
-        )
+        assert port.attrs["TimeSampleOffset"] == pytest.approx(output.attrs["dt"])
+        assert port.attrs["CurrentTimeSampleOffset"] == pytest.approx(0.5 * output.attrs["dt"])
         assert port.attrs["CurrentTimeAlignment"] == "explicit_fft_half_step_phase"
         assert port["Iloop"].shape == port["time"].shape
         assert port["time_current"].shape == port["time"].shape
@@ -255,8 +252,7 @@ def test_hard_source_port_uses_phase_aligned_ampere_current(tmp_path, polarisati
         assert valid.any()
         np.testing.assert_allclose(
             port["Zin"][...][valid],
-            port["Vtotal_spectrum"][...][valid]
-            / port["Iterminal_spectrum"][...][valid],
+            port["Vtotal_spectrum"][...][valid] / port["Iterminal_spectrum"][...][valid],
             rtol=2e-5,
             atol=2e-5,
         )

@@ -803,7 +803,7 @@ Power-normalisation consistency
 
 The :download:`power-normalisation driver
 <../../testing/validation/validate_sar_power_normalisation.py>` exercises an
-actual voltage source and ``RxPort`` through the complete solver and output
+actual voltage source and its automatic port through the complete solver and output
 path. Requesting 4 W rather than 1 W incident power multiplies every SAR value
 by four exactly. Normalising the same fields to accepted rather than incident
 power agrees with the independently evaluated port-power ratio to

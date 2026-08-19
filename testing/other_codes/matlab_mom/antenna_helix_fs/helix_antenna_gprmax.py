@@ -134,16 +134,19 @@ def build_scene(source_mode="resistive"):
         CENTRE_Y,
         GROUND_Z,
     )
+    source_kwargs = {}
+    if source_mode != "resistive":
+        source_kwargs["reference_impedance"] = PORT_REFERENCE_IMPEDANCE
     scene.add(
         gprMax.VoltageSource(
             p1=feed_position,
             polarisation="z",
             resistance=(PORT_REFERENCE_IMPEDANCE if source_mode == "resistive" else 0),
             waveform_id="pulse",
-            reference_impedance=PORT_REFERENCE_IMPEDANCE,
+            id="helix_feed",
+            **source_kwargs,
         )
     )
-    scene.add(gprMax.RxPort(p1=feed_position, id="helix_feed"))
 
     scene.add(
         gprMax.NTFFSurface(

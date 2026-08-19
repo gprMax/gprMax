@@ -486,7 +486,10 @@ def test_sar_real_port_power_normalisation_scales_with_target_power(tmp_path):
     one_watt.port_id = "feed"
     one_watt.target_power = 1.0
     one_watt.waveform_id = None
-    scene.add(gprMax.RxPort(p1=(0.012, 0.012, 0.012), id="feed"))
+    voltage_source = next(
+        item for item in scene.grid_objects if isinstance(item, gprMax.VoltageSource)
+    )
+    voltage_source.id = "feed"
     four_watt = SAR(
         frequencies=one_watt.frequencies,
         tags="target",

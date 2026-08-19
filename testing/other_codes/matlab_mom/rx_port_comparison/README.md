@@ -1,4 +1,4 @@
-# Production `RxPort` comparison with MATLAB antennas
+# Source-owned voltage-port comparison with MATLAB antennas
 
 This comparison uses the production gprMax `/ports/feed` HDF5 datasets; it
 does not reconstruct current from surrounding magnetic-field receivers. Four

@@ -275,6 +275,7 @@ def build_scene(
                     polarisation="z",
                     resistance=source_resistance,
                     waveform_id="pulse",
+                    id=receiver_id,
                 )
             )
             # Ez on the driven edge is the total port field. Keeping these as

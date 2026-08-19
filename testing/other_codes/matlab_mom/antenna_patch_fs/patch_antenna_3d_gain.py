@@ -28,9 +28,8 @@ def build_gain_scene():
 
     patch._configure_mesh("standard")
     scene, _ = patch.build_scene(feed_mode="single", mesh_mode="standard")
-    _, feed_position = patch._feed_edges("single")[0]
-    scene.add(gprMax.RxPort(p1=feed_position, id="patch_feed"))
-    scene.add(gprMax.KSIRAntennaPorts("patch_spectrum", ("patch_feed",)))
+    feed_port_id, _ = patch._feed_edges("single")[0]
+    scene.add(gprMax.KSIRAntennaPorts("patch_spectrum", (feed_port_id,)))
     scene.add(
         gprMax.KSIRFarFieldArray(
             theta_start=0,

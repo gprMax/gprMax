@@ -1,4 +1,4 @@
-"""Check RxPort consistency and precision through the CUDA/HDF5 path."""
+"""Check voltage-port consistency and precision through the CUDA/HDF5 path."""
 
 import argparse
 import json
@@ -58,7 +58,7 @@ def build_scene(case):
     """Build one rotated 150 mm, one-edge-feed thin-wire dipole."""
 
     scene = gprMax.Scene()
-    scene.add(gprMax.Title(name=f"RxPort GPU invariance: {case.name}"))
+    scene.add(gprMax.Title(name=f"Voltage-port GPU invariance: {case.name}"))
     scene.add(gprMax.Discretisation(p1=(DL, DL, DL)))
     scene.add(gprMax.Domain(p1=DOMAIN))
     scene.add(gprMax.TimeWindow(time=TIME_WINDOW))
@@ -93,9 +93,9 @@ def build_scene(case):
             polarisation=case.polarisation,
             resistance=case.resistance,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed, id="feed"))
     return scene
 
 
@@ -266,7 +266,7 @@ def create_plot(frequency, valid, single, double):
         axis.set_xlabel("Frequency [GHz]")
         axis.grid(True, alpha=0.25)
         axis.legend(fontsize=8)
-    fig.suptitle("RxPort CUDA invariance and precision checks")
+    fig.suptitle("Voltage-port CUDA invariance and precision checks")
     fig.tight_layout()
     output = RESULTS_DIR / "rx_port_gpu_invariance.png"
     fig.savefig(output, dpi=220, bbox_inches="tight")

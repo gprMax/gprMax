@@ -642,8 +642,8 @@ Transmission-line S11 and impedance output
 -------------------------------------------
 
 S11, input impedance, and input admittance are generated automatically for
-every transmission-line source; no ``#rx_port`` command or additional
-receiver is required. With the real line resistance :math:`Z_0` as the
+every transmission-line source; no additional receiver is required. With the
+real line resistance :math:`Z_0` as the
 reference impedance, the primary results are
 
 .. math::
@@ -693,7 +693,7 @@ Magnetic-frill-source S11 and impedance output
 
 S11, input impedance, and input admittance are generated automatically for
 every ``#magnetic_frill_source``, exactly as for a transmission line; no
-``#rx_port`` command or additional receiver is required (the electric field
+additional receiver is required (the electric field
 component along the polarisation axis is identically zero at the feed point
 by construction, so no field sample is possible there in the first place).
 Main-grid results are stored at ``/frills/frillN``. A Python API frill inside
@@ -727,10 +727,8 @@ histories satisfy
 
     V_\mathrm{ab}=2V_\mathrm{inc}-Z_0 I_\mathrm{tot}.
 
-If ``#rx_port`` is placed at the same feed point, it does not create a
-second, independent measurement (unlike its role with ``#voltage_source``);
-it can only override the ``spectrum_limit`` of this always-on automatic
-output.
+Set ``spectrum_limit`` directly on the magnetic-frill source when a limit
+other than the default lambda/10 band is required.
 
 Rational-network port output
 ----------------------------
@@ -801,8 +799,9 @@ and space increments.
 Voltage-source S11 and impedance output
 ---------------------------------------
 
-The ``#rx_port`` command and ``RxPort`` Python object write one group per
-main-grid port at ``/ports/<port ID>``. A port added to a Python API subgrid is
+Every 3-D ``#voltage_source`` or ``VoltageSource`` Python object writes one
+source-owned group per main-grid port at ``/ports/<port ID>``. A source added
+to a Python API subgrid is
 stored at ``/subgrids/<subgrid ID>/ports/<port ID>`` and uses the owning
 subgrid's spatial step, time step, iteration count, material edge, and field
 histories. For a finite-resistance source, its resistance is the reference
@@ -823,6 +822,22 @@ background capacitance and conductance before reporting ``S11``, ``Zin``, and
     Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}},
     \qquad
     Y_\mathrm{in}=\frac{1-S_{11}}{Z_0(1+S_{11})}.
+
+For a finite-resistance source in a dispersive background, the shunt
+admittance uses the material's complete complex relative permittivity,
+including every Debye, Lorentz, Drude, or inclusive pole,
+
+.. math::
+
+    \widetilde{\omega}=\frac{2}{\Delta t}
+    \tan\!\left(\frac{\omega\Delta t}{2}\right),
+    \qquad
+    Y_\mathrm{gap}=j\widetilde{\omega}\varepsilon_0
+    \varepsilon_r(\widetilde{\omega})\frac{A}{\Delta l}.
+
+This reduces to :math:`G_\mathrm{bg}+j\widetilde{\omega}C_\mathrm{gap}`
+for a nondispersive conductive material. Hard voltage ports use their sampled
+Ampere-loop current and are not yet supported on dispersive source edges.
 
 Important attributes include:
 

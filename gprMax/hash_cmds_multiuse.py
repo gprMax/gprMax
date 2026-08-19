@@ -58,7 +58,6 @@ from .user_objects.cmds_multiuse import (
     Waveform,
 )
 from .user_objects.cmds_output import (
-    Radiometry,
     SAR,
     GeometryObjectsWrite,
     GeometryView,
@@ -80,7 +79,7 @@ from .user_objects.cmds_output import (
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,
-    RxPort,
+    Radiometry,
     Snapshot,
 )
 from .user_objects.cmds_singleuse import PMLFormulation
@@ -201,7 +200,12 @@ def process_multicmds(multicmds):
                     resistance=float(tmp[4]),
                     waveform_id=tmp[5],
                 )
-            elif len(tmp) in (8, 9):
+            elif len(tmp) in (8, 9, 10, 11):
+                spectrum_limit = 10
+                port_id = None
+                if len(tmp) >= 10:
+                    port_id = tmp[8]
+                    spectrum_limit = "nyquist" if tmp[9].lower() == "nyquist" else float(tmp[9])
                 voltage_source = VoltageSource(
                     polarisation=tmp[0].lower(),
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -209,7 +213,13 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[5],
                     start=float(tmp[6]),
                     stop=float(tmp[7]),
-                    reference_impedance=float(tmp[8]) if len(tmp) == 9 else None,
+                    id=port_id,
+                    spectrum_limit=spectrum_limit,
+                    reference_impedance=(
+                        float(tmp[8])
+                        if len(tmp) == 9
+                        else (float(tmp[10]) if len(tmp) == 11 else None)
+                    ),
                 )
             else:
                 logger.exception(
@@ -218,7 +228,7 @@ def process_multicmds(multicmds):
                     + ": "
                     + " ".join(tmp)
                     + "'"
-                    + " requires six, eight, or nine parameters"
+                    + " requires six, eight, nine, ten, or eleven parameters"
                 )
                 raise ValueError
 
@@ -334,14 +344,19 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) == 6:
+            if len(tmp) in (6, 7):
                 frill = MagneticFrillSource(
                     polarisation=tmp[0],
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
                     zcoax=float(tmp[4]),
                     waveform_id=tmp[5],
+                    spectrum_limit=(
+                        ("nyquist" if tmp[6].lower() == "nyquist" else float(tmp[6]))
+                        if len(tmp) == 7
+                        else 10
+                    ),
                 )
-            elif len(tmp) == 8:
+            elif len(tmp) in (8, 9):
                 frill = MagneticFrillSource(
                     polarisation=tmp[0],
                     p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -349,11 +364,17 @@ def process_multicmds(multicmds):
                     waveform_id=tmp[5],
                     start=float(tmp[6]),
                     stop=float(tmp[7]),
+                    spectrum_limit=(
+                        ("nyquist" if tmp[8].lower() == "nyquist" else float(tmp[8]))
+                        if len(tmp) == 9
+                        else 10
+                    ),
                 )
             else:
                 raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires six parameters, "
-                    "or eight parameters when start and stop times are supplied"
+                    f"'{cmdname}: {cmdinstance}' requires six parameters, optionally "
+                    "followed by a spectrum limit, or eight parameters when start and "
+                    "stop times are supplied, optionally followed by a spectrum limit"
                 )
 
             scene_objects.append(frill)
@@ -650,30 +671,6 @@ def process_multicmds(multicmds):
 
             rx_array = RxArray(p1=p1, p2=p2, dl=dl)
             scene_objects.append(rx_array)
-
-    cmdname = "#rx_port"
-    if multicmds[cmdname] is not None:
-        for cmdinstance in multicmds[cmdname]:
-            tokens = cmdinstance.split()
-            if len(tokens) < 3 or len(tokens) > 5:
-                raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires three coordinates, "
-                    "an optional ID and spectrum limit"
-                )
-            kwargs = {}
-            if len(tokens) >= 4:
-                kwargs["id"] = tokens[3]
-            if len(tokens) >= 5:
-                try:
-                    kwargs["spectrum_limit"] = float(tokens[4])
-                except ValueError:
-                    kwargs["spectrum_limit"] = tokens[4].lower()
-            scene_objects.append(
-                RxPort(
-                    p1=tuple(float(value) for value in tokens[:3]),
-                    **kwargs,
-                )
-            )
 
     cmdname = "#network_port"
     if multicmds[cmdname] is not None:

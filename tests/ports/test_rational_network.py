@@ -215,10 +215,10 @@ def _scene(use_network):
         )
         scene.add(gprMax.NetworkExcitation("feed", "pulse"))
         port = gprMax.NetworkPort("feed", reference_impedance=50)
+        scene.add(port)
     else:
-        scene.add(gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse"))
-        port = gprMax.RxPort((0.01, 0.01, 0.01), id="feed")
-    scene.add(port)
+        port = gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse", id="feed")
+        scene.add(port)
     scene.add(gprMax.Rx((0.012, 0.01, 0.01), id="field"))
     return scene, port
 

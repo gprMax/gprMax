@@ -1,7 +1,7 @@
 """Half-wavelength wire dipole using the legacy transmission-line feed.
 
 The canonical ``antenna_wire_dipole_fs`` example uses a voltage source with an
-``RxPort``. This alternative is retained for users who specifically need the
+the automatic voltage-source port. This alternative is retained for users who specifically need the
 one-dimensional line histories or its independent current-wave checks.
 """
 

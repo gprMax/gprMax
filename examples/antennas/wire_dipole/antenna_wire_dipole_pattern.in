@@ -10,9 +10,8 @@
 #edge: 0.040 0.040 0.035 0.040 0.040 0.185 pec
 #edge: 0.040 0.040 0.110 0.040 0.040 0.111 free_space
 
-## The receiver port must coincide with the one-cell voltage source.
-#voltage_source: z 0.040 0.040 0.110 50 dipole_pulse
-#rx_port: 0.040 0.040 0.110 feed
+## The voltage source automatically owns port output called "feed".
+#voltage_source: z 0.040 0.040 0.110 50 dipole_pulse 0 40e-9 feed 10
 
 ## Closed equivalent-current surface and 950 MHz full-sphere output.
 #ntff_surface: 0.018 0.018 0.020 0.062 0.062 0.200 dipole_surface

@@ -20,9 +20,9 @@ dipole in free space. The balanced antenna is 150 mm long and has a one-cell,
     :language: none
     :linenos:
 
-The antenna is excited by a one-cell, 50 Ohm resistive voltage source. The
-coincident ``#rx_port`` associates the feed with an output port called
-``feed``. gprMax samples the total gap voltage during the solve and, after the
+The antenna is excited by a one-cell, 50 Ohm resistive voltage source whose
+optional ID names the automatic output port ``feed``. gprMax samples the total
+gap voltage during the solve and, after the
 time loop, directly calculates the complex reflection coefficient, input
 impedance, and input admittance. The effective Yee-edge gap capacitance and
 background conductance are removed from the reported terminal quantities.
@@ -30,7 +30,7 @@ Users do not need to reconstruct S11 from voltage and current histories.
 
 The Gaussian waveform has a nominal frequency of 1 GHz. The 60 ns time window
 provides a native FFT-bin spacing of approximately 16.7 MHz. The default
-``#rx_port`` spectrum is limited by the model's lambda/10 mesh criterion and
+voltage-source port spectrum is limited by the model's lambda/10 mesh criterion and
 also carries per-frequency validity masks based on source bandwidth and the
 terminal reconstruction. These masks should be applied when plotting.
 

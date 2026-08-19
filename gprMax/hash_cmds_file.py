@@ -270,7 +270,6 @@ def check_cmd_names(processedlines, checkessential=True):
             "#excitation_file",
             "#rx",
             "#rx_array",
-            "#rx_port",
             "#sar",
             "#radiometry",
             "#network_port",

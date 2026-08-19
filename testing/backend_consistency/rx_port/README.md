@@ -1,4 +1,4 @@
-# CUDA `RxPort` consistency check
+# CUDA voltage-port consistency check
 
 This suite checks invariance to excitation amplitude, reference impedance,
 and x/y/z orientation, as well as single/double precision agreement and

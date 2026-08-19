@@ -51,9 +51,9 @@ def build_scene():
             polarisation="z",
             resistance=50,
             waveform_id="dipole_pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed, id="feed"))
 
     scene.add(
         gprMax.NTFFSurface(

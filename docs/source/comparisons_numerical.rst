@@ -183,7 +183,7 @@ currents, MATLAB MoM remains the relevant full-wave inter-code comparison.
 Native port-output comparison
 =============================
 
-An additional :download:`RxPort study
+An additional :download:`voltage-port study
 <../../testing/other_codes/matlab_mom/rx_port_comparison/README.md>` uses the
 production ``/ports`` HDF5 datasets directly for the dipole, bow tie,
 monopole, and patch. It is deliberately distinct from cases that reconstruct

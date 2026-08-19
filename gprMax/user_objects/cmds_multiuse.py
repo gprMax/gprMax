@@ -68,6 +68,41 @@ from gprMax.waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)
 
+# Keep this module importable before ``gprMax.ports``: that module imports the
+# NTFF package, whose public interface in turn imports the port evaluators.
+# The local value is the public default used by the port layer.
+DEFAULT_PORT_SPECTRUM_LIMIT = 10.0
+
+
+def _reserve_voltage_port_output_id(
+    grid: FDTDGrid, requested: Optional[str], owner: GridUserObject
+) -> str:
+    """Reserve a voltage-port ID, including consistently on every MPI rank."""
+
+    mpi_registry = bool(getattr(config.sim_config, "mpi", None)) or not hasattr(
+        grid, "port_monitors"
+    )
+    if mpi_registry:
+        used = grid.mpi_port_output_ids
+    else:
+        used = [monitor.output_id for monitor in grid.port_monitors]
+    if requested is None:
+        index = 1
+        while f"port{index}" in used:
+            index += 1
+        output_id = f"port{index}"
+    else:
+        from gprMax.ntff.interface import validate_identifier
+
+        validate_identifier("voltage-source port ID", requested)
+        output_id = requested
+    if output_id in used:
+        raise ValueError(f"port output ID {output_id!r} is already in use.")
+    if mpi_registry:
+        used.append(output_id)
+        grid.mpi_port_output_owners[output_id] = owner
+    return output_id
+
 
 def _require_complete_source_time_window(user_object, start, stop):
     """Require conventional source start/stop limits to be supplied together."""
@@ -556,9 +591,13 @@ class VoltageSource(RotatableMixin, GridUserObject):
         waveform_id: string required for identifier of waveform used with source.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
+        id: optional HDF5 port identifier. If omitted, ``portN`` is assigned.
+        spectrum_limit: minimum cells per shortest material wavelength
+            (default 10), or ``"nyquist"`` for the full research spectrum.
         reference_impedance: float optional wave-reference impedance (Ohms)
-            for a hard source. The default is 50 Ohms. For a finite-
-            resistance source it must equal the source resistance.
+            for a hard source. The default is 50 Ohms. This final argument
+            is not accepted for a finite-resistance source, whose physical
+            resistance is also its wave-reference impedance.
     """
 
     @property
@@ -577,17 +616,27 @@ class VoltageSource(RotatableMixin, GridUserObject):
         waveform_id: str,
         start: Optional[float] = None,
         stop: Optional[float] = None,
+        id: Optional[str] = None,
+        spectrum_limit=DEFAULT_PORT_SPECTRUM_LIMIT,
         reference_impedance: Optional[float] = None,
     ):
-        super().__init__(
+        from gprMax.ports import validate_spectrum_limit
+
+        spectrum_limit = validate_spectrum_limit(spectrum_limit)
+        kwargs = dict(
             polarisation=polarisation,
             p1=p1,
             resistance=resistance,
             waveform_id=waveform_id,
             start=start,
             stop=stop,
-            reference_impedance=reference_impedance,
         )
+        if id is not None or spectrum_limit != DEFAULT_PORT_SPECTRUM_LIMIT:
+            kwargs["id"] = id
+            kwargs["spectrum_limit"] = spectrum_limit
+        if reference_impedance is not None:
+            kwargs["reference_impedance"] = reference_impedance
+        super().__init__(**kwargs)
 
         self.point = p1
         self.polarisation = polarisation
@@ -595,7 +644,22 @@ class VoltageSource(RotatableMixin, GridUserObject):
         self.waveform_id = waveform_id
         self.start = start
         self.stop = stop
+        self.id = id
+        self.spectrum_limit = spectrum_limit
         self.reference_impedance = reference_impedance
+        self._source = None
+        self._monitor = None
+
+    @property
+    def result(self):
+        """Return the automatic port result after the model has solved."""
+
+        if self._monitor is None or self._monitor.result is None:
+            raise RuntimeError(
+                "VoltageSource port result is not available until a supported "
+                "3-D model has solved"
+            )
+        return self._monitor.result
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
@@ -671,11 +735,21 @@ class VoltageSource(RotatableMixin, GridUserObject):
                 raise ValueError(
                     f"{self.params_str()} reference impedance must be finite and positive."
                 )
-            if self.resistance > 0 and not np.isclose(self.reference_impedance, self.resistance):
+            if self.resistance > 0:
                 raise ValueError(
-                    f"{self.params_str()} reference impedance must equal the finite "
-                    "source resistance."
+                    f"{self.params_str()} reference impedance is only valid for a "
+                    "zero-resistance hard source; a finite source uses its resistance."
                 )
+        if self.id is not None:
+            from gprMax.ntff.interface import validate_identifier
+
+            validate_identifier("voltage-source port ID", self.id)
+        if self.spectrum_limit != "nyquist" and self.spectrum_limit < DEFAULT_PORT_SPECTRUM_LIMIT:
+            logger.warning(
+                f"{self.params_str()} requests only {self.spectrum_limit:g} cells "
+                "per shortest material wavelength; values below 10 may have "
+                "significant spatial-dispersion error."
+            )
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == self.waveform_id for x in grid.waveforms):
@@ -717,6 +791,8 @@ class VoltageSource(RotatableMixin, GridUserObject):
             if self.reference_impedance is not None
             else (50.0 if self.resistance == 0 else float(self.resistance))
         )
+        voltage_source.port_id = getattr(self, "_port_output_id", None)
+        voltage_source.spectrum_limit = self.spectrum_limit
         voltage_source.waveformID = self.waveform_id
 
         if self.start is None or self.stop is None:
@@ -729,6 +805,59 @@ class VoltageSource(RotatableMixin, GridUserObject):
         voltage_source.calculate_waveform_values(grid)
 
         return voltage_source
+
+    def _create_port_monitor(
+        self,
+        grid: FDTDGrid,
+        voltage_source: VoltageSourceUser,
+        coord: npt.NDArray[np.int32],
+        output_id: str,
+    ) -> None:
+        """Attach the source-owned terminal sampler and spectral monitor."""
+
+        from gprMax.ports import VoltageSourcePortMonitor
+
+        if grid.within_pml(coord):
+            raise ValueError(f"{self.params_str()} cannot be placed inside a PML.")
+
+        receiver = RxUser()
+        receiver.ID = f"_voltage_port_{output_id}"
+        receiver.coord = np.asarray(coord, dtype=np.int32).copy()
+        receiver.coordorigin = receiver.coord.copy()
+        real_dtype = config.sim_config.dtypes["float_or_double"]
+        receiver.outputs[f"E{voltage_source.polarisation}"] = np.zeros(
+            grid.iterations, dtype=real_dtype
+        )
+        receiver.internal = True
+        receiver.source_bound = True
+        receiver.port_id = output_id
+        grid.add_receiver(receiver)
+
+        if voltage_source.resistance == 0:
+            transverse_axes = {
+                "x": (1, 2),
+                "y": (0, 2),
+                "z": (0, 1),
+            }[voltage_source.polarisation]
+            if any(coord[axis] == 0 for axis in transverse_axes):
+                raise ValueError(
+                    f"{self.params_str()} cannot calculate a hard-source current "
+                    "loop on a domain-minimum transverse boundary"
+                )
+            receiver.outputs[f"I{voltage_source.polarisation}"] = np.zeros(
+                grid.iterations, dtype=real_dtype
+            )
+
+        monitor = VoltageSourcePortMonitor(
+            output_id,
+            voltage_source,
+            receiver,
+            self.spectrum_limit,
+            owner=self,
+        )
+        grid.port_monitors.append(monitor)
+        voltage_source.port_output = monitor
+        self._monitor = monitor
 
     def _log(self, grid: FDTDGrid, voltage_source: VoltageSourceUser, x: float, y: float, z: float):
         if self.start is None or self.stop is None:
@@ -753,10 +882,27 @@ class VoltageSource(RotatableMixin, GridUserObject):
         self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
 
+        # Every MPI rank parses the same scene. Reserve the public ID before
+        # reducing the point object to its owning rank so automatic IDs remain
+        # globally deterministic.
+        if config.sim_config.mpi and config.get_model_config().mode == "3D":
+            self._port_output_id = _reserve_voltage_port_output_id(grid, self.id, self)
+
         if point_within_grid:
             self._validate_parameters(grid, discretised_point)
             voltage_source = self._create_voltage_source(grid, discretised_point)
             grid.add_source(voltage_source)
+            self._source = voltage_source
+            if config.get_model_config().mode == "3D":
+                if not config.sim_config.mpi:
+                    self._port_output_id = _reserve_voltage_port_output_id(grid, self.id, self)
+                    voltage_source.port_id = self._port_output_id
+                self._create_port_monitor(
+                    grid,
+                    voltage_source,
+                    discretised_point,
+                    self._port_output_id,
+                )
             position = uip.round_to_grid_static_point(self.point)
             self._log(grid, voltage_source, *position)
 
@@ -1308,6 +1454,8 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         start: float optional delay before the incident waveform starts (secs).
         stop: float optional time at which the incident waveform stops (secs).
             The coaxial terminal relation remains active afterwards.
+        spectrum_limit: minimum cells per shortest material wavelength
+            (default 10), or ``"nyquist"`` for the full research spectrum.
     """
 
     @property
@@ -1326,8 +1474,12 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         waveform_id: str,
         start: Optional[float] = None,
         stop: Optional[float] = None,
+        spectrum_limit=DEFAULT_PORT_SPECTRUM_LIMIT,
     ):
-        super().__init__(
+        from gprMax.ports import validate_spectrum_limit
+
+        spectrum_limit = validate_spectrum_limit(spectrum_limit)
+        kwargs = dict(
             polarisation=polarisation,
             p1=p1,
             zcoax=zcoax,
@@ -1335,6 +1487,9 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
             start=start,
             stop=stop,
         )
+        if spectrum_limit != DEFAULT_PORT_SPECTRUM_LIMIT:
+            kwargs["spectrum_limit"] = spectrum_limit
+        super().__init__(**kwargs)
 
         self.point = p1
         self.polarisation = polarisation
@@ -1342,6 +1497,7 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         self.waveform_id = waveform_id
         self.start = start
         self.stop = stop
+        self.spectrum_limit = spectrum_limit
 
     def _do_rotate(self, grid: FDTDGrid):
         """Performs rotation."""
@@ -1439,6 +1595,7 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         f.study_id = getattr(self, "_study_id", None)
         f.Z0 = self.zcoax
         f.waveformID = self.waveform_id
+        f.spectrum_limit = self.spectrum_limit
 
         if self.start is None or self.stop is None:
             f.start = 0

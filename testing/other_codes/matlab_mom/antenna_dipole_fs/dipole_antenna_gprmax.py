@@ -84,9 +84,9 @@ def build_scene():
             polarisation="z",
             resistance=PORT_REFERENCE_IMPEDANCE,
             waveform_id="pulse",
+            id="dipole_feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=feed_position, id="dipole_feed"))
     # Iz is the Ampere contour integral around this z-directed Yee edge. The
     # CPU solver can store Iz directly, but device receivers currently expose
     # only E and H. These three receivers save the four H samples needed to

@@ -263,23 +263,21 @@ rebuilding the antenna geometry. Every finite-resistance
 :class:`gprMax.VoltageSource` remains on its original electric edge in every
 case. Exactly one source is driven, while omitted sources have zero generator
 voltage but retain their resistance and therefore act as passive matched
-terminations. Every source must have a coincident, uniquely named
-:class:`gprMax.RxPort`.
+terminations. Every source automatically owns a port monitor and must have a
+unique ``id``.
 
 .. code-block:: python
 
     port1_source = gprMax.VoltageSource(
         p1=(0.040, 0.050, 0.030), polarisation='z', resistance=50,
-        waveform_id='pulse'
+        waveform_id='pulse', id='port1'
     )
     port2_source = gprMax.VoltageSource(
         p1=(0.060, 0.050, 0.030), polarisation='z', resistance=50,
-        waveform_id='pulse'
+        waveform_id='pulse', id='port2'
     )
     scene.add(port1_source)
     scene.add(port2_source)
-    scene.add(gprMax.RxPort(p1=(0.040, 0.050, 0.030), id='port1'))
-    scene.add(gprMax.RxPort(p1=(0.060, 0.050, 0.030), id='port2'))
 
     study = gprMax.PortStudy([
         gprMax.StudyCase('drive_port1', [
@@ -1125,8 +1123,8 @@ Every transmission-line source automatically writes its incident and terminal
 voltage/current histories together with ``frequency``, ``S11``, ``Zin``, and
 ``Yin`` beneath ``/tls/tlN`` in the model HDF5 output. ``Zin`` is derived from
 the voltage-wave S11 result; ``Zin_current`` is an independent, stagger-aware
-current-wave check. An additional :class:`RxPort` is only needed for a
-resistive voltage source, not for a transmission line. See
+current-wave check. Voltage and transmission-line sources both own their
+terminal outputs, so no separate receiver-port object is required. See
 :ref:`Simulation Output <output>` for the equations and validity masks.
 
 Magnetic Frill Source
@@ -1313,33 +1311,33 @@ Receiver Array
 
 Voltage-source S11 and input impedance
 --------------------------------------
-.. autoclass:: gprMax.user_objects.cmds_output.RxPort
-
-``RxPort`` binds to one single-Yee-edge ``VoltageSource`` at the same
-discretised coordinate. It creates the necessary field monitors automatically
-and calculates corrected complex ``S11``, ``Zin``, and ``Yin`` after the
-solve. A finite-resistance source uses its resistance as the reference
-impedance:
+Every 3-D single-Yee-edge :class:`gprMax.VoltageSource` owns the necessary
+hidden field monitor and calculates corrected complex ``S11``, ``Zin``, and
+``Yin`` after the solve. A finite-resistance source uses its physical
+resistance as the reference impedance:
 
 .. code-block:: python
 
-    port = gprMax.RxPort(
+    port = gprMax.VoltageSource(
         p1=(0.050, 0.050, 0.020),
+        polarisation='z',
+        resistance=50,
+        waveform_id='source_wave',
         id='feed',
         spectrum_limit=10,
     )
     scene.add(port)
 
 The default ``spectrum_limit=10`` retains frequencies having at least ten
-cells per shortest material wavelength. Because optional hash-command
-arguments are positional, an ``id`` is required when the Python object uses a
-non-default spectrum limit. A research run can explicitly request all native
-non-negative FFT bins while retaining the normal validity metadata:
+cells per shortest material wavelength. A research run can explicitly request
+all native non-negative FFT bins while retaining the normal validity metadata:
 
 .. code-block:: python
 
-    scene.add(gprMax.RxPort(
+    scene.add(gprMax.VoltageSource(
         p1=(0.050, 0.050, 0.020),
+        polarisation='z', resistance=50,
+        waveform_id='source_wave',
         id='feed_full',
         spectrum_limit='nyquist',
     ))
@@ -1355,13 +1353,9 @@ defaults to 50 Ohms and can be changed on the source:
         polarisation='z',
         resistance=0,
         waveform_id='source_wave',
+        id='ideal_feed',
         reference_impedance=50,
     ))
-    hard_port = gprMax.RxPort(
-        p1=(0.050, 0.050, 0.020),
-        id='ideal_feed',
-    )
-    scene.add(hard_port)
 
 After ``gprMax.run`` completes, ``port.result`` provides the same numerical
 arrays that are stored under ``/ports/feed`` in the model HDF5 file. For a
@@ -1369,14 +1363,21 @@ hard source, gprMax obtains terminal current from the surrounding magnetic-
 field loop and accounts explicitly for the half-step phase difference from
 the integer-time voltage during transformation.
 
-``RxPort`` also supports domain-decomposed MPI CPU models. The owning rank
+A finite-resistance source on a dispersive edge includes the background
+material's complete complex permittivity in the Yee-gap correction. A hard
+source on a dispersive edge is not yet supported because its sampled
+Ampere-loop current requires the discrete polarisation-current contribution
+to be separated explicitly.
+
+The automatic voltage-source port also supports domain-decomposed MPI CPU
+models. The owning rank
 stores the voltage history; hard-source current loops may cross internal rank
 faces because magnetic halos are synchronised before sampling. Histories are
 gathered and transformed once on the coordinator rank, while ``port.result``
 is rebound to that final result for Python API use.
 
-An ``RxPort`` may also be placed inside a ``SubGridHSG``. Add the waveform,
-voltage source, and port to the same subgrid object; the port is then sampled
+The source may also be placed inside a ``SubGridHSG``. Add the waveform and
+voltage source to the subgrid object; the port is then sampled
 using that subgrid's finer spatial and temporal discretisation. With
 ``autotranslate=True``, the port and source use the same global physical
 coordinate:
@@ -1390,15 +1391,12 @@ coordinate:
         p1=(0.090, 0.070, 0.060),
         polarisation='z', resistance=50,
         waveform_id='feed_wave',
+        id='fine_feed',
     ))
-    fine_port = gprMax.RxPort(
-        p1=(0.090, 0.070, 0.060), id='fine_feed'
-    )
-    subgrid.add(fine_port)
 
 The result is stored at
-``/subgrids/<subgrid ID>/ports/<port ID>``. The source and port must belong to
-the same grid object so that their discretised coordinates, material edge,
+``/subgrids/<subgrid ID>/ports/<port ID>``. The source belongs to the owning
+grid object, so its discretised coordinate, material edge,
 ``dl``, and ``dt`` are unambiguous.
 
 Specific absorption rate (SAR)
@@ -1731,7 +1729,7 @@ Main-grid port IDs are used directly. A subgrid port is qualified by its
 subgrid ID, for example ``fine_grid/feed``, ``fine_grid/tl1``, or
 ``fine_grid/frill1``. Its voltage and current spectra are transformed with the
 owning subgrid's finer time step.
-For voltage sources, use the ID of the coincident :class:`RxPort`; automatic
+For voltage sources, use the source's ``id`` (or its automatic ``portN`` ID); automatic
 transmission-line and magnetic-frill IDs are ``tl1``, ... and ``frill1``, ...
 respectively. An eigenmode source is ``portN`` for its explicit port index;
 an eigenmode receiver uses its configured ID. Eigenmode transform

@@ -26,10 +26,10 @@ def _two_port_scene(active_port=None, resistances=(50, 50)):
             polarisation="z",
             resistance=resistance,
             waveform_id=waveform_id,
+            id=f"p{index}",
         )
         sources.append(source)
         scene.add(source)
-        scene.add(gprMax.RxPort(p1=(x, 0.012, 0.012), id=f"p{index}"))
     return scene, sources
 
 
@@ -289,10 +289,8 @@ def test_hash_port_study_runs_and_writes_complete_smatrix(tmp_path):
         "#pml_cells: 2\n"
         "#time_window: 4e-10\n"
         "#waveform: ricker 1 5e9 pulse\n"
-        "#voltage_source: z 0.010 0.012 0.012 50 pulse\n"
-        "#voltage_source: z 0.014 0.012 0.012 50 pulse\n"
-        "#rx_port: 0.010 0.012 0.012 p1\n"
-        "#rx_port: 0.014 0.012 0.012 p2\n"
+        "#voltage_source: z 0.010 0.012 0.012 50 pulse 0 4e-10 p1 10\n"
+        "#voltage_source: z 0.014 0.012 0.012 50 pulse 0 4e-10 p2 10\n"
         f"#study: port {cases.name}\n"
     )
 

@@ -284,35 +284,12 @@ class MPIModel(Model):
                 finalise_transmission_line_ports(self.G)
                 prepare_magnetic_frill_ports(self.G)
                 finalise_magnetic_frill_ports(self.G)
-                self._rebind_mpi_frill_port_owners()
                 if sar_payloads is not None:
                     for monitor, payloads in zip(self.G.sar_monitors, sar_payloads):
                         monitor.finalise_mpi(payloads, self.G.global_size)
                 write_hdf5_outputfile(
                     config.get_model_config().output_file_path_ext, self.title, self
                 )
-
-    def _rebind_mpi_frill_port_owners(self) -> None:
-        """Reconnect coordinator-side ``RxPort.result`` to gathered frills."""
-
-        dl = np.asarray((self.G.dx, self.G.dy, self.G.dz), dtype=np.float64)
-        for owner in self.G.mpi_port_output_owners.values():
-            if getattr(owner, "_monitor", None) is not None:
-                continue
-            if not hasattr(owner, "_frill_source"):
-                continue
-            coordinate = np.rint(np.asarray(owner.point, dtype=np.float64) / dl).astype(np.int32)
-            sources = [
-                source
-                for source in self.G.magneticfrillsources
-                if np.array_equal(source.coord, coordinate)
-            ]
-            if len(sources) != 1:
-                raise RuntimeError(
-                    f"RxPort at {tuple(owner.point)} could not uniquely rebind its MPI "
-                    f"magnetic frill ({len(sources)} source(s))"
-                )
-            owner._frill_source = sources[0]
 
     def _create_grid(self) -> MPIGrid:
         cart_comm = MPI.COMM_WORLD.Create_cart(config.sim_config.mpi)

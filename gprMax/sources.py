@@ -2462,10 +2462,13 @@ class VoltageSource(Source):
     def __init__(self):
         super().__init__()
         self.resistance = None
-        # Wave-reference impedance used by a coincident RxPort. For a
-        # finite-resistance source it is the Thevenin resistance; for a hard
-        # source it defaults to 50 Ohms unless explicitly overridden.
+        # Wave-reference impedance used by the automatic source-owned port.
+        # For a finite-resistance source it is the Thevenin resistance; for a
+        # hard source it defaults to 50 Ohms unless explicitly overridden.
         self.reference_impedance = None
+        self.port_id = None
+        self.spectrum_limit = None
+        self.port_output = None
         # Preserved when create_material() replaces the selected electric-edge
         # material with a copy carrying the source resistance. Port outputs
         # need the pre-source values to remove the numerical Yee-gap

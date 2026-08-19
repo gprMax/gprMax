@@ -1873,7 +1873,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         ]
         if unmonitored_voltage_sources:
             raise ValueError(
-                "antenna gain requires an #rx_port for every voltage source; "
+                "antenna gain requires an automatic port output for every voltage source; "
                 f"found {len(unmonitored_voltage_sources)} unmonitored source(s)"
             )
 

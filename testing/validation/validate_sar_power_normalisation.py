@@ -3,7 +3,7 @@
 This is an end-to-end production-path consistency validation rather than an
 independent electromagnetic reference problem. It checks the quadratic field
 scaling and the relationship between incident- and accepted-power normalized
-SAR using an actual voltage source and :class:`RxPort` output.
+SAR using an actual voltage source and its source-owned port output.
 """
 
 from __future__ import annotations
@@ -44,9 +44,9 @@ def build_scene():
             polarisation="z",
             resistance=50,
             waveform_id="pulse",
+            id="feed",
         )
     )
-    scene.add(gprMax.RxPort(p1=(0.012, 0.012, 0.012), id="feed"))
     outputs = {}
     for output_id, normalisation, power in (
         ("incident_1W", "incident_power", 1.0),
