@@ -1880,6 +1880,8 @@ class EigenmodeStudy(Study):
             monitor.reset_run_state(grid)
             monitor.is_source = False
             monitor.excitation_mode_index = None
+            monitor.excitation_mode_indices = ()
+            monitor.drive_metadata = ()
             monitor.magnetic_side = 1 if int(monitor.port_index) in self._runtime_guides else -1
         for guide in self._runtime_guides.values():
             guide.clear_active_source()
@@ -1891,10 +1893,15 @@ class EigenmodeStudy(Study):
 
         source = self._runtime_ports[port_number]
         source.spectral_threshold = grid.eigenmodeband.spectral_threshold
-        source.configure_cached_excitation(grid, mode_index, self._waveform)
         monitor = self._runtime_monitors[port_number]
-        monitor.is_source = True
-        monitor.excitation_mode_index = mode_index
+        drive = self._excitation
+        # The scheduled channel changes, while the reusable excitation keeps
+        # its waveform, amplitude, phase, and delay controls.
+        drive.port_index = port_number
+        drive.mode_index = mode_index
+        source.set_drive_parameters(drive)
+        source.configure_cached_excitation(grid, mode_index, self._waveform)
+        monitor.set_drive_metadata((drive,))
         monitor.magnetic_side = 1
         guide = self._runtime_guides.get(port_number)
         if guide is None:

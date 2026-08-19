@@ -83,6 +83,7 @@ def _eigenmode_port(*, is_source):
     monitor.mode_indices = (1, 2)
     monitor.is_source = is_source
     monitor.excitation_mode_index = 1 if is_source else None
+    monitor.excitation_mode_indices = (1,) if is_source else ()
     monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
     monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.power_matrix = np.asarray(
@@ -139,6 +140,24 @@ def test_eigenmode_port_power_uses_full_modal_matrix(monkeypatch, is_source):
     else:
         assert_allclose(spectrum.incident_power, 0)
     assert spectrum.terminal_valid.all()
+
+
+def test_eigenmode_port_incident_power_uses_all_driven_modes_and_cross_terms(monkeypatch):
+    monitor = _eigenmode_port(is_source=True)
+    monitor.excitation_mode_index = None
+    monitor.excitation_mode_indices = (1, 2)
+    monkeypatch.setattr(
+        ports,
+        "_port_mesh_valid",
+        lambda output, grid, frequency: np.ones(frequency.shape, dtype=bool),
+    )
+
+    spectrum = evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.0])
+
+    assert_allclose(
+        spectrum.incident_power,
+        modal_power_spectrum(monitor.result.incident, monitor.power_matrix),
+    )
 
 
 def test_lossy_eigenmode_accepted_power_keeps_interference_term(monkeypatch):

@@ -63,6 +63,7 @@ class VirtualWaveguide:
         self._validate()
         self.aux_grid = self._build_auxiliary_grid()
         self.aux_source = self._build_auxiliary_source()
+        self.aux_sources = [] if self.aux_source is None else [self.aux_source]
         if self.aux_source is not None:
             self.aux_grid.eigenmodesources.append(self.aux_source)
         self.aux_updates = (
@@ -402,26 +403,39 @@ class VirtualWaveguide:
     def set_active_source(self, source):
         """Install a configured cached modal source in the auxiliary guide."""
 
-        self.port = source
-        self.aux_source = copy.copy(source)
-        self.aux_source.transverse_start = np.asarray((0, 0), dtype=np.int32)
-        self.aux_source.transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
+        self.set_active_sources((source,))
+
+    def set_active_sources(self, sources):
+        """Install all configured modal drives belonging to this aperture."""
+
+        sources = tuple(sources)
+        if not sources:
+            self.clear_active_source()
+            return
+        self.port = sources[0]
         distance = self.spec.length_cells - self.spec.pml_cells - self.spec.source_clearance_cells
-        self.aux_source.plane_index = (
-            distance if self.direction_sign < 0 else self.spec.length_cells - distance
-        )
-        self.aux_source.global_plane_index = self.aux_source.plane_index
-        self.aux_source.global_transverse_start = np.asarray((0, 0), dtype=np.int32)
-        self.aux_source.global_transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
-        self.aux_source.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
-        self.aux_source.tfsf_owned_upper = np.asarray(self.aux_grid.size + 1, dtype=np.int32)
-        self.aux_source.port_monitor = None
-        self.aux_grid.eigenmodesources[:] = [self.aux_source]
+        plane_index = distance if self.direction_sign < 0 else self.spec.length_cells - distance
+        self.aux_sources = []
+        for source in sources:
+            aux_source = copy.copy(source)
+            aux_source.transverse_start = np.asarray((0, 0), dtype=np.int32)
+            aux_source.transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
+            aux_source.plane_index = plane_index
+            aux_source.global_plane_index = plane_index
+            aux_source.global_transverse_start = np.asarray((0, 0), dtype=np.int32)
+            aux_source.global_transverse_stop = np.asarray((self.nu, self.nv), dtype=np.int32)
+            aux_source.tfsf_owned_lower = np.zeros(3, dtype=np.int32)
+            aux_source.tfsf_owned_upper = np.asarray(self.aux_grid.size + 1, dtype=np.int32)
+            aux_source.port_monitor = None
+            self.aux_sources.append(aux_source)
+        self.aux_source = self.aux_sources[0]
+        self.aux_grid.eigenmodesources[:] = self.aux_sources
 
     def clear_active_source(self):
         """Leave this guide as a passive matched modal load."""
 
         self.aux_source = None
+        self.aux_sources = []
         self.aux_grid.eigenmodesources.clear()
 
     def reset_run_state(self):
@@ -793,9 +807,8 @@ def initialise_virtual_waveguides(grid):
 
     if not grid.virtual_waveguide_specs:
         return
-    runtime_ports = {
-        int(port.port_index): port for port in (*grid.eigenmodesources, *grid.eigenmodereceivers)
-    }
+    all_runtime_sources = tuple(grid.eigenmodesources)
+    runtime_ports = {int(monitor.port_index): monitor.owner for monitor in grid.eigenmodeports}
     for port_number, spec in sorted(grid.virtual_waveguide_specs.items()):
         try:
             port = runtime_ports[port_number]
@@ -804,11 +817,18 @@ def initialise_virtual_waveguides(grid):
                 f"Virtual waveguide references unknown eigenmode port {port_number}."
             ) from exc
         guide = VirtualWaveguide(grid, port, spec)
+        active_sources = [
+            source for source in all_runtime_sources if int(source.port_index) == port_number
+        ]
+        if active_sources:
+            guide.set_active_sources(active_sources)
         grid.virtual_waveguides.append(guide)
-        if port in grid.eigenmodesources:
-            grid.eigenmodesources.remove(port)
+        grid.eigenmodesources[:] = [
+            source for source in grid.eigenmodesources if int(source.port_index) != port_number
+        ]
         source_description = (
-            f", source plane {guide.aux_source.plane_index}"
+            f", {len(guide.aux_sources)} source drive(s) at plane "
+            f"{guide.aux_source.plane_index}"
             if guide.aux_source is not None
             else ", passive"
         )

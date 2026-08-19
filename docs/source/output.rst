@@ -921,10 +921,10 @@ stored below ``/subgrids/<subgrid ID>/eigenmode_ports/portN`` and uses that
 grid's fine ``dx_dy_dz``, ``dt``, and iteration count. ``frequency`` contains
 the direct-DFT bins.
 ``incident`` and ``outgoing`` have shape ``(nmodes, nfrequencies)``, with
-rows ordered by the one-based ``ModeIndices`` attribute. ``S`` is the outgoing
-coefficient divided by the excited source-mode incident coefficient, so the
-source group contains modal S11 and other groups contain S21, S31, and modal
-conversion terms.
+rows ordered by the one-based ``ModeIndices`` attribute. With exactly one
+active channel, ``S`` is the outgoing coefficient divided by that source-mode
+incident coefficient, so the source group contains modal S11 and other groups
+contain S21, S31, and modal-conversion terms.
 
 Each mode has two audited anchor banks. ``anchor_mode_valid`` selects the
 propagating, one-watt profiles used by TF/SF source synthesis and real-power
@@ -991,6 +991,15 @@ When every eigenmode port has a passive virtual waveguide and no
 ``incident`` and ``outgoing`` modal spectra. No ``S`` datasets or
 ``<output>_sparameters.csv`` file are written because there is no active
 incident spectrum by which to normalize them.
+
+When two or more modal channels are excited simultaneously, the groups also
+contain the raw ``incident`` and ``outgoing`` spectra and have
+``ResponseType=driven``. Source groups record ``ExcitationModes``,
+``DriveAmplitudes``, ``DrivePowers``, ``DrivePhasesDegrees``, ``DriveDelays``,
+and ``DriveWaveformIDs``. No ``S`` datasets or S-parameter CSV are written:
+normalizing a superposed response by one incident channel would not be an
+independently excited S-matrix column. Use an ``EigenmodeStudy`` for that
+matrix.
 
 .. _output-ntff:
 

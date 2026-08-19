@@ -8,12 +8,13 @@ Eigenmode Ports and S-parameter Analysis
 
 Eigenmode excitation launches a solved waveguide mode instead of prescribing
 one field component. One shared ``#eigenmode_band`` defines the DFT bins and
-``#eigenmode_port`` defines every active or passive reference plane. At most
-one ``#eigenmode_excitation`` may select the launched port and mode. It may be
-omitted only when every port has a passive ``#virtual_waveguide``; that
-passive-only form writes raw modal spectra but no S matrix. A single active
-time-domain run can therefore produce multimode S-parameters and, when the
-device radiates, directivity, gain, and realized gain.
+``#eigenmode_port`` defines every active or passive reference plane. One
+``#eigenmode_excitation`` produces one S-matrix column. Several excitation
+commands may instead drive a deliberate array state with independent modal
+amplitudes, phases, or delays; that run writes incident and outgoing modal
+waves, but does not label them as S-parameters. Excitation may be omitted only
+when every port has a passive ``#virtual_waveguide``; that passive-only form
+also writes raw modal spectra but no S matrix.
 
 Start with the three examples
 =============================
@@ -137,9 +138,10 @@ between them.
 
 The optional trailing ``y`` or ``n`` on a port command controls only that
 port's modal-field figures. A trailing ``y`` or ``n`` on
-``#eigenmode_excitation`` independently controls the single waveform/spectrum
-figure. If omitted, both diagnostics are enabled for geometry-only runs and
-disabled for normal full runs.
+``#eigenmode_excitation`` independently controls its waveform/spectrum figure.
+With several drives, filenames include ``_PortN_ModeM``. If omitted, both
+diagnostics are enabled for geometry-only runs and disabled for normal full
+runs.
 
 Run the simulation and plot S-parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -218,6 +220,50 @@ synthesizes the selected source from the cached phase-aligned modal basis. It
 does not repeat the FDFD solves. This works when the complete eigenmode setup
 belongs either to the main grid or to one HSG subgrid; ports from different
 grids cannot be combined in one modal study.
+
+Drive several ports or modes together
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use repeated excitation commands for a prescribed array or multimode state:
+
+.. code-block:: none
+
+   #eigenmode_excitation: 1 1 auto 1 0 0
+   #eigenmode_excitation: 2 1 auto 0.70710678 90 0
+
+Every drive must use the same base waveform. A physical port is solved and
+monitored once even when more than one of its modes is driven. The complex
+spectral multiplier for drive :math:`q` is
+
+.. math::
+
+   d_q(f) = A_q \exp\!\left(j\phi_q\right)
+            \exp\!\left(-j2\pi f\tau_q\right),
+
+where :math:`A_q` is the amplitude, :math:`\phi_q` is the constant phase, and
+:math:`\tau_q` is a true time delay. A constant phase is normally used for a
+phase-steered array at its design frequency; a non-zero delay gives the
+frequency-linear phase required for true-time-delay steering. In the Python
+API, ``power=P`` may replace ``amplitude=A`` and uses :math:`A=\sqrt{P}``.
+Because every modal profile is power-normalized, :math:`P` is the relative
+per-frequency incident-power scale applied to the common waveform spectrum;
+it is not the time-integrated energy of the finite pulse.
+
+The superposed response is a driven state, not a column of the independently
+excited S matrix. Its HDF5 port groups retain ``incident`` and ``outgoing``
+waves and record ``ResponseType=driven``, ``ExcitationModes``, drive
+amplitudes, powers, phases, delays, and waveform IDs. They deliberately omit
+``S`` and no ``*_sparameters.csv`` is written. Use ``EigenmodeStudy`` when the
+complete S matrix is required, then apply arbitrary weights to that matrix or
+to separately stored embedded far-field responses in post-processing.
+
+An NTFF transform may also be evaluated directly for the simultaneous state.
+Its fields, pattern, and directivity are those of the coherent superposition.
+When every physical port is associated with the transform, incident power is
+summed over the driven modal subspaces using the full modal power matrices,
+including off-diagonal cross terms; net accepted power is summed over all
+active and passive ports. Gain and realized gain therefore describe that
+particular driven state, not an embedded element or an S-matrix column.
 
 The per-case files identify their input port and mode. The aggregate
 ``<output>_study.h5`` stores the complete matrix using
@@ -587,11 +633,12 @@ transverse cell centres for this diagnostic only. Check the expected
 polarisation, symmetry, confinement, conducting-boundary behaviour, and mode
 order. The final optional ``y`` or ``n`` on an eigenmode-port command forces or
 suppresses only that port's modal-field plots. The independent final ``y`` or
-``n`` on ``#eigenmode_excitation`` controls the single waveform/DFT figure. If
+``n`` on ``#eigenmode_excitation`` controls that drive's waveform/DFT figure. If
 either flag is omitted, geometry-only runs write the corresponding diagnostic
 and normal full simulations do not.
 
-The single excitation also writes ``<input>_EigenmodeExcitation.png``. Its left
+One excitation also writes ``<input>_EigenmodeExcitation.png``. With multiple
+drives the filename includes ``_PortN_ModeM``. Its left
 subplot shows the exact sampled injection waveform. Its right subplot shows
 the surrounding zero-padded positive-frequency spectrum, overlays the source
 DFT evaluated at the ports' exact common frequency bins, and shades the port
@@ -1995,14 +2042,16 @@ per-cell Python work occurs during time stepping.
 Modal Receivers, Direct DFT, and S-parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Exactly one global band and zero or one excitation must exist whenever modal
-ports are used. The excitation may be omitted only when every port is a
-passive virtual guide; that form writes raw modal spectra but no S matrix.
-Every ``EigenmodePort`` is a passive monitor at its reference plane; the
-selected excitation port additionally applies the TF/SF source. Port
-indices are one-based and unique, and each port carries an explicit tuple of
-monitored mode indices. The excitation selects one of the modes listed by its
-port. All ports accumulate the common DFT bins from ``EigenmodeBand``.
+Exactly one global band and zero or more distinct port/mode excitations may
+exist whenever modal ports are used. Excitation may be omitted only when every
+port is a passive virtual guide; that form writes raw modal spectra but no S
+matrix. Every ``EigenmodePort`` owns one monitor at its reference plane; each
+selected excitation additionally applies a TF/SF source. Port indices are
+one-based and unique, and each port carries an explicit tuple of monitored
+mode indices. Every excitation selects one of the modes listed by its port.
+All ports accumulate the common DFT bins from ``EigenmodeBand``. Exactly one
+active channel permits S-parameter normalization; a simultaneous driven state
+retains its decomposed waves without constructing S.
 Automatic ports share one candidate-frequency list, but tracking, retained
 source/reference masks, and fallback policies are resolved independently for
 each port and mode. Ports with explicit anchors retain their individually
@@ -2164,14 +2213,25 @@ mode subspace. All off-diagonal terms within that subspace are retained, but
 generalized-only rows and columns are excluded. An invalid propagating mode
 invalidates the accepted-power result rather than being silently omitted.
 
-The externally driven incident power contains only the excitation mode at the
-single source. Passive modal receivers have zero generator incident power,
-but their signed accepted power remains in the multiport balance used for
-gain. This distinction makes realized gain use launched source power while
-gain uses the net power accepted by the radiating structure. The power
-adapter applies the power-normalization and power-matrix masks, so generalized
-below-cutoff coefficients do not enter gain, accepted-power, or energy-balance
-normalization.
+For active port :math:`p`, let :math:`D_p` select its explicitly driven modes.
+The externally driven incident power is
+
+.. math::
+
+   P_{\mathrm{inc}}
+     = \sum_{p\,\mathrm{active}}
+       \operatorname{Re}\!\left\{
+       a_{p,D_p}^{\mathrm{H}}W_{p,D_pD_p}a_{p,D_p}\right\}.
+
+Thus a one-channel run retains the previous single-mode definition, while a
+simultaneous multimode run keeps the cross terms between non-orthogonal driven
+modes on the same physical port. Passive modal receivers have zero generator
+incident power, but their signed accepted power remains in the multiport
+balance used for gain. This distinction makes realized gain use launched
+source power while gain uses the net power accepted by the radiating
+structure. The power adapter applies the power-normalization and power-matrix
+masks, so generalized below-cutoff coefficients do not enter gain,
+accepted-power, or energy-balance normalization.
 
 Understanding Lossy-Mode Results
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -17,6 +17,19 @@ INF = float("inf")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_modal_drive_spectral_factor_combines_phase_and_true_time_delay():
+    source = RuntimeEigenmodeSource(None)
+    source.drive_amplitude = 2
+    source.drive_phase_deg = 30
+    source.drive_delay_s = 25e-12
+    frequencies = np.asarray((2e9, 5e9))
+
+    factor = source._drive_spectral_factor(frequencies)
+
+    expected = 2 * np.exp(1j * np.deg2rad(30) - 1j * 2 * np.pi * frequencies * 25e-12)
+    np.testing.assert_allclose(factor, expected, rtol=1e-14, atol=1e-14)
+
+
 def _scene(mode):
     scene = gprMax.Scene()
     scene.add(gprMax.DomainMode(mode=mode))

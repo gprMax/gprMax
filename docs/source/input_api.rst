@@ -937,9 +937,11 @@ Eigenmode band, ports, excitation, and virtual guides
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeExcitation
 
 An eigenmode model has one shared frequency band, one or more independently
-configured ports, and zero or one excitation. The excitation can be omitted
-when every port is a passive virtual guide; that form writes raw modal spectra
-but no S matrix. Ports do not repeat the DFT range or waveform:
+configured ports, and zero or more modal drives. One drive produces one
+S-parameter column. Multiple drives produce a prescribed driven response,
+not an S matrix. Excitation can be omitted when every port is a passive
+virtual guide; that form writes raw modal spectra but no S matrix. Ports do
+not repeat the DFT range or waveform:
 
 .. code-block:: python
 
@@ -964,6 +966,21 @@ but no S matrix. Ports do not repeat the DFT range or waveform:
     ))
     scene.add(gprMax.EigenmodeExcitation(
         port=1, mode=1, waveform='auto', plot_waveform=True,
+    ))
+
+For simultaneous excitation, add further distinct port/mode channels using
+the same base waveform. ``power`` and ``amplitude`` are mutually exclusive;
+``power=P`` applies amplitude :math:`\sqrt{P}`:
+
+.. code-block:: python
+
+    scene.add(gprMax.EigenmodeExcitation(
+        port=1, mode=1, waveform='auto', power=1,
+        phase_deg=0, delay_s=0,
+    ))
+    scene.add(gprMax.EigenmodeExcitation(
+        port=2, mode=1, waveform='auto', power=0.5,
+        phase_deg=90, delay_s=0,
     ))
 
 To terminate either reference plane inside the model, attach a virtual guide
@@ -1001,10 +1018,11 @@ supplied instead. gprMax checks its exact sampled spectrum, warns and discards
 significant DC/Nyquist bins, and rejects more than one percent power outside
 the declared band. Use a band-limited waveform, or select ``waveform='auto'``
 to synthesize one automatically for a finite frequency band.
-``plot_waveform`` independently controls the single excitation waveform/DFT
-figure. ``True`` writes it, ``False`` suppresses it, and the default ``None``
-writes it only for geometry-only runs. Each port's ``plot_fields`` setting
-continues to control only that port's modal-field figures.
+``plot_waveform`` independently controls each excitation waveform/DFT figure.
+``True`` writes it, ``False`` suppresses it, and the default ``None`` writes it
+only for geometry-only runs. Multi-drive filenames include the port and mode.
+Each port's ``plot_fields`` setting continues to control only that port's
+modal-field figures.
 
 Severe tracking mismatch between explicit multiple anchors is an error that
 recommends one explicit anchor. With automatic anchors, a failure confined to

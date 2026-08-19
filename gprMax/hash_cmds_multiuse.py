@@ -431,11 +431,6 @@ def process_multicmds(multicmds):
             "Eigenmode ports require exactly one #eigenmode_band command; "
             f"found {len(eigenmode_band_cmds)}."
         )
-    if eigenmode_port_cmds and len(eigenmode_excitation_cmds) > 1:
-        raise ValueError(
-            "Eigenmode ports allow at most one #eigenmode_excitation command; "
-            f"found {len(eigenmode_excitation_cmds)}."
-        )
     if eigenmode_excitation_cmds and not eigenmode_port_cmds:
         raise ValueError("#eigenmode_excitation requires at least one #eigenmode_port.")
     if virtual_waveguide_cmds and not eigenmode_port_cmds:
@@ -445,7 +440,7 @@ def process_multicmds(multicmds):
         virtual_numbers = {int(command.split()[0]) for command in virtual_waveguide_cmds}
         if port_numbers != virtual_numbers:
             raise ValueError(
-                "Eigenmode ports require exactly one #eigenmode_excitation, unless "
+                "Eigenmode ports require at least one #eigenmode_excitation, unless "
                 "every port has a passive #virtual_waveguide."
             )
 
@@ -524,15 +519,20 @@ def process_multicmds(multicmds):
         if tmp and tmp[-1].lower() in ("y", "n"):
             plot_waveform = tmp[-1].lower() == "y"
             tmp = tmp[:-1]
-        if len(tmp) not in (2, 3, 4):
+        if len(tmp) not in (2, 3, 4, 5, 6):
             raise ValueError(
-                "#eigenmode_excitation requires port mode " "[auto|waveform_id] [amplitude] [y|n]."
+                "#eigenmode_excitation requires port mode [auto|waveform_id] "
+                "[amplitude] [phase_deg] [delay_s] [y|n]."
             )
         kwargs = {"port": int(tmp[0]), "mode": int(tmp[1])}
         if len(tmp) >= 3:
             kwargs["waveform"] = tmp[2]
-        if len(tmp) == 4:
+        if len(tmp) >= 4:
             kwargs["amplitude"] = float(tmp[3])
+        if len(tmp) >= 5:
+            kwargs["phase_deg"] = float(tmp[4])
+        if len(tmp) == 6:
+            kwargs["delay_s"] = float(tmp[5])
         if plot_waveform is not None:
             kwargs["plot_waveform"] = plot_waveform
         scene_objects.append(EigenmodeExcitation(**kwargs))
