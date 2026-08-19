@@ -2446,7 +2446,26 @@ class VirtualWaveguide(GridUserObject):
 
 
 class EigenmodeExcitation(GridUserObject):
-    """Attach the single active modal excitation to a defined port."""
+    """Attach one active modal drive to a defined port.
+
+    Several excitations may share the same base waveform and drive different
+    port/mode channels. Each physical port is solved and monitored only once;
+    its additional drives reuse the cached modal anchor bank.
+
+    Args:
+        port: One-based ``EigenmodePort`` number.
+        mode: One of the modes monitored by that port.
+        waveform: Shared waveform ID, or ``'auto'`` for the bandpass pulse.
+        amplitude: Non-zero modal amplitude scale. Mutually exclusive with
+            ``power``.
+        power: Optional relative incident-power scale; applies amplitude
+            ``sqrt(power)``.
+        phase_deg: Constant spectral phase in degrees.
+        delay_s: True time delay in seconds, applied as
+            ``exp(-1j * 2*pi*f*delay_s)``.
+        plot_waveform: Write or suppress this drive's waveform/DFT plot. The
+            default writes it only for geometry-only runs.
+    """
 
     @property
     def order(self):
@@ -2484,8 +2503,6 @@ class EigenmodeExcitation(GridUserObject):
         return kwargs
 
     def build(self, grid: FDTDGrid):
-        if grid.eigenmodeexcitation is not None:
-            raise ValueError("Only one EigenmodeExcitation may be defined per grid.")
         if grid.eigenmodeband is None:
             raise ValueError(f"{self.params_str()} requires one EigenmodeBand.")
         try:
@@ -2508,7 +2525,29 @@ class EigenmodeExcitation(GridUserObject):
             )
         band = grid.eigenmodeband
         waveform_arg = self.kwargs.get("waveform", "auto")
-        amplitude = float(self.kwargs.get("amplitude", 1.0))
+        amplitude_given = "amplitude" in self.kwargs
+        power_given = "power" in self.kwargs
+        if amplitude_given and power_given:
+            raise ValueError(f"{self.params_str()} accepts amplitude or power, not both.")
+        if power_given:
+            power = float(self.kwargs["power"])
+            if not np.isfinite(power) or power <= 0:
+                raise ValueError(f"{self.params_str()} power must be finite and positive.")
+            amplitude = float(np.sqrt(power))
+        else:
+            amplitude = float(self.kwargs.get("amplitude", 1.0))
+            if not np.isfinite(amplitude) or amplitude == 0:
+                raise ValueError(
+                    f"{self.params_str()} amplitude must be finite and non-zero. "
+                    "Omit the excitation to leave a channel passive."
+                )
+            power = amplitude**2
+        phase_deg = float(self.kwargs.get("phase_deg", 0.0))
+        delay_s = float(self.kwargs.get("delay_s", 0.0))
+        if not np.isfinite(phase_deg):
+            raise ValueError(f"{self.params_str()} phase_deg must be finite.")
+        if not np.isfinite(delay_s):
+            raise ValueError(f"{self.params_str()} delay_s must be finite.")
         plot_waveform = self.kwargs.get("plot_waveform")
         if plot_waveform is not None and not isinstance(plot_waveform, (bool, np.bool_)):
             raise ValueError(f"{self.params_str()} plot_waveform must be True, False, or None.")
@@ -2516,24 +2555,29 @@ class EigenmodeExcitation(GridUserObject):
             plot_waveform = bool(plot_waveform)
         generated_waveform = isinstance(waveform_arg, str) and waveform_arg.lower() == "auto"
         if generated_waveform:
-            waveform = EigenmodeBandpassWaveform(
-                band_id=band.id,
-                fmin=band.fmin,
-                fmax=band.fmax,
-                amplitude=amplitude,
-                dt=grid.dt,
-                sample_count=int(grid.iterations),
-                spectral_threshold=band.spectral_threshold,
-                transition=band.transition,
-            )
-            if any(existing.ID == waveform.ID for existing in grid.waveforms):
-                raise ValueError(
-                    f"Generated eigenmode waveform ID {waveform.ID!r} is already in use."
+            waveform_id = f"{band.id}_auto_bandpass"
+            matches = [waveform for waveform in grid.waveforms if waveform.ID == waveform_id]
+            if matches:
+                waveform = matches[0]
+                if not isinstance(waveform, EigenmodeBandpassWaveform):
+                    raise ValueError(
+                        f"Generated eigenmode waveform ID {waveform_id!r} is already in use."
+                    )
+            else:
+                # Drive scaling is deliberately separate from the common base
+                # waveform, allowing all array channels to share one spectrum.
+                waveform = EigenmodeBandpassWaveform(
+                    band_id=band.id,
+                    fmin=band.fmin,
+                    fmax=band.fmax,
+                    amplitude=1.0,
+                    dt=grid.dt,
+                    sample_count=int(grid.iterations),
+                    spectral_threshold=band.spectral_threshold,
+                    transition=band.transition,
                 )
-            grid.waveforms.append(waveform)
+                grid.waveforms.append(waveform)
         else:
-            if amplitude != 1.0:
-                raise ValueError("EigenmodeExcitation amplitude is only used with waveform='auto'.")
             waveform_id = str(waveform_arg)
             matches = [waveform for waveform in grid.waveforms if waveform.ID == waveform_id]
             if not matches:
@@ -2541,42 +2585,86 @@ class EigenmodeExcitation(GridUserObject):
                     f"{self.params_str()} references unknown waveform {waveform_id!r}."
                 )
             waveform = matches[0]
-        band.resolve_spectrum(grid, waveform, generated_waveform=generated_waveform)
-
-        reusable_study = bool(getattr(self, "_reusable_study", False))
-        for port_number in sorted(grid.eigenmodeportdefs):
-            port = grid.eigenmodeportdefs[port_number]
-            is_source = port_number == source_port_number
-            port.resolve_anchors(band, is_source=(is_source or reusable_study))
-            common = self._runtime_plane_kwargs(port, band)
-            if is_source:
-                common.update(
-                    {
-                        "mode_index": excitation_mode,
-                        "mode_count": max(port.modes),
-                        "waveform_id": waveform.ID,
-                        "spectral_threshold": band.spectral_threshold,
-                    }
+        if grid.eigenmodeexcitations:
+            base_waveform = grid.eigenmodeexcitations[0].waveform
+            if waveform.ID != base_waveform.ID:
+                raise ValueError(
+                    "Simultaneous EigenmodeExcitation objects must share one base "
+                    f"waveform; got {base_waveform.ID!r} and {waveform.ID!r}."
                 )
-                _EigenmodeSourceBuilder(**common).build(grid)
-                runtime = grid.eigenmodesources[-1]
-                runtime.mode_indices = port.modes
-                runtime.plot_waveform = plot_waveform
-            else:
-                common.update({"mode_count": max(port.modes), "id": f"port{port.port}"})
-                _EigenmodeReceiverBuilder(**common).build(grid)
-                runtime = grid.eigenmodereceivers[-1]
-                runtime.mode_indices = port.modes
-                runtime.spectral_threshold = band.spectral_threshold
-            runtime.anchor_policy = port.anchor_policy
-            runtime.requested_anchor_policy = port.anchor_policy
-            runtime.resolved_anchor_policy = port.anchor_policy
-            runtime.fallback_frequency = 0.5 * (band.fmin + band.fmax)
-        grid.eigenmodeexcitation = self
+        else:
+            band.resolve_spectrum(grid, waveform, generated_waveform=generated_waveform)
+
+        channel = (source_port_number, excitation_mode)
+        existing_channels = {
+            (excitation.port_index, excitation.mode_index)
+            for excitation in grid.eigenmodeexcitations
+        }
+        if channel in existing_channels:
+            raise ValueError(
+                f"Eigenmode port {source_port_number}, mode {excitation_mode} is already driven."
+            )
+        self.port_index = source_port_number
+        self.mode_index = excitation_mode
+        self.waveform = waveform
+        self.amplitude = amplitude
+        self.power = power
+        self.phase_deg = phase_deg
+        self.delay_s = delay_s
+        self.plot_waveform = plot_waveform
+        grid.eigenmodeexcitations.append(self)
+        if grid.eigenmodeexcitation is None:
+            grid.eigenmodeexcitation = self
         logger.info(
             f"{self.grid_name(grid)}Eigenmode excitation created on port "
-            f"{source_port_number}, mode {excitation_mode}, using waveform {waveform.ID!r}."
+            f"{source_port_number}, mode {excitation_mode}, using waveform {waveform.ID!r}, "
+            f"amplitude {amplitude:g}, phase {phase_deg:g} degrees, and delay {delay_s:g} s."
         )
+
+
+def build_eigenmode_runtime_ports(grid):
+    """Build one modal runtime owner per physical port after all drives exist."""
+
+    band = grid.eigenmodeband
+    drives_by_port = {}
+    for excitation in grid.eigenmodeexcitations:
+        drives_by_port.setdefault(excitation.port_index, []).append(excitation)
+    reusable_study = bool(
+        len(grid.eigenmodeexcitations) == 1
+        and getattr(grid.eigenmodeexcitations[0], "_reusable_study", False)
+    )
+    for port_number in sorted(grid.eigenmodeportdefs):
+        port = grid.eigenmodeportdefs[port_number]
+        drives = drives_by_port.get(port_number, [])
+        port.resolve_anchors(band, is_source=(bool(drives) or reusable_study))
+        common = EigenmodeExcitation._runtime_plane_kwargs(port, band)
+        if drives:
+            first = drives[0]
+            common.update(
+                {
+                    "mode_index": first.mode_index,
+                    "mode_count": max(port.modes),
+                    "waveform_id": first.waveform.ID,
+                    "spectral_threshold": band.spectral_threshold,
+                }
+            )
+            _EigenmodeSourceBuilder(**common).build(grid)
+            runtime = grid.eigenmodesources[-1]
+            runtime.mode_indices = port.modes
+            runtime.plot_waveform = first.plot_waveform
+            runtime.drive_specs = tuple(drives)
+            runtime.set_drive_parameters(first)
+        else:
+            common.update({"mode_count": max(port.modes), "id": f"port{port.port}"})
+            _EigenmodeReceiverBuilder(**common).build(grid)
+            runtime = grid.eigenmodereceivers[-1]
+            runtime.mode_indices = port.modes
+            runtime.spectral_threshold = band.spectral_threshold
+            runtime.drive_specs = ()
+        runtime.anchor_policy = port.anchor_policy
+        runtime.requested_anchor_policy = port.anchor_policy
+        runtime.resolved_anchor_policy = port.anchor_policy
+        runtime.fallback_frequency = 0.5 * (band.fmin + band.fmax)
 
 
 def _validate_eigenmode_dft(label, start, stop, points):

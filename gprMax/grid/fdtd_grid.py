@@ -179,6 +179,10 @@ class FDTDGrid:
         self.discreteplanewaves: List[DiscretePlaneWave] = []
         self.eigenmodeband = None
         self.eigenmodeportdefs = {}
+        # User-level modal drives. A physical port is still represented by one
+        # runtime owner/monitor even when several modes or ports are driven.
+        self.eigenmodeexcitations = []
+        # Retained as the single-excitation alias used by EigenmodeStudy.
         self.eigenmodeexcitation = None
         self.eigenmodesources: List[EigenmodeSource] = []
         self.eigenmodereceivers: List[EigenmodeReceiver] = []
@@ -1257,17 +1261,21 @@ class FDTDGrid:
         """Process eigenmode sources and receivers after Yee IDs have been built."""
         if self.eigenmodeportdefs and self.eigenmodeband is None:
             raise ValueError("Eigenmode ports require exactly one EigenmodeBand.")
-        if self.eigenmodeportdefs and self.eigenmodeexcitation is None:
+        if self.eigenmodeportdefs and not self.eigenmodeexcitations:
             if set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs):
                 raise ValueError(
-                    "Eigenmode ports require exactly one EigenmodeExcitation, unless "
+                    "Eigenmode ports require at least one EigenmodeExcitation, unless "
                     "every port has a passive VirtualWaveguide."
                 )
             from gprMax.user_objects.cmds_multiuse import build_passive_virtual_eigenmode_ports
 
             build_passive_virtual_eigenmode_ports(self)
+        elif self.eigenmodeportdefs and not (self.eigenmodesources or self.eigenmodereceivers):
+            from gprMax.user_objects.cmds_multiuse import build_eigenmode_runtime_ports
+
+            build_eigenmode_runtime_ports(self)
         source_count = len(self.eigenmodesources)
-        expected_sources = 0 if self.eigenmodeexcitation is None else 1
+        expected_sources = len({excitation.port_index for excitation in self.eigenmodeexcitations})
         if (source_count or self.eigenmodereceivers) and source_count != expected_sources:
             raise ValueError(
                 f"Eigenmode ports require {expected_sources} eigenmode source(s) on "

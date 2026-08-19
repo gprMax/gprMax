@@ -1728,8 +1728,8 @@ band once guarantees identical DFT bins at every port.
 ----------------
 
 Defines an active or passive modal reference plane. The same command is used
-for every port; ``#eigenmode_excitation`` separately selects the one active
-port and mode.
+for every port; one or more ``#eigenmode_excitation`` commands select active
+port/mode channels.
 
 .. code-block:: none
 
@@ -1776,13 +1776,14 @@ per mode.
 #eigenmode_excitation:
 ----------------------
 
-Optionally selects the single active port and mode after the band and ports
-have been defined. Omit this command only when every port is a passive virtual
-guide; such a model writes raw modal spectra but no S matrix:
+Selects one active port and mode after the band and ports have been defined.
+Repeat the command to drive several distinct port/mode channels. Omit it only
+when every port is a passive virtual guide; such a model writes raw modal
+spectra but no S matrix:
 
 .. code-block:: none
 
-    #eigenmode_excitation: i1 i2 [str1] [f1] [c1]
+    #eigenmode_excitation: i1 i2 [str1] [f1] [f2] [f3] [c1]
 
 * ``i1`` is an existing port number.
 * ``i2`` is one of that port's monitored mode indices.
@@ -1797,7 +1798,11 @@ guide; such a model writes raw modal spectra but no S matrix:
   are discarded with a warning. More than one percent spectral power outside
   the requested band remains an error. Use a band-limited waveform, or select
   ``auto`` to synthesize one automatically for a finite frequency band.
-* ``f1`` is an optional amplitude scale and is valid only with ``auto``.
+* ``f1`` is an optional non-zero amplitude scale. All simultaneous drives
+  must use the same base waveform.
+* ``f2`` is an optional constant phase in degrees. It defaults to zero.
+* ``f3`` is an optional true time delay :math:`\tau` in seconds. It defaults
+  to zero and applies :math:`\exp(-j2\pi f\tau)`.
 * ``c1`` optionally controls the waveform/DFT plot: ``y`` always writes it and
   ``n`` always suppresses it. If omitted, geometry-only runs write the plot and
   normal runs do not. The flag may follow ``i2`` directly when the default
@@ -1808,6 +1813,18 @@ A complete excitation for the ports above is:
 .. code-block:: none
 
     #eigenmode_excitation: 1 1 auto y
+
+For a simultaneous two-port state, for example:
+
+.. code-block:: none
+
+    #eigenmode_excitation: 1 1 auto 1 0 0 n
+    #eigenmode_excitation: 2 1 auto 0.5 90 0 n
+
+Exactly one active channel produces an S-parameter column. With two or more
+active channels, gprMax stores the driven incident/outgoing modal waves and
+drive metadata but does not create ``S`` datasets or an S-parameter CSV. Use
+an eigenmode study for the independently excited complete S matrix.
 
 A single-frequency band cannot use the automatic finite-band pulse. Supply a
 matching continuous waveform and one explicit modal anchor instead.

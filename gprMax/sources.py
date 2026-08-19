@@ -19,7 +19,7 @@
 
 import logging
 import math
-from copy import deepcopy
+from copy import copy, deepcopy
 
 import numpy as np
 import numpy.typing as npt
@@ -238,6 +238,25 @@ def initialise_eigenmode_ports(grid):
                     port.resolved_anchor_policy = "auto_broadband"
             break
 
+    # Additional drives on an already-solved physical port reuse its modal
+    # anchor bank. They are independent timestep sources but deliberately do
+    # not own another monitor or repeat the FDFD solve.
+    additional_sources = []
+    for owner in tuple(grid.eigenmodesources):
+        for drive in tuple(getattr(owner, "drive_specs", ()))[1:]:
+            source = copy(owner)
+            source.port_monitor = None
+            source.drive_specs = (drive,)
+            source.set_drive_parameters(drive)
+            source.configure_cached_excitation(grid, drive.mode_index, drive.waveform)
+            source.port_monitor = owner.port_monitor
+            source._plot_eigenmode_excitation(grid)
+            source.port_monitor = None
+            additional_sources.append(source)
+        if owner.port_monitor is not None:
+            owner.port_monitor.set_drive_metadata(getattr(owner, "drive_specs", ()))
+    grid.eigenmodesources.extend(additional_sources)
+
 
 class EigenmodeSource(Source):
     """Holds data for an eigenmode source and prepares material slices.
@@ -339,6 +358,31 @@ class EigenmodeSource(Source):
         self.dft_stop = None
         self.dft_points = None
         self.port_monitor = None
+        self.drive_specs = ()
+        self.drive_amplitude = 1.0
+        self.drive_power = 1.0
+        self.drive_phase_deg = 0.0
+        self.drive_delay_s = 0.0
+
+    def set_drive_parameters(self, drive):
+        """Attach the scalar and spectral controls for one modal drive."""
+
+        self.drive_amplitude = float(drive.amplitude)
+        self.drive_power = float(drive.power)
+        self.drive_phase_deg = float(drive.phase_deg)
+        self.drive_delay_s = float(drive.delay_s)
+        self.plot_waveform = drive.plot_waveform
+
+    def _drive_spectral_factor(self, frequencies):
+        phase = np.deg2rad(self.drive_phase_deg)
+        frequencies = np.asarray(frequencies, dtype=np.float64)
+        return self.drive_amplitude * np.exp(
+            1j * phase - 1j * 2 * np.pi * frequencies * self.drive_delay_s
+        )
+
+    def _drive_requires_quadrature(self):
+        phase = math.remainder(self.drive_phase_deg, 360.0)
+        return abs(phase) > 1e-12 or self.drive_delay_s != 0.0
 
     def grid_init(self, G):
         """Prepare source data that depends on the final built Yee grid."""
@@ -618,7 +662,7 @@ class EigenmodeSource(Source):
         """Choose real-only or in-phase/quadrature single-mode injection."""
         residual = self._align_tangential_mode_for_real_injection()
         self._store_real_modal_fields()
-        if residual <= self.COMPLEX_PROFILE_TOLERANCE:
+        if residual <= self.COMPLEX_PROFILE_TOLERANCE and not self._drive_requires_quadrature():
             if self.mpi_coordinator:
                 logger.info(
                     "Single-frequency eigenmode tangential complex-profile residual "
@@ -1595,6 +1639,7 @@ class EigenmodeSource(Source):
                     "discarded. Use a band-limited waveform; for a finite frequency band, "
                     "EigenmodeExcitation(..., waveform='auto') can synthesize one automatically."
                 )
+        input_spectrum = np.array(spectrum, copy=True)
         spectrum = np.array(spectrum, copy=True)
         spectrum[0] = 0
         if padded_count % 2 == 0:
@@ -1693,8 +1738,13 @@ class EigenmodeSource(Source):
         normal_spacing = G.dl[self.normal_axis]
         magnetic_phase = self._magnetic_stagger_factor(omega, beta, G.dt, normal_spacing)
 
-        electric_weights = weights * (spectrum * normalization)[np.newaxis, :]
-        magnetic_weights = weights * (spectrum * normalization * magnetic_phase)[np.newaxis, :]
+        drive_factor = self._drive_spectral_factor(bin_frequencies)
+        driven_input_spectrum = input_spectrum * drive_factor
+        driven_spectrum = spectrum * drive_factor
+        electric_weights = weights * (driven_spectrum * normalization)[np.newaxis, :]
+        magnetic_weights = (
+            weights * (driven_spectrum * normalization * magnetic_phase)[np.newaxis, :]
+        )
         # DC and Nyquist are self-conjugate FFT bins and cannot carry a
         # general complex modal coefficient.
         electric_weights[:, 0] = 0
@@ -1703,18 +1753,19 @@ class EigenmodeSource(Source):
             electric_weights[:, -1] = 0
             magnetic_weights[:, -1] = 0
 
-        scalar_spectrum = spectrum * partition
+        scalar_spectrum = driven_spectrum * partition
         scalar_spectrum[0] = 0
         if padded_count % 2 == 0:
             scalar_spectrum[-1] = 0
         reconstructed_waveform = np.fft.irfft(scalar_spectrum, n=padded_count)[:sample_count]
-        waveform_peak = float(np.max(np.abs(waveform)))
+        driven_waveform = np.fft.irfft(driven_input_spectrum, n=padded_count)[:sample_count]
+        waveform_peak = float(np.max(np.abs(driven_waveform)))
         reconstruction_error = (
-            float(np.max(np.abs(reconstructed_waveform - waveform)) / waveform_peak)
+            float(np.max(np.abs(reconstructed_waveform - driven_waveform)) / waveform_peak)
             if waveform_peak > 0
-            else float(np.max(np.abs(reconstructed_waveform - waveform)))
+            else float(np.max(np.abs(reconstructed_waveform - driven_waveform)))
         )
-        self.broadband_input_waveform = waveform
+        self.broadband_input_waveform = driven_waveform
         self.broadband_reconstructed_waveform = reconstructed_waveform
         self.broadband_waveform_error = reconstruction_error
 
@@ -1820,11 +1871,14 @@ class EigenmodeSource(Source):
         if samples is None:
             times = np.arange(sample_count, dtype=np.float64) * G.dt
             samples = np.asarray(
-                [self.waveform.calculate_value(time - self.start, G.dt) for time in times],
+                [self._waveform_value(time, G) for time in times],
                 dtype=np.float64,
             )
         input_path = config.sim_config.input_file_path
-        output_path = input_path.parent / f"{input_path.stem}_EigenmodeExcitation.png"
+        suffix = ""
+        if len(getattr(G, "eigenmodeexcitations", ())) > 1:
+            suffix = f"_Port{self.port_index}_Mode{self.mode_index}"
+        output_path = input_path.parent / (f"{input_path.stem}_EigenmodeExcitation{suffix}.png")
         plot_eigenmode_excitation(
             samples=samples,
             dt=G.dt,
@@ -2246,13 +2300,13 @@ class EigenmodeSource(Source):
         return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.c)
 
     def _waveform_value(self, time, G):
-        return self.waveform.calculate_value(time - self.start, G.dt)
+        return self.drive_amplitude * self.waveform.calculate_value(time - self.start, G.dt)
 
     def _modal_value(self, field, u, v, time, G):
         if field is None:
             return 0.0
         local_time = time - self.start
-        envelope = self.waveform.calculate_value(local_time, G.dt)
+        envelope = self.drive_amplitude * self.waveform.calculate_value(local_time, G.dt)
         value = field[u - self.transverse_start[0], v - self.transverse_start[1]]
         return float(envelope * np.real(value))
 

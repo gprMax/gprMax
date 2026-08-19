@@ -65,6 +65,23 @@ def _uniform_waveguide_scene(normal_axis, direction):
     return scene
 
 
+def _multimode_virtual_waveguide_scene():
+    scene = _uniform_waveguide_scene(normal_axis=0, direction="+")
+    port = next(obj for obj in scene.grid_objects if isinstance(obj, gprMax.EigenmodePort))
+    port.kwargs["modes"] = (1, 2)
+    scene.add(
+        gprMax.EigenmodeExcitation(
+            port=1,
+            mode=2,
+            waveform="wave",
+            amplitude=0.3,
+            phase_deg=90,
+            plot_waveform=False,
+        )
+    )
+    return scene
+
+
 @pytest.mark.integration
 def test_virtual_waveguide_full_solve_is_rotation_and_direction_invariant(tmp_path):
     reflection = {}
@@ -87,6 +104,74 @@ def test_virtual_waveguide_full_solve_is_rotation_and_direction_invariant(tmp_pa
                 reflection[normal_axis, direction] = value
 
     for normal_axis in range(3):
-        assert reflection[normal_axis, "-"] == pytest.approx(
-            reflection[normal_axis, "+"], abs=1e-4
+        assert reflection[normal_axis, "-"] == pytest.approx(reflection[normal_axis, "+"], abs=1e-4)
+
+
+@pytest.mark.integration
+def test_virtual_waveguide_supports_two_simultaneous_modes_on_one_aperture(tmp_path):
+    outputfile = tmp_path / "virtual_multimode"
+
+    gprMax.run(
+        scenes=[_multimode_virtual_waveguide_scene()],
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    with h5py.File(outputfile.with_suffix(".h5"), "r") as output:
+        port_output = output["eigenmode_ports/port1"]
+        assert tuple(port_output.attrs["ExcitationModes"]) == (1, 2)
+        assert port_output.attrs["ResponseType"] == "driven"
+        assert np.all(np.isfinite(port_output["incident"][...]))
+        assert np.all(np.isfinite(port_output["outgoing"][...]))
+        assert "S" not in port_output
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_cuda_multimode_virtual_waveguide_matches_cpu(tmp_path, gpu_device):
+    paths = {}
+    for name, gpu in (("cpu", None), ("cuda", [gpu_device])):
+        outputfile = tmp_path / f"virtual_multimode_{name}"
+        gprMax.run(
+            scenes=[_multimode_virtual_waveguide_scene()],
+            outputfile=outputfile,
+            gpu=gpu,
+            hide_progress_bars=True,
+            log_level=30,
         )
+        paths[name] = outputfile.with_suffix(".h5")
+
+    with h5py.File(paths["cpu"], "r") as cpu, h5py.File(paths["cuda"], "r") as cuda:
+        for dataset in ("incident", "outgoing"):
+            np.testing.assert_allclose(
+                cuda[f"eigenmode_ports/port1/{dataset}"][...],
+                cpu[f"eigenmode_ports/port1/{dataset}"][...],
+                rtol=3e-5,
+                atol=1e-7,
+            )
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_opencl_multimode_virtual_waveguide_matches_cpu(tmp_path, opencl_device):
+    paths = {}
+    for name, opencl in (("cpu", None), ("opencl", [opencl_device])):
+        outputfile = tmp_path / f"virtual_multimode_{name}"
+        gprMax.run(
+            scenes=[_multimode_virtual_waveguide_scene()],
+            outputfile=outputfile,
+            opencl=opencl,
+            hide_progress_bars=True,
+            log_level=30,
+        )
+        paths[name] = outputfile.with_suffix(".h5")
+
+    with h5py.File(paths["cpu"], "r") as cpu, h5py.File(paths["opencl"], "r") as opencl:
+        for dataset in ("incident", "outgoing"):
+            np.testing.assert_allclose(
+                opencl[f"eigenmode_ports/port1/{dataset}"][...],
+                cpu[f"eigenmode_ports/port1/{dataset}"][...],
+                rtol=3e-5,
+                atol=1e-7,
+            )

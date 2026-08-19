@@ -91,6 +91,177 @@ def _study_for_channels(excitation, channels):
     )
 
 
+def _add_centre_receiver(scene):
+    scene.add(gprMax.Rx(p1=(0.03, 0.025, INF)))
+    return scene
+
+
+def _simultaneous_two_port_scene():
+    scene, _ = _two_port_waveguide_scene(active_port=1)
+    scene.add(
+        gprMax.EigenmodeExcitation(
+            port=2,
+            mode=1,
+            waveform="wave",
+            amplitude=0.5,
+            phase_deg=90,
+            plot_waveform=False,
+        )
+    )
+    return _add_centre_receiver(scene)
+
+
+@pytest.mark.integration
+def test_simultaneous_modal_drives_obey_linear_superposition(tmp_path):
+    first_scene, _ = _two_port_waveguide_scene(active_port=1)
+    _add_centre_receiver(first_scene)
+    second_scene, second_excitation = _two_port_waveguide_scene(active_port=2)
+    second_excitation.kwargs["amplitude"] = 0.5
+    second_excitation.kwargs["phase_deg"] = 90
+    _add_centre_receiver(second_scene)
+    combined_scene = _simultaneous_two_port_scene()
+
+    paths = {}
+    for name, scene in (
+        ("first", first_scene),
+        ("second", second_scene),
+        ("combined", combined_scene),
+    ):
+        path = tmp_path / name
+        gprMax.run(
+            scenes=[scene],
+            outputfile=path,
+            hide_progress_bars=True,
+            log_level=30,
+        )
+        paths[name] = path.with_suffix(".h5")
+
+    with h5py.File(paths["first"]) as first, h5py.File(paths["second"]) as second, h5py.File(
+        paths["combined"]
+    ) as combined:
+        expected = first["rxs/rx1/Ez"][...] + second["rxs/rx1/Ez"][...]
+        np.testing.assert_allclose(
+            combined["rxs/rx1/Ez"][...],
+            expected,
+            rtol=1e-5,
+            atol=1e-6 * np.max(np.abs(expected)),
+        )
+        for port_index in (1, 2):
+            port = combined[f"eigenmode_ports/port{port_index}"]
+            assert port.attrs["ResponseType"] == "driven"
+            assert "S" not in port
+        assert tuple(combined["eigenmode_ports/port1"].attrs["ExcitationModes"]) == (1,)
+        assert tuple(combined["eigenmode_ports/port2"].attrs["ExcitationModes"]) == (1,)
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_cuda_simultaneous_modal_drives_match_cpu(tmp_path, gpu_device):
+    cpu_output = tmp_path / "simultaneous_cpu"
+    cuda_output = tmp_path / "simultaneous_cuda"
+    gprMax.run(
+        scenes=[_simultaneous_two_port_scene()],
+        outputfile=cpu_output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    gprMax.run(
+        scenes=[_simultaneous_two_port_scene()],
+        outputfile=cuda_output,
+        gpu=[gpu_device],
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    with h5py.File(cpu_output.with_suffix(".h5")) as cpu, h5py.File(
+        cuda_output.with_suffix(".h5")
+    ) as cuda:
+        np.testing.assert_allclose(
+            cuda["rxs/rx1/Ez"][...],
+            cpu["rxs/rx1/Ez"][...],
+            rtol=2e-5,
+            atol=2e-6 * np.max(np.abs(cpu["rxs/rx1/Ez"][...])),
+        )
+        for port_index in (1, 2):
+            for dataset in ("incident", "outgoing"):
+                np.testing.assert_allclose(
+                    cuda[f"eigenmode_ports/port{port_index}/{dataset}"][...],
+                    cpu[f"eigenmode_ports/port{port_index}/{dataset}"][...],
+                    rtol=3e-5,
+                    atol=1e-7,
+                )
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+def test_opencl_simultaneous_modal_drives_match_cpu(tmp_path, opencl_device):
+    cpu_output = tmp_path / "simultaneous_cpu"
+    opencl_output = tmp_path / "simultaneous_opencl"
+    gprMax.run(
+        scenes=[_simultaneous_two_port_scene()],
+        outputfile=cpu_output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    gprMax.run(
+        scenes=[_simultaneous_two_port_scene()],
+        outputfile=opencl_output,
+        opencl=[opencl_device],
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    with h5py.File(cpu_output.with_suffix(".h5")) as cpu, h5py.File(
+        opencl_output.with_suffix(".h5")
+    ) as opencl:
+        np.testing.assert_allclose(
+            opencl["rxs/rx1/Ez"][...],
+            cpu["rxs/rx1/Ez"][...],
+            rtol=2e-5,
+            atol=2e-6 * np.max(np.abs(cpu["rxs/rx1/Ez"][...])),
+        )
+        for port_index in (1, 2):
+            for dataset in ("incident", "outgoing"):
+                np.testing.assert_allclose(
+                    opencl[f"eigenmode_ports/port{port_index}/{dataset}"][...],
+                    cpu[f"eigenmode_ports/port{port_index}/{dataset}"][...],
+                    rtol=3e-5,
+                    atol=1e-7,
+                )
+
+
+@pytest.mark.integration
+def test_two_modes_on_one_port_reuse_one_monitor(tmp_path):
+    scene, _ = _two_port_waveguide_scene(active_port=1, modes=(1, 2))
+    scene.add(
+        gprMax.EigenmodeExcitation(
+            port=1,
+            mode=2,
+            waveform="wave",
+            amplitude=0.25,
+            phase_deg=-45,
+            plot_waveform=False,
+        )
+    )
+    output = tmp_path / "two_modes_one_port"
+
+    gprMax.run(
+        scenes=[scene],
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    with h5py.File(output.with_suffix(".h5")) as handle:
+        assert set(handle["eigenmode_ports"]) == {"port1", "port2"}
+        source = handle["eigenmode_ports/port1"]
+        assert tuple(source.attrs["ExcitationModes"]) == (1, 2)
+        np.testing.assert_allclose(source.attrs["DriveAmplitudes"], (1, 0.25))
+        np.testing.assert_allclose(source.attrs["DrivePhasesDegrees"], (0, -45))
+        assert source.attrs["ResponseType"] == "driven"
+        assert "S" not in source
+
+
 @pytest.mark.integration
 def test_eigenmode_study_matches_fresh_builds_without_resolving_modes(tmp_path, monkeypatch):
     solves = 0
@@ -370,6 +541,145 @@ def _two_virtual_port_scene(active_port=1):
     )
     scene.add(excitation)
     return scene, excitation
+
+
+def _two_virtual_port_broadband_scene(active_port=1, *, simultaneous=False):
+    """Matched, lossless TE10 guide used for analytical multi-drive validation."""
+
+    scene, excitation = _two_virtual_port_scene(active_port)
+    time_window = next(
+        item for item in scene.single_use_objects if isinstance(item, gprMax.TimeWindow)
+    )
+    time_window.time = 1.2e-9
+    band = next(item for item in scene.grid_objects if isinstance(item, gprMax.EigenmodeBand))
+    band.kwargs.update(fmin=20e9, fmax=24e9, points=17)
+    for port in (item for item in scene.grid_objects if isinstance(item, gprMax.EigenmodePort)):
+        port.kwargs["anchors"] = (16.9e9, 22e9, 27e9)
+    excitation.kwargs["waveform"] = "auto"
+    if simultaneous:
+        scene.add(
+            gprMax.EigenmodeExcitation(
+                port=2,
+                mode=1,
+                waveform="auto",
+                amplitude=0.5,
+                phase_deg=90,
+                delay_s=7.5e-12,
+                plot_waveform=False,
+            )
+        )
+    return scene, excitation
+
+
+@pytest.mark.integration
+def test_simultaneous_drives_match_lossless_rectangular_waveguide_solution(tmp_path):
+    """Validate driven modal waves against b=S*a and analytical TE10 propagation.
+
+    Two independent excitations measure the complete incident and outgoing
+    wave matrices.  Their right quotient gives the scattering matrix without
+    treating the small residual reflection from either auxiliary termination
+    as a new network excitation.  A third solve drives both ports with a
+    complex broadband weight and must obey the resulting b=S*a relation.
+
+    The physical guide is uniform, reciprocal, and lossless.  Its dominant
+    TE10 propagation constant is beta=sqrt(k0**2-(pi/a)**2), so transmission
+    over the distance L between reference planes is exp(-j*beta*L).
+    """
+
+    single_paths = []
+    for active_port in (1, 2):
+        scene, _ = _two_virtual_port_broadband_scene(active_port)
+        output = tmp_path / f"rectangular_guide_port{active_port}"
+        gprMax.run(
+            scenes=[scene],
+            outputfile=output,
+            cpu_precision="double",
+            hide_progress_bars=True,
+            log_level=30,
+        )
+        single_paths.append(output.with_suffix(".h5"))
+
+    simultaneous_scene, _ = _two_virtual_port_broadband_scene(1, simultaneous=True)
+    simultaneous_path = tmp_path / "rectangular_guide_simultaneous"
+    gprMax.run(
+        scenes=[simultaneous_scene],
+        outputfile=simultaneous_path,
+        cpu_precision="double",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    incident_columns = []
+    outgoing_columns = []
+    frequency = None
+    for path in single_paths:
+        with h5py.File(path) as output:
+            if frequency is None:
+                frequency = output["eigenmode_ports/port1/frequency"][...]
+            incident_columns.append(
+                np.stack(
+                    [output[f"eigenmode_ports/port{port}/incident"][0] for port in (1, 2)],
+                    axis=-1,
+                )
+            )
+            outgoing_columns.append(
+                np.stack(
+                    [output[f"eigenmode_ports/port{port}/outgoing"][0] for port in (1, 2)],
+                    axis=-1,
+                )
+            )
+
+    # A and B have shape (frequency, output channel, excitation case).
+    incident_matrix = np.stack(incident_columns, axis=-1)
+    outgoing_matrix = np.stack(outgoing_columns, axis=-1)
+    scattering = np.asarray(
+        [
+            np.linalg.solve(incident_matrix[index].T, outgoing_matrix[index].T).T
+            for index in range(frequency.size)
+        ]
+    )
+
+    with h5py.File(simultaneous_path.with_suffix(".h5")) as output:
+        simultaneous_incident = np.stack(
+            [output[f"eigenmode_ports/port{port}/incident"][0] for port in (1, 2)],
+            axis=-1,
+        )
+        simultaneous_outgoing = np.stack(
+            [output[f"eigenmode_ports/port{port}/outgoing"][0] for port in (1, 2)],
+            axis=-1,
+        )
+
+    predicted_outgoing = np.einsum("fij,fj->fi", scattering, simultaneous_incident)
+    driven_residual = np.linalg.norm(predicted_outgoing - simultaneous_outgoing, axis=1)
+    driven_residual /= np.linalg.norm(simultaneous_outgoing, axis=1)
+    assert np.max(driven_residual) < 3e-5
+
+    # Reciprocity and losslessness are independent of the analytical phase.
+    np.testing.assert_allclose(
+        scattering[:, 0, 1],
+        scattering[:, 1, 0],
+        rtol=1e-5,
+        atol=1e-8,
+    )
+    identity = np.eye(2)
+    unitarity_error = max(
+        np.linalg.norm(matrix.conj().T @ matrix - identity, ord=2) for matrix in scattering
+    )
+    assert unitarity_error < 3e-4
+
+    wave_speed = 299_792_458.0
+    broad_wall = 0.010
+    reference_plane_spacing = 0.020
+    cutoff = wave_speed / (2 * broad_wall)
+    assert np.all(frequency > cutoff)
+    propagation_constant = np.sqrt(
+        (2 * np.pi * frequency / wave_speed) ** 2 - (np.pi / broad_wall) ** 2
+    )
+    analytical_transmission = np.exp(-1j * propagation_constant * reference_plane_spacing)
+    measured_transmission = scattering[:, 1, 0]
+    assert np.max(np.abs(np.abs(measured_transmission) - 1)) < 2.5e-3
+    phase_error = np.angle(measured_transmission / analytical_transmission)
+    assert np.max(np.abs(phase_error)) < np.deg2rad(1.5)
 
 
 def _two_port_broadband_scene(active_port=1):

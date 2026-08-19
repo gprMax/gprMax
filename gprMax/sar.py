@@ -632,12 +632,16 @@ class SARMonitor:
                 for source in group
                 if source.waveformID == self.waveform_id
             )
-            bindings.extend(
-                (guide.aux_source, source_grid)
-                for guide in getattr(source_grid, "virtual_waveguides", ())
-                if getattr(guide, "aux_source", None) is not None
-                and guide.aux_source.waveformID == self.waveform_id
-            )
+            for guide in getattr(source_grid, "virtual_waveguides", ()):
+                guide_sources = getattr(guide, "aux_sources", None)
+                if guide_sources is None:
+                    source = getattr(guide, "aux_source", None)
+                    guide_sources = () if source is None else (source,)
+                bindings.extend(
+                    (source, source_grid)
+                    for source in guide_sources
+                    if source.waveformID == self.waveform_id
+                )
         if not bindings:
             raise ValueError(
                 f"SAR waveform {self.waveform_id!r} is not associated with an active source"

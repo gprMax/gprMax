@@ -968,6 +968,35 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     assert {int(row["source_mode"]) for row in rows} == {2}
 
 
+def test_multiple_drives_are_not_labelled_as_an_sparameter_column():
+    frequency = np.asarray([5e9])
+
+    def monitor(port_index, modes):
+        return SimpleNamespace(
+            is_source=True,
+            port_index=port_index,
+            excitation_mode_index=None,
+            excitation_mode_indices=tuple(modes),
+            mode_indices=tuple(modes),
+            result=EigenmodePortResult(
+                frequency=frequency,
+                incident=np.ones((len(modes), 1), dtype=np.complex128),
+                outgoing=np.zeros((len(modes), 1), dtype=np.complex128),
+                valid=np.ones((len(modes), 1), dtype=bool),
+                condition_number=np.ones(1),
+            ),
+            finalise=lambda grid: None,
+        )
+
+    grid = SimpleNamespace(
+        name="main_grid",
+        eigenmodeports=[monitor(1, (1,)), monitor(2, (1,))],
+    )
+
+    assert finalise_eigenmode_ports(grid) is None
+    assert all(not hasattr(port, "s_parameters") for port in grid.eigenmodeports)
+
+
 def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(tmp_path, monkeypatch):
     frequency = np.asarray([5e9, 6e9])
     source = SimpleNamespace(

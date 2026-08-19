@@ -311,6 +311,11 @@ class EigenmodePortMonitor:
         self.excitation_mode_index = (
             None if excitation_mode_index is None else int(excitation_mode_index)
         )
+        self.excitation_mode_indices = (
+            () if self.excitation_mode_index is None else (self.excitation_mode_index,)
+        )
+        self.drive_metadata = ()
+        self.response_type = "passive"
         # A TF/SF source must sample H on its total-field side. A passive port
         # uses the upstream half-cell, where either side is physically
         # equivalent in the absence of a field discontinuity.
@@ -356,6 +361,27 @@ class EigenmodePortMonitor:
         self.s_generalized_valid = None
         self.s_power_wave_valid = None
 
+    def set_drive_metadata(self, drives):
+        """Record all active modal drives represented by this physical port."""
+
+        self.drive_metadata = tuple(
+            {
+                "mode": int(drive.mode_index),
+                "waveform_id": str(drive.waveform.ID),
+                "amplitude": float(drive.amplitude),
+                "power": float(drive.power),
+                "phase_deg": float(drive.phase_deg),
+                "delay_s": float(drive.delay_s),
+            }
+            for drive in drives
+        )
+        self.excitation_mode_indices = tuple(metadata["mode"] for metadata in self.drive_metadata)
+        self.excitation_mode_index = (
+            self.excitation_mode_indices[0] if len(self.excitation_mode_indices) == 1 else None
+        )
+        self.is_source = bool(self.drive_metadata)
+        self.response_type = "driven" if self.is_source else "passive"
+
     @property
     def output_id(self):
         """Public port identifier used by antenna-power associations."""
@@ -369,12 +395,15 @@ class EigenmodePortMonitor:
             raise ValueError("Eigenmode port mode indices must be unique.")
         if self.port_index < 1:
             raise ValueError("Eigenmode port indices must be one-based positive integers.")
-        if self.is_source and self.excitation_mode_index not in self.mode_indices:
+        if self.is_source and (
+            not self.excitation_mode_indices
+            or any(mode not in self.mode_indices for mode in self.excitation_mode_indices)
+        ):
             raise ValueError(
-                "The source excitation mode must be included in its monitored mode indices."
+                "Every source excitation mode must be included in its monitored mode indices."
             )
-        if not self.is_source and self.excitation_mode_index is not None:
-            raise ValueError("A passive eigenmode port cannot have an excitation mode.")
+        if not self.is_source and self.excitation_mode_indices:
+            raise ValueError("A passive eigenmode port cannot have excitation modes.")
         if self.dft_points < 1:
             raise ValueError("Eigenmode port DFT points must be at least one.")
         if not np.isfinite(self.dft_start) or not np.isfinite(self.dft_stop):
@@ -899,6 +928,7 @@ class EigenmodePortMonitor:
         self.s_valid = None
         self.s_generalized_valid = None
         self.s_power_wave_valid = None
+        self.response_type = "driven" if self.is_source else "passive"
 
     def finalise(self, grid):
         nf, nm = self.electric_dft.shape
@@ -1002,6 +1032,31 @@ class EigenmodePortMonitor:
         group.attrs["IsSource"] = self.is_source
         if self.excitation_mode_index is not None:
             group.attrs["ExcitationMode"] = self.excitation_mode_index
+        excitation_modes = getattr(
+            self,
+            "excitation_mode_indices",
+            () if self.excitation_mode_index is None else (self.excitation_mode_index,),
+        )
+        drive_metadata = getattr(self, "drive_metadata", ())
+        if excitation_modes:
+            group.attrs["ExcitationModes"] = excitation_modes
+        if drive_metadata:
+            group.attrs["DriveAmplitudes"] = tuple(drive["amplitude"] for drive in drive_metadata)
+            group.attrs["DrivePowers"] = tuple(drive["power"] for drive in drive_metadata)
+            group.attrs["DrivePhasesDegrees"] = tuple(
+                drive["phase_deg"] for drive in drive_metadata
+            )
+            group.attrs["DriveDelays"] = tuple(drive["delay_s"] for drive in drive_metadata)
+            group.attrs["DriveWaveformIDs"] = tuple(
+                drive["waveform_id"] for drive in drive_metadata
+            )
+        group.attrs["ResponseType"] = getattr(
+            self,
+            "response_type",
+            "s_parameter_column"
+            if self.s_parameters is not None
+            else ("driven" if self.is_source else "passive"),
+        )
         group.attrs["Direction"] = self.owner.direction
         group.attrs["Normal"] = self.owner.normal
         group.attrs["ModeIndices"] = self.mode_indices
@@ -1052,14 +1107,29 @@ def finalise_eigenmode_ports(grid):
     # Their incident/outgoing power waves are still meaningful and are written
     # to HDF5, but an S matrix cannot be normalised without an active source.
     if not sources:
+        for port in grid.eigenmodeports:
+            port.response_type = "passive"
         return None
-    if len(sources) > 1:
-        raise ValueError(
-            "Eigenmode S-parameters require one and only one active eigenmode source; "
-            f"found {len(sources)}."
-        )
+
+    def excitation_modes(port):
+        modes = getattr(port, "excitation_mode_indices", None)
+        if modes is not None:
+            return tuple(modes)
+        mode = getattr(port, "excitation_mode_index", None)
+        return () if mode is None else (mode,)
+
+    drive_count = sum(len(excitation_modes(port)) for port in sources)
+    # A simultaneous driven state is not an S-matrix column. Preserve its
+    # decomposed incident/outgoing waves and drive metadata without inventing
+    # an ambiguous normalization.
+    if drive_count != 1:
+        for port in grid.eigenmodeports:
+            port.response_type = "driven"
+        return None
 
     source = sources[0]
+    for port in grid.eigenmodeports:
+        port.response_type = "s_parameter_column"
     for port in grid.eigenmodeports:
         if not np.array_equal(port.result.frequency, source.result.frequency):
             raise ValueError("All eigenmode ports must use identical DFT frequency bins.")
