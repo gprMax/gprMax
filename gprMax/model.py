@@ -565,7 +565,11 @@ class Model:
             from gprMax.studies import EigenmodeStudy
 
             if not isinstance(config.sim_config.study, EigenmodeStudy) and any(
-                grid.eigenmodesources or grid.eigenmodereceivers or grid.virtual_waveguide_specs
+                grid.eigenmodeportdefs
+                or grid.eigenmodeexcitations
+                or grid.eigenmodesources
+                or grid.eigenmodereceivers
+                or grid.virtual_waveguide_specs
                 for grid in grids
             ):
                 raise ValueError(

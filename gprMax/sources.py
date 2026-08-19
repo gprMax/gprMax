@@ -1639,6 +1639,7 @@ class EigenmodeSource(Source):
                     "discarded. Use a band-limited waveform; for a finite frequency band, "
                     "EigenmodeExcitation(..., waveform='auto') can synthesize one automatically."
                 )
+        input_spectrum = np.array(spectrum, copy=True)
         spectrum = np.array(spectrum, copy=True)
         spectrum[0] = 0
         if padded_count % 2 == 0:
@@ -1738,6 +1739,7 @@ class EigenmodeSource(Source):
         magnetic_phase = self._magnetic_stagger_factor(omega, beta, G.dt, normal_spacing)
 
         drive_factor = self._drive_spectral_factor(bin_frequencies)
+        driven_input_spectrum = input_spectrum * drive_factor
         driven_spectrum = spectrum * drive_factor
         electric_weights = weights * (driven_spectrum * normalization)[np.newaxis, :]
         magnetic_weights = (
@@ -1756,7 +1758,7 @@ class EigenmodeSource(Source):
         if padded_count % 2 == 0:
             scalar_spectrum[-1] = 0
         reconstructed_waveform = np.fft.irfft(scalar_spectrum, n=padded_count)[:sample_count]
-        driven_waveform = np.fft.irfft(driven_spectrum, n=padded_count)[:sample_count]
+        driven_waveform = np.fft.irfft(driven_input_spectrum, n=padded_count)[:sample_count]
         waveform_peak = float(np.max(np.abs(driven_waveform)))
         reconstruction_error = (
             float(np.max(np.abs(reconstructed_waveform - driven_waveform)) / waveform_peak)
