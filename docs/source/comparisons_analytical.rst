@@ -481,6 +481,11 @@ coefficients [MIE1908]_. For an incident peak electric-field phasor
 The production gprMax result is evaluated independently by integrating the
 tagged-cell absorbed-power-density output,
 :math:`P_{\mathrm{abs}}^{\mathrm{FDTD}}=\sum_i p_{\mathrm{abs},i}\Delta V`.
+The same run requests an ``incident_flux``-normalised radiometry output, for
+which the tag integral is the absorption cross-section directly. Thus the
+validation exercises both the density-dependent SAR route and the
+density-independent radiometric weighting route against one independent Mie
+quantity.
 For the supplied 18 mm-radius, :math:`\epsilon_r=4`,
 :math:`\sigma=0.3` S/m sphere at 1 GHz, the relative absorbed-power errors
 decrease from 12.29% to 8.81% and 6.37% as the resolution increases from 12
@@ -488,6 +493,310 @@ to 18 and 24 cells per radius. Double-precision CUDA runs at 36 and 48 cells
 per radius reduce the error further to 4.27% and 3.29%, respectively. The
 monotonic convergence is consistent with curved-interface staircasing and
 ordinary FDTD discretisation, rather than agreement to numerical precision.
+
+.. _sar-2d-cylinder-validation:
+
+Two-dimensional SAR in lossy dielectric cylinders
+==================================================
+
+The :download:`2-D cylinder SAR validation driver
+<../../testing/validation/validate_sar_2d_cylinder.py>` compares production
+TMz and TEz SAR with the exact internal fields of a homogeneous, lossy,
+infinite circular cylinder. The general oblique-incidence cylindrical-wave
+solution was derived by Wait [WAI1955]_; at normal incidence the two
+polarisations decouple and the cross-polarised field vanishes.
+
+Gasmelseed [GAS2026]_ used a muscle cylinder to check a separate 2-D FDTD
+implementation before studying numerical-dispersion compensation in layered
+tissues. That paper presents a graphical TMz cylinder comparison but does not
+report numerical cylinder-error estimates. The error measures below are new
+gprMax validation results. No medium-scaling or dispersion-correction method
+from that paper is used: the test uses the declared physical material
+properties directly.
+
+Exact cylindrical series
+-------------------------
+
+For the :math:`\exp(j\omega t)` convention, define
+
+.. math::
+
+   \widetilde{\epsilon}_r
+   = \epsilon_r + \frac{\sigma}{j\omega\epsilon_0},
+   \qquad
+   m=\sqrt{\widetilde{\epsilon}_r},
+   \qquad
+   \widetilde{\epsilon}=\epsilon_0\widetilde{\epsilon}_r,
+   \qquad
+   k_0=\frac{\omega}{c},
+   \qquad
+   k_1=mk_0,
+   \qquad
+   x=k_0a,
+
+where :math:`a` is the cylinder radius. A unit-amplitude plane wave travelling
+in the positive x direction has the cylindrical expansion
+
+.. math::
+
+   \exp(-jk_0r\cos\phi)
+   = \sum_{n=-\infty}^{\infty}
+     (-j)^nJ_n(k_0r)\exp(jn\phi).
+
+For TMz, the exact internal axial electric field is
+
+.. math::
+
+   E_z^{\mathrm{int}}(r,\phi)
+   = E_0\sum_{n=-\infty}^{\infty}
+     (-j)^n B_n^{\mathrm{TM}}
+     J_n(k_1r)\exp(jn\phi),
+
+with
+
+.. math::
+
+   B_n^{\mathrm{TM}} =
+   \frac{
+     J_n(x)H_n^{(2)\prime}(x)-J_n'(x)H_n^{(2)}(x)
+   }{
+     J_n(mx)H_n^{(2)\prime}(x)
+     -mJ_n'(mx)H_n^{(2)}(x)
+   }.
+
+For TEz, :math:`H_z` is the axial scalar field and :math:`E_z=0`:
+
+.. math::
+
+   H_z^{\mathrm{int}}(r,\phi)
+   = H_0\sum_{n=-\infty}^{\infty}
+     (-j)^n B_n^{\mathrm{TE}}
+     J_n(k_1r)\exp(jn\phi),
+
+.. math::
+
+   B_n^{\mathrm{TE}} =
+   \frac{
+     J_n(x)H_n^{(2)\prime}(x)-J_n'(x)H_n^{(2)}(x)
+   }{
+     J_n(mx)H_n^{(2)\prime}(x)
+     -m^{-1}J_n'(mx)H_n^{(2)}(x)
+   }.
+
+The transverse TE electric fields follow directly from Maxwell's equations,
+
+.. math::
+
+   E_r = \frac{1}{j\omega\widetilde{\epsilon}r}
+         \frac{\partial H_z}{\partial\phi},
+   \qquad
+   E_\phi = -\frac{1}{j\omega\widetilde{\epsilon}}
+         \frac{\partial H_z}{\partial r}.
+
+The series is truncated after
+
+.. math::
+
+   N=\left\lceil X+4.05X^{1/3}+12\right\rceil,
+   \qquad X=\max\left(|k_0a|,|k_1a|\right),
+
+and is evaluated from :math:`n=-N` to :math:`N`. The validator reconstructs
+the scattered coefficients and independently checks continuity of the scalar
+field and its appropriately weighted normal derivative at :math:`r=a`.
+Across the retained cases, the largest relative boundary residual is
+:math:`6.1\times10^{-16}`.
+
+SAR comparison and error measures
+---------------------------------
+
+The exact complex fields are evaluated at the actual gprMax Yee-edge
+locations and collocated to the cell centre using the same TM/TE rules as the
+production implementation described in :ref:`sar-output`. Complex fields are
+averaged before their magnitude is taken. With peak phasors, the analytical
+local SAR is [IEEE62704-3]_
+
+.. math::
+
+   \mathrm{SAR}_{\mathrm{TM}}
+      = \frac{\sigma}{2\rho}|E_z|^2,
+   \qquad
+   \mathrm{SAR}_{\mathrm{TE}}
+      = \frac{\sigma}{2\rho}
+        \left(|E_r|^2+|E_\phi|^2\right).
+
+The continuous absorbed power per unit invariant length is evaluated as
+
+.. math::
+
+   P'_{\mathrm{abs}}
+      = \frac{\sigma}{2}\int_0^a\int_0^{2\pi}
+        |\mathbf{E}(r,\phi)|^2r\,\mathrm{d}\phi\,\mathrm{d}r.
+
+The radiometry output is checked independently as an absorption
+cross-section per unit invariant length,
+
+.. math::
+
+   C'_{\mathrm{abs}}=\frac{P'_{\mathrm{abs}}}{S_{\mathrm{inc}}}.
+
+Its relative error is identical to :math:`\epsilon_P`, as required. For the
+reported muscle case it is 0.949% for TMz and 0.232% for TEz; the latter is an
+exact-series extension rather than a value reported by Gasmelseed.
+
+For TMz, angular orthogonality gives
+
+.. math::
+
+   P'_{\mathrm{abs,TM}}
+      = \pi\sigma|E_0|^2
+        \sum_{n=-\infty}^{\infty}|B_n^{\mathrm{TM}}|^2
+        \int_0^a|J_n(k_1r)|^2r\,\mathrm{d}r.
+
+The radial integrals for both modes are evaluated using 600-point
+Gauss--Legendre quadrature. Increasing the quadrature order from 300 to 600
+changes the muscle-cylinder reference by approximately
+:math:`1.2\times10^{-13}` relative.
+
+For the selected cell set :math:`\mathcal{I}`, the reported local and
+integrated errors are
+
+.. math::
+
+   \begin{aligned}
+   \epsilon_{L_2} &=
+      \frac{\left\|\mathrm{SAR}_{\mathrm{FDTD}}
+      -\mathrm{SAR}_{\mathrm{Mie}}\right\|_2}
+      {\left\|\mathrm{SAR}_{\mathrm{Mie}}\right\|_2},\\
+   \epsilon_{\max} &=
+      \max_{i\in\mathcal{I}}
+      \frac{\left|\mathrm{SAR}_{i,\mathrm{FDTD}}
+      -\mathrm{SAR}_{i,\mathrm{Mie}}\right|}
+      {\mathrm{SAR}_{i,\mathrm{Mie}}},\\
+   \epsilon_P &=
+      \frac{\left|P'_{\mathrm{FDTD}}-P'_{\mathrm{Mie}}\right|}
+      {P'_{\mathrm{Mie}}}.
+   \end{aligned}
+
+Cells below 5% of the analytical peak SAR are excluded from the local relative
+metrics. The primary interior metric additionally excludes a two-cell band at
+the cylinder boundary. This separates field-update accuracy from the
+inevitable geometrical difference between an exact circular interface and a
+voxelised, dielectrically averaged Yee interface. All-cell results are still
+written to the JSON report.
+
+Numerical cases and results
+---------------------------
+
+The cylinders have radius 60 mm and are illuminated at 5.5 GHz by a
+grid-axis-aligned discrete plane wave travelling along the positive x
+direction, normal to the cylinder's invariant z axis. A completed
+3.5 GHz Ricker waveform provides a strong 5.5 GHz spectral component without
+the position-dependent finite-record bias of a truncated continuous sine.
+The model uses 0.4 mm cells, an 8 ns time window, 12-cell exterior PMLs, and
+dielectric averaging on the circular interface. The target incident electric
+field is 1 V/m. The electrical properties are the physical skin, fat, and
+muscle values reported by Gasmelseed [GAS2026]_; the two former materials are
+applied to cylinders here as additional tests. Representative tissue
+densities scale absolute SAR equally in both solutions and do not affect the
+relative electromagnetic errors.
+
+.. list-table:: CUDA double-precision cylinder validation at 0.4 mm resolution
+   :header-rows: 1
+   :widths: 15 12 14 10 20 19 20
+
+   * - Material
+     - :math:`\epsilon_r`
+     - :math:`\sigma` (S/m)
+     - Mode
+     - Interior :math:`\epsilon_{L_2}`
+     - Interior :math:`\epsilon_{\max}`
+     - :math:`\epsilon_P`
+   * - Fat
+     - 4.983
+     - 0.274
+     - TMz
+     - 0.32%
+     - 1.33%
+     - 0.19%
+   * - Fat
+     - 4.983
+     - 0.274
+     - TEz
+     - 0.72%
+     - 11.52%
+     - 0.062%
+   * - Skin
+     - 35.36
+     - 3.463
+     - TMz
+     - 2.80%
+     - 8.88%
+     - 0.73%
+   * - Skin
+     - 35.36
+     - 3.463
+     - TEz
+     - 2.56%
+     - 14.98%
+     - 0.038%
+   * - Muscle
+     - 48.9
+     - 4.61
+     - TMz
+     - 3.46%
+     - 11.51%
+     - 0.95%
+   * - Muscle
+     - 48.9
+     - 4.61
+     - TEz
+     - 3.02%
+     - 15.40%
+     - 0.23%
+
+.. figure:: ../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_mie_comparison.png
+   :alt: TMz and TEz muscle-cylinder SAR compared with the exact cylindrical series
+   :width: 100%
+
+   Centreline local SAR for the muscle cylinder. Solid curves are the exact
+   cylindrical series; symbols are gprMax samples.
+
+.. figure:: ../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_error_summary.png
+   :alt: Interior local SAR and absorbed-power errors for fat skin and muscle cylinders
+   :width: 100%
+
+   Interior local-SAR and integrated absorbed-power errors for the three
+   materials and both polarisations.
+
+.. figure:: ../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_boundary_error.png
+   :alt: SAR error as a function of depth inward from the exact cylinder boundary
+   :width: 100%
+
+   Shell-wise error versus distance from the exact interface. TEz is more
+   sensitive to the representation of the discontinuous tangential electric
+   field, but the excess error is strongly concentrated in the first two
+   boundary-cell layers.
+
+The :download:`full two-dimensional field maps
+<../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_material_maps.png>`
+show the exact and gprMax SAR distributions and error normalised by the exact
+peak. Halving the muscle TMz cell size from 0.4 to 0.2 mm reduces the interior
+:math:`\epsilon_{L_2}` from 3.46% to 0.72% and :math:`\epsilon_P` from 0.95%
+to 0.22%, demonstrating mesh convergence. CPU and CUDA double-precision
+muscle results agree to :math:`5.9\times10^{-13}` relative L2 for TMz and
+:math:`1.7\times10^{-12}` for TEz.
+
+The retained material cases can be regenerated from the repository root, for
+example:
+
+.. code-block:: none
+
+   python -m testing.validation.validate_sar_2d_cylinder \
+       --backend cuda --precision double --material muscle --modes TM TE
+
+Replace ``muscle`` by ``fat`` or ``skin`` to reproduce the other rows. The
+driver writes the complete parameters, checks, and unrounded errors to its
+JSON report rather than relying on values read from a plotted curve.
 
 Power-normalisation consistency
 ===============================
@@ -518,6 +827,8 @@ Run the studies from the repository root, for example:
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     python -m testing.validation.validate_sar_lossy_halfspace
     python -m testing.validation.validate_sar_lossy_sphere
+    python -m testing.validation.validate_sar_2d_cylinder \
+        --backend cuda --precision double --material muscle --modes TM TE
     python -m testing.validation.validate_sar_power_normalisation
     python testing/validation/validate_sar_spatial_averaging.py \
         --reference /path/to/IEC-IEEE-62704-1-spatial-average-SAR

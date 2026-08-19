@@ -94,6 +94,19 @@ def test_device_sar_contract_matches_direct_sparse_dft():
         np.testing.assert_allclose(monitor.loaded[component], expected[component])
 
 
+def test_device_sar_allocates_only_monitor_active_components():
+    monitor = _Monitor(
+        frequencies=(1e9,),
+        indices={"Ez": np.asarray((1, 7, 13), dtype=np.int64)},
+        dt=1e-12,
+    )
+    grid = SimpleNamespace(sar_monitors=[monitor], Ez_dev=np.zeros((3, 3, 3)))
+
+    collector = _HostDeviceSARCollector(SimpleNamespace(grid=grid))
+
+    assert tuple(component.component for component in collector.records[0].components) == ("Ez",)
+
+
 @pytest.mark.parametrize(
     "backend,c_real,marker",
     (

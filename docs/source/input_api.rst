@@ -1428,6 +1428,11 @@ material database. For example:
 particular, it is incident electric-field amplitude in V/m for a discrete
 plane wave and generator voltage in V for a voltage source. The resulting
 SAR is therefore tied to that explicitly stated source normalisation.
+For a 3-D Hertzian dipole, use ``normalisation='current_moment'`` and give
+``target_amplitude`` in A m. For a discrete plane wave, use
+``normalisation='incident_flux'`` and ``target_flux`` in W/m\ :sup:`2` when
+power flux rather than electric-field amplitude is the required physical
+normalisation.
 Spatial mass averaging is opt-in. With the default ``averaging_masses=()``,
 gprMax writes local cell SAR, absorbed-power density, and per-tag summaries
 without running the potentially expensive mass-averaging stage. Supply
@@ -1442,11 +1447,12 @@ For a one-watt accepted-power result from a named port, use:
 
     scene.add(gprMax.SAR(
         frequencies=np.linspace(0.8e9, 1.2e9, 41),
-        waveform_id='pulse', tags=('brain_region',), id='brain_sar_1W',
+        tags=('brain_region',), id='brain_sar_1W',
         normalisation='accepted_power', port_id='feed', target_power=1.0,
     ))
 
-``incident_power`` is also available. Power normalisation currently requires
+``incident_power`` is also available. ``target_power`` is in W for 3-D models
+and W/m for invariant 2-D models. Power normalisation currently requires
 a rectangular transform window and a physical, valid port-power result at
 each requested frequency.
 
@@ -1463,16 +1469,62 @@ Mass averaging is local to the selected subgrid tag volume, so the complete
 tissue region required by an averaging cube should be contained inside the
 subgrid working region.
 
+Reduced 2-D TM and TE main-grid models are supported. SAR is evaluated only
+on the genuine field plane (invariant index zero for TM and one for TE), and
+only the active electric components are transformed. Tag-integrated absorbed
+power and mass are written per unit invariant length. Spatial mass averaging
+is not yet available in 2-D, so ``averaging_masses`` must remain empty for
+these models.
+
+See :ref:`sar-2d-cylinder-validation` for analytical TMz and TEz validation
+against homogeneous lossy-cylinder series over fat-, skin-, and muscle-like
+material properties.
+
 The default permits output only while the shortest wavelength in any model
 material is sampled by at least ten cells. Use ``spectrum_limit=8`` for a
 lambda/8 criterion. ``spectrum_limit='nyquist'`` is an explicit research
 override: it retains the requested frequencies but does not imply spatial
-accuracy. Three-dimensional CPU, CUDA, OpenCL, and Metal models are supported
-on the main grid. MPI domain-decomposed CPU models and three-dimensional CPU
-HSG subgrids are also supported. Under MPI, source and port normalisation and
-any requested spatial mass averaging are completed globally on the coordinator,
-so tag volumes and averaging cubes may cross rank boundaries. See
-:ref:`sar-output` for the formulation and HDF5 schema.
+accuracy. Three- and two-dimensional CPU, CUDA, OpenCL, and Metal models are
+supported on the main grid. MPI domain-decomposed CPU models and
+three-dimensional CPU HSG subgrids are also supported. Under MPI, source and
+port normalisation and any requested spatial mass averaging are completed
+globally on the coordinator, so tag volumes and averaging cubes may cross rank
+boundaries. See :ref:`sar-output` for the formulation and HDF5 schema.
+
+Radiometric absorption weighting
+--------------------------------
+
+.. autoclass:: gprMax.user_objects.cmds_output.Radiometry
+
+``Radiometry`` is the density-independent counterpart of ``SAR``. It uses the
+same tagged-cell field transforms and loss calculation, but writes absorbed
+power and a source-normalised absorption weighting without requiring
+``MaterialDensity``. A plane-wave absorption cross section is requested with:
+
+.. code-block:: python
+
+    scene.add(gprMax.Radiometry(
+        frequencies=np.linspace(0.5e9, 2e9, 61),
+        waveform_id='incident', tags=('subsurface_layer',),
+        id='layer_absorption', normalisation='incident_flux',
+        target_flux=1.0,
+    ))
+
+For an antenna or local probe with a physical port, omit ``waveform_id`` and
+normalise to port power:
+
+.. code-block:: python
+
+    scene.add(gprMax.Radiometry(
+        frequencies=np.linspace(0.5e9, 2e9, 61),
+        tags=('subsurface_layer',), id='probe_weighting',
+        normalisation='accepted_power', port_id='feed', target_power=1.0,
+    ))
+
+For a portless Hertzian source, ``current_moment`` gives an absorption kernel
+per squared A m. ``waveform`` remains available for every source and retains
+that source's native excitation units. Outputs and their dimensional meaning
+are described in :ref:`radiometry-output`.
 
 Rational-network S11 and input impedance
 -----------------------------------------
@@ -1534,6 +1586,8 @@ A snapshot can also be added to an HSG subgrid. It is sampled on every fine
 subgrid time step, uses the subgrid's spatial discretisation, and records its
 origin in the global model coordinate system. The requested time or iteration
 is interpreted against the owning subgrid's ``dt`` and iteration count.
+In a reduced 2-D model, any requested invariant-axis extent is collapsed to
+the single genuine field plane: index zero for TM or index one for TE.
 
 Reusable NTFF integration surface
 ---------------------------------

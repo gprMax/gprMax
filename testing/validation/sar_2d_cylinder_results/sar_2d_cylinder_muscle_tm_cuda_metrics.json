@@ -1,0 +1,61 @@
+{
+  "literature_case": {
+    "citation": "Gasmelseed, Biomedical Optics Express 17(4), 2026",
+    "doi": "10.1364/BOE.590271",
+    "reported_polarisation": "TMz",
+    "te_status": "independent exact-series extension, not reported in the cited case",
+    "case_status": "reported homogeneous-cylinder material"
+  },
+  "mode": "TM",
+  "backend": "cuda",
+  "collection_backend": "cuda_device",
+  "precision": "double",
+  "frequency_hz": 5500000000.0,
+  "source_centre_frequency_hz": 3500000000.0,
+  "dl_m": 0.0004,
+  "time_window_s": 8e-09,
+  "radius_m": 0.06,
+  "radius_cells": 150.0,
+  "material": "muscle",
+  "relative_permittivity": 48.9,
+  "conductivity_S_per_m": 4.61,
+  "density_kg_per_m3": 1090.0,
+  "density_note": "representative tissue density; identical scaling applied to both solutions and therefore not part of the electromagnetic validation",
+  "tagged_cells": 70688,
+  "voxelised_area_m2": 0.01131008,
+  "continuous_area_m2": 0.011309733552923255,
+  "relative_area_error": 3.063264710201352e-05,
+  "source_valid": true,
+  "mesh_valid": true,
+  "valid": true,
+  "mie_boundary_condition_relative_residual": 2.313177632196949e-16,
+  "local_sar": {
+    "above_5_percent_peak": {
+      "cell_count": 10808,
+      "relative_l2_error": 0.03707637058849735,
+      "maximum_pointwise_relative_error": 0.11628175528195767
+    },
+    "interior_above_5_percent_peak": {
+      "cell_count": 9798,
+      "relative_l2_error": 0.034577490268685625,
+      "maximum_pointwise_relative_error": 0.11507989511771419
+    }
+  },
+  "boundary_interpretation": "The primary local check excludes a two-cell boundary band because the continuous circular interface and the staircased/smoothed Yee interface are not identical geometries. All-cell metrics remain reported.",
+  "analytical_absorbed_power_per_length_W_per_m": 6.42910825146838e-05,
+  "fdtd_absorbed_power_per_length_W_per_m": 6.368099305243684e-05,
+  "relative_absorbed_power_error": 0.009489488096698584,
+  "analytical_absorption_cross_section_per_length_m": 0.04844079933068211,
+  "fdtd_radiometry_absorption_cross_section_per_length_m": 0.047981120942039046,
+  "relative_radiometry_cross_section_error": 0.009489488096698473,
+  "runtime_seconds": 23.354200415313244,
+  "checks": {
+    "source_and_mesh_valid": true,
+    "mie_boundary_residual": true,
+    "interior_local_relative_l2": true,
+    "interior_local_maximum_relative": true,
+    "absorbed_power_per_length": true,
+    "radiometry_cross_section_per_length": true
+  },
+  "pass": true
+}

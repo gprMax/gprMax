@@ -188,7 +188,10 @@ class FDTDGrid:
         self.rxs: List[Rx] = []
         self.port_monitors = []  # Source-bound S-parameter/impedance outputs
         self.sar_specs = []  # Deferred tagged-cell SAR output definitions
-        self.sar_monitors = []  # Sparse CPU SAR monitors compiled after geometry
+        self.radiometry_specs = []  # Deferred density-independent absorption outputs
+        # Shared sparse absorbed-power monitors for SAR and radiometry. They
+        # stay on the host except for the requested field DFT accumulators.
+        self.sar_monitors = []
         # Every MPI rank parses the same output commands, so this replicated
         # registry allocates globally consistent automatic port IDs before a
         # point object is reduced to its single owning rank.

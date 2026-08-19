@@ -209,6 +209,40 @@ def test_subgrid_sar_state_is_reset_for_geometry_fixed_runs(tmp_path):
 
 
 @pytest.mark.integration
+def test_radiometry_uses_shared_subgrid_absorption_path(tmp_path):
+    scene, sar_output = _subgrid_sar_scene()
+    subgrid = scene.subgrid_objects[0]
+    subgrid.children_output.remove(sar_output)
+    output = gprMax.Radiometry(
+        frequencies=(5e9,),
+        waveform_id="pulse",
+        tags="target",
+        id="fine_radiometry",
+        spectrum_limit="nyquist",
+        normalisation="current_moment",
+        target_amplitude=0.001,
+    )
+    subgrid.add(output)
+    filename = tmp_path / "subgrid_radiometry"
+
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        outputfile=filename,
+        subgrid=True,
+        autotranslate=True,
+        hide_progress_bars=True,
+        cpu_precision="single",
+    )
+
+    assert np.all(output.result.valid)
+    with h5py.File(filename.with_suffix(".h5"), "r") as result:
+        group = result["subgrids/fine_grid/radiometry/fine_radiometry"]
+        assert group.attrs["CellIndexFrame"] == "subgrid-local"
+        assert "normalised_absorption_density" in group
+
+
+@pytest.mark.integration
 def test_subgrid_sar_agrees_with_uniform_fine_grid(tmp_path):
     uniform_path = tmp_path / "uniform"
     subgrid_path = tmp_path / "subgrid"

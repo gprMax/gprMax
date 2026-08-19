@@ -375,7 +375,10 @@ class Model:
         # This lets, for example, a main-grid plane wave illuminate tagged
         # tissue built and sampled on a fine subgrid.
         sar_grids = [
-            grid for grid in grids if getattr(grid, "sar_specs", None) and not grid.sar_monitors
+            grid
+            for grid in grids
+            if (getattr(grid, "sar_specs", None) or getattr(grid, "radiometry_specs", None))
+            and not grid.sar_monitors
         ]
         if sar_grids:
             from gprMax.sar import compile_sar_outputs

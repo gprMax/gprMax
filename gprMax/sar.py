@@ -15,6 +15,7 @@ import numpy as np
 import numpy.typing as npt
 
 import gprMax.config as config
+from gprMax.mode2d import mode2d_geometry
 
 try:
     from gprMax.cython.ntff import accumulate_sparse_dft as _accumulate_sparse_dft
@@ -45,11 +46,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+SOURCE_NORMALISATION_METADATA = {
+    "VoltageSource": ("generator_voltage", "V"),
+    "HertzianDipole": ("electric_current", "A"),
+    "MagneticDipole": ("magnetic_current_moment", "V m"),
+    "TransmissionLine": ("generator_voltage", "V"),
+    "MagneticFrillSource": ("generator_voltage", "V"),
+    "RationalNetworkTerminal": ("generator_voltage", "V"),
+    "DiscretePlaneWave": ("incident_electric_field", "V/m"),
+    "EigenmodeSource": ("modal_excitation_coefficient", "source-defined"),
+}
+
+
 EDGE_OFFSETS = {
     "Ex": np.asarray(((0, 0, 0), (0, 1, 0), (0, 0, 1), (0, 1, 1)), dtype=np.int32),
     "Ey": np.asarray(((0, 0, 0), (1, 0, 0), (0, 0, 1), (1, 0, 1)), dtype=np.int32),
     "Ez": np.asarray(((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)), dtype=np.int32),
 }
+
+
+def edge_offsets_for_mode(mode: str) -> dict[str, npt.NDArray[np.int32]]:
+    """Return active electric components and their cell-centre offsets.
+
+    The three-dimensional four-edge formula is retained.  In TE mode the
+    invariant-axis offset is collapsed to zero, so the four entries contain
+    two duplicated pairs and their mean is exactly the arithmetic mean of the
+    two genuine tangential edges on the live plane.  TM's only electric
+    component is parallel to the invariant axis and its existing four offsets
+    already lie entirely in the transverse cross-section.
+    """
+
+    geometry = mode2d_geometry(mode)
+    if geometry is None:
+        return {component: offsets.copy() for component, offsets in EDGE_OFFSETS.items()}
+    selected = {}
+    for component in geometry.active_electric:
+        offsets = EDGE_OFFSETS[component].copy()
+        if geometry.polarisation == "TE":
+            offsets[:, geometry.invariant_axis] = 0
+        selected[component] = offsets
+    return selected
 
 
 def _pml_cell_mask(grid: "FDTDGrid") -> npt.NDArray[np.bool_]:
@@ -111,7 +147,7 @@ class SARSpec:
     output_id: str
     frequencies: tuple[float, ...]
     tags: tuple[str, ...]
-    waveform_id: str
+    waveform_id: str | None
     target_amplitude: float
     spectrum_limit: float | str
     source_floor_db: float
@@ -120,6 +156,7 @@ class SARSpec:
     normalisation: str
     port_id: str | None
     target_power: float | None
+    target_flux: float | None
     owner: Any = None
 
 
@@ -135,6 +172,8 @@ class SARResult:
     source_spectrum: npt.NDArray[np.complexfloating]
     source_relative_db: npt.NDArray[np.floating]
     source_valid: npt.NDArray[np.bool_]
+    incident_power: npt.NDArray[np.floating]
+    incident_flux: npt.NDArray[np.floating]
     mesh_valid: npt.NDArray[np.bool_]
     valid: npt.NDArray[np.bool_]
     cells_per_wavelength: npt.NDArray[np.floating]
@@ -172,6 +211,48 @@ class SARLocalPayload:
     excluded_pml_cell_count: int
     edge_coordinates: dict[str, npt.NDArray[np.integer]] | None = None
     edge_dft: dict[str, npt.NDArray[np.complexfloating]] | None = None
+
+
+@dataclass(frozen=True)
+class RadiometrySpec:
+    """Deferred radiometric absorption request compiled with SAR outputs."""
+
+    output_id: str
+    frequencies: tuple[float, ...]
+    tags: tuple[str, ...]
+    waveform_id: str | None
+    target_amplitude: float
+    spectrum_limit: float | str
+    source_floor_db: float
+    window: str
+    normalisation: str
+    port_id: str | None
+    target_power: float | None
+    target_flux: float | None
+    owner: Any = None
+
+
+@dataclass(frozen=True)
+class RadiometryResult:
+    """Frequency-domain absorbed-power and radiometric weighting data."""
+
+    frequency: npt.NDArray[np.floating]
+    cell_indices: npt.NDArray[np.integer]
+    tag_id: npt.NDArray[np.integer]
+    material_id: npt.NDArray[np.integer]
+    source_spectrum: npt.NDArray[np.complexfloating]
+    source_relative_db: npt.NDArray[np.floating]
+    source_valid: npt.NDArray[np.bool_]
+    incident_power: npt.NDArray[np.floating]
+    incident_flux: npt.NDArray[np.floating]
+    mesh_valid: npt.NDArray[np.bool_]
+    valid: npt.NDArray[np.bool_]
+    cells_per_wavelength: npt.NDArray[np.floating]
+    limiting_material: npt.NDArray[np.str_]
+    absorbed_power_density: npt.NDArray[np.floating]
+    normalised_absorption_density: npt.NDArray[np.floating]
+    normalisation_scale: npt.NDArray[np.complexfloating]
+    normalising_power: npt.NDArray[np.floating]
 
 
 def _window(name: str, count: int, dtype: np.dtype) -> npt.NDArray[np.floating]:
@@ -230,7 +311,7 @@ class SARMonitor:
         output_id: str,
         frequencies,
         tags,
-        waveform_id: str,
+        waveform_id: str | None,
         target_amplitude: float,
         spectrum_limit=DEFAULT_MINIMUM_WAVELENGTH_CELLS,
         source_floor_db: float = DEFAULT_INCIDENT_FLOOR_DB,
@@ -239,7 +320,9 @@ class SARMonitor:
         normalisation: str = "waveform",
         port_id: str | None = None,
         target_power: float | None = None,
+        target_flux: float | None = None,
         model: "Model | None" = None,
+        require_density: bool = True,
     ) -> None:
         if grid.geometry_tag_map is None or grid.geometry_tag_registry is None:
             raise ValueError("SAR requires at least one tagged volumetric geometry object")
@@ -263,14 +346,7 @@ class SARMonitor:
         self.spectrum_limit_mode = (
             "nyquist" if self.spectrum_limit == "nyquist" else "minimum_wavelength_cells"
         )
-        self.waveform_id = str(waveform_id)
-        waveform_grids = (grid,) if model is None else (model.G, *model.subgrids)
-        if not any(
-            waveform.ID == self.waveform_id
-            for waveform_grid in waveform_grids
-            for waveform in waveform_grid.waveforms
-        ):
-            raise ValueError(f"SAR references unknown waveform {self.waveform_id!r}")
+        self.waveform_id = None if waveform_id is None else str(waveform_id)
         self.target_amplitude = float(target_amplitude)
         if not np.isfinite(self.target_amplitude) or self.target_amplitude <= 0:
             raise ValueError("SAR target_amplitude must be finite and greater than zero")
@@ -286,18 +362,53 @@ class SARMonitor:
             raise ValueError("SAR averaging_masses must not contain duplicates")
         self.averaging_masses = tuple(float(value) for value in masses)
         self.normalisation = str(normalisation).lower()
-        if self.normalisation not in ("waveform", "incident_power", "accepted_power"):
+        if self.normalisation not in (
+            "waveform",
+            "current_moment",
+            "incident_flux",
+            "incident_power",
+            "accepted_power",
+        ):
             raise ValueError(
-                "SAR normalisation must be 'waveform', 'incident_power', or 'accepted_power'"
+                "SAR normalisation must be 'waveform', 'current_moment', "
+                "'incident_flux', 'incident_power', or 'accepted_power'"
             )
         self.port_id = None if port_id is None else str(port_id)
         self.target_power = None if target_power is None else float(target_power)
-        if self.normalisation == "waveform":
+        self.target_flux = None if target_flux is None else float(target_flux)
+        if self.normalisation in ("waveform", "current_moment", "incident_flux"):
             if self.port_id is not None or self.target_power is not None:
+                raise ValueError("SAR source normalisation does not accept port_id or target_power")
+            if not self.waveform_id:
+                raise ValueError(f"SAR {self.normalisation} normalisation requires waveform_id")
+            waveform_grids = (grid,) if model is None else (model.G, *model.subgrids)
+            if not any(
+                waveform.ID == self.waveform_id
+                for waveform_grid in waveform_grids
+                for waveform in waveform_grid.waveforms
+            ):
+                raise ValueError(f"SAR references unknown waveform {self.waveform_id!r}")
+            if (
+                self.normalisation == "current_moment"
+                and mode2d_geometry(config.get_model_config().mode) is not None
+            ):
+                raise ValueError("SAR current_moment normalisation is available only in 3-D")
+            if self.normalisation == "incident_flux":
+                if (
+                    self.target_flux is None
+                    or not np.isfinite(self.target_flux)
+                    or self.target_flux <= 0
+                ):
+                    raise ValueError(
+                        "SAR incident_flux normalisation requires finite positive target_flux"
+                    )
+            elif self.target_flux is not None:
                 raise ValueError(
-                    "SAR waveform normalisation does not accept port_id or target_power"
+                    "SAR waveform/current_moment normalisation does not use target_flux"
                 )
         else:
+            if self.target_flux is not None:
+                raise ValueError("power-normalised SAR does not use target_flux")
             if not self.port_id:
                 raise ValueError("power-normalised SAR requires port_id")
             if (
@@ -317,8 +428,17 @@ class SARMonitor:
         self.tag_ids = np.asarray(
             [grid.geometry_tag_registry.id_for(name) for name in names], dtype=np.uint32
         )
+        self.model_mode = config.get_model_config().mode
+        self.mode2d = mode2d_geometry(self.model_mode)
+        self.edge_offsets = edge_offsets_for_mode(self.model_mode)
         tag_data = grid.geometry_tag_map.data
         tagged_mask = np.isin(tag_data, self.tag_ids)
+        if self.mode2d is not None:
+            live_plane = np.zeros(tagged_mask.shape, dtype=bool)
+            live_slice = [slice(None)] * 3
+            live_slice[self.mode2d.invariant_axis] = self.mode2d.live_index
+            live_plane[tuple(live_slice)] = True
+            tagged_mask &= live_plane
         owned_mask = np.ones(tag_data.shape, dtype=bool)
         self._mpi_distributed = hasattr(grid, "comm") and hasattr(grid, "lower_extent")
         if self._mpi_distributed:
@@ -330,9 +450,7 @@ class SARMonitor:
             if halo[2]:
                 owned_mask[:, :, : halo[2]] = False
         pml_mask = _pml_cell_mask(grid)
-        self.excluded_pml_cell_count = int(
-            np.count_nonzero(tagged_mask & pml_mask & owned_mask)
-        )
+        self.excluded_pml_cell_count = int(np.count_nonzero(tagged_mask & pml_mask & owned_mask))
         sampling_mask = tagged_mask & ~pml_mask
         mask = sampling_mask & owned_mask
         self.cells = np.asarray(np.argwhere(mask), dtype=np.int32)
@@ -355,12 +473,17 @@ class SARMonitor:
         self.cell_material_ids = np.asarray(grid.solid[mask], dtype=np.uint32)
 
         material_by_id = {int(material.numID): material for material in grid.materials}
-        missing_density = sorted(
-            {
-                material_by_id[int(material_id)].ID
-                for material_id in np.unique(self.cell_material_ids)
-                if material_by_id[int(material_id)].mass_density is None
-            }
+        self.require_density = bool(require_density)
+        missing_density = (
+            sorted(
+                {
+                    material_by_id[int(material_id)].ID
+                    for material_id in np.unique(self.cell_material_ids)
+                    if material_by_id[int(material_id)].mass_density is None
+                }
+            )
+            if self.require_density
+            else []
         )
         if self._mpi_distributed:
             missing_density = sorted(
@@ -375,18 +498,21 @@ class SARMonitor:
                 "SAR requires finite positive mass density for selected material(s): "
                 + ", ".join(missing_density)
             )
-        self.density = np.asarray(
-            [material_by_id[int(item)].mass_density for item in self.cell_material_ids],
-            dtype=np.float64,
-        )
+        if self.require_density:
+            self.density = np.asarray(
+                [material_by_id[int(item)].mass_density for item in self.cell_material_ids],
+                dtype=np.float64,
+            )
+        else:
+            self.density = np.empty(0, dtype=np.float64)
 
         self.edge_flat_indices = {}
         self.cell_edge_indices = {}
         self.edge_coordinates = {}
-        for component, offsets in EDGE_OFFSETS.items():
-            expanded = (
-                self.sampling_cells[:, np.newaxis, :] + offsets[np.newaxis, :, :]
-            ).reshape(-1, 3)
+        for component, offsets in self.edge_offsets.items():
+            expanded = (self.sampling_cells[:, np.newaxis, :] + offsets[np.newaxis, :, :]).reshape(
+                -1, 3
+            )
             unique, inverse = np.unique(expanded, axis=0, return_inverse=True)
             self.edge_coordinates[component] = np.asarray(unique, dtype=np.int32)
             self.edge_flat_indices[component] = np.asarray(
@@ -404,14 +530,10 @@ class SARMonitor:
         self.cells_per_wavelength = np.asarray(cells_per_wavelength, dtype=np.float64)
         self.limiting_material = np.asarray(limiting_material, dtype=str)
         if self._mpi_distributed:
-            rank_sampling = grid.comm.allgather(
-                (self.cells_per_wavelength, self.limiting_material)
-            )
+            rank_sampling = grid.comm.allgather((self.cells_per_wavelength, self.limiting_material))
             values = np.stack([item[0] for item in rank_sampling], axis=0)
             limiting_ranks = np.argmin(values, axis=0)
-            self.cells_per_wavelength = values[
-                limiting_ranks, np.arange(self.frequencies.size)
-            ]
+            self.cells_per_wavelength = values[limiting_ranks, np.arange(self.frequencies.size)]
             self.limiting_material = np.asarray(
                 [
                     rank_sampling[int(rank)][1][frequency_index]
@@ -451,6 +573,19 @@ class SARMonitor:
         self.grid_shape = (int(grid.nx), int(grid.ny), int(grid.nz))
         self.grid_spacing = (float(grid.dx), float(grid.dy), float(grid.dz))
         self.cell_volume = float(grid.dx * grid.dy * grid.dz)
+        self.cell_measure = (
+            self.cell_volume
+            if self.mode2d is None
+            else float(
+                np.prod(
+                    [
+                        self.grid_spacing[axis]
+                        for axis in range(3)
+                        if axis != self.mode2d.invariant_axis
+                    ]
+                )
+            )
+        )
         if self._mpi_distributed:
             self.cell_index_frame = "main-grid"
             self.cell_index_origin = np.zeros(3, dtype=np.float64)
@@ -465,6 +600,12 @@ class SARMonitor:
         self._source_samples = np.empty(0, dtype=self.real_dtype)
         self._source_dt = float(grid.dt)
         self._source_window = np.empty(0, dtype=self.real_dtype)
+        self._source_type = None
+        self._source_quantity = None
+        self._source_units = None
+        self._source_length = None
+        self._source = None
+        self._source_grid = None
         self._spatial_average_plans = None
 
     def _model_grids(self):
@@ -481,13 +622,21 @@ class SARMonitor:
                 source_grid.magneticdipoles,
                 source_grid.transmissionlines,
                 source_grid.magneticfrillsources,
+                source_grid.networkterminals,
                 source_grid.discreteplanewaves,
+                source_grid.eigenmodesources,
             )
             bindings.extend(
                 (source, source_grid)
                 for group in source_groups
                 for source in group
                 if source.waveformID == self.waveform_id
+            )
+            bindings.extend(
+                (guide.aux_source, source_grid)
+                for guide in getattr(source_grid, "virtual_waveguides", ())
+                if getattr(guide, "aux_source", None) is not None
+                and guide.aux_source.waveformID == self.waveform_id
             )
         if not bindings:
             raise ValueError(
@@ -502,6 +651,31 @@ class SARMonitor:
                 f"source across the model; found {len(active_bindings)}"
             )
         source, source_grid = active_bindings[0]
+        self._source = source
+        self._source_grid = source_grid
+        if self.normalisation == "current_moment":
+            if source not in source_grid.hertziandipoles:
+                raise ValueError(
+                    "SAR current_moment normalisation requires exactly one active "
+                    "3-D Hertzian dipole using waveform_id"
+                )
+            source_length = float(source.dl)
+            if not np.isfinite(source_length) or source_length <= 0:
+                raise ValueError("SAR Hertzian-dipole source length must be finite and positive")
+            self._source_length = source_length
+        elif self.normalisation == "incident_flux":
+            if type(source).__name__ != "DiscretePlaneWave":
+                raise ValueError(
+                    "SAR incident_flux normalisation requires exactly one active "
+                    "discrete plane wave using waveform_id"
+                )
+            self._source_length = None
+        else:
+            self._source_length = None
+        self._source_type = type(source).__name__
+        self._source_quantity, self._source_units = SOURCE_NORMALISATION_METADATA.get(
+            self._source_type, ("source_waveform_amplitude", "source-defined")
+        )
         start, stop = float(source.start), float(source.stop)
         waveforms = [item for item in source_grid.waveforms if item.ID == self.waveform_id]
         if len(waveforms) != 1:
@@ -510,9 +684,39 @@ class SARMonitor:
             )
         waveform = waveforms[0]
         source_scale = float(getattr(source, "study_scale", 1.0))
+
+        # Prefer the exact sequence used by the source update. This preserves
+        # the source's own whole/half-step convention and any Study scaling,
+        # rather than reconstructing a nominal waveform on a different time
+        # lattice. Plane waves have position-dependent 3-D waveform tables,
+        # so their incident reference remains the undelayed scalar waveform.
+        source_type = self._source_type
+        prepared = None
+        if source_type == "VoltageSource":
+            prepared = (
+                source.waveformvalues_wholedt
+                if float(source.resistance) == 0
+                else source.waveformvalues_halfdt
+            )
+        elif source_type == "HertzianDipole":
+            prepared = source.waveformvalues_halfdt
+        elif source_type in ("MagneticDipole", "TransmissionLine", "MagneticFrillSource"):
+            prepared = source.waveformvalues_wholedt
+        elif source_type == "RationalNetworkTerminal":
+            prepared = getattr(source, "waveform_half", None)
+        elif source_type == "EigenmodeSource":
+            prepared = getattr(source, "broadband_input_waveform", None)
+        if prepared is not None:
+            prepared = np.asarray(prepared)
+            if prepared.ndim == 1 and prepared.size >= source_grid.iterations:
+                return np.asarray(
+                    prepared[: source_grid.iterations], dtype=self.real_dtype
+                ).copy(), float(source_grid.dt)
+
         samples = np.zeros(source_grid.iterations, dtype=self.real_dtype)
+        half_step = source_type == "RationalNetworkTerminal"
         for iteration in range(source_grid.iterations):
-            time = iteration * source_grid.dt
+            time = (iteration + 0.5 * half_step) * source_grid.dt
             if start <= time < stop:
                 samples[iteration] = source_scale * waveform.calculate_value(
                     time - start, source_grid.dt
@@ -524,6 +728,10 @@ class SARMonitor:
 
         # MPI sources are partitioned between ranks. Their complete state is
         # available only on the coordinator inside gathered_output_state().
+        if self.normalisation in ("incident_power", "accepted_power"):
+            self._source_samples = np.empty(0, dtype=self.real_dtype)
+            self._source_window = np.empty(0, dtype=self.real_dtype)
+            return
         if self._mpi_distributed:
             self._source_samples = np.empty(0, dtype=self.real_dtype)
             self._source_window = np.empty(0, dtype=self.real_dtype)
@@ -621,14 +829,14 @@ class SARMonitor:
             edge_coordinates = {}
             edge_dft = {}
             for component, local_coordinates in self.edge_coordinates.items():
-                global_coordinates = (
-                    local_coordinates + np.asarray(self.grid.lower_extent, dtype=np.int32)
+                global_coordinates = local_coordinates + np.asarray(
+                    self.grid.lower_extent, dtype=np.int32
                 )
                 owned = _mpi_owned_edge_mask(self.grid, global_coordinates)
                 edge_coordinates[component] = global_coordinates[owned]
                 edge_dft[component] = self.accumulators[component][:, owned].copy()
         else:
-            for component in EDGE_OFFSETS:
+            for component in getattr(self, "edge_offsets", EDGE_OFFSETS):
                 edge_indices = self.cell_edge_indices[component]
                 cell_field = np.mean(self.accumulators[component][:, edge_indices], axis=2)
                 absorbed += np.asarray(
@@ -660,9 +868,7 @@ class SARMonitor:
         tag_id = np.concatenate([payload.tag_id for payload in payloads])
         material_id = np.concatenate([payload.material_id for payload in payloads])
         density = np.concatenate([payload.density for payload in payloads])
-        absorbed = np.concatenate(
-            [payload.absorbed_power_density for payload in payloads], axis=1
-        )
+        absorbed = np.concatenate([payload.absorbed_power_density for payload in payloads], axis=1)
         if cell_indices.shape[0] == 0:
             raise ValueError("MPI SAR selected no physical cells outside PML regions")
         order = np.lexsort((cell_indices[:, 2], cell_indices[:, 1], cell_indices[:, 0]))
@@ -671,12 +877,12 @@ class SARMonitor:
             np.all(cell_indices[1:] == cell_indices[:-1], axis=1)
         ):
             raise RuntimeError("MPI SAR aggregation found duplicate owned global cells")
+        sorted_density = density[order] if density.size else density
         merged_edge_coordinates = None
         merged_edge_dft = None
         if any(payload.edge_coordinates is not None for payload in payloads):
             if any(
-                payload.edge_coordinates is None or payload.edge_dft is None
-                for payload in payloads
+                payload.edge_coordinates is None or payload.edge_dft is None for payload in payloads
             ):
                 raise RuntimeError("MPI SAR payloads contain inconsistent edge DFT data")
             merged_edge_coordinates = {}
@@ -685,12 +891,8 @@ class SARMonitor:
                 coordinates = np.concatenate(
                     [payload.edge_coordinates[component] for payload in payloads], axis=0
                 )
-                dft = np.concatenate(
-                    [payload.edge_dft[component] for payload in payloads], axis=1
-                )
-                edge_order = np.lexsort(
-                    (coordinates[:, 2], coordinates[:, 1], coordinates[:, 0])
-                )
+                dft = np.concatenate([payload.edge_dft[component] for payload in payloads], axis=1)
+                edge_order = np.lexsort((coordinates[:, 2], coordinates[:, 1], coordinates[:, 0]))
                 coordinates = coordinates[edge_order]
                 if coordinates.shape[0] > 1 and np.any(
                     np.all(coordinates[1:] == coordinates[:-1], axis=1)
@@ -704,11 +906,9 @@ class SARMonitor:
             cell_indices=cell_indices,
             tag_id=tag_id[order],
             material_id=material_id[order],
-            density=density[order],
+            density=sorted_density,
             absorbed_power_density=absorbed[:, order],
-            excluded_pml_cell_count=sum(
-                payload.excluded_pml_cell_count for payload in payloads
-            ),
+            excluded_pml_cell_count=sum(payload.excluded_pml_cell_count for payload in payloads),
             edge_coordinates=merged_edge_coordinates,
             edge_dft=merged_edge_dft,
         )
@@ -725,7 +925,7 @@ class SARMonitor:
         absorbed = np.zeros(
             (self.frequencies.size, payload.cell_indices.shape[0]), dtype=self.real_dtype
         )
-        for component, offsets in EDGE_OFFSETS.items():
+        for component, offsets in getattr(self, "edge_offsets", EDGE_OFFSETS).items():
             coordinates = payload.edge_coordinates[component]
             available = np.ravel_multi_index(coordinates.T, field_shape)
             required_coordinates = (
@@ -759,38 +959,73 @@ class SARMonitor:
     def _normalisation_data(self):
         """Return source/port spectra, validity masks, and field scaling."""
 
-        source_dt = getattr(self, "_source_dt", self.grid_dt)
-        source_window = getattr(self, "_source_window", self.window)
-        source_spectrum = np.asarray(
-            engineering_dft(
-                self._source_samples,
-                self.frequencies,
-                source_dt,
-                window=source_window,
-            ),
-            dtype=self.complex_dtype,
+        source_spectrum = np.full(
+            self.frequencies.shape, np.nan + 1j * np.nan, dtype=self.complex_dtype
         )
-        magnitude = np.abs(source_spectrum)
-        peak = float(np.max(magnitude, initial=0.0))
         relative_db = np.full(self.frequencies.shape, -np.inf, dtype=self.real_dtype)
-        if peak > 0:
-            nonzero = magnitude > 0
-            relative_db[nonzero] = np.asarray(
-                20 * np.log10(magnitude[nonzero] / peak), dtype=self.real_dtype
-            )
-        source_valid = relative_db >= self.source_floor_db
-        defined = magnitude > np.finfo(self.real_dtype).eps * peak
-        valid = np.asarray(source_valid & defined & self.mesh_valid, dtype=bool)
-
+        source_valid = np.zeros(self.frequencies.shape, dtype=bool)
+        valid = np.asarray(self.mesh_valid, dtype=bool).copy()
         scale = np.full(self.frequencies.shape, np.nan + 1j * np.nan, dtype=self.complex_dtype)
         normalising_power = np.full(self.frequencies.shape, np.nan, dtype=self.real_dtype)
-        if self.normalisation == "waveform":
-            np.divide(
-                self.target_amplitude,
-                source_spectrum,
-                out=scale,
-                where=defined,
+        incident_power = np.full(self.frequencies.shape, np.nan, dtype=self.real_dtype)
+        incident_flux = np.full(self.frequencies.shape, np.nan, dtype=self.real_dtype)
+        if self.normalisation in ("waveform", "current_moment", "incident_flux"):
+            source_dt = getattr(self, "_source_dt", self.grid_dt)
+            source_window = getattr(self, "_source_window", self.window)
+            source_spectrum = np.asarray(
+                engineering_dft(
+                    self._source_samples,
+                    self.frequencies,
+                    source_dt,
+                    window=source_window,
+                ),
+                dtype=self.complex_dtype,
             )
+            magnitude = np.abs(source_spectrum)
+            peak = float(np.max(magnitude, initial=0.0))
+            if peak > 0:
+                nonzero = magnitude > 0
+                relative_db[nonzero] = np.asarray(
+                    20 * np.log10(magnitude[nonzero] / peak), dtype=self.real_dtype
+                )
+            source_valid = relative_db >= self.source_floor_db
+            defined = magnitude > np.finfo(self.real_dtype).eps * peak
+            valid &= source_valid & defined
+            denominator = source_spectrum
+            if self.normalisation == "current_moment":
+                denominator = source_spectrum * self._source_length
+            if self.normalisation == "incident_flux":
+                material = self._source.material
+                epsilon_r = _material_relative_permittivity(material, self.frequencies)
+                omega = 2 * np.pi * self.frequencies
+                mu_r = material.mr + material.sm / (1j * omega * config.sim_config.em_consts["m0"])
+                impedance = np.sqrt(
+                    config.sim_config.em_consts["m0"]
+                    * mu_r
+                    / (config.sim_config.em_consts["e0"] * epsilon_r)
+                )
+                wave_admittance = np.real(1 / impedance)
+                incident_flux = np.asarray(
+                    0.5 * magnitude**2 * wave_admittance, dtype=self.real_dtype
+                )
+                flux_peak = float(np.max(incident_flux, initial=0.0))
+                flux_defined = (
+                    defined
+                    & np.isfinite(incident_flux)
+                    & (wave_admittance > 0)
+                    & (incident_flux > np.finfo(self.real_dtype).eps * flux_peak)
+                )
+                valid &= flux_defined
+                scale[flux_defined] = np.sqrt(
+                    self.target_flux / incident_flux[flux_defined]
+                ).astype(self.complex_dtype)
+            else:
+                np.divide(
+                    self.target_amplitude,
+                    denominator,
+                    out=scale,
+                    where=defined,
+                )
         else:
             if getattr(self, "model", None) is None:
                 registry = port_output_registry(self.grid)
@@ -808,11 +1043,24 @@ class SARMonitor:
             spectrum = evaluate_port_power_spectrum(
                 output, port_grid, self.frequencies, window=self.window_name
             )
+            incident_power = np.asarray(spectrum.incident_power, dtype=self.real_dtype)
             normalising_power = np.asarray(
-                spectrum.incident_power
+                incident_power
                 if self.normalisation == "incident_power"
                 else spectrum.accepted_power,
                 dtype=self.real_dtype,
+            )
+            positive_incident = np.isfinite(incident_power) & (incident_power > 0)
+            incident_peak = float(np.max(incident_power[positive_incident], initial=0.0))
+            if incident_peak > 0:
+                relative_db[positive_incident] = np.asarray(
+                    10 * np.log10(incident_power[positive_incident] / incident_peak),
+                    dtype=self.real_dtype,
+                )
+            source_valid = (
+                np.asarray(spectrum.terminal_valid, dtype=bool)
+                & positive_incident
+                & (relative_db >= self.source_floor_db)
             )
             power_peak = float(np.max(np.abs(normalising_power), initial=0.0))
             power_defined = (
@@ -821,11 +1069,20 @@ class SARMonitor:
                 & np.isfinite(normalising_power)
                 & (normalising_power > np.finfo(self.real_dtype).eps * power_peak)
             )
-            valid &= power_defined
+            valid &= source_valid & power_defined
             scale[power_defined] = np.sqrt(
                 self.target_power / normalising_power[power_defined]
             ).astype(self.complex_dtype)
-        return source_spectrum, relative_db, source_valid, valid, scale, normalising_power
+        return (
+            source_spectrum,
+            relative_db,
+            source_valid,
+            valid,
+            scale,
+            normalising_power,
+            incident_power,
+            incident_flux,
+        )
 
     def _finalise_payload(
         self, payload: SARLocalPayload, grid_shape: tuple[int, int, int]
@@ -837,6 +1094,8 @@ class SARMonitor:
             valid,
             scale,
             normalising_power,
+            incident_power,
+            incident_flux,
         ) = self._normalisation_data()
         absorbed = np.asarray(
             payload.absorbed_power_density * np.abs(scale[:, np.newaxis]) ** 2,
@@ -901,6 +1160,8 @@ class SARMonitor:
             source_spectrum=source_spectrum,
             source_relative_db=relative_db,
             source_valid=np.asarray(source_valid, dtype=bool),
+            incident_power=incident_power,
+            incident_flux=incident_flux,
             mesh_valid=np.asarray(self.mesh_valid, dtype=bool),
             valid=valid,
             cells_per_wavelength=np.asarray(self.cells_per_wavelength, dtype=self.real_dtype),
@@ -927,10 +1188,11 @@ class SARMonitor:
 
         if not self._mpi_distributed:
             raise RuntimeError("finalise_mpi requires an MPI SAR monitor")
-        self._source_samples, self._source_dt = self._build_source_samples()
-        self._source_window = _window(
-            self.window_name, self._source_samples.size, np.dtype(np.float64)
-        )
+        if self.normalisation in ("waveform", "current_moment", "incident_flux"):
+            self._source_samples, self._source_dt = self._build_source_samples()
+            self._source_window = _window(
+                self.window_name, self._source_samples.size, np.dtype(np.float64)
+            )
         payload = self.merge_local_payloads(payloads)
         payload = self._collocate_mpi_payload(payload, global_shape)
         self.excluded_pml_cell_count = payload.excluded_pml_cell_count
@@ -949,18 +1211,46 @@ class SARMonitor:
         group.attrs["Units"] = "W/kg"
         group.attrs["AbsorbedPowerDensityUnits"] = "W/m3"
         group.attrs["DensityUnits"] = "kg/m3"
-        group.attrs["WaveformID"] = self.waveform_id
+        group.attrs["Dimensionality"] = 2 if self.mode2d is not None else 3
+        group.attrs["ModelMode"] = self.model_mode
+        if self.mode2d is not None:
+            group.attrs["Polarisation"] = self.mode2d.polarisation
+            group.attrs["InvariantAxis"] = self.mode2d.invariant_axis_name
+            group.attrs["LiveInvariantIndex"] = self.mode2d.live_index
+            group.attrs["IntegrationMeasure"] = "per_unit_invariant_length"
+        else:
+            group.attrs["IntegrationMeasure"] = "volume"
+        if self.waveform_id is not None:
+            group.attrs["WaveformID"] = self.waveform_id
         group.attrs["TargetAmplitude"] = self.target_amplitude
         group.attrs["Normalisation"] = self.normalisation
         if self.normalisation == "waveform":
             group.attrs["NormalisationDefinition"] = "field_dft / waveform_dft * target_amplitude"
+            group.attrs["SourceType"] = self._source_type
+            group.attrs["SourceQuantity"] = self._source_quantity
+            group.attrs["TargetAmplitudeUnits"] = self._source_units
+        elif self.normalisation == "current_moment":
+            group.attrs[
+                "NormalisationDefinition"
+            ] = "field_dft / (waveform_dft * source_length) * target_current_moment"
+            group.attrs["SourceType"] = self._source_type
+            group.attrs["SourceLength"] = self._source_length
+            group.attrs["SourceLengthUnits"] = "m"
+            group.attrs["TargetAmplitudeUnits"] = "A m"
+        elif self.normalisation == "incident_flux":
+            group.attrs[
+                "NormalisationDefinition"
+            ] = "field_dft * sqrt(target_flux / incident_plane_wave_flux)"
+            group.attrs["SourceType"] = self._source_type
+            group.attrs["TargetFlux"] = self.target_flux
+            group.attrs["TargetFluxUnits"] = "W/m2"
         else:
             group.attrs[
                 "NormalisationDefinition"
             ] = f"field_dft * sqrt(target_power / {self.normalisation})"
             group.attrs["PortID"] = self.port_id
             group.attrs["TargetPower"] = self.target_power
-            group.attrs["TargetPowerUnits"] = "W"
+            group.attrs["TargetPowerUnits"] = "W/m" if self.mode2d is not None else "W"
         group.attrs["PhasorAmplitude"] = "peak"
         group.attrs["PhasorTimeDependence"] = PHASOR_TIME_DEPENDENCE
         group.attrs["ForwardTransformKernel"] = FORWARD_TRANSFORM_KERNEL
@@ -971,14 +1261,20 @@ class SARMonitor:
         group.attrs["CellIndexFrame"] = self.cell_index_frame
         group.attrs["CellIndexOrigin"] = self.cell_index_origin
         group.attrs["CellIndexOriginUnits"] = "m"
-        group.attrs["CellCentreOffset"] = np.asarray(self.grid_spacing) / 2
+        centre_offset = np.asarray(self.grid_spacing) / 2
+        if self.mode2d is not None and self.mode2d.polarisation == "TE":
+            centre_offset[self.mode2d.invariant_axis] = 0
+        group.attrs["CellCentreOffset"] = centre_offset
         group.attrs["CellCentreOffsetUnits"] = "m"
         group.attrs["SourceFloorDB"] = self.source_floor_db
         group.attrs["SpectrumLimitMode"] = self.spectrum_limit_mode
         group.attrs["MinimumWavelengthCells"] = self.minimum_wavelength_cells
-        group.attrs[
-            "FieldCollocation"
-        ] = "complex arithmetic mean of four parallel Yee edges per component"
+        group.attrs["ActiveElectricComponents"] = np.asarray(tuple(self.edge_offsets), dtype="S")
+        group.attrs["FieldCollocation"] = (
+            "complex arithmetic mean of four parallel Yee edges per component"
+            if self.mode2d is None or self.mode2d.polarisation == "TM"
+            else "complex arithmetic mean of two tangential Yee edges per active component"
+        )
         group.attrs["TagNames"] = np.asarray(self.tag_names, dtype="S")
         group["frequency"] = result.frequency
         group["cell_indices"] = result.cell_indices
@@ -988,6 +1284,11 @@ class SARMonitor:
         group["source_spectrum"] = result.source_spectrum
         group["source_relative_db"] = result.source_relative_db
         group["source_valid"] = result.source_valid.astype(np.uint8)
+        group["incident_power"] = result.incident_power
+        group["incident_flux"] = result.incident_flux
+        group.attrs["IncidentPowerUnits"] = "W/m" if self.mode2d is not None else "W"
+        group.attrs["IncidentFluxUnits"] = "W/m2"
+        group.attrs["NormalisingPowerUnits"] = "W/m" if self.mode2d is not None else "W"
         group["normalisation_scale"] = result.normalisation_scale
         group["normalising_power"] = result.normalising_power
         group["mesh_valid"] = result.mesh_valid.astype(np.uint8)
@@ -1024,17 +1325,24 @@ class SARMonitor:
         summaries = group.create_group("tags")
         for name, tag_id in zip(self.tag_names, self.tag_ids):
             selection = result.tag_id == tag_id
-            mass = float(np.sum(result.density[selection]) * self.cell_volume)
+            mass = float(np.sum(result.density[selection]) * self.cell_measure)
             absorbed_power = np.asarray(
-                np.nansum(result.absorbed_power_density[:, selection], axis=1) * self.cell_volume,
+                np.nansum(result.absorbed_power_density[:, selection], axis=1) * self.cell_measure,
                 dtype=self.real_dtype,
             )
             tag_group = summaries.create_group(name)
             tag_group.attrs["TagID"] = int(tag_id)
             tag_group.attrs["CellCount"] = int(np.count_nonzero(selection))
-            tag_group.attrs["Mass"] = mass
-            tag_group.attrs["MassUnits"] = "kg"
-            tag_group["absorbed_power"] = absorbed_power
+            if self.mode2d is None:
+                tag_group.attrs["Mass"] = mass
+                tag_group.attrs["MassUnits"] = "kg"
+                tag_group["absorbed_power"] = absorbed_power
+                tag_group.attrs["AbsorbedPowerUnits"] = "W"
+            else:
+                tag_group.attrs["MassPerLength"] = mass
+                tag_group.attrs["MassPerLengthUnits"] = "kg/m"
+                tag_group["absorbed_power_per_length"] = absorbed_power
+                tag_group.attrs["AbsorbedPowerPerLengthUnits"] = "W/m"
             tag_group["mass_average_sar"] = absorbed_power / mass
             peak_sar = np.full(result.frequency.shape, np.nan, dtype=self.real_dtype)
             for frequency_index in np.flatnonzero(result.valid):
@@ -1042,6 +1350,206 @@ class SARMonitor:
                     result.sar[frequency_index, selection], initial=0.0
                 )
             tag_group["peak_voxel_sar"] = peak_sar
+
+
+class RadiometryMonitor(SARMonitor):
+    """Sparse frequency-domain absorbed-power and radiometric weighting output."""
+
+    schema_version = 1
+
+    def __init__(self, grid: "FDTDGrid", **kwargs) -> None:
+        super().__init__(
+            grid,
+            averaging_masses=(),
+            require_density=False,
+            **kwargs,
+        )
+
+    def _finalise_payload(
+        self, payload: SARLocalPayload, grid_shape: tuple[int, int, int]
+    ) -> RadiometryResult:
+        del grid_shape
+        (
+            source_spectrum,
+            relative_db,
+            source_valid,
+            valid,
+            scale,
+            normalising_power,
+            incident_power,
+            incident_flux,
+        ) = self._normalisation_data()
+        absorbed = np.asarray(
+            payload.absorbed_power_density * np.abs(scale[:, np.newaxis]) ** 2,
+            dtype=self.real_dtype,
+        )
+        if self.normalisation in ("incident_power", "accepted_power"):
+            reference = float(self.target_power)
+        elif self.normalisation == "incident_flux":
+            reference = float(self.target_flux)
+        else:
+            reference = float(self.target_amplitude) ** 2
+        normalised = np.asarray(absorbed / reference, dtype=self.real_dtype)
+        absorbed[~valid, :] = np.nan
+        normalised[~valid, :] = np.nan
+        self.result = RadiometryResult(
+            frequency=np.asarray(self.frequencies, dtype=self.real_dtype),
+            cell_indices=payload.cell_indices.copy(),
+            tag_id=payload.tag_id.copy(),
+            material_id=payload.material_id.copy(),
+            source_spectrum=source_spectrum,
+            source_relative_db=relative_db,
+            source_valid=np.asarray(source_valid, dtype=bool),
+            incident_power=incident_power,
+            incident_flux=incident_flux,
+            mesh_valid=np.asarray(self.mesh_valid, dtype=bool),
+            valid=valid,
+            cells_per_wavelength=np.asarray(self.cells_per_wavelength, dtype=self.real_dtype),
+            limiting_material=self.limiting_material.copy(),
+            absorbed_power_density=absorbed,
+            normalised_absorption_density=normalised,
+            normalisation_scale=scale,
+            normalising_power=normalising_power,
+        )
+        return self.result
+
+    def write_hdf5(self, basegrp) -> None:
+        if self.result is None:
+            self.finalise()
+        result = self.result
+        group = basegrp.create_group(f"radiometry/{self.output_id}")
+        group.attrs["SchemaVersion"] = self.schema_version
+        group.attrs["Quantity"] = "frequency-domain radiometric absorption weighting"
+        group.attrs["AbsorbedPowerDensityUnits"] = "W/m3"
+        group.attrs["Dimensionality"] = 2 if self.mode2d is not None else 3
+        group.attrs["ModelMode"] = self.model_mode
+        if self.mode2d is not None:
+            group.attrs["Polarisation"] = self.mode2d.polarisation
+            group.attrs["InvariantAxis"] = self.mode2d.invariant_axis_name
+            group.attrs["LiveInvariantIndex"] = self.mode2d.live_index
+            group.attrs["IntegrationMeasure"] = "per_unit_invariant_length"
+        else:
+            group.attrs["IntegrationMeasure"] = "volume"
+        if self.waveform_id is not None:
+            group.attrs["WaveformID"] = self.waveform_id
+        group.attrs["TargetAmplitude"] = self.target_amplitude
+        group.attrs["Normalisation"] = self.normalisation
+        if self.normalisation == "waveform":
+            group.attrs["NormalisationDefinition"] = "field_dft / waveform_dft * target_amplitude"
+            group.attrs["SourceType"] = self._source_type
+            group.attrs["SourceQuantity"] = self._source_quantity
+            group.attrs["TargetAmplitudeUnits"] = self._source_units
+            group.attrs[
+                "NormalisedAbsorptionMeaning"
+            ] = "absorbed power per squared source-native amplitude"
+        elif self.normalisation == "current_moment":
+            group.attrs[
+                "NormalisationDefinition"
+            ] = "field_dft / (waveform_dft * source_length) * target_current_moment"
+            group.attrs["SourceType"] = self._source_type
+            group.attrs["SourceLength"] = self._source_length
+            group.attrs["SourceLengthUnits"] = "m"
+            group.attrs["TargetAmplitudeUnits"] = "A m"
+            group.attrs[
+                "NormalisedAbsorptionMeaning"
+            ] = "absorbed power per squared electric-current moment"
+        elif self.normalisation == "incident_flux":
+            group.attrs[
+                "NormalisationDefinition"
+            ] = "field_dft * sqrt(target_flux / incident_plane_wave_flux)"
+            group.attrs["SourceType"] = self._source_type
+            group.attrs["TargetFlux"] = self.target_flux
+            group.attrs["TargetFluxUnits"] = "W/m2"
+            group.attrs["NormalisedAbsorptionMeaning"] = "absorption cross-section density"
+        else:
+            group.attrs[
+                "NormalisationDefinition"
+            ] = f"field_dft * sqrt(target_power / {self.normalisation})"
+            group.attrs["PortID"] = self.port_id
+            group.attrs["TargetPower"] = self.target_power
+            group.attrs["TargetPowerUnits"] = "W/m" if self.mode2d is not None else "W"
+            group.attrs["NormalisedAbsorptionMeaning"] = "absorbed-power fraction density"
+        if self.normalisation in ("incident_power", "accepted_power"):
+            normalised_units = "1/m2" if self.mode2d is not None else "1/m3"
+            integrated_units = "1"
+        elif self.normalisation == "incident_flux":
+            normalised_units = "1/m"
+            integrated_units = "m" if self.mode2d is not None else "m2"
+        else:
+            invariant = "/m" if self.mode2d is not None else ""
+            normalised_units = f"W/m3/({self._source_units})2"
+            integrated_units = f"W{invariant}/({self._source_units})2"
+        group.attrs["NormalisedAbsorptionDensityUnits"] = normalised_units
+        group.attrs["IntegratedNormalisedAbsorptionUnits"] = integrated_units
+        group.attrs["PhasorAmplitude"] = "peak"
+        group.attrs["PhasorTimeDependence"] = PHASOR_TIME_DEPENDENCE
+        group.attrs["ForwardTransformKernel"] = FORWARD_TRANSFORM_KERNEL
+        group.attrs["Window"] = self.window_name
+        group.attrs["CollectionBackend"] = self.collection_backend
+        group.attrs["PMLCellPolicy"] = "excluded"
+        group.attrs["ExcludedPMLCellCount"] = self.excluded_pml_cell_count
+        group.attrs["CellIndexFrame"] = self.cell_index_frame
+        group.attrs["CellIndexOrigin"] = self.cell_index_origin
+        group.attrs["CellIndexOriginUnits"] = "m"
+        centre_offset = np.asarray(self.grid_spacing) / 2
+        if self.mode2d is not None and self.mode2d.polarisation == "TE":
+            centre_offset[self.mode2d.invariant_axis] = 0
+        group.attrs["CellCentreOffset"] = centre_offset
+        group.attrs["CellCentreOffsetUnits"] = "m"
+        group.attrs["SourceFloorDB"] = self.source_floor_db
+        group.attrs["SpectrumLimitMode"] = self.spectrum_limit_mode
+        group.attrs["MinimumWavelengthCells"] = self.minimum_wavelength_cells
+        group.attrs["ActiveElectricComponents"] = np.asarray(tuple(self.edge_offsets), dtype="S")
+        group.attrs["TagNames"] = np.asarray(self.tag_names, dtype="S")
+        group["frequency"] = result.frequency
+        group["cell_indices"] = result.cell_indices
+        group["tag_id"] = result.tag_id
+        group["material_id"] = result.material_id
+        group["source_spectrum"] = result.source_spectrum
+        group["source_relative_db"] = result.source_relative_db
+        group["source_valid"] = result.source_valid.astype(np.uint8)
+        group["incident_power"] = result.incident_power
+        group["incident_flux"] = result.incident_flux
+        group.attrs["IncidentPowerUnits"] = "W/m" if self.mode2d is not None else "W"
+        group.attrs["IncidentFluxUnits"] = "W/m2"
+        group.attrs["NormalisingPowerUnits"] = "W/m" if self.mode2d is not None else "W"
+        group["normalisation_scale"] = result.normalisation_scale
+        group["normalising_power"] = result.normalising_power
+        group["mesh_valid"] = result.mesh_valid.astype(np.uint8)
+        group["valid"] = result.valid.astype(np.uint8)
+        group["cells_per_wavelength"] = result.cells_per_wavelength
+        string_dtype = h5py.string_dtype(encoding="utf-8")
+        group.create_dataset(
+            "limiting_material",
+            data=np.asarray(result.limiting_material, dtype=object),
+            dtype=string_dtype,
+        )
+        group["absorbed_power_density"] = result.absorbed_power_density
+        group["normalised_absorption_density"] = result.normalised_absorption_density
+
+        summaries = group.create_group("tags")
+        for name, tag_id in zip(self.tag_names, self.tag_ids):
+            selection = result.tag_id == tag_id
+            absorbed_power = np.asarray(
+                np.nansum(result.absorbed_power_density[:, selection], axis=1) * self.cell_measure,
+                dtype=self.real_dtype,
+            )
+            integrated = np.asarray(
+                np.nansum(result.normalised_absorption_density[:, selection], axis=1)
+                * self.cell_measure,
+                dtype=self.real_dtype,
+            )
+            tag_group = summaries.create_group(name)
+            tag_group.attrs["TagID"] = int(tag_id)
+            tag_group.attrs["CellCount"] = int(np.count_nonzero(selection))
+            if self.mode2d is None:
+                tag_group["absorbed_power"] = absorbed_power
+                tag_group.attrs["AbsorbedPowerUnits"] = "W"
+            else:
+                tag_group["absorbed_power_per_length"] = absorbed_power
+                tag_group.attrs["AbsorbedPowerPerLengthUnits"] = "W/m"
+            tag_group["normalised_absorption"] = integrated
+            tag_group.attrs["NormalisedAbsorptionUnits"] = integrated_units
 
 
 def compile_sar_outputs(grid: "FDTDGrid", *, model: "Model | None" = None) -> None:
@@ -1064,6 +1572,27 @@ def compile_sar_outputs(grid: "FDTDGrid", *, model: "Model | None" = None) -> No
             normalisation=spec.normalisation,
             port_id=spec.port_id,
             target_power=spec.target_power,
+            target_flux=spec.target_flux,
+            model=model,
+        )
+        grid.sar_monitors.append(monitor)
+        if spec.owner is not None:
+            spec.owner._monitor = monitor
+    for spec in getattr(grid, "radiometry_specs", ()):
+        monitor = RadiometryMonitor(
+            grid,
+            output_id=spec.output_id,
+            frequencies=spec.frequencies,
+            tags=spec.tags,
+            waveform_id=spec.waveform_id,
+            target_amplitude=spec.target_amplitude,
+            spectrum_limit=spec.spectrum_limit,
+            source_floor_db=spec.source_floor_db,
+            window=spec.window,
+            normalisation=spec.normalisation,
+            port_id=spec.port_id,
+            target_power=spec.target_power,
+            target_flux=spec.target_flux,
             model=model,
         )
         grid.sar_monitors.append(monitor)

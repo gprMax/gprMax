@@ -25,6 +25,7 @@ import numpy.typing as npt
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.mode2d import mode2d_geometry
 from gprMax.model import Model
 from gprMax.ntff.evaluator import spherical_observation_points
 from gprMax.ntff.frequency_domain import validate_nyquist_frequencies
@@ -55,7 +56,7 @@ from gprMax.ports import (
     validate_spectrum_limit,
 )
 from gprMax.receivers import Rx as RxUser
-from gprMax.sar import SARSpec
+from gprMax.sar import RadiometrySpec, SARSpec
 from gprMax.snapshots import Snapshot as SnapshotUser
 from gprMax.sources import MagneticFrillSource
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -150,7 +151,10 @@ class RxPort(OutputUserObject):
     def _validate_context(self, grid):
         if config.sim_config.args.geometry_fixed and getattr(
             config.sim_config.study, "type", None
-        ) not in ("port", "source"):
+        ) not in (
+            "port",
+            "source",
+        ):
             raise ValueError(
                 f"{self.params_str()} does not support geometry-fixed runs outside a "
                 "PortStudy or SourceStudy."
@@ -408,11 +412,16 @@ class SAR(OutputUserObject):
 
     The electric fields are transformed on the fly at the requested
     frequencies. Results are normalised to ``target_amplitude`` using the
-    spectrum of exactly one active source associated with ``waveform_id``.
+    spectrum of exactly one active source associated with ``waveform_id``, or
+    to incident/accepted power from ``port_id``. Port-power normalisation does
+    not require a waveform ID because the physical port result supplies its
+    own spectral support and validity.
 
     Args:
         frequencies: Strictly increasing positive frequencies in Hz.
-        waveform_id: Waveform attached to the normalising source.
+        waveform_id: Waveform attached to a source-normalised excitation.
+            Required for ``"waveform"`` and ``"current_moment"``; optional
+            and unused for port-power normalisation.
         tags: Geometry tag string or iterable of tag strings.
         id: Unique HDF5 output identifier.
         target_amplitude: Peak phasor amplitude represented by the normalised
@@ -425,11 +434,14 @@ class SAR(OutputUserObject):
         averaging_masses: Optional spatial averaging masses in kg. The
             default empty tuple writes local cell SAR only. For example,
             ``(0.001, 0.01)`` requests the standard 1 g and 10 g results.
-        normalisation: ``"waveform"`` (default), ``"incident_power"``, or
-            ``"accepted_power"``.
+        normalisation: ``"waveform"`` (default), ``"current_moment"`` for a
+            3-D Hertzian dipole, ``"incident_flux"`` for a discrete plane
+            wave, ``"incident_power"``, or ``"accepted_power"``.
         port_id: Required for either power normalisation.
-        target_power: Required positive power in watts for either power
-            normalisation.
+        target_power: Required positive power for either power normalisation;
+            watts in 3-D and watts per metre in 2-D.
+        target_flux: Required positive incident plane-wave power flux in
+            W/m2 for ``"incident_flux"`` normalisation.
     """
 
     @property
@@ -443,8 +455,8 @@ class SAR(OutputUserObject):
     def __init__(
         self,
         frequencies,
-        waveform_id: str,
-        tags,
+        waveform_id: str | None = None,
+        tags=None,
         id: str = "sar1",
         target_amplitude: float = 1.0,
         spectrum_limit=DEFAULT_MINIMUM_WAVELENGTH_CELLS,
@@ -454,8 +466,11 @@ class SAR(OutputUserObject):
         normalisation: str = "waveform",
         port_id: str | None = None,
         target_power: float | None = None,
+        target_flux: float | None = None,
     ):
-        if isinstance(tags, str):
+        if tags is None:
+            tags = ()
+        elif isinstance(tags, str):
             tags = (tags,)
         else:
             tags = tuple(tags)
@@ -472,9 +487,10 @@ class SAR(OutputUserObject):
             normalisation=normalisation,
             port_id=port_id,
             target_power=target_power,
+            target_flux=target_flux,
         )
         self.frequencies = frequencies
-        self.waveform_id = str(waveform_id)
+        self.waveform_id = None if waveform_id is None else str(waveform_id)
         self.tags = tags
         self.ID = str(id)
         self.target_amplitude = target_amplitude
@@ -485,6 +501,7 @@ class SAR(OutputUserObject):
         self.normalisation = str(normalisation)
         self.port_id = port_id
         self.target_power = target_power
+        self.target_flux = target_flux
         self._monitor = None
 
     @property
@@ -496,8 +513,12 @@ class SAR(OutputUserObject):
     def build(self, model: Model, grid: FDTDGrid):
         if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
             raise ValueError(f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers")
-        if config.get_model_config().mode != "3D":
-            raise ValueError(f"{self.params_str()} currently requires a 3-D model")
+        geometry = mode2d_geometry(config.get_model_config().mode)
+        if geometry is not None and self.averaging_masses:
+            raise ValueError(
+                f"{self.params_str()} spatial mass averaging is not yet available in 2-D; "
+                "omit averaging_masses to request local and tag-average SAR"
+            )
         validate_identifier("SAR output ID", self.ID)
         if any(spec.output_id == self.ID for spec in grid.sar_specs):
             raise ValueError(f"{self.params_str()} output ID is already in use")
@@ -521,11 +542,142 @@ class SAR(OutputUserObject):
                 normalisation=self.normalisation,
                 port_id=self.port_id,
                 target_power=self.target_power,
+                target_flux=self.target_flux,
                 owner=self,
             )
         )
         logger.info(
             f"{self.grid_name(grid)}SAR output {self.ID!r} registered for "
+            f"{len(frequencies)} frequency/frequencies and tag(s) {self.tags}"
+        )
+
+
+class Radiometry(OutputUserObject):
+    """Request absorbed-power and radiometric weighting over geometry tags.
+
+    The field collection, source normalisation, material-loss formulation,
+    PML exclusion, and mesh-validity policy are identical to :class:`SAR`.
+    Density is not required and no mass-based quantity is calculated.
+
+    ``normalisation`` may be ``"waveform"``, ``"current_moment"`` for a
+    3-D Hertzian dipole, ``"incident_flux"`` for a discrete plane wave, or
+    ``"incident_power"``/``"accepted_power"`` for a physical port. The
+    output includes absorbed-power density and its normalised weighting:
+    absorbed-power fraction density for port power, absorption cross-section
+    density for plane-wave flux, or absorbed power per squared native source
+    amplitude for a portless local source.
+
+    Args:
+        frequencies: Strictly increasing positive frequencies in Hz.
+        tags: Geometry tag string or iterable of tag strings.
+        waveform_id: Required for waveform, current-moment, and incident-flux
+            normalisation; unused for port-power normalisation.
+        id: Unique HDF5 output identifier.
+        target_amplitude: Positive native source amplitude for waveform or
+            current-moment normalisation.
+        spectrum_limit: Minimum cells per shortest material wavelength, or
+            ``"nyquist"`` for explicit research output.
+        source_floor_db: Source-support validity threshold in dB.
+        window: ``"rectangular"`` or ``"hann"``.
+        normalisation: One of the modes described above.
+        port_id: Required for incident- or accepted-power normalisation.
+        target_power: Required positive W (3-D) or W/m (2-D) for port power.
+        target_flux: Required positive W/m2 for plane-wave incident flux.
+    """
+
+    @property
+    def order(self):
+        return 16
+
+    @property
+    def hash(self):
+        return "#radiometry"
+
+    def __init__(
+        self,
+        frequencies,
+        tags=None,
+        waveform_id: str | None = None,
+        id: str = "radiometry1",
+        target_amplitude: float = 1.0,
+        spectrum_limit=DEFAULT_MINIMUM_WAVELENGTH_CELLS,
+        source_floor_db: float = DEFAULT_INCIDENT_FLOOR_DB,
+        window: str = "rectangular",
+        normalisation: str = "waveform",
+        port_id: str | None = None,
+        target_power: float | None = None,
+        target_flux: float | None = None,
+    ):
+        if tags is None:
+            tags = ()
+        elif isinstance(tags, str):
+            tags = (tags,)
+        else:
+            tags = tuple(tags)
+        super().__init__(
+            frequencies=frequencies,
+            tags=tags,
+            waveform_id=waveform_id,
+            id=id,
+            target_amplitude=target_amplitude,
+            spectrum_limit=spectrum_limit,
+            source_floor_db=source_floor_db,
+            window=window,
+            normalisation=normalisation,
+            port_id=port_id,
+            target_power=target_power,
+            target_flux=target_flux,
+        )
+        self.frequencies = frequencies
+        self.tags = tags
+        self.waveform_id = None if waveform_id is None else str(waveform_id)
+        self.ID = str(id)
+        self.target_amplitude = target_amplitude
+        self.spectrum_limit = spectrum_limit
+        self.source_floor_db = source_floor_db
+        self.window = window
+        self.normalisation = str(normalisation)
+        self.port_id = port_id
+        self.target_power = target_power
+        self.target_flux = target_flux
+        self._monitor = None
+
+    @property
+    def result(self):
+        if self._monitor is None or self._monitor.result is None:
+            raise RuntimeError("Radiometry result is not available until the model has solved")
+        return self._monitor.result
+
+    def build(self, model: Model, grid: FDTDGrid):
+        if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
+            raise ValueError(f"{self.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers")
+        validate_identifier("radiometry output ID", self.ID)
+        if any(spec.output_id == self.ID for spec in grid.radiometry_specs):
+            raise ValueError(f"{self.params_str()} output ID is already in use")
+        frequencies = np.asarray(self.frequencies, dtype=np.float64)
+        if frequencies.ndim == 0:
+            frequencies = frequencies.reshape(1)
+        if frequencies.ndim != 1 or frequencies.size == 0:
+            raise ValueError(f"{self.params_str()} frequencies must be a non-empty 1-D array")
+        grid.radiometry_specs.append(
+            RadiometrySpec(
+                output_id=self.ID,
+                frequencies=tuple(float(value) for value in frequencies),
+                tags=tuple(str(tag) for tag in self.tags),
+                waveform_id=self.waveform_id,
+                target_amplitude=float(self.target_amplitude),
+                spectrum_limit=validate_spectrum_limit(self.spectrum_limit),
+                source_floor_db=float(self.source_floor_db),
+                window=str(self.window),
+                normalisation=self.normalisation,
+                port_id=self.port_id,
+                target_power=self.target_power,
+                target_flux=self.target_flux,
+                owner=self,
+            )
+        )
+        logger.info(
+            f"{self.grid_name(grid)}Radiometry output {self.ID!r} registered for "
             f"{len(frequencies)} frequency/frequencies and tag(s) {self.tags}"
         )
 
@@ -605,6 +757,21 @@ class Snapshot(OutputUserObject):
         discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(
             self.lower_bound, self.upper_bound, self.params_str()
         )
+        geometry = mode2d_geometry(config.get_model_config().mode)
+        if geometry is not None:
+            axis = geometry.invariant_axis
+            live = geometry.live_index
+            if discretised_lower_bound[axis] > live or discretised_upper_bound[axis] <= live:
+                axis_name = geometry.invariant_axis_name
+                raise ValueError(
+                    f"{self.params_str()} in {geometry.mode} mode must include the live "
+                    f"{axis_name}-index {live}"
+                )
+            # A 2-D snapshot is one physical field plane. TM uses index zero;
+            # TE uses the central live plane at index one. The second TE cell
+            # exists only to preserve the three-dimensional Yee staggering.
+            discretised_lower_bound[axis] = live
+            discretised_upper_bound[axis] = live + 1
         discretised_dl = uip.discretise_static_point(self.dl)
 
         snapshot_size = discretised_upper_bound - discretised_lower_bound
@@ -738,8 +905,8 @@ class Snapshot(OutputUserObject):
         )
 
         if snapshot is not None:
-            p1 = uip.round_to_grid_static_point(self.lower_bound)
-            p2 = uip.round_to_grid_static_point(self.upper_bound)
+            p1 = discretised_lower_bound * grid.dl
+            p2 = discretised_upper_bound * grid.dl
             dl = uip.round_to_grid_static_point(self.dl)
 
             logger.info(

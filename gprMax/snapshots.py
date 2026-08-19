@@ -36,6 +36,7 @@ from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
+from .mode2d import mode2d_geometry
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -104,15 +105,10 @@ def _snapshot_axis_strides():
     (genuine) index, i.e. (X + X) / n = X - no averaging, just the real
     value - instead of a special-cased branch per component.
     """
-    mode = config.get_model_config().mode
-    if "2D TE" not in mode:
+    geometry = mode2d_geometry(config.get_model_config().mode)
+    if geometry is None:
         return 1, 1, 1
-    invariant_axis = mode[-1]
-    return (
-        0 if invariant_axis == "x" else 1,
-        0 if invariant_axis == "y" else 1,
-        0 if invariant_axis == "z" else 1,
-    )
+    return geometry.collocation_strides
 
 
 class Snapshot(Generic[GridType]):
@@ -223,7 +219,7 @@ class Snapshot(Generic[GridType]):
     @property
     def nz(self) -> int:
         return self.grid_view.nz
-    
+
     @property
     def dx(self) -> int:
         return self.grid_view.dx
@@ -353,7 +349,15 @@ class Snapshot(Generic[GridType]):
 
         if isinstance(self.grid, SubGridBaseGrid):
             return self.grid.local_to_global(self.grid_view.start)
-        return self.grid_view.start * self.grid.dl
+        origin = np.asarray(self.grid_view.start * self.grid.dl, dtype=np.float64)
+        geometry = mode2d_geometry(config.get_model_config().mode)
+        if geometry is not None and geometry.polarisation == "TE":
+            # VTK/HDF5 store cell data, so their origin is the lower vertex of
+            # the output cell.  The genuine TE fields live on the central
+            # invariant plane at index one; move the one-cell output extent
+            # back by half a cell so its cell centre lies on that plane.
+            origin[geometry.invariant_axis] -= 0.5 * self.grid.dl[geometry.invariant_axis]
+        return origin
 
 
 class MPISnapshot(Snapshot[MPIGrid]):
@@ -737,11 +741,11 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
         snapHx_dev = clarray.to_device(queue, snapHx)
         snapHy_dev = clarray.to_device(queue, snapHy)
         snapHz_dev = clarray.to_device(queue, snapHz)
-    
+
     elif config.sim_config.general["solver"] == "metal":
         # Metal doesn't use a queue parameter, need to get device from config
         dev = config.get_model_config().device["dev"]
-        
+
         snapEx_dev = dev.newBufferWithBytes_length_options_(snapEx, snapEx.nbytes, 0)
         snapEy_dev = dev.newBufferWithBytes_length_options_(snapEy, snapEy.nbytes, 0)
         snapEz_dev = dev.newBufferWithBytes_length_options_(snapEz, snapEz.nbytes, 0)

@@ -34,8 +34,9 @@ The output file has the following HDF5 attributes at the root (``/``):
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
 (``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
-voltage-source ports (``ports``), and KSIR outputs (``ntff``) when requested.
-Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
+voltage-source ports (``ports``), SAR outputs (``sar``), radiometric
+absorption outputs (``radiometry``), and KSIR outputs (``ntff``) when
+requested. Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
 further groups for each named or numbered output.
 
 .. _sar-output:
@@ -66,10 +67,33 @@ The transform uses the engineering convention
 
    \tilde{E}(f)=\int E(t)\exp(-j2\pi ft)\,\mathrm{d}t.
 
-The four parallel Yee edges of each electric component are averaged as
-complex phasors to the cell centre. With peak (not RMS) phasors, the local
-time-average absorbed power density and SAR are
-[IEEE62704-3]_
+The three-dimensional Yee geometry is retained in both 3-D and reduced 2-D
+models. In 3-D, the four parallel Yee edges of each electric component are
+averaged as complex phasors to the cell centre. A 2-D TM model uses only the
+electric component parallel to the invariant axis, at invariant index zero;
+its four edges surround the cell in the transverse cross-section. A 2-D TE
+model uses the two electric components tangential to the invariant axis on
+the live central plane at invariant index one. Each TE component is averaged
+from its two genuine tangential edges. The second TE cell exists only to
+preserve the 3-D Yee staggering and is not a second physical SAR plane. Thus,
+for example,
+
+.. math::
+
+   \begin{aligned}
+   E_{z,c}^{\mathrm{TMz}} &= \frac{1}{4}
+       \left[E_z(i,j,0)+E_z(i+1,j,0)+E_z(i,j+1,0)+E_z(i+1,j+1,0)\right],\\
+   E_{x,c}^{\mathrm{TEz}} &= \frac{1}{2}
+       \left[E_x(i,j,1)+E_x(i,j+1,1)\right],\\
+   E_{y,c}^{\mathrm{TEz}} &= \frac{1}{2}
+       \left[E_y(i,j,1)+E_y(i+1,j,1)\right].
+   \end{aligned}
+
+The corresponding coordinate permutations apply to invariant x and y
+models. All inactive components remain zero. Two-dimensional TE/TM FDTD SAR
+is useful for rapid invariant-model dosimetry and polarisation studies
+[LWI2019]_. With peak (not RMS) phasors, the local time-average absorbed
+power density and SAR are [IEEE62704-3]_
 
 .. math::
 
@@ -91,7 +115,22 @@ tag membership.
 Because a finite transient spectrum is not itself a continuous-wave
 excitation, waveform normalisation divides the field DFT by the DFT of the
 selected source waveform and multiplies it by ``TargetAmplitude``. Exactly
-one active source may use that waveform. Alternatively, incident- or
+one active source may use that waveform. For a Hertzian electric dipole,
+``current_moment`` divides by the product of waveform spectrum and source-edge
+length, so ``TargetAmplitude`` is :math:`I\ell` in A m. For a discrete plane
+wave, the source waveform is the incident electric-field magnitude in V/m.
+It can either be used directly or converted to an incident power flux using
+
+.. math::
+
+   S_{\mathrm{inc}}(f)=\frac{1}{2}|E_{\mathrm{inc}}(f)|^2
+       \operatorname{Re}\!\left\{\frac{1}{\eta(f)}\right\},
+   \qquad
+   \eta(f)=\sqrt{\frac{\mu(f)}{\epsilon(f)}}.
+
+The ``incident_flux`` mode scales to ``TargetFlux`` in W/m\ :sup:`2`; the
+complex permittivity and permeability of the plane wave's source-side
+material are used at every requested frequency. Alternatively, incident- or
 accepted-power normalisation multiplies the field DFT by
 
 .. math::
@@ -110,10 +149,11 @@ reference ``<subgrid ID>/<port ID>``.
 
 The datasets include ``frequency``, ``cell_indices``, ``tag_id``,
 ``material_id``, ``density``, ``source_spectrum``, ``source_relative_db``,
-``source_valid``, ``mesh_valid``, ``valid``, ``cells_per_wavelength``,
+``source_valid``, ``incident_power``, ``incident_flux``, ``mesh_valid``,
+``valid``, ``cells_per_wavelength``,
 ``limiting_material``, ``absorbed_power_density``, and ``sar``. Each
-``tags/<name>`` subgroup contains cell count, total mass, absorbed power,
-mass-average SAR, and peak voxel SAR.
+``tags/<name>`` subgroup contains cell count, integrated mass and absorbed
+power, mass-average SAR, and peak voxel SAR.
 ``CellIndexOrigin`` and ``CellCentreOffset`` map the integer
 ``cell_indices`` to physical cell-centre positions. ``CellIndexFrame`` is
 ``main-grid`` for a normal output and ``subgrid-local`` for an HSG output.
@@ -121,6 +161,29 @@ MPI output uses globally sorted main-grid cell indices and the same HDF5 schema
 as the serial solver. The gathered sparse spectra and completed frequency-by-
 cell arrays reside on the coordinator during finalisation; for extremely large
 tag volumes this coordinator memory is the present scalability limit.
+
+In a 2-D model, local ``absorbed_power_density`` and ``sar`` retain their
+ordinary W/m\ :sup:`3` and W/kg units. Integrated quantities describe the
+invariant geometry per unit length:
+
+.. math::
+
+   P'_{\mathrm{abs}}(f) = \int_A p_{\mathrm{abs}}(f)\,\mathrm{d}A,
+   \qquad
+   m' = \int_A \rho\,\mathrm{d}A,
+   \qquad
+   \overline{\mathrm{SAR}} = \frac{P'_{\mathrm{abs}}}{m'}.
+
+Consequently, a 2-D tag subgroup contains ``MassPerLength`` in kg/m and
+``absorbed_power_per_length`` in W/m. Its ``mass_average_sar`` remains in
+W/kg. ``Dimensionality``, ``ModelMode``, ``Polarisation``, ``InvariantAxis``,
+``LiveInvariantIndex``, and ``ActiveElectricComponents`` make the convention
+explicit. Port powers used for 2-D normalisation are likewise interpreted in
+W/m rather than W.
+
+The TMz and TEz cell collocation, local SAR, and absorbed power per unit
+length are compared with exact lossy-cylinder series in
+:ref:`sar-2d-cylinder-validation`.
 
 Spatial averaging is not performed by default. This keeps the application-
 neutral local quantities available without imposing a bioelectromagnetic
@@ -156,12 +219,13 @@ once for each requested mass and reused for every frequency. The compiled
 OpenMP implementation therefore avoids repeating the expensive target-mass
 search for a frequency sweep.
 
-The local ``absorbed_power_density`` and per-tag ``absorbed_power`` datasets
-are not restricted to dosimetry. They can also support absorption studies for
-GPR targets and media, and provide an electromagnetic input to radiometric
-post-processing. gprMax does not yet convert these quantities into brightness
-temperature or a receiver-weighted radiometer observable; those require
-physical-temperature and measurement-model information beyond SAR itself.
+Spatial 1 g/10 g averaging is currently restricted to 3-D models. A reduced
+2-D field solution is invariant, so such an average would require a deliberate
+virtual extrusion of the density, tags, and fields along the invariant axis;
+the one-cell TM and two-cell TE storage thicknesses must not be treated as a
+finite anatomical volume. Until that invariant-extrusion procedure is added
+and separately validated, a 2-D ``SAR`` request must leave
+``averaging_masses=()``.
 
 Cells inside either a domain-boundary PML or an internal PML slab are always
 excluded, even when their geometry tag is selected. PML attenuation is a
@@ -174,6 +238,88 @@ must also have at least ten cells per shortest wavelength in every model
 material; a lambda/8 criterion may be selected. The ``nyquist`` research mode
 retains frequencies outside that spatial criterion and records the mesh
 validity metadata, but does not make those results physically reliable.
+
+.. _radiometry-output:
+
+Radiometric absorption weighting
+--------------------------------
+
+A ``Radiometry`` request writes ``/radiometry/<id>`` on the main grid, or
+``/subgrids/<subgrid ID>/radiometry/<id>`` on a subgrid. It uses the same
+sparse electric-field transforms, cell-centre collocation,
+:math:`\sigma_{\mathrm{eff}}`, source/port normalisation, PML exclusion, and
+mesh-validity checks as SAR. It deliberately does not use mass density and
+does not calculate SAR or a 1 g/10 g average. This makes it suitable for
+lossy geological and planetary materials for which density is unavailable or
+irrelevant to the electromagnetic absorption calculation.
+
+The principal local quantities are ``absorbed_power_density`` and
+``normalised_absorption_density``. The latter has a definition appropriate to
+the selected excitation:
+
+.. math::
+
+   w(\mathbf r,f)=
+   \begin{cases}
+   p_{\mathrm{abs}}(\mathbf r,f)/P_{\mathrm{ref}},
+       & \text{incident or accepted port power},\\
+   p_{\mathrm{abs}}(\mathbf r,f)/S_{\mathrm{inc}},
+       & \text{incident plane-wave flux},\\
+   p_{\mathrm{abs}}(\mathbf r,f)/|q_{\mathrm{src}}|^2,
+       & \text{portless source amplitude}.
+   \end{cases}
+
+This is the active-mode reciprocity construction used for microwave
+radiometry. At one frequency the cell weight for an incident-power reference
+is
+
+.. math::
+
+   C_n(f)=\frac{P_{\mathrm{abs},n}(f)}{P_{\mathrm{inc}}(f)},
+
+and Wu and Nieh's finite-band weighting factor is
+
+.. math::
+
+   \overline{C}_n=\frac{1}{B}
+   \int_{f_0-B/2}^{f_0+B/2}
+   \frac{P_{\mathrm{abs},n}(f)}{P_{\mathrm{inc}}(f)}\,\mathrm{d}f.
+
+The ``normalised_absorption`` values are the per-frequency integrand; a
+receiver-specific quadrature over frequency remains post-processing because
+its bandshape is not an FDTD property. The equivalent continuous weighting
+function commonly used in radiometric forward models is
+
+.. math::
+
+   W(\mathbf r,f)=\frac{p_{\mathrm{abs}}(\mathbf r,f)}
+   {\int_V p_{\mathrm{abs}}(\mathbf r,f)\,\mathrm{d}V},
+   \qquad
+   p_{\mathrm{abs}}=\frac{1}{2}\sigma_{\mathrm{eff}}|\mathbf E|^2,
+
+which integrates to unity over the chosen receiving volume [WU1995]_ and
+[ROD2013]_. It can be formed from
+``normalised_absorption_density`` without rerunning the model. Normalising to
+accepted rather than incident power removes mismatch loss from the spatial
+weight but does not otherwise change its shape.
+
+For a 3-D power-normalised port, :math:`w` has units m\ :sup:`-3` and its
+volume integral is the fraction of the reference power absorbed in a tag. For
+plane-wave flux, it has units m\ :sup:`-1` and its volume integral is an
+absorption cross section in m\ :sup:`2`. A 2-D invariant model instead
+integrates over area and reports, respectively, a dimensionless absorbed
+fraction or an absorption cross section per unit invariant length in metres.
+For a portless source the integral is absorbed power per squared native source
+amplitude; examples include V/m for a plane-wave waveform, A m for Hertzian
+current moment, and V for a voltage source.
+
+Each ``tags/<name>`` subgroup stores the integrated physical absorbed power
+and ``normalised_absorption``. These tag-resolved weighting quantities are the
+electromagnetic part needed by radiometer forward models. gprMax does not yet
+combine them with physical temperature, receiver bandwidth, receiver noise,
+or a radiative-transfer model to produce brightness or antenna temperature;
+those are separate measurement-model inputs rather than FDTD field
+quantities.
 
 Reusable parameter studies add a root ``study`` group. Its attributes are
 ``Type``, ``CaseID``, ``CaseIndex`` (one based), ``CaseCount``,
@@ -1148,6 +1294,14 @@ Snapshots
 ---------
 
 Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired. HDF5 snapshots include ``origin`` (global x, y, z coordinates), ``dx_dy_dz``, ``nx_ny_nz``, and ``time`` attributes. A snapshot owned by an HSG subgrid is sampled at the fine-grid time step and is still positioned in this global coordinate frame.
+
+For a reduced 2-D model, a snapshot contains only the genuine invariant-axis
+field plane: index zero for TM and index one for TE. Bounds spanning the full
+invariant extent are collapsed automatically to that plane; bounds excluding
+it are rejected. Inactive components may still be requested for a consistent
+file schema, but contain zero. The file origin places the centre of the single
+output plane at the physical Yee-field plane, rather than at either forced-zero
+TE padding wall.
 
 .. tip::
     You can take advantage of our Python API to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x, y, z, dl, fn`` accordingly.

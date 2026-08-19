@@ -12,8 +12,6 @@ import numpy as np
 
 from gprMax.cuda_opencl.knl_sar import build_sar_kernel_source
 
-COMPONENTS = ("Ex", "Ey", "Ez")
-
 
 @dataclass
 class _ComponentRecord:
@@ -49,8 +47,8 @@ class _DeviceSARCollector:
         limits = np.iinfo(np.int32)
         for monitor in self.grid.sar_monitors:
             components = []
-            for component in COMPONENTS:
-                indices = np.asarray(monitor.edge_flat_indices[component])
+            for component, monitor_indices in monitor.edge_flat_indices.items():
+                indices = np.asarray(monitor_indices)
                 if indices.size > limits.max or np.any(indices < 0) or np.any(indices > limits.max):
                     raise ValueError("SAR device edge indices exceed signed int32 indexing")
                 total = int(indices.size) * int(monitor.frequencies.size)
