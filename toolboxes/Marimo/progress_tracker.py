@@ -185,7 +185,7 @@ def _(get_progress, mo, refresh, run_lock, run_state, set_progress):
     set_progress(snapshot)
     p = get_progress()
 
-    if p["total"] == 0 and not p["running"]:
+    if not p["running"] and p["returncode"] is None:
         mo.stop(
             True,
             mo.callout(
