@@ -52,7 +52,7 @@ jobs:
 
       - name: Set up MPI runtime
         uses: mpi4py/setup-mpi@v1
-        timeout-minutes: 5
+        timeout-minutes: 15
         with:
           mpi: ${{ matrix.mpi }}
 
