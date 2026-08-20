@@ -7,7 +7,10 @@ Analytical comparisons
 This section compares production gprMax results with independent analytical
 solutions. These are correctness validations: unlike the
 :ref:`inter-code studies <numerical-comparisons>`, the reference is not the
-output of another numerical solver.
+output of another numerical solver. Two supplementary studies in the
+planar-layered section are explicitly labelled as *verifications*: they
+reproduce a published benchmark or demonstrate convergence to the production
+NTFF result, and are not counted as independent analytical evidence.
 
 Two levels are provided. Compact tests in ``tests/ntff`` exercise the complete
 FDTD and near-to-far-field path during routine pytest runs. The higher
@@ -164,6 +167,218 @@ dispersion.
     :width: 750 px
 
     Complex Fresnel comparison for the fresh-water and clay models.
+
+Planar-layered near-to-far-field transform
+===========================================
+
+The :download:`planar-layered NTFF validation driver
+<../../testing/validation/planar_layered_ntff/validate_point_dipole.py>`
+places a z-directed Hertzian current element in a finite lossy, magnetic film
+between two lossless half-spaces. The closed Huygens surface crosses both
+interfaces, so a homogeneous-background transform is not applicable. The
+production surface result is compared with the independent three-layer
+transmission-line Green function of Çapoğlu *et al.* [CAP2012]_.
+
+For a dipole current moment :math:`\widetilde p(\omega)` in layer :math:`n`,
+the range-normalised analytical field is
+
+.. math::
+
+    r e^{+j k_o r} E_\theta
+    =s\,\frac{j\omega\mu_o}{4\pi}\,
+      \widetilde p(\omega) V_{v_n}^{\mathrm{TM}}(z_0)
+      \frac{\epsilon_o}{\epsilon_n}\sin\theta,
+
+where :math:`s=+1` and :math:`-1` for observation in the positive- and
+negative-axis exterior respectively. The voltage-source response
+:math:`V_{v_n}^{\mathrm{TM}}` is evaluated from the closed three-layer form,
+independently of the production surface integration. The exact discrete
+Hertzian-source samples and their Yee time offset are read from the output,
+so waveform amplitude and phase are not fitted.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/layered_point_dipole.png
+    :width: 750 px
+
+    FDTD Huygens-surface result (symbols) and the analytical three-layer
+    point-dipole field (lines) across both observation half-spaces.
+
+The retained 1 mm result spans nine frequencies from 1--3 GHz. Its maximum
+vector error normalised to the analytical peak is 2.304 percent and its RMS
+error is 0.857 percent. Repeating the model at 2 mm gives 4.738 and 1.722
+percent, respectively, demonstrating the expected improvement under mesh
+refinement. The comparison exercises the complete field collection,
+Yee-time correction, material-interface smoothing, complex TE/TM recursion,
+and angular far-field evaluation.
+
+Published eight-layer transform verification
+---------------------------------------------
+
+The :download:`Çapoğlu Figure 2 reproduction
+<../../testing/validation/planar_layered_ntff/validate_capoglu_paper.py>`
+recreates the published arrangement of nine differently oriented Hertzian
+current elements in an eight-layer stack [CAP2012]_. The relative
+permittivity varies from 1.3 to 1.5, relative permeability from 1.1 to 1.3,
+and the six finite layers are conductive. Both TE and TM terms are therefore
+non-zero.
+
+For current element :math:`q`, the direct point-current reference has the
+form
+
+.. math::
+
+    \mathbf F_E^{\mathrm{point}}(\hat{\mathbf r},\omega)
+    =\sum_{q=1}^{9}
+    \overline{\overline{\mathbf G}}_E
+    (\hat{\mathbf r},z_q,\omega)\cdot
+    \widetilde{\mathbf p}_q(\omega)
+    \exp\left(j\mathbf k_t\cdot\boldsymbol\rho_q\right),
+
+where the layered dyadic response is evaluated in the unperturbed stack.
+The discrete source moments :math:`\widetilde{\mathbf p}_q` and their Yee-time
+offsets are read from the output. They are not fitted to the NTFF result.
+The production result instead obtains equivalent currents from a closed
+surface and propagates every surface sample through the same stack. This
+comparison therefore verifies surface equivalence, TE/TM projection, and the
+published field normalisation; it is not a second independent implementation
+of the layered propagation kernel.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/capoglu_figure2.png
+    :width: 850 px
+
+    Reproduction of the spectral, :math:`\theta`-cut, and :math:`\phi`-cut
+    panels of Çapoğlu *et al.* Figure 2. Lines are the production FDTD
+    Huygens-surface output and symbols are the direct point-current result.
+
+The largest RMS difference of any real or imaginary curve, divided by that
+curve's analytical peak, is 0.477 percent; the paper reports a maximum RMS
+error below one percent. Across all complex vector samples, the retained
+maximum and RMS errors normalised to the analytical vector peak are 0.378
+and 0.271 percent, respectively.
+
+Interfacial electric-dipole patterns
+------------------------------------
+
+The :download:`interfacial-dipole validation
+<../../testing/validation/planar_layered_ntff/validate_engheta_interfacial_dipoles.py>`
+compares the production transform with the asymptotic closed-form power
+patterns of Engheta, Papas, and Elachi [ENG1982]_. Infinitesimal vertical and
+horizontal electric dipoles lie at an interface whose lower-to-upper
+refractive-index ratio is :math:`n=2` or :math:`n=4`. For example, the
+normalised angular dependence of the vertical dipole in the upper half-space
+is proportional to
+
+.. math::
+
+    P_v(\theta)=
+    \frac{n^4\sin^2\theta\cos^2\theta}
+    {\left(n^2\cos\theta+
+    \sqrt{n^2-\sin^2\theta}\right)^2},
+    \qquad 0\leq\theta<\frac{\pi}{2}.
+
+The independent reference implements the corresponding propagating and
+lateral-wave expressions in the lower half-space, and both principal-plane
+expressions for a horizontal dipole. The FDTD radial power is formed as
+
+.. math::
+
+    P_r(\theta,\phi)\ \propto
+    \frac{|E_\theta|^2+|E_\phi|^2}{\eta_o(\theta)},
+
+using the impedance of the observation half-space. Exact interface and
+critical-angle samples are excluded from error statistics because the
+asymptotic expressions are singular or change branch there.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/engheta_interfacial_dipoles/engheta_interfacial_dipoles_polar.png
+    :width: 850 px
+
+    Complete normalised-power cuts for vertical and horizontal interfacial
+    dipoles. Lines are the Engheta analytical expressions and symbols are
+    production gprMax results.
+
+Across the six retained curves, the worst RMS normalised-power difference is
+0.363 percent and the worst pointwise difference is 1.059 percent. The latter
+occurs for the vertical :math:`n=2` case near a rapidly varying angular
+feature.
+
+Finite-height dipole above a half-space
+---------------------------------------
+
+The :download:`Smith dipole-height validation
+<../../testing/validation/planar_layered_ntff/validate_smith_dipole_height.py>`
+places a horizontal electric dipole in air above a lossless
+:math:`\epsilon_r=9` half-space. It evaluates the E- and H-plane patterns at
+2 GHz for :math:`h/\lambda_0=0.1`, 0.2, and 0.35 against Smith's asymptotic
+plane-wave-spectrum solution [SMI1984]_. The finite height supplies the usual
+incident/reflected phase in the upper medium. In the lower-medium
+lateral-wave sector, its power multiplier is
+
+.. math::
+
+    A_h(\theta)=\exp\left[-2k_0h
+    \sqrt{n^2\sin^2\theta-1}\right].
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/smith_dipole_height/smith_dipole_height_polar.png
+    :width: 850 px
+
+    Full E- and H-plane normalised-power patterns for the three source
+    heights. Lines are Smith's analytical result and symbols are gprMax.
+
+The largest RMS normalised-power difference across all heights and cuts is
+0.271 percent; the largest pointwise difference is 0.755 percent. These cases
+verify that the implementation retains the absolute source height and its
+direction-dependent phase or evanescent decay rather than treating every
+source as if it lay on the interface.
+
+Finite-radius GPR antenna energy-pattern verification
+-----------------------------------------------------
+
+This final layered-medium study is deliberately classified as a
+*verification*, not an independent analytical validation. The
+:download:`GSSI-like antenna driver
+<../../testing/validation/planar_layered_ntff/validate_gssi_energy_convergence.py>`
+reproduces the lossless :math:`\epsilon_r=5` half-space configuration of
+Warren and Giannopoulos [WAR2017]_. It samples the 1.5 GHz GSSI-like toolbox
+model at 25 radii from 0.10 to 0.58 m. At each radius the pulse-energy pattern
+is
+
+.. math::
+
+    \Psi_E(r,\theta)=\Delta t\sum_n
+    |E_\theta(r,\theta,n)|^2,
+
+with an analogous :math:`H_\theta` measure for the H-plane. Every
+finite-radius curve is normalised by its own angular maximum. An asymptotic
+reference is calculated independently from those receiver circles using the
+closed layered NTFF surface,
+
+.. math::
+
+    \Psi_\infty(\theta)\ \propto
+    \int_{0.1\,\mathrm{GHz}}^{4.0\,\mathrm{GHz}}
+    |F_E(\theta,f)|^2\,\mathrm df.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/gssi_energy_convergence/gssi_energy_convergence.png
+    :width: 900 px
+
+    Selected finite-radius energy patterns, the broadband layered-NTFF
+    asymptote, and the pattern-shape difference as a function of radius.
+    Zero degrees is directed into air and 180 degrees into the ground.
+
+The reproduced curves show the convergence with increasing distance reported
+in the paper. The E-plane RMS difference from the broadband NTFF pattern
+falls from 9.34 percent at 0.10 m to 1.38 percent at 0.58 m; the H-plane
+difference falls from 18.94 to 3.44 percent. A Parseval check shows that the
+0.1--4.0 GHz NTFF band contains 99.71 percent of aggregate E-plane record
+energy and 99.90 percent of H-plane energy.
+
+The retained reproduction uses a 2 mm mesh, whereas the paper used 1 mm. The
+coarser mesh keeps the complete 0.58 m observation circle within one 24 GB
+GPU. No digitised published curve is used as an oracle: this calculation
+verifies the published convergence behaviour and agreement with the new
+asymptotic transform, rather than claiming pointwise agreement with the 2017
+figure. The :download:`case note and retained metrics
+<../../testing/validation/planar_layered_ntff/results/gssi_energy_convergence/README.md>`
+record the complete distinction.
 
 .. _rational-network-validation:
 

@@ -207,8 +207,10 @@ class FDTDGrid:
         # then compiled for the requested formulations after Yee material IDs
         # have been constructed.
         self.ntff_surface_specs = {}
+        self.ntff_layered_background_specs = {}
         self.ksir_transform_specs = {}
         self.ntff_transform_specs = {}
+        self.ntff_layered_transform_specs = {}
         self.ksir_time_requests = []
         self.ksir_frequency_requests = []
         self.ksir_far_field_requests = []
@@ -220,6 +222,7 @@ class FDTDGrid:
         self.ksir_transform_owners = {}
         self.ntff_request_owners = {}
         self.ntff_transform_owners = {}
+        self.ntff_layered_transform_owners = {}
         self.ntff_output_writers = []
 
         self.averagevolumeobjects = True

@@ -24,7 +24,7 @@ import numpy as np
 
 cimport numpy as np
 from cython.parallel import prange
-from libc.math cimport cos, sin
+from libc.math cimport cos, exp, hypot, sin
 
 from gprMax.config cimport float_or_double, float_or_double_complex
 
@@ -171,6 +171,177 @@ cpdef void evaluate_equivalent_current_far_zone(
         output[frequency, direction, 2] = prefactor * (
             impedance * (nz - rz * ndot) - cz
         )
+
+
+cdef inline float_or_double_complex _exp_plus_i_beta(
+    float_or_double_complex beta,
+    float_or_double distance,
+) noexcept nogil:
+    cdef float_or_double angle = beta.real * distance
+    cdef float_or_double amplitude = exp(-beta.imag * distance)
+    return amplitude * (cos(angle) + 1j * sin(angle))
+
+
+cdef inline float_or_double_complex _exp_minus_i_beta(
+    float_or_double_complex beta,
+    float_or_double distance,
+) noexcept nogil:
+    cdef float_or_double angle = beta.real * distance
+    cdef float_or_double amplitude = exp(beta.imag * distance)
+    return amplitude * (cos(angle) - 1j * sin(angle))
+
+
+cpdef void evaluate_layered_equivalent_current_far_zone(
+    int nthreads,
+    const float_or_double[:, ::1] patch_positions,
+    const np.int64_t[::1] patch_layers,
+    const float_or_double[::1] layer_top,
+    const float_or_double[::1] layer_bottom,
+    const float_or_double[::1] area_weights,
+    const float_or_double[:, ::1] directions,
+    const float_or_double[:, ::1] observation_wavenumber,
+    const float_or_double[:, ::1] observation_impedance,
+    const float_or_double[:, ::1] electric_factor,
+    const float_or_double[:, ::1] magnetic_factor,
+    const float_or_double_complex[:, :, ::1] beta,
+    const float_or_double_complex[:, :, ::1] epsilon_ratio,
+    const float_or_double_complex[:, :, ::1] permeability_ratio,
+    const float_or_double_complex[:, :, ::1] eta_e,
+    const float_or_double_complex[:, :, ::1] eta_h,
+    const float_or_double_complex[:, :, ::1] plus_e,
+    const float_or_double_complex[:, :, ::1] minus_e,
+    const float_or_double_complex[:, :, ::1] plus_h,
+    const float_or_double_complex[:, :, ::1] minus_h,
+    const float_or_double_complex[:, :, ::1] electric_current,
+    const float_or_double_complex[:, :, ::1] magnetic_current,
+    float_or_double_complex[:, :, ::1] electric_output,
+    float_or_double_complex[:, :, ::1] magnetic_output,
+):
+    """Evaluate planar-layered Love-current far fields with OpenMP."""
+
+    cdef Py_ssize_t task, direction, frequency, patch, layer
+    cdef Py_ssize_t ndirections = directions.shape[0]
+    cdef Py_ssize_t nfrequencies = observation_wavenumber.shape[0]
+    cdef Py_ssize_t npatches = patch_positions.shape[0]
+    cdef Py_ssize_t ntasks = ndirections * nfrequencies
+    cdef float_or_double du, dv, dn, st, cp, sp, sign, angle, area
+    cdef float_or_double_complex lateral, phase_plus, phase_minus
+    cdef float_or_double_complex vie, vve, vih, vvh
+    cdef float_or_double_complex jr, jp, mr, mp
+    cdef float_or_double_complex ajt, ajp, fmt, fmp, et, ep
+    cdef float_or_double_complex ex, ey, ez
+    cdef float_or_double_complex hx, hy, hz
+
+    for task in prange(
+        ntasks,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        frequency = task // ndirections
+        direction = task - frequency * ndirections
+        du = directions[direction, 0]
+        dv = directions[direction, 1]
+        dn = directions[direction, 2]
+        st = hypot(du, dv)
+        if st > 1e-12:
+            cp = du / st
+            sp = dv / st
+        else:
+            cp = 1
+            sp = 0
+        sign = 1 if dn > 0 else -1
+        ajt = 0
+        ajp = 0
+        fmt = 0
+        fmp = 0
+
+        for patch in range(npatches):
+            layer = patch_layers[patch]
+            phase_plus = _exp_minus_i_beta(
+                beta[frequency, direction, layer],
+                patch_positions[patch, 2] - layer_bottom[layer],
+            )
+            phase_minus = _exp_plus_i_beta(
+                beta[frequency, direction, layer],
+                patch_positions[patch, 2] - layer_top[layer],
+            )
+            vie = (
+                plus_e[frequency, direction, layer] * phase_plus
+                + minus_e[frequency, direction, layer] * phase_minus
+            )
+            vve = (
+                -plus_e[frequency, direction, layer] * phase_plus
+                + minus_e[frequency, direction, layer] * phase_minus
+            ) / eta_e[frequency, direction, layer]
+            vih = (
+                plus_h[frequency, direction, layer] * phase_plus
+                + minus_h[frequency, direction, layer] * phase_minus
+            )
+            vvh = (
+                -plus_h[frequency, direction, layer] * phase_plus
+                + minus_h[frequency, direction, layer] * phase_minus
+            ) / eta_h[frequency, direction, layer]
+
+            angle = observation_wavenumber[frequency, direction] * (
+                du * patch_positions[patch, 0]
+                + dv * patch_positions[patch, 1]
+            )
+            area = area_weights[patch]
+            lateral = area * (cos(angle) + 1j * sin(angle))
+            jr = (
+                cp * electric_current[frequency, patch, 0]
+                + sp * electric_current[frequency, patch, 1]
+            )
+            jp = (
+                -sp * electric_current[frequency, patch, 0]
+                + cp * electric_current[frequency, patch, 1]
+            )
+            mr = (
+                cp * magnetic_current[frequency, patch, 0]
+                + sp * magnetic_current[frequency, patch, 1]
+            )
+            mp = (
+                -sp * magnetic_current[frequency, patch, 0]
+                + cp * magnetic_current[frequency, patch, 1]
+            )
+            ajt = ajt + lateral * sign * (
+                vie * jr
+                - vve
+                * st
+                * electric_current[frequency, patch, 2]
+                / epsilon_ratio[frequency, direction, layer]
+            )
+            ajp = ajp + lateral * sign * dn * vih * jp
+            fmt = fmt + lateral * sign * dn * (
+                vvh * mr
+                - vih
+                * st
+                * magnetic_current[frequency, patch, 2]
+                / permeability_ratio[frequency, direction, layer]
+            )
+            fmp = fmp + lateral * sign * vve * mp
+
+        et = -1j * (
+            electric_factor[frequency, direction] * ajt
+            + magnetic_factor[frequency, direction] * fmp
+        )
+        ep = -1j * (
+            electric_factor[frequency, direction] * ajp
+            - magnetic_factor[frequency, direction] * fmt
+        )
+        ex = et * dn * cp - ep * sp
+        ey = et * dn * sp + ep * cp
+        ez = -et * st
+        electric_output[frequency, direction, 0] = ex
+        electric_output[frequency, direction, 1] = ey
+        electric_output[frequency, direction, 2] = ez
+        hx = (dv * ez - dn * ey) / observation_impedance[frequency, direction]
+        hy = (dn * ex - du * ez) / observation_impedance[frequency, direction]
+        hz = (du * ey - dv * ex) / observation_impedance[frequency, direction]
+        magnetic_output[frequency, direction, 0] = hx
+        magnetic_output[frequency, direction, 1] = hy
+        magnetic_output[frequency, direction, 2] = hz
 
 
 cpdef void accumulate_surface_dft(

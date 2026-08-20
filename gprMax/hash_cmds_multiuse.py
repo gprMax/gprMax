@@ -76,6 +76,8 @@ from .user_objects.cmds_output import (
     NTFFFarField,
     NTFFFarFieldArray,
     NTFFFrequencyTransform,
+    NTFFLayeredBackground,
+    NTFFLayeredFrequencyTransform,
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,
@@ -1021,6 +1023,50 @@ def process_multicmds(multicmds):
                     surface_id=tokens[0],
                     id=tokens[1],
                     frequencies=tuple(float(value) for value in tokens[2:]),
+                    window=window,
+                )
+            )
+
+    cmdname = "#ntff_layered_background"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 3 or len(tokens) % 2 == 0:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires an ID, axis, and an "
+                    "alternating material/interface sequence ending in a material"
+                )
+            materials = tuple(tokens[index] for index in range(2, len(tokens), 2))
+            interfaces = tuple(float(tokens[index]) for index in range(3, len(tokens), 2))
+            scene_objects.append(
+                NTFFLayeredBackground(
+                    id=tokens[0],
+                    axis=tokens[1],
+                    materials=materials,
+                    interfaces=interfaces,
+                )
+            )
+
+    cmdname = "#ntff_layered_frequency"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 4:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a surface ID, transform ID, "
+                    "background ID, and one or more frequencies"
+                )
+            window = "rectangular"
+            if tokens[-1].lower() in ("rectangular", "hann"):
+                window = tokens.pop().lower()
+            if len(tokens) < 4:
+                raise ValueError(f"{cmdname} requires at least one frequency")
+            scene_objects.append(
+                NTFFLayeredFrequencyTransform(
+                    surface_id=tokens[0],
+                    id=tokens[1],
+                    background_id=tokens[2],
+                    frequencies=tuple(float(value) for value in tokens[3:]),
                     window=window,
                 )
             )

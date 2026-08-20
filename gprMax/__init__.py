@@ -109,6 +109,8 @@ from .user_objects.cmds_output import (
     NTFFFarField,
     NTFFFarFieldArray,
     NTFFFrequencyTransform,
+    NTFFLayeredBackground,
+    NTFFLayeredFrequencyTransform,
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,

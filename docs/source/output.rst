@@ -1115,6 +1115,11 @@ ranks; it does not change field normalisation or array ordering.
             fields/<output>
         frequency/<transform_id>/
             frequencies
+            layered_background/ [planar-layered transforms only]
+                interfaces
+                material_ids
+                relative_permittivity
+                relative_permeability
             surface_dft/<component>/
                 field
                 normal_derivative
@@ -1129,11 +1134,34 @@ ranks; it does not change field normalisation or array ordering.
                 theta
                 phi
                 directions
-                radiated_power [directivity/efficiency requests]
+                radiated_power [directivity/efficiency/exterior requests]
                 maximum_directivity
                 maximum_directivity_dbi
                 maximum_directivity_theta
                 maximum_directivity_phi
+                exterior_regions/ [requested planar-layered summaries]
+                    positive_to_negative_power_ratio [exterior_power]
+                    positive_to_negative_power_ratio_db [exterior_power]
+                    positive_axis/
+                        relative_permittivity
+                        relative_permeability
+                        impedance
+                        radiated_power [exterior_power]
+                        radiated_fraction [exterior_power]
+                        maximum_radiation_intensity [exterior_maximum]
+                        maximum_directivity [exterior_maximum]
+                        maximum_directivity_dbi [exterior_maximum]
+                        maximum_theta [exterior_maximum]
+                        maximum_phi [exterior_maximum]
+                        accepted_coupling_efficiency [exterior_efficiency]
+                        realized_coupling_efficiency [exterior_efficiency]
+                        accepted_coupling_valid [exterior_efficiency]
+                        realized_coupling_valid [exterior_efficiency]
+                        maximum_gain [exterior_efficiency]
+                        maximum_gain_dbi [exterior_efficiency]
+                        maximum_realized_gain [exterior_efficiency]
+                        maximum_realized_gain_dbi [exterior_efficiency]
+                    negative_axis/ [same datasets]
                 port_power/ [gain/efficiency requests]
                     port_ids
                     source_types
@@ -1167,11 +1195,20 @@ status, omitted faces, boundary types/coordinates, and image count.
 ``closure=huygens_open`` with one to five values in ``omitted_faces`` identifies
 an open frequency-domain Huygens surface; ``closure=symmetry`` identifies
 faces restored by PEC/PMC image completion.
-The frequency transform group records its ``ksir`` or ``equivalent_current``
-formulation, window, inferred wave speed and impedance, configured precision
-and collection backend, plus the engineering convention:
+The frequency transform group records its ``ksir``, ``equivalent_current``,
+or ``planar_layered_equivalent_current`` formulation, window, configured
+precision and collection backend, plus the engineering convention:
 ``exp(+j*omega*t)`` phasors, ``exp(-j*omega*t)`` forward transform, and
 ``exp(-j*k*R)`` outgoing Green function.
+
+For a planar-layered transform, ``layered_background`` records the stack
+axis, positive-to-negative-axis material ordering, physical interface
+coordinates, and the complex relative permittivity and permeability evaluated
+at every transform frequency. The transform-level scalar ``wave_speed`` and
+``impedance`` are collection metadata for the positive-axis exterior; the
+far-field group uses the appropriate observation half-space for every
+direction. Its normalization attribute is therefore
+``r * exp(+j*k_observation_halfspace*r) * field``.
 
 Exact frequency receiver groups have ``range_normalized=False``. They contain
 physical finite-distance phasors with every ``1/R`` and ``1/R**2`` term.
@@ -1195,9 +1232,9 @@ Far-field derived antenna quantities
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``radiation_intensity`` has shape ``(nfrequencies, ndirections)``. If
-``directivity`` or an efficiency is requested, the five full-sphere summary
-datasets shown above have shape ``(nfrequencies,)``. The far-field group also
-records the Gauss--Legendre/periodic quadrature orders and the completed
+``directivity``, an efficiency, or an exterior summary is requested, the five
+full-sphere summary datasets shown above have shape ``(nfrequencies,)``. The
+far-field group also records the Gauss--Legendre/periodic quadrature orders and the completed
 surface's bounding radius in metres. These summaries come from an internal
 full-sphere calculation even if the stored user directions form only a cut;
 the internal directional fields are not written to the output file. The
@@ -1208,9 +1245,13 @@ The linear definitions are
 
 .. math::
 
-    U=\frac{|F_\theta|^2+|F_\phi|^2}{2\eta},\qquad
+    U=\frac{|F_\theta|^2+|F_\phi|^2}{2\eta_o(\hat{\mathbf r})},\qquad
     D=\frac{4\pi U}{P_\mathrm{rad}},\qquad
     P_\mathrm{rad}=\int_{4\pi}U\,\mathrm{d}\Omega.
+
+For homogeneous transforms :math:`\eta_o` is constant. For a planar stack it
+is the real impedance of the positive- or negative-axis lossless exterior,
+selected by the observation direction.
 
 ``directivity_dbi``, ``gain_dbi``, and ``realized_gain_dbi`` are
 ``10*log10`` of their corresponding linear datasets. The linear gain and
@@ -1226,6 +1267,69 @@ efficiency definitions are
 The two efficiencies are frequency-only quantities and therefore have shape
 ``(nfrequencies,)`` even though they are stored in ``fields`` with the other
 requested outputs.
+
+Planar-layered exterior-region antenna quantities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The grouped ``exterior_power``, ``exterior_maximum``, and
+``exterior_efficiency`` requests are available only for a
+``planar_layered_equivalent_current`` transform. They divide the temporary
+full-sphere quadrature according to the sign of the direction cosine along
+the declared stack axis. The names ``positive_axis`` and ``negative_axis``
+are used deliberately: gprMax does not assume that the stack is aligned with
+``z`` or that either exterior represents air or ground.
+
+For exterior region :math:`r\in\{+,-\}`,
+
+.. math::
+
+    P_r=\int_{\Omega_r}U(\theta,\phi)\,\mathrm d\Omega,
+    \qquad
+    P_\mathrm{rad}=P_+ + P_-,
+    \qquad
+    f_r=\frac{P_r}{P_\mathrm{rad}}.
+
+``exterior_power`` stores :math:`P_r`, :math:`f_r`, and
+:math:`P_+/P_-` in linear and dB forms. A zero denominator consequently
+produces the mathematically corresponding non-finite ratio. The constituent
+material ID is an attribute of each region; its frequency-dependent relative
+permittivity, relative permeability, and real wave impedance are datasets.
+
+``exterior_maximum`` stores the maximum radiation intensity found in each
+region and its angles. Its directivity retains the conventional total-power,
+full-sphere definition
+
+.. math::
+
+    D_{\max,r}=\frac{4\pi\max_{\Omega_r}U}{P_\mathrm{rad}}.
+
+It is not the non-standard hemisphere-normalised quantity
+:math:`2\pi U/P_r`. As for the global maximum, the estimate combines the
+internal quadrature with all explicitly requested directions.
+
+With an ``#ntff_antenna_ports`` association, ``exterior_efficiency`` stores
+
+.. math::
+
+    \eta_{\mathrm{acc},r}=\frac{P_r}{P_\mathrm{acc}},
+    \qquad
+    \eta_{\mathrm{realized},r}=\frac{P_r}{P_\mathrm{inc}},
+
+and the maximum gain and realized gain in each exterior:
+
+.. math::
+
+    G_{\max,r}=\frac{4\pi\max_{\Omega_r}U}{P_\mathrm{acc}},
+    \qquad
+    G_{\mathrm{realized},\max,r}
+      =\frac{4\pi\max_{\Omega_r}U}{P_\mathrm{inc}}.
+
+The coupling-efficiency names distinguish these regional quantities from the
+total radiation and total efficiencies. The corresponding validity masks use
+the same mesh, terminal, incident-spectrum, and positive-power checks as the
+ordinary gain outputs. Summing the two accepted coupling efficiencies gives
+``radiation_efficiency``; summing the two realized coupling efficiencies gives
+``total_efficiency`` wherever those quantities are valid.
 
 For a ``#ksir_antenna_ports`` or ``#ntff_antenna_ports`` association, per-port
 powers have shape ``(nports, nfrequencies)``. Total powers and all validity

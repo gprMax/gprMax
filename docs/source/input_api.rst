@@ -1945,6 +1945,10 @@ Equivalent-current far fields
 -----------------------------
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFrequencyTransform
 
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredBackground
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredFrequencyTransform
+
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFarField
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFarFieldArray
@@ -1955,6 +1959,92 @@ These classes provide the conventional Love-current frequency transform and
 share the KSIR far-field output and antenna-metric definitions. They do not
 provide finite-distance receivers. See :ref:`ntff-formulations` for the
 surface-current equations and engineering phasor convention.
+
+A layered transform reuses the same far-field request classes. For example,
+air above a finite dielectric layer and a lower dielectric half-space can be
+declared independently of the geometry objects which build those layers:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFLayeredBackground(
+        id='ground',
+        axis='z',
+        materials=('free_space', 'dry_soil', 'wet_soil'),
+        interfaces=(0.0, -0.1),
+    ))
+    scene.add(gprMax.NTFFLayeredFrequencyTransform(
+        surface_id='radiation_surface',
+        id='ground_band',
+        background_id='ground',
+        frequencies=(0.8e9, 1.0e9, 1.2e9),
+        window='rectangular',
+    ))
+    scene.add(gprMax.NTFFFarField(
+        theta=30,
+        phi=0,
+        transform_id='ground_band',
+        id='upper_pattern',
+        outputs=(
+            'Etheta',
+            'Ephi',
+            'directivity_dbi',
+            'exterior_power',
+            'exterior_maximum',
+        ),
+    ))
+
+The two exterior materials must be lossless and an explicitly requested
+direction must not be exactly grazing to the layer normal. Internal layers
+may be conductive or electrically dispersive. See :ref:`ntff-formulations`
+for the TE/TM transmission-line formulation.
+Far-field and antenna metrics support different lossless exterior materials;
+coherent array-codebook synthesis currently requires equal,
+frequency-independent exterior impedances.
+
+The grouped ``exterior_power`` output stores the radiated power and fraction
+in each positive- and negative-axis exterior. ``exterior_maximum`` stores the
+maximum radiation intensity, conventionally full-sphere-normalised
+directivity, and its direction in each exterior. These two requests do not
+require a port. ``exterior_efficiency`` additionally stores each exterior's
+accepted- and incident-power-normalised coupling efficiency and maximum gain;
+it therefore requires :class:`NTFFAntennaPorts`, every physical port, and a
+rectangular transform window. For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFAntennaPorts(
+        transform_id='ground_band',
+        port_ids=('feed',),
+    ))
+    pattern = gprMax.NTFFFarFieldArray(
+        theta_start=1,
+        theta_stop=179,
+        theta_step=2,
+        phi_start=0,
+        phi_stop=358,
+        phi_step=2,
+        transform_id='ground_band',
+        id='ground_pattern',
+        outputs=(
+            'Etheta',
+            'Ephi',
+            'gain_dbi',
+            'realized_gain_dbi',
+            'exterior_power',
+            'exterior_efficiency',
+            'exterior_maximum',
+        ),
+    )
+    scene.add(pattern)
+
+Here the layered transform must use ``window='rectangular'`` because the
+second request is normalised by the port spectra. The exact grazing direction
+is omitted from this example; it is singular in the layered far-zone
+representation.
+After the run, the same summaries are available without reopening the HDF5
+file through ``pattern.result.radiation_metrics.exterior``. Its arrays use
+region order ``(positive_axis, negative_axis)`` and then frequency; the HDF5
+writer presents those two rows as named groups.
 
 Modified one-step transient far fields
 ---------------------------------------

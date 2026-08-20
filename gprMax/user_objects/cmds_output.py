@@ -41,6 +41,8 @@ from gprMax.ntff.interface import (
     KSIRFrequencyTransformSpec,
     KSIRTimeRequestSpec,
     NTFFFrequencyTransformSpec,
+    NTFFLayeredBackgroundSpec,
+    NTFFLayeredFrequencyTransformSpec,
     NTFFSurfaceSpec,
     NTFFTimeFarFieldRequestSpec,
     component_dependencies,
@@ -868,6 +870,65 @@ class NTFFSurface(OutputUserObject):
         )
 
 
+class NTFFLayeredBackground(OutputUserObject):
+    """Declare a planar material stack for layered equivalent-current NTFF."""
+
+    @property
+    def order(self):
+        return 10
+
+    @property
+    def hash(self):
+        return "#ntff_layered_background"
+
+    def __init__(self, id: str, axis: str, materials, interfaces=()):
+        super().__init__(id=id, axis=axis, materials=materials, interfaces=interfaces)
+        self.ID = id
+        self.axis = str(axis).lower()
+        self.material_ids = tuple(str(value) for value in materials)
+        self.interfaces = tuple(float(value) for value in interfaces)
+
+    def __str__(self):
+        sequence = []
+        for index, material_id in enumerate(self.material_ids):
+            sequence.append(material_id)
+            if index < len(self.interfaces):
+                sequence.append(str(self.interfaces[index]))
+        return f"{self.hash}: {' '.join((self.ID, self.axis, *sequence))}"
+
+    def build(self, model: Model, grid: FDTDGrid):
+        _check_ksir_interface_context(self, grid)
+        validate_identifier("NTFF layered background ID", self.ID)
+        if self.ID in grid.ntff_layered_background_specs:
+            raise ValueError(f"{self.params_str()} background ID is already in use")
+        if self.axis not in ("x", "y", "z"):
+            raise ValueError(f"{self.params_str()} axis must be x, y, or z")
+        if len(self.material_ids) < 1 or len(self.interfaces) != len(self.material_ids) - 1:
+            raise ValueError(
+                f"{self.params_str()} requires exactly one fewer interface than materials"
+            )
+        values = np.asarray(self.interfaces, dtype=config.sim_config.dtypes["float_or_double"])
+        if values.size and (not np.all(np.isfinite(values)) or not np.all(np.diff(values) < 0)):
+            raise ValueError(
+                f"{self.params_str()} interfaces must be finite and strictly descending "
+                f"from the positive to the negative {self.axis}-axis"
+            )
+        available = {material.ID for material in grid.materials}
+        missing = set(self.material_ids) - available
+        if missing:
+            raise ValueError(f"{self.params_str()} refers to unknown materials {sorted(missing)}")
+        grid.ntff_layered_background_specs[self.ID] = NTFFLayeredBackgroundSpec(
+            self.ID,
+            self.axis,
+            tuple(float(value) for value in values),
+            self.material_ids,
+        )
+        logger.info(
+            f"{self.grid_name(grid)}Planar-layered NTFF background {self.ID!r} registered "
+            f"with {len(self.material_ids)} material layer(s) normal to {self.axis}."
+        )
+
+
 class KSIRFrequencyTransform(OutputUserObject):
     """Declare frequencies and a window for one reusable NTFF surface."""
 
@@ -921,7 +982,11 @@ class KSIRFrequencyTransform(OutputUserObject):
         validate_identifier("NTFF transform ID", self.ID)
         if self.surface_id not in grid.ntff_surface_specs:
             raise ValueError(f"{self.params_str()} refers to unknown surface {self.surface_id!r}")
-        if self.ID in grid.ksir_transform_specs or self.ID in grid.ntff_transform_specs:
+        if (
+            self.ID in grid.ksir_transform_specs
+            or self.ID in grid.ntff_transform_specs
+            or self.ID in grid.ntff_layered_transform_specs
+        ):
             raise ValueError(f"{self.params_str()} transform ID is already in use")
         if self.plane_wave_index is not None and (
             not isinstance(self.plane_wave_index, (int, np.integer)) or self.plane_wave_index < 0
@@ -946,7 +1011,7 @@ class KSIRFrequencyTransform(OutputUserObject):
         window = self.window.lower()
         if window not in WINDOWS:
             raise ValueError(f"{self.params_str()} window must be {' or '.join(WINDOWS)}")
-        spec = self.spec_class(
+        spec = self._make_spec(
             self.surface_id,
             self.ID,
             tuple(float(value) for value in values),
@@ -962,6 +1027,24 @@ class KSIRFrequencyTransform(OutputUserObject):
             f"{window} window registered."
         )
 
+    def _make_spec(
+        self,
+        surface_id,
+        transform_id,
+        frequencies,
+        window,
+        save_surface_dft,
+        plane_wave_index,
+    ):
+        return self.spec_class(
+            surface_id,
+            transform_id,
+            frequencies,
+            window,
+            save_surface_dft,
+            plane_wave_index,
+        )
+
 
 class NTFFFrequencyTransform(KSIRFrequencyTransform):
     """Declare a conventional equivalent-current frequency transform."""
@@ -974,6 +1057,77 @@ class NTFFFrequencyTransform(KSIRFrequencyTransform):
     transform_owners_attr = "ntff_transform_owners"
     formulation_label = "Equivalent-current NTFF"
     spec_class = NTFFFrequencyTransformSpec
+
+
+class NTFFLayeredFrequencyTransform(NTFFFrequencyTransform):
+    """Declare an equivalent-current transform for a planar layered background."""
+
+    @property
+    def hash(self):
+        return "#ntff_layered_frequency"
+
+    transform_specs_attr = "ntff_layered_transform_specs"
+    transform_owners_attr = "ntff_layered_transform_owners"
+    formulation_label = "Planar-layered equivalent-current NTFF"
+    spec_class = NTFFLayeredFrequencyTransformSpec
+
+    def __init__(
+        self,
+        surface_id: str,
+        id: str,
+        background_id: str,
+        frequencies,
+        window: str = "rectangular",
+        save_surface_dft: bool = True,
+        plane_wave_index: Optional[int] = None,
+    ):
+        super().__init__(
+            surface_id,
+            id,
+            frequencies,
+            window,
+            save_surface_dft,
+            plane_wave_index,
+        )
+        self.kwargs = dict(
+            surface_id=surface_id,
+            id=id,
+            background_id=background_id,
+            frequencies=frequencies,
+            window=window,
+        )
+        self.background_id = background_id
+
+    def build(self, model: Model, grid: FDTDGrid):
+        validate_identifier("NTFF layered background ID", self.background_id)
+        if self.background_id not in grid.ntff_layered_background_specs:
+            raise ValueError(
+                f"{self.params_str()} refers to unknown layered background "
+                f"{self.background_id!r}"
+            )
+        values = np.asarray(self.frequencies)
+        if np.any(values <= 0):
+            raise ValueError(f"{self.params_str()} layered frequencies must be strictly positive")
+        super().build(model, grid)
+
+    def _make_spec(
+        self,
+        surface_id,
+        transform_id,
+        frequencies,
+        window,
+        save_surface_dft,
+        plane_wave_index,
+    ):
+        return self.spec_class(
+            surface_id=surface_id,
+            transform_id=transform_id,
+            frequencies=frequencies,
+            window=window,
+            save_surface_dft=save_surface_dft,
+            plane_wave_index=plane_wave_index,
+            background_id=self.background_id,
+        )
 
 
 class _NTFFRequest(OutputUserObject):
@@ -1311,7 +1465,9 @@ class KSIRFarField(_NTFFRequest):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        transform_specs = getattr(grid, self.transform_specs_attr)
+        transform_specs = dict(getattr(grid, self.transform_specs_attr))
+        if self.transform_specs_attr == "ntff_transform_specs":
+            transform_specs.update(grid.ntff_layered_transform_specs)
         if self.transform_id not in transform_specs:
             raise ValueError(
                 f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
@@ -1392,7 +1548,15 @@ class KSIRFarFieldArray(KSIRFarField):
 
 
 class NTFFFarField(KSIRFarField):
-    """Request conventional equivalent-current range-normalized far fields."""
+    """Request equivalent-current range-normalized far fields.
+
+    A planar-layered transform additionally accepts the grouped outputs
+    ``"exterior_power"``, ``"exterior_maximum"``, and
+    ``"exterior_efficiency"``.  They store positive- and negative-stack-axis
+    radiation summaries without retaining the temporary full-sphere fields.
+    Exterior efficiency requires an :class:`NTFFAntennaPorts` association;
+    exterior power and conventional directivity do not.
+    """
 
     @property
     def hash(self):
@@ -1543,7 +1707,10 @@ class KSIRAntennaPorts(OutputUserObject):
 
     def build(self, model: Model, grid: FDTDGrid):
         _check_ksir_interface_context(self, grid)
-        if self.transform_id not in getattr(grid, self.transform_specs_attr):
+        transform_specs = dict(getattr(grid, self.transform_specs_attr))
+        if self.transform_specs_attr == "ntff_transform_specs":
+            transform_specs.update(grid.ntff_layered_transform_specs)
+        if self.transform_id not in transform_specs:
             raise ValueError(
                 f"{self.params_str()} refers to unknown transform {self.transform_id!r}"
             )

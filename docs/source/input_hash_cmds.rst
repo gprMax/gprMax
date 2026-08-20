@@ -2472,8 +2472,10 @@ The following conventions apply to every NTFF command:
 * every exact time- or frequency-domain point must be strictly outside the
   completed integration surface. A point may be outside the FDTD model domain;
 * the sampled surface and exterior must be one homogeneous, lossless,
-  non-dispersive material. gprMax determines its wave speed and impedance
-  from the Yee material IDs; these are not user-entered command parameters;
+  non-dispersive material for KSIR, conventional ``#ntff_frequency``, and the
+  transient transform. A ``#ntff_layered_frequency`` surface may instead
+  cross the declared planar interfaces; its two semi-infinite observation
+  materials must be lossless;
 * surface samples must remain outside the PML and clear of the TFSF correction
   stencil. A closed surface must enclose the radiating source or the complete
   TFSF box and scatterer. An open Huygens surface instead permits an impressed
@@ -2686,6 +2688,81 @@ surfaces are not yet enabled.
 .. code-block:: none
 
     #ntff_frequency: radiation_surface current_band 0.8e9 1.0e9 1.2e9 hann
+
+#ntff_layered_background:
+-------------------------
+
+Declares the material order and physical interfaces of a planar background:
+
+.. code-block:: none
+
+    #ntff_layered_background: background_id axis material0 [interface0 material1 ...]
+
+``axis`` is ``x``, ``y``, or ``z``. Materials run from the positive-axis
+semi-infinite exterior to the negative-axis semi-infinite exterior. Interface
+coordinates are in metres and must therefore be strictly descending. There
+is exactly one fewer interface than materials. For example, air above a
+finite dry-soil layer and a wet-soil lower half-space is
+
+.. code-block:: none
+
+    #ntff_layered_background: ground z free_space 0.0 dry_soil -0.1 wet_soil
+
+This command describes the analytical propagation background; it does not
+build FDTD geometry. The corresponding boxes/layers must be built separately
+at the same coordinates. Repeating a material on both sides of an interface
+is permitted and is useful for homogeneous-reduction checks.
+
+#ntff_layered_frequency:
+------------------------
+
+Declares a streaming equivalent-current transform which uses a previously
+defined planar background:
+
+.. code-block:: none
+
+    #ntff_layered_frequency: surface_id transform_id background_id f1 [f2 ...] [window]
+
+The frequency and window rules are identical to ``#ntff_frequency``. The
+surface may cross one or more declared layer interfaces. Internal materials
+may be electrically conductive or Debye, Lorentz, Drude, or inclusive
+multipole dispersive materials; their complex properties are evaluated at
+each requested frequency. The positive- and negative-axis exterior
+materials must be lossless. PEC and PMC layers are not supported.
+
+The transform is consumed by the existing ``#ntff_far_field``,
+``#ntff_far_field_array``, and ``#ntff_antenna_ports`` commands. It returns
+far-zone quantities only. For directions in the positive-axis hemisphere,
+range normalisation and radiation intensity use the positive exterior
+wavenumber and impedance; the negative exterior is used in the opposite
+hemisphere. Exact grazing directions (zero direction cosine along ``axis``)
+are rejected. Avoid requesting such a point explicitly; internal directivity
+quadrature omits it automatically.
+
+Far-field and antenna metrics support different lossless exterior materials.
+Coherent array-codebook synthesis is currently limited to stacks whose two
+exterior impedances are equal and frequency independent.
+
+Three grouped outputs are specific to a planar-layered transform:
+
+* ``exterior_power`` stores radiated power, radiated fraction, and the
+  positive-to-negative-axis integrated power ratio;
+* ``exterior_maximum`` stores each exterior's peak radiation intensity,
+  conventional full-sphere-normalised directivity, and peak direction;
+* ``exterior_efficiency`` stores accepted- and incident-power-normalised
+  coupling efficiencies and maximum gain for each exterior. It requires
+  ``#ntff_antenna_ports`` and a rectangular transform window.
+
+The first two outputs do not require an antenna-port association. The region
+names follow the declared stack axis rather than assuming that ``+z`` is air
+or ``-z`` is ground.
+
+.. code-block:: none
+
+    #ntff_layered_frequency: radiation_surface ground_band ground 0.8e9 1.0e9 1.2e9 rectangular
+    #ntff_antenna_ports: ground_band feed
+    #ntff_far_field: 30 0 ground_band upper_cut Etheta Ephi directivity_dbi exterior_power exterior_efficiency exterior_maximum
+    #ntff_far_field: 150 0 ground_band lower_cut Etheta Ephi directivity_dbi
 
 #ksir_antenna_ports:
 --------------------
@@ -3071,12 +3148,17 @@ Request conventional equivalent-current frequency-domain far fields:
     #ntff_far_field: theta phi transform_id [output_id [output1 output2 ...]]
     #ntff_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
 
-``transform_id`` must refer to ``#ntff_frequency``. Angles, default field
+``transform_id`` must refer to ``#ntff_frequency`` or
+``#ntff_layered_frequency``. Angles, default field
 components, range and increment rules, range normalization, derived radiation
 quantities, RCS, and antenna-port normalization are identical to the
 corresponding ``#ksir_far_field`` commands. Because the underlying surface
 integral is independent, requesting both formulations on the same
 ``#ntff_surface`` provides a useful numerical cross-check.
+
+Only a planar-layered transform accepts ``exterior_power``,
+``exterior_efficiency``, and ``exterior_maximum``. Their definitions and port
+requirements are given under ``#ntff_layered_frequency`` above.
 
 .. code-block:: none
 

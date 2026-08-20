@@ -13,6 +13,23 @@ The main validations are:
   fresh water and Puerto Rico clay over their dispersive bands;
 * ``validate_hertzian_dipole.py`` -- Hertzian-dipole far-field pattern and
   directivity, plus one analytical near-field time-domain component;
+* ``planar_layered_ntff/validate_point_dipole.py`` -- the frequency-domain
+  planar-layered Huygens transform for a lossy, magnetic three-layer stack,
+  compared with the closed-form layered Hertzian-dipole Green function;
+* ``planar_layered_ntff/validate_capoglu_paper.py`` -- the complete
+  nine-dipole, eight-layer Figure 2 benchmark of Çapoğlu *et al.*, including
+  spectral and angular TE/TM results;
+* ``planar_layered_ntff/validate_engheta_interfacial_dipoles.py`` -- vertical
+  and horizontal interfacial-dipole patterns for refractive-index ratios two
+  and four, compared with the closed asymptotic power expressions of Engheta,
+  Papas, and Elachi;
+* ``planar_layered_ntff/validate_smith_dipole_height.py`` -- E- and H-plane
+  patterns of a horizontal dipole at three heights above a dielectric
+  half-space, compared with Smith's asymptotic solution;
+* ``planar_layered_ntff/validate_gssi_energy_convergence.py`` -- finite-radius
+  pulse-energy patterns of the GSSI-like 1.5 GHz antenna over a lossless
+  half-space, verifying the convergence reported by Warren and Giannopoulos
+  against a broadband layered-NTFF asymptote;
 * ``validate_fdfd_eigenmodes.py`` -- effective index of 1D PEC
   parallel-plate and dielectric slab modes, plus 2D rectangular and cylindrical
   PEC waveguide modes, against analytical dispersion;
@@ -93,6 +110,11 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_plane_wave_dispersive_halfspace --gpu 0
     python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     python -m testing.validation.validate_hertzian_dipole --gpu 0
+    python -m testing.validation.planar_layered_ntff.validate_point_dipole
+    python -m testing.validation.planar_layered_ntff.validate_capoglu_paper --gpu 0
+    python -m testing.validation.planar_layered_ntff.validate_engheta_interfacial_dipoles --gpu 0
+    python -m testing.validation.planar_layered_ntff.validate_smith_dipole_height --gpu 0
+    python -m testing.validation.planar_layered_ntff.validate_gssi_energy_convergence --gpu 0
     python -m testing.validation.validate_fdfd_eigenmodes
     python -m testing.validation.validate_rational_network_literature
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0

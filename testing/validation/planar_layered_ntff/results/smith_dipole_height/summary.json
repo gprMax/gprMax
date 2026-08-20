@@ -1,0 +1,35 @@
+{
+  "0.1": {
+    "actual_height_m": 0.015,
+    "e_plane": {
+      "rms_error_normalised_power": 0.0009498432709454907,
+      "maximum_error_normalised_power": 0.0037785792206037616
+    },
+    "h_plane": {
+      "rms_error_normalised_power": 0.001287347557683399,
+      "maximum_error_normalised_power": 0.0034248710936998217
+    }
+  },
+  "0.2": {
+    "actual_height_m": 0.03,
+    "e_plane": {
+      "rms_error_normalised_power": 0.001476858510983003,
+      "maximum_error_normalised_power": 0.005714865183213069
+    },
+    "h_plane": {
+      "rms_error_normalised_power": 0.002105464722549366,
+      "maximum_error_normalised_power": 0.0058736283314765325
+    }
+  },
+  "0.35": {
+    "actual_height_m": 0.052500000000000005,
+    "e_plane": {
+      "rms_error_normalised_power": 0.0018246140916176128,
+      "maximum_error_normalised_power": 0.0071025990737306754
+    },
+    "h_plane": {
+      "rms_error_normalised_power": 0.0027062156675327696,
+      "maximum_error_normalised_power": 0.007554656803144044
+    }
+  }
+}

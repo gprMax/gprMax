@@ -323,6 +323,25 @@ def test_antenna_gain_rejects_ambiguous_normalisation(
         )
 
 
+def test_exterior_metrics_require_planar_layered_transform(tmp_path):
+    inputfile = tmp_path / "invalid_exterior_metrics.in"
+    inputfile.write_text(
+        _antenna_gain_input().replace(
+            "#ksir_far_field: 90 0 band broadside gain\n",
+            "#ksir_far_field: 90 0 band broadside exterior_power\n",
+        )
+    )
+
+    with pytest.raises(ValueError, match="exterior metrics from a non-layered transform"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "invalid_exterior_metrics",
+            hide_progress_bars=True,
+        )
+
+
 def test_eigenmode_antenna_transform_must_use_exact_port_dft_bins(tmp_path):
     example = (
         Path(__file__).parents[2]
