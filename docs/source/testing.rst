@@ -129,6 +129,8 @@ dielectric sphere RCS with independent Fresnel, dipole, and Mie solutions. The
 partial-cutoff rectangular-waveguide model compares generalized TE10
 transmission magnitude and phase directly with
 :math:`S_{21}=\exp(-j\beta L)`.
+The planar-layered NTFF case compares a Huygens surface crossing two material
+interfaces with the closed-form three-layer Hertzian-dipole Green function.
 
 The dispersive studies compare exact pole-residue interface averaging with
 the non-averaged staircased representation for planar layers, homogeneous
@@ -139,6 +141,7 @@ human-readable report. Run, for example:
 .. code-block:: console
 
     $ python -m testing.validation.validate_hertzian_dipole --gpu 0
+    $ python -m testing.validation.planar_layered_ntff.validate_point_dipole
     $ python -m testing.validation.validate_rational_network_literature
     $ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     $ python -m testing.validation.validate_debye_sphere_averaging --gpu 0

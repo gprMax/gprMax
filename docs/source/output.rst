@@ -1115,6 +1115,11 @@ ranks; it does not change field normalisation or array ordering.
             fields/<output>
         frequency/<transform_id>/
             frequencies
+            layered_background/ [planar-layered transforms only]
+                interfaces
+                material_ids
+                relative_permittivity
+                relative_permeability
             surface_dft/<component>/
                 field
                 normal_derivative
@@ -1167,11 +1172,20 @@ status, omitted faces, boundary types/coordinates, and image count.
 ``closure=huygens_open`` with one to five values in ``omitted_faces`` identifies
 an open frequency-domain Huygens surface; ``closure=symmetry`` identifies
 faces restored by PEC/PMC image completion.
-The frequency transform group records its ``ksir`` or ``equivalent_current``
-formulation, window, inferred wave speed and impedance, configured precision
-and collection backend, plus the engineering convention:
+The frequency transform group records its ``ksir``, ``equivalent_current``,
+or ``planar_layered_equivalent_current`` formulation, window, configured
+precision and collection backend, plus the engineering convention:
 ``exp(+j*omega*t)`` phasors, ``exp(-j*omega*t)`` forward transform, and
 ``exp(-j*k*R)`` outgoing Green function.
+
+For a planar-layered transform, ``layered_background`` records the stack
+axis, positive-to-negative-axis material ordering, physical interface
+coordinates, and the complex relative permittivity and permeability evaluated
+at every transform frequency. The transform-level scalar ``wave_speed`` and
+``impedance`` are collection metadata for the positive-axis exterior; the
+far-field group uses the appropriate observation half-space for every
+direction. Its normalization attribute is therefore
+``r * exp(+j*k_observation_halfspace*r) * field``.
 
 Exact frequency receiver groups have ``range_normalized=False``. They contain
 physical finite-distance phasors with every ``1/R`` and ``1/R**2`` term.
@@ -1208,9 +1222,13 @@ The linear definitions are
 
 .. math::
 
-    U=\frac{|F_\theta|^2+|F_\phi|^2}{2\eta},\qquad
+    U=\frac{|F_\theta|^2+|F_\phi|^2}{2\eta_o(\hat{\mathbf r})},\qquad
     D=\frac{4\pi U}{P_\mathrm{rad}},\qquad
     P_\mathrm{rad}=\int_{4\pi}U\,\mathrm{d}\Omega.
+
+For homogeneous transforms :math:`\eta_o` is constant. For a planar stack it
+is the real impedance of the positive- or negative-axis lossless exterior,
+selected by the observation direction.
 
 ``directivity_dbi``, ``gain_dbi``, and ``realized_gain_dbi`` are
 ``10*log10`` of their corresponding linear datasets. The linear gain and

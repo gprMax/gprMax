@@ -165,6 +165,48 @@ dispersion.
 
     Complex Fresnel comparison for the fresh-water and clay models.
 
+Planar-layered near-to-far-field transform
+===========================================
+
+The :download:`planar-layered NTFF validation driver
+<../../testing/validation/planar_layered_ntff/validate_point_dipole.py>`
+places a z-directed Hertzian current element in a finite lossy, magnetic film
+between two lossless half-spaces. The closed Huygens surface crosses both
+interfaces, so a homogeneous-background transform is not applicable. The
+production surface result is compared with the independent three-layer
+transmission-line Green function of Çapoğlu *et al.* [CAP2012]_.
+
+For a dipole current moment :math:`\widetilde p(\omega)` in layer :math:`n`,
+the range-normalised analytical field is
+
+.. math::
+
+    r e^{+j k_o r} E_\theta
+    =s\,\frac{j\omega\mu_o}{4\pi}\,
+      \widetilde p(\omega) V_{v_n}^{\mathrm{TM}}(z_0)
+      \frac{\epsilon_o}{\epsilon_n}\sin\theta,
+
+where :math:`s=+1` and :math:`-1` for observation in the positive- and
+negative-axis exterior respectively. The voltage-source response
+:math:`V_{v_n}^{\mathrm{TM}}` is evaluated from the closed three-layer form,
+independently of the production surface integration. The exact discrete
+Hertzian-source samples and their Yee time offset are read from the output,
+so waveform amplitude and phase are not fitted.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/layered_point_dipole.png
+    :width: 750 px
+
+    FDTD Huygens-surface result (symbols) and the analytical three-layer
+    point-dipole field (lines) across both observation half-spaces.
+
+The retained 1 mm result spans nine frequencies from 1--3 GHz. Its maximum
+vector error normalised to the analytical peak is 2.304 percent and its RMS
+error is 0.857 percent. Repeating the model at 2 mm gives 4.738 and 1.722
+percent, respectively, demonstrating the expected improvement under mesh
+refinement. The comparison exercises the complete field collection,
+Yee-time correction, material-interface smoothing, complex TE/TM recursion,
+and angular far-field evaluation.
+
 .. _rational-network-validation:
 
 Rational lumped networks in a parallel-plate guide

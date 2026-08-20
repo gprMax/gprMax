@@ -107,6 +107,11 @@ The available formulations are summarised below.
      - Frequency
      - No
      - Any user-selected nonempty subset of the six faces
+   * - Planar-layered Love currents [CAP2012]_
+     - Far-zone fields
+     - Frequency
+     - No
+     - TE/TM propagation through lossy or dispersive planar stacks
    * - Modified Love currents [GIAFF1997]_
      - Far-zone fields
      - Time
@@ -123,19 +128,23 @@ may instead omit one to five physical faces. This permits, for example, a
 feed-through surface with both waveguide ends open or a surface that terminates
 on a PEC backplane. An impressed source outside the Huygens volume must enter
 through one of the omitted faces; a uniform feed should continue directly into
-the corresponding PML, which absorbs backward guide waves. Every sampled face
-lies in a
-homogeneous, linear, lossless and non-dispersive background with
+the corresponding PML, which absorbs backward guide waves.
 
-Eigenmode sources are not supported by the Ramahi/KSIR formulation. Use the
-frequency-domain equivalent-current Huygens commands (the ``#ntff_*`` family)
-for eigenmode-fed antenna far fields, gain, and realized gain.
+For KSIR and the homogeneous equivalent-current formulations, every sampled
+face lies in a homogeneous, linear, lossless and non-dispersive background
+with
 
 .. math::
 
     c_b=\frac{1}{\sqrt{\mu_b\epsilon_b}},\qquad
     \eta_b=\sqrt{\frac{\mu_b}{\epsilon_b}},\qquad
     k=\frac{\omega}{c_b}.
+
+The planar-layered frequency transform is the exception to the homogeneous
+background restriction: its surface may cross the declared interfaces.
+Eigenmode sources are not supported by the Ramahi/KSIR formulation. Use the
+frequency-domain equivalent-current Huygens commands (the ``#ntff_*`` family)
+for eigenmode-fed antenna far fields, gain, and realized gain.
 
 The unit normal :math:`\hat{\mathbf n}` points out of the enclosed volume,
 :math:`\mathbf r'` denotes a source point on :math:`S`, and
@@ -286,6 +295,60 @@ For the engineering convention stated above, the stored electric far field is
 This supplies radiation patterns, antenna quantities, and RCS independently
 of the scalar KSIR construction. Direct frequency accumulation avoids storing
 the complete surface-field history.
+
+Planar-layered frequency-domain far field
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The planar-layered extension follows the transmission-line dyadic Green
+function of Çapoğlu *et al.* [CAP2012]_. It retains the same sampled Love
+currents and direct surface DFT, but replaces the homogeneous propagation
+factor by TE and TM responses of a stack normal to ``x``, ``y``, or ``z``.
+Materials are ordered from the positive-axis exterior towards the
+negative-axis exterior.
+
+For observation angle :math:`\theta` relative to the positive stack normal,
+normalise layer :math:`n` to the observation half-space, and define
+
+.. math::
+
+    q_n=\sqrt{\epsilon_n\mu_n-\sin^2\theta},\qquad
+    \beta_n=k_o q_n,
+
+.. math::
+
+    \eta_n^{\mathrm{TM}}=\frac{q_n}{\epsilon_n},\qquad
+    \eta_n^{\mathrm{TE}}=\frac{\mu_n}{q_n}.
+
+The square-root branch has non-positive imaginary part for the
+``exp(+j*omega*t)`` convention. Input impedances and travelling-wave
+amplitudes are propagated through the finite layers. For example, for an
+observation direction in the positive-axis exterior, the upward impedance
+recursion is
+
+.. math::
+
+    Z_{n-1}=\eta_n
+    \frac{Z_n-j\eta_n\tan(\beta_n d_n)}
+         {\eta_n-jZ_n\tan(\beta_n d_n)},
+
+with the appropriate TE or TM line impedance. The resulting voltage- and
+current-source responses weight each Cartesian component of
+:math:`\mathbf J_s` and :math:`\mathbf M_s` at its physical depth before the
+surface integral. In a homogeneous medium these dyadics reduce to the
+identity and the implementation reproduces the conventional transform above
+for both observation half-spaces.
+
+Finite internal layers may be conductive or electrically dispersive. The two
+semi-infinite observation media must be lossless so that a conventional far
+field and real wave impedance exist. Exact grazing directions are singular
+in this representation and are rejected; internal full-sphere quadrature
+therefore uses an even Gauss--Legendre order which does not sample the
+equator. Range normalisation uses the wavenumber of the observation
+half-space, and radiation intensity uses its direction-dependent impedance.
+Ordinary far fields, directivity, gain, and efficiency may use different
+exterior impedances. Coherent array-codebook synthesis currently requires the
+two exterior impedances to be equal and frequency independent because its
+retained linear basis has one scalar reference impedance.
 
 Modified 1997 time-domain far field
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

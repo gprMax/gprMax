@@ -56,9 +56,17 @@ comparison with the independent analytical solution.
     (gprMax)$ python -m testing.validation.validate_plane_wave_dispersive_halfspace --gpu 0
     (gprMax)$ python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     (gprMax)$ python -m testing.validation.validate_hertzian_dipole --gpu 0
+    (gprMax)$ python -m testing.validation.planar_layered_ntff.validate_point_dipole
     (gprMax)$ python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     (gprMax)$ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
     (gprMax)$ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
+
+The OpenMP/Cython angular summation used by the planar-layered transform can
+also be compared directly with its independent NumPy implementation:
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.benchmark_layered_ntff --threads 8
 
 Omit ``--gpu`` to use the CPU. See :download:`the validation README
 <../../testing/validation/README.rst>` for the scope of each case and the

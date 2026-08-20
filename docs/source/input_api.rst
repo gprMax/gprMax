@@ -1945,6 +1945,10 @@ Equivalent-current far fields
 -----------------------------
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFrequencyTransform
 
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredBackground
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredFrequencyTransform
+
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFarField
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFarFieldArray
@@ -1955,6 +1959,41 @@ These classes provide the conventional Love-current frequency transform and
 share the KSIR far-field output and antenna-metric definitions. They do not
 provide finite-distance receivers. See :ref:`ntff-formulations` for the
 surface-current equations and engineering phasor convention.
+
+A layered transform reuses the same far-field request classes. For example,
+air above a finite dielectric layer and a lower dielectric half-space can be
+declared independently of the geometry objects which build those layers:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFLayeredBackground(
+        id='ground',
+        axis='z',
+        materials=('free_space', 'dry_soil', 'wet_soil'),
+        interfaces=(0.0, -0.1),
+    ))
+    scene.add(gprMax.NTFFLayeredFrequencyTransform(
+        surface_id='radiation_surface',
+        id='ground_band',
+        background_id='ground',
+        frequencies=(0.8e9, 1.0e9, 1.2e9),
+        window='hann',
+    ))
+    scene.add(gprMax.NTFFFarField(
+        theta=30,
+        phi=0,
+        transform_id='ground_band',
+        id='upper_pattern',
+        outputs=('Etheta', 'Ephi', 'directivity_dbi'),
+    ))
+
+The two exterior materials must be lossless and an explicitly requested
+direction must not be exactly grazing to the layer normal. Internal layers
+may be conductive or electrically dispersive. See :ref:`ntff-formulations`
+for the TE/TM transmission-line formulation.
+Far-field and antenna metrics support different lossless exterior materials;
+coherent array-codebook synthesis currently requires equal,
+frequency-independent exterior impedances.
 
 Modified one-step transient far fields
 ---------------------------------------
