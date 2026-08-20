@@ -45,6 +45,46 @@ remain finite generalized coefficients while their separate power-wave-valid
 flags are false. The comparison uses the integrated eigenmode-port result
 directly; it does not use auxiliary receiver-derived oracle traces.
 
+Full incident-matrix modal de-embedding
+=======================================
+
+An eigenmode study records every port's incident and outgoing modal waves in
+every independent excitation case. With those case vectors as columns,
+
+.. math::
+
+    A=[a^{(1)}\;\cdots\;a^{(N)}], \qquad
+    B=[b^{(1)}\;\cdots\;b^{(N)}], \qquad B=SA.
+
+The :download:`multiport validation driver
+<../../testing/validation/eigenmode_multiport_deembedding/validate_rectangular_waveguide.py>`
+first prescribes an exact frequency-dependent :math:`S` and a non-diagonal
+:math:`A`, then forms :math:`B` analytically. The production conditioned solve
+recovers :math:`S` with a maximum Frobenius-norm error of
+:math:`2.31\times10^{-16}`. Dividing each case only by its nominal source wave
+has an error of at least :math:`2.17\times10^{-2}` in this test.
+
+.. figure:: ../../testing/validation/eigenmode_multiport_deembedding/analytical_matrix_deembedding.png
+    :width: 850 px
+
+    Exact matrix recovery and network-equation residual with deliberately
+    non-zero incident waves at nominally passive ports.
+
+The end-to-end comparison uses a lossless two-port rectangular guide and the
+analytical TE10 propagation factor :math:`\exp(-j\beta L)`. Across 20--24 GHz,
+the full solve has maximum errors of 0.001829 in linear magnitude and 1.243
+degrees in phase. Its maximum :math:`\|B-SA\|/\|B\|` residual is
+:math:`2.93\times10^{-16}`, compared with 0.0379 for diagonal normalisation.
+
+.. figure:: ../../testing/validation/eigenmode_multiport_deembedding/rectangular_waveguide_deembedding.png
+    :width: 850 px
+
+    End-to-end TE10 comparison and the measured multiport network residual.
+    The diagonal result is accidentally closer to the continuum magnitude in
+    this coarse model, but it does not satisfy the measured :math:`B=SA`
+    system; full de-embedding does not remove ordinary FDTD discretisation or
+    port-termination errors.
+
 Hertzian dipole in free space
 =============================
 

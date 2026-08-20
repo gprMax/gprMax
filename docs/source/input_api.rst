@@ -343,6 +343,28 @@ exactly one case. This deliberate one-active-channel policy gives ordinary
 S-parameters; exciting several ports in one solve would yield only the active
 relation :math:`b(f)=S(f)a(f)`, not all columns of :math:`S`.
 
+The nominally passive ports can still contain a small measured incident wave
+because their finite terminations are not mathematically perfect. gprMax does
+not assume that the incident-wave matrix is diagonal. For the independent
+cases it assembles
+
+.. math::
+
+   A(f) = [a^{(1)}(f)\;\cdots\;a^{(N)}(f)], \qquad
+   B(f) = [b^{(1)}(f)\;\cdots\;b^{(N)}(f)],
+
+and obtains the authoritative aggregate matrix from
+
+.. math::
+
+   B(f)=S(f)A(f), \qquad S(f)=B(f)A(f)^{-1}.
+
+The implementation uses a conditioned linear solve, not an explicit inverse.
+Bins with an incomplete, invalid, or ill-conditioned incident basis are
+marked invalid. The measured :math:`A` and :math:`B`, their validity masks,
+condition number, and solve-valid flag are retained in the aggregate HDF5
+file for audit and restart.
+
 .. code-block:: python
 
     excitation = gprMax.EigenmodeExcitation(
@@ -368,38 +390,106 @@ The matrix convention is
 generalized-coefficient validity masks are stored separately, so an
 evanescent generalized coefficient is never mistaken for a propagating power
 wave. Compatible columns in an existing ``<output>_study.h5`` are retained
-when restarting with ``i=N``.
+when restarting with ``i=N``. More precisely, the compatible raw excitation
+cases are retained and the full de-embedding solve is repeated using all
+available cases.
 
-Embedded far fields from the individual cases can be combined without a new
-FDTD solve. A :class:`gprMax.ModalWeight` supports either a constant phase
-shifter, a true time delay, or both:
+Embedded far fields from the individual cases can be retained and combined
+without a new FDTD solve. Select an existing frequency-domain KSIR or
+equivalent-current far-field request, then define named states in an
+:class:`gprMax.ArrayCodebook`:
 
 .. code-block:: python
 
-    weights = results['study'].excitation_weights([
-        gprMax.ModalWeight(port=1, mode=1, power=1, phase_deg=0),
-        gprMax.ModalWeight(port=2, mode=1, power=1, phase_deg=90),
-    ])
-    outgoing = results['study'].outgoing([
-        gprMax.ModalWeight(port=1, mode=1, power=1),
-    ])
-    field = gprMax.combine_embedded_modal_responses(embedded_fields, weights)
+    codebook = gprMax.ArrayCodebook(
+        states=[
+            gprMax.ArrayState('broadside', [
+                gprMax.ModalWeight(port=1, mode=1, power=1),
+                gprMax.ModalWeight(port=2, mode=1, power=1),
+            ]),
+            gprMax.ArrayState('steered', [
+                gprMax.ModalWeight(port=1, mode=1, power=1),
+                gprMax.ModalWeight(port=2, mode=1, power=1, phase_deg=90),
+            ]),
+        ],
+        embedded_far_fields=[
+            gprMax.EmbeddedFarFieldSpec('antenna_band', 'pattern'),
+        ],
+    )
+    study = gprMax.EigenmodeStudy(cases, codebook=codebook)
+    results = gprMax.run(scenes=[scene], study=study, outputfile='array')
+    steered = results['study'].evaluate_array_state(codebook.states[1])
+
+The same versioned definition can be loaded from JSON with
+``ArrayCodebook.from_json`` and serialized again with ``to_json``. For
+hash-command models use
+``#array_codebook: file.json`` alongside ``#study: eigenmode ...``. An
+existing aggregate can be reopened without another solve:
+
+.. code-block:: python
+
+    study_result = gprMax.EigenmodeStudyResult.from_hdf5('array_study.h5')
+    codebook = gprMax.ArrayCodebook.from_json('array_states.json')
+    states = study_result.evaluate_codebook(codebook)
 
 Here ``power`` is incident modal power in watts, so the power-wave magnitude
 is its square root. With the engineering Fourier convention a constant phase
 uses :math:`\exp(+j\phi)`, whereas a delay uses
 :math:`\exp(-j2\pi f\tau)`. Constant phase produces ordinary narrowband
 beam steering and beam squint; true time delay preserves steering over
-bandwidth. ``embedded_fields`` is a complex array whose first axis is
-frequency and whose selected channel axis follows ``channel_ports`` and
-``channel_modes``.
+bandwidth. In a lower-level embedded response array, the first axis is
+frequency and the selected channel axis follows ``channel_ports`` and
+``channel_modes``; use ``combine_embedded_modal_responses`` to combine such
+an array directly.
+
+For state :math:`q`, gprMax forms the incident vector
+
+.. math::
+
+   a_{q,p}(f)=\sqrt{P_{q,p}}\,
+   \exp\!\left(j\phi_{q,p}-j2\pi f\tau_{q,p}\right),
+   \qquad b_q(f)=S(f)a_q(f).
+
+It reports the active reflection coefficient :math:`b_{q,p}/a_{q,p}` for
+each driven channel and
+
+.. math::
+
+   \mathrm{TARC}_q(f)=
+   \sqrt{\frac{\sum_p |b_{q,p}(f)|^2}
+                    {\sum_p |a_{q,p}(f)|^2}}.
+
+Complex embedded :math:`E_\theta` and :math:`E_\phi` fields use the same full
+incident-matrix de-embedding. If :math:`F_{\mathrm{runs}}` contains the raw
+field from each case, gprMax solves
+:math:`F_{\mathrm{runs}}=F_{\mathrm{emb}}A` for the embedded modal basis.
+A retained full-sphere quadrature is treated in the same way, so
+radiated power, directivity, gain, realized gain, and efficiencies include
+the coherent cross terms. Only physical propagating power-wave bins marked by
+``valid_S`` are used for these power metrics; generalized evanescent
+coefficients remain available in ``S`` but are not treated as watts.
+No embedded-field storage or full-sphere evaluation is performed unless a
+codebook explicitly selects a far-field output. With a selection, storage is
+proportional to the number of frequencies, quadrature directions, and modal
+channels. Both the raw case fields needed for restart/audit and the
+de-embedded modal basis are retained, approximately doubling the complex field
+storage compared with keeping only one representation. The synthesis assumes
+a linear, time-invariant antenna and feed
+model; a nonlinear or state-dependent feed network requires new driven
+simulations rather than post-processing.
 
 .. autoclass:: gprMax.studies.EigenmodeStudy
 
 .. autoclass:: gprMax.studies.EigenmodeStudyResult
-    :members: excitation_weights, outgoing
+    :members: from_hdf5, excitation_weights, outgoing, evaluate_array_state, evaluate_codebook
 
 .. autoclass:: gprMax.studies.ModalWeight
+
+.. autoclass:: gprMax.studies.ArrayState
+
+.. autoclass:: gprMax.studies.ArrayCodebook
+
+.. autoclass:: gprMax.studies.EmbeddedFarFieldSpec
 
 .. autofunction:: gprMax.studies.modal_array_weights
 

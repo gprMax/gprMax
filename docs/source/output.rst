@@ -373,18 +373,92 @@ results.
 
 Every eigenmode-study case instead contains
 ``study/eigenmode_response``. ``InputPort`` and ``InputMode`` identify the
-incident modal channel; ``S_column`` is ordered by ``channel_ports`` and
-``channel_modes``. ``valid_S_column`` selects physical propagating power-wave
-coefficients, while ``generalized_valid_S_column`` also permits conditioned
-generalized coefficients that are not valid for power accounting.
+nominal incident modal channel. ``incident`` and ``outgoing`` contain the
+complete measured modal vectors for that run, ordered by ``channel_ports``
+and ``channel_modes``; ``valid_wave`` and ``generalized_valid_wave`` are their
+validity masks. ``S_column`` is the single-source-normalized per-run
+diagnostic retained alongside those raw waves. It is not the authoritative
+column when passive ports have residual incident waves.
 
 The eigenmode aggregate ``<output>_study.h5`` contains ``frequency``,
-``channel_ports``, ``channel_modes``, ``case_ids``, ``S``, ``valid_S``, and
-``generalized_valid_S``. Its convention is
+``channel_ports``, ``channel_modes``, ``case_ids``, ``incident_matrix``,
+``outgoing_matrix``, ``valid_wave_matrix``,
+``generalized_valid_wave_matrix``, ``deembedding_condition_number``,
+``deembedding_valid``, ``S``, ``valid_S``, and ``generalized_valid_S``. Its convention is
 ``S[frequency, output_channel, input_channel]``. Modal channels can represent
 different mode counts on different ports; the two channel-index datasets are
 therefore authoritative and should be used instead of assuming one mode per
-port.
+port. The aggregate :math:`S` satisfies :math:`B=SA` for the stored measured
+incident matrix :math:`A` and outgoing matrix :math:`B`; it is calculated by
+a conditioned solve rather than independent scalar division. A restarted
+study retains the raw case columns and repeats this complete solve.
+Both run matrices use
+``[frequency, modal_channel, excitation_case]`` axis order.
+
+When an array codebook is attached, the same aggregate may also contain:
+
+.. code-block:: none
+
+    /array_codebook/
+        definition [canonical JSON, always present]
+        source [original JSON text, when loaded from disk]
+    /embedded_far_fields/<transform_id>/<output_id>/
+        frequency
+        theta
+        phi
+        Etheta                         [frequency, direction, channel]
+        Ephi                           [frequency, direction, channel]
+        valid                          [frequency, channel]
+        sphere/
+            theta
+            phi
+            weights
+            Etheta                     [frequency, sphere_direction, channel]
+            Ephi                       [frequency, sphere_direction, channel]
+        raw_runs/
+            Etheta                     [frequency, direction, excitation_case]
+            Ephi                       [frequency, direction, excitation_case]
+            valid                      [frequency, excitation_case]
+            sphere/{Etheta,Ephi}
+    /array_states/<state_id>/
+        drives/{port,mode,power_w,phase_deg,delay_s}
+        incident
+        outgoing
+        active_reflection
+        incident_power
+        reflected_power
+        accepted_power
+        tarc
+        valid
+        far_fields/<transform_id>/<output_id>/
+            Etheta
+            Ephi
+            radiation_intensity
+            radiated_power
+            directivity
+            directivity_dbi
+            gain
+            gain_dbi
+            realized_gain
+            realized_gain_dbi
+            radiation_efficiency
+            total_efficiency
+            maximum_directivity
+            maximum_directivity_dbi
+            maximum_theta
+            maximum_phi
+            valid
+
+The embedded fields have units of range-normalized field per square root watt
+of incident modal power. The requested-direction and full-sphere arrays retain
+complex fields, rather than per-channel directivity or power, so coherent
+cross terms are included when a state is synthesized. The sphere ``weights``
+integrate radiation intensity over solid angle. ``valid`` is false wherever
+an active input does not have a physical propagating power-wave S coefficient;
+such bins are stored as NaN for power-derived state results.
+``definition`` is a complete portable representation even when the codebook
+was constructed with the Python API; ``source`` preserves the user's original
+text when it came from a JSON file.
 
 .. code-block:: none
 
@@ -408,6 +482,10 @@ port.
                 S_column
                 valid_S_column
                 generalized_valid_S_column
+                incident
+                outgoing
+                valid_wave
+                generalized_valid_wave
         rxs/
             rx1/
                 Name

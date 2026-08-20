@@ -678,9 +678,12 @@ def _check_ksir_interface_context(user_object, grid):
             f"{user_object.params_str()} supports CPU, CUDA, OpenCL, and Metal solvers."
         )
     if config.sim_config.args.geometry_fixed:
-        from gprMax.studies import PlaneWaveStudy, SourceStudy
+        from gprMax.studies import EigenmodeStudy, PlaneWaveStudy, SourceStudy
 
-        if not isinstance(config.sim_config.study, (PlaneWaveStudy, SourceStudy)):
+        if not isinstance(
+            config.sim_config.study,
+            (EigenmodeStudy, PlaneWaveStudy, SourceStudy),
+        ):
             raise ValueError(f"{user_object.params_str()} does not support geometry-fixed runs.")
     if config.get_model_config().mode != "3D":
         raise ValueError(f"{user_object.params_str()} currently supports only 3-D models.")
