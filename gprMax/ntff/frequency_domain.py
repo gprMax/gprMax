@@ -478,6 +478,7 @@ class KSIRFrequencyDomainMonitor:
         exterior_index_bounds: Optional[Sequence[Sequence[int]]] = None,
         closure: Optional[ResolvedKSIRClosure] = None,
         allow_external_sources: bool = False,
+        allow_mixed_materials: bool = False,
         mpi_comm=None,
         mpi_grid=None,
         global_surfaces: Optional[Mapping[str, KSIRComponentSurface]] = None,
@@ -556,6 +557,7 @@ class KSIRFrequencyDomainMonitor:
         )
         self.incident_monitor_name = incident_monitor_name or name
         self.allow_external_sources = bool(allow_external_sources)
+        self.allow_mixed_materials = bool(allow_mixed_materials)
         self.mpi_grid = mpi_grid
         self.mpi_comm = mpi_comm if mpi_grid is None else mpi_grid.comm
         self.global_surfaces = (
@@ -657,6 +659,9 @@ class KSIRFrequencyDomainMonitor:
                 f"KSIR monitor {self.name!r} has no off-symmetry samples " "for material validation"
             )
         unique_ids = np.unique(np.concatenate(sampled_ids))
+        if self.allow_mixed_materials:
+            self.surface_material_id = -1
+            return self.surface_material_id
         if unique_ids.size != 1:
             raise ValueError(
                 f"KSIR monitor {self.name!r} surface straddles multiple material IDs: "
@@ -752,6 +757,9 @@ class KSIRFrequencyDomainMonitor:
                     sampled_ids.append(component_ids[tuple(face.outside_indices[keep].T)])
         local = np.concatenate(sampled_ids) if sampled_ids else np.empty(0, dtype=np.int64)
         unique_ids = distributed_unique(local, self.mpi_comm)
+        if self.allow_mixed_materials:
+            self.surface_material_id = -1
+            return self.surface_material_id
         if unique_ids.size != 1:
             raise ValueError(
                 f"KSIR monitor {self.name!r} surface straddles multiple material IDs: "
@@ -907,6 +915,18 @@ class KSIRFrequencyDomainMonitor:
 
     def configure_background(self, materials: Sequence) -> None:
         """Resolve lossless homogeneous Green-function properties."""
+
+        if self.allow_mixed_materials:
+            if self.wave_speed is None or self.impedance is None:
+                raise ValueError(
+                    f"layered NTFF monitor {self.name!r} requires exterior "
+                    "wave-speed and impedance metadata"
+                )
+            self.background_er = 1.0 / (self.impedance * self.wave_speed * epsilon_0)
+            self.background_mr = self.impedance / (self.wave_speed * mu_0)
+            self.background_material_id = -1
+            self.background_material_name = "planar_layered"
+            return
 
         material = next(
             (item for item in materials if item.numID == self.surface_material_id),

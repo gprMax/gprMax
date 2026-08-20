@@ -24,6 +24,8 @@ from gprMax.user_objects.cmds_output import (
     NTFFFarField,
     NTFFFarFieldArray,
     NTFFFrequencyTransform,
+    NTFFLayeredBackground,
+    NTFFLayeredFrequencyTransform,
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,
@@ -101,6 +103,27 @@ def test_defaults_and_optional_parameter_positions_are_unambiguous():
     assert objects[2].time_origin == "simulation"
     assert objects[3].ID is None
     assert objects[3].outputs is None
+
+
+def test_layered_positional_hash_commands_are_unambiguous():
+    objects = _parse(
+        "#ntff_surface: 0.02 0.02 0.02 0.08 0.08 0.08 s",
+        "#ntff_layered_background: ground z free_space 0.04 soil 0.01 rock",
+        "#ntff_layered_frequency: s spectrum ground 1e8 2e8 hann",
+        "#ntff_far_field: 45 0 spectrum pattern Etheta Ephi",
+    )
+
+    assert [type(item) for item in objects] == [
+        NTFFSurface,
+        NTFFLayeredBackground,
+        NTFFLayeredFrequencyTransform,
+        NTFFFarField,
+    ]
+    assert objects[1].material_ids == ("free_space", "soil", "rock")
+    assert objects[1].interfaces == (0.04, 0.01)
+    assert objects[2].background_id == "ground"
+    assert objects[2].frequencies == (1e8, 2e8)
+    assert str(objects[1]) == ("#ntff_layered_background: ground z free_space 0.04 soil 0.01 rock")
 
 
 def test_ntff_surface_accepts_multiple_omitted_huygens_faces():
@@ -432,6 +455,55 @@ def test_equivalent_current_commands_run_from_shared_surface(tmp_path):
         expected = np.sin(np.deg2rad(np.arange(0, 181, 45)))
         np.testing.assert_allclose(equivalent, expected, rtol=0, atol=0.08)
         assert np.isfinite(ksir).all()
+
+
+def test_layered_transform_runs_and_reduces_to_homogeneous_ntff(tmp_path):
+    inputfile = tmp_path / "layered_homogeneous_limit.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 3e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.04 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_frequency: surf homogeneous 5e9 rectangular\n"
+        "#ntff_layered_background: split z free_space 0.04 free_space\n"
+        "#ntff_layered_frequency: surf layered split 5e9 rectangular\n"
+        "#ntff_far_field: 45 20 homogeneous upper_h Ex Ey Ez Hx Hy Hz\n"
+        "#ntff_far_field: 45 20 layered upper_l Ex Ey Ez Hx Hy Hz\n"
+        "#ntff_far_field: 135 20 homogeneous lower_h Ex Ey Ez Hx Hy Hz\n"
+        "#ntff_far_field: 135 20 layered lower_l Ex Ey Ez Hx Hy Hz\n"
+    )
+    outputfile = tmp_path / "layered_homogeneous_limit"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        base = output["ntff/surf/frequency"]
+        layered = base["layered"]
+        assert layered.attrs["formulation"] == "planar_layered_equivalent_current"
+        assert layered["layered_background"].attrs["axis"] == "z"
+        assert layered["layered_background/material_ids"][...].tolist() == [
+            b"free_space",
+            b"free_space",
+        ]
+        for homogeneous_id, layered_id in (("upper_h", "upper_l"), ("lower_h", "lower_l")):
+            homogeneous_fields = base[f"homogeneous/far_field/{homogeneous_id}/fields"]
+            layered_fields = base[f"layered/far_field/{layered_id}/fields"]
+            for component in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
+                np.testing.assert_allclose(
+                    layered_fields[component][...],
+                    homogeneous_fields[component][...],
+                    rtol=3e-10,
+                    atol=1e-14,
+                )
 
 
 def test_1997_time_far_field_stores_only_complete_retarded_window(tmp_path):

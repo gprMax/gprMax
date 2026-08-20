@@ -53,6 +53,12 @@ from gprMax.ntff.frequency_domain import (
     KSIRFrequencyDomainMonitor,
     _evaluate_component_with_closure,
 )
+from gprMax.ntff.layered import (
+    LayeredMedium,
+    evaluate_layered_equivalent_current_far_zone,
+    material_constitutive_arrays,
+    observation_properties,
+)
 from gprMax.ntff.surfaces import COMPONENT_OFFSETS, COMPONENTS, build_component_surface
 from gprMax.ntff.time_domain import KSIRTimeDomainMonitor
 from gprMax.ports import evaluate_port_power_spectrum, model_port_ids, model_port_output_registry
@@ -143,6 +149,16 @@ class NTFFSurfaceSpec:
 
 
 @dataclass(frozen=True)
+class NTFFLayeredBackgroundSpec:
+    """Declarative planar stack ordered from positive to negative axis."""
+
+    background_id: str
+    axis: str
+    interfaces: tuple[float, ...]
+    material_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class KSIRFrequencyTransformSpec:
     surface_id: str
     transform_id: str
@@ -170,6 +186,17 @@ class NTFFFrequencyTransformSpec:
     @property
     def formulation(self) -> str:
         return "equivalent_current"
+
+
+@dataclass(frozen=True)
+class NTFFLayeredFrequencyTransformSpec(NTFFFrequencyTransformSpec):
+    """Equivalent-current transform propagated through a planar stack."""
+
+    background_id: str = ""
+
+    @property
+    def formulation(self) -> str:
+        return "planar_layered_equivalent_current"
 
 
 @dataclass(frozen=True)
@@ -891,6 +918,7 @@ class NTFFCompiledOutputs:
         far_requests,
         antenna_port_specs,
         time_far_requests=(),
+        layered_media=None,
     ):
         self.model = model
         self.grid = grid
@@ -901,6 +929,7 @@ class NTFFCompiledOutputs:
         self.far_requests = {item.key: item for item in far_requests}
         self.time_far_requests = {item.key: item for item in time_far_requests}
         self.antenna_port_specs = dict(antenna_port_specs)
+        self.layered_media = {} if layered_media is None else dict(layered_media)
         self.time_bindings = {}
         self.time_far_bindings = {}
         self.frequency_monitors = {}
@@ -913,10 +942,29 @@ class NTFFCompiledOutputs:
         transform = self.transforms[transform_id]
         compiled = self.surfaces[transform.surface_id]
         radius = self._enclosure_radius(compiled)
-        maximum_wavenumber = (
-            2 * np.pi * float(np.max(monitor.frequencies, initial=0)) / monitor.wave_speed
+        medium = self.layered_media.get(transform_id)
+        if medium is None:
+            maximum_wavenumber = (
+                2 * np.pi * float(np.max(monitor.frequencies, initial=0)) / monitor.wave_speed
+            )
+        else:
+            exterior_eps = np.real(medium.relative_permittivity[:, (0, -1)])
+            exterior_mu = np.real(medium.relative_permeability[:, (0, -1)])
+            maximum_wavenumber = float(
+                np.max(
+                    2
+                    * np.pi
+                    * monitor.frequencies[:, np.newaxis]
+                    * np.sqrt(epsilon_0 * exterior_eps * mu_0 * exterior_mu),
+                    initial=0,
+                )
+            )
+        return spherical_quadrature(
+            radius,
+            maximum_wavenumber,
+            monitor.real_dtype,
+            include_equator=medium is None,
         )
-        return spherical_quadrature(radius, maximum_wavenumber, monitor.real_dtype)
 
     def linear_far_field_basis(self, key: str) -> NTFFLinearFarFieldBasis:
         """Return electric far fields required for coherent modal synthesis."""
@@ -925,6 +973,16 @@ class NTFFCompiledOutputs:
             raise KeyError(key)
         spec = self.far_requests[key]
         monitor = self.frequency_monitors[spec.transform_id]
+        medium = self.layered_media.get(spec.transform_id)
+        if medium is not None:
+            exterior_eps = np.real(medium.relative_permittivity[:, (0, -1)])
+            exterior_mu = np.real(medium.relative_permeability[:, (0, -1)])
+            exterior_impedance = np.sqrt(mu_0 * exterior_mu / (epsilon_0 * exterior_eps))
+            if not np.allclose(exterior_impedance, exterior_impedance[0, 0]):
+                raise ValueError(
+                    "coherent far-field codebook synthesis currently requires equal, "
+                    "frequency-independent impedances in the two layered exterior media"
+                )
 
         requested_directions = spherical_directions(spec.theta, spec.phi, degrees=True)
         requested_cartesian = self._far_cartesian(
@@ -982,7 +1040,9 @@ class NTFFCompiledOutputs:
             sphere_weights=_readonly(quadrature.weights),
             sphere_etheta=_readonly(sphere_etheta),
             sphere_ephi=_readonly(sphere_ephi),
-            impedance=float(monitor.impedance),
+            impedance=(
+                float(monitor.impedance) if medium is None else float(exterior_impedance[0, 0])
+            ),
             theta_order=quadrature.theta_order,
             phi_order=quadrature.phi_order,
             enclosure_radius=quadrature.enclosure_radius,
@@ -1063,6 +1123,7 @@ class NTFFCompiledOutputs:
             phi = quadrature.phi[start:stop]
             directions = spherical_directions(theta, phi, degrees=True)
             cartesian = self._far_cartesian(transform_id, directions, ELECTRIC_COMPONENTS)
+            impedance = self._far_impedance(transform_id, directions)
             intensity = radiation_intensity(
                 np.stack(
                     [cartesian[component] for component in ELECTRIC_COMPONENTS],
@@ -1070,7 +1131,7 @@ class NTFFCompiledOutputs:
                 ),
                 theta,
                 phi,
-                monitor.impedance,
+                impedance,
             )
             radiated_power += np.sum(
                 intensity * quadrature.weights[np.newaxis, start:stop],
@@ -1295,6 +1356,20 @@ class NTFFCompiledOutputs:
         monitor = self.frequency_monitors[transform_id]
         transform = self.transforms[transform_id]
         compiled_surface = self.surfaces[transform.surface_id]
+        if transform.formulation == "planar_layered_equivalent_current":
+            result = evaluate_layered_equivalent_current_far_zone(
+                monitor.surface_data,
+                monitor.frequencies,
+                directions,
+                self.layered_media[transform_id],
+                origin=compiled_surface.origin,
+                nthreads=monitor.nthreads,
+            )
+            vectors = {"E": result.electric, "H": result.magnetic}
+            return {
+                component: _readonly(vectors[component[0]][:, :, "xyz".index(component[1].lower())])
+                for component in components
+            }
         if transform.formulation == "equivalent_current":
             electric = evaluate_equivalent_current_far_zone(
                 monitor.surface_data,
@@ -1331,6 +1406,17 @@ class NTFFCompiledOutputs:
             )
             result[component] = values
         return result
+
+    def _far_impedance(self, transform_id, directions):
+        medium = self.layered_media.get(transform_id)
+        if medium is None:
+            return self.frequency_monitors[transform_id].impedance
+        impedance, _ = observation_properties(
+            self.frequency_monitors[transform_id].frequencies,
+            directions,
+            medium,
+        )
+        return np.asarray(impedance, dtype=self.frequency_monitors[transform_id].real_dtype)
 
     def _time_far_result(self, spec: NTFFTimeFarFieldRequestSpec):
         monitor, direction_slice = self.time_far_bindings[spec.key]
@@ -1396,11 +1482,12 @@ class NTFFCompiledOutputs:
         port_metrics = None
         if any(item in spec.outputs for item in FAR_METRICS):
             electric = np.stack([cartesian[item] for item in ELECTRIC_COMPONENTS], axis=-1)
+            impedance = self._far_impedance(spec.transform_id, directions)
             intensity = radiation_intensity(
                 electric,
                 spec.theta,
                 spec.phi,
-                monitor.impedance,
+                impedance,
             )
             if "radiation_intensity" in spec.outputs:
                 fields["radiation_intensity"] = _readonly(intensity, monitor.real_dtype)
@@ -1489,7 +1576,7 @@ class NTFFCompiledOutputs:
                         "RCS output requires an NTFF surface enclosing one TFSF plane wave"
                     )
                 incident_power = np.sum(np.abs(incident) ** 2, axis=1)
-                tangential_squared = 2 * monitor.impedance * intensity
+                tangential_squared = 2 * impedance * intensity
                 rcs = np.full(tangential_squared.shape, np.nan, dtype=monitor.real_dtype)
                 valid = incident_power > 0
                 rcs[valid] = (
@@ -1620,6 +1707,21 @@ class NTFFCompiledOutputs:
             group.attrs["solver"] = monitor.solver_backend
             group.attrs["collection_backend"] = monitor.collection_backend
             group["frequencies"] = monitor.frequencies
+            medium = self.layered_media.get(transform_id)
+            if medium is not None:
+                layered_group = group.create_group("layered_background")
+                layered_group.attrs["background_id"] = transform.background_id
+                layered_group.attrs["axis"] = medium.axis
+                layered_group.attrs[
+                    "ordering"
+                ] = "materials and descending interfaces run from positive to negative axis"
+                layered_group.attrs[
+                    "phasor_convention"
+                ] = "exp(+j*omega*t); passive loss has negative imaginary constitutive part"
+                layered_group["interfaces"] = medium.interfaces
+                layered_group["material_ids"] = np.asarray(medium.material_ids, dtype="S64")
+                layered_group["relative_permittivity"] = medium.relative_permittivity
+                layered_group["relative_permeability"] = medium.relative_permeability
             if monitor.plane_wave_metadata is not None:
                 plane_wave_group = group.create_group("plane_wave")
                 for name, value in monitor.plane_wave_metadata.items():
@@ -1659,7 +1761,13 @@ class NTFFCompiledOutputs:
             group = parent.create_group(spec.output_id)
             group.attrs["coordinate_system"] = "spherical"
             group.attrs["range_normalized"] = True
-            group.attrs["normalization"] = "r * exp(+j*k*r) * field"
+            if spec.transform_id in self.layered_media:
+                group.attrs["normalization"] = "r * exp(+j*k_observation_halfspace*r) * field"
+                group.attrs[
+                    "observation_medium"
+                ] = "positive-axis exterior for positive direction cosine; negative-axis exterior otherwise"
+            else:
+                group.attrs["normalization"] = "r * exp(+j*k*r) * field"
             group.attrs["outputs"] = np.asarray(spec.outputs, dtype="S20")
             group["theta"] = result.theta
             group["phi"] = result.phi
@@ -1798,12 +1906,26 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
     surface_specs = getattr(grid, "ntff_surface_specs", {})
     ksir_transform_specs = dict(getattr(grid, "ksir_transform_specs", {}))
     equivalent_transform_specs = dict(getattr(grid, "ntff_transform_specs", {}))
-    duplicate_transform_ids = set(ksir_transform_specs) & set(equivalent_transform_specs)
+    layered_transform_specs = dict(getattr(grid, "ntff_layered_transform_specs", {}))
+    layered_background_specs = dict(getattr(grid, "ntff_layered_background_specs", {}))
+    transform_id_sets = (
+        set(ksir_transform_specs),
+        set(equivalent_transform_specs),
+        set(layered_transform_specs),
+    )
+    duplicate_transform_ids = set()
+    for index, ids in enumerate(transform_id_sets):
+        for other in transform_id_sets[index + 1 :]:
+            duplicate_transform_ids.update(ids & other)
     if duplicate_transform_ids:
         raise ValueError(
             f"NTFF transform IDs must be globally unique: {sorted(duplicate_transform_ids)}"
         )
-    transform_specs = {**ksir_transform_specs, **equivalent_transform_specs}
+    transform_specs = {
+        **ksir_transform_specs,
+        **equivalent_transform_specs,
+        **layered_transform_specs,
+    }
     time_requests = list(getattr(grid, "ksir_time_requests", ()))
     frequency_requests = list(getattr(grid, "ksir_frequency_requests", ()))
     ksir_far_requests = list(getattr(grid, "ksir_far_field_requests", ()))
@@ -1862,6 +1984,12 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"NTFF transform {transform.transform_id!r} refers to unknown surface "
                 f"{transform.surface_id!r}"
             )
+    for transform in layered_transform_specs.values():
+        if transform.background_id not in layered_background_specs:
+            raise ValueError(
+                f"layered NTFF transform {transform.transform_id!r} refers to unknown "
+                f"background {transform.background_id!r}"
+            )
     for request in time_requests:
         if request.surface_id not in surface_specs:
             raise ValueError(
@@ -1880,6 +2008,17 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"NTFF output {request.output_id!r} refers to unknown transform "
                 f"{request.transform_id!r}"
             )
+        background = layered_background_specs.get(
+            getattr(transform_specs[request.transform_id], "background_id", None)
+        )
+        if background is not None and hasattr(request, "theta"):
+            directions = spherical_directions(request.theta, request.phi, degrees=True)
+            normal_axis = "xyz".index(background.axis)
+            if np.any(np.abs(directions[:, normal_axis]) <= 1e-8):
+                raise ValueError(
+                    f"layered NTFF output {request.output_id!r} contains an exact "
+                    f"grazing direction relative to the {background.axis}-axis"
+                )
 
     for transform in ksir_transform_specs.values():
         omit_faces = surface_specs[transform.surface_id].omit_faces
@@ -1917,7 +2056,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"{list(available_port_ids)}"
             )
     for transform_id, antenna_spec in equivalent_antenna_port_specs.items():
-        transform = equivalent_transform_specs[transform_id]
+        transform = transform_specs[transform_id]
         for port_id in antenna_spec.port_ids:
             output = eigenmode_port_registry.get(port_id)
             if output is None:
@@ -2058,7 +2197,11 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             surface_id: compiled.surfaces for surface_id, compiled in compiled_surfaces.items()
         }
 
-    for transform in equivalent_transform_specs.values():
+    all_equivalent_transform_specs = {
+        **equivalent_transform_specs,
+        **layered_transform_specs,
+    }
+    for transform in all_equivalent_transform_specs.values():
         closure = compiled_surfaces[transform.surface_id].closure
         if closure.image_count != 1:
             raise ValueError(
@@ -2075,11 +2218,27 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
 
     open_equivalent_surface_ids = {
         transform.surface_id
-        for transform in equivalent_transform_specs.values()
+        for transform in all_equivalent_transform_specs.values()
         if compiled_surfaces[transform.surface_id].closure.omitted_faces
     }
     for _surface_id in sorted(open_equivalent_surface_ids):
         warnings.warn(OPEN_HUYGENS_SURFACE_WARNING, RuntimeWarning, stacklevel=2)
+
+    layered_media = {}
+    material_registry = {material.ID: material for material in grid.materials}
+    for transform_id, transform in layered_transform_specs.items():
+        background = layered_background_specs[transform.background_id]
+        materials = [material_registry[material_id] for material_id in background.material_ids]
+        eps, mu = material_constitutive_arrays(materials, transform.frequencies)
+        medium = LayeredMedium(
+            axis=background.axis,
+            interfaces=np.asarray(background.interfaces, dtype=real_dtype),
+            material_ids=background.material_ids,
+            relative_permittivity=np.asarray(eps, dtype=config.sim_config.dtypes["complex"]),
+            relative_permeability=np.asarray(mu, dtype=config.sim_config.dtypes["complex"]),
+        )
+        medium.validate(np.asarray(transform.frequencies))
+        layered_media[transform_id] = medium
 
     writer = NTFFCompiledOutputs(
         model,
@@ -2091,6 +2250,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         far_requests,
         antenna_port_specs,
         time_far_requests,
+        layered_media=layered_media,
     )
 
     groups = {}
@@ -2188,7 +2348,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         related = [item for item in frequency_requests if item.transform_id == transform_id] + [
             item for item in far_requests if item.transform_id == transform_id
         ]
-        if transform.formulation == "equivalent_current" or not related:
+        if (
+            transform.formulation
+            in (
+                "equivalent_current",
+                "planar_layered_equivalent_current",
+            )
+            or not related
+        ):
             dependencies = list(COMPONENTS)
         else:
             for request in related:
@@ -2198,6 +2365,15 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         selected_surfaces = {
             item: local_surfaces[transform.surface_id][item] for item in dependencies
         }
+        layered_medium = layered_media.get(transform_id)
+        if layered_medium is None:
+            exterior_wave_speed = None
+            exterior_impedance = None
+        else:
+            exterior_er = float(np.real(layered_medium.relative_permittivity[0, 0]))
+            exterior_mr = float(np.real(layered_medium.relative_permeability[0, 0]))
+            exterior_wave_speed = c / np.sqrt(exterior_er * exterior_mr)
+            exterior_impedance = np.sqrt(mu_0 * exterior_mr / (epsilon_0 * exterior_er))
         monitor = KSIRFrequencyDomainMonitor(
             f"_ntff_frequency_{transform_id}",
             selected_surfaces,
@@ -2215,6 +2391,9 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             save_surface_dft=transform.save_surface_dft,
             exterior_index_bounds=compiled.pml_limits,
             closure=compiled.closure,
+            wave_speed=exterior_wave_speed,
+            impedance=exterior_impedance,
+            allow_mixed_materials=layered_medium is not None,
             mpi_comm=None if mpi_grid is None else grid.comm,
             mpi_grid=mpi_grid,
             global_surfaces=(
@@ -2223,7 +2402,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 else {item: compiled.surfaces[item] for item in dependencies}
             ),
         )
-        if transform.formulation == "equivalent_current" and compiled.closure.omitted_faces:
+        if (
+            transform.formulation
+            in (
+                "equivalent_current",
+                "planar_layered_equivalent_current",
+            )
+            and compiled.closure.omitted_faces
+        ):
             monitor.external_source_faces = compiled.closure.omitted_faces
         _associate_plane_wave(
             monitor,
@@ -2244,6 +2430,8 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
     for owner in getattr(grid, "ntff_request_owners", {}).values():
         owner._compiled_outputs = writer
     for transform_id, owner in getattr(grid, "ntff_transform_owners", {}).items():
+        owner._compiled_outputs = writer
+    for transform_id, owner in getattr(grid, "ntff_layered_transform_owners", {}).items():
         owner._compiled_outputs = writer
     grid.ntff_output_writers.append(writer)
     return writer

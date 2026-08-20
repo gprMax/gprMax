@@ -41,6 +41,8 @@ def spherical_quadrature(
     enclosure_radius: float,
     maximum_wavenumber: float,
     dtype: npt.DTypeLike,
+    *,
+    include_equator: bool = True,
 ) -> SphericalQuadrature:
     """Build an angular grid capable of resolving a bounded radiator.
 
@@ -67,7 +69,10 @@ def spherical_quadrature(
     # An odd Gauss--Legendre order includes mu=0 (theta=90 degrees). This
     # avoids a systematic underestimate of the common broadside maximum while
     # retaining the exact Gauss--Legendre integration rule.
-    if theta_order % 2 == 0:
+    if include_equator:
+        if theta_order % 2 == 0:
+            theta_order += 1
+    elif theta_order % 2 != 0:
         theta_order += 1
     phi_order = max(24, 2 * angular_bandlimit + 1)
 
@@ -101,7 +106,7 @@ def radiation_intensity(
     electric_cartesian: npt.ArrayLike,
     theta: npt.ArrayLike,
     phi: npt.ArrayLike,
-    impedance: float,
+    impedance: npt.ArrayLike,
 ) -> npt.NDArray[np.floating]:
     """Return range-normalized radiation intensity from Cartesian fields."""
 
@@ -110,8 +115,15 @@ def radiation_intensity(
     electric = np.asarray(electric_cartesian)
     if electric.ndim != 3 or electric.shape[2] != 3 or electric.dtype.kind != "c":
         raise ValueError("electric_cartesian must have shape (nf, nd, 3) and be complex")
-    if not np.isfinite(impedance) or impedance <= 0:
-        raise ValueError("impedance must be finite and positive")
+    impedance_values = np.asarray(impedance, dtype=np.empty((), dtype=electric.dtype).real.dtype)
+    if np.any(~np.isfinite(impedance_values)) or np.any(impedance_values <= 0):
+        raise ValueError("impedance must contain finite positive values")
+    if impedance_values.ndim == 0:
+        denominator = impedance_values
+    elif impedance_values.shape == electric.shape[:2]:
+        denominator = impedance_values
+    else:
+        raise ValueError("impedance must be scalar or have shape (nf, nd)")
     spherical = project_cartesian_to_spherical(
         electric,
         theta,
@@ -120,7 +132,7 @@ def radiation_intensity(
     )
     tangential_squared = np.abs(spherical[:, :, 1]) ** 2 + np.abs(spherical[:, :, 2]) ** 2
     real_dtype = np.empty((), dtype=electric.dtype).real.dtype
-    return np.asarray(0.5 * tangential_squared / impedance, dtype=real_dtype)
+    return np.asarray(0.5 * tangential_squared / denominator, dtype=real_dtype)
 
 
 def directivity_from_intensity(

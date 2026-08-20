@@ -277,6 +277,8 @@ def check_cmd_names(processedlines, checkessential=True):
             "#snapshot",
             "#ntff_surface",
             "#ntff_frequency",
+            "#ntff_layered_background",
+            "#ntff_layered_frequency",
             "#ntff_far_field",
             "#ntff_far_field_array",
             "#ntff_time_far_field",
