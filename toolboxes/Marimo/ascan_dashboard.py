@@ -30,6 +30,7 @@ def _():
         fft_spectrum,
         gain_label,
         spectrum_view_limit,
+        subtract_traces,
     )
 
     # Research-quality colour palette (Matplotlib tab10, colorblind-friendly)
@@ -83,6 +84,7 @@ def _():
         mo,
         np,
         spectrum_view_limit,
+        subtract_traces,
     )
 
 
@@ -147,6 +149,49 @@ def _(file_browser, format_metadata_text, load_files, mo):
         )
     )
     return get_data, set_data
+
+
+# ── SECTION 2b: Background subtraction reference ──────────────────────────
+# Depends on the loaded files and nothing else. Tying it to the trace list
+# would rebuild the dropdown, and reset the choice, on every added trace.
+@app.cell
+def _(get_data, mo):
+    _file_names = list(get_data()["files"].keys())
+
+    if len(_file_names) < 2:
+        subtract_ref = None
+        mo.output.replace(
+            mo.md(
+                "_Load a second file, a free-space run of the same model with the "
+                "target removed, to enable background subtraction._"
+            )
+            if _file_names
+            else mo.md("")
+        )
+    else:
+        subtract_ref = mo.ui.dropdown(
+            options={"None": "", **{n: n for n in _file_names}},
+            value="None",
+            label="Subtract reference file",
+        )
+        mo.output.replace(
+            mo.vstack(
+                [
+                    mo.md("### Step 1b — Background subtraction"),
+                    mo.md(
+                        "_Pick a free-space run of the same model. For every plotted "
+                        "trace, the matching receiver and component from that file is "
+                        "subtracted, which cancels the source pulse and the direct "
+                        "coupling and leaves the target response. Display only: CSV "
+                        "export stays raw._"
+                    ),
+                    subtract_ref,
+                    mo.md("---"),
+                ],
+                gap="0.4rem",
+            )
+        )
+    return (subtract_ref,)
 
 
 # ── STATE: isolated — no UI dependencies ──────────────────────────────────
@@ -617,6 +662,8 @@ def _(
     show_gain_curve,
     show_grid,
     spectrum_view_limit,
+    subtract_ref,
+    subtract_traces,
     time_slider,
 ):
     _traces = get_traces()
@@ -636,6 +683,29 @@ def _(
     _gc = "rgba(255,255,255,0.1)" if _is_dark else "rgba(0,0,0,0.07)"
     _lc = "rgba(255,255,255,0.25)" if _is_dark else "rgba(0,0,0,0.18)"
     _freq_mode = domain.value == "freq"
+
+    # Background subtraction. A data operation rather than a display one, so
+    # unlike gain it also applies to the spectrum: the point of subtracting is
+    # that the difference is what you want to analyse. CSV still exports the
+    # untouched file contents, with the operation recorded on the first line.
+    _ref_name = subtract_ref.value if subtract_ref is not None else ""
+    _subtracted = []
+    _sub_warnings = []
+
+    def _apply_subtraction(arr, trace, fdata):
+        if not _ref_name or trace["filename"] == _ref_name:
+            return arr
+        _ref_fdata = _files[_ref_name]
+        try:
+            _ref_arr = get_trace(_ref_fdata, trace["component"], trace["receiver"])
+            _out = subtract_traces(
+                arr, _ref_arr, fdata["meta"]["dt"], _ref_fdata["meta"]["dt"]
+            )
+        except (KeyError, ValueError) as _err:
+            _sub_warnings.append(f"{trace['label']}: {_err}")
+            return arr
+        _subtracted.append(trace["label"])
+        return _out
 
     # ── Gain settings ───────────────────────────────────────────────────────
     # Every parameter widget is None when gain is off, and gain_factor is also
@@ -690,7 +760,9 @@ def _(
             _fdata = _files[_t["filename"]]
             _raw = get_trace(_fdata, _t["component"], _t["receiver"])
             _dt = _fdata["meta"]["dt"]
-            _freqs, _pdb, _peak_db = fft_spectrum(_raw, _dt)
+            _freqs, _pdb, _peak_db = fft_spectrum(
+                _apply_subtraction(_raw, _t, _fdata), _dt
+            )
             if _peak_db is None:
                 _flat_traces.append(_t["label"])
                 continue
@@ -778,6 +850,8 @@ def _(
             + "  +  ".join(_plot_files)
             + f"  ·  power spectrum ({_ref_text})"
         )
+        if _subtracted:
+            _title += f"  ·  minus {_ref_name}"
         _layout = dict(
             title=dict(
                 text=_title,
@@ -806,6 +880,8 @@ def _(
             f"# domain: frequency ({_ref_text}). "
             f"Power in dB, full positive spectrum, view range not applied."
         )
+        if _subtracted:
+            _csv_comment += f" Displayed spectra had {_ref_name} subtracted."
         _gain_text = "no gain"
         _dual = False
 
@@ -832,9 +908,11 @@ def _(
                 _csv_x[_tax_key] = _time
             _csv_data[_t["label"]] = (_tax_key, _raw)
 
+            _base = _apply_subtraction(_raw, _t, _fdata)
+
             if _gain_on:
                 _arr, _curve = apply_gain(
-                    _raw,
+                    _base,
                     _time,
                     _kind,
                     factor=_factor,
@@ -845,7 +923,7 @@ def _(
                 if _tax_key not in _gain_curves:
                     _gain_curves[_tax_key] = (_time, _curve)
             else:
-                _arr = _raw
+                _arr = _base
 
             _fig.add_trace(
                 go.Scatter(
@@ -873,6 +951,8 @@ def _(
         _gain_text = gain_label(_kind, _factor, _power, _start, _max_gain if _clamp_bound else None)
 
         _title = _source_title
+        if _subtracted:
+            _title += f"  ·  minus {_ref_name}"
         if _gain_on:
             _title += "  ·  " + _gain_text
         _dual = _has_e and _has_h
@@ -928,6 +1008,8 @@ def _(
         _csv_first_col = "time_ns"
         _csv_filename = "gprmax_ascan.csv"
         _csv_comment = f"# gain: {_gain_text.replace(',', ';')}. Values below are raw."
+        if _subtracted:
+            _csv_comment += f" Plot had {_ref_name} subtracted; values below have not."
 
         # ── Gain curve panel ────────────────────────────────────────────────
         # Its own figure rather than a third overlaying y-axis on the main
@@ -1066,6 +1148,21 @@ def _(
     # ── Notes ────────────────────────────────────────────────────────────────
     _notes = []
     _warn = []
+    if _sub_warnings:
+        _warn.append(
+            mo.callout(
+                mo.md(
+                    "**Could not subtract the reference from every trace:**\n\n"
+                    + "\n".join(f"- {w}" for w in _sub_warnings)
+                ),
+                kind="warn",
+            )
+        )
+    if _subtracted:
+        _notes.append(
+            f"_`{_ref_name}` subtracted from {len(_subtracted)} trace(s). "
+            "Any trace from that file itself is left alone._"
+        )
     if _freq_mode:
         _notes.append(
             "_Spectra are computed from the raw traces. Gain is a time-domain "
@@ -1130,12 +1227,16 @@ def _(
             mo.md("---"),
             mo.callout(
                 mo.md(
-                    "**Upcoming features**\n\n"
-                    "- Background subtraction "
-                    "(target trace minus free-space trace)\n\n"
-                    "B-scan assembly from multiple A-scan files, the 3D surface "
-                    "viewer, gain and mean-trace background removal across a "
-                    "radargram are in `bscan_dashboard.py`."
+                    "**Elsewhere in the toolbox**\n\n"
+                    "- `bscan_dashboard.py` assembles a radargram from multiple "
+                    "A-scan files or watches one being written, with a 3D surface "
+                    "view, gain, and mean-trace background removal for the case "
+                    "where no free-space run exists.\n"
+                    "- `recipes/ascan_workflow.py` goes from model parameters "
+                    "through a solver run to this dashboard's input in one "
+                    "notebook.\n"
+                    "- `recipes/velocity_permittivity.py` recovers a soil "
+                    "permittivity from the shape of a reflection hyperbola."
                 ),
                 kind="neutral",
             ),

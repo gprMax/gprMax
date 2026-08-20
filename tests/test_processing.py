@@ -11,6 +11,7 @@ from toolboxes.Marimo.processing import (
     gain_curve,
     gain_label,
     remove_mean_trace,
+    subtract_traces,
 )
 
 DT = 4.717308673499368e-12
@@ -405,3 +406,53 @@ class TestSpectrumViewLimit:
 
     def test_empty_input_returns_zero(self):
         assert spectrum_view_limit(np.array([]), np.array([])) == 0.0
+
+
+class TestSubtractTraces:
+    def test_identical_runs_cancel(self):
+        t = _trace()
+        assert subtract_traces(t, t, DT, DT) == pytest.approx(np.zeros_like(t))
+
+    def test_isolates_the_difference(self):
+        # A target run is the free-space run plus the target's response.
+        free = _trace()
+        target_response = np.zeros(ITERATIONS)
+        target_response[60] = 5.0
+        result = subtract_traces(free + target_response, free, DT, DT)
+        assert result == pytest.approx(target_response)
+
+    def test_works_on_matrices(self):
+        a, b = _matrix(), _matrix()
+        result = subtract_traces(a, b, DT, DT)
+        assert result.shape == (ITERATIONS, N_TRACES)
+        assert result == pytest.approx(np.zeros_like(a))
+
+    def test_shape_mismatch_rejected(self):
+        with pytest.raises(ValueError, match="shape mismatch"):
+            subtract_traces(_trace(100), _trace(50), DT, DT)
+
+    def test_equal_length_but_different_dt_rejected(self):
+        # The failure this guard exists for: two runs with the same iteration
+        # count but different time steps line up index by index while
+        # representing different instants.
+        with pytest.raises(ValueError, match="time steps differ"):
+            subtract_traces(_trace(), _trace(), DT, DT * 1.5)
+
+    def test_negligible_dt_difference_accepted(self):
+        # Float round-trips through HDF5 should not trip the guard.
+        subtract_traces(_trace(), _trace(), DT, DT * (1 + 1e-12))
+
+    def test_missing_dt_skips_the_time_check(self):
+        # Callers without dt still get the shape check.
+        subtract_traces(_trace(), _trace())
+
+    def test_inputs_not_mutated(self):
+        a, b = _trace(), _trace(amplitude=2.0)
+        a0, b0 = a.copy(), b.copy()
+        subtract_traces(a, b, DT, DT)
+        assert a == pytest.approx(a0)
+        assert b == pytest.approx(b0)
+
+    def test_integer_input_does_not_truncate(self):
+        result = subtract_traces(np.array([3, 3]), np.array([1, 2]))
+        assert result == pytest.approx([2.0, 1.0])
