@@ -5,8 +5,6 @@ Progress comes from parsing gprMax's tqdm output on stdout (not stderr -
 checked). No callback API exists for this in gprMax itself.
 """
 
-from __future__ import annotations
-
 import marimo
 
 __generated_with = "0.23.8"
@@ -71,7 +69,7 @@ def _(mo):
                     "parsed from its tqdm output."
                 ),
                 input_browser,
-                mo.hstack([run_button, stop_button], gap="1rem"),
+                mo.hstack([run_button, stop_button], gap="1rem", justify="start"),
             ],
             gap="0.4rem",
         )
@@ -182,7 +180,10 @@ def _(get_progress, mo, refresh, run_lock, run_state, set_progress):
             "returncode": run_state["returncode"],
             "last_lines": list(run_state["last_lines"]),
         }
-    set_progress(snapshot)
+    # Only write when something changed. Setting identical state five times
+    # a second keeps the reactive graph busy for the life of the notebook.
+    if snapshot != get_progress():
+        set_progress(snapshot)
     p = get_progress()
 
     if not p["running"] and p["returncode"] is None:
