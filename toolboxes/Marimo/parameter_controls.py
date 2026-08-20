@@ -15,16 +15,21 @@ def _():
 @app.cell
 def _(mo):
     permittivity = mo.ui.slider(
-        start=1.0, stop=20.0, step=0.5, value=7.0, label="Soil Relative Permittivity (εr)"
+        start=1.0, stop=20.0, step=0.5, value=7.0, label="Soil Relative Permittivity (εr)", debounce=True
     )
     frequency = mo.ui.slider(
-        start=0.5, stop=3.0, step=0.1, value=1.0, label="Antenna Centre Frequency (GHz)"
+        start=0.5, stop=3.0, step=0.1, value=1.0, label="Antenna Centre Frequency (GHz)", debounce=True
     )
     src_x = mo.ui.slider(
-        start=0.010, stop=0.220, step=0.002, value=0.060, label="Source X-Position (m)"
+        start=0.010, stop=0.220, step=0.002, value=0.060, label="Source X-Position (m)", debounce=True
     )
     target_depth = mo.ui.slider(
-        start=0.030, stop=0.150, step=0.005, value=0.080, label="Target Depth (m)"
+        start=0.020,
+        stop=0.140,
+        step=0.005,
+        value=0.090,
+        label="Target Depth (m)",
+        debounce=True,
     )
     mo.output.replace(
         mo.vstack(
@@ -44,6 +49,10 @@ def _(mo):
 def _(frequency, mo, permittivity, src_x, target_depth):
     rx_x = round(src_x.value + 0.040, 3)
     surface_y = 0.170
+    # Depth is measured down from the surface, so the cylinder sits at
+    # surface_y minus it. Writing the slider straight into the y coordinate
+    # inverts the control: a larger depth would move the target upwards.
+    cyl_y = round(surface_y - target_depth.value, 3)
     in_text = "\n".join(
         [
             "#domain: 0.240 0.210 0.002",
@@ -52,7 +61,7 @@ def _(frequency, mo, permittivity, src_x, target_depth):
             "",
             f"#material: {permittivity.value} 0 1 0 half_space",
             f"#box: 0 0 0 0.240 {surface_y} 0.002 half_space",
-            f"#cylinder: 0.120 {target_depth.value:.3f} 0.000 0.120 {target_depth.value:.3f} 0.002 0.010 pec",
+            f"#cylinder: 0.120 {cyl_y:.3f} 0.000 0.120 {cyl_y:.3f} 0.002 0.010 pec",
             "",
             f"#waveform: ricker 1 {frequency.value:.1f}e9 my_pulse",
             f"#hertzian_dipole: z {src_x.value:.3f} {surface_y} 0 my_pulse",
