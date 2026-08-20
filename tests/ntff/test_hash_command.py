@@ -110,7 +110,8 @@ def test_layered_positional_hash_commands_are_unambiguous():
         "#ntff_surface: 0.02 0.02 0.02 0.08 0.08 0.08 s",
         "#ntff_layered_background: ground z free_space 0.04 soil 0.01 rock",
         "#ntff_layered_frequency: s spectrum ground 1e8 2e8 hann",
-        "#ntff_far_field: 45 0 spectrum pattern Etheta Ephi",
+        "#ntff_far_field: 45 0 spectrum pattern Etheta Ephi exterior_power "
+        "exterior_efficiency exterior_maximum",
     )
 
     assert [type(item) for item in objects] == [
@@ -123,6 +124,13 @@ def test_layered_positional_hash_commands_are_unambiguous():
     assert objects[1].interfaces == (0.04, 0.01)
     assert objects[2].background_id == "ground"
     assert objects[2].frequencies == (1e8, 2e8)
+    assert objects[3].outputs == (
+        "Etheta",
+        "Ephi",
+        "exterior_power",
+        "exterior_efficiency",
+        "exterior_maximum",
+    )
     assert str(objects[1]) == ("#ntff_layered_background: ground z free_space 0.04 soil 0.01 rock")
 
 

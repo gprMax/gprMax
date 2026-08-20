@@ -79,9 +79,16 @@ SPHERICAL_OUTPUTS = (
 DIRECTIVITY_OUTPUTS = ("directivity", "directivity_dbi")
 GAIN_OUTPUTS = ("gain", "gain_dbi", "realized_gain", "realized_gain_dbi")
 EFFICIENCY_OUTPUTS = ("radiation_efficiency", "total_efficiency")
-PORT_METRICS = GAIN_OUTPUTS + EFFICIENCY_OUTPUTS
+EXTERIOR_OUTPUTS = ("exterior_power", "exterior_efficiency", "exterior_maximum")
+EXTERIOR_PORT_OUTPUTS = ("exterior_efficiency",)
+PORT_METRICS = GAIN_OUTPUTS + EFFICIENCY_OUTPUTS + EXTERIOR_PORT_OUTPUTS
+RADIATION_SUMMARY_OUTPUTS = DIRECTIVITY_OUTPUTS + EFFICIENCY_OUTPUTS + EXTERIOR_OUTPUTS
 FAR_METRICS = (
-    ("radiation_intensity", "rcs") + DIRECTIVITY_OUTPUTS + GAIN_OUTPUTS + EFFICIENCY_OUTPUTS
+    ("radiation_intensity", "rcs")
+    + DIRECTIVITY_OUTPUTS
+    + GAIN_OUTPUTS
+    + EFFICIENCY_OUTPUTS
+    + EXTERIOR_OUTPUTS
 )
 TIME_ORIGINS = ("simulation", "first_arrival")
 WINDOWS = ("rectangular", "hann")
@@ -379,6 +386,30 @@ class KSIRRadiationMetrics:
     theta_order: int
     phi_order: int
     enclosure_radius: float
+    exterior: Optional["ExteriorRadiationMetrics"] = None
+
+
+@dataclass(frozen=True)
+class ExteriorRadiationMetrics:
+    """Positive- and negative-axis summaries for a planar-layered transform.
+
+    Region axis zero is the positive-axis exterior and region axis one is the
+    negative-axis exterior.  Directional maxima retain conventional
+    full-sphere normalization; they are not hemisphere-normalized quantities.
+    """
+
+    axis: str
+    material_ids: tuple[str, str]
+    relative_permittivity: npt.NDArray[np.complexfloating]
+    relative_permeability: npt.NDArray[np.complexfloating]
+    impedance: npt.NDArray[np.floating]
+    radiated_power: npt.NDArray[np.floating]
+    radiated_fraction: npt.NDArray[np.floating]
+    maximum_intensity: npt.NDArray[np.floating]
+    maximum_directivity: npt.NDArray[np.floating]
+    maximum_directivity_dbi: npt.NDArray[np.floating]
+    maximum_theta: npt.NDArray[np.floating]
+    maximum_phi: npt.NDArray[np.floating]
 
 
 def _refine_radiation_maximum(
@@ -398,9 +429,6 @@ def _refine_radiation_maximum(
     local_directivity = local_directivity[:, 0]
     local_directivity_dbi = local_directivity_dbi[:, 0]
     update = np.isfinite(local_directivity) & (local_directivity > metrics.maximum_directivity)
-    if not np.any(update):
-        return metrics
-
     maximum_directivity = np.array(metrics.maximum_directivity, copy=True)
     maximum_directivity_dbi = np.array(metrics.maximum_directivity_dbi, copy=True)
     maximum_theta = np.array(metrics.maximum_theta, copy=True)
@@ -409,12 +437,47 @@ def _refine_radiation_maximum(
     maximum_directivity_dbi[update] = local_directivity_dbi[update]
     maximum_theta[update] = theta[local_index[update]]
     maximum_phi[update] = phi[local_index[update]]
+    exterior = metrics.exterior
+    if exterior is not None:
+        directions = spherical_directions(theta, phi, degrees=True)
+        normal = directions[:, "xyz".index(exterior.axis)]
+        maximum_intensity = np.array(exterior.maximum_intensity, copy=True)
+        exterior_theta = np.array(exterior.maximum_theta, copy=True)
+        exterior_phi = np.array(exterior.maximum_phi, copy=True)
+        for region, region_mask in enumerate((normal > 0, normal < 0)):
+            if not np.any(region_mask):
+                continue
+            region_indices = np.flatnonzero(region_mask)
+            region_values = intensity[:, region_indices]
+            region_local_index = np.argmax(region_values, axis=1)
+            region_intensity = region_values[np.arange(region_values.shape[0]), region_local_index]
+            region_update = region_intensity > maximum_intensity[region]
+            selected = region_indices[region_local_index]
+            maximum_intensity[region, region_update] = region_intensity[region_update]
+            exterior_theta[region, region_update] = theta[selected[region_update]]
+            exterior_phi[region, region_update] = phi[selected[region_update]]
+        exterior_directivity, exterior_directivity_dbi = directivity_from_intensity(
+            maximum_intensity.T,
+            metrics.radiated_power,
+        )
+        exterior = replace(
+            exterior,
+            maximum_intensity=_readonly(maximum_intensity),
+            maximum_directivity=_readonly(exterior_directivity.T),
+            maximum_directivity_dbi=_readonly(exterior_directivity_dbi.T),
+            maximum_theta=_readonly(exterior_theta),
+            maximum_phi=_readonly(exterior_phi),
+        )
+
+    if not np.any(update) and exterior is metrics.exterior:
+        return metrics
     return replace(
         metrics,
         maximum_directivity=_readonly(maximum_directivity),
         maximum_directivity_dbi=_readonly(maximum_directivity_dbi),
         maximum_theta=_readonly(maximum_theta),
         maximum_phi=_readonly(maximum_phi),
+        exterior=exterior,
     )
 
 
@@ -1106,6 +1169,24 @@ class NTFFCompiledOutputs:
         maximum_intensity = np.full(nfrequencies, -np.inf, dtype=monitor.real_dtype)
         maximum_theta = np.full(nfrequencies, np.nan, dtype=monitor.real_dtype)
         maximum_phi = np.full(nfrequencies, np.nan, dtype=monitor.real_dtype)
+        medium = self.layered_media.get(transform_id)
+        exterior_power = None
+        exterior_maximum_intensity = None
+        exterior_maximum_theta = None
+        exterior_maximum_phi = None
+        if medium is not None:
+            exterior_power = np.zeros((2, nfrequencies), dtype=monitor.real_dtype)
+            exterior_maximum_intensity = np.full(
+                (2, nfrequencies),
+                -np.inf,
+                dtype=monitor.real_dtype,
+            )
+            exterior_maximum_theta = np.full(
+                (2, nfrequencies),
+                np.nan,
+                dtype=monitor.real_dtype,
+            )
+            exterior_maximum_phi = np.full_like(exterior_maximum_theta, np.nan)
 
         complex_bytes = np.dtype(monitor.complex_dtype).itemsize
         real_bytes = np.dtype(monitor.real_dtype).itemsize
@@ -1137,6 +1218,27 @@ class NTFFCompiledOutputs:
                 intensity * quadrature.weights[np.newaxis, start:stop],
                 axis=1,
             )
+            if medium is not None:
+                normal = directions[:, "xyz".index(medium.axis)]
+                for region, region_mask in enumerate((normal > 0, normal < 0)):
+                    region_indices = np.flatnonzero(region_mask)
+                    if region_indices.size == 0:
+                        continue
+                    region_intensity = intensity[:, region_indices]
+                    exterior_power[region] += np.sum(
+                        region_intensity
+                        * quadrature.weights[np.newaxis, start:stop][:, region_indices],
+                        axis=1,
+                    )
+                    region_local_index = np.argmax(region_intensity, axis=1)
+                    region_maximum = region_intensity[np.arange(nfrequencies), region_local_index]
+                    region_update = region_maximum > exterior_maximum_intensity[region]
+                    selected = region_indices[region_local_index]
+                    exterior_maximum_intensity[region, region_update] = region_maximum[
+                        region_update
+                    ]
+                    exterior_maximum_theta[region, region_update] = theta[selected[region_update]]
+                    exterior_maximum_phi[region, region_update] = phi[selected[region_update]]
             local_index = np.argmax(intensity, axis=1)
             local_maximum = intensity[np.arange(nfrequencies), local_index]
             update = local_maximum > maximum_intensity
@@ -1151,6 +1253,46 @@ class NTFFCompiledOutputs:
         valid_pattern = np.isfinite(radiated_power) & (radiated_power > 0)
         maximum_theta[~valid_pattern] = np.nan
         maximum_phi[~valid_pattern] = np.nan
+        exterior = None
+        if medium is not None:
+            # The layered quadrature deliberately excludes exact grazing, so
+            # every direction belongs unambiguously to one exterior region.
+            radiated_power = np.sum(exterior_power, axis=0, dtype=monitor.real_dtype)
+            valid_pattern = np.isfinite(radiated_power) & (radiated_power > 0)
+            exterior_fraction = np.full_like(exterior_power, np.nan)
+            exterior_fraction[:, valid_pattern] = (
+                exterior_power[:, valid_pattern] / radiated_power[valid_pattern]
+            )
+            exterior_directivity, exterior_directivity_dbi = directivity_from_intensity(
+                exterior_maximum_intensity.T,
+                radiated_power,
+            )
+            invalid_region = ~(np.isfinite(exterior_power) & (exterior_power > 0))
+            exterior_maximum_theta[invalid_region] = np.nan
+            exterior_maximum_phi[invalid_region] = np.nan
+            exterior_eps = np.stack(
+                (medium.relative_permittivity[:, 0], medium.relative_permittivity[:, -1])
+            )
+            exterior_mu = np.stack(
+                (medium.relative_permeability[:, 0], medium.relative_permeability[:, -1])
+            )
+            exterior_impedance = np.sqrt(
+                mu_0 * np.real(exterior_mu) / (epsilon_0 * np.real(exterior_eps))
+            )
+            exterior = ExteriorRadiationMetrics(
+                axis=medium.axis,
+                material_ids=(medium.material_ids[0], medium.material_ids[-1]),
+                relative_permittivity=_readonly(exterior_eps, monitor.complex_dtype),
+                relative_permeability=_readonly(exterior_mu, monitor.complex_dtype),
+                impedance=_readonly(exterior_impedance, monitor.real_dtype),
+                radiated_power=_readonly(exterior_power),
+                radiated_fraction=_readonly(exterior_fraction),
+                maximum_intensity=_readonly(exterior_maximum_intensity),
+                maximum_directivity=_readonly(exterior_directivity.T),
+                maximum_directivity_dbi=_readonly(exterior_directivity_dbi.T),
+                maximum_theta=_readonly(exterior_maximum_theta),
+                maximum_phi=_readonly(exterior_maximum_phi),
+            )
         result = KSIRRadiationMetrics(
             radiated_power=_readonly(radiated_power),
             maximum_directivity=_readonly(maximum_directivity[:, 0]),
@@ -1160,6 +1302,7 @@ class NTFFCompiledOutputs:
             theta_order=quadrature.theta_order,
             phi_order=quadrature.phi_order,
             enclosure_radius=quadrature.enclosure_radius,
+            exterior=exterior,
         )
         self._radiation_cache[transform_id] = result
         return result
@@ -1491,8 +1634,9 @@ class NTFFCompiledOutputs:
             )
             if "radiation_intensity" in spec.outputs:
                 fields["radiation_intensity"] = _readonly(intensity, monitor.real_dtype)
-            if any(item in spec.outputs for item in DIRECTIVITY_OUTPUTS):
+            if any(item in spec.outputs for item in RADIATION_SUMMARY_OUTPUTS):
                 radiation_metrics = self._radiation_metrics(spec.transform_id)
+            if any(item in spec.outputs for item in DIRECTIVITY_OUTPUTS):
                 directivity, directivity_dbi = directivity_from_intensity(
                     intensity,
                     radiation_metrics.radiated_power,
@@ -1622,6 +1766,84 @@ class NTFFCompiledOutputs:
         field_group = group.create_group("fields")
         for output, values in result.fields.items():
             field_group[output] = values
+
+    @staticmethod
+    def _write_exterior_regions(group, exterior, port_metrics, outputs):
+        """Write requested planar-layered exterior-region summaries."""
+
+        exterior_group = group.create_group("exterior_regions")
+        exterior_group.attrs["stack_axis"] = exterior.axis
+        exterior_group.attrs["region_order"] = np.asarray(
+            ("positive_axis", "negative_axis"),
+            dtype="S16",
+        )
+        exterior_group.attrs[
+            "directivity_normalization"
+        ] = "4*pi*U/P_radiated_total; not hemisphere normalized"
+        exterior_group.attrs["spectral_power_units"] = "W s^2"
+        exterior_group.attrs["impedance_units"] = "ohm"
+
+        if "exterior_power" in outputs:
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = exterior.radiated_power[0] / exterior.radiated_power[1]
+                ratio_db = 10 * np.log10(ratio)
+            exterior_group["positive_to_negative_power_ratio"] = ratio
+            exterior_group["positive_to_negative_power_ratio_db"] = ratio_db
+
+        for region, name in enumerate(("positive_axis", "negative_axis")):
+            region_group = exterior_group.create_group(name)
+            region_group.attrs["material_id"] = exterior.material_ids[region]
+            region_group["relative_permittivity"] = exterior.relative_permittivity[region]
+            region_group["relative_permeability"] = exterior.relative_permeability[region]
+            region_group["impedance"] = exterior.impedance[region]
+
+            if "exterior_power" in outputs:
+                region_group["radiated_power"] = exterior.radiated_power[region]
+                region_group["radiated_fraction"] = exterior.radiated_fraction[region]
+
+            if "exterior_maximum" in outputs:
+                region_group["maximum_radiation_intensity"] = exterior.maximum_intensity[region]
+                region_group["maximum_directivity"] = exterior.maximum_directivity[region]
+                region_group["maximum_directivity_dbi"] = exterior.maximum_directivity_dbi[region]
+                region_group["maximum_theta"] = exterior.maximum_theta[region]
+                region_group["maximum_phi"] = exterior.maximum_phi[region]
+
+            if "exterior_efficiency" in outputs:
+                accepted_efficiency = np.full_like(
+                    exterior.radiated_power[region],
+                    np.nan,
+                )
+                realized_efficiency = np.full_like(accepted_efficiency, np.nan)
+                accepted_efficiency[port_metrics.gain_valid] = (
+                    exterior.radiated_power[region, port_metrics.gain_valid]
+                    / port_metrics.accepted_power[port_metrics.gain_valid]
+                )
+                realized_efficiency[port_metrics.realized_gain_valid] = (
+                    exterior.radiated_power[region, port_metrics.realized_gain_valid]
+                    / port_metrics.incident_power[port_metrics.realized_gain_valid]
+                )
+                maximum_gain, maximum_gain_dbi = directivity_from_intensity(
+                    exterior.maximum_intensity[region, :, np.newaxis],
+                    port_metrics.accepted_power,
+                )
+                maximum_realized_gain, maximum_realized_gain_dbi = directivity_from_intensity(
+                    exterior.maximum_intensity[region, :, np.newaxis],
+                    port_metrics.incident_power,
+                )
+                maximum_gain[~port_metrics.gain_valid] = np.nan
+                maximum_gain_dbi[~port_metrics.gain_valid] = np.nan
+                maximum_realized_gain[~port_metrics.realized_gain_valid] = np.nan
+                maximum_realized_gain_dbi[~port_metrics.realized_gain_valid] = np.nan
+                region_group["accepted_coupling_efficiency"] = accepted_efficiency
+                region_group["realized_coupling_efficiency"] = realized_efficiency
+                region_group["accepted_coupling_valid"] = port_metrics.gain_valid.astype(np.uint8)
+                region_group["realized_coupling_valid"] = port_metrics.realized_gain_valid.astype(
+                    np.uint8
+                )
+                region_group["maximum_gain"] = maximum_gain[:, 0]
+                region_group["maximum_gain_dbi"] = maximum_gain_dbi[:, 0]
+                region_group["maximum_realized_gain"] = maximum_realized_gain[:, 0]
+                region_group["maximum_realized_gain_dbi"] = maximum_realized_gain_dbi[:, 0]
 
     def write_hdf5(self, base_group) -> None:
         ntff_group = base_group.require_group("ntff")
@@ -1788,6 +2010,17 @@ class NTFFCompiledOutputs:
                 group["maximum_directivity_dbi"] = metrics.maximum_directivity_dbi
                 group["maximum_directivity_theta"] = metrics.maximum_theta
                 group["maximum_directivity_phi"] = metrics.maximum_phi
+                if any(output in EXTERIOR_OUTPUTS for output in spec.outputs):
+                    if metrics.exterior is None:
+                        raise RuntimeError(
+                            "planar-layered exterior metrics were requested but not calculated"
+                        )
+                    self._write_exterior_regions(
+                        group,
+                        metrics.exterior,
+                        result.port_metrics,
+                        spec.outputs,
+                    )
             if result.port_metrics is not None:
                 metrics = result.port_metrics
                 power_group = group.create_group("port_power")
@@ -2008,6 +2241,14 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"NTFF output {request.output_id!r} refers to unknown transform "
                 f"{request.transform_id!r}"
             )
+        if hasattr(request, "outputs") and any(
+            output in EXTERIOR_OUTPUTS for output in request.outputs
+        ):
+            if request.transform_id not in layered_transform_specs:
+                raise ValueError(
+                    f"NTFF output {request.output_id!r} requests planar-layered "
+                    "exterior metrics from a non-layered transform"
+                )
         background = layered_background_specs.get(
             getattr(transform_specs[request.transform_id], "background_id", None)
         )
@@ -2035,7 +2276,7 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                 f"physical faces; surface {request.surface_id!r} omits {omit_faces}"
             )
 
-    gain_transforms = {
+    port_normalized_transforms = {
         request.transform_id
         for request in far_requests
         if any(output in PORT_METRICS for output in request.outputs)
@@ -2070,17 +2311,17 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
                     f"NTFF transform {transform_id!r} frequencies must exactly match "
                     f"eigenmode port {port_id!r} DFT frequencies"
                 )
-    for transform_id in gain_transforms:
+    for transform_id in port_normalized_transforms:
         if transform_id not in antenna_port_specs:
             raise ValueError(
-                f"NTFF transform {transform_id!r} requests gain or efficiency "
+                f"NTFF transform {transform_id!r} requests port-normalized antenna metrics "
                 "without an antenna-port association"
             )
         transform = transform_specs[transform_id]
         if transform.window != "rectangular":
             raise ValueError(
-                f"NTFF transform {transform_id!r} requests gain with window "
-                f"{transform.window!r}; antenna gain currently requires rectangular"
+                f"NTFF transform {transform_id!r} requests port-normalized antenna metrics "
+                f"with window {transform.window!r}; antenna normalization requires rectangular"
             )
 
         expected_ids = available_port_ids

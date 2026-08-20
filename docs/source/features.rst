@@ -350,6 +350,21 @@ exterior impedances. Coherent array-codebook synthesis currently requires the
 two exterior impedances to be equal and frequency independent because its
 retained linear basis has one scalar reference impedance.
 
+When requested, the same streamed full-sphere integration also separates the
+radiated power and pattern maximum in the positive- and negative-stack-axis
+exteriors. With an antenna-port association it reports the fraction of
+accepted and incident power coupled into each exterior. These are regional
+power balances with conventional full-sphere directivity and gain
+normalisation; they are not hemisphere-normalised directivities. No second
+field collection or retained full-sphere field array is required.
+
+A genuinely lossy semi-infinite observation region has no conventional real
+wave impedance and no ordinary :math:`1/r` radiative far field. It therefore
+cannot be assigned standard gain or directivity by this transform. Such a
+problem should instead use a finite lossy layer above a lossless exterior, or
+report finite-depth fields, interface-crossing power, or absorbed-power and
+radiometric quantities without labelling them as far-field antenna gain.
+
 Modified 1997 time-domain far field
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

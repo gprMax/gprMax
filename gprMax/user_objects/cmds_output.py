@@ -1548,7 +1548,15 @@ class KSIRFarFieldArray(KSIRFarField):
 
 
 class NTFFFarField(KSIRFarField):
-    """Request conventional equivalent-current range-normalized far fields."""
+    """Request equivalent-current range-normalized far fields.
+
+    A planar-layered transform additionally accepts the grouped outputs
+    ``"exterior_power"``, ``"exterior_maximum"``, and
+    ``"exterior_efficiency"``.  They store positive- and negative-stack-axis
+    radiation summaries without retaining the temporary full-sphere fields.
+    Exterior efficiency requires an :class:`NTFFAntennaPorts` association;
+    exterior power and conventional directivity do not.
+    """
 
     @property
     def hash(self):

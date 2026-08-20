@@ -2743,10 +2743,25 @@ Far-field and antenna metrics support different lossless exterior materials.
 Coherent array-codebook synthesis is currently limited to stacks whose two
 exterior impedances are equal and frequency independent.
 
+Three grouped outputs are specific to a planar-layered transform:
+
+* ``exterior_power`` stores radiated power, radiated fraction, and the
+  positive-to-negative-axis integrated power ratio;
+* ``exterior_maximum`` stores each exterior's peak radiation intensity,
+  conventional full-sphere-normalised directivity, and peak direction;
+* ``exterior_efficiency`` stores accepted- and incident-power-normalised
+  coupling efficiencies and maximum gain for each exterior. It requires
+  ``#ntff_antenna_ports`` and a rectangular transform window.
+
+The first two outputs do not require an antenna-port association. The region
+names follow the declared stack axis rather than assuming that ``+z`` is air
+or ``-z`` is ground.
+
 .. code-block:: none
 
-    #ntff_layered_frequency: radiation_surface ground_band ground 0.8e9 1.0e9 1.2e9 hann
-    #ntff_far_field: 30 0 ground_band upper_cut Etheta Ephi directivity_dbi
+    #ntff_layered_frequency: radiation_surface ground_band ground 0.8e9 1.0e9 1.2e9 rectangular
+    #ntff_antenna_ports: ground_band feed
+    #ntff_far_field: 30 0 ground_band upper_cut Etheta Ephi directivity_dbi exterior_power exterior_efficiency exterior_maximum
     #ntff_far_field: 150 0 ground_band lower_cut Etheta Ephi directivity_dbi
 
 #ksir_antenna_ports:
@@ -3133,12 +3148,17 @@ Request conventional equivalent-current frequency-domain far fields:
     #ntff_far_field: theta phi transform_id [output_id [output1 output2 ...]]
     #ntff_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
 
-``transform_id`` must refer to ``#ntff_frequency``. Angles, default field
+``transform_id`` must refer to ``#ntff_frequency`` or
+``#ntff_layered_frequency``. Angles, default field
 components, range and increment rules, range normalization, derived radiation
 quantities, RCS, and antenna-port normalization are identical to the
 corresponding ``#ksir_far_field`` commands. Because the underlying surface
 integral is independent, requesting both formulations on the same
 ``#ntff_surface`` provides a useful numerical cross-check.
+
+Only a planar-layered transform accepts ``exterior_power``,
+``exterior_efficiency``, and ``exterior_maximum``. Their definitions and port
+requirements are given under ``#ntff_layered_frequency`` above.
 
 .. code-block:: none
 
