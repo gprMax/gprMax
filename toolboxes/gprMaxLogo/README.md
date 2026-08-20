@@ -3,7 +3,7 @@
 ![gprMax version 4 resonant-field logo](assets/gprmax_v4_logo_1024px_on_white.png)
 
 The original gprMax logo for version 3 was created by carving free-space cavities
-of the word "gprMax" into an otherwise PEC two-dimensional FDTD domain, and their
+of the word `gprMax` into an otherwise PEC two-dimensional FDTD domain, and their
 resonant electric fields supplied the colour and texture. It was therefore a result
 produced by gprMax rather than a conventional or handmade colour fill applied to text.
 
