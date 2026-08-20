@@ -52,7 +52,10 @@ The main validations are:
   normal-incidence reflection from a lossless multilayer; and
 * ``rectangular_waveguide_partial_cutoff`` -- generalized TE10 transmission
   magnitude and phase across cutoff, compared with the analytical
-  :math:`S_{21}=\exp(-j\beta L)` response.
+  :math:`S_{21}=\exp(-j\beta L)` response; and
+* ``eigenmode_multiport_deembedding`` -- a prescribed exact two-port matrix
+  and an end-to-end rectangular-guide comparison validating the conditioned
+  full incident-matrix solve used by eigenmode studies.
 
 The ``dispersive_averaging`` subdirectory adds mixed-family validations for
 half spaces, finite multilayers, construction-order sensitivity, and a
@@ -111,6 +114,7 @@ Run modules from the repository root, for example::
         testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in \
         --hide-progress-bars
     python testing/validation/rectangular_waveguide_partial_cutoff/plot_partial_cutoff.py
+    python -m testing.validation.eigenmode_multiport_deembedding.validate_rectangular_waveguide
 
 Omit ``--gpu`` for CPU execution. The report-based drivers write a report,
 summary, CSV data, and PNG figures. Their solver HDF5 and NumPy working data

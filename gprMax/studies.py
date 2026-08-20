@@ -163,15 +163,10 @@ class Study:
         fieldnames = [name.strip() for name in reader.fieldnames]
         missing = {"case_id", "object_id"} - set(fieldnames)
         if missing:
-            raise ValueError(
-                f"Study CSV '{path}' is missing required column(s): {', '.join(sorted(missing))}."
-            )
+            raise ValueError(f"Study CSV '{path}' is missing required column(s): {', '.join(sorted(missing))}.")
         unknown = set(fieldnames) - _CSV_COLUMNS
         if unknown:
-            raise ValueError(
-                f"Study CSV '{path}' contains unsupported column(s): "
-                f"{', '.join(sorted(unknown))}."
-            )
+            raise ValueError(f"Study CSV '{path}' contains unsupported column(s): " f"{', '.join(sorted(unknown))}.")
 
         case_rows: dict[str, list[ObjectState]] = {}
         seen: set[tuple[str, str]] = set()
@@ -180,9 +175,7 @@ class Study:
             case_id = row.get("case_id", "")
             object_id = row.get("object_id", "")
             if not case_id or not object_id:
-                raise ValueError(
-                    f"Study CSV '{path}', line {line_number}: case_id and object_id are required."
-                )
+                raise ValueError(f"Study CSV '{path}', line {line_number}: case_id and object_id are required.")
             key = (case_id, object_id)
             if key in seen:
                 raise ValueError(
@@ -194,8 +187,7 @@ class Study:
             position_values = [row.get(name, "") for name in _POSITION_COLUMNS]
             if any(position_values) and not all(position_values):
                 raise ValueError(
-                    f"Study CSV '{path}', line {line_number}: x_m, y_m, and z_m must be "
-                    "provided together."
+                    f"Study CSV '{path}', line {line_number}: x_m, y_m, and z_m must be " "provided together."
                 )
 
             parameters: dict[str, Any] = {}
@@ -214,9 +206,7 @@ class Study:
                 ("scale", "scale"),
             ):
                 if row.get(csv_name, ""):
-                    parameters[parameter_name] = _parse_finite_float(
-                        row[csv_name], path, line_number, csv_name
-                    )
+                    parameters[parameter_name] = _parse_finite_float(row[csv_name], path, line_number, csv_name)
             for name in ("port", "mode"):
                 if row.get(name, ""):
                     parameters[name] = _parse_positive_int(row[name], path, line_number, name)
@@ -226,14 +216,11 @@ class Study:
                 ("psi_deg", "psi"),
             ):
                 if row.get(csv_name, ""):
-                    parameters[parameter_name] = _parse_finite_float(
-                        row[csv_name], path, line_number, csv_name
-                    )
+                    parameters[parameter_name] = _parse_finite_float(row[csv_name], path, line_number, csv_name)
             mapping_values = [row.get(name, "") for name in ("m_x", "m_y", "m_z")]
             if any(mapping_values) and not all(mapping_values):
                 raise ValueError(
-                    f"Study CSV '{path}', line {line_number}: m_x, m_y, and m_z must be "
-                    "provided together."
+                    f"Study CSV '{path}', line {line_number}: m_x, m_y, and m_z must be " "provided together."
                 )
             if all(mapping_values):
                 parameters["m_vec"] = tuple(
@@ -308,9 +295,7 @@ class Study:
                 f"{', '.join(sorted(set(unsupported)))}. It currently supports only "
                 "voltage sources, HertzianDipole, and MagneticDipole excitations."
             )
-        if self.type != "port" and any(
-            isinstance(user_object, VoltageSource) for user_object in all_objects
-        ):
+        if self.type != "port" and any(isinstance(user_object, VoltageSource) for user_object in all_objects):
             raise ValueError(
                 "VoltageSource reuse is available through PortStudy so its fixed terminal "
                 "resistance and automatic source-owned port are validated together."
@@ -362,9 +347,7 @@ class Study:
                         f"Available study objects: {available}."
                     )
                 if study_id in case_seen:
-                    raise ValueError(
-                        f"Study case '{case.id}' contains duplicate state for '{study_id}'."
-                    )
+                    raise ValueError(f"Study case '{case.id}' contains duplicate state for '{study_id}'.")
                 case_seen.add(study_id)
                 state.object = study_id
                 if isinstance(registry[study_id], Rx):
@@ -390,10 +373,7 @@ class Study:
         self._scene_bound = True
         logger.info(
             "Study objects: "
-            + ", ".join(
-                f"{study_id} ({type(user_object).__name__})"
-                for study_id, user_object in registry.items()
-            )
+            + ", ".join(f"{study_id} ({type(user_object).__name__})" for study_id, user_object in registry.items())
             + "\n"
         )
 
@@ -404,9 +384,7 @@ class Study:
 
         case_index = config.sim_config.current_model
         if case_index < 0 or case_index >= len(self.cases):
-            raise ValueError(
-                f"Study case index {case_index + 1} is outside the {len(self.cases)} available cases."
-            )
+            raise ValueError(f"Study case index {case_index + 1} is outside the {len(self.cases)} available cases.")
 
         runtime = self._runtime_registry(model)
         self._capture_baselines(runtime)
@@ -467,9 +445,7 @@ class Study:
             "cases": [
                 {
                     "case_id": item.id,
-                    "objects": {
-                        str(state.object): _jsonable(state.parameters) for state in item.states
-                    },
+                    "objects": {str(state.object): _jsonable(state.parameters) for state in item.states},
                 }
                 for item in self.cases
             ],
@@ -482,9 +458,7 @@ class Study:
 
     def _runtime_registry(self, model) -> dict[str, Any]:
         registry: dict[str, Any] = {}
-        objects = (
-            model.G.voltagesources + model.G.hertziandipoles + model.G.magneticdipoles + model.G.rxs
-        )
+        objects = model.G.voltagesources + model.G.hertziandipoles + model.G.magneticdipoles + model.G.rxs
         for item in objects:
             study_id = getattr(item, "study_id", None)
             if study_id:
@@ -520,18 +494,14 @@ class Study:
                 for values in item.outputs.values():
                     values.fill(0)
 
-    def _apply_state(
-        self, grid, study_id: str, item, parameters: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def _apply_state(self, grid, study_id: str, item, parameters: Mapping[str, Any]) -> dict[str, Any]:
         from gprMax.user_inputs import MainGridUserInput
 
         applied: dict[str, Any] = {}
         if "position" in parameters:
             point = tuple(float(value) for value in parameters["position"])
             if len(point) != 3 or not all(math.isfinite(value) for value in point):
-                raise ValueError(
-                    f"Study object '{study_id}' position must contain three finite values."
-                )
+                raise ValueError(f"Study object '{study_id}' position must contain three finite values.")
             uip = MainGridUserInput(grid)
             point = uip.resolve_inf_point(point)
             _, coord = uip.check_src_rx_point(point, "#study")
@@ -542,9 +512,7 @@ class Study:
                 axis = "xyz".index(mode[-1])
                 baseline_coord = self._runtime_baselines[study_id]["coord"]
                 if coord[axis] != baseline_coord[axis]:
-                    raise ValueError(
-                        f"Study object '{study_id}' cannot move off the active {mode} invariant layer."
-                    )
+                    raise ValueError(f"Study object '{study_id}' cannot move off the active {mode} invariant layer.")
             item.coord = coord
         applied["position"] = [float(item.coord[i] * grid.dl[i]) for i in range(3)]
 
@@ -560,18 +528,14 @@ class Study:
         if "waveform_id" in parameters:
             waveform_id = str(parameters["waveform_id"])
             if not any(waveform.ID == waveform_id for waveform in grid.waveforms):
-                raise ValueError(
-                    f"Study object '{study_id}' references unknown waveform '{waveform_id}'."
-                )
+                raise ValueError(f"Study object '{study_id}' references unknown waveform '{waveform_id}'.")
             item.waveformID = waveform_id
         if "start" in parameters:
             item.start = float(parameters["start"])
         if "stop" in parameters:
             item.stop = float(parameters["stop"])
         if item.start < 0 or item.stop <= item.start or item.stop > grid.timewindow:
-            raise ValueError(
-                f"Study object '{study_id}' requires 0 <= start < stop <= the model time window."
-            )
+            raise ValueError(f"Study object '{study_id}' requires 0 <= start < stop <= the model time window.")
         scale = float(parameters.get("scale", 1.0))
         if not math.isfinite(scale):
             raise ValueError(f"Study object '{study_id}' scale must be finite.")
@@ -687,11 +651,7 @@ class SourceStudy(Study):
         )
         supported_types = tuple(item_type for item_type, _ in supported)
         all_source_types = supported_types + unsupported_types
-        unsupported = [
-            type(item).__name__
-            for item in scene.grid_objects
-            if isinstance(item, unsupported_types)
-        ]
+        unsupported = [type(item).__name__ for item in scene.grid_objects if isinstance(item, unsupported_types)]
         subgrid_sources = [
             f"{type(item).__name__} on subgrid {subgrid.kwargs.get('id', '')!r}"
             for subgrid in scene.subgrid_objects
@@ -702,9 +662,7 @@ class SourceStudy(Study):
             details = sorted(set(unsupported + subgrid_sources))
             raise ValueError(
                 "SourceStudy supports only main-grid TransmissionLine, "
-                "MagneticFrillSource, and NetworkExcitation objects; remove "
-                + ", ".join(details)
-                + "."
+                "MagneticFrillSource, and NetworkExcitation objects; remove " + ", ".join(details) + "."
             )
 
         registry: dict[str, Any] = {}
@@ -722,8 +680,7 @@ class SourceStudy(Study):
 
         if not registry:
             raise ValueError(
-                "SourceStudy requires at least one TransmissionLine, "
-                "MagneticFrillSource, or NetworkExcitation."
+                "SourceStudy requires at least one TransmissionLine, " "MagneticFrillSource, or NetworkExcitation."
             )
 
         for case in self.cases:
@@ -746,10 +703,7 @@ class SourceStudy(Study):
                         f"'{study_id}'. Available objects: {available}."
                     )
                 if study_id in seen:
-                    raise ValueError(
-                        f"SourceStudy case '{case.id}' contains duplicate state for "
-                        f"'{study_id}'."
-                    )
+                    raise ValueError(f"SourceStudy case '{case.id}' contains duplicate state for " f"'{study_id}'.")
                 unknown = set(state.parameters) - _STATEFUL_SOURCE_PARAMETERS
                 if unknown:
                     raise ValueError(
@@ -761,9 +715,7 @@ class SourceStudy(Study):
                     scale = float(state.parameters["scale"])
                     if not math.isfinite(scale):
                         raise ValueError(f"SourceStudy case '{case.id}' scale must be finite.")
-                if "active" in state.parameters and not isinstance(
-                    state.parameters["active"], (bool, np.bool_)
-                ):
+                if "active" in state.parameters and not isinstance(state.parameters["active"], (bool, np.bool_)):
                     raise ValueError(f"SourceStudy case '{case.id}' active must be a boolean.")
                 state.object = study_id
                 seen.add(study_id)
@@ -773,18 +725,14 @@ class SourceStudy(Study):
         self._scene_bound = True
         logger.info(
             "SourceStudy objects: "
-            + ", ".join(
-                f"{study_id} ({type(item).__name__})" for study_id, item in registry.items()
-            )
+            + ", ".join(f"{study_id} ({type(item).__name__})" for study_id, item in registry.items())
             + "\n"
         )
 
     def _runtime_registry(self, model) -> dict[str, Any]:
         runtime: dict[str, Any] = {}
         for item in (
-            list(model.G.transmissionlines)
-            + list(model.G.magneticfrillsources)
-            + list(model.G.networkterminals)
+            list(model.G.transmissionlines) + list(model.G.magneticfrillsources) + list(model.G.networkterminals)
         ):
             study_id = getattr(item, "study_id", None)
             if study_id:
@@ -792,9 +740,7 @@ class SourceStudy(Study):
         expected = set(self.registry)
         if set(runtime) != expected:
             missing = ", ".join(sorted(expected - set(runtime)))
-            raise RuntimeError(
-                f"SourceStudy runtime object binding is incomplete; missing: {missing}."
-            )
+            raise RuntimeError(f"SourceStudy runtime object binding is incomplete; missing: {missing}.")
         return runtime
 
     def _capture_baselines(self, runtime: Mapping[str, Any]) -> None:
@@ -815,8 +761,7 @@ class SourceStudy(Study):
         case_index = config.sim_config.current_model
         if case_index < 0 or case_index >= len(self.cases):
             raise ValueError(
-                f"SourceStudy case index {case_index + 1} is outside the "
-                f"{len(self.cases)} available cases."
+                f"SourceStudy case index {case_index + 1} is outside the " f"{len(self.cases)} available cases."
             )
 
         runtime = self._runtime_registry(model)
@@ -940,17 +885,12 @@ class PlaneWaveStudy(Study):
         )
         definitions = [item for item in scene.grid_objects if isinstance(item, plane_wave_types)]
         subgrid_plane_waves = [
-            label
-            for label, objects in containers[1:]
-            for item in objects
-            if isinstance(item, plane_wave_types)
+            label for label, objects in containers[1:] for item in objects if isinstance(item, plane_wave_types)
         ]
         if subgrid_plane_waves:
             raise ValueError(
                 "PlaneWaveStudy requires its plane-wave template on the main grid; "
-                "plane waves were also found on "
-                + ", ".join(sorted(set(subgrid_plane_waves)))
-                + "."
+                "plane waves were also found on " + ", ".join(sorted(set(subgrid_plane_waves))) + "."
             )
         if len(definitions) != 1:
             raise ValueError(
@@ -990,20 +930,15 @@ class PlaneWaveStudy(Study):
 
         for case in self.cases:
             if len(case.states) != 1:
-                raise ValueError(
-                    f"PlaneWaveStudy case '{case.id}' must contain exactly one plane-wave state."
-                )
+                raise ValueError(f"PlaneWaveStudy case '{case.id}' must contain exactly one plane-wave state.")
             state = case.states[0]
             if isinstance(state.object, str):
                 if state.object.strip() != "plane_wave_1":
                     raise ValueError(
-                        f"PlaneWaveStudy case '{case.id}' references '{state.object}', "
-                        "expected 'plane_wave_1'."
+                        f"PlaneWaveStudy case '{case.id}' references '{state.object}', " "expected 'plane_wave_1'."
                     )
             elif state.object is not definition:
-                raise ValueError(
-                    f"PlaneWaveStudy case '{case.id}' must reference its Scene's plane wave."
-                )
+                raise ValueError(f"PlaneWaveStudy case '{case.id}' must reference its Scene's plane wave.")
             unknown = set(state.parameters) - allowed
             if unknown:
                 raise ValueError(
@@ -1013,22 +948,14 @@ class PlaneWaveStudy(Study):
                 )
             if "m_vec" in state.parameters:
                 mapping = tuple(state.parameters["m_vec"])
-                if len(mapping) != 3 or not all(
-                    isinstance(value, (int, np.integer)) for value in mapping
-                ):
-                    raise ValueError(
-                        f"PlaneWaveStudy case '{case.id}' m_vec must contain three integers."
-                    )
+                if len(mapping) != 3 or not all(isinstance(value, (int, np.integer)) for value in mapping):
+                    raise ValueError(f"PlaneWaveStudy case '{case.id}' m_vec must contain three integers.")
                 if not any(mapping):
-                    raise ValueError(
-                        f"PlaneWaveStudy case '{case.id}' m_vec cannot be the zero vector."
-                    )
+                    raise ValueError(f"PlaneWaveStudy case '{case.id}' m_vec cannot be the zero vector.")
                 state.parameters["m_vec"] = mapping
             scale = float(state.parameters.get("scale", 1.0))
             if not math.isfinite(scale) or scale == 0:
-                raise ValueError(
-                    f"PlaneWaveStudy case '{case.id}' scale must be finite and non-zero."
-                )
+                raise ValueError(f"PlaneWaveStudy case '{case.id}' scale must be finite and non-zero.")
             state.object = "plane_wave_1"
 
         self._definition = definition
@@ -1049,8 +976,7 @@ class PlaneWaveStudy(Study):
         case_index = config.sim_config.current_model
         if case_index < 0 or case_index >= len(self.cases):
             raise ValueError(
-                f"PlaneWaveStudy case index {case_index + 1} is outside the "
-                f"{len(self.cases)} available cases."
+                f"PlaneWaveStudy case index {case_index + 1} is outside the " f"{len(self.cases)} available cases."
             )
 
         case = self.cases[case_index]
@@ -1209,9 +1135,7 @@ class PortStudy(Study):
                 f"excitations; remove {', '.join(other_sources)}."
             )
         voltage_ids = [
-            study_id
-            for study_id, user_object in self.registry.items()
-            if isinstance(user_object, VoltageSource)
+            study_id for study_id, user_object in self.registry.items() if isinstance(user_object, VoltageSource)
         ]
         if not voltage_ids:
             raise ValueError("PortStudy requires at least one finite-resistance VoltageSource.")
@@ -1276,18 +1200,14 @@ class PortStudy(Study):
         from gprMax.user_objects.cmds_multiuse import VoltageSource
 
         voltage_ids = tuple(
-            study_id
-            for study_id, user_object in self.registry.items()
-            if isinstance(user_object, VoltageSource)
+            study_id for study_id, user_object in self.registry.items() if isinstance(user_object, VoltageSource)
         )
         monitors = {}
         for monitor in getattr(model.G, "port_monitors", ()):
             study_id = getattr(monitor.source, "study_id", None)
             if study_id in voltage_ids:
                 if study_id in monitors:
-                    raise ValueError(
-                        f"PortStudy source '{study_id}' has more than one port monitor."
-                    )
+                    raise ValueError(f"PortStudy source '{study_id}' has more than one port monitor.")
                 monitors[study_id] = monitor
         if set(monitors) != set(voltage_ids):
             missing = ", ".join(study_id for study_id in voltage_ids if study_id not in monitors)
@@ -1310,9 +1230,7 @@ class PortStudy(Study):
         ordered = [self._port_monitors[study_id] for study_id in self._port_source_ids]
         results = [monitor.result for monitor in ordered]
         if any(result is None for result in results):
-            raise RuntimeError(
-                "PortStudy results were collected before every voltage-source port finalised."
-            )
+            raise RuntimeError("PortStudy results were collected before every voltage-source port finalised.")
 
         frequency = np.asarray(results[0].frequency)
         for port_id, result in zip(self._port_ids[1:], results[1:]):
@@ -1324,9 +1242,7 @@ class PortStudy(Study):
 
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
         real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
-        impedances = np.asarray(
-            [monitor.reference_impedance for monitor in ordered], dtype=real_dtype
-        )
+        impedances = np.asarray([monitor.reference_impedance for monitor in ordered], dtype=real_dtype)
         drive_incident = np.asarray(results[drive_index].incident_spectrum, dtype=complex_dtype)
         drive_valid = np.asarray(results[drive_index].source_valid, dtype=bool)
         column = np.full((frequency.size, len(ordered)), np.nan + 1j * np.nan, dtype=complex_dtype)
@@ -1339,9 +1255,7 @@ class PortStudy(Study):
             )
             ratio *= np.sqrt(impedances[drive_index] / impedances[output_index])
             column[:, output_index] = ratio
-            valid_column[:, output_index] = (
-                defined & drive_valid & np.asarray(result.mesh_valid, dtype=bool)
-            )
+            valid_column[:, output_index] = defined & drive_valid & np.asarray(result.mesh_valid, dtype=bool)
 
         gap_correction = np.stack(
             [np.asarray(result.gap_correction, dtype=complex_dtype) for result in results], axis=1
@@ -1350,9 +1264,7 @@ class PortStudy(Study):
         # but the port's gap admittance remains perfectly well defined and
         # is required for the matrix correction. Build this mask from the
         # gap data itself and exclude only the exact discrete Nyquist pole.
-        gap_valid = np.logical_and.reduce(
-            [np.isfinite(result.gap_correction) for result in results]
-        )
+        gap_valid = np.logical_and.reduce([np.isfinite(result.gap_correction) for result in results])
         for monitor in ordered:
             if monitor.gap_capacitance != 0:
                 gap_valid &= ~np.isclose(
@@ -1458,9 +1370,7 @@ class PortStudy(Study):
             case_ids[input_index] = data["case_id"]
 
         if not all(case_ids):
-            missing_ports = ", ".join(
-                self._port_ids[index] for index, case_id in enumerate(case_ids) if not case_id
-            )
+            missing_ports = ", ".join(self._port_ids[index] for index, case_id in enumerate(case_ids) if not case_id)
             logger.warning(
                 "PortStudy output is incomplete; no compatible prior aggregate supplied "
                 f"columns for: {missing_ports}. Corrected matrix values remain invalid."
@@ -1474,9 +1384,7 @@ class PortStudy(Study):
             complex_dtype,
         )
         matrix_valid &= first["gap_valid"] & np.all(valid_source, axis=(1, 2))
-        valid_corrected = np.broadcast_to(
-            matrix_valid[:, np.newaxis, np.newaxis], s_source.shape
-        ).copy()
+        valid_corrected = np.broadcast_to(matrix_valid[:, np.newaxis, np.newaxis], s_source.shape).copy()
         s_corrected[~valid_corrected] = np.nan + 1j * np.nan
 
         self.result = PortStudyResult(
@@ -1530,6 +1438,100 @@ class PortStudy(Study):
             output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
 
 
+def _deembed_modal_responses(
+    incident_matrix,
+    response_matrix,
+    *,
+    incident_valid=None,
+    response_valid=None,
+):
+    """Recover basis responses from independent modal excitation runs.
+
+    The measured incident waves form ``A[frequency, channel, case]`` and an
+    arbitrary linear response forms ``R[frequency, observation, ..., case]``.
+    Since ``R = X A``, the desired response ``X`` is obtained with a
+    conditioned solve of ``A.T X.T = R.T`` at every frequency.  The final
+    response axis is therefore the incident modal-basis channel, not the run.
+
+    Invalid observations are rejected independently, while an invalid or
+    ill-conditioned incident basis rejects the complete frequency bin.  This
+    helper deliberately uses :func:`numpy.linalg.solve`, never an explicit
+    matrix inverse.
+    """
+
+    from gprMax.eigenmode_ports import (
+        CONDITION_RELATIVE_ERROR_BUDGET,
+        MAX_CONDITION_NUMBER,
+    )
+
+    incident = np.asarray(incident_matrix)
+    response = np.asarray(response_matrix)
+    if incident.ndim != 3 or incident.shape[1] != incident.shape[2]:
+        raise ValueError("incident_matrix must have shape (frequency, channel, excitation_case)")
+    if response.ndim < 2 or response.shape[0] != incident.shape[0]:
+        raise ValueError("response_matrix must use the incident-matrix frequency axis")
+    if response.shape[-1] != incident.shape[-1]:
+        raise ValueError("response_matrix final axis must be the excitation-case axis")
+
+    if incident_valid is None:
+        incident_mask = np.ones(incident.shape, dtype=bool)
+    else:
+        incident_mask = np.asarray(incident_valid, dtype=bool)
+        if incident_mask.shape != incident.shape:
+            raise ValueError("incident_valid must have the incident_matrix shape")
+    if response_valid is None:
+        response_mask = np.ones(response.shape, dtype=bool)
+    else:
+        response_mask = np.asarray(response_valid, dtype=bool)
+        try:
+            response_mask = np.broadcast_to(response_mask, response.shape)
+        except ValueError as exc:
+            raise ValueError("response_valid must be broadcastable to the response_matrix shape") from exc
+
+    complex_dtype = np.result_type(incident.dtype, response.dtype)
+    result = np.full(response.shape, np.nan + 1j * np.nan, dtype=complex_dtype)
+    observation_valid = np.zeros(response.shape[:-1], dtype=bool)
+    condition_number = np.full(incident.shape[0], np.inf, dtype=np.float64)
+    deembedding_valid = np.zeros(incident.shape[0], dtype=bool)
+    component_dtype = np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64
+    condition_limit = min(
+        MAX_CONDITION_NUMBER,
+        CONDITION_RELATIVE_ERROR_BUDGET / np.finfo(component_dtype).eps,
+    )
+
+    for frequency_index in range(incident.shape[0]):
+        local_incident = incident[frequency_index]
+        if not (np.all(incident_mask[frequency_index]) and np.all(np.isfinite(local_incident))):
+            continue
+        try:
+            local_condition = float(np.linalg.cond(local_incident))
+        except np.linalg.LinAlgError:
+            continue
+        condition_number[frequency_index] = local_condition
+        if not np.isfinite(local_condition) or local_condition > condition_limit:
+            continue
+
+        local_response = response[frequency_index].reshape(-1, incident.shape[-1])
+        local_mask = response_mask[frequency_index].reshape(-1, incident.shape[-1])
+        usable = np.all(local_mask & np.isfinite(local_response), axis=1)
+        if np.any(usable):
+            try:
+                solved = np.linalg.solve(
+                    local_incident.T,
+                    local_response[usable].T,
+                ).T
+            except np.linalg.LinAlgError:
+                continue
+            finite = np.all(np.isfinite(solved), axis=1)
+            usable_indices = np.flatnonzero(usable)
+            solved_indices = usable_indices[finite]
+            result[frequency_index].reshape(-1, incident.shape[-1])[solved_indices] = solved[finite]
+            observation_valid[frequency_index].reshape(-1)[solved_indices] = True
+        deembedding_valid[frequency_index] = True
+
+    return result, observation_valid, condition_number, deembedding_valid
+
+
 @dataclass(frozen=True)
 class EigenmodeStudyResult:
     """Assembled modal S matrix from one active port/mode per run."""
@@ -1542,6 +1544,76 @@ class EigenmodeStudyResult:
     valid_s: npt.NDArray[np.bool_]
     generalized_valid_s: npt.NDArray[np.bool_]
     output_file: Path
+    embedded_far_fields: Mapping[str, "EmbeddedFarFieldBank"] = field(default_factory=dict)
+    incident_matrix: Optional[npt.NDArray[np.complexfloating]] = None
+    outgoing_matrix: Optional[npt.NDArray[np.complexfloating]] = None
+    wave_valid_matrix: Optional[npt.NDArray[np.bool_]] = None
+    generalized_wave_valid_matrix: Optional[npt.NDArray[np.bool_]] = None
+    deembedding_condition_number: Optional[npt.NDArray[np.floating]] = None
+    deembedding_valid: Optional[npt.NDArray[np.bool_]] = None
+
+    @classmethod
+    def from_hdf5(cls, filename: Union[str, Path]) -> "EigenmodeStudyResult":
+        """Load an aggregate eigenmode study for offline array synthesis."""
+
+        path = Path(filename).expanduser().resolve()
+        with h5py.File(path, "r") as source:
+            if source.attrs.get("StudyType", "") != "eigenmode":
+                raise ValueError(f"{path!s} is not an aggregate EigenmodeStudy output")
+            banks = {}
+            root = source.get("embedded_far_fields")
+            if root is not None:
+                for transform_id, transform_group in root.items():
+                    for output_id, group in transform_group.items():
+                        bank = EmbeddedFarFieldBank(
+                            transform_id=transform_id,
+                            output_id=output_id,
+                            frequency=group["frequency"][...],
+                            theta=group["theta"][...],
+                            phi=group["phi"][...],
+                            etheta=group["Etheta"][...],
+                            ephi=group["Ephi"][...],
+                            sphere_theta=group["sphere/theta"][...],
+                            sphere_phi=group["sphere/phi"][...],
+                            sphere_weights=group["sphere/weights"][...],
+                            sphere_etheta=group["sphere/Etheta"][...],
+                            sphere_ephi=group["sphere/Ephi"][...],
+                            valid=group["valid"][...].astype(bool),
+                            impedance=float(group.attrs["Impedance"]),
+                            theta_order=int(group.attrs["ThetaOrder"]),
+                            phi_order=int(group.attrs["PhiOrder"]),
+                            enclosure_radius=float(group.attrs["EnclosureRadius"]),
+                        )
+                        banks[bank.key] = bank
+            return cls(
+                frequency=source["frequency"][...],
+                channel_ports=source["channel_ports"][...],
+                channel_modes=source["channel_modes"][...],
+                case_ids=tuple(
+                    item.decode() if isinstance(item, bytes) else str(item) for item in source["case_ids"][...]
+                ),
+                s=source["S"][...],
+                valid_s=source["valid_S"][...].astype(bool),
+                generalized_valid_s=source["generalized_valid_S"][...].astype(bool),
+                output_file=path,
+                embedded_far_fields=banks,
+                incident_matrix=(source["incident_matrix"][...] if "incident_matrix" in source else None),
+                outgoing_matrix=(source["outgoing_matrix"][...] if "outgoing_matrix" in source else None),
+                wave_valid_matrix=(
+                    source["valid_wave_matrix"][...].astype(bool) if "valid_wave_matrix" in source else None
+                ),
+                generalized_wave_valid_matrix=(
+                    source["generalized_valid_wave_matrix"][...].astype(bool)
+                    if "generalized_valid_wave_matrix" in source
+                    else None
+                ),
+                deembedding_condition_number=(
+                    source["deembedding_condition_number"][...] if "deembedding_condition_number" in source else None
+                ),
+                deembedding_valid=(
+                    source["deembedding_valid"][...].astype(bool) if "deembedding_valid" in source else None
+                ),
+            )
 
     def excitation_weights(self, excitations: Iterable["ModalWeight"]):
         """Return frequency-dependent incident power-wave weights."""
@@ -1573,6 +1645,18 @@ class EigenmodeStudyResult:
         result[~valid] = np.nan + 1j * np.nan
         return result
 
+    def evaluate_array_state(self, state: "ArrayState") -> "ArrayStateResult":
+        """Evaluate one post-processed array state from the embedded basis."""
+
+        return evaluate_array_state(self, state)
+
+    def evaluate_codebook(self, codebook: "ArrayCodebook") -> tuple["ArrayStateResult", ...]:
+        """Evaluate every named state in a validated array codebook."""
+
+        if not isinstance(codebook, ArrayCodebook):
+            raise TypeError("codebook must be an ArrayCodebook instance")
+        return tuple(self.evaluate_array_state(state) for state in codebook.states)
+
 
 @dataclass(frozen=True)
 class ModalWeight:
@@ -1583,6 +1667,281 @@ class ModalWeight:
     power: float = 1.0
     phase_deg: float = 0.0
     delay_s: float = 0.0
+
+
+@dataclass(frozen=True)
+class EmbeddedFarFieldSpec:
+    """One frequency-domain far-field request retained as an embedded basis."""
+
+    transform_id: str
+    output_id: str
+
+    def __post_init__(self):
+        for label, value in (("transform_id", self.transform_id), ("output_id", self.output_id)):
+            if not isinstance(value, str) or not value.strip() or "/" in value or "\x00" in value:
+                raise ValueError(f"Embedded far-field {label} must be a valid non-empty ID")
+
+    @property
+    def key(self) -> str:
+        return f"{self.transform_id}/{self.output_id}"
+
+
+@dataclass(frozen=True)
+class ArrayState:
+    """A named set of modal power, phase-shifter, and true-time-delay weights."""
+
+    id: str
+    drives: tuple[ModalWeight, ...]
+    description: str = ""
+
+    def __init__(
+        self,
+        id: str,
+        drives: Iterable[ModalWeight],
+        *,
+        description: str = "",
+    ):
+        state_id = str(id).strip()
+        if not state_id or "/" in state_id or "\x00" in state_id:
+            raise ValueError("Array-state ID must be a valid non-empty HDF5 path component")
+        values = tuple(drives)
+        if not values:
+            raise ValueError(f"Array state {state_id!r} requires at least one modal drive")
+        if not all(isinstance(item, ModalWeight) for item in values):
+            raise TypeError("Array-state drives must all be ModalWeight instances")
+        channels = [(int(item.port), int(item.mode)) for item in values]
+        if len(channels) != len(set(channels)):
+            raise ValueError(f"Array state {state_id!r} contains a duplicate port/mode drive")
+        object.__setattr__(self, "id", state_id)
+        object.__setattr__(self, "drives", values)
+        object.__setattr__(self, "description", str(description))
+
+
+@dataclass(frozen=True)
+class ArrayCodebook:
+    """Versioned modal-array states and requested embedded far-field bases."""
+
+    states: tuple[ArrayState, ...]
+    embedded_far_fields: tuple[EmbeddedFarFieldSpec, ...] = ()
+    description: str = ""
+    source_path: Optional[Path] = None
+    source_text: Optional[str] = None
+
+    schema = "gprMax-array-codebook-v1"
+
+    def __init__(
+        self,
+        states: Iterable[ArrayState],
+        *,
+        embedded_far_fields: Iterable[EmbeddedFarFieldSpec] = (),
+        description: str = "",
+        source_path: Optional[Union[str, Path]] = None,
+        source_text: Optional[str] = None,
+    ):
+        state_values = tuple(states)
+        field_values = tuple(embedded_far_fields)
+        if not all(isinstance(item, ArrayState) for item in state_values):
+            raise TypeError("ArrayCodebook states must all be ArrayState instances")
+        if not all(isinstance(item, EmbeddedFarFieldSpec) for item in field_values):
+            raise TypeError("ArrayCodebook embedded_far_fields must all be EmbeddedFarFieldSpec instances")
+        state_ids = [item.id for item in state_values]
+        field_ids = [item.key for item in field_values]
+        if len(state_ids) != len(set(state_ids)):
+            raise ValueError("ArrayCodebook state IDs must be unique")
+        if len(field_ids) != len(set(field_ids)):
+            raise ValueError("ArrayCodebook embedded far-field selections must be unique")
+        object.__setattr__(self, "states", state_values)
+        object.__setattr__(self, "embedded_far_fields", field_values)
+        object.__setattr__(self, "description", str(description))
+        object.__setattr__(
+            self,
+            "source_path",
+            None if source_path is None else Path(source_path).expanduser().resolve(),
+        )
+        object.__setattr__(self, "source_text", source_text)
+
+    def to_definition(self) -> dict[str, Any]:
+        """Return the complete canonical, versioned codebook definition."""
+
+        return _jsonable(
+            {
+                "schema": self.schema,
+                "description": self.description,
+                "embedded_far_fields": [
+                    {
+                        "transform_id": item.transform_id,
+                        "output_id": item.output_id,
+                    }
+                    for item in self.embedded_far_fields
+                ],
+                "states": [
+                    {
+                        "id": state.id,
+                        "description": state.description,
+                        "drives": [
+                            {
+                                "port": drive.port,
+                                "mode": drive.mode,
+                                "power_w": drive.power,
+                                "phase_deg": drive.phase_deg,
+                                "delay_s": drive.delay_s,
+                            }
+                            for drive in state.drives
+                        ],
+                    }
+                    for state in self.states
+                ],
+            }
+        )
+
+    def to_json(self, *, indent: Optional[int] = 2) -> str:
+        """Serialize the complete canonical codebook as JSON."""
+
+        return json.dumps(self.to_definition(), indent=indent, sort_keys=True)
+
+    @classmethod
+    def from_json(cls, filename: Union[str, Path]) -> "ArrayCodebook":
+        """Load and strictly validate a versioned JSON array codebook."""
+
+        path = Path(filename).expanduser().resolve()
+        text = path.read_text(encoding="utf-8")
+        try:
+            definition = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Array codebook {path!s} is not valid JSON: {exc}") from exc
+        if not isinstance(definition, dict):
+            raise ValueError("Array codebook root must be a JSON object")
+        allowed = {"schema", "description", "embedded_far_fields", "states"}
+        unknown = set(definition) - allowed
+        if unknown:
+            raise ValueError(f"Array codebook has unknown key(s): {', '.join(sorted(unknown))}")
+        if definition.get("schema") != cls.schema:
+            raise ValueError(f"Array codebook schema must be {cls.schema!r}")
+
+        selections = []
+        for index, item in enumerate(definition.get("embedded_far_fields", ())):
+            if not isinstance(item, dict) or set(item) != {"transform_id", "output_id"}:
+                raise ValueError("Each embedded_far_fields entry must contain only transform_id and output_id")
+            selections.append(EmbeddedFarFieldSpec(**item))
+
+        states = []
+        for state_index, item in enumerate(definition.get("states", ())):
+            if not isinstance(item, dict):
+                raise ValueError(f"Array codebook state {state_index + 1} must be an object")
+            unknown = set(item) - {"id", "description", "drives"}
+            if unknown or "id" not in item or "drives" not in item:
+                raise ValueError(
+                    f"Array codebook state {state_index + 1} requires id and drives and has "
+                    f"unknown key(s): {', '.join(sorted(unknown)) or 'none'}"
+                )
+            if not isinstance(item["drives"], list):
+                raise ValueError(f"Array codebook state {item['id']!r} drives must be a list")
+            drives = []
+            for drive_index, drive in enumerate(item["drives"]):
+                if not isinstance(drive, dict):
+                    raise ValueError(
+                        f"Array codebook state {item['id']!r} drive {drive_index + 1} " "must be an object"
+                    )
+                unknown = set(drive) - {"port", "mode", "power_w", "phase_deg", "delay_s"}
+                if unknown or "port" not in drive or "mode" not in drive:
+                    raise ValueError(
+                        f"Array drive requires port and mode and has unknown key(s): "
+                        f"{', '.join(sorted(unknown)) or 'none'}"
+                    )
+                drives.append(
+                    ModalWeight(
+                        port=drive["port"],
+                        mode=drive["mode"],
+                        power=drive.get("power_w", 1.0),
+                        phase_deg=drive.get("phase_deg", 0.0),
+                        delay_s=drive.get("delay_s", 0.0),
+                    )
+                )
+            states.append(
+                ArrayState(
+                    item["id"],
+                    drives,
+                    description=item.get("description", ""),
+                )
+            )
+        return cls(
+            states,
+            embedded_far_fields=selections,
+            description=definition.get("description", ""),
+            source_path=path,
+            source_text=text,
+        )
+
+
+@dataclass(frozen=True)
+class EmbeddedFarFieldBank:
+    """Per-unit-incident-power complex field basis ordered by modal channel."""
+
+    transform_id: str
+    output_id: str
+    frequency: npt.NDArray[np.floating]
+    theta: npt.NDArray[np.floating]
+    phi: npt.NDArray[np.floating]
+    etheta: npt.NDArray[np.complexfloating]
+    ephi: npt.NDArray[np.complexfloating]
+    sphere_theta: npt.NDArray[np.floating]
+    sphere_phi: npt.NDArray[np.floating]
+    sphere_weights: npt.NDArray[np.floating]
+    sphere_etheta: npt.NDArray[np.complexfloating]
+    sphere_ephi: npt.NDArray[np.complexfloating]
+    valid: npt.NDArray[np.bool_]
+    impedance: float
+    theta_order: int
+    phi_order: int
+    enclosure_radius: float
+
+    @property
+    def key(self) -> str:
+        return f"{self.transform_id}/{self.output_id}"
+
+
+@dataclass(frozen=True)
+class ArrayFarFieldResult:
+    """Coherently synthesized fields and radiation metrics for one array state."""
+
+    transform_id: str
+    output_id: str
+    theta: npt.NDArray[np.floating]
+    phi: npt.NDArray[np.floating]
+    etheta: npt.NDArray[np.complexfloating]
+    ephi: npt.NDArray[np.complexfloating]
+    radiation_intensity: npt.NDArray[np.floating]
+    radiated_power: npt.NDArray[np.floating]
+    directivity: npt.NDArray[np.floating]
+    directivity_dbi: npt.NDArray[np.floating]
+    gain: npt.NDArray[np.floating]
+    gain_dbi: npt.NDArray[np.floating]
+    realized_gain: npt.NDArray[np.floating]
+    realized_gain_dbi: npt.NDArray[np.floating]
+    radiation_efficiency: npt.NDArray[np.floating]
+    total_efficiency: npt.NDArray[np.floating]
+    maximum_directivity: npt.NDArray[np.floating]
+    maximum_directivity_dbi: npt.NDArray[np.floating]
+    maximum_theta: npt.NDArray[np.floating]
+    maximum_phi: npt.NDArray[np.floating]
+    valid: npt.NDArray[np.bool_]
+
+
+@dataclass(frozen=True)
+class ArrayStateResult:
+    """Network and optional radiation result for one named array state."""
+
+    id: str
+    frequency: npt.NDArray[np.floating]
+    incident: npt.NDArray[np.complexfloating]
+    outgoing: npt.NDArray[np.complexfloating]
+    active_reflection: npt.NDArray[np.complexfloating]
+    incident_power: npt.NDArray[np.floating]
+    reflected_power: npt.NDArray[np.floating]
+    accepted_power: npt.NDArray[np.floating]
+    tarc: npt.NDArray[np.floating]
+    valid: npt.NDArray[np.bool_]
+    far_fields: Mapping[str, ArrayFarFieldResult]
 
 
 def modal_array_weights(
@@ -1605,10 +1964,7 @@ def modal_array_weights(
         raise ValueError("Modal array frequencies must be one-dimensional.")
     if channel_ports.shape != channel_modes.shape or channel_ports.ndim != 1:
         raise ValueError("Modal channel port/mode arrays must be matching vectors.")
-    channels = {
-        (int(port), int(mode)): index
-        for index, (port, mode) in enumerate(zip(channel_ports, channel_modes))
-    }
+    channels = {(int(port), int(mode)): index for index, (port, mode) in enumerate(zip(channel_ports, channel_modes))}
     if len(channels) != channel_ports.size:
         raise ValueError("Modal channel port/mode pairs must be unique.")
     result = np.zeros((frequency.size, channel_ports.size), dtype=np.complex128)
@@ -1618,20 +1974,13 @@ def modal_array_weights(
             raise TypeError("Modal excitations must be ModalWeight instances.")
         channel = (int(excitation.port), int(excitation.mode))
         if channel not in channels:
-            raise ValueError(
-                f"Modal weight references unavailable port {channel[0]}, mode {channel[1]}."
-            )
+            raise ValueError(f"Modal weight references unavailable port {channel[0]}, mode {channel[1]}.")
         if channel in seen:
-            raise ValueError(
-                f"Modal weight for port {channel[0]}, mode {channel[1]} is duplicated."
-            )
+            raise ValueError(f"Modal weight for port {channel[0]}, mode {channel[1]} is duplicated.")
         seen.add(channel)
         values = (excitation.power, excitation.phase_deg, excitation.delay_s)
         if not all(np.isfinite(value) for value in values) or excitation.power < 0:
-            raise ValueError(
-                "Modal weight power must be finite and non-negative; phase and "
-                "delay must be finite."
-            )
+            raise ValueError("Modal weight power must be finite and non-negative; phase and " "delay must be finite.")
         phase = np.deg2rad(excitation.phase_deg) - 2 * np.pi * frequency * excitation.delay_s
         result[:, channels[channel]] = np.sqrt(excitation.power) * np.exp(1j * phase)
     return result
@@ -1671,6 +2020,152 @@ def combine_embedded_modal_responses(responses, weights, *, channel_axis=-1):
     return np.sum(selected * reshaped_weights, axis=-1)
 
 
+def _ratio_and_db(
+    intensity: npt.NDArray[np.floating],
+    power: npt.NDArray[np.floating],
+):
+    result = np.full(intensity.shape, np.nan, dtype=intensity.dtype)
+    valid = np.isfinite(power) & (power > 0)
+    result[valid] = 4 * np.pi * intensity[valid] / power[valid, np.newaxis]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        result_db = 10 * np.log10(result)
+    return result, np.asarray(result_db, dtype=intensity.dtype)
+
+
+def evaluate_array_state(
+    study: EigenmodeStudyResult,
+    state: ArrayState,
+) -> ArrayStateResult:
+    """Apply a named modal state to an S matrix and embedded field banks."""
+
+    if not isinstance(study, EigenmodeStudyResult):
+        raise TypeError("study must be an EigenmodeStudyResult")
+    if not isinstance(state, ArrayState):
+        raise TypeError("state must be an ArrayState")
+    incident = study.excitation_weights(state.drives)
+    active = np.abs(incident) > 0
+    propagating = np.diagonal(study.valid_s, axis1=1, axis2=2)
+    active_inputs_valid = np.all(~active | propagating, axis=1)
+    required_power_waves = propagating[:, :, np.newaxis] & active[:, np.newaxis, :]
+    physical_transfer_valid = np.all(~required_power_waves | study.valid_s, axis=(1, 2))
+
+    selected_s = np.where(
+        active[:, np.newaxis, :] & study.generalized_valid_s,
+        study.s,
+        0,
+    )
+    outgoing = np.einsum("foi,fi->fo", selected_s, incident)
+    has_incident = np.any(active, axis=1)
+    outgoing_valid = active_inputs_valid[:, np.newaxis] & np.all(
+        ~active[:, np.newaxis, :] | study.generalized_valid_s,
+        axis=2,
+    )
+    outgoing[~outgoing_valid] = np.nan + 1j * np.nan
+    network_valid = active_inputs_valid & physical_transfer_valid & has_incident
+
+    real_dtype = np.empty((), dtype=study.s.dtype).real.dtype
+    incident_power = np.asarray(np.sum(np.abs(incident) ** 2, axis=1), dtype=real_dtype)
+    reflected_power = np.asarray(
+        np.sum(np.where(propagating, np.abs(outgoing) ** 2, 0), axis=1),
+        dtype=real_dtype,
+    )
+    accepted_power = np.asarray(incident_power - reflected_power, dtype=real_dtype)
+    for values in (reflected_power, accepted_power):
+        values[~network_valid] = np.nan
+    tarc = np.full(incident_power.shape, np.nan, dtype=real_dtype)
+    tarc[network_valid] = np.sqrt(np.maximum(reflected_power[network_valid], 0) / incident_power[network_valid])
+    complex_dtype = np.result_type(study.s.dtype, incident.dtype)
+    active_reflection = np.full(incident.shape, np.nan + 1j * np.nan, dtype=complex_dtype)
+    np.divide(
+        outgoing,
+        incident,
+        out=active_reflection,
+        where=active & propagating & network_valid[:, None],
+    )
+
+    far_fields: dict[str, ArrayFarFieldResult] = {}
+    for key, bank in study.embedded_far_fields.items():
+        if not np.array_equal(bank.frequency, study.frequency):
+            raise ValueError(f"Embedded far-field basis {key!r} has an incompatible frequency axis")
+        if bank.etheta.shape[-1] != incident.shape[1]:
+            raise ValueError(f"Embedded far-field basis {key!r} has an incompatible channel axis")
+        field_valid = network_valid & np.all(~active | bank.valid, axis=1)
+        etheta = combine_embedded_modal_responses(bank.etheta, incident)
+        ephi = combine_embedded_modal_responses(bank.ephi, incident)
+        sphere_etheta = combine_embedded_modal_responses(bank.sphere_etheta, incident)
+        sphere_ephi = combine_embedded_modal_responses(bank.sphere_ephi, incident)
+        for values in (etheta, ephi, sphere_etheta, sphere_ephi):
+            values[~field_valid] = np.nan + 1j * np.nan
+
+        intensity = np.asarray(
+            0.5 * (np.abs(etheta) ** 2 + np.abs(ephi) ** 2) / bank.impedance,
+            dtype=real_dtype,
+        )
+        sphere_intensity = np.asarray(
+            0.5 * (np.abs(sphere_etheta) ** 2 + np.abs(sphere_ephi) ** 2) / bank.impedance,
+            dtype=real_dtype,
+        )
+        radiated_power = np.asarray(
+            np.sum(sphere_intensity * bank.sphere_weights[np.newaxis, :], axis=1),
+            dtype=real_dtype,
+        )
+        radiated_power[~field_valid] = np.nan
+        directivity, directivity_dbi = _ratio_and_db(intensity, radiated_power)
+        gain, gain_dbi = _ratio_and_db(intensity, accepted_power)
+        realized_gain, realized_gain_dbi = _ratio_and_db(intensity, incident_power)
+        radiation_efficiency = np.full(radiated_power.shape, np.nan, dtype=real_dtype)
+        total_efficiency = np.full(radiated_power.shape, np.nan, dtype=real_dtype)
+        accepted_valid = field_valid & np.isfinite(accepted_power) & (accepted_power > 0)
+        incident_valid = field_valid & (incident_power > 0)
+        radiation_efficiency[accepted_valid] = radiated_power[accepted_valid] / accepted_power[accepted_valid]
+        total_efficiency[incident_valid] = radiated_power[incident_valid] / incident_power[incident_valid]
+
+        maximum_index = np.argmax(np.where(np.isfinite(sphere_intensity), sphere_intensity, -np.inf), axis=1)
+        maximum_intensity = sphere_intensity[np.arange(study.frequency.size), maximum_index]
+        maximum_directivity, maximum_directivity_dbi = _ratio_and_db(maximum_intensity[:, np.newaxis], radiated_power)
+        maximum_theta = np.asarray(bank.sphere_theta[maximum_index], dtype=real_dtype)
+        maximum_phi = np.asarray(bank.sphere_phi[maximum_index], dtype=real_dtype)
+        maximum_theta[~field_valid] = np.nan
+        maximum_phi[~field_valid] = np.nan
+        far_fields[key] = ArrayFarFieldResult(
+            transform_id=bank.transform_id,
+            output_id=bank.output_id,
+            theta=bank.theta,
+            phi=bank.phi,
+            etheta=etheta,
+            ephi=ephi,
+            radiation_intensity=intensity,
+            radiated_power=radiated_power,
+            directivity=directivity,
+            directivity_dbi=directivity_dbi,
+            gain=gain,
+            gain_dbi=gain_dbi,
+            realized_gain=realized_gain,
+            realized_gain_dbi=realized_gain_dbi,
+            radiation_efficiency=radiation_efficiency,
+            total_efficiency=total_efficiency,
+            maximum_directivity=maximum_directivity[:, 0],
+            maximum_directivity_dbi=maximum_directivity_dbi[:, 0],
+            maximum_theta=maximum_theta,
+            maximum_phi=maximum_phi,
+            valid=field_valid,
+        )
+
+    return ArrayStateResult(
+        id=state.id,
+        frequency=study.frequency,
+        incident=incident,
+        outgoing=outgoing,
+        active_reflection=active_reflection,
+        incident_power=incident_power,
+        reflected_power=reflected_power,
+        accepted_power=accepted_power,
+        tarc=tarc,
+        valid=network_valid,
+        far_fields=far_fields,
+    )
+
+
 class EigenmodeStudy(Study):
     """One-active-modal-channel-per-case reusable eigenmode-port study.
 
@@ -1685,6 +2180,7 @@ class EigenmodeStudy(Study):
         self,
         cases: Sequence[StudyCase],
         *,
+        codebook: Optional[ArrayCodebook] = None,
         source_path: Optional[Union[str, Path]] = None,
         source_text: Optional[str] = None,
     ):
@@ -1694,6 +2190,9 @@ class EigenmodeStudy(Study):
             source_path=source_path,
             source_text=source_text,
         )
+        if codebook is not None and not isinstance(codebook, ArrayCodebook):
+            raise TypeError("EigenmodeStudy codebook must be an ArrayCodebook instance")
+        self.codebook = codebook
         self._excitation = None
         self._case_channels: list[tuple[int, int]] = []
         self._channels: tuple[tuple[int, int], ...] = ()
@@ -1704,6 +2203,10 @@ class EigenmodeStudy(Study):
         self._waveform = None
         self._columns: dict[tuple[int, int], dict[str, Any]] = {}
         self._current_column: Optional[dict[str, Any]] = None
+        self._embedded_bindings: dict[str, tuple[Any, str]] = {}
+        self._raw_embedded_far_fields: dict[str, dict[str, Any]] = {}
+        self._aggregate_wave_valid_matrix = None
+        self._aggregate_generalized_wave_valid_matrix = None
         self._aggregate_output_path: Optional[Path] = None
         self.result: Optional[EigenmodeStudyResult] = None
 
@@ -1716,6 +2219,10 @@ class EigenmodeStudy(Study):
         self._waveform = None
         self._columns.clear()
         self._current_column = None
+        self._embedded_bindings.clear()
+        self._raw_embedded_far_fields.clear()
+        self._aggregate_wave_valid_matrix = None
+        self._aggregate_generalized_wave_valid_matrix = None
         self._aggregate_output_path = None
         self.result = None
 
@@ -1742,8 +2249,7 @@ class EigenmodeStudy(Study):
         ]
         if len(excitations) != 1:
             raise ValueError(
-                "EigenmodeStudy requires exactly one EigenmodeExcitation in its Scene; "
-                f"found {len(excitations)}."
+                "EigenmodeStudy requires exactly one EigenmodeExcitation in its Scene; " f"found {len(excitations)}."
             )
         owner_label, owner_objects, excitation = excitations[0]
         ports = [item for item in owner_objects if isinstance(item, EigenmodePort)]
@@ -1785,21 +2291,18 @@ class EigenmodeStudy(Study):
         for case in self.cases:
             if len(case.states) != 1:
                 raise ValueError(
-                    f"EigenmodeStudy case '{case.id}' must contain exactly one "
-                    "EigenmodeExcitation state."
+                    f"EigenmodeStudy case '{case.id}' must contain exactly one " "EigenmodeExcitation state."
                 )
             state = case.states[0]
             if isinstance(state.object, str):
                 requested = state.object.strip()
                 if requested != study_id:
                     raise ValueError(
-                        f"EigenmodeStudy case '{case.id}' references '{requested}', "
-                        f"expected '{study_id}'."
+                        f"EigenmodeStudy case '{case.id}' references '{requested}', " f"expected '{study_id}'."
                     )
             elif state.object is not excitation:
                 raise ValueError(
-                    f"EigenmodeStudy case '{case.id}' must reference the Scene's "
-                    "EigenmodeExcitation object."
+                    f"EigenmodeStudy case '{case.id}' must reference the Scene's " "EigenmodeExcitation object."
                 )
             unknown = set(state.parameters) - {"port", "mode"}
             if unknown:
@@ -1821,20 +2324,22 @@ class EigenmodeStudy(Study):
         if len(scheduled) != len(set(scheduled)):
             raise ValueError("EigenmodeStudy may excite each port/mode channel only once.")
         if set(scheduled) != available:
-            missing = ", ".join(
-                f"port {port}, mode {mode}" for port, mode in sorted(available - set(scheduled))
-            )
+            missing = ", ".join(f"port {port}, mode {mode}" for port, mode in sorted(available - set(scheduled)))
             raise ValueError(
-                "EigenmodeStudy requires one case for every declared modal channel; "
-                f"missing {missing}."
+                "EigenmodeStudy requires one case for every declared modal channel; " f"missing {missing}."
             )
         self._case_channels = scheduled
         self._channels = tuple(sorted(available))
+        if self.codebook is not None:
+            channel_ports = np.asarray([item[0] for item in self._channels])
+            channel_modes = np.asarray([item[1] for item in self._channels])
+            for state in self.codebook.states:
+                # Validate every reference and numerical drive value before
+                # starting an otherwise potentially expensive FDTD study.
+                modal_array_weights((0.0,), channel_ports, channel_modes, state.drives)
         self._scene_bound = True
         logger.info(
-            "EigenmodeStudy channels: "
-            + ", ".join(f"port {port}/mode {mode}" for port, mode in self._channels)
-            + "\n"
+            "EigenmodeStudy channels: " + ", ".join(f"port {port}/mode {mode}" for port, mode in self._channels) + "\n"
         )
 
     def _bind_runtime(self, model) -> None:
@@ -1843,21 +2348,15 @@ class EigenmodeStudy(Study):
         grids = [model.G] + list(model.subgrids)
         matches = [grid for grid in grids if grid.eigenmodeexcitation is self._excitation]
         if len(matches) != 1:
-            raise RuntimeError(
-                "EigenmodeStudy could not identify exactly one built grid for its excitation."
-            )
+            raise RuntimeError("EigenmodeStudy could not identify exactly one built grid for its excitation.")
         grid = matches[0]
         monitors = {int(monitor.port_index): monitor for monitor in grid.eigenmodeports}
         ports = {port_number: monitor.owner for port_number, monitor in monitors.items()}
         expected_ports = {port for port, _ in self._channels}
         if set(ports) != expected_ports:
-            raise RuntimeError(
-                "EigenmodeStudy runtime ports do not match its declared modal channels."
-            )
+            raise RuntimeError("EigenmodeStudy runtime ports do not match its declared modal channels.")
         guides = {int(guide.spec.port): guide for guide in grid.virtual_waveguides}
-        waveforms = [
-            port.waveform for port in ports.values() if getattr(port, "waveform", None) is not None
-        ]
+        waveforms = [port.waveform for port in ports.values() if getattr(port, "waveform", None) is not None]
         if len(waveforms) != 1:
             raise RuntimeError("EigenmodeStudy requires exactly one baseline excitation waveform.")
         self._runtime_grid = grid
@@ -1865,6 +2364,22 @@ class EigenmodeStudy(Study):
         self._runtime_monitors = monitors
         self._runtime_guides = guides
         self._waveform = waveforms[0]
+
+    def _bind_embedded_ntff(self, grid) -> None:
+        self._embedded_bindings.clear()
+        if self.codebook is not None:
+            for selection in self.codebook.embedded_far_fields:
+                matches = []
+                for writer in grid.ntff_output_writers:
+                    for request_key, request in writer.far_requests.items():
+                        if request.transform_id == selection.transform_id and request.output_id == selection.output_id:
+                            matches.append((writer, request_key))
+                if len(matches) != 1:
+                    raise ValueError(
+                        f"Array codebook embedded far field {selection.key!r} matched "
+                        f"{len(matches)} NTFF requests; exactly one is required."
+                    )
+                self._embedded_bindings[selection.key] = matches[0]
 
     def apply_case(self, model) -> None:
         """Reset persistent state and activate the scheduled modal channel."""
@@ -1910,6 +2425,13 @@ class EigenmodeStudy(Study):
         else:
             guide.set_active_source(source)
 
+        # NTFF transforms always live on the main grid. Their closed surface
+        # may contain a complete fine subgrid and an eigenmode source on that
+        # subgrid, but the reusable transform itself must still be rebuilt on
+        # the main grid for every study case.
+        _recompile_declarative_ntff(model, model.G, "EigenmodeStudy")
+        self._bind_embedded_ntff(model.G)
+
         case = self.cases[case_index]
         self._current_resolved_case = {
             "case_id": case.id,
@@ -1929,7 +2451,7 @@ class EigenmodeStudy(Study):
             self._aggregate_output_path = base.with_name(base.name + "_study").with_suffix(".h5")
 
     def collect_case(self, model) -> None:
-        """Collect one modal S-matrix column from finalised port monitors."""
+        """Collect one excitation run's complete incident/outgoing modal waves."""
 
         import gprMax.config as config
 
@@ -1945,6 +2467,10 @@ class EigenmodeStudy(Study):
         )
         valid = np.zeros(column.shape, dtype=bool)
         generalized_valid = np.zeros(column.shape, dtype=bool)
+        incident = np.full_like(column, np.nan + 1j * np.nan)
+        outgoing = np.full_like(column, np.nan + 1j * np.nan)
+        wave_valid = np.zeros(column.shape, dtype=bool)
+        generalized_wave_valid = np.zeros(column.shape, dtype=bool)
         for output_index, (port_number, mode_index) in enumerate(self._channels):
             monitor = self._runtime_monitors[port_number]
             if not np.array_equal(monitor.result.frequency, frequency):
@@ -1953,6 +2479,52 @@ class EigenmodeStudy(Study):
             column[:, output_index] = monitor.s_parameters[mode_position]
             valid[:, output_index] = monitor.s_valid[mode_position]
             generalized_valid[:, output_index] = monitor.s_generalized_valid[mode_position]
+            incident[:, output_index] = monitor.result.incident[mode_position]
+            outgoing[:, output_index] = monitor.result.outgoing[mode_position]
+            wave_valid[:, output_index] = monitor.result.valid[mode_position]
+            monitor_generalized_valid = getattr(
+                monitor.result,
+                "generalized_valid",
+                monitor.result.valid,
+            )
+            generalized_wave_valid[:, output_index] = monitor_generalized_valid[mode_position]
+
+        embedded: dict[str, dict[str, Any]] = {}
+        for selection_key, (writer, request_key) in self._embedded_bindings.items():
+            basis = writer.linear_far_field_basis(request_key)
+            if not np.array_equal(basis.frequencies, frequency):
+                raise ValueError(
+                    f"Embedded far field {selection_key!r} and EigenmodeStudy ports " "must use identical DFT bins."
+                )
+
+            raw_fields = (
+                np.asarray(basis.etheta),
+                np.asarray(basis.ephi),
+                np.asarray(basis.sphere_etheta),
+                np.asarray(basis.sphere_ephi),
+            )
+            field_valid = np.ones(frequency.shape, dtype=bool)
+            for values in raw_fields:
+                field_valid &= np.all(np.isfinite(values), axis=1)
+
+            embedded[selection_key] = {
+                "transform_id": basis.transform_id,
+                "output_id": basis.output_id,
+                "theta": np.asarray(basis.theta),
+                "phi": np.asarray(basis.phi),
+                "etheta": raw_fields[0].astype(complex_dtype, copy=False),
+                "ephi": raw_fields[1].astype(complex_dtype, copy=False),
+                "sphere_theta": np.asarray(basis.sphere_theta),
+                "sphere_phi": np.asarray(basis.sphere_phi),
+                "sphere_weights": np.asarray(basis.sphere_weights),
+                "sphere_etheta": raw_fields[2].astype(complex_dtype, copy=False),
+                "sphere_ephi": raw_fields[3].astype(complex_dtype, copy=False),
+                "valid": field_valid,
+                "impedance": basis.impedance,
+                "theta_order": basis.theta_order,
+                "phi_order": basis.phi_order,
+                "enclosure_radius": basis.enclosure_radius,
+            }
 
         data = {
             "case_id": self.cases[config.sim_config.current_model].id,
@@ -1961,6 +2533,11 @@ class EigenmodeStudy(Study):
             "column": column,
             "valid": valid,
             "generalized_valid": generalized_valid,
+            "incident": incident,
+            "outgoing": outgoing,
+            "wave_valid": wave_valid,
+            "generalized_wave_valid": generalized_wave_valid,
+            "embedded": embedded,
         }
         self._columns[input_channel] = data
         self._current_column = data
@@ -1983,11 +2560,18 @@ class EigenmodeStudy(Study):
             "generalized_valid_S_column",
             data=data["generalized_valid"].astype(np.uint8),
         )
+        group.create_dataset("incident", data=data["incident"])
+        group.create_dataset("outgoing", data=data["outgoing"])
+        group.create_dataset("valid_wave", data=data["wave_valid"].astype(np.uint8))
+        group.create_dataset(
+            "generalized_valid_wave",
+            data=data["generalized_wave_valid"].astype(np.uint8),
+        )
         if self._aggregate_output_path is not None:
             group.attrs["AggregateOutput"] = str(self._aggregate_output_path)
 
     def finalise(self) -> Optional[EigenmodeStudyResult]:
-        """Assemble and store the complete modal S matrix."""
+        """Assemble and store the de-embedded complete modal S matrix."""
 
         if not self._columns or self._aggregate_output_path is None:
             return None
@@ -1995,9 +2579,14 @@ class EigenmodeStudy(Study):
         frequency = first["frequency"]
         channel_count = len(self._channels)
         shape = (frequency.size, channel_count, channel_count)
-        s = np.full(shape, np.nan + 1j * np.nan, dtype=first["column"].dtype)
-        valid = np.zeros(shape, dtype=bool)
-        generalized_valid = np.zeros(shape, dtype=bool)
+        incident_matrix = np.full(
+            shape,
+            np.nan + 1j * np.nan,
+            dtype=first["column"].dtype,
+        )
+        outgoing_matrix = np.full_like(incident_matrix, np.nan + 1j * np.nan)
+        wave_valid_matrix = np.zeros(shape, dtype=bool)
+        generalized_wave_valid_matrix = np.zeros(shape, dtype=bool)
         case_ids = [""] * channel_count
 
         if len(self._columns) < channel_count and self._aggregate_output_path.exists():
@@ -2018,14 +2607,29 @@ class EigenmodeStudy(Study):
                         f"Existing EigenmodeStudy output '{self._aggregate_output_path}' "
                         "is not compatible with this restarted study."
                     )
-                s[...] = previous["S"][...]
-                valid[...] = previous["valid_S"][...].astype(bool)
-                generalized_valid[...] = previous["generalized_valid_S"][...].astype(bool)
+                required = (
+                    "incident_matrix",
+                    "outgoing_matrix",
+                    "valid_wave_matrix",
+                    "generalized_valid_wave_matrix",
+                )
+                missing = [name for name in required if name not in previous]
+                if missing:
+                    raise ValueError(
+                        f"Existing EigenmodeStudy output '{self._aggregate_output_path}' "
+                        "predates full incident-matrix de-embedding and cannot be "
+                        f"restarted (missing {', '.join(missing)})."
+                    )
+                incident_matrix[...] = previous["incident_matrix"][...]
+                outgoing_matrix[...] = previous["outgoing_matrix"][...]
+                wave_valid_matrix[...] = previous["valid_wave_matrix"][...].astype(bool)
+                generalized_wave_valid_matrix[...] = previous["generalized_valid_wave_matrix"][...].astype(bool)
                 case_ids = [item.decode() for item in previous["case_ids"][...]]
         elif len(self._columns) < channel_count:
             logger.warning(
                 "EigenmodeStudy is incomplete and no compatible aggregate output "
-                "exists from an earlier run; uncomputed S-matrix columns will be NaN."
+                "exists from an earlier run; the incident basis is incomplete and "
+                "the aggregate S matrix will be NaN."
             )
 
         for input_index, channel in enumerate(self._channels):
@@ -2034,10 +2638,40 @@ class EigenmodeStudy(Study):
                 continue
             if not np.array_equal(data["frequency"], frequency):
                 raise RuntimeError("EigenmodeStudy collected inconsistent frequency axes.")
-            s[:, :, input_index] = data["column"]
-            valid[:, :, input_index] = data["valid"]
-            generalized_valid[:, :, input_index] = data["generalized_valid"]
+            incident_matrix[:, :, input_index] = data["incident"]
+            outgoing_matrix[:, :, input_index] = data["outgoing"]
+            wave_valid_matrix[:, :, input_index] = data["wave_valid"]
+            generalized_wave_valid_matrix[:, :, input_index] = data["generalized_wave_valid"]
             case_ids[input_index] = data["case_id"]
+
+        s, generalized_output_valid, condition_number, deembedding_valid = _deembed_modal_responses(
+            incident_matrix,
+            outgoing_matrix,
+            incident_valid=generalized_wave_valid_matrix,
+            response_valid=generalized_wave_valid_matrix,
+        )
+        generalized_valid = np.broadcast_to(
+            generalized_output_valid[:, :, np.newaxis],
+            shape,
+        ).copy()
+        physical_incident_basis_valid = np.all(wave_valid_matrix, axis=(1, 2))
+        physical_output_valid = np.all(wave_valid_matrix, axis=2)
+        valid = (
+            generalized_valid
+            & physical_incident_basis_valid[:, np.newaxis, np.newaxis]
+            & physical_output_valid[:, :, np.newaxis]
+            & deembedding_valid[:, np.newaxis, np.newaxis]
+        )
+
+        embedded_far_fields = self._assemble_embedded_far_fields(
+            frequency,
+            channel_count,
+            incident_matrix=incident_matrix,
+            wave_valid_matrix=wave_valid_matrix,
+            load_previous=len(self._columns) < channel_count,
+        )
+        self._aggregate_wave_valid_matrix = wave_valid_matrix
+        self._aggregate_generalized_wave_valid_matrix = generalized_wave_valid_matrix
 
         self.result = EigenmodeStudyResult(
             frequency=np.asarray(frequency),
@@ -2048,10 +2682,194 @@ class EigenmodeStudy(Study):
             valid_s=valid,
             generalized_valid_s=generalized_valid,
             output_file=self._aggregate_output_path,
+            embedded_far_fields=embedded_far_fields,
+            incident_matrix=incident_matrix,
+            outgoing_matrix=outgoing_matrix,
+            wave_valid_matrix=wave_valid_matrix,
+            generalized_wave_valid_matrix=generalized_wave_valid_matrix,
+            deembedding_condition_number=condition_number,
+            deembedding_valid=deembedding_valid,
         )
         self._write_aggregate_hdf5()
         logger.info(f"Written EigenmodeStudy output file: {self._aggregate_output_path.name}\n")
         return self.result
+
+    def _assemble_embedded_far_fields(
+        self,
+        frequency,
+        channel_count: int,
+        *,
+        incident_matrix,
+        wave_valid_matrix,
+        load_previous: bool,
+    ) -> dict[str, EmbeddedFarFieldBank]:
+        if self.codebook is None or not self.codebook.embedded_far_fields:
+            self._raw_embedded_far_fields.clear()
+            return {}
+        previous_file = None
+        if load_previous and self._aggregate_output_path is not None:
+            previous_file = h5py.File(self._aggregate_output_path, "r")
+        try:
+            assembled = {}
+            raw_assembled = {}
+            for selection in self.codebook.embedded_far_fields:
+                template = next(
+                    (
+                        column["embedded"][selection.key]
+                        for column in self._columns.values()
+                        if selection.key in column["embedded"]
+                    ),
+                    None,
+                )
+                previous_group = None
+                previous_raw = None
+                if previous_file is not None:
+                    path = f"embedded_far_fields/{selection.transform_id}/{selection.output_id}"
+                    previous_group = previous_file.get(path)
+                    if previous_group is not None:
+                        previous_raw = previous_group.get("raw_runs")
+                        if previous_raw is None:
+                            raise ValueError(
+                                f"Existing embedded far field {selection.key!r} predates "
+                                "full incident-matrix de-embedding and cannot be restarted."
+                            )
+                if template is None and previous_group is None:
+                    raise RuntimeError(f"No embedded far-field data were collected for {selection.key!r}.")
+
+                if template is not None:
+                    requested_shape = template["etheta"].shape
+                    sphere_shape = template["sphere_etheta"].shape
+                    metadata = template
+                else:
+                    requested_shape = previous_raw["Etheta"].shape[:2]
+                    sphere_shape = previous_raw["sphere/Etheta"].shape[:2]
+                    metadata = {
+                        "theta": previous_group["theta"][...],
+                        "phi": previous_group["phi"][...],
+                        "sphere_theta": previous_group["sphere/theta"][...],
+                        "sphere_phi": previous_group["sphere/phi"][...],
+                        "sphere_weights": previous_group["sphere/weights"][...],
+                        "impedance": previous_group.attrs["Impedance"],
+                        "theta_order": previous_group.attrs["ThetaOrder"],
+                        "phi_order": previous_group.attrs["PhiOrder"],
+                        "enclosure_radius": previous_group.attrs["EnclosureRadius"],
+                    }
+                complex_dtype = next(iter(self._columns.values()))["column"].dtype
+                raw_etheta = np.full(
+                    requested_shape + (channel_count,),
+                    np.nan + 1j * np.nan,
+                    dtype=complex_dtype,
+                )
+                raw_ephi = np.full_like(raw_etheta, np.nan + 1j * np.nan)
+                raw_sphere_etheta = np.full(
+                    sphere_shape + (channel_count,),
+                    np.nan + 1j * np.nan,
+                    dtype=complex_dtype,
+                )
+                raw_sphere_ephi = np.full_like(
+                    raw_sphere_etheta,
+                    np.nan + 1j * np.nan,
+                )
+                raw_valid = np.zeros((len(frequency), channel_count), dtype=bool)
+                if previous_group is not None:
+                    if not np.array_equal(previous_group["frequency"][...], frequency):
+                        raise ValueError(
+                            f"Existing embedded far field {selection.key!r} has an " "incompatible frequency axis."
+                        )
+                    raw_etheta[...] = previous_raw["Etheta"][...]
+                    raw_ephi[...] = previous_raw["Ephi"][...]
+                    raw_sphere_etheta[...] = previous_raw["sphere/Etheta"][...]
+                    raw_sphere_ephi[...] = previous_raw["sphere/Ephi"][...]
+                    raw_valid[...] = previous_raw["valid"][...].astype(bool)
+
+                for channel_index, channel in enumerate(self._channels):
+                    data = self._columns.get(channel)
+                    if data is None:
+                        continue
+                    item = data["embedded"].get(selection.key)
+                    if item is None:
+                        raise RuntimeError(f"Case {data['case_id']!r} did not collect {selection.key!r}.")
+                    for name in ("theta", "phi", "sphere_theta", "sphere_phi", "sphere_weights"):
+                        if not np.array_equal(item[name], metadata[name]):
+                            raise RuntimeError(f"Embedded far field {selection.key!r} changed {name} between cases.")
+                    raw_etheta[..., channel_index] = item["etheta"]
+                    raw_ephi[..., channel_index] = item["ephi"]
+                    raw_sphere_etheta[..., channel_index] = item["sphere_etheta"]
+                    raw_sphere_ephi[..., channel_index] = item["sphere_ephi"]
+                    raw_valid[:, channel_index] = item["valid"]
+
+                field_response_valid = raw_valid[:, np.newaxis, :]
+                etheta, etheta_valid, _, etheta_basis_valid = _deembed_modal_responses(
+                    incident_matrix,
+                    raw_etheta,
+                    incident_valid=wave_valid_matrix,
+                    response_valid=field_response_valid,
+                )
+                ephi, ephi_valid, _, ephi_basis_valid = _deembed_modal_responses(
+                    incident_matrix,
+                    raw_ephi,
+                    incident_valid=wave_valid_matrix,
+                    response_valid=field_response_valid,
+                )
+                sphere_etheta, sphere_etheta_valid, _, sphere_etheta_basis_valid = _deembed_modal_responses(
+                    incident_matrix,
+                    raw_sphere_etheta,
+                    incident_valid=wave_valid_matrix,
+                    response_valid=field_response_valid,
+                )
+                sphere_ephi, sphere_ephi_valid, _, sphere_ephi_basis_valid = _deembed_modal_responses(
+                    incident_matrix,
+                    raw_sphere_ephi,
+                    incident_valid=wave_valid_matrix,
+                    response_valid=field_response_valid,
+                )
+                frequency_valid = (
+                    etheta_basis_valid
+                    & ephi_basis_valid
+                    & sphere_etheta_basis_valid
+                    & sphere_ephi_basis_valid
+                    & np.all(etheta_valid, axis=1)
+                    & np.all(ephi_valid, axis=1)
+                    & np.all(sphere_etheta_valid, axis=1)
+                    & np.all(sphere_ephi_valid, axis=1)
+                )
+                valid = np.broadcast_to(
+                    frequency_valid[:, np.newaxis],
+                    (len(frequency), channel_count),
+                ).copy()
+
+                raw_assembled[selection.key] = {
+                    "etheta": raw_etheta,
+                    "ephi": raw_ephi,
+                    "sphere_etheta": raw_sphere_etheta,
+                    "sphere_ephi": raw_sphere_ephi,
+                    "valid": raw_valid,
+                }
+
+                assembled[selection.key] = EmbeddedFarFieldBank(
+                    transform_id=selection.transform_id,
+                    output_id=selection.output_id,
+                    frequency=np.asarray(frequency),
+                    theta=np.asarray(metadata["theta"]),
+                    phi=np.asarray(metadata["phi"]),
+                    etheta=etheta,
+                    ephi=ephi,
+                    sphere_theta=np.asarray(metadata["sphere_theta"]),
+                    sphere_phi=np.asarray(metadata["sphere_phi"]),
+                    sphere_weights=np.asarray(metadata["sphere_weights"]),
+                    sphere_etheta=sphere_etheta,
+                    sphere_ephi=sphere_ephi,
+                    valid=valid,
+                    impedance=float(metadata["impedance"]),
+                    theta_order=int(metadata["theta_order"]),
+                    phi_order=int(metadata["phi_order"]),
+                    enclosure_radius=float(metadata["enclosure_radius"]),
+                )
+            self._raw_embedded_far_fields = raw_assembled
+            return assembled
+        finally:
+            if previous_file is not None:
+                previous_file.close()
 
     def _write_aggregate_hdf5(self) -> None:
         if self.result is None:
@@ -2064,7 +2882,11 @@ class EigenmodeStudy(Study):
             output.attrs["gprMax"] = __version__
             output.attrs["StudyType"] = self.type
             output.attrs["MatrixConvention"] = "S[frequency, output_channel, input_channel]"
+            output.attrs["RunMatrixConvention"] = (
+                "A_or_B[frequency, modal_channel, excitation_case]"
+            )
             output.attrs["WaveNormalisation"] = "modal_power_wave"
+            output.attrs["Deembedding"] = "conditioned_full_incident_matrix_solve"
             output.attrs["phasor_time_sign"] = PHASOR_TIME_DEPENDENCE
             output.attrs["forward_transform_sign"] = FORWARD_TRANSFORM_KERNEL
             output.attrs["CasesCompleted"] = sum(bool(case_id) for case_id in result.case_ids)
@@ -2080,9 +2902,125 @@ class EigenmodeStudy(Study):
             output.create_dataset("case_ids", data=np.asarray(result.case_ids, dtype="S"))
             output.create_dataset("S", data=result.s)
             output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
+            output.create_dataset("generalized_valid_S", data=result.generalized_valid_s.astype(np.uint8))
+            output.create_dataset("incident_matrix", data=result.incident_matrix)
+            output.create_dataset("outgoing_matrix", data=result.outgoing_matrix)
             output.create_dataset(
-                "generalized_valid_S", data=result.generalized_valid_s.astype(np.uint8)
+                "deembedding_condition_number",
+                data=result.deembedding_condition_number,
             )
+            output.create_dataset(
+                "deembedding_valid",
+                data=result.deembedding_valid.astype(np.uint8),
+            )
+            output.create_dataset(
+                "valid_wave_matrix",
+                data=result.wave_valid_matrix.astype(np.uint8),
+            )
+            output.create_dataset(
+                "generalized_valid_wave_matrix",
+                data=result.generalized_wave_valid_matrix.astype(np.uint8),
+            )
+            if self.codebook is not None:
+                codebook_group = output.create_group("array_codebook")
+                codebook_group.attrs["Schema"] = self.codebook.schema
+                codebook_group.attrs["Description"] = self.codebook.description
+                codebook_group.create_dataset(
+                    "definition",
+                    data=self.codebook.to_json(),
+                )
+                if self.codebook.source_path is not None:
+                    codebook_group.attrs["SourcePath"] = str(self.codebook.source_path)
+                if self.codebook.source_text is not None:
+                    codebook_group.create_dataset("source", data=self.codebook.source_text)
+
+            if result.embedded_far_fields:
+                embedded_group = output.create_group("embedded_far_fields")
+                for bank in result.embedded_far_fields.values():
+                    group = embedded_group.require_group(bank.transform_id).create_group(bank.output_id)
+                    group.attrs["Normalisation"] = "field_per_sqrt_watt_incident_power_wave"
+                    group.attrs["Impedance"] = bank.impedance
+                    group.attrs["ThetaOrder"] = bank.theta_order
+                    group.attrs["PhiOrder"] = bank.phi_order
+                    group.attrs["EnclosureRadius"] = bank.enclosure_radius
+                    group.create_dataset("frequency", data=bank.frequency)
+                    group.create_dataset("theta", data=bank.theta)
+                    group.create_dataset("phi", data=bank.phi)
+                    group.create_dataset("Etheta", data=bank.etheta)
+                    group.create_dataset("Ephi", data=bank.ephi)
+                    group.create_dataset("valid", data=bank.valid.astype(np.uint8))
+                    sphere = group.create_group("sphere")
+                    sphere.create_dataset("theta", data=bank.sphere_theta)
+                    sphere.create_dataset("phi", data=bank.sphere_phi)
+                    sphere.create_dataset("weights", data=bank.sphere_weights)
+                    sphere.create_dataset("Etheta", data=bank.sphere_etheta)
+                    sphere.create_dataset("Ephi", data=bank.sphere_ephi)
+                    raw = self._raw_embedded_far_fields[bank.key]
+                    raw_group = group.create_group("raw_runs")
+                    raw_group.attrs["FinalAxis"] = "excitation_case"
+                    raw_group.attrs["Normalisation"] = "raw_range_normalized_run_field"
+                    raw_group.create_dataset("Etheta", data=raw["etheta"])
+                    raw_group.create_dataset("Ephi", data=raw["ephi"])
+                    raw_group.create_dataset("valid", data=raw["valid"].astype(np.uint8))
+                    raw_sphere = raw_group.create_group("sphere")
+                    raw_sphere.create_dataset("Etheta", data=raw["sphere_etheta"])
+                    raw_sphere.create_dataset("Ephi", data=raw["sphere_ephi"])
+
+            if self.codebook is not None and self.codebook.states:
+                states_group = output.create_group("array_states")
+                states_group.attrs["DefinitionSchema"] = self.codebook.schema
+                for state, state_result in zip(
+                    self.codebook.states,
+                    result.evaluate_codebook(self.codebook),
+                ):
+                    group = states_group.create_group(state.id)
+                    group.attrs["Description"] = state.description
+                    group.attrs["NetworkWaveNormalisation"] = "modal_power_wave"
+                    drives = group.create_group("drives")
+                    drives.create_dataset("port", data=[item.port for item in state.drives])
+                    drives.create_dataset("mode", data=[item.mode for item in state.drives])
+                    drives.create_dataset("power_w", data=[item.power for item in state.drives])
+                    drives.create_dataset("phase_deg", data=[item.phase_deg for item in state.drives])
+                    drives.create_dataset("delay_s", data=[item.delay_s for item in state.drives])
+                    group.create_dataset("incident", data=state_result.incident)
+                    group.create_dataset("outgoing", data=state_result.outgoing)
+                    group.create_dataset("active_reflection", data=state_result.active_reflection)
+                    group.create_dataset("incident_power", data=state_result.incident_power)
+                    group.create_dataset("reflected_power", data=state_result.reflected_power)
+                    group.create_dataset("accepted_power", data=state_result.accepted_power)
+                    group.create_dataset("tarc", data=state_result.tarc)
+                    group.create_dataset("valid", data=state_result.valid.astype(np.uint8))
+                    for field_result in state_result.far_fields.values():
+                        field_group = (
+                            group.require_group("far_fields")
+                            .require_group(field_result.transform_id)
+                            .create_group(field_result.output_id)
+                        )
+                        field_group.create_dataset("theta", data=field_result.theta)
+                        field_group.create_dataset("phi", data=field_result.phi)
+                        for dataset_name, result_name in (
+                            ("Etheta", "etheta"),
+                            ("Ephi", "ephi"),
+                            ("radiation_intensity", "radiation_intensity"),
+                            ("radiated_power", "radiated_power"),
+                            ("directivity", "directivity"),
+                            ("directivity_dbi", "directivity_dbi"),
+                            ("gain", "gain"),
+                            ("gain_dbi", "gain_dbi"),
+                            ("realized_gain", "realized_gain"),
+                            ("realized_gain_dbi", "realized_gain_dbi"),
+                            ("radiation_efficiency", "radiation_efficiency"),
+                            ("total_efficiency", "total_efficiency"),
+                            ("maximum_directivity", "maximum_directivity"),
+                            ("maximum_directivity_dbi", "maximum_directivity_dbi"),
+                            ("maximum_theta", "maximum_theta"),
+                            ("maximum_phi", "maximum_phi"),
+                        ):
+                            field_group.create_dataset(
+                                dataset_name,
+                                data=getattr(field_result, result_name),
+                            )
+                        field_group.create_dataset("valid", data=field_result.valid.astype(np.uint8))
 
 
 def preflight_study_args(args) -> Optional[Study]:
@@ -2093,11 +3031,20 @@ def preflight_study_args(args) -> Optional[Study]:
         raise TypeError("The study API argument must be a Study instance.")
 
     hash_spec = _find_hash_study(getattr(args, "inputfile", None))
+    hash_codebook = _find_hash_array_codebook(getattr(args, "inputfile", None))
     if study is not None and hash_spec is not None:
         raise ValueError("Specify a study through either the Python API or #study, not both.")
+    if study is not None and hash_codebook is not None:
+        raise ValueError(
+            "Specify an array codebook through either the EigenmodeStudy API or " "#array_codebook, not both."
+        )
     if study is None and hash_spec is not None:
         study_type, csv_path = hash_spec
         study = Study.from_csv(study_type, csv_path)
+    if hash_codebook is not None:
+        if not isinstance(study, EigenmodeStudy):
+            raise ValueError("#array_codebook requires an #study: eigenmode command.")
+        study.codebook = ArrayCodebook.from_json(hash_codebook)
     if study is None:
         setattr(args, "study", None)
         return None
@@ -2109,9 +3056,7 @@ def preflight_study_args(args) -> Optional[Study]:
     if isinstance(study, (PortStudy, EigenmodeStudy, PlaneWaveStudy, SourceStudy)) and getattr(
         args, "geometry_only", False
     ):
-        raise ValueError(
-            f"{type(study).__name__} requires a field solve and cannot use geometry_only."
-        )
+        raise ValueError(f"{type(study).__name__} requires a field solve and cannot use geometry_only.")
     scenes = getattr(args, "scenes", None)
     if scenes is not None and len(scenes) != 1:
         raise ValueError("A study requires exactly one reusable Scene.")
@@ -2122,9 +3067,7 @@ def preflight_study_args(args) -> Optional[Study]:
         args.n = count
     else:
         if start <= 0 or start > count:
-            raise ValueError(
-                f"Study restart index i={start} is outside the {count} available cases."
-            )
+            raise ValueError(f"Study restart index i={start} is outside the {count} available cases.")
         args.n = count - start + 1
     args.geometry_fixed = True
     args.study = study
@@ -2181,6 +3124,54 @@ def _find_hash_study(inputfile: Optional[Union[str, Path]]) -> Optional[tuple[st
     return found[0] if found else None
 
 
+def _find_hash_array_codebook(inputfile: Optional[Union[str, Path]]) -> Optional[Path]:
+    if inputfile is None:
+        return None
+    main_path = Path(inputfile).expanduser().resolve()
+    found: list[Path] = []
+    visited: set[Path] = set()
+
+    def scan(path: Path) -> None:
+        path = path.resolve()
+        if path in visited:
+            return
+        visited.add(path)
+        in_python = False
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("##"):
+                continue
+            if stripped.startswith("#python:"):
+                in_python = True
+                continue
+            if stripped.startswith("#end_python:"):
+                in_python = False
+                continue
+            if in_python:
+                continue
+            if stripped.startswith("#include_file:"):
+                values = shlex.split(stripped.split(":", 1)[1])
+                if len(values) != 1:
+                    raise ValueError("#include_file requires exactly one parameter.")
+                include = Path(values[0]).expanduser()
+                if not include.is_absolute():
+                    include = main_path.parent / include
+                scan(include)
+            elif stripped.startswith("#array_codebook:"):
+                values = shlex.split(stripped.split(":", 1)[1])
+                if len(values) != 1:
+                    raise ValueError("#array_codebook requires exactly one JSON path.")
+                codebook = Path(values[0]).expanduser()
+                if not codebook.is_absolute():
+                    codebook = main_path.parent / codebook
+                found.append(codebook.resolve())
+
+    scan(main_path)
+    if len(found) > 1:
+        raise ValueError("Only one #array_codebook command may be specified.")
+    return found[0] if found else None
+
+
 def _is_source(item: Any) -> bool:
     return hasattr(item, "waveformID") and (
         getattr(item, "waveformvalues_halfdt", None) is not None
@@ -2211,9 +3202,7 @@ def _parse_positive_int(value: str, path: Path, line: int, name: str) -> int:
     try:
         result = int(value)
     except ValueError as exc:
-        raise ValueError(
-            f"Study CSV '{path}', line {line}: {name} must be a positive integer."
-        ) from exc
+        raise ValueError(f"Study CSV '{path}', line {line}: {name} must be a positive integer.") from exc
     if result < 1:
         raise ValueError(f"Study CSV '{path}', line {line}: {name} must be a positive integer.")
     return result

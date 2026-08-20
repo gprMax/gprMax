@@ -221,6 +221,22 @@ does not repeat the FDFD solves. This works when the complete eigenmode setup
 belongs either to the main grid or to one HSG subgrid; ports from different
 grids cannot be combined in one modal study.
 
+Every monitor records its incident and outgoing waves in every case, including
+small residual incident waves at nominally passive terminations. With the case
+vectors arranged as columns,
+
+.. math::
+
+   A(f) = [a^{(1)}(f)\;\cdots\;a^{(N)}(f)], \qquad
+   B(f) = [b^{(1)}(f)\;\cdots\;b^{(N)}(f)],
+
+the aggregate response is defined by :math:`B=SA`. gprMax solves the
+transposed linear system for :math:`S` at each frequency rather than assuming
+that :math:`A` is diagonal. The same operation converts the raw NTFF run
+fields into embedded modal fields. Frequencies with an incomplete or
+ill-conditioned incident basis are marked invalid; the raw matrices and
+condition number remain in the aggregate output for diagnosis.
+
 Drive several ports or modes together
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -268,11 +284,22 @@ particular driven state, not an embedded element or an S-matrix column.
 The per-case files identify their input port and mode. The aggregate
 ``<output>_study.h5`` stores the complete matrix using
 ``S[frequency, output_channel, input_channel]``; ``channel_ports`` and
-``channel_modes`` map both channel axes. The physical and generalized
+``channel_modes`` map both channel axes. This aggregate matrix is the
+full-incident-matrix de-embedded result; a per-case ``S_column`` is only the
+single-source-normalized run diagnostic. The physical and generalized
 validity masks remain separate. Use ``-i N`` to restart at case ``N`` while
-retaining compatible columns already stored in the aggregate file. The
+retaining compatible raw cases already stored in the aggregate file. The
 Python API additionally provides modal power/phase/delay weights for array
-synthesis; see :ref:`input-api`.
+synthesis. A versioned JSON codebook can evaluate and store many named states
+without rerunning FDTD, and can opt into retaining complex embedded NTFF
+fields plus the full-sphere basis required for coherent gain/directivity
+normalisation. Hash-command models use ``#array_codebook: file.json``; see
+:ref:`input-api`.
+
+The independent study cases and their NTFF transforms run on the selected CPU,
+CUDA, OpenCL, or Metal solver. Codebook weighting is deliberately a host-side
+post-processing operation on the retained complex responses, so it introduces
+no codebook-specific field arrays or kernels on an accelerator.
 
 Example 2: a curved waveguide
 -----------------------------

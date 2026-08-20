@@ -295,6 +295,35 @@ class KSIRFarFieldResult:
 
 
 @dataclass(frozen=True)
+class NTFFLinearFarFieldBasis:
+    """Linear complex far fields retained for modal array synthesis.
+
+    The requested directions are the public far-field request.  The separate
+    full-sphere quadrature is retained because radiated power is quadratic in
+    the *combined* array field and therefore cannot be assembled from the
+    per-channel radiated powers.
+    """
+
+    transform_id: str
+    output_id: str
+    frequencies: npt.NDArray[np.floating]
+    theta: npt.NDArray[np.floating]
+    phi: npt.NDArray[np.floating]
+    etheta: npt.NDArray[np.complexfloating]
+    ephi: npt.NDArray[np.complexfloating]
+    sphere_theta: npt.NDArray[np.floating]
+    sphere_phi: npt.NDArray[np.floating]
+    sphere_weights: npt.NDArray[np.floating]
+    sphere_etheta: npt.NDArray[np.complexfloating]
+    sphere_ephi: npt.NDArray[np.complexfloating]
+    impedance: float
+    theta_order: int
+    phi_order: int
+    enclosure_radius: float
+    range_normalized: bool = True
+
+
+@dataclass(frozen=True)
 class NTFFTimeFarFieldResult:
     """Range-normalized 1997 equivalent-current time-domain far fields."""
 
@@ -879,6 +908,86 @@ class NTFFCompiledOutputs:
         self._radiation_cache = {}
         self._port_cache = {}
 
+    def _radiation_quadrature(self, transform_id: str):
+        monitor = self.frequency_monitors[transform_id]
+        transform = self.transforms[transform_id]
+        compiled = self.surfaces[transform.surface_id]
+        radius = self._enclosure_radius(compiled)
+        maximum_wavenumber = (
+            2 * np.pi * float(np.max(monitor.frequencies, initial=0)) / monitor.wave_speed
+        )
+        return spherical_quadrature(radius, maximum_wavenumber, monitor.real_dtype)
+
+    def linear_far_field_basis(self, key: str) -> NTFFLinearFarFieldBasis:
+        """Return electric far fields required for coherent modal synthesis."""
+
+        if key not in self.far_requests:
+            raise KeyError(key)
+        spec = self.far_requests[key]
+        monitor = self.frequency_monitors[spec.transform_id]
+
+        requested_directions = spherical_directions(spec.theta, spec.phi, degrees=True)
+        requested_cartesian = self._far_cartesian(
+            spec.transform_id,
+            requested_directions,
+            ELECTRIC_COMPONENTS,
+        )
+        requested_electric = np.stack(
+            [requested_cartesian[item] for item in ELECTRIC_COMPONENTS], axis=-1
+        )
+        requested_spherical = project_cartesian_to_spherical(
+            requested_electric,
+            spec.theta,
+            spec.phi,
+            degrees=True,
+        )
+
+        quadrature = self._radiation_quadrature(spec.transform_id)
+        shape = (monitor.frequencies.size, quadrature.theta.size)
+        sphere_etheta = np.empty(shape, dtype=monitor.complex_dtype)
+        sphere_ephi = np.empty(shape, dtype=monitor.complex_dtype)
+        complex_bytes = np.dtype(monitor.complex_dtype).itemsize
+        real_bytes = np.dtype(monitor.real_dtype).itemsize
+        bytes_per_direction = max(1, monitor.frequencies.size) * (
+            8 * complex_bytes + 2 * real_bytes
+        )
+        direction_block_size = max(
+            1,
+            min(
+                MAX_FAR_ZONE_DIRECTION_BLOCK,
+                FAR_ZONE_TARGET_WORKING_SET_BYTES // bytes_per_direction,
+            ),
+        )
+        for start in range(0, quadrature.theta.size, direction_block_size):
+            stop = min(start + direction_block_size, quadrature.theta.size)
+            theta = quadrature.theta[start:stop]
+            phi = quadrature.phi[start:stop]
+            directions = spherical_directions(theta, phi, degrees=True)
+            cartesian = self._far_cartesian(spec.transform_id, directions, ELECTRIC_COMPONENTS)
+            electric = np.stack([cartesian[item] for item in ELECTRIC_COMPONENTS], axis=-1)
+            spherical = project_cartesian_to_spherical(electric, theta, phi, degrees=True)
+            sphere_etheta[:, start:stop] = spherical[:, :, 1]
+            sphere_ephi[:, start:stop] = spherical[:, :, 2]
+
+        return NTFFLinearFarFieldBasis(
+            transform_id=spec.transform_id,
+            output_id=spec.output_id,
+            frequencies=_readonly(monitor.frequencies),
+            theta=_readonly(spec.theta),
+            phi=_readonly(spec.phi),
+            etheta=_readonly(requested_spherical[:, :, 1]),
+            ephi=_readonly(requested_spherical[:, :, 2]),
+            sphere_theta=_readonly(quadrature.theta),
+            sphere_phi=_readonly(quadrature.phi),
+            sphere_weights=_readonly(quadrature.weights),
+            sphere_etheta=_readonly(sphere_etheta),
+            sphere_ephi=_readonly(sphere_ephi),
+            impedance=float(monitor.impedance),
+            theta_order=quadrature.theta_order,
+            phi_order=quadrature.phi_order,
+            enclosure_radius=quadrature.enclosure_radius,
+        )
+
     def result_for(self, key: str):
         if key not in self._results:
             if key in self.time_requests:
@@ -926,17 +1035,7 @@ class NTFFCompiledOutputs:
         if transform_id in self._radiation_cache:
             return self._radiation_cache[transform_id]
         monitor = self.frequency_monitors[transform_id]
-        transform = self.transforms[transform_id]
-        compiled = self.surfaces[transform.surface_id]
-        radius = self._enclosure_radius(compiled)
-        maximum_wavenumber = (
-            2 * np.pi * float(np.max(monitor.frequencies, initial=0)) / monitor.wave_speed
-        )
-        quadrature = spherical_quadrature(
-            radius,
-            maximum_wavenumber,
-            monitor.real_dtype,
-        )
+        quadrature = self._radiation_quadrature(transform_id)
         logger.info(
             f"NTFF transform {transform_id!r}: evaluating {quadrature.theta.size} "
             f"temporary full-sphere directions ({quadrature.theta_order} x "

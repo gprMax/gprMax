@@ -2254,6 +2254,51 @@ geometry. NTFF observation directions also remain fixed: request all angles
 needed across the cases in the input file and select the appropriate direction
 from each numbered output file.
 
+#array_codebook:
+----------------
+
+Associates a versioned JSON array-state codebook with an eigenmode study:
+
+.. code-block:: none
+
+    #study: eigenmode modal_cases.csv
+    #array_codebook: array_states.json
+
+The command has one positional argument, resolved relative to the main input
+file. It is valid only with ``#study: eigenmode``. The study CSV still defines
+the independent one-active-channel solves needed to obtain the complete
+S matrix. The JSON file defines any coherent states to evaluate after that
+matrix has been assembled and, optionally, the far-field requests whose
+linear complex fields should be retained as an embedded basis:
+
+.. code-block:: json
+
+    {
+      "schema": "gprMax-array-codebook-v1",
+      "embedded_far_fields": [
+        {"transform_id": "antenna_band", "output_id": "pattern"}
+      ],
+      "states": [
+        {
+          "id": "broadside",
+          "drives": [
+            {"port": 1, "mode": 1, "power_w": 1.0},
+            {"port": 2, "mode": 1, "power_w": 1.0,
+             "phase_deg": 0.0, "delay_s": 0.0}
+          ]
+        }
+      ]
+    }
+
+``power_w`` is incident modal power, so the complex power-wave magnitude is
+its square root. ``phase_deg`` is a frequency-independent phase shifter and
+``delay_s`` is a true time delay. Both default to zero and ``power_w``
+defaults to one. Omit a channel from a state to leave it passive. Every
+selected far field must identify one existing frequency-domain KSIR or
+equivalent-current far-field request. Retaining fields is opt-in because the
+requested directions, a full-sphere radiation quadrature, and every modal
+channel are stored.
+
 A ``source`` study manages main-grid ``#transmission_line``,
 ``#magnetic_frill_source``, and ``#network_excitation`` commands. Their
 deterministic IDs are ``transmission_line_1``, ``magnetic_frill_source_1``,
@@ -2338,7 +2383,11 @@ source-grade spectral-guard anchors. Later cases reuse those bases, reset the
 modal DFT and any ``#virtual_waveguide`` fields/PML history, and switch the
 active channel without another FDFD solve. The aggregate file stores
 ``S[frequency, output_channel, input_channel]`` together with ``channel_ports``
-and ``channel_modes``.
+and ``channel_modes``. It retains the full measured incident and outgoing
+matrices from all cases and obtains :math:`S` from the conditioned system
+:math:`B=SA`; it does not assume that nominally passive ports have exactly
+zero incident wave. The same de-embedding is applied to any embedded far-field
+basis selected by an array codebook.
 
 The number of CSV cases determines the number of model runs, so ``-n`` is not
 required. ``-i N`` restarts at case ``N`` and retains absolute output numbering.

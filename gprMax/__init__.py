@@ -19,8 +19,14 @@ from .ntff import (
 )
 from .scene import Scene
 from .studies import (
+    ArrayCodebook,
+    ArrayFarFieldResult,
+    ArrayState,
+    ArrayStateResult,
     EigenmodeStudy,
     EigenmodeStudyResult,
+    EmbeddedFarFieldBank,
+    EmbeddedFarFieldSpec,
     GPRStudy,
     ModalWeight,
     ObjectState,

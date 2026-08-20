@@ -230,6 +230,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx_steps",
             "#output_dir",
             "#study",
+            "#array_codebook",
         ],
         None,
     )
