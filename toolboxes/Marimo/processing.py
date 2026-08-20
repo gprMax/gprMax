@@ -350,3 +350,48 @@ def spectrum_view_limit(
     if limit <= 0.0 or limit > available:
         return available
     return limit
+
+
+def subtract_traces(
+    target: np.ndarray,
+    reference: np.ndarray,
+    dt_target: float | None = None,
+    dt_reference: float | None = None,
+    rtol: float = 1e-6,
+) -> np.ndarray:
+    """Elementwise `target - reference`, for isolating a buried target's response.
+
+    Run the model twice, once with the target and once without, and subtract.
+    What cancels is everything the two runs share: the source pulse, the direct
+    coupling between antennas, and any reflection from a flat interface. What
+    survives is the target.
+
+    Works on a single trace, shape (n_samples,), and on two B-scan matrices of
+    the same shape.
+
+    Both time steps should be passed whenever they are known. Checking the
+    sample count alone is not enough: two runs can produce the same number of
+    samples from different `#time_window` and `#dx_dy_dz` settings, in which
+    case the arrays line up index by index while representing different
+    instants, and the subtraction silently returns nonsense. Comparing dt
+    catches that.
+    """
+    a = np.asarray(target, dtype=float)
+    b = np.asarray(reference, dtype=float)
+
+    if a.shape != b.shape:
+        raise ValueError(
+            f"shape mismatch: target {a.shape}, reference {b.shape}. "
+            "Both runs must have the same iteration count."
+        )
+
+    if dt_target is not None and dt_reference is not None:
+        if not np.isclose(float(dt_target), float(dt_reference), rtol=rtol, atol=0.0):
+            raise ValueError(
+                f"time steps differ: target dt={float(dt_target):.6e} s, "
+                f"reference dt={float(dt_reference):.6e} s. The arrays are the same "
+                "length but their samples are at different instants, so subtracting "
+                "them index by index is meaningless."
+            )
+
+    return a - b
