@@ -131,6 +131,10 @@ transmission magnitude and phase directly with
 :math:`S_{21}=\exp(-j\beta L)`.
 The planar-layered NTFF case compares a Huygens surface crossing two material
 interfaces with the closed-form three-layer Hertzian-dipole Green function.
+Additional layered-medium cases reproduce Çapoğlu's eight-layer benchmark,
+compare interfacial and finite-height dipoles with the independent asymptotic
+expressions of Engheta and Smith, and verify the distance convergence of the
+GSSI-like pulse-energy patterns reported by Warren and Giannopoulos.
 
 The dispersive studies compare exact pole-residue interface averaging with
 the non-averaged staircased representation for planar layers, homogeneous
@@ -142,6 +146,10 @@ human-readable report. Run, for example:
 
     $ python -m testing.validation.validate_hertzian_dipole --gpu 0
     $ python -m testing.validation.planar_layered_ntff.validate_point_dipole
+    $ python -m testing.validation.planar_layered_ntff.validate_capoglu_paper --gpu 0
+    $ python -m testing.validation.planar_layered_ntff.validate_engheta_interfacial_dipoles --gpu 0
+    $ python -m testing.validation.planar_layered_ntff.validate_smith_dipole_height --gpu 0
+    $ python -m testing.validation.planar_layered_ntff.validate_gssi_energy_convergence --gpu 0
     $ python -m testing.validation.validate_rational_network_literature
     $ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
     $ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
