@@ -357,6 +357,7 @@ class EigenmodeSource(Source):
         self.dft_start = None
         self.dft_stop = None
         self.dft_points = None
+        self.dft_frequencies = None
         self.port_monitor = None
         self.drive_specs = ()
         self.drive_amplitude = 1.0
@@ -588,6 +589,7 @@ class EigenmodeSource(Source):
             dft_start=self.dft_start,
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
+            dft_frequencies=self.dft_frequencies,
             anchor_mode_valid=self.port_anchor_mode_valid,
             anchor_mode_reference_valid=self.port_anchor_mode_reference_valid,
             anchor_mode_propagating=self.port_anchor_mode_propagating,
@@ -2494,6 +2496,7 @@ class EigenmodeReceiver(EigenmodeSource):
             dft_start=self.dft_start,
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
+            dft_frequencies=self.dft_frequencies,
             anchor_mode_valid=self.port_anchor_mode_valid,
             anchor_mode_reference_valid=self.port_anchor_mode_reference_valid,
             anchor_mode_propagating=self.port_anchor_mode_propagating,

@@ -23,30 +23,6 @@ SURFACE_LOWER = (0.012, 0.012, 0.012)
 SURFACE_UPPER = (0.028, 0.028, 0.028)
 
 
-def test_eigenmode_source_is_incompatible_with_ramahi_ksir():
-    grid = SimpleNamespace(
-        ntff_surface_specs={"surface": object()},
-        ksir_transform_specs={"spectrum": object()},
-        ntff_transform_specs={},
-        ksir_time_requests=[],
-        ksir_frequency_requests=[],
-        ksir_far_field_requests=[],
-        ntff_far_field_requests=[],
-        ntff_time_far_field_requests=[],
-        ksir_antenna_port_specs={},
-        ntff_antenna_port_specs={},
-        eigenmodesources=[object()],
-    )
-    model = SimpleNamespace(G=grid, subgrids=[])
-
-    with pytest.raises(
-        ValueError,
-        match="eigenmode sources cannot be used with the Ramahi/KSIR.*"
-        "equivalent-current Huygens NTFF",
-    ):
-        compile_ntff_outputs(model, grid)
-
-
 def _base_scene():
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(DL,) * 3))
@@ -342,7 +318,7 @@ def test_exterior_metrics_require_planar_layered_transform(tmp_path):
         )
 
 
-def test_eigenmode_antenna_transform_must_use_exact_port_dft_bins(tmp_path):
+def test_eigenmode_antenna_transform_must_use_port_dft_subset(tmp_path):
     example = (
         Path(__file__).parents[2]
         / "examples"
@@ -360,7 +336,7 @@ def test_eigenmode_antenna_transform_must_use_exact_port_dft_bins(tmp_path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="must exactly match eigenmode port"):
+    with pytest.raises(ValueError, match="must be a subset of eigenmode port"):
         gprMax.run(
             inputfile=str(inputfile),
             n=1,

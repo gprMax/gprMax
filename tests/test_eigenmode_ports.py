@@ -882,6 +882,7 @@ def test_hdf5_metadata_distinguishes_power_and_reference_anchor_banks():
     monitor.s_generalized_valid = np.ones((1, 1), dtype=bool)
     monitor.s_valid = np.zeros((1, 1), dtype=bool)
     monitor.s_power_wave_valid = monitor.s_valid.copy()
+    monitor.active_s_parameters = None
 
     base = MemoryGroup()
     monitor.write_hdf5(base)
@@ -895,8 +896,13 @@ def test_hdf5_metadata_distinguishes_power_and_reference_anchor_banks():
     np.testing.assert_array_equal(group["anchor_mode_reference_valid"], [[1], [1], [1]])
     np.testing.assert_allclose(group["anchor_balanced_power"], [[1.0], [2.0], [3.0]])
     np.testing.assert_array_equal(group["generalized_valid"], [[1]])
+    np.testing.assert_array_equal(group["coefficient_valid"], group["generalized_valid"])
     np.testing.assert_array_equal(group["valid"], [[0]])
+    np.testing.assert_array_equal(group["power_wave_valid"], group["valid"])
+    np.testing.assert_array_equal(group["reference_basis_valid"], group["decomposition_valid"])
+    np.testing.assert_array_equal(group["power_basis_valid"], group["power_normalization_valid"])
     np.testing.assert_array_equal(group["generalized_valid_S"], [[1]])
+    np.testing.assert_array_equal(group["coefficient_valid_S"], group["generalized_valid_S"])
     np.testing.assert_array_equal(group["valid_S"], [[0]])
     np.testing.assert_array_equal(group["power_wave_valid_S"], group["valid_S"])
     assert group["generalized_valid"].shape == group["valid"].shape == (1, 1)
@@ -968,8 +974,11 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     assert {int(row["source_mode"]) for row in rows} == {2}
 
 
-def test_multiple_drives_are_not_labelled_as_an_sparameter_column():
-    frequency = np.asarray([5e9])
+def test_multiple_drives_write_active_sparameters_not_an_sparameter_column(
+    tmp_path,
+    monkeypatch,
+):
+    frequency = np.asarray([5e9, 6e9])
 
     def monitor(port_index, modes):
         return SimpleNamespace(
@@ -980,21 +989,48 @@ def test_multiple_drives_are_not_labelled_as_an_sparameter_column():
             mode_indices=tuple(modes),
             result=EigenmodePortResult(
                 frequency=frequency,
-                incident=np.ones((len(modes), 1), dtype=np.complex128),
-                outgoing=np.zeros((len(modes), 1), dtype=np.complex128),
-                valid=np.ones((len(modes), 1), dtype=bool),
-                condition_number=np.ones(1),
+                incident=np.full((len(modes), 2), 2 * port_index, dtype=np.complex128),
+                outgoing=np.full((len(modes), 2), 0.5 * port_index, dtype=np.complex128),
+                valid=np.tile([[True, False]], (len(modes), 1)),
+                condition_number=np.ones(2),
+                generalized_valid=np.ones((len(modes), 2), dtype=bool),
             ),
             finalise=lambda grid: None,
+            mode_power_valid=np.tile([[True], [False]], (1, len(modes))),
+            power_matrix_valid=np.ones(2, dtype=bool),
+            drive_metadata=tuple(
+                {
+                    "mode": mode,
+                    "amplitude": 1.0,
+                    "power": 1.0,
+                    "phase_deg": 30.0 * port_index,
+                    "delay_s": 0.0,
+                }
+                for mode in modes
+            ),
         )
 
     grid = SimpleNamespace(
         name="main_grid",
         eigenmodeports=[monitor(1, (1,)), monitor(2, (1,))],
     )
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(output_file_path=tmp_path / "driven"),
+    )
 
-    assert finalise_eigenmode_ports(grid) is None
+    csv_path = finalise_eigenmode_ports(grid)
+
+    assert csv_path == tmp_path / "driven_active_sparameters.csv"
     assert all(not hasattr(port, "s_parameters") for port in grid.eigenmodeports)
+    with csv_path.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+    assert len(rows) == 4
+    assert all(float(row["active_S_magnitude"]) == pytest.approx(0.25) for row in rows)
+    assert all(row["coefficient_valid"] == "1" for row in rows)
+    assert [row["power_wave_valid"] for row in rows] == ["1", "0", "1", "0"]
+    assert all(port.response_type == "driven" for port in grid.eigenmodeports)
 
 
 def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(tmp_path, monkeypatch):

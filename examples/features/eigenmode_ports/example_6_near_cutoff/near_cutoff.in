@@ -1,0 +1,25 @@
+#title: Example 6 - rectangular-waveguide S parameters across TE10 cutoff
+
+#domain: 0.028 0.008 0.006
+#dx_dy_dz: 0.0002 0.0002 0.0002
+#time_window: 4e-9
+#pml_cells: 12 0 0 12 0 0
+
+## The air-filled guide is 6 mm wide and 4 mm high, so its analytical TE10
+## cutoff is c/(2a) = 24.9827048 GHz. Seven of the 100 requested DFT points
+## are below cutoff and the first propagating point is 24.9924242 GHz.
+#box: 0 0 0 0.028 0.001 0.006 pec
+#box: 0 0.007 0 0.028 0.008 0.006 pec
+#box: 0 0 0 0.028 0.008 0.001 pec
+#box: 0 0 0.005 0.028 0.008 0.006 pec
+
+#eigenmode_band: cutoff_band 24.25e9 34.75e9 100
+
+## Near cutoff, beta and modal impedance change rapidly. Put reference
+## anchors at every below-cutoff DFT point, the first nine propagating points,
+## and then about every 0.5 GHz. The extra 15, 20, 40 and 45 GHz candidates
+## cover the automatic waveform's transition spectrum without interpolating
+## the tracked evanescent branch through cutoff.
+#eigenmode_port: 1 0.004 0.001 0.001 0.004 0.007 0.005 + 1 15e9 20e9 24.25e9 24.3560606061e9 24.4621212121e9 24.5681818182e9 24.6742424242e9 24.7803030303e9 24.8863636364e9 24.9924242424e9 25.0984848485e9 25.2045454545e9 25.3106060606e9 25.4166666667e9 25.5227272727e9 25.6287878788e9 25.7348484848e9 25.8409090909e9 26.25e9 26.75e9 27.25e9 27.75e9 28.25e9 28.75e9 29.25e9 29.75e9 30.25e9 30.75e9 31.25e9 31.75e9 32.25e9 32.75e9 33.25e9 33.75e9 34.25e9 34.75e9 40e9 45e9 n
+#eigenmode_port: 2 0.016 0.001 0.001 0.016 0.007 0.005 - 1 15e9 20e9 24.25e9 24.3560606061e9 24.4621212121e9 24.5681818182e9 24.6742424242e9 24.7803030303e9 24.8863636364e9 24.9924242424e9 25.0984848485e9 25.2045454545e9 25.3106060606e9 25.4166666667e9 25.5227272727e9 25.6287878788e9 25.7348484848e9 25.8409090909e9 26.25e9 26.75e9 27.25e9 27.75e9 28.25e9 28.75e9 29.25e9 29.75e9 30.25e9 30.75e9 31.25e9 31.75e9 32.25e9 32.75e9 33.25e9 33.75e9 34.25e9 34.75e9 40e9 45e9 n
+#eigenmode_excitation: 1 1 auto n

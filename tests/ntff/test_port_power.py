@@ -16,6 +16,7 @@ from gprMax.ports import (
     TransmissionLinePortOutput,
     VoltageSourcePortMonitor,
     evaluate_port_power_spectrum,
+    frequency_subset_indices,
     modal_power_spectrum,
 )
 
@@ -158,6 +159,49 @@ def test_eigenmode_port_incident_power_uses_all_driven_modes_and_cross_terms(mon
         spectrum.incident_power,
         modal_power_spectrum(monitor.result.incident, monitor.power_matrix),
     )
+
+
+def test_eigenmode_port_power_selects_antenna_frequency_subset(monkeypatch):
+    monitor = _eigenmode_port(is_source=True)
+    monitor.mode_indices = (1,)
+    monitor.excitation_mode_indices = (1,)
+    monitor.mode_power_valid = np.ones((3, 1), dtype=bool)
+    monitor.power_matrix_valid = np.ones(3, dtype=bool)
+    monitor.power_matrix = np.ones((3, 1, 1), dtype=np.complex128)
+    monitor.electric_gram = np.ones((3, 1, 1), dtype=np.complex128)
+    monitor.result = EigenmodePortResult(
+        frequency=np.asarray([5.0, 6.0, 7.0]),
+        incident=np.asarray([[1.0, 2.0, 3.0]], dtype=np.complex128),
+        outgoing=np.zeros((1, 3), dtype=np.complex128),
+        valid=np.ones((1, 3), dtype=bool),
+        condition_number=np.ones(3),
+    )
+    monkeypatch.setattr(
+        ports,
+        "_port_mesh_valid",
+        lambda output, grid, frequency: np.ones(frequency.shape, dtype=bool),
+    )
+
+    spectrum = evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.0, 7.0])
+
+    assert_allclose(spectrum.incident_modal_amplitudes, [[1.0, 3.0]])
+    assert_allclose(spectrum.incident_power, [1.0, 9.0])
+    assert_allclose(spectrum.accepted_power, [1.0, 9.0])
+
+
+def test_frequency_subset_matching_allows_simulation_precision_roundoff():
+    available = np.asarray([8.9999995e9, 10e9, 11.000001e9], dtype=np.float32)
+
+    indices = frequency_subset_indices(available, [9e9, 11e9])
+
+    assert indices.tolist() == [0, 2]
+
+
+def test_eigenmode_port_power_rejects_frequency_outside_dft_grid():
+    monitor = _eigenmode_port(is_source=True)
+
+    with pytest.raises(ValueError, match="must be a subset"):
+        evaluate_port_power_spectrum(monitor, SimpleNamespace(), [5.5])
 
 
 def test_lossy_eigenmode_accepted_power_keeps_interference_term(monkeypatch):

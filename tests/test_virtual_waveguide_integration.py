@@ -125,6 +125,11 @@ def test_virtual_waveguide_supports_two_simultaneous_modes_on_one_aperture(tmp_p
         assert np.all(np.isfinite(port_output["incident"][...]))
         assert np.all(np.isfinite(port_output["outgoing"][...]))
         assert "S" not in port_output
+        assert "active_S" in port_output
+        np.testing.assert_array_equal(port_output["active_S_driven"], [[1], [1]])
+        assert "coefficient_valid_active_S" in port_output
+        assert "power_wave_valid_active_S" in port_output
+    assert outputfile.with_name(outputfile.name + "_active_sparameters.csv").is_file()
 
 
 @pytest.mark.integration

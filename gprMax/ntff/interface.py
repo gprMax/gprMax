@@ -61,7 +61,12 @@ from gprMax.ntff.layered import (
 )
 from gprMax.ntff.surfaces import COMPONENT_OFFSETS, COMPONENTS, build_component_surface
 from gprMax.ntff.time_domain import KSIRTimeDomainMonitor
-from gprMax.ports import evaluate_port_power_spectrum, model_port_ids, model_port_output_registry
+from gprMax.ports import (
+    evaluate_port_power_spectrum,
+    frequency_subset_indices,
+    model_port_ids,
+    model_port_output_registry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -2188,23 +2193,6 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
         transform_specs or time_requests or frequency_requests or far_requests or time_far_requests
     ):
         return None
-    has_eigenmode_source = any(
-        getattr(source_grid, "eigenmodesources", ()) for source_grid in (model.G, *model.subgrids)
-    )
-    has_ksir_request = bool(
-        ksir_transform_specs
-        or time_requests
-        or frequency_requests
-        or ksir_far_requests
-        or ksir_antenna_port_specs
-    )
-    if has_eigenmode_source and has_ksir_request:
-        raise ValueError(
-            "eigenmode sources cannot be used with the Ramahi/KSIR NTFF "
-            "formulation; use the equivalent-current Huygens NTFF commands "
-            "(#ntff_frequency, #ntff_far_field or #ntff_far_field_array, and "
-            "#ntff_antenna_ports when gain is requested) instead"
-        )
     if config.sim_config.general["solver"] not in ("cpu", "cuda", "opencl", "metal"):
         raise ValueError(
             "the reusable NTFF interface supports CPU, CUDA, OpenCL, and Metal solvers"
@@ -2302,15 +2290,13 @@ def compile_ntff_outputs(model, grid) -> Optional[NTFFCompiledOutputs]:
             output = eigenmode_port_registry.get(port_id)
             if output is None:
                 continue
-            expected = np.asarray(
-                transform.frequencies,
-                dtype=np.asarray(output.frequency).dtype,
-            )
-            if not np.array_equal(expected, output.frequency):
+            try:
+                frequency_subset_indices(output.frequency, transform.frequencies)
+            except ValueError as exc:
                 raise ValueError(
-                    f"NTFF transform {transform_id!r} frequencies must exactly match "
-                    f"eigenmode port {port_id!r} DFT frequencies"
-                )
+                    f"NTFF transform {transform_id!r} frequencies must be a subset "
+                    f"of eigenmode port {port_id!r} DFT frequencies"
+                ) from exc
     for transform_id in port_normalized_transforms:
         if transform_id not in antenna_port_specs:
             raise ValueError(

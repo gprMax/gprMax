@@ -11,13 +11,13 @@ one field component. One shared ``#eigenmode_band`` defines the DFT bins and
 ``#eigenmode_port`` defines every active or passive reference plane. One
 ``#eigenmode_excitation`` produces one S-matrix column. Several excitation
 commands may instead drive a deliberate array state with independent modal
-amplitudes, phases, or delays; that run writes incident and outgoing modal
-waves, but does not label them as S-parameters. Excitation may be omitted only
+amplitudes, phases, or delays; that run writes incident/outgoing waves and
+the active reflection coefficient at every driven channel. Excitation may be omitted only
 when every port has a passive ``#virtual_waveguide``; that passive-only form
 also writes raw modal spectra but no S matrix.
 
-Start with the three examples
-=============================
+Start with the six examples
+============================
 
 If your main goal is to calculate S-parameters, start in
 ``examples/features/eigenmode_ports``. The examples are numbered in the order
@@ -38,7 +38,16 @@ they should be used:
      - Reflection and conversion between monitored modes
    * - ``example_3_antenna_and_farfield``
      - Rectangular-waveguide-fed pyramidal horn
-     - S11, a 3D far field, and E-/H-plane antenna patterns
+     - Matched virtual feed, closed NTFF, S11, and antenna patterns
+   * - ``example_4_complete_s_matrix``
+     - Two-port gapped microstrip carrying its dominant quasi-TEM mode
+     - The complete 2 by 2 S matrix and a reciprocity check from one reusable build
+   * - ``example_5_phased_array``
+     - Four-element waveguide antenna array
+     - Active S-parameters and a dense xy-plane beam-squint cut
+   * - ``example_6_near_cutoff``
+     - Rectangular guide across TE10 cutoff
+     - Dense cutoff anchors and explicit coefficient/power validity
 
 Run the commands below from the repository root. Output is written beside each
 input so that the no-argument plotting scripts can find it.
@@ -81,6 +90,25 @@ The three eigenmode commands provide the S-parameter setup:
 ``#eigenmode_band`` defines one frequency grid shared by every port: 21 points
 from 4 to 6 GHz. Sharing the bins is important because an S-parameter compares
 incident and outgoing waves at the same frequency.
+
+Optional frequencies may follow the uniform point count:
+
+.. code-block:: none
+
+   #eigenmode_band: eigenmode_band 4e9 6e9 21 4.25e9 4.75e9 5.25e9
+
+gprMax sorts and deduplicates the union of the uniform grid and these trailing
+values. They are additional direct-DFT/output bins at every eigenmode port,
+not modal field-solve anchors. Anchor selection remains the final ``auto`` or
+explicit frequency list on each ``#eigenmode_port``. The equivalent Python API
+is ``EigenmodeBand(..., frequencies=(4.25e9, 4.75e9, 5.25e9))``.
+
+When ``#ntff_antenna_ports`` uses modal incident and accepted power, every
+``#ntff_frequency`` value must be present in this final eigenmode DFT union.
+The NTFF grid may be a strict subset: a dense modal grid can therefore produce
+smooth S-parameter traces while NTFF fields and patterns are evaluated only at
+selected frequencies. If a desired NTFF value does not fall on the uniform
+grid, append it to ``#eigenmode_band`` as shown above.
 
 Each ``#eigenmode_port`` supplies a unique port number, two corners of its
 cross-section, a direction pointing *into* the device, the modes to monitor,
@@ -191,116 +219,6 @@ Try changing one thing at a time:
   conversion terms are no longer available; the unmeasured field has not
   physically disappeared.
 
-Build the complete modal S matrix without rebuilding
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-A normal run excites the single port and mode selected by
-``#eigenmode_excitation`` and therefore produces one column of a modal S
-matrix. To characterize every declared port/mode channel, add an eigenmode
-study whose CSV selects each channel exactly once:
-
-.. code-block:: text
-
-   case_id,object_id,port,mode
-   p1m1,eigenmode_excitation_1,1,1
-   p1m2,eigenmode_excitation_1,1,2
-   p2m1,eigenmode_excitation_1,2,1
-   p2m2,eigenmode_excitation_1,2,2
-
-Reference it from the input file with:
-
-.. code-block:: none
-
-   #study: eigenmode modal_cases.csv
-
-gprMax solves the FDFD modal anchors for every port during the first geometry
-build. Each later case resets the FDTD fields, modal DFT phases and
-accumulators, and any virtual-waveguide fields and PML histories, then
-synthesizes the selected source from the cached phase-aligned modal basis. It
-does not repeat the FDFD solves. This works when the complete eigenmode setup
-belongs either to the main grid or to one HSG subgrid; ports from different
-grids cannot be combined in one modal study.
-
-Every monitor records its incident and outgoing waves in every case, including
-small residual incident waves at nominally passive terminations. With the case
-vectors arranged as columns,
-
-.. math::
-
-   A(f) = [a^{(1)}(f)\;\cdots\;a^{(N)}(f)], \qquad
-   B(f) = [b^{(1)}(f)\;\cdots\;b^{(N)}(f)],
-
-the aggregate response is defined by :math:`B=SA`. gprMax solves the
-transposed linear system for :math:`S` at each frequency rather than assuming
-that :math:`A` is diagonal. The same operation converts the raw NTFF run
-fields into embedded modal fields. Frequencies with an incomplete or
-ill-conditioned incident basis are marked invalid; the raw matrices and
-condition number remain in the aggregate output for diagnosis.
-
-Drive several ports or modes together
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Use repeated excitation commands for a prescribed array or multimode state:
-
-.. code-block:: none
-
-   #eigenmode_excitation: 1 1 auto 1 0 0
-   #eigenmode_excitation: 2 1 auto 0.70710678 90 0
-
-Every drive must use the same base waveform. A physical port is solved and
-monitored once even when more than one of its modes is driven. The complex
-spectral multiplier for drive :math:`q` is
-
-.. math::
-
-   d_q(f) = A_q \exp\!\left(j\phi_q\right)
-            \exp\!\left(-j2\pi f\tau_q\right),
-
-where :math:`A_q` is the amplitude, :math:`\phi_q` is the constant phase, and
-:math:`\tau_q` is a true time delay. A constant phase is normally used for a
-phase-steered array at its design frequency; a non-zero delay gives the
-frequency-linear phase required for true-time-delay steering. In the Python
-API, ``power=P`` may replace ``amplitude=A`` and uses :math:`A=\sqrt{P}``.
-Because every modal profile is power-normalized, :math:`P` is the relative
-per-frequency incident-power scale applied to the common waveform spectrum;
-it is not the time-integrated energy of the finite pulse.
-
-The superposed response is a driven state, not a column of the independently
-excited S matrix. Its HDF5 port groups retain ``incident`` and ``outgoing``
-waves and record ``ResponseType=driven``, ``ExcitationModes``, drive
-amplitudes, powers, phases, delays, and waveform IDs. They deliberately omit
-``S`` and no ``*_sparameters.csv`` is written. Use ``EigenmodeStudy`` when the
-complete S matrix is required, then apply arbitrary weights to that matrix or
-to separately stored embedded far-field responses in post-processing.
-
-An NTFF transform may also be evaluated directly for the simultaneous state.
-Its fields, pattern, and directivity are those of the coherent superposition.
-When every physical port is associated with the transform, incident power is
-summed over the driven modal subspaces using the full modal power matrices,
-including off-diagonal cross terms; net accepted power is summed over all
-active and passive ports. Gain and realized gain therefore describe that
-particular driven state, not an embedded element or an S-matrix column.
-
-The per-case files identify their input port and mode. The aggregate
-``<output>_study.h5`` stores the complete matrix using
-``S[frequency, output_channel, input_channel]``; ``channel_ports`` and
-``channel_modes`` map both channel axes. This aggregate matrix is the
-full-incident-matrix de-embedded result; a per-case ``S_column`` is only the
-single-source-normalized run diagnostic. The physical and generalized
-validity masks remain separate. Use ``-i N`` to restart at case ``N`` while
-retaining compatible raw cases already stored in the aggregate file. The
-Python API additionally provides modal power/phase/delay weights for array
-synthesis. A versioned JSON codebook can evaluate and store many named states
-without rerunning FDTD, and can opt into retaining complex embedded NTFF
-fields plus the full-sphere basis required for coherent gain/directivity
-normalisation. Hash-command models use ``#array_codebook: file.json``; see
-:ref:`input-api`.
-
-The independent study cases and their NTFF transforms run on the selected CPU,
-CUDA, OpenCL, or Metal solver. Codebook weighting is deliberately a host-side
-post-processing operation on the retained complex responses, so it introduces
-no codebook-specific field arrays or kernels on an accelerator.
-
 Example 2: a curved waveguide
 -----------------------------
 
@@ -354,16 +272,33 @@ waveguide. Further ``#box`` commands form nine expanding hollow sections, and
 ``#plate`` commands close the annular faces between them. Together they are a
 closed, staircased approximation of a pyramidal horn. The eigenmode port lies
 in the uniform feed and launches its fundamental TE10-like mode over
-8--12 GHz. One explicit 10 GHz anchor deliberately uses a fixed modal basis;
-the automatic waveform's small spectral tails extend below the guide cutoff,
-where the mode cannot supply a propagating one-watt source anchor.
+8--12 GHz. Its 101-point uniform DFT sweep has 40 MHz spacing, so the requested
+8.5, 9.5, 10.5, and 11.5 GHz NTFF values would otherwise fall between modal
+bins. The trailing values on ``#eigenmode_band`` add those four bins; the other
+listed NTFF values already coincide with uniform bins and are removed by
+deduplication. The resulting eigenmode grid therefore has 105 frequencies,
+while the NTFF transform uses only its nine-frequency subset.
+
+The ``auto`` on ``#eigenmode_port`` is a separate setting: it selects and
+tracks enough modal field-solve anchors to represent the broadband TE10-like
+profile and the automatic waveform's significant spectrum. It does not define
+the 105 DFT/output frequencies. Because the generated waveform has a small
+spectral guard below TE10 cutoff, this example may report a low-overlap or
+non-propagating guard-anchor warning. The tracked evanescent profile remains
+available as a generalized monitor reference, but gprMax excludes it from
+one-watt source synthesis; the requested 8--12 GHz source band remains
+propagating.
 
 The remaining commands request antenna results:
 
-* ``#ntff_surface ... x0`` encloses the horn with a five-face equivalent-current
-  surface. Its feed-side ``x0`` face is deliberately omitted.
-* ``#ntff_frequency`` uses exactly the same frequency bins as
-  ``#eigenmode_band``. This equality is required for gain normalization.
+* ``#virtual_waveguide`` continues the guide behind its internal port plane
+  and absorbs reflected guided waves outside the main FDTD domain.
+* ``#ntff_surface`` encloses the complete physical antenna with all six
+  equivalent-current faces in homogeneous air.
+* Every ``#ntff_frequency`` bin must be present in the final
+  ``#eigenmode_band`` DFT union. The NTFF bins may be a strict subset; gain
+  normalization selects only their matching modal incident- and
+  accepted-power samples.
 * ``#ntff_antenna_ports`` identifies the modal feed whose incident and accepted
   powers normalize gain and realized gain.
 * ``#ntff_far_field_array`` requests a full-sphere angular grid and the field,
@@ -372,23 +307,23 @@ The remaining commands request antenna results:
 * ``#geometry_view`` writes the staircased horn geometry for inspection in
   ParaView.
 
-Why the feed crosses the PML and NTFF face
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Why the virtual feed permits a closed NTFF surface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The uniform waveguide continues directly through the model's negative-x PML;
-it is not terminated by a metal wall inside the model. A reflected guide wave
-can therefore leave and be absorbed instead of reflecting from an artificial
-short circuit. The eigenmode source is outside the Huygens volume, and the
-feed crosses its omitted ``x0`` face. If that face were included, its sampled
-surface would intersect the guide and the equivalent-current radiation
-integral would not represent a closed surface in homogeneous free space.
+Traditionally, the uniform guide must extend through a domain PML so reflected
+guide waves see a matched termination. A Huygens surface then omits the face
+crossed by the guide. That open surface discards the field contribution through
+the opening and cannot be used by the Ramahi/KSIR formulation, which requires
+all six physical faces.
 
-An omitted face also omits any real radiated or evanescent field crossing that
-opening. Keep the horn transition well away from it. For higher accuracy,
-lengthen the uniform feed between the omitted face and the horn throat, move
-the omitted face farther back along that uniform section, and confirm that the
-far field changes negligibly. The feed should still pass continuously into
-the PML.
+Here the physical guide begins at the internal port plane. The auxiliary
+virtual waveguide continues behind it, contains the source, and absorbs the
+returning guided wave. The main-domain region behind the port is therefore
+homogeneous air, so the NTFF ``x0`` face closes without intersecting metal or
+the port aperture. This gives both a matched port and a closed NTFF surface.
+The same closed surface can be used for equivalent-current or Ramahi/KSIR
+outputs. KSIR compatibility is determined only by surface closure; an
+eigenmode source adds no separate incompatibility rule.
 
 Inspect, run, and plot the horn
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -439,10 +374,241 @@ directivity and gain indicates loss or incomplete radiation accounting.
    3D FDTD run because there are eight times more cells and about twice as many
    time steps.
 
-Useful convergence experiments are to lengthen the uniform feed, move or
-enlarge the sampled NTFF faces while keeping them outside the PML, refine the
-mesh, and lengthen the time window. Change only one quantity per run so that a
-shift in S11 or the far field has a clear cause.
+Useful convergence experiments are to change the physical throat length and
+virtual-guide length/PML thickness, move or enlarge the sampled NTFF faces
+while keeping them outside the PML, refine the mesh, and lengthen the time
+window. Change only one quantity per run so that a shift in S11 or the far
+field has a clear cause.
+
+Example 4: build the complete dominant-mode S matrix without rebuilding
+-------------------------------------------------------------------------
+
+Example 4 turns the reusable-study workflow into a complete runnable
+two-port microstrip model. A centred 2 mm series gap provides a simple
+capacitive discontinuity, so the result contains non-trivial reflection and
+transmission. The strip carries only its dominant quasi-TEM mode, so there is
+one modal channel at each physical port. The shared band requests 101 DFT
+frequencies from 4 to 8 GHz:
+
+.. literalinclude:: ../../examples/features/eigenmode_ports/example_4_complete_s_matrix/complete_s_matrix.in
+   :language: none
+   :caption: ``example_4_complete_s_matrix/complete_s_matrix.in``
+   :linenos:
+
+Its two cases select each declared channel exactly once:
+
+.. literalinclude:: ../../examples/features/eigenmode_ports/example_4_complete_s_matrix/modal_cases.csv
+   :language: text
+   :caption: ``example_4_complete_s_matrix/modal_cases.csv``
+
+Run the input once, then plot the aggregate result:
+
+.. code-block:: console
+
+   python -m gprMax examples/features/eigenmode_ports/example_4_complete_s_matrix/complete_s_matrix.in -outputfile examples/features/eigenmode_ports/example_4_complete_s_matrix/complete_s_matrix
+   python examples/features/eigenmode_ports/example_4_complete_s_matrix/plot_results.py
+
+Each microstrip feed remains uniform from its reference plane through the
+x-directed domain PML, which gives each inward-pointing port a matched
+continuation while keeping the gap between the reference planes. The first
+case builds the geometry and solves, tracks, and phase-aligns every modal
+anchor. The second case resets the FDTD fields, DFT accumulators, and PML
+histories, but reuses that built geometry and modal basis. The result is
+``complete_s_matrix_study.h5``, with
+``S[frequency, output_channel, input_channel]``. ``channel_ports`` and
+``channel_modes`` identify the two matrix axes. Driving port 1 supplies
+:math:`S_{11}` and :math:`S_{21}`; driving port 2 supplies :math:`S_{12}` and
+:math:`S_{22}`.
+
+The solver retains the full measured incident matrix :math:`A`, including
+small incident waves at nominally passive ports, and solves :math:`B=SA`.
+This is more accurate than dividing every response by only the nominal source
+coefficient. If the incident basis is incomplete or ill-conditioned, the
+corresponding matrix bins are marked invalid while :math:`A`, :math:`B`, and
+the condition number remain available for diagnosis. Use ``-i N`` to restart
+an interrupted study at case ``N``; a compatible existing aggregate retains
+the already completed cases.
+
+This example also demonstrates Lorentz reciprocity. For a linear,
+time-invariant structure made from reciprocal materials, and with consistent
+modal normalization, reference planes, and phase conventions, the modal
+scattering matrix is symmetric:
+
+.. math::
+
+   S_{ij}=S_{ji}, \qquad \text{and therefore}\qquad S_{21}=S_{12}.
+
+The plotting script gives :math:`S_{11}`, :math:`S_{21}`, :math:`S_{12}`, and
+:math:`S_{22}` separate panels, each with magnitude and unwrapped phase. Compare
+both the magnitude and phase panels for :math:`S_{21}` and :math:`S_{12}` to
+observe reciprocity directly; magnitude alone is a weaker check because it can
+hide a phase-reference error. Reciprocity does not, by itself, require
+:math:`S_{11}=S_{22}`. This centred gap additionally has port-exchange
+symmetry, so the two reflection responses should also agree. Magnetically
+biased non-reciprocal media, time variation, and nonlinear operation fall
+outside this reciprocal result.
+
+Example 5: drive an array and plot active S-parameters and beam squint
+------------------------------------------------------------------------
+
+Example 5 uses four virtual-waveguide-fed open-ended guides as a linear array:
+
+.. literalinclude:: ../../examples/features/eigenmode_ports/example_5_phased_array/phased_array.in
+   :language: none
+   :caption: ``example_5_phased_array/phased_array.in``
+   :linenos:
+
+Its eigenmode band first creates ten uniform S-parameter bins and then appends
+9, 10, and 11 GHz explicitly. After sorting and deduplication, that denser
+modal grid contains every 8, 9, 10, 11, and 12 GHz NTFF bin. NTFF gain and
+efficiency use only those matching modal-power samples; the additional modal
+bins remain available in the active-S CSV.
+
+Only the plotted :math:`\theta=90` degree xy-plane cut is stored, with a dense
+one-degree :math:`\phi` spacing. Directivity, gain, and efficiency still need
+total radiated power: gprMax evaluates a coarser full sphere internally for
+that normalization and discards the temporary sphere instead of writing it to
+the HDF5 file.
+
+Repeated ``#eigenmode_excitation`` commands may target several ports or several
+modes on one port. Every drive uses the same base waveform. Its complex
+spectral multiplier is
+
+.. math::
+
+   d_q(f)=A_q\exp(j\phi_q)\exp(-j2\pi f\tau_q),
+
+where :math:`A_q`, :math:`\phi_q`, and :math:`\tau_q` are its amplitude,
+constant phase, and true time delay. The Python API may specify ``power=P``
+instead of ``amplitude=A`` and uses :math:`A=\sqrt{P}`. A physical port is
+solved and monitored once even when several of its modes are driven.
+
+Run and plot it with:
+
+.. code-block:: console
+
+   python -m gprMax examples/features/eigenmode_ports/example_5_phased_array/phased_array.in --geometry-only
+   python -m gprMax examples/features/eigenmode_ports/example_5_phased_array/phased_array.in -outputfile examples/features/eigenmode_ports/example_5_phased_array/phased_array
+   python examples/features/eigenmode_ports/example_5_phased_array/plot_results.py
+
+The four equal-amplitude drives use a constant progressive phase
+:math:`\Delta\phi=-108` degrees and an element spacing :math:`d=18` mm. For
+the phase convention used in the input, the ideal uniform-array-factor maximum
+in the xy plane obeys
+
+.. math::
+
+   \sin\phi_{\mathrm{AF}}(f)
+   =-\frac{\Delta\phi}{k_0(f)d},
+   \qquad k_0(f)=\frac{2\pi f}{c},
+
+where :math:`\Delta\phi` is expressed in radians and positive :math:`\phi`
+points from +x toward +y. This predicts 38.7, 33.7, 30.0, 27.0, and 24.6
+degrees at 8, 9, 10, 11, and 12 GHz. Because a fixed phase shift is not a true
+time delay, the predicted angle moves toward broadside as frequency rises:
+this is beam squint.
+
+On the reference 1 mm FDTD mesh, the sampled forward-hemisphere peaks are
+approximately 35, 32, 28, 25, and 23 degrees. They need not exactly equal the
+array-factor angles because the radiating apertures have a non-isotropic
+element pattern, interact through mutual coupling, and are represented on a
+finite grid. The plot labels both angles and places these cuts beside the four
+driven-port active-reflection traces so antenna engineers can see mismatch and
+beam squint from the same coherent array state. Treat the one-degree sampled
+peaks as a visual demonstration rather than converged antenna data.
+
+An ordinary matrix entry :math:`S_{ij}` is the outgoing wave at channel
+:math:`i` divided by the independent incident wave at channel :math:`j`, with
+all other independent drives zero (or after the full incident matrix has been
+de-embedded). It is a property of the linear multiport. For a simultaneous
+incident vector :math:`\mathbf a`, the active reflection at a driven channel is
+
+.. math::
+
+   \Gamma_{\mathrm{active},i}(f) = \frac{b_i(f)}{a_i(f)}
+   = \frac{[S(f)\mathbf a(f)]_i}{a_i(f)}.
+
+It therefore depends on the chosen amplitudes, phases, and delays. It is the
+appropriate input-match result for this array state, but it is not a column of
+the S matrix and cannot replace the independent cases needed to recover the
+complete matrix. A simultaneous run writes
+``phased_array_active_sparameters.csv`` rather than inventing a new
+``F``-parameter definition. The HDF5 port groups retain the raw waves and add
+``active_S`` plus explicit coefficient- and power-validity masks.
+
+Example 6: calculate S-parameters near and below cutoff
+-------------------------------------------------------
+
+Example 6 crosses the analytical TE10 cutoff of a 6 mm wide rectangular
+guide:
+
+.. literalinclude:: ../../examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff.in
+   :language: none
+   :caption: ``example_6_near_cutoff/near_cutoff.in``
+   :linenos:
+
+Run and plot it with:
+
+.. code-block:: console
+
+   python -m gprMax examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff.in --geometry-only
+   python -m gprMax examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff.in -outputfile examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff
+   python examples/features/eigenmode_ports/example_6_near_cutoff/plot_results.py
+
+Near cutoff, :math:`\beta` and modal impedance vary too rapidly for a sparse
+pair of anchors on opposite sides of cutoff. The example places anchors at
+every requested below-cutoff point, at the first several propagating points,
+and at wider intervals only after the branch has settled. Extra candidates
+cover the automatic waveform's transition spectrum. This keeps interpolation
+on a contiguous evanescent branch and prevents a propagating normalization
+from being interpolated through the singular cutoff transition.
+
+Below cutoff the correct forward solution is the passive decaying wave, not a
+one-watt propagating wave. gprMax tracks it with an E/H-balanced reference and
+can report a finite generalized amplitude ratio. That ratio is useful for
+evanescent attenuation and phase comparison, but its magnitude squared is not
+transmitted power. For an ordinary power S-parameter, use only bins where
+``power_wave_valid`` is true. For a below-cutoff generalized coefficient, use
+``coefficient_valid`` and state the reference convention explicitly.
+
+Clearer validity names
+^^^^^^^^^^^^^^^^^^^^^^
+
+The output now provides descriptive aliases while retaining the older names
+for file compatibility:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 25 47
+
+   * - Preferred name
+     - Older name
+     - Meaning
+   * - ``reference_basis_valid``
+     - ``decomposition_valid``
+     - A tracked reference field exists before solving for modal amplitudes.
+   * - ``power_basis_valid``
+     - ``power_normalization_valid``
+     - The reference supports a forward real-power normalization.
+   * - ``coefficient_valid``
+     - ``generalized_valid``
+     - The conditioned incident/outgoing coefficient exists; it may be
+       evanescent and must not automatically be interpreted as power.
+   * - ``power_wave_valid``
+     - ``valid``
+     - The coefficient also represents a physical real-power wave.
+   * - ``coefficient_valid_S``
+     - ``generalized_valid_S``
+     - The S or active-S ratio is coefficient-valid and its incident
+       denominator is sufficiently excited.
+   * - ``power_wave_valid_S``
+     - ``valid_S``
+     - The ratio is valid under the stricter physical power-wave convention.
+
+The same preferred prefixes appear on study columns/matrices and on
+``active_S``. The compact rule is: use ``coefficient_valid*`` to plot a
+generalized modal-amplitude result, and use ``power_wave_valid*`` before
+calling :math:`|S|^2` a reflected or transmitted power fraction.
 
 Direct eigenmode ports inside an HSG subgrid
 =============================================
@@ -884,49 +1050,47 @@ by moving the DFT grid and refining the modal anchors.
 Far-field output details
 ========================
 
-The pyramidal horn example uses a five-face free-space Huygens surface around
-the flare and aperture:
+The pyramidal horn example uses a closed six-face free-space surface around
+the complete physical antenna:
 
 .. literalinclude:: ../../examples/features/eigenmode_ports/example_3_antenna_and_farfield/horn_antenna.in
    :language: none
    :caption: ``horn_antenna.in``
 
 The rectangular feed's fundamental TE10-like mode is isolated over the
-8--12 GHz requested band. A single explicit 10 GHz anchor avoids attempting
-to track the automatic waveform's lower spectral tail through guide cutoff.
-That propagating anchor satisfies the required forward-power anchor check and
-is intentionally extrapolated as a constant source basis; it does not claim
-that an independently solved mode below cutoff would be a one-watt power wave.
+8--12 GHz requested band. Automatic modal anchors track its broadband field
+profile independently of the direct-DFT output grid. The automatic policy
+also considers the generated waveform's significant spectral guards and
+retains only source-usable propagating anchor coverage; it does not treat a
+below-cutoff field as a one-watt power wave.
 
-The optional final ``x0`` on ``#ntff_surface`` omits that physical face from
-the frequency-domain equivalent-current integral. The source plane is on the
-feed side of the omitted face, while the uniform hollow feed continues
-without a discontinuity through the rear PML. Backward guide waves therefore
-leave the Huygens volume and are absorbed instead of being re-radiated by a
-finite feed termination inside the far-field surface.
+The physical guide starts at the reference plane and its matched continuation
+is supplied by ``#virtual_waveguide``. The source and auxiliary PML are outside
+the main grid. The feed-side NTFF face can therefore lie in homogeneous air
+behind the port without cutting the guide. Every sampled face must remain
+outside the domain PML, avoid the port aperture, and lie in the homogeneous
+exterior. Check convergence by moving and enlarging the sampled surface and by
+changing the virtual-guide length and PML thickness.
 
-One to five faces may be omitted, and only ``#ntff_frequency`` supports this
-open-surface form. The Ramahi/KSIR formulation and the transient
-equivalent-current transform still require a closed or symmetry-completed
-surface. Every sampled face must remain outside the PML and in the homogeneous
-exterior. An impressed source outside the Huygens volume may enter only through
-one of the omitted faces. Multiple omissions are useful when a waveguide passes
-through the surface to a passive output port, or when the surface terminates on
-a PEC backplane. An open Huygens surface is not an exact mathematical closure;
-check convergence by moving and enlarging its sampled faces.
+Without a virtual guide, the traditional arrangement continues the real guide
+through a domain PML and omits the Huygens face it crosses. That open
+frequency-domain equivalent-current surface remains supported, but Ramahi/KSIR
+and transient equivalent-current transforms require all six physical faces.
 
-The frequency-transform bins must exactly equal the eigenmode-port DFT bins.
+Every frequency-transform bin must be present in the eigenmode-port DFT grid;
+the NTFF grid may be a strict subset of a denser S-parameter sweep. Add exact
+user-selected bins as trailing values on the hash command
+``#eigenmode_band: id fmin fmax points [frequency ...]``, or with the Python
+keyword ``EigenmodeBand(..., frequencies=(...))``. The final union is sorted
+and deduplicated before being shared by all eigenmode ports.
 Gain normalization currently requires a rectangular window.
 ``#ntff_antenna_ports`` must list every physical port, including passive modal
 receivers when present. Other active sources that do not expose port power
 cannot contribute to the same gain result.
 
-.. warning::
-
-   Direct eigenmode sources are incompatible with the Ramahi/KSIR formulation.
-   Use the frequency-domain equivalent-current Huygens interface, or attach a
-   virtual waveguide to move the impressed source outside the main grid. The
-   latter permits a closed KSIR or equivalent-current surface.
+There is no eigenmode-source-specific KSIR restriction. The validation rule is
+simply that a KSIR surface must be closed. A virtual guide is the practical way
+to satisfy that closure while preserving a matched waveguide port.
 
 Run and plot the example with:
 

@@ -448,16 +448,20 @@ def process_multicmds(multicmds):
 
     for cmdinstance in eigenmode_band_cmds:
         tmp = cmdinstance.split()
-        if len(tmp) != 4:
-            raise ValueError("#eigenmode_band requires id fmin fmax points.")
-        scene_objects.append(
-            EigenmodeBand(
-                id=tmp[0],
-                fmin=float(tmp[1]),
-                fmax=float(tmp[2]),
-                points=int(tmp[3]),
+        if len(tmp) < 4:
+            raise ValueError(
+                "#eigenmode_band requires id fmin fmax points "
+                "[frequency ...]."
             )
-        )
+        kwargs = {
+            "id": tmp[0],
+            "fmin": float(tmp[1]),
+            "fmax": float(tmp[2]),
+            "points": int(tmp[3]),
+        }
+        if len(tmp) > 4:
+            kwargs["frequencies"] = tuple(float(value) for value in tmp[4:])
+        scene_objects.append(EigenmodeBand(**kwargs))
 
     for cmdinstance in eigenmode_port_cmds:
         tmp = cmdinstance.split()

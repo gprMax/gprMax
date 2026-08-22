@@ -1751,8 +1751,8 @@ class NTFFAntennaPorts(KSIRAntennaPorts):
 
     In addition to conventional terminal ports, eigenmode sources use ``portN``
     for their explicit port index and eigenmode receivers use their configured
-    ID. The transform frequencies must exactly match every associated modal
-    port's direct-DFT bins.
+    ID. Every transform frequency must be present in each associated modal
+    port's direct-DFT bins; the modal DFT grid may contain additional bins.
     """
 
     @property

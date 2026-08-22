@@ -303,6 +303,7 @@ class EigenmodePortMonitor:
         anchor_mode_propagating=None,
         anchor_balanced_power=None,
         mode_anchor_policies=None,
+        dft_frequencies=None,
     ):
         self.owner = owner
         self.port_index = int(port_index)
@@ -355,11 +356,20 @@ class EigenmodePortMonitor:
         self.dft_start = float(dft_start)
         self.dft_stop = float(dft_stop)
         self.dft_points = int(dft_points)
+        self.dft_frequencies = (
+            None
+            if dft_frequencies is None
+            else np.asarray(dft_frequencies, dtype=np.float64)
+        )
         self.result = None
         self.s_parameters = None
         self.s_valid = None
         self.s_generalized_valid = None
         self.s_power_wave_valid = None
+        self.active_s_parameters = None
+        self.active_s_valid = None
+        self.active_s_coefficient_valid = None
+        self.active_s_driven = None
 
     def set_drive_metadata(self, drives):
         """Record all active modal drives represented by this physical port."""
@@ -414,6 +424,18 @@ class EigenmodePortMonitor:
             raise ValueError("A one-point eigenmode DFT requires equal start and stop frequencies.")
         if self.dft_points > 1 and self.dft_stop == self.dft_start:
             raise ValueError("A multi-point eigenmode DFT requires stop greater than start.")
+        if self.dft_frequencies is not None:
+            if self.dft_frequencies.ndim != 1 or self.dft_frequencies.size == 0:
+                raise ValueError("Eigenmode port DFT frequencies must be one-dimensional and non-empty.")
+            if (
+                not np.all(np.isfinite(self.dft_frequencies))
+                or np.any(self.dft_frequencies <= 0)
+            ):
+                raise ValueError("Eigenmode port DFT frequencies must be finite and positive.")
+            if np.any(np.diff(self.dft_frequencies) <= 0):
+                raise ValueError(
+                    "Eigenmode port DFT frequencies must be unique and strictly increasing."
+                )
         expected_shape = (self.anchor_frequencies.size, len(self.mode_indices))
         if self.anchor_mode_valid.shape != expected_shape:
             raise ValueError(
@@ -558,13 +580,22 @@ class EigenmodePortMonitor:
 
         real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
-        nominal_frequency = np.linspace(
-            self.dft_start,
-            self.dft_stop,
-            self.dft_points,
-            dtype=np.float64,
+        nominal_frequency = (
+            np.linspace(
+                self.dft_start,
+                self.dft_stop,
+                self.dft_points,
+                dtype=np.float64,
+            )
+            if self.dft_frequencies is None
+            else self.dft_frequencies
         )
         self.frequency = np.asarray(nominal_frequency, dtype=real_dtype)
+        if np.any(np.diff(self.frequency) <= 0):
+            raise ValueError(
+                f"Eigenmode port {self.port_id!r} DFT frequencies are not distinct "
+                "at the configured simulation precision."
+            )
         if self.frequency[-1] > 0.5 / grid.dt:
             raise ValueError(
                 f"Eigenmode port {self.port_id!r} DFT stop frequency exceeds the FDTD Nyquist frequency."
@@ -928,6 +959,10 @@ class EigenmodePortMonitor:
         self.s_valid = None
         self.s_generalized_valid = None
         self.s_power_wave_valid = None
+        self.active_s_parameters = None
+        self.active_s_valid = None
+        self.active_s_coefficient_valid = None
+        self.active_s_driven = None
         self.response_type = "driven" if self.is_source else "passive"
 
     def finalise(self, grid):
@@ -1079,12 +1114,18 @@ class EigenmodePortMonitor:
         group["incident"] = self.result.incident
         group["outgoing"] = self.result.outgoing
         group["valid"] = self.result.valid.astype(np.uint8)
-        group["generalized_valid"] = _generalized_result_valid(self.result).astype(np.uint8)
+        coefficient_valid = _generalized_result_valid(self.result).astype(np.uint8)
+        power_wave_valid = self.result.valid.astype(np.uint8)
+        group["generalized_valid"] = coefficient_valid
+        group["coefficient_valid"] = coefficient_valid
+        group["power_wave_valid"] = power_wave_valid
         group["condition_number"] = self.result.condition_number
         group["electric_cross_power_matrix"] = self.electric_gram
         group["power_matrix"] = self.power_matrix
         group["decomposition_valid"] = self.mode_decomposition_valid.astype(np.uint8)
+        group["reference_basis_valid"] = self.mode_decomposition_valid.astype(np.uint8)
         group["power_normalization_valid"] = self.power_wave_valid.astype(np.uint8)
+        group["power_basis_valid"] = self.power_wave_valid.astype(np.uint8)
         group["anchor_mode_valid"] = self.anchor_mode_valid.astype(np.uint8)
         group["anchor_mode_reference_valid"] = self.anchor_mode_reference_valid.astype(np.uint8)
         group["anchor_mode_propagating"] = self.anchor_mode_propagating.astype(np.uint8)
@@ -1095,6 +1136,159 @@ class EigenmodePortMonitor:
             group["valid_S"] = self.s_valid.astype(np.uint8)
             group["power_wave_valid_S"] = self.s_valid.astype(np.uint8)
             group["generalized_valid_S"] = self.s_generalized_valid.astype(np.uint8)
+            group["coefficient_valid_S"] = self.s_generalized_valid.astype(np.uint8)
+        if getattr(self, "active_s_parameters", None) is not None:
+            group["active_S"] = self.active_s_parameters
+            group["active_S_driven"] = self.active_s_driven.astype(np.uint8)
+            group["coefficient_valid_active_S"] = self.active_s_coefficient_valid.astype(
+                np.uint8
+            )
+            group["power_wave_valid_active_S"] = self.active_s_valid.astype(np.uint8)
+
+
+def _incident_ratio_valid(denominator, coefficient_valid, power_wave_mask):
+    """Apply the incident-spectrum floor independently to both modal bases."""
+
+    denominator = np.asarray(denominator)
+    coefficient_valid = np.asarray(coefficient_valid, dtype=bool)
+    power_wave_mask = np.asarray(power_wave_mask, dtype=bool)
+    ratio_valid = np.zeros(denominator.shape, dtype=bool)
+    for normalization_class in (power_wave_mask, ~power_wave_mask):
+        candidates = coefficient_valid & normalization_class & np.isfinite(denominator)
+        peak = float(np.max(np.abs(denominator[candidates]), initial=0.0))
+        if peak > 0:
+            ratio_valid |= candidates & (
+                np.abs(denominator) >= peak * 10 ** (INCIDENT_FLOOR_DB / 20)
+            )
+    return ratio_valid
+
+
+def _complex_csv_fields(value):
+    """Return portable rectangular and polar fields for one complex coefficient."""
+
+    magnitude = abs(value)
+    if np.isfinite(magnitude) and magnitude > 0:
+        magnitude_db = float(20 * np.log10(magnitude))
+    elif magnitude == 0:
+        magnitude_db = -np.inf
+    else:
+        magnitude_db = np.nan
+    return (
+        float(np.real(value)),
+        float(np.imag(value)),
+        float(magnitude),
+        magnitude_db,
+        float(np.angle(value, deg=True)),
+        float(magnitude**2),
+    )
+
+
+def _write_active_sparameters(grid, sources, excitation_modes):
+    """Form state-dependent active reflection coefficients for driven channels."""
+
+    reference_frequency = np.asarray(grid.eigenmodeports[0].result.frequency)
+    for port in grid.eigenmodeports:
+        if not np.array_equal(port.result.frequency, reference_frequency):
+            raise ValueError("All eigenmode ports must use identical DFT frequency bins.")
+        port.active_s_parameters = np.full_like(
+            port.result.outgoing,
+            np.nan + 1j * np.nan,
+        )
+        port.active_s_coefficient_valid = np.zeros(port.result.outgoing.shape, dtype=bool)
+        port.active_s_valid = np.zeros(port.result.outgoing.shape, dtype=bool)
+        port.active_s_driven = np.zeros(port.result.outgoing.shape, dtype=bool)
+
+    rows = []
+    for port in sources:
+        port_power_wave_valid_value = getattr(port, "power_wave_valid", None)
+        if port_power_wave_valid_value is None:
+            port_power_wave_valid_value = port.mode_power_valid
+        port_power_wave_valid = np.asarray(port_power_wave_valid_value, dtype=bool)
+        result_coefficient_valid = _generalized_result_valid(port.result)
+        drive_by_mode = {
+            int(metadata["mode"]): metadata
+            for metadata in getattr(port, "drive_metadata", ())
+        }
+        for mode_index in excitation_modes(port):
+            mode_position = port.mode_indices.index(mode_index)
+            port.active_s_driven[mode_position] = True
+            denominator = port.result.incident[mode_position]
+            power_wave_mask = port_power_wave_valid[:, mode_position]
+            ratio_valid = _incident_ratio_valid(
+                denominator,
+                result_coefficient_valid[mode_position],
+                power_wave_mask,
+            )
+            np.divide(
+                port.result.outgoing[mode_position],
+                denominator,
+                out=port.active_s_parameters[mode_position],
+                where=ratio_valid,
+            )
+            coefficient_valid = result_coefficient_valid[mode_position] & ratio_valid
+            power_valid = (
+                coefficient_valid
+                & np.asarray(port.result.valid[mode_position], dtype=bool)
+                & power_wave_mask
+                & np.asarray(port.power_matrix_valid, dtype=bool)
+            )
+            port.active_s_coefficient_valid[mode_position] = coefficient_valid
+            port.active_s_valid[mode_position] = power_valid
+            port.active_s_parameters[mode_position, ~coefficient_valid] = np.nan + 1j * np.nan
+            metadata = drive_by_mode.get(
+                int(mode_index),
+                {
+                    "amplitude": np.nan,
+                    "power": np.nan,
+                    "phase_deg": np.nan,
+                    "delay_s": np.nan,
+                },
+            )
+            for frequency_index, frequency in enumerate(port.result.frequency):
+                value = port.active_s_parameters[mode_position, frequency_index]
+                rows.append(
+                    (
+                        float(frequency),
+                        port.port_index,
+                        mode_index,
+                        *_complex_csv_fields(value),
+                        int(coefficient_valid[frequency_index]),
+                        int(power_valid[frequency_index]),
+                        float(metadata["amplitude"]),
+                        float(metadata["power"]),
+                        float(metadata["phase_deg"]),
+                        float(metadata["delay_s"]),
+                    )
+                )
+
+    suffix = "" if grid.name == "main_grid" else f"_{grid.name}"
+    output_path = config.get_model_config().output_file_path.with_name(
+        config.get_model_config().output_file_path.name + f"{suffix}_active_sparameters.csv"
+    )
+    with output_path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.writer(stream, lineterminator="\n")
+        writer.writerow(
+            (
+                "frequency_hz",
+                "port",
+                "mode",
+                "active_S_real",
+                "active_S_imag",
+                "active_S_magnitude",
+                "active_S_magnitude_db",
+                "active_S_phase_deg",
+                "coefficient_magnitude_squared",
+                "coefficient_valid",
+                "power_wave_valid",
+                "drive_amplitude",
+                "drive_power",
+                "drive_phase_deg",
+                "drive_delay_s",
+            )
+        )
+        writer.writerows(rows)
+    logger.info(f"Eigenmode active S-parameter CSV written to {output_path}")
+    return output_path
 
 
 def finalise_eigenmode_ports(grid):
@@ -1119,13 +1313,13 @@ def finalise_eigenmode_ports(grid):
         return () if mode is None else (mode,)
 
     drive_count = sum(len(excitation_modes(port)) for port in sources)
-    # A simultaneous driven state is not an S-matrix column. Preserve its
-    # decomposed incident/outgoing waves and drive metadata without inventing
-    # an ambiguous normalization.
+    # A simultaneous driven state is not an S-matrix column. Report the active
+    # reflection coefficient b_i/a_i only for each deliberately driven modal
+    # channel, while preserving every raw incident/outgoing wave in HDF5.
     if drive_count != 1:
         for port in grid.eigenmodeports:
             port.response_type = "driven"
-        return None
+        return _write_active_sparameters(grid, sources, excitation_modes)
 
     source = sources[0]
     for port in grid.eigenmodeports:
@@ -1145,18 +1339,15 @@ def finalise_eigenmode_ports(grid):
         source_power_wave_valid_value,
         dtype=bool,
     )[:, source_mode_position]
-    source_ratio_valid = np.zeros(denominator.shape, dtype=bool)
     # Balanced generalized amplitudes and one-watt power-wave amplitudes use
     # different reference normalizations. Apply the incident floor within
     # each class so a large evanescent coefficient cannot suppress an
     # otherwise well-excited propagating bin (or vice versa).
-    for normalization_class in (source_power_wave_mask, ~source_power_wave_mask):
-        candidates = source_generalized_result_valid & normalization_class
-        peak = float(np.max(np.abs(denominator[candidates]), initial=0.0))
-        if peak > 0:
-            source_ratio_valid |= candidates & (
-                np.abs(denominator) >= peak * 10 ** (INCIDENT_FLOOR_DB / 20)
-            )
+    source_ratio_valid = _incident_ratio_valid(
+        denominator,
+        source_generalized_result_valid,
+        source_power_wave_mask,
+    )
     source_power_wave_valid = (
         source_ratio_valid
         & np.asarray(source.result.valid[source_mode_position], dtype=bool)
@@ -1208,6 +1399,7 @@ def finalise_eigenmode_ports(grid):
                 "coefficient_magnitude_squared",
                 "valid",
                 "power_wave_valid",
+                "coefficient_valid",
                 "generalized_valid",
             )
         )
@@ -1216,13 +1408,6 @@ def finalise_eigenmode_ports(grid):
                 values = port.s_parameters[mode_position]
                 for frequency_index, frequency in enumerate(port.result.frequency):
                     value = values[frequency_index]
-                    magnitude = abs(value)
-                    if np.isfinite(magnitude) and magnitude > 0:
-                        magnitude_db = float(20 * np.log10(magnitude))
-                    elif magnitude == 0:
-                        magnitude_db = -np.inf
-                    else:
-                        magnitude_db = np.nan
                     writer.writerow(
                         (
                             float(frequency),
@@ -1230,14 +1415,10 @@ def finalise_eigenmode_ports(grid):
                             source.excitation_mode_index,
                             port.port_index,
                             mode_index,
-                            float(np.real(value)),
-                            float(np.imag(value)),
-                            float(magnitude),
-                            magnitude_db,
-                            float(np.angle(value, deg=True)),
-                            float(magnitude**2),
+                            *_complex_csv_fields(value),
                             int(port.s_valid[mode_position, frequency_index]),
                             int(port.s_valid[mode_position, frequency_index]),
+                            int(port.s_generalized_valid[mode_position, frequency_index]),
                             int(port.s_generalized_valid[mode_position, frequency_index]),
                         )
                     )
