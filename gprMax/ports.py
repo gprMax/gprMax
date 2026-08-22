@@ -222,6 +222,45 @@ def _finite_source_gap_admittance(output, frequency, dt, complex_dtype):
     return np.asarray(admittance, dtype=complex_dtype)
 
 
+def frequency_subset_indices(available_frequencies, requested_frequencies):
+    """Map a requested frequency subset onto a sorted available grid.
+
+    Frequencies are compared at the available grid's precision. A small
+    precision-scaled tolerance also accepts values produced through an
+    equivalent floating-point construction rather than the same literal.
+    """
+
+    available = np.asarray(available_frequencies)
+    if available.ndim != 1 or available.size == 0:
+        raise ValueError("available frequencies must be one-dimensional and non-empty")
+    requested = np.asarray(requested_frequencies, dtype=available.dtype)
+    if requested.ndim != 1 or requested.size == 0:
+        raise ValueError("requested frequencies must be one-dimensional and non-empty")
+    if np.any(np.diff(available) <= 0):
+        raise ValueError("available frequencies must be unique and strictly increasing")
+
+    insertion = np.searchsorted(available, requested)
+    right_indices = np.minimum(insertion, available.size - 1)
+    left_indices = np.maximum(insertion - 1, 0)
+    choose_left = (
+        np.abs(available[left_indices] - requested)
+        <= np.abs(available[right_indices] - requested)
+    )
+    safe_indices = np.where(choose_left, left_indices, right_indices)
+    real_dtype = np.asarray(available.real).dtype
+    tolerance = 8 * np.finfo(real_dtype).eps
+    matched = np.isclose(
+        available[safe_indices],
+        requested,
+        rtol=tolerance,
+        atol=0,
+    )
+    if not np.all(matched):
+        missing = ", ".join(f"{float(value):g}" for value in requested[~matched])
+        raise ValueError(f"requested frequencies are not available DFT bins: {missing} Hz")
+    return np.asarray(safe_indices, dtype=np.intp)
+
+
 def evaluate_port_power_spectrum(
     output,
     grid: "FDTDGrid",
@@ -229,7 +268,7 @@ def evaluate_port_power_spectrum(
     *,
     window: str = "rectangular",
 ) -> PortPowerSpectrum:
-    """Evaluate one supported port at the exact antenna-transform frequencies.
+    """Evaluate one supported port at the antenna-transform frequencies.
 
     Conventional ports use terminal voltage/current rather than S11, so an
     unexcited but coupled port remains measurable. Eigenmode ports use their
@@ -254,15 +293,32 @@ def evaluate_port_power_spectrum(
     from gprMax.eigenmode_ports import EigenmodePortMonitor
 
     if isinstance(output, EigenmodePortMonitor):
-        if not np.array_equal(frequency, output.result.frequency):
-            raise ValueError(
-                f"eigenmode port {output.output_id!r} DFT frequencies must exactly "
-                "match the antenna transform frequencies"
+        try:
+            frequency_indices = frequency_subset_indices(
+                output.result.frequency,
+                frequency,
             )
-        incident_modal = np.asarray(output.result.incident, dtype=complex_dtype)
-        outgoing_modal = np.asarray(output.result.outgoing, dtype=complex_dtype)
-        power_matrix = np.asarray(output.power_matrix, dtype=complex_dtype)
-        cross_power_matrix = np.asarray(output.electric_gram, dtype=complex_dtype)
+        except ValueError as exc:
+            raise ValueError(
+                f"antenna-transform frequencies for eigenmode port "
+                f"{output.output_id!r} must be a subset of its DFT frequencies"
+            ) from exc
+        incident_modal = np.asarray(
+            output.result.incident[:, frequency_indices],
+            dtype=complex_dtype,
+        )
+        outgoing_modal = np.asarray(
+            output.result.outgoing[:, frequency_indices],
+            dtype=complex_dtype,
+        )
+        power_matrix = np.asarray(
+            output.power_matrix[frequency_indices],
+            dtype=complex_dtype,
+        )
+        cross_power_matrix = np.asarray(
+            output.electric_gram[frequency_indices],
+            dtype=complex_dtype,
+        )
         if incident_modal.shape != outgoing_modal.shape:
             raise ValueError(f"eigenmode port {output.output_id!r} has inconsistent modal arrays")
         if incident_modal.shape != (len(output.mode_indices), frequency.size):
@@ -304,9 +360,11 @@ def evaluate_port_power_spectrum(
         power_wave_valid_value = getattr(output, "power_wave_valid", None)
         if power_wave_valid_value is None:
             power_wave_valid_value = output.mode_power_valid
-        power_wave_valid = np.asarray(power_wave_valid_value, dtype=bool)
-        result_valid = np.asarray(output.result.valid, dtype=bool)
-        power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)
+        power_wave_valid = np.asarray(power_wave_valid_value, dtype=bool)[frequency_indices]
+        result_valid = np.asarray(output.result.valid, dtype=bool)[:, frequency_indices]
+        power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)[
+            frequency_indices
+        ]
         modal_valid = result_valid & power_wave_valid.T & power_matrix_valid[np.newaxis, :]
         physical_power_valid = np.zeros(frequency.shape, dtype=bool)
         for frequency_index in range(frequency.size):

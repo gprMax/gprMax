@@ -32,8 +32,20 @@ def _configure_grid(monkeypatch):
     return grid
 
 
-def _build_definitions(grid, *, source_anchors="auto", receiver_anchors="auto"):
-    EigenmodeBand(id="wg", fmin=4e9, fmax=6e9, points=21).build(grid)
+def _build_definitions(
+    grid,
+    *,
+    source_anchors="auto",
+    receiver_anchors="auto",
+    band_frequencies=(),
+):
+    EigenmodeBand(
+        id="wg",
+        fmin=4e9,
+        fmax=6e9,
+        points=21,
+        frequencies=band_frequencies,
+    ).build(grid)
     EigenmodePort(
         port=1,
         p1=(0.01, 0.005, 0),
@@ -121,6 +133,59 @@ def test_hash_commands_parse_global_band_per_port_anchors_and_excitation(monkeyp
         "waveform": "auto",
         "plot_waveform": False,
     }
+
+
+def test_band_additional_frequencies_are_sorted_deduplicated_and_shared(monkeypatch):
+    grid = _configure_grid(monkeypatch)
+    _build_definitions(
+        grid,
+        band_frequencies=(4.55e9, 5.05e9, 4.55e9),
+    )
+    EigenmodeExcitation(port=1, mode=1, waveform="auto").build(grid)
+    build_eigenmode_runtime_ports(grid)
+
+    expected = tuple(
+        np.unique(
+            np.concatenate(
+                (
+                    np.linspace(4e9, 6e9, 21),
+                    np.asarray((4.55e9, 5.05e9)),
+                )
+            )
+        )
+    )
+    assert grid.eigenmodeband.dft_frequencies == expected
+    assert grid.eigenmodesources[0].dft_frequencies == expected
+    assert grid.eigenmodereceivers[0].dft_frequencies == expected
+
+
+def test_hash_band_parses_additional_dft_frequencies():
+    commands = defaultdict(lambda: None)
+    commands["#eigenmode_band"] = ["wg 4e9 6e9 10 5e9 5.5e9"]
+
+    objects = process_multicmds(commands)
+
+    band = next(obj for obj in objects if isinstance(obj, EigenmodeBand))
+    assert band.kwargs == {
+        "id": "wg",
+        "fmin": 4e9,
+        "fmax": 6e9,
+        "points": 10,
+        "frequencies": (5e9, 5.5e9),
+    }
+
+
+def test_band_rejects_additional_frequency_outside_limits(monkeypatch):
+    grid = _configure_grid(monkeypatch)
+
+    with pytest.raises(ValueError, match="inside the inclusive band limits"):
+        EigenmodeBand(
+            id="wg",
+            fmin=4e9,
+            fmax=6e9,
+            points=10,
+            frequencies=(3.9e9,),
+        ).build(grid)
 
 
 def test_hash_excitation_plot_control_does_not_require_waveform_argument():

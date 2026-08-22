@@ -484,6 +484,17 @@ def test_hash_eigenmode_study_runs_and_writes_complete_smatrix(tmp_path):
         np.testing.assert_array_equal(output["channel_ports"], (1, 2))
         np.testing.assert_array_equal(output["channel_modes"], (1, 1))
         assert output["S"].shape[1:] == (2, 2)
+        np.testing.assert_array_equal(output["power_wave_valid_S"], output["valid_S"])
+        np.testing.assert_array_equal(
+            output["coefficient_valid_S"], output["generalized_valid_S"]
+        )
+        np.testing.assert_array_equal(
+            output["power_wave_valid_matrix"], output["valid_wave_matrix"]
+        )
+        np.testing.assert_array_equal(
+            output["coefficient_valid_wave_matrix"],
+            output["generalized_valid_wave_matrix"],
+        )
         assert output["array_codebook"].attrs["Schema"] == "gprMax-array-codebook-v1"
         assert "array_states/p1_only/tarc" in output
 

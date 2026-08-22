@@ -142,9 +142,9 @@ with
 
 The planar-layered frequency transform is the exception to the homogeneous
 background restriction: its surface may cross the declared interfaces.
-Eigenmode sources are not supported by the Ramahi/KSIR formulation. Use the
-frequency-domain equivalent-current Huygens commands (the ``#ntff_*`` family)
-for eigenmode-fed antenna far fields, gain, and realized gain.
+Ramahi/KSIR requires a closed six-face surface, independently of source type.
+A virtual waveguide lets an eigenmode-fed antenna retain a matched guide port
+while placing all six surface faces in the homogeneous main-domain exterior.
 
 The unit normal :math:`\hat{\mathbf n}` points out of the enclosed volume,
 :math:`\mathbf r'` denotes a source point on :math:`S`, and

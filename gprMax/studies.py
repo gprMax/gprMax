@@ -2556,15 +2556,25 @@ class EigenmodeStudy(Study):
         group.create_dataset("frequency", data=data["frequency"])
         group.create_dataset("S_column", data=data["column"])
         group.create_dataset("valid_S_column", data=data["valid"].astype(np.uint8))
+        group.create_dataset("power_wave_valid_S_column", data=data["valid"].astype(np.uint8))
         group.create_dataset(
             "generalized_valid_S_column",
+            data=data["generalized_valid"].astype(np.uint8),
+        )
+        group.create_dataset(
+            "coefficient_valid_S_column",
             data=data["generalized_valid"].astype(np.uint8),
         )
         group.create_dataset("incident", data=data["incident"])
         group.create_dataset("outgoing", data=data["outgoing"])
         group.create_dataset("valid_wave", data=data["wave_valid"].astype(np.uint8))
+        group.create_dataset("power_wave_valid", data=data["wave_valid"].astype(np.uint8))
         group.create_dataset(
             "generalized_valid_wave",
+            data=data["generalized_wave_valid"].astype(np.uint8),
+        )
+        group.create_dataset(
+            "coefficient_valid_wave",
             data=data["generalized_wave_valid"].astype(np.uint8),
         )
         if self._aggregate_output_path is not None:
@@ -2902,7 +2912,12 @@ class EigenmodeStudy(Study):
             output.create_dataset("case_ids", data=np.asarray(result.case_ids, dtype="S"))
             output.create_dataset("S", data=result.s)
             output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
+            output.create_dataset("power_wave_valid_S", data=result.valid_s.astype(np.uint8))
             output.create_dataset("generalized_valid_S", data=result.generalized_valid_s.astype(np.uint8))
+            output.create_dataset(
+                "coefficient_valid_S",
+                data=result.generalized_valid_s.astype(np.uint8),
+            )
             output.create_dataset("incident_matrix", data=result.incident_matrix)
             output.create_dataset("outgoing_matrix", data=result.outgoing_matrix)
             output.create_dataset(
@@ -2918,7 +2933,15 @@ class EigenmodeStudy(Study):
                 data=result.wave_valid_matrix.astype(np.uint8),
             )
             output.create_dataset(
+                "power_wave_valid_matrix",
+                data=result.wave_valid_matrix.astype(np.uint8),
+            )
+            output.create_dataset(
                 "generalized_valid_wave_matrix",
+                data=result.generalized_wave_valid_matrix.astype(np.uint8),
+            )
+            output.create_dataset(
+                "coefficient_valid_wave_matrix",
                 data=result.generalized_wave_valid_matrix.astype(np.uint8),
             )
             if self.codebook is not None:

@@ -15,6 +15,7 @@ gprMax/cython/fields_updates_dispersive.pyx
 # build, dist and egg-info directories
 build/
 dist/
+target/
 *.egg-info/
 docs/.buildinfo
 
@@ -57,5 +58,8 @@ cov.xml
 # IDEs
 .idea/
 .vscode/
+
+# Agents
+AGENTS.md
 .codex_tmp
-target/
+

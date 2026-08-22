@@ -1037,6 +1037,7 @@ not repeat the DFT range or waveform:
 
     scene.add(gprMax.EigenmodeBand(
         id='wg_band', fmin=45e9, fmax=65e9, points=81,
+        frequencies=(50.1e9, 55.1e9, 60.1e9),
     ))
     scene.add(gprMax.EigenmodePort(
         port=1,
@@ -1057,6 +1058,15 @@ not repeat the DFT range or waveform:
     scene.add(gprMax.EigenmodeExcitation(
         port=1, mode=1, waveform='auto', plot_waveform=True,
     ))
+
+The optional ``frequencies`` values are inserted into the uniform
+``fmin``--``fmax`` grid. The final union is sorted and deduplicated and is
+shared by every port. This lets an S-parameter sweep include exact frequencies
+needed by a sparser NTFF request. When an ``NTFFAntennaPorts`` association uses
+modal power, every NTFF transform frequency must be present in this union, but
+the NTFF grid may be a strict subset. ``frequencies`` changes direct-DFT/output
+bins; it is independent of the ``anchors`` policy used to solve and interpolate
+the modal fields.
 
 For simultaneous excitation, add further distinct port/mode channels using
 the same base waveform. ``power`` and ``amplitude`` are mutually exclusive;
@@ -1751,12 +1761,12 @@ class. Hash
 commands use the default surface centre, save the surface DFT, and associate
 an enclosed plane wave automatically.
 
-A direct eigenmode excitation cannot be combined with any of the ``KSIR*``
-classes. When its active port has a ``VirtualWaveguide``, the impressed source
-is instead outside the main FDTD domain and either a closed KSIR surface or a
-closed equivalent-current surface may be used. Without a virtual guide, use
-``NTFFFrequencyTransform``, ``NTFFFarField`` or ``NTFFFarFieldArray``, and
-``NTFFAntennaPorts`` for an eigenmode-fed antenna.
+The ``KSIR*`` classes require a closed ``NTFFSurface``; this rule is independent
+of whether an eigenmode source is present. Traditionally a real guide extends
+through the domain PML and the crossed Huygens face is omitted, which makes
+that open surface unsuitable for KSIR. A ``VirtualWaveguide`` moves the matched
+continuation outside the main domain, allowing the eigenmode-fed antenna to be
+enclosed by either a closed KSIR or closed equivalent-current surface.
 
 ``NTFFSurface(omit_faces=('x0', 'xmax'))`` creates an open frequency-domain
 Huygens surface. ``omit_faces`` accepts one to five distinct Cartesian face
@@ -1840,8 +1850,9 @@ owning subgrid's finer time step.
 For voltage sources, use the source's ``id`` (or its automatic ``portN`` ID); automatic
 transmission-line and magnetic-frill IDs are ``tl1``, ... and ``frill1``, ...
 respectively. An eigenmode source is ``portN`` for its explicit port index;
-an eigenmode receiver uses its configured ID. Eigenmode transform
-frequencies must exactly match the modal direct-DFT bins. Their gain
+an eigenmode receiver uses its configured ID. Every eigenmode transform
+frequency must be one of the modal direct-DFT bins; the modal grid may contain
+additional bins. Their gain
 normalization uses the full modal power matrix rather than an artificial
 voltage/current or reference impedance. For example:
 

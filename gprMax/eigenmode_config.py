@@ -241,10 +241,23 @@ class EigenmodeBandSpec:
     fmin: float
     fmax: float
     points: int
+    frequencies: tuple[float, ...] = field(default_factory=tuple)
     transition: str | float = 'auto'
     spectral_threshold: float = 1e-3
     representative_frequency: float | None = None
     significant_range: tuple[float, float] | None = None
+
+    @property
+    def dft_frequencies(self) -> tuple[float, ...]:
+        """Return the sorted union of the uniform band and requested extra bins."""
+
+        uniform = np.linspace(self.fmin, self.fmax, self.points, dtype=np.float64)
+        if not self.frequencies:
+            return tuple(float(value) for value in uniform)
+        combined = np.unique(
+            np.concatenate((uniform, np.asarray(self.frequencies, dtype=np.float64)))
+        )
+        return tuple(float(value) for value in combined)
 
     def resolve_spectrum(self, grid, waveform, *, generated_waveform: bool):
         _, frequencies, spectrum = sampled_waveform_spectrum(

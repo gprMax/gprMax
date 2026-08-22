@@ -376,7 +376,8 @@ Every eigenmode-study case instead contains
 nominal incident modal channel. ``incident`` and ``outgoing`` contain the
 complete measured modal vectors for that run, ordered by ``channel_ports``
 and ``channel_modes``; ``valid_wave`` and ``generalized_valid_wave`` are their
-validity masks. ``S_column`` is the single-source-normalized per-run
+validity masks. Preferred aliases ``power_wave_valid`` and
+``coefficient_valid_wave`` state their meanings directly. ``S_column`` is the single-source-normalized per-run
 diagnostic retained alongside those raw waves. It is not the authoritative
 column when passive ports have residual incident waves.
 
@@ -384,7 +385,10 @@ The eigenmode aggregate ``<output>_study.h5`` contains ``frequency``,
 ``channel_ports``, ``channel_modes``, ``case_ids``, ``incident_matrix``,
 ``outgoing_matrix``, ``valid_wave_matrix``,
 ``generalized_valid_wave_matrix``, ``deembedding_condition_number``,
-``deembedding_valid``, ``S``, ``valid_S``, and ``generalized_valid_S``. Its convention is
+``deembedding_valid``, ``S``, ``valid_S``, and ``generalized_valid_S``.
+Preferred aliases ``power_wave_valid_matrix``,
+``coefficient_valid_wave_matrix``, ``power_wave_valid_S``, and
+``coefficient_valid_S`` are stored alongside the legacy names. Its convention is
 ``S[frequency, output_channel, input_channel]``. Modal channels can represent
 different mode counts on different ports; the two channel-index datasets are
 therefore authoritative and should be used instead of assuming one mode per
@@ -572,15 +576,24 @@ text when it came from a JSON file.
                 anchor_mode_propagating
                 anchor_balanced_power
                 decomposition_valid
+                reference_basis_valid
                 generalized_valid
+                coefficient_valid
                 power_normalization_valid
+                power_basis_valid
                 power_matrix_valid
                 valid
+                power_wave_valid
                 condition_number
                 S
                 generalized_valid_S
+                coefficient_valid_S
                 valid_S
                 power_wave_valid_S
+                active_S
+                active_S_driven
+                coefficient_valid_active_S
+                power_wave_valid_active_S
 
 Within each individual ``rx`` group are the following attributes:
 
@@ -1039,15 +1052,17 @@ exactly orthogonal. The incident and outgoing arrays are generalized modal
 travelling-wave coefficients; an individual coefficient magnitude squared is
 not an additive power when ``power_matrix`` is non-diagonal. The electric
 cross-power matrix is retained to reconstruct total-field flux in lossy
-ports. ``decomposition_valid`` has shape ``(nfrequencies, nmodes)`` and records
-pre-solve reference eligibility. ``generalized_valid`` has shape
+ports. ``decomposition_valid`` (preferred alias ``reference_basis_valid``) has
+shape ``(nfrequencies, nmodes)`` and records pre-solve reference eligibility.
+``generalized_valid`` (preferred alias ``coefficient_valid``) has shape
 ``(nmodes, nfrequencies)`` and records conditioned incident/outgoing
 coefficients. Legacy ``valid`` has the same latter shape and is the stricter
-physical power-wave mask. ``power_normalization_valid`` has shape
+physical power-wave mask, also stored as ``power_wave_valid``.
+``power_normalization_valid`` (preferred alias ``power_basis_valid``) has shape
 ``(nfrequencies, nmodes)``, while ``power_matrix_valid`` has shape
 ``(nfrequencies,)``. The anchor masks have shape ``(ncandidates, nmodes)``.
 
-For scattering output, ``generalized_valid_S``, ``valid_S``, and
+For scattering output, ``generalized_valid_S``/``coefficient_valid_S``, ``valid_S``, and
 ``power_wave_valid_S`` all have shape ``(nmodes, nfrequencies)``.
 ``generalized_valid_S`` identifies conditioned generalized coefficient
 ratios, including the source-spectrum check. ``valid_S`` preserves the legacy
@@ -1074,10 +1089,12 @@ When two or more modal channels are excited simultaneously, the groups also
 contain the raw ``incident`` and ``outgoing`` spectra and have
 ``ResponseType=driven``. Source groups record ``ExcitationModes``,
 ``DriveAmplitudes``, ``DrivePowers``, ``DrivePhasesDegrees``, ``DriveDelays``,
-and ``DriveWaveformIDs``. No ``S`` datasets or S-parameter CSV are written:
-normalizing a superposed response by one incident channel would not be an
-independently excited S-matrix column. Use an ``EigenmodeStudy`` for that
-matrix.
+and ``DriveWaveformIDs``. Ordinary ``S`` datasets are not written because the
+response is not an independently excited S-matrix column. Driven rows instead
+store ``active_S=b_i/a_i``, ``coefficient_valid_active_S``, and
+``power_wave_valid_active_S``; ``<output>_active_sparameters.csv`` contains the
+same driven-state reflection data and drive weights. Use an
+``EigenmodeStudy`` for the complete state-independent matrix.
 
 .. _output-ntff:
 
@@ -1333,9 +1350,13 @@ ordinary gain outputs. Summing the two accepted coupling efficiencies gives
 
 For a ``#ksir_antenna_ports`` or ``#ntff_antenna_ports`` association, per-port
 powers have shape ``(nports, nfrequencies)``. Total powers and all validity
-masks have shape ``(nfrequencies,)``. Eigenmode ports are supported only by
-the equivalent-current ``#ntff_antenna_ports`` path; an eigenmode source
-cannot be combined with Ramahi/KSIR. Conventional terminal ports use
+masks have shape ``(nfrequencies,)``. Eigenmode ports can normalize either a
+closed KSIR or equivalent-current transform. KSIR rejects an open surface,
+regardless of source type. Here ``nfrequencies`` is the transform frequency
+count: when the eigenmode DFT grid is denser, the per-port modal arrays in the
+far-field ``port_power`` group contain only the matching transform subset. The
+complete modal grid remains in the top-level eigenmode-port group.
+Conventional terminal ports use
 
 .. math::
 

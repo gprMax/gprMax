@@ -2199,7 +2199,12 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
 
 class EigenmodeBand(GridUserObject):
-    """Define the single frequency band shared by all eigenmode ports."""
+    """Define the frequency band and optional extra DFT bins shared by all ports.
+
+    ``fmin``, ``fmax``, and ``points`` define the usual uniform grid.
+    ``frequencies`` may contain additional in-band frequencies; gprMax sorts
+    and deduplicates their union with the uniform grid.
+    """
 
     @property
     def order(self):
@@ -2228,6 +2233,21 @@ class EigenmodeBand(GridUserObject):
                 f"{self.params_str()} id must be a non-empty token without whitespace."
             )
         _validate_eigenmode_dft(self.params_str(), fmin, fmax, points)
+        requested_frequencies = self.kwargs.get("frequencies")
+        if requested_frequencies is None:
+            requested_frequencies = ()
+        elif np.isscalar(requested_frequencies):
+            requested_frequencies = (float(requested_frequencies),)
+        else:
+            requested_frequencies = tuple(float(value) for value in requested_frequencies)
+        if any(
+            not np.isfinite(value) or value < fmin or value > fmax
+            for value in requested_frequencies
+        ):
+            raise ValueError(
+                f"{self.params_str()} additional DFT frequencies must be finite and "
+                "lie inside the inclusive band limits."
+            )
         threshold = float(self.kwargs.get("spectral_threshold", 1e-3))
         if not 0 < threshold < 1:
             raise ValueError(
@@ -2243,12 +2263,20 @@ class EigenmodeBand(GridUserObject):
             fmin=fmin,
             fmax=fmax,
             points=points,
+            frequencies=requested_frequencies,
             transition=transition,
             spectral_threshold=threshold,
         )
+        dft_points = len(grid.eigenmodeband.dft_frequencies)
+        extra_description = (
+            f", including {dft_points - points} additional requested bin(s) after deduplication"
+            if requested_frequencies
+            else ""
+        )
         logger.info(
             f"{self.grid_name(grid)}Eigenmode band {band_id!r}, frequencies "
-            f"{fmin:g} to {fmax:g} Hz with {points} common DFT point(s), created."
+            f"{fmin:g} to {fmax:g} Hz with {dft_points} common DFT point(s)"
+            f"{extra_description}, created."
         )
 
 
@@ -2494,6 +2522,7 @@ class EigenmodeExcitation(GridUserObject):
             "dft_start": band.fmin,
             "dft_stop": band.fmax,
             "dft_points": band.points,
+            "dft_frequencies": band.dft_frequencies,
             "plot_fields": port.plot_fields,
         }
         if len(port.resolved_anchors) == 1:
@@ -2676,6 +2705,16 @@ def _validate_eigenmode_dft(label, start, stop, points):
         raise ValueError(f"{label} a one-point DFT requires equal start and stop.")
     if points > 1 and stop == start:
         raise ValueError(f"{label} a multi-point DFT requires stop greater than start.")
+
+
+def _validate_eigenmode_dft_frequencies(label, frequencies):
+    values = np.asarray(frequencies, dtype=np.float64)
+    if values.ndim != 1 or values.size == 0:
+        raise ValueError(f"{label} DFT frequencies must be one-dimensional and non-empty.")
+    if not np.all(np.isfinite(values)) or np.any(values <= 0):
+        raise ValueError(f"{label} DFT frequencies must be finite and positive.")
+    if np.any(np.diff(values) <= 0):
+        raise ValueError(f"{label} DFT frequencies must be unique and strictly increasing.")
 
 
 def build_passive_virtual_eigenmode_ports(grid):
@@ -2872,6 +2911,13 @@ class _EigenmodeSourceBuilder(GridUserObject):
         else:
             frequencies = tuple(float(value) for value in frequencies_arg)
         spectral_threshold = float(self.kwargs.get("spectral_threshold", 1e-3))
+        dft_frequencies = tuple(
+            float(value)
+            for value in self.kwargs.get(
+                "dft_frequencies",
+                np.linspace(dft_start, dft_stop, dft_points),
+            )
+        )
         plot_fields = self.kwargs.get("plot_fields")
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
             raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
@@ -2898,6 +2944,7 @@ class _EigenmodeSourceBuilder(GridUserObject):
             raise ValueError(f"{self.params_str()} port_index must be one or greater.")
 
         _validate_eigenmode_dft(self.params_str(), dft_start, dft_stop, dft_points)
+        _validate_eigenmode_dft_frequencies(self.params_str(), dft_frequencies)
 
         if not frequencies:
             raise ValueError(f"{self.params_str()} requires at least one frequency.")
@@ -3020,6 +3067,7 @@ class _EigenmodeSourceBuilder(GridUserObject):
         source.dft_start = dft_start
         source.dft_stop = dft_stop
         source.dft_points = dft_points
+        source.dft_frequencies = dft_frequencies
         source.waveformID = waveform_id
         source.waveform = next(x for x in grid.waveforms if x.ID == waveform_id)
         source.start = 0
@@ -3088,6 +3136,13 @@ class _EigenmodeReceiverBuilder(GridUserObject):
             (float(values),) if np.isscalar(values) else tuple(float(value) for value in values)
         )
         plot_fields = self.kwargs.get("plot_fields")
+        dft_frequencies = tuple(
+            float(value)
+            for value in self.kwargs.get(
+                "dft_frequencies",
+                np.linspace(dft_start, dft_stop, dft_points),
+            )
+        )
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
             raise ValueError(f"{self.params_str()} plot_fields must be True, False, or None.")
 
@@ -3107,6 +3162,7 @@ class _EigenmodeReceiverBuilder(GridUserObject):
                 f"{self.params_str()} frequencies must be unique and strictly increasing."
             )
         _validate_eigenmode_dft(self.params_str(), dft_start, dft_stop, dft_points)
+        _validate_eigenmode_dft_frequencies(self.params_str(), dft_frequencies)
 
         axis_map = {"x": 0, "y": 1, "z": 2}
         normal_axis = axis_map[normal]
@@ -3215,6 +3271,7 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         receiver.dft_start = dft_start
         receiver.dft_stop = dft_stop
         receiver.dft_points = dft_points
+        receiver.dft_frequencies = dft_frequencies
         grid.eigenmodereceivers.append(receiver)
         logger.info(
             f"{self.grid_name(grid)}Eigenmode receiver {port_id!r}, normal {normal}{direction}, "

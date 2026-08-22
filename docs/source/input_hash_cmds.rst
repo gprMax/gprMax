@@ -1714,12 +1714,16 @@ Defines the single frequency band shared by every eigenmode port in the model:
 
 .. code-block:: none
 
-    #eigenmode_band: str1 f1 f2 i1
+    #eigenmode_band: str1 f1 f2 i1 [f3 ...]
 
 * ``str1`` is a non-empty band identifier.
 * ``f1`` and ``f2`` are the inclusive DFT start and stop frequencies in Hertz.
 * ``i1`` is the number of uniformly spaced DFT points. A one-point band
   requires ``f1=f2``; a multi-point band requires ``f2>f1``.
+* ``f3 ...`` are optional additional DFT frequencies inside the inclusive
+  band. gprMax sorts and deduplicates their union with the uniform grid. This
+  is useful when a dense S-parameter sweep must also contain specific NTFF
+  frequencies exactly.
 
 Exactly one band is required when eigenmode ports are present. Defining the
 band once guarantees identical DFT bins at every port.
@@ -2647,8 +2651,23 @@ equivalent-current method of Luebbers *et al.* [LUE1991]_:
     #ntff_frequency: surface_id transform_id f1 [f2 ...] [window]
 
 The frequency, window, engineering convention, Nyquist check, and globally
-unique transform-ID rules are identical to ``#ksir_frequency``. The
-tangential Yee fields are arithmetically collocated on common cell-face
+unique transform-ID rules are identical to ``#ksir_frequency``.
+
+When ``#ntff_antenna_ports`` associates an eigenmode port with this transform,
+every transform frequency must be present in the final ``#eigenmode_band``
+DFT grid. The transform frequencies may be a strict subset. If a requested
+NTFF frequency is not one of the uniformly spaced modal bins, append it after
+the point count; gprMax sorts and deduplicates the combined grid. For example:
+
+.. code-block:: none
+
+    #eigenmode_band: antenna_band 8e9 12e9 101 8.5e9 9.5e9 10.5e9 11.5e9
+    #ntff_frequency: radiation_surface antenna_pattern 8e9 8.5e9 9e9 9.5e9 10e9 10.5e9 11e9 11.5e9 12e9 rectangular
+
+The extra modal bins affect the S-parameter DFT grid; they do not replace the
+``auto`` or explicit modal anchor policy on ``#eigenmode_port``.
+
+The tangential Yee fields are arithmetically collocated on common cell-face
 centres and form
 
 .. math::
@@ -2783,12 +2802,13 @@ creation order. The association is not required for electric or magnetic far
 fields, radiation intensity, RCS, or directivity. It is required when a
 far-field command asks for gain or efficiency.
 
-A direct eigenmode source cannot be used with any Ramahi/KSIR command. When
-its active port has a ``#virtual_waveguide``, the source is moved outside the
-main FDTD domain and a closed KSIR or equivalent-current surface may be used.
-Without a virtual guide, use the frequency-domain equivalent-current Huygens
-commands ``#ntff_frequency``, ``#ntff_far_field`` or
-``#ntff_far_field_array``, and ``#ntff_antenna_ports`` instead.
+Every Ramahi/KSIR command requires a closed six-face ``#ntff_surface``; this
+rule is independent of whether an eigenmode source is present. Traditionally
+a real guide extends through the domain PML and the crossed Huygens face is
+omitted, so that open surface cannot be reused for KSIR. With
+``#virtual_waveguide`` the matched continuation and source are outside the
+main domain, permitting a closed KSIR or equivalent-current surface around
+the physical antenna.
 
 A port on a subgrid is named as ``subgrid_id/port_id``. For example,
 ``fine_grid/feed`` identifies a voltage source called ``feed`` on subgrid
@@ -2846,10 +2866,11 @@ number. The listed set must include every physical conventional and modal
 port in the model. A passive eigenmode port has zero generator incident power
 and contributes signed net modal power to the accepted-power balance.
 
-For every associated eigenmode port, the transform frequencies must exactly
-match that port's direct-DFT bins. Degenerate modes and mode crossings should
-use a single-frequency modal solve rather than broadband profile
-interpolation.
+For every associated eigenmode port, every transform frequency must be present
+in that port's direct-DFT bins. The eigenmode grid may contain additional bins,
+so S-parameters may use a denser grid than the NTFF. Degenerate modes and mode
+crossings should use a single-frequency modal solve rather than broadband
+profile interpolation.
 
 #ksir_time_rx: and #ksir_time_rx_spherical:
 --------------------------------------------
