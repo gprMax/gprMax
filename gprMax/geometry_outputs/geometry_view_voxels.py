@@ -39,21 +39,22 @@ class GeometryViewVoxels(GeometryView[GridType]):
         """Prepares data for writing to VTKHDF file."""
 
         self.material_data = self.grid_view.get_solid()
+        self.tag_data = (
+            self.grid_view.get_geometry_tags()
+            if getattr(self.grid, "geometry_tag_map", None) is not None
+            else None
+        )
 
         if isinstance(self.grid, SubGridBaseGrid):
-            self.origin = np.array(
-                [
-                    (self.grid.i0 * self.grid.dx * self.grid.ratio),
-                    (self.grid.j0 * self.grid.dy * self.grid.ratio),
-                    (self.grid.k0 * self.grid.dz * self.grid.ratio),
-                ]
-            )
+            self.origin = self.grid.local_to_global(self.grid_view.start)
         else:
             self.origin = self.grid_view.start * self.grid.dl
 
         self.spacing = self.grid_view.step * self.grid.dl
 
         self.nbytes = self.material_data.nbytes
+        if self.tag_data is not None:
+            self.nbytes += self.tag_data.nbytes
 
         # Write information about any PMLs, sources, receivers
         self.metadata = Metadata(self.grid_view)
@@ -63,6 +64,13 @@ class GeometryViewVoxels(GeometryView[GridType]):
 
         with VtkImageData(self.filename, self.grid_view.size, self.origin, self.spacing) as f:
             f.add_cell_data("Material", self.material_data)
+            if self.tag_data is not None:
+                f.add_cell_data("TagID", self.tag_data)
+                f.add_field_data(
+                    "geometry_tag_ids",
+                    np.arange(len(self.grid.geometry_tag_registry.names), dtype=np.uint32),
+                )
+                f.add_field_data("geometry_tag_names", list(self.grid.geometry_tag_registry.names))
             self.metadata.write_to_vtkhdf(f)
 
 
@@ -79,11 +87,18 @@ class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
         assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
 
         self.material_data = self.grid_view.get_solid()
+        self.tag_data = (
+            self.grid_view.get_geometry_tags()
+            if getattr(self.grid, "geometry_tag_map", None) is not None
+            else None
+        )
 
         self.origin = self.grid_view.global_start * self.grid.dl
         self.spacing = self.grid_view.step * self.grid.dl
 
         self.nbytes = self.material_data.nbytes
+        if self.tag_data is not None:
+            self.nbytes += self.tag_data.nbytes
 
         # Write information about any PMLs, sources, receivers
         self.metadata = MPIMetadata(self.grid_view)
@@ -101,10 +116,20 @@ class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
             comm=self.grid_view.comm,
         ) as f:
             f.add_cell_data("Material", self.material_data, self.grid_view.offset)
+            if self.tag_data is not None:
+                f.add_cell_data("TagID", self.tag_data, self.grid_view.offset)
 
         # Write metadata in serial as it contains variable length
         # strings which currently cannot be written by HDF5 using
         # parallel I/O
         if self.grid_view.comm.rank == 0:
             with VtkHdfFile(self.filename, VtkImageData.TYPE, mode="r+") as f:
+                if self.tag_data is not None:
+                    f.add_field_data(
+                        "geometry_tag_ids",
+                        np.arange(len(self.grid.geometry_tag_registry.names), dtype=np.uint32),
+                    )
+                    f.add_field_data(
+                        "geometry_tag_names", list(self.grid.geometry_tag_registry.names)
+                    )
                 self.metadata.write_to_vtkhdf(f)

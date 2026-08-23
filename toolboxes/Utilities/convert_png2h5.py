@@ -50,15 +50,18 @@ class Cursor(object):
             x, y = event.xdata, event.ydata
             if x is not None and y is not None:
                 pixel = self.im[int(y), int(x)]
-                pixel = np.floor(pixel * 255).astype(
-                    np.int16
-                )  # Convert pixel values from float (0-1) to integer (0-255)
-                match = pixel_match(materials, pixel)
+                if np.issubdtype(pixel.dtype, np.floating):
+                    # Matplotlib normally reads PNG channels as floats in the
+                    # range 0-1, whereas some image backends return uint8.
+                    pixel = np.floor(np.clip(pixel, 0, 1) * 255)
+                pixel = pixel.astype(np.int16)
+                match = pixel_match(self.materials, pixel)
                 if match is False:
+                    rgb = pixel[:3]
                     logger.info(
-                        f"x, y: {int(x)} {int(y)} px; RGB: {pixel[:-1]}; material ID: {len(self.materials)}"
+                        f"x, y: {int(x)} {int(y)} px; RGB: {rgb}; material ID: {len(self.materials)}"
                     )
-                    materials.append(pixel)
+                    self.materials.append(pixel)
 
 
 def pixel_match(pixellist, pixeltest):
@@ -89,7 +92,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "dxdydz",
         type=float,
-        action="append",
         nargs=3,
         help="spatial resolution of model, e.g. dx dy dz",
     )
@@ -100,15 +102,21 @@ if __name__ == "__main__":
         help="number of cells for domain in z-direction (infinite direction)",
     )
     args = parser.parse_args()
+    if args.zcells < 1:
+        parser.error("-zcells must be greater than zero")
+    if any(value <= 0 for value in args.dxdydz):
+        parser.error("dx, dy, and dz must be greater than zero")
 
     # Open image file
     im = mpimg.imread(args.imagefile)
+    if im.ndim != 3 or im.shape[2] not in (3, 4):
+        parser.error("image must contain RGB or RGBA colour channels")
 
     # Store image data to use for creating geometry
     imdata = np.rot90(im, k=3)  # Rotate 90CW
-    imdata = np.floor(imdata * 255).astype(
-        np.int16
-    )  # Convert pixel values from float (0-1) to integer (0-255)
+    if np.issubdtype(imdata.dtype, np.floating):
+        imdata = np.floor(imdata * 255)
+    imdata = imdata.astype(np.int16)
 
     logger.info(f"Reading PNG image file: {os.path.split(args.imagefile)[1]}")
     logger.info(
@@ -126,7 +134,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Format spatial resolution into tuple
-    dx_dy_dz = (args.dxdydz[0][0], args.dxdydz[0][1], args.dxdydz[0][2])
+    dx_dy_dz = tuple(args.dxdydz)
 
     # Filename for geometry (HDF5) file
     hdf5file = f"{os.path.splitext(args.imagefile)[0]}.h5"

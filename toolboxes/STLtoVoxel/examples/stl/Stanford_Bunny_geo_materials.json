@@ -1,0 +1,26 @@
+{
+  "schema": "gprMax-material-database",
+  "schema_version": 1,
+  "database": {
+    "id": "Stanford_Bunny_geo_materials",
+    "name": "Stanford bunny example materials",
+    "version": "1.0.0",
+    "description": "Example assignment for the STLtoVoxel Stanford bunny."
+  },
+  "materials": {
+    "material_000_Stanford_Bunny": {
+      "name": "Sand",
+      "model": "constant",
+      "base": {
+        "relative_permittivity": 3.0,
+        "electric_conductivity_s_per_m": 0.0,
+        "relative_permeability": 1.0,
+        "magnetic_conductivity_s_per_m": 0.0
+      },
+      "metadata": {
+        "original_id": "sand",
+        "quality": "illustrative example, not a universal sand property"
+      }
+    }
+  }
+}

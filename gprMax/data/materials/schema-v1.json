@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.gprmax.com/schema/material-database-v1.json",
+  "title": "gprMax material database",
+  "type": "object",
+  "required": ["schema", "schema_version", "database", "materials"],
+  "properties": {
+    "schema": {"const": "gprMax-material-database"},
+    "schema_version": {"const": 1},
+    "database": {
+      "type": "object",
+      "required": ["id", "name", "version"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"},
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "description": {"type": "string"},
+        "licence": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "materials": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"},
+      "additionalProperties": {"$ref": "#/$defs/material"}
+    }
+  },
+  "$defs": {
+    "base": {
+      "type": "object",
+      "required": ["relative_permittivity"],
+      "properties": {
+        "relative_permittivity": {"type": "number", "minimum": 1},
+        "electric_conductivity_s_per_m": {
+          "oneOf": [{"type": "number", "minimum": 0}, {"const": "inf"}]
+        },
+        "relative_permeability": {"type": "number", "minimum": 1},
+        "magnetic_conductivity_s_per_m": {
+          "oneOf": [{"type": "number", "minimum": 0}, {"const": "inf"}]
+        }
+      },
+      "additionalProperties": false
+    },
+    "debye_pole": {
+      "type": "object",
+      "required": ["relative_permittivity_difference", "relaxation_time_s"],
+      "properties": {
+        "relative_permittivity_difference": {"type": "number", "minimum": 0},
+        "relaxation_time_s": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "lorentz_pole": {
+      "type": "object",
+      "required": ["relative_permittivity_difference", "resonance_frequency_hz", "damping_coefficient_per_s"],
+      "properties": {
+        "relative_permittivity_difference": {"type": "number", "minimum": 0},
+        "resonance_frequency_hz": {"type": "number", "exclusiveMinimum": 0},
+        "damping_coefficient_per_s": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "drude_pole": {
+      "type": "object",
+      "required": ["plasma_frequency_hz", "collision_frequency_per_s"],
+      "properties": {
+        "plasma_frequency_hz": {"type": "number", "exclusiveMinimum": 0},
+        "collision_frequency_per_s": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "complex_pair": {
+      "type": "array",
+      "prefixItems": [{"type": "number"}, {"type": "number"}],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "general_pole": {
+      "type": "object",
+      "required": ["w_per_s", "q_per_s"],
+      "properties": {
+        "w_per_s": {"$ref": "#/$defs/complex_pair"},
+        "q_per_s": {"$ref": "#/$defs/complex_pair"}
+      },
+      "additionalProperties": false
+    },
+    "material": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "model": {
+          "enum": ["constant", "debye", "lorentz", "drude", "general", "builtin"]
+        },
+        "base": {"$ref": "#/$defs/base"},
+        "builtin": {"enum": ["pec", "pmc", "free_space"]},
+        "poles": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+        "inclusive_conductivity_s_per_m": {"type": "number", "minimum": 0},
+        "mass_density_kg_per_m3": {"type": "number", "exclusiveMinimum": 0},
+        "averagable": {"type": "boolean"},
+        "alias": {
+          "type": "object",
+          "required": ["material"],
+          "properties": {
+            "database": {"type": "string"},
+            "material": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {"required": ["alias"]},
+        {
+          "required": ["model", "base"],
+          "properties": {"model": {"const": "constant"}}
+        },
+        {
+          "required": ["model", "base", "poles"],
+          "properties": {
+            "model": {"const": "debye"},
+            "poles": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/debye_pole"}}
+          }
+        },
+        {
+          "required": ["model", "base", "poles"],
+          "properties": {
+            "model": {"const": "lorentz"},
+            "poles": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/lorentz_pole"}}
+          }
+        },
+        {
+          "required": ["model", "base", "poles"],
+          "properties": {
+            "model": {"const": "drude"},
+            "poles": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/drude_pole"}}
+          }
+        },
+        {
+          "required": ["model", "base", "poles"],
+          "properties": {
+            "model": {"const": "general"},
+            "poles": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/general_pole"}}
+          }
+        },
+        {
+          "required": ["model", "builtin"],
+          "properties": {"model": {"const": "builtin"}}
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

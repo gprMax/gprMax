@@ -31,7 +31,32 @@ How to use the package
 The main script is ``stltovoxel.py`` which should be run at the command line and takes two arguments:
 
 * ``path`` is base path to the folder containing the STL file(s) to convert.
-* ``-dxdyz`` is the spatial discretisation of the generated voxelised mesh. It should be given as a floating point number.
+* ``-dxdydz`` is the spatial discretisation of the generated voxelised mesh. It should be given as a floating point number.
+
+STL has no standard coordinate unit. The historical toolbox assumed
+millimetres and this remains the default. Use ``--unit m``, ``--unit mm``, or
+``--unit um`` explicitly for new workflows.
+
+For a directory containing several parts, create an editable assignment table
+before conversion:
+
+.. code-block:: console
+
+    python -m toolboxes.STLtoVoxel.stltovoxel anatomy \
+        --prepare anatomy.csv
+
+Then convert with:
+
+.. code-block:: console
+
+    python -m toolboxes.STLtoVoxel.stltovoxel anatomy \
+        -dxdydz 0.002 --assignments anatomy.csv
+
+The CSV maps ``file`` independently to ``material_name`` and ``geometry_tag``.
+For example, left and right eyes may share a vitreous material while retaining
+separate tags. Higher-priority files overwrite lower-priority files wherever
+closed surfaces overlap. Filename stems become tags when no assignment file is
+provided.
 
 The physical dimensions of the voxelised object will depend on the size of the object in the original STL file and the spatial discretisation chosen.
 
@@ -43,23 +68,27 @@ The STLtoVoxel command enables real-world objects saved in stl format to be conv
 
 .. figure:: ../../images_shared/Rotated_Bunny_Import.png
     :width: 600 px
-Image of the Stanford bunny STL file imported into Bambu Studios
+
+    Image of the Stanford bunny STL file imported into Bambu Studios
 
 The information panel in the bottom-right corner displays the STL object’s dimensions in the same format used in gprMax. To rotate the object about any axis, use the rotate icon located in the top toolbar. As the STL object is rotated, the dimensions shown in the bottom-right panel will update accordingly.
 
 .. figure:: ../../images_shared/Rotated_Bunny_Upside_down.png
     :width: 600 px
-Image of the Stanford bunny STL file rotated upside down
+
+    Image of the Stanford bunny STL file rotated upside down
 
 Finally, once the object is correctly oriented in the x, y, and z planes for the gprMax model, use the menu path File → Export → Export all objects as one STL. This will generate a new STL file containing the updated orientation. As before, convert this new STL file into an HDF5 file for use within gprMax, following the procedure outlined in the previous section.
 
 .. figure:: ../../images_shared/Rotated_Bunny_Export.png
     :width: 600 px
-Image of the Stanford bunny STL file exported with new orientation
+
+    Image of the Stanford bunny STL file exported with new orientation
 
 .. figure:: ../../images_shared/Rotated_Bunny_ParaView.png
     :width: 600 px
-Image of the Stanford bunny rotated inside Paraview
+
+    Image of the Stanford bunny rotated inside Paraview
 
 
 Example
@@ -71,15 +100,28 @@ To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bu
 
     python -m toolboxes.STLtoVoxel.stltovoxel toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -dxdydz 0.001
 
-Since the number of voxels are 108 x 88 x 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108mm.
+Since the number of voxels are 108 x 88 x 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108m.
 
-The following is an example of a ``materials.txt`` file that can be used with the generated geometry file (HDF5 format) when importing into gprMax. The material index used in the HDF5 geometry file corresponds to the number of STL files converted, e.g. it will be zero if only a single STL file is converted.
+The converter also creates an editable ``_materials.json`` database beside
+the generated HDF5 file. Its
+constitutive values are initially ``null`` because the STL file contains no
+electromagnetic properties. They must be filled in before running gprMax. The
+stable keys in the database are also stored in ``/material_keys`` in the HDF5
+file, so their order cannot become detached from the voxel indices. Rerunning
+the conversion preserves an existing database when its material keys still
+match, so user-entered properties are not overwritten.
 
-.. literalinclude:: ../../toolboxes/STLtoVoxel/examples/materials.txt
-    :language: none
+The HDF5 file also contains ``tag_data`` and ``tag_names``. Tag IDs describe
+the final voxelised cells after overlap resolution and are imported by
+``GeometryObjectsRead``. They are not material IDs and dielectric smoothing
+does not alter their membership.
+
+.. literalinclude:: ../../toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny_geo_materials.json
+    :language: json
     :linenos:
 
-The following Python script (using our Python API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model. The bunny material will be sand, i.e. index zero in the materials file.
+The following Python script imports the generated geometry and selects its
+database by name. The example database assigns sand to the bunny.
 
 .. literalinclude:: ../../toolboxes/STLtoVoxel/examples/bunny.py
     :language: python

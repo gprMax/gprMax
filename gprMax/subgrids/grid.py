@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -19,6 +19,8 @@
 
 import logging
 from abc import ABC, abstractmethod
+
+import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 
@@ -66,6 +68,20 @@ class SubGridBaseGrid(FDTDGrid, ABC):
         self.n_boundary_cells_z = d_to_pml + self.pmls["thickness"]["z0"]
 
         self.interpolation = kwargs["interpolation"]
+
+    def local_to_global(self, coord):
+        """Converts a local (subgrid array) cell index to a physical
+        position in the main grid's/global coordinate frame.
+
+        Local index 0 is offset from the global origin by the subgrid's
+        boundary padding (n_boundary_cells_*) and its placement (i0, j0,
+        k0) within the main grid - this reverses that offset. See
+        SubgridUserInput.translate_to_gap in user_inputs.py, which
+        performs the forward transform when building objects.
+        """
+        boundary = np.array([self.n_boundary_cells_x, self.n_boundary_cells_y, self.n_boundary_cells_z])
+        i0 = np.array([self.i0, self.j0, self.k0])
+        return (np.asarray(coord) - boundary + i0 * self.ratio) * self.dl
 
     @abstractmethod
     def update_magnetic_is(self, precursors):

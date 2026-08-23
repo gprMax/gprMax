@@ -1,8 +1,8 @@
 .. _accelerators:
 
-****************************
+******************************
 OpenMP/CUDA/OpenCL/Apple Metal
-****************************
+******************************
 
 The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelized using different CPU and GPU accelerators to offer performance and flexibility.
 
@@ -21,6 +21,36 @@ Some of these accelerators and frameworks require additional software to be inst
 
     You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it with the aforementioned accelerators.
 
+Solver precision
+================
+
+The CPU, CUDA, and OpenCL solvers support single- and double-precision field
+storage. Single precision is the default for both CPU and accelerator solves
+because it reduces memory use and generally gives the best accelerator
+performance.
+
+For a text input file, select CPU precision with ``-cpu_precision`` and CUDA or
+OpenCL precision with ``-gpu_precision``:
+
+.. code-block:: console
+
+    (gprMax)$ python -m gprMax model.in -cpu_precision double
+    (gprMax)$ python -m gprMax model.in -gpu -gpu_precision double
+
+The corresponding Python API arguments are ``cpu_precision="double"`` and
+``gpu_precision="double"`` on :func:`gprMax.run`. Each accepts ``single`` or
+``double``. The CPU option is ignored for an accelerator solve, and the GPU
+option is ignored for a CPU solve.
+
+.. note::
+
+    * Apple Metal supports single precision only. Requesting double precision
+      with Metal is rejected before kernel compilation because the Metal
+      Shading Language has no native ``double`` type.
+    * Subgridding requires double precision and overrides a requested single
+      precision. Subgridding is currently available only with the CPU solver.
+    * Output datasets and KSIR complex phasors use the type corresponding to
+      the configured solver precision.
 
 OpenMP
 ======
@@ -50,9 +80,34 @@ Run one of the 2D test models:
 
 .. code-block:: console
 
-    (gprMax)$ mpirun -n 4 python -m gprMax examples/cylinder_Ascan_2D.in --mpi 2 2 1
+    (gprMax)$ mpirun -n 4 python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in --mpi 2 2 1
 
 The ``--mpi`` argument passed to gprMax takes three integers to define the number of MPI processes in the x, y, and z dimensions to form a cartesian grid. The product of these three numbers shoud equal the number of MPI ranks. In this case ``2 x 2 x 1 = 4``.
+
+Discrete plane waves can span MPI subdomains. Their small one-dimensional DPW
+state is replicated on every rank, and the TFSF surface corrections are
+partitioned by Yee-component ownership. Axial layered profiles are assembled
+once during model construction, so plane waves add no source-specific
+communication to the timestep loop.
+
+Eigenmode ports can also span MPI subdomains. Their component-resolved modal
+cross-sections are assembled once during construction, TF/SF source terms are
+partitioned by field ownership, and the modal spectra are reduced only at
+finalisation. A virtual waveguide replicates its compact auxiliary Yee grid on
+each rank and performs one aperture-sized magnetic-field collective per time
+step to preserve bidirectional coupling.
+
+PEC and PMC symmetry boundaries may be used on MPI domain faces. Boundary
+construction and the PMC ghost-image update are dispatched only on ranks that
+touch the selected global face. Physical domain-edge corrections are similarly
+restricted to ranks that touch both adjoining global faces, so internal halo
+seams retain the ordinary distributed Yee update.
+
+Internal one-axis PML slabs may cross MPI partitions in any direction. Their
+global CFS grading is sliced between participating ranks without restarting at
+a partition, and only rank-local PML history arrays are allocated. The normal
+field-halo exchanges join the corrected fields, so these slabs introduce no
+additional per-timestep MPI collective.
 
 .. figure:: ../../images_shared/mpi_domain_decomposition.png
     :width: 80%
@@ -107,7 +162,7 @@ By default, the MPI task farm functionality is turned off. It can be used with t
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 --taskfarm
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm
 
 
 CUDA
@@ -131,7 +186,7 @@ Run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -gpu
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -gpu
 
 .. note::
 
@@ -158,7 +213,7 @@ Run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -opencl
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -opencl
 
 .. note::
 
@@ -200,7 +255,7 @@ Run one of the test models with Metal acceleration:
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -metal
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
 
 .. note::
 
@@ -221,7 +276,7 @@ For example, to run a B-scan that contains 60 A-scans (traces) on a system with 
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 --taskfarm -gpu 0 1 2 3
+    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm -gpu 0 1 2 3
 
 .. note::
 

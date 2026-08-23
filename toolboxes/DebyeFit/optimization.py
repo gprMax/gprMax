@@ -275,7 +275,7 @@ class PSO_DLS(Optimizer):
         plt.plot(x, y, "b-", linewidth=1.0)
         plt.ylim(min(y) - 0.1 * min(y), max(y) + 0.1 * max(y))
         plt.xlim(min(x) - 0.1, max(x) + 0.1)
-        plt.grid(b=True, which="major", color="k", linewidth=0.2, linestyle="--")
+        plt.grid(visible=True, which="major", color="k", linewidth=0.2, linestyle="--")
         plt.suptitle("Debye fitting process")
         plt.xlabel("Iteration")
         plt.ylabel("Average Error")
@@ -342,7 +342,7 @@ class DA_DLS(Optimizer):
             bounds=list(zip(lb, ub)),
             args=funckwargs.values(),
             maxiter=self.maxiter,
-            local_search_options=self.local_search_options,
+            minimizer_kwargs=self.local_search_options,
             initial_temp=self.initial_temp,
             restart_temp_ratio=self.restart_temp_ratio,
             visit=self.visit,

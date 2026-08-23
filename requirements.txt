@@ -12,11 +12,14 @@ mpi4py
 numpy
 numpy-stl
 pandas
+pillow
 pre-commit
 psutil
+pytest>=7
 scipy
 terminaltables
 tqdm
+typing_extensions
 wheel
 
 # If running with CUDA backend, the following dependencies
@@ -37,8 +40,7 @@ wheel
 # pyobjc-framework-metal
 
 
-# If running with mpi domain decomposition, the following dependencies
-# are also required:
+# Distributed fractal generation additionally requires:
 
 # mpi4py-fft
 

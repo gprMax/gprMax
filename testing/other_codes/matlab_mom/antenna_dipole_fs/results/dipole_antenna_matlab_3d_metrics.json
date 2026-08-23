@@ -1,0 +1,21 @@
+{
+  "frequency_hz": 9.5E+8,
+  "reference_impedance_ohm": 73,
+  "radiation_efficiency": 1,
+  "input_impedance_real_ohm": 72.583527781719084,
+  "input_impedance_imag_ohm": 2.05504838835377,
+  "s11_magnitude_db": -36.831868416547508,
+  "mismatch_efficiency": 0.99979259789573738,
+  "total_efficiency": 0.99979259789573738,
+  "maximum_directivity_dbi": 2.1074514341812889,
+  "maximum_gain_dbi": 2.1074514341812889,
+  "maximum_realized_gain_dbi": 2.106550604866948,
+  "maximum_theta_deg": 90,
+  "maximum_phi_deg": 302,
+  "gain_identity_max_error_db": 0,
+  "realized_gain_identity_max_error_db": 1.4169438192213057E-15,
+  "radiated_power_from_pattern_w": 0.0052079051260512958,
+  "power_directivity_identity_max_error_db": 0.032188666128611487,
+  "pattern_samples": 16380,
+  "antenna_toolbox_release": "2024b"
+}

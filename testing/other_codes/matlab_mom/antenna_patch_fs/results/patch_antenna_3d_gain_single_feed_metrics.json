@@ -1,0 +1,16 @@
+{
+  "frequency_hz": 2370000000.0,
+  "feed": "single 50 Ohm voltage-source gap",
+  "angular_step_deg": 2.0,
+  "peak_gain_dbi_on_requested_grid": 6.95756196975708,
+  "maximum_directivity": 4.963265895843506,
+  "maximum_directivity_dbi": 6.9576754217381485,
+  "radiation_efficiency": 0.9999738335609436,
+  "mismatch_efficiency": 0.9324644455792825,
+  "total_efficiency": 0.9324400424957275,
+  "peak_realized_gain_dbi_on_requested_grid": 6.6538848876953125,
+  "radiated_spectral_power": 2.4299089981461953e-23,
+  "accepted_spectral_power": 2.429972580335156e-23,
+  "incident_spectral_power": 2.605968079378688e-23,
+  "source_hdf5": "patch_antenna_3d_gain_single_feed.h5"
+}

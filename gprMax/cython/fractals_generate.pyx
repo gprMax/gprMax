@@ -1,5 +1,6 @@
+# cython: cdivision=True
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -67,7 +68,7 @@ cpdef void generate_fractal2D(
                 v2y = weighting[1] * ((j + oy + sy) % gy)
 
                 # Calulate norm of v2 - v1
-                rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2)**(1/2)
+                rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2)**0.5
                 B = rr**D
                 if B == 0:
                     B = 0.9
@@ -124,7 +125,7 @@ cpdef void generate_fractal3D(
                 v2z = weighting[2] * ((k + oz + sz) % gz)
 
                 # Calulate norm of v2 - v1
-                rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**(1/2)
+                rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**0.5
                 B = rr**D
                 if B == 0:
                     B = 0.9

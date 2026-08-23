@@ -1,0 +1,43 @@
+{
+  "frequency_hz": 950000000.0,
+  "angular_samples": 16380,
+  "gprmax": {
+    "maximum_directivity_dbi": 2.1450637481205677,
+    "maximum_gain_dbi": 2.145387649536133,
+    "maximum_realized_gain_dbi": 2.130218029022217,
+    "radiation_efficiency": 1.0000746250152588,
+    "mismatch_efficiency": 0.9965131491494655,
+    "total_efficiency": 0.9965875148773193,
+    "directivity_sphere_average": 1.0000005815981905,
+    "gain_identity_max_error_db": 1.127505551141967e-05,
+    "realized_gain_identity_max_error_db": 1.005647576985541e-05,
+    "radiation_intensity_identity_max_error_db": 1.74468399336547e-05
+  },
+  "matlab": {
+    "maximum_directivity_dbi": 2.107451434181289,
+    "maximum_gain_dbi": 2.107451434181289,
+    "maximum_realized_gain_dbi": 2.106550604866948,
+    "radiation_efficiency": 1.0,
+    "mismatch_efficiency": 0.9997925978957374,
+    "total_efficiency": 0.9997925978957374,
+    "directivity_sphere_average": 0.9926156847421418,
+    "gain_identity_max_error_db": 0.0,
+    "realized_gain_identity_max_error_db": 1.4169438192213057e-15,
+    "radiation_intensity_identity_max_error_db": 0.03218866612861149
+  },
+  "ideal_half_wave": {
+    "maximum_directivity_dbi": 2.1508803201615825
+  },
+  "cross_code": {
+    "directivity_peak_difference_db": 0.037612313939278774,
+    "gain_peak_difference_db": 0.03793621535484393,
+    "realized_gain_peak_difference_db": 0.02366742415526879,
+    "directivity_rms_difference_db_above_floor": 0.025152872925976927,
+    "normalized_pattern_rms_difference_db_above_floor": 0.019140191421294677,
+    "gprmax_vs_ideal_normalized_pattern_rms_db": 0.01929284195967817,
+    "matlab_vs_ideal_normalized_pattern_rms_db": 0.03840282937043661,
+    "radiation_efficiency_difference": 7.462501525878906e-05,
+    "mismatch_efficiency_difference": -0.0032794487462718402,
+    "total_efficiency_difference": -0.0032050830184180423
+  }
+}

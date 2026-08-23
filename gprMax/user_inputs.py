@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -19,15 +19,18 @@
 from __future__ import annotations
 
 import logging
-from typing import Generic, Tuple
+import math
+from typing import Generic, Optional, Tuple
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeVar
 
+from gprMax import config
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.utilities.mpi import Dim, Dir
 
 from .utilities.utilities import round_int
 
@@ -66,6 +69,93 @@ class UserInput(Generic[GridType]):
                 s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
             logger.exception(s)
             raise
+
+    def resolve_inf_point(
+        self, point: Tuple[float, float, float], role: Optional[str] = None
+    ) -> Tuple[float, float, float]:
+        """Resolve any `inf` entries in a coordinate to a concrete
+        physical coordinate, before discretisation.
+
+        Only meaningful, and only allowed, in an active 2D mode (TM or
+        TE) - see #domain_mode. `inf` exists specifically to hide the
+        1-cell-TM-vs-2-cell-TE discrepancy on the invariant axis; there
+        is no equivalent ambiguity in a 3D model, where every coordinate
+        already has one unambiguous meaning, so `inf` there would only
+        ever be a convenience for "snap to the domain edge" - which
+        turned out to be more trouble than it's worth (in particular, it
+        cannot be resolved correctly for subgrid-scoped objects, whose
+        coordinates are in the global/main-grid frame, not relative to
+        the subgrid's own array).
+        Using `inf` in a 3D model (or on a subgrid, which can never be
+        2D - 2D and sub-gridding are mutually exclusive) is therefore
+        rejected outright, with a clear error, rather than silently
+        doing something that may be subtly wrong.
+
+        For a range endpoint (role="lower"/"upper"), resolution is
+        purely positional and ignores sign: `inf` in a "lower" role
+        resolves to the axis origin (0.0); in an "upper" role it
+        resolves to the axis extent. This correctly spans the full
+        invariant-axis thickness (TM's single cell or TE's two cells)
+        with no special-casing needed, since "lower" and "upper" are
+        still genuinely distinct positions (0 and axis extent) there.
+        This also applies normally to non-invariant axes within an
+        active 2D model (e.g. an edge's in-plane run axis) - the
+        2D-only restriction is a model-level gate, not an axis-level one.
+
+        For a single point (role=None), the sign of `inf` carries the
+        meaning directly: `-inf` resolves to the axis origin, `inf`/
+        `+inf` resolves to the axis extent - UNLESS the axis is the
+        invariant axis of the active 2D mode, in which case (regardless
+        of sign) it instead resolves to that mode's interior reference
+        layer. This override is single-point-only: unlike a range
+        endpoint, a single point has no "lower"/"upper" role to fall
+        back on, so without it `inf`/`-inf` would resolve to the axis
+        origin/extent - which for TE is a boundary layer forced to
+        pec/pmc (a dead position, see tex()/tey()/tez()), not the
+        genuinely propagating interior layer a source/receiver needs.
+
+        Args:
+            point: x, y, z coordinates of the point in space, may
+                contain `inf`/`-inf` entries.
+            role: "lower" or "upper" for a range endpoint, None for a
+                single point.
+
+        Returns:
+            resolved_point: point with any `inf` entries replaced by a
+                concrete physical coordinate.
+        """
+        if not any(math.isinf(v) for v in point):
+            return point
+
+        mode = config.get_model_config().mode
+        if not mode.startswith("2D"):
+            raise ValueError(
+                f"'inf' is only allowed in a coordinate when the model is in "
+                f"2D mode (see #domain_mode) - the current mode is '{mode}'. "
+                "In 3D, specify explicit coordinates instead."
+            )
+
+        invariant_axis = "xyz".index(mode[-1])
+
+        resolved = list(point)
+        for i, v in enumerate(point):
+            if not math.isinf(v):
+                continue
+
+            if role is None and i == invariant_axis:
+                reference_index = 1 if "TE" in mode else 0
+                resolved[i] = reference_index * self.grid.dl[i]
+                continue
+
+            axis_size = self.grid.dl[i] * (self.grid.nx, self.grid.ny, self.grid.nz)[i]
+            if role == "lower":
+                resolved[i] = 0.0
+            elif role == "upper":
+                resolved[i] = axis_size
+            else:
+                resolved[i] = axis_size if v > 0 else 0.0
+
+        return tuple(resolved)
 
     def discretise_static_point(self, point: Tuple[float, float, float]) -> npt.NDArray[np.int32]:
         """Get the nearest grid index to a continuous static point.
@@ -259,8 +349,20 @@ class MainGridUserInput(UserInput[GridType]):
         else:
             raise ValueError("Dimension should have value x, y, or z")
 
+        # ``lower_point`` and ``upper_point`` use zero-valued coordinates
+        # outside the requested dimension only as carriers for the scalar
+        # extent. Those placeholder coordinates are not part of the object.
+        # In an offset subgrid they translate to negative local indices, so
+        # passing the whole carrier point to ``within_bounds`` can reject a
+        # valid thickness in an unrelated dimension. Use a valid local anchor
+        # for the transverse coordinates and retain only the requested-axis
+        # coordinate. This also preserves MPIGrid.within_bounds' conversion
+        # back to global coordinates.
+        bounds_point = np.zeros_like(upper_point)
+        bounds_point[index] = upper_point[index]
+
         try:
-            self.grid.within_bounds(upper_point)
+            self.grid.within_bounds(bounds_point)
         except ValueError:
             raise ValueError(
                 f"'{cmd_str}' extends beyond the size of the model in the {dimension} dimension"
@@ -323,15 +425,30 @@ class MPIUserInput(MainGridUserInput[MPIGrid]):
     ) -> Tuple[bool, npt.NDArray[np.int32], npt.NDArray[np.int32]]:
         _, lower_point, upper_point = super().check_box_points(p1, p2, cmd_str)
 
+        # Determine overlap before clipping. A zero-thickness dimension is a
+        # plane coordinate rather than an interval. Coordinates on an internal
+        # positive rank face belong to the neighbouring rank, while a
+        # coordinate on the global maximum face must remain on the terminal
+        # rank. The latter is required for edges and plates on xmax/ymax/zmax.
+        overlaps = []
+        for dimension in Dim:
+            lower = lower_point[dimension]
+            upper = upper_point[dimension]
+            size = self.grid.size[dimension]
+
+            if lower == upper:
+                overlaps.append(
+                    0 <= lower < size
+                    or (lower == size and not self.grid.has_neighbour(dimension, Dir.POS))
+                )
+            else:
+                overlaps.append(lower < size and upper > 0)
+
         # Restrict points to the bounds of the local grid
         lower_point = np.where(lower_point < 0, 0, lower_point)
         upper_point = np.where(upper_point > self.grid.size, self.grid.size, upper_point)
 
-        return (
-            all(lower_point <= upper_point) and all(lower_point < self.grid.size),
-            lower_point,
-            upper_point,
-        )
+        return all(overlaps), lower_point, upper_point
 
 
 class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):

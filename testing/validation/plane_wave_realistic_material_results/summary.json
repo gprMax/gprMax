@@ -1,0 +1,94 @@
+{
+  "precision": "double",
+  "threads": 4,
+  "backend": "cuda:1",
+  "runtime_seconds": {
+    "puerto_rico_clay_10pct": {
+      "free_space": 491.77740409970284,
+      "halfspace": 217.06072276830673
+    },
+    "fresh_water_25c": {
+      "free_space": 51.178943399339914,
+      "halfspace": 54.62622427754104
+    }
+  },
+  "cases": {
+    "puerto_rico_clay_10pct": {
+      "dl_metres": 0.0005,
+      "dt_seconds": 1.179327168374842e-12,
+      "time_window_seconds": 1.2e-07,
+      "frequency_band_hz": [
+        20000000.0,
+        2200000000.0
+      ],
+      "evaluated_frequency_range_hz": [
+        24999738.19215558,
+        2199976960.909691
+      ],
+      "frequency_samples": 262,
+      "effective_interface_x_metres": 0.08975,
+      "receiver_to_interface_metres": 0.01725,
+      "magnitude_rmse": 6.276677462197396e-05,
+      "magnitude_max_error": 0.00013718122813666245,
+      "phase_rmse_degrees": 0.0004767658810325331,
+      "phase_max_error_degrees": 0.00462093062638873,
+      "complex_relative_l2_error": 0.00014460661120640973
+    },
+    "fresh_water_25c": {
+      "dl_metres": 5e-05,
+      "dt_seconds": 1.17932716837484e-13,
+      "time_window_seconds": 3e-09,
+      "frequency_band_hz": [
+        1000000000.0,
+        80000000000.0
+      ],
+      "evaluated_frequency_range_hz": [
+        1333240754.7193937,
+        79994445283.16362
+      ],
+      "frequency_samples": 237,
+      "effective_interface_x_metres": 0.008974999999999999,
+      "receiver_to_interface_metres": 0.0017249999999999982,
+      "magnitude_rmse": 0.0023056076092008047,
+      "magnitude_max_error": 0.004446603827658602,
+      "phase_rmse_degrees": 0.11274221917855132,
+      "phase_max_error_degrees": 0.23168483893324435,
+      "complex_relative_l2_error": 0.003624877882604315
+    }
+  },
+  "acceptance": {
+    "passed": true,
+    "checks": {
+      "puerto_rico_clay_10pct_magnitude_rmse": {
+        "value": 6.276677462197396e-05,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "puerto_rico_clay_10pct_complex_relative_l2_error": {
+        "value": 0.00014460661120640973,
+        "maximum": 0.02,
+        "passed": true
+      },
+      "puerto_rico_clay_10pct_phase_rmse_degrees": {
+        "value": 0.0004767658810325331,
+        "maximum": 0.5,
+        "passed": true
+      },
+      "fresh_water_25c_magnitude_rmse": {
+        "value": 0.0023056076092008047,
+        "maximum": 0.01,
+        "passed": true
+      },
+      "fresh_water_25c_complex_relative_l2_error": {
+        "value": 0.003624877882604315,
+        "maximum": 0.02,
+        "passed": true
+      },
+      "fresh_water_25c_phase_rmse_degrees": {
+        "value": 0.11274221917855132,
+        "maximum": 0.5,
+        "passed": true
+      }
+    }
+  }
+}

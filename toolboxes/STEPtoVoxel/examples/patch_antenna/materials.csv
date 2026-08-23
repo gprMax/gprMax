@@ -1,0 +1,8 @@
+group_id,group_confidence,similar_group,part_count,part_names,include,priority,material_name,relative_permittivity,conductivity,relative_permeability,magnetic_loss
+G001,unique,,1,DIE,y,2,coax_dielectric,2.1,0,1,0
+G002,unique,,1,GROUND,y,3,pec,1,inf,1,0
+G003,unique,,1,INNER,y,6,pec,1,inf,1,0
+G004,unique,,1,OUTER,y,5,pec,1,inf,1,0
+G005,unique,,1,PATCH,y,4,pec,1,inf,1,0
+G006,unique,,1,SUB,y,1,substrate,2.2,0,1,0
+G007,unique,,1,port1,n,0,,,,1,0

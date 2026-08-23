@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -90,14 +90,27 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         self.iteration = 0
 
     def store_outputs(self):
-        return super().store_outputs(self.iteration)
+        super().store_outputs(self.iteration)
+        super().store_snapshots(self.iteration)
+        super().observe_sar_electric(self.iteration)
 
     def update_electric_sources(self):
-        super().update_electric_sources(self.iteration)
+        iteration = self.iteration
+        super().update_electric_sources(iteration)
+        super().update_eigenmode_sources_electric(iteration)
         self.iteration += 1
 
     def update_magnetic_sources(self):
-        return super().update_magnetic_sources(self.iteration)
+        super().update_magnetic_sources(self.iteration)
+        super().update_eigenmode_sources_magnetic(self.iteration)
+        super().observe_eigenmode_ports(self.iteration)
+
+    def update_network_terminals(self):
+        """Update sparse terminals at the fine-grid electric time step."""
+
+        # update_electric_sources() has just advanced the shared fine-grid
+        # iteration counter, so the terminal history index is one behind it.
+        return super().update_network_terminals(self.iteration - 1)
 
     def hsg_1(self):
         """First half of the subgrid update. Takes the time step up to the main
@@ -121,6 +134,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             subgrid.update_electric_is(precursors)
             self.update_electric_sources()
             self.update_electric_b()
+            self.update_network_terminals()
             self.update_magnetic()
             self.update_magnetic_pml()
             precursors.interpolate_electric_in_time(m)
@@ -134,6 +148,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         subgrid.update_electric_is(precursors)
         self.update_electric_sources()
         self.update_electric_b()
+        self.update_network_terminals()
         subgrid.update_electric_os(G)
 
     def hsg_2(self):
@@ -163,6 +178,7 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             subgrid.update_electric_is(precursors)
             self.update_electric_sources()
             self.update_electric_b()
+            self.update_network_terminals()
 
         self.update_magnetic()
         self.update_magnetic_pml()

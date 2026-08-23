@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -67,7 +67,11 @@ class CustomFormatter(logging.Formatter):
         colour = MAPPING.get(levelname, Fore.BLUE)  # default white
         colored_levelname = f"{colour}{levelname}{Style.RESET_ALL}"
         colored_record.levelname = colored_levelname
-        colored_record.msg = f"{colour}{colored_record.getMessage()}{Style.RESET_ALL}"
+        message = colored_record.getMessage()
+        colored_record.msg = f"{colour}{message}{Style.RESET_ALL}"
+        # ``Formatter.format`` calls ``getMessage`` again. Clear the copied
+        # arguments now that %-style interpolation has already been applied.
+        colored_record.args = ()
         return logging.Formatter.format(self, colored_record)
 
 
@@ -91,6 +95,9 @@ def logging_config(
     format_std = "%(message)s"
     format_full = "%(asctime)s:%(levelname)s:%(name)s:%(lineno)d: %(message)s"
 
+    if format_style not in {"std", "full"}:
+        raise ValueError("format_style must be 'std' or 'full'")
+
     # Set format style
     if format_style == "full" or level == logging.DEBUG:
         format = format_full
@@ -103,7 +110,9 @@ def logging_config(
     logger.propagate = False
 
     if logger.hasHandlers():
-        logger.handlers.clear()
+        for existing_handler in logger.handlers[:]:
+            logger.removeHandler(existing_handler)
+            existing_handler.close()
 
     # Don't add handlers for non-zero ranks unless logging is turned on
     # for all ranks

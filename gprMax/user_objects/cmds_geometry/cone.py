@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -21,10 +21,11 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_cone
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
-from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging
+from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, geometry_tag_args
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,14 @@ class Cone(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify two points and two radii")
             raise
 
+        if config.get_model_config().mode.startswith("2D"):
+            raise ValueError(
+                f"{self.__str__()} cannot be used in 2D mode - a cone's circular "
+                "cross-section varies along its axis, so it is not invariant along "
+                "the invariant axis. Use a Cylinder instead if a constant "
+                "cross-section is required."
+            )
+
         # Check averaging
         try:
             # Try user-specified averaging
@@ -85,11 +94,18 @@ class Cone(GeometryUserObject):
                 raise
 
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1, role="lower")
+        p2 = uip.resolve_inf_point(p2, role="upper")
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
 
         x1, y1, z1 = uip.round_to_grid(p1)
         x2, y2, z2 = uip.round_to_grid(p2)
+
+        if (x1, y1, z1) == (x2, y2, z2):
+            message = f"{self.__str__()} the two face centres must occupy different grid points."
+            logger.error(message)
+            raise ValueError(message)
 
         if r1 < 0:
             logger.exception(
@@ -111,14 +127,19 @@ class Cone(GeometryUserObject):
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
-            notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
-            raise ValueError
+            found_ids = {material.ID for material in materials}
+            notfound = [
+                material_id for material_id in materialsrequested if material_id not in found_ids
+            ]
+            message = f"{self.__str__()} material(s) {notfound} do not exist"
+            logger.error(message)
+            raise ValueError(message)
 
         # Isotropic case
         if len(materials) == 1:
             averaging = materials[0].averagable and averagecone
             numID = numIDx = numIDy = numIDz = materials[0].numID
+            pec_x = pec_y = pec_z = materials[0].is_pec
 
         # Uniaxial anisotropic case
         elif len(materials) == 3:
@@ -126,10 +147,13 @@ class Cone(GeometryUserObject):
             numIDx = materials[0].numID
             numIDy = materials[1].numID
             numIDz = materials[2].numID
+            pec_x = materials[0].is_pec
+            pec_y = materials[1].is_pec
+            pec_z = materials[2].is_pec
             requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
             averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
-                numID = averagedmaterial.numID
+                numID = averagedmaterial[0].numID
             else:
                 numID = len(grid.materials)
                 m = Material(numID, requiredID)
@@ -143,6 +167,7 @@ class Cone(GeometryUserObject):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
+        tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
         build_cone(
             x1,
             y1,
@@ -160,10 +185,15 @@ class Cone(GeometryUserObject):
             numIDy,
             numIDz,
             averaging,
+            pec_x,
+            pec_y,
+            pec_z,
             grid.solid,
             grid.rigidE,
             grid.rigidH,
             grid.ID,
+            tag_data,
+            tag_id,
         )
 
         dielectricsmoothing = "on" if averaging else "off"

@@ -1,0 +1,16 @@
+{
+  "TM": {
+    "relative_l2_difference": 5.939597590132193e-13,
+    "maximum_absolute_difference_W_per_kg": 9.204876444401933e-17,
+    "cpu_power_W_per_m": 6.368099305246719e-05,
+    "cuda_power_W_per_m": 6.368099305243684e-05,
+    "relative_power_difference": 4.765077221691172e-13
+  },
+  "TE": {
+    "relative_l2_difference": 1.6946896688990768e-12,
+    "maximum_absolute_difference_W_per_kg": 4.2747381155672226e-16,
+    "cpu_power_W_per_m": 9.739701123581062e-05,
+    "cuda_power_W_per_m": 9.739701123570601e-05,
+    "relative_power_difference": 1.0740297540223764e-12
+  }
+}

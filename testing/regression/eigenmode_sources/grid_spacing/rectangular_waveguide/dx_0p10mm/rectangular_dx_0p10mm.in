@@ -1,0 +1,18 @@
+#title: Rectangular PEC waveguide grid-spacing sweep, dx = 0.10 mm
+
+#domain: 0.012 0.008 0.006
+#dx_dy_dz: 0.0001 0.0001 0.0001
+#time_window: 0.3e-9
+## Keep the physical PML thickness at 1 mm for every spacing.
+#pml_cells: 10
+
+
+#box: 0 0 0 0.012 0.001 0.006 pec
+#box: 0 0.007 0 0.012 0.008 0.006 pec
+#box: 0 0 0 0.012 0.008 0.001 pec
+#box: 0 0 0.005 0.012 0.008 0.006 pec
+
+#eigenmode_band: eigenmode_band 45e9 65e9 81
+#eigenmode_port: 1 0.002 0.001 0.001 0.002 0.007 0.005 + 1 auto n
+#eigenmode_port: 2 0.011 0.001 0.001 0.011 0.007 0.005 - 1 auto n
+#eigenmode_excitation: 1 1 auto

@@ -2,18 +2,29 @@
 # $ conda env create -f <this file>
 
 name: gprMax-devel
+channels:
+- conda-forge
+- nodefaults
 dependencies:
-- python>3.7
+- python=3.12
 - colorama
 - cython
 - h5py
 - jinja2
 - jupyter
 - matplotlib
+- meshio
+- nibabel
 - numpy
+- pillow
 - pip
 - psutil
+- pytest>=7
+- pynrrd
+- pyvista
+- pythonocc-core
 - scipy
+- simpleitk
 
 - pip:
   - humanize

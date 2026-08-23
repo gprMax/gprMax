@@ -35,10 +35,13 @@ args_defaults = {
     "gpu": None,
     "opencl": None,
     "metal": None,
+    "cpu_precision": "single",
+    "gpu_precision": "single",
     "subgrid": False,
     "autotranslate": False,
     "geometry_only": False,
     "geometry_fixed": False,
+    "study": None,
     "write_processed": False,
     "show_progress_bars": False,
     "hide_progress_bars": False,
@@ -81,6 +84,16 @@ help_msg = {
         " device(s)."
     ),
     "metal": "(list/bool, opt): Flag to use Apple Metal or list of Apple Metal GPU device ID(s) for specific GPU card(s).",
+    "cpu_precision": (
+        "(str, opt): Precision (single/double) for the CPU solver. Defaults to single to"
+        " preserve memory - ignored if a GPU solver or sub-gridding is used (sub-gridding"
+        " always uses double, regardless of this setting)."
+    ),
+    "gpu_precision": (
+        "(str, opt): Precision (single/double) for the CUDA/OpenCL/Metal solvers. Defaults"
+        " to single. Ignored if the CPU solver is used, or if sub-gridding is used"
+        " (sub-gridding always uses double and is currently CPU-only)."
+    ),
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": (
         "(bool, opt): For sub-gridding - auto translate objects with main grid coordinates to their"
@@ -126,10 +139,13 @@ def run(
     gpu=args_defaults["gpu"],
     opencl=args_defaults["opencl"],
     metal=args_defaults["metal"],
+    cpu_precision=args_defaults["cpu_precision"],
+    gpu_precision=args_defaults["gpu_precision"],
     subgrid=args_defaults["subgrid"],
     autotranslate=args_defaults["autotranslate"],
     geometry_only=args_defaults["geometry_only"],
     geometry_fixed=args_defaults["geometry_fixed"],
+    study=args_defaults["study"],
     write_processed=args_defaults["write_processed"],
     show_progress_bars=args_defaults["show_progress_bars"],
     hide_progress_bars=args_defaults["hide_progress_bars"],
@@ -171,6 +187,14 @@ def run(
             device ID(s) for specific compute device(s).
         metal: optional list/boolean to use Apple Metal or list of Apple
             Metal GPU device ID(s) for specific GPU card(s).
+        cpu_precision: optional string, "single" or "double", precision
+            for the CPU solver. Defaults to "single" to preserve memory -
+            ignored if a GPU solver or sub-gridding is used (sub-gridding
+            always uses double, regardless of this setting).
+        gpu_precision: optional string, "single" or "double", precision
+            for the CUDA/OpenCL/Metal solvers. Defaults to "single".
+            Ignored if the CPU solver is used, or if sub-gridding is used
+            (sub-gridding always uses double and is currently CPU-only).
         subgrid: optional boolean to use sub-gridding.
         autotranslate: optional boolean for sub-gridding to auto
             translate objects with main grid coordinates to their
@@ -181,6 +205,8 @@ def run(
             geometry views but do not run the simulation.
         geometry_fixed: optional boolean to run a series of models where
             the geometry does not change between models.
+        study: optional Study instance defining validated per-run object
+            states while reusing one geometry.
         write_processed: optional boolean to write another input file
             after any #python blocks (which are deprecated) in the
             original input file has been processed.
@@ -210,10 +236,13 @@ def run(
             "gpu": gpu,
             "opencl": opencl,
             "metal": metal,
+            "cpu_precision": cpu_precision,
+            "gpu_precision": gpu_precision,
             "subgrid": subgrid,
             "autotranslate": autotranslate,
             "geometry_only": geometry_only,
             "geometry_fixed": geometry_fixed,
+            "study": study,
             "write_processed": write_processed,
             "show_progress_bars": show_progress_bars,
             "hide_progress_bars": hide_progress_bars,
@@ -223,7 +252,7 @@ def run(
         }
     )
 
-    run_main(args)
+    return run_main(args)
 
 
 def cli():
@@ -255,6 +284,18 @@ def cli():
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument("-metal", type=int, action="append", nargs="*", help=help_msg["metal"])
+    parser.add_argument(
+        "-cpu_precision",
+        choices=["single", "double"],
+        default=args_defaults["cpu_precision"],
+        help=help_msg["cpu_precision"],
+    )
+    parser.add_argument(
+        "-gpu_precision",
+        choices=["single", "double"],
+        default=args_defaults["gpu_precision"],
+        help=help_msg["gpu_precision"],
+    )
     parser.add_argument(
         "--geometry-only",
         action="store_true",
@@ -319,6 +360,9 @@ def run_main(args):
             script.
     """
 
+    from gprMax.studies import preflight_study_args
+
+    preflight_study_args(args)
     results = {}
     logging_config(
         level=args.log_level,

@@ -23,6 +23,55 @@ The performance metric used to measure the throughput of the solver is:
 
 where P is the throughput in millions of cells per second; NX, NY, and NZ are the number of cells in domain in the x, y, and z directions; NT is the number of time-steps in the simulation; and T is the runtime of the simulation in seconds.
 
+NTFF benchmarking and validation
+================================
+
+The incremental cost of KSIR near-to-far-field collection can be measured with
+the reusable-surface benchmark. It brackets the monitored cases with
+unmonitored baseline runs and writes the complete configuration, individual
+run times, collection backend, slowdown, and overhead to JSON. CPU, CUDA,
+OpenCL, and Metal use the same benchmark model and configured gprMax precision.
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.benchmark_ntff --backend cpu --threads 8 --precision double
+    (gprMax)$ python -m testing.benchmarking.benchmark_ntff --backend cuda --device 0 --precision single
+
+The surface sizes, frequency counts, number of repeats, and output filename
+can be changed using command-line options; run the module with ``--help`` for
+the complete list.
+
+End-to-end :ref:`analytical validation cases <analytical-comparisons>` are
+provided separately. They include
+dielectric and dispersive half-space reflection against Fresnel theory,
+Hertzian-dipole far- and near-field comparisons, and broadband PEC- and
+dielectric-sphere backscatter through the Mie resonances. The Debye-sphere
+case additionally compares averaged and staircased dispersive interfaces.
+Solver HDF5 files are
+treated as local cache data; compact reports, CSV tables, and plots record the
+comparison with the independent analytical solution.
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.validation.validate_plane_wave_dispersive_halfspace --gpu 0
+    (gprMax)$ python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
+    (gprMax)$ python -m testing.validation.validate_hertzian_dipole --gpu 0
+    (gprMax)$ python -m testing.validation.planar_layered_ntff.validate_point_dipole
+    (gprMax)$ python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
+    (gprMax)$ python -m testing.validation.validate_debye_sphere_averaging --gpu 0
+    (gprMax)$ python -m testing.validation.validate_pec_sphere_rcs --gpu 0
+
+The OpenMP/Cython angular summation used by the planar-layered transform can
+also be compared directly with its independent NumPy implementation:
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.benchmark_layered_ntff --threads 8
+
+Omit ``--gpu`` to use the CPU. See :download:`the validation README
+<../../testing/validation/README.rst>` for the scope of each case and the
+output layout.
+
 Apple Metal GPU Benchmarking
 =============================
 
@@ -64,21 +113,15 @@ The script will automatically:
 Visualization Tools
 ===================
 
-Additional plotting utilities are available for advanced benchmarking analysis:
-
-.. literalinclude:: ../../testing/benchmarking/plot_gpu_benchmark.py
-    :language: python
-    :linenos:
-    :lines: 1-25
-
-This plotting script enables:
+The ``benchmark_metal.py`` script includes plotting support for:
 
 * **Multi-platform comparison**: Compare results across different hardware configurations
 * **Custom data visualization**: Load and plot benchmark data from various sources
 * **Performance trend analysis**: Visualize performance scaling with domain size
 * **Publication-ready plots**: Generate high-quality figures for reports and papers
 
-The script can load data from the Metal benchmarking results and create comparative plots showing the performance characteristics of Apple Metal against other accelerators.
+The generated plots compare the performance characteristics of Apple Metal and
+the CPU solver across the requested domain sizes.
 
 .. figure:: ../../images_shared/GPU_NVIDIA.png
     :width: 600px

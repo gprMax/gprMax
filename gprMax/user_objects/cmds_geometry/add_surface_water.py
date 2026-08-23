@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -80,6 +80,45 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
             raise ValueError(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
 
         uip = self._create_uip(grid)
+
+        # p1/p2 have one flat (normal) axis, where the coordinates must be
+        # equal, and two extent axes - same structure as
+        # #add_surface_roughness/#add_grass. Resolve the flat axis sign-based
+        # (role=None) so both points land on the same value, and the two
+        # extent axes positionally (role="lower"/"upper"). No separate
+        # Case-A (normal==invariant axis) guard is needed here: this
+        # command requires an existing FractalSurface on the same face,
+        # which #add_surface_roughness's own Case-A guard already prevents
+        # from ever being created there.
+        p1_arr = np.asarray(p1, dtype=np.float64)
+        p2_arr = np.asarray(p2, dtype=np.float64)
+        flat_axis = next(
+            (
+                axis
+                for axis in range(3)
+                if p1_arr[axis] == p2_arr[axis]
+                and not (np.isinf(p1_arr[axis]) and np.isinf(p2_arr[axis]))
+            ),
+            None,
+        )
+        if flat_axis is None:
+            flat_axis = next(
+                (axis for axis in range(3) if np.isinf(p1_arr[axis]) and np.isinf(p2_arr[axis])),
+                None,
+            )
+        p1_ranged = uip.resolve_inf_point(p1, role="lower")
+        p2_ranged = uip.resolve_inf_point(p2, role="upper")
+        if flat_axis is not None and (
+            np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])
+        ):
+            p1_single = uip.resolve_inf_point(p1, role=None)
+            p2_single = uip.resolve_inf_point(p2, role=None)
+            p1 = tuple(p1_single[a] if a == flat_axis else p1_ranged[a] for a in range(3))
+            p2 = tuple(p2_single[a] if a == flat_axis else p2_ranged[a] for a in range(3))
+        else:
+            p1 = p1_ranged
+            p2 = p2_ranged
+
         discretised_p1, discretised_p2 = uip.check_output_object_bounds(p1, p2, self.__str__())
         xs, ys, zs = discretised_p1
         xf, yf, zf = discretised_p2

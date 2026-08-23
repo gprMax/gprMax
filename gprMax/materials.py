@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -26,6 +26,47 @@ import gprMax.config as config
 logger = logging.getLogger(__name__)
 
 
+def validate_lorentz_pole(frequency_hz: float, damping_per_s: float, dt: float) -> None:
+    """Validate a Lorentz pole for the recursive material formulation.
+
+    Lorentz resonance frequencies are supplied in hertz, whereas the
+    coefficient construction uses the angular frequency ``2 * pi * f``.
+    The simple conjugate-pole representation used by gprMax is valid only for
+    an underdamped pole.
+    """
+
+    if frequency_hz <= 0:
+        raise ValueError("Lorentz resonance frequency must be positive")
+    if damping_per_s < 0:
+        raise ValueError("Lorentz damping coefficient must be non-negative")
+    if frequency_hz >= 1.0 / dt:
+        raise ValueError("Lorentz resonance frequency must be below 1 / dt")
+    if damping_per_s >= 1.0 / dt:
+        raise ValueError("Lorentz damping coefficient must be below 1 / dt")
+
+    angular_frequency = 2.0 * np.pi * frequency_hz
+    if damping_per_s >= angular_frequency or np.isclose(
+        damping_per_s,
+        angular_frequency,
+        rtol=1e-12,
+        atol=0.0,
+    ):
+        raise ValueError("Lorentz damping coefficient must be below 2 * pi * resonance frequency")
+
+
+def validate_drude_pole(frequency_hz: float, collision_per_s: float, dt: float) -> None:
+    """Validate a Drude pole for the recursive material formulation."""
+
+    if frequency_hz <= 0:
+        raise ValueError("Drude plasma frequency must be positive")
+    if collision_per_s <= 0:
+        raise ValueError("Drude collision frequency must be positive")
+    if frequency_hz >= 1.0 / dt:
+        raise ValueError("Drude plasma frequency must be below 1 / dt")
+    if collision_per_s >= 1.0 / dt:
+        raise ValueError("Drude collision frequency must be below 1 / dt")
+
+
 class Material:
     """Super-class to describe generic, non-dispersive materials,
     their properties and update coefficients.
@@ -49,6 +90,12 @@ class Material:
         self.se = 0.0
         self.mr = 1.0
         self.sm = 0.0
+
+        # Optional cell-centred physical mass density in SI units. Density is
+        # deliberately not part of the electromagnetic update coefficients or
+        # dielectric smoothing: it belongs to the final volumetric material
+        # assignment and is consumed only by derived quantities such as SAR.
+        self.mass_density = None
 
     def __eq__(self, value: object) -> bool:
         if isinstance(value, Material):
@@ -111,6 +158,34 @@ class Material:
         """
         return self.ID.count("+") > 0
 
+    @property
+    def is_pec(self) -> bool:
+        """Check if a material is electrically a perfect conductor (PEC).
+
+        Matches the builtin 'pec' material by name, or any user-defined
+        material with infinite electric conductivity (se == inf) - the same
+        criterion already used in calculate_update_coeffsE() and in
+        Material.build()'s averagable check, so a custom PEC-equivalent
+        material is treated consistently everywhere.
+
+        Returns:
+            is_pec: True if material is PEC or PEC-equivalent.
+        """
+        return self.ID == "pec" or self.se == float("inf")
+
+    @property
+    def is_pmc(self) -> bool:
+        """Check if a material is magnetically a perfect conductor (PMC).
+
+        This mirrors :attr:`is_pec`: the builtin material name and a
+        user-defined infinite magnetic conductivity are equivalent to the
+        magnetic-field update equations.
+
+        Returns:
+            is_pmc: True if material is PMC or PMC-equivalent.
+        """
+        return self.ID == "pmc" or self.sm == float("inf")
+
     @staticmethod
     def create_compound_id(*materials: "Material") -> str:
         """Create a compound ID from existing materials.
@@ -139,11 +214,19 @@ class Material:
 
         HA = (config.m0 * self.mr / G.dt) + 0.5 * self.sm
         HB = (config.m0 * self.mr / G.dt) - 0.5 * self.sm
-        self.DA = HB / HA
-        self.DBx = (1 / G.dx) * 1 / HA
-        self.DBy = (1 / G.dy) * 1 / HA
-        self.DBz = (1 / G.dz) * 1 / HA
-        self.srcm = 1 / HA
+
+        if self.ID == "pmc" or self.sm == float("inf"):
+            self.DA = 0
+            self.DBx = 0
+            self.DBy = 0
+            self.DBz = 0
+            self.srcm = 0
+        else:
+            self.DA = HB / HA
+            self.DBx = (1 / G.dx) * 1 / HA
+            self.DBy = (1 / G.dy) * 1 / HA
+            self.DBz = (1 / G.dz) * 1 / HA
+            self.srcm = 1 / HA
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -206,6 +289,12 @@ class DispersiveMaterial(Material):
         self.deltaer = []
         self.tau = []
         self.alpha = []
+        # Compound interface materials use the inclusive susceptibility
+        # representation of Giannakis and Giannopoulos (2014). It permits
+        # Debye, Lorentz, and Drude terms to coexist in one recursive update.
+        self.inclusive_w = []
+        self.inclusive_q = []
+        self.inclusive_conductivity = 0.0
 
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
@@ -241,8 +330,18 @@ class DispersiveMaterial(Material):
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
 
+        # The Drude susceptibility contains a constant causal term whose
+        # time derivative is equivalent to an electric conductivity. Keep
+        # that numerical conductivity local: ``self.se`` is the physical
+        # conductivity supplied by the user and must neither be overwritten
+        # nor accumulated if coefficients are calculated more than once.
+        effective_se = self.se
+
         for x in range(self.poles):
-            if "debye" in self.type:
+            if self.inclusive_w:
+                self.w[x] = self.inclusive_w[x]
+                self.q[x] = self.inclusive_q[x]
+            elif "debye" in self.type:
                 self.w[x] = self.deltaer[x] / self.tau[x]
                 self.q[x] = -1 / self.tau[x]
             elif "lorentz" in self.type:
@@ -255,7 +354,7 @@ class DispersiveMaterial(Material):
                 # tau for Drude materials are pole frequencies
                 # alpha for Drude materials are the inverse of relaxation times
                 wp2 = (2 * np.pi * self.tau[x]) ** 2
-                self.se += wp2 / self.alpha[x]
+                effective_se += config.sim_config.em_consts["e0"] * wp2 / self.alpha[x]
                 self.w[x] = -(wp2 / self.alpha[x])
                 self.q[x] = -self.alpha[x]
 
@@ -264,22 +363,36 @@ class DispersiveMaterial(Material):
             self.zt[x] = (self.w[x] / self.q[x]) * (1 - self.eqt[x]) / G.dt
             self.zt2[x] = (self.w[x] / self.q[x]) * (1 - self.eqt2[x])
 
+        effective_se += self.inclusive_conductivity
         EA = (
             (config.sim_config.em_consts["e0"] * self.er / G.dt)
-            + 0.5 * self.se
+            + 0.5 * effective_se
             - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
         EB = (
             (config.sim_config.em_consts["e0"] * self.er / G.dt)
-            - 0.5 * self.se
+            - 0.5 * effective_se
             - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
         )
 
-        self.CA = EB / EA
-        self.CBx = (1 / G.dx) * 1 / EA
-        self.CBy = (1 / G.dy) * 1 / EA
-        self.CBz = (1 / G.dz) * 1 / EA
-        self.srce = 1 / EA
+        # Matches the same guard in the base Material.calculate_update_coeffsE -
+        # without it, se=inf (the literal 'pec' material, or any user-defined
+        # material with infinite conductivity) makes EA and EB both contain a
+        # 0.5*inf term, so EB/EA is the indeterminate form -inf/inf, evaluating
+        # to NaN rather than the intended 0 - NaN then propagates through the
+        # whole simulation from the very first update.
+        if self.ID == "pec" or self.se == float("inf"):
+            self.CA = 0
+            self.CBx = 0
+            self.CBy = 0
+            self.CBz = 0
+            self.srce = 0
+        else:
+            self.CA = EB / EA
+            self.CBx = (1 / G.dx) * 1 / EA
+            self.CBy = (1 / G.dy) * 1 / EA
+            self.CBz = (1 / G.dz) * 1 / EA
+            self.srce = 1 / EA
 
     def calculate_er(self, freq):
         """Calculates the complex relative permittivity of the material at a
@@ -297,22 +410,142 @@ class DispersiveMaterial(Material):
         er = self.er
 
         w = 2 * np.pi * freq
-        er += self.se / (1j * w * config.sim_config.em_consts["e0"])
-        if "debye" in self.type:
+        er += self.se / (1j * w * config.e0)
+        if self.inclusive_w:
+            er += self.inclusive_conductivity / (1j * w * config.e0)
+            for pole_w, pole_q in zip(self.inclusive_w, self.inclusive_q):
+                if np.isclose(np.imag(pole_w), 0.0) and np.isclose(np.imag(pole_q), 0.0):
+                    er += np.real(pole_w) / (1j * w - np.real(pole_q))
+                else:
+                    er += 0.5 * (
+                        pole_w / (1j * w - pole_q)
+                        + np.conjugate(pole_w) / (1j * w - np.conjugate(pole_q))
+                    )
+        elif "debye" in self.type:
             for pole in range(self.poles):
                 er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
         elif "lorentz" in self.type:
             for pole in range(self.poles):
-                er += (self.deltaer[pole] * self.tau[pole] ** 2) / (
-                    self.tau[pole] ** 2 + 2j * w * self.alpha[pole] - w**2
+                pole_omega = 2 * np.pi * self.tau[pole]
+                er += (self.deltaer[pole] * pole_omega**2) / (
+                    pole_omega**2 + 2j * w * self.alpha[pole] - w**2
                 )
         elif "drude" in self.type:
-            ersum = 0
             for pole in range(self.poles):
-                ersum += self.tau[pole] ** 2 / (w**2 - 1j * w * self.alpha[pole])
-                er -= ersum
+                pole_omega = 2 * np.pi * self.tau[pole]
+                er -= pole_omega**2 / (w**2 - 1j * w * self.alpha[pole])
 
         return er
+
+
+def create_electric_average_material(numID, ID, materials):
+    """Create the arithmetic electric-edge average of four materials.
+
+    The ordinary constitutive properties are averaged exactly as in the
+    existing generalised-Yee construction. For dispersive constituents, each
+    inclusive pole residue is scaled by its cell weight while its pole
+    location is retained. Identical pole locations are merged exactly. This
+    applies to Debye, Lorentz, and Drude terms and permits different
+    dispersion families on opposite sides of an interface.
+
+    This is the grid-aligned contour-path formulation developed in Chapter 4
+    of Hartley (2020), "On Finite-Difference Time-Domain Sub-Gridding
+    Algorithms for Efficient Modelling of Ground-Penetrating Radar".
+
+    Args:
+        numID: Numeric identifier for the compound material.
+        ID: Deterministic compound material identifier.
+        materials: Four materials surrounding an electric Yee edge. Repeated
+            entries provide the normal quarter-cell weighting used by gprMax.
+
+    Returns:
+        The effective :class:`Material` or :class:`DispersiveMaterial`.
+    """
+
+    if len(materials) != 4:
+        raise ValueError("Electric-edge averaging requires exactly four materials")
+
+    dispersive = [material for material in materials if getattr(material, "poles", 0) > 0]
+    if dispersive:
+        averaged = DispersiveMaterial(numID, ID)
+        source_types = {
+            kind
+            for material in dispersive
+            for kind in ("debye", "lorentz", "drude")
+            if kind in material.type
+        }
+        averaged.type = "dielectric-smoothed, inclusive, " + ", ".join(sorted(source_types))
+
+        # Each surrounding cell contributes one quarter of its susceptibility.
+        # Sorting makes equivalent compound IDs deterministic on MPI ranks.
+        pole_strengths = {}
+        weight = 1.0 / len(materials)
+        for material in materials:
+            if not getattr(material, "poles", 0):
+                continue
+            terms, extra_conductivity = _inclusive_material_terms(material)
+            averaged.inclusive_conductivity += weight * extra_conductivity
+            for pole_w, pole_q in terms:
+                key = complex(pole_q)
+                pole_strengths[key] = pole_strengths.get(key, 0j) + weight * complex(pole_w)
+
+        for pole_q in sorted(pole_strengths, key=lambda value: (value.real, value.imag)):
+            pole_w = pole_strengths[pole_q]
+            if source_types == {"debye"}:
+                averaged.inclusive_q.append(pole_q.real)
+                averaged.inclusive_w.append(pole_w.real)
+            else:
+                averaged.inclusive_q.append(pole_q)
+                averaged.inclusive_w.append(pole_w)
+        averaged.poles = len(averaged.inclusive_q)
+
+        # Preserve familiar Debye parameters for material reporting and for
+        # compatibility with tools that inspect deltaer/tau.
+        if source_types == {"debye"}:
+            for pole_w, pole_q in zip(averaged.inclusive_w, averaged.inclusive_q):
+                averaged.tau.append(-1.0 / pole_q)
+                averaged.deltaer.append(-pole_w / pole_q)
+        averaged.averagable = config.get_model_config().dispersive_averaging
+
+        if averaged.poles > config.get_model_config().materials["maxpoles"]:
+            config.get_model_config().materials["maxpoles"] = averaged.poles
+    else:
+        averaged = Material(numID, ID)
+        averaged.type = "dielectric-smoothed"
+
+    averaged.er = np.mean([material.er for material in materials], axis=0)
+    averaged.se = np.mean([material.se for material in materials], axis=0)
+    averaged.mr = np.mean([material.mr for material in materials], axis=0)
+    averaged.sm = np.mean([material.sm for material in materials], axis=0)
+
+    return averaged
+
+
+def _inclusive_material_terms(material):
+    """Return inclusive ``(W, Q)`` terms and Drude-equivalent conductivity."""
+
+    if getattr(material, "inclusive_w", None):
+        return (
+            list(zip(material.inclusive_w, material.inclusive_q)),
+            material.inclusive_conductivity,
+        )
+
+    terms = []
+    extra_conductivity = 0.0
+    if "debye" in material.type:
+        for deltaer, tau in zip(material.deltaer, material.tau):
+            terms.append((deltaer / tau, -1.0 / tau))
+    elif "lorentz" in material.type:
+        for deltaer, frequency, damping in zip(material.deltaer, material.tau, material.alpha):
+            omega_0_squared = (2 * np.pi * frequency) ** 2
+            beta = np.sqrt(omega_0_squared - damping**2)
+            terms.append((-1j * omega_0_squared * deltaer / beta, -damping + 1j * beta))
+    elif "drude" in material.type:
+        for frequency, collision in zip(material.tau, material.alpha):
+            omega_p_squared = (2 * np.pi * frequency) ** 2
+            extra_conductivity += config.e0 * omega_p_squared / collision
+            terms.append((-omega_p_squared / collision, -collision))
+    return terms, extra_conductivity
 
 
 class PeplinskiSoil:
@@ -406,7 +639,7 @@ class PeplinskiSoil:
             # Create individual materials
             m = DispersiveMaterial(len(G.materials), None)
             m.type = "debye"
-            m.averagable = False
+            m.averagable = config.get_model_config().dispersive_averaging
             m.poles = 1
             if m.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = m.poles
@@ -496,9 +729,17 @@ class RangeMaterial:
             # Check to see if the material already exists before creating a new one
             requiredID = f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
             material = next((x for x in G.materials if x.ID == requiredID), None)
-            if iter == 0 and material:
+            # `self.matID` must gain exactly one entry per bin, regardless
+            # of whether this bin reuses an existing material or needs a
+            # new one - the previous `iter == 0` guard only appended a
+            # reused material's ID on the first bin, so any later bin
+            # that happened to reuse an existing material appended
+            # nothing at all, leaving matID shorter than nbins and every
+            # subsequent bin's index into it wrong (see fractal_box.py's
+            # `mixingmodel.matID[int(numberinbin)]` lookup).
+            if material:
                 self.matID.append(material.numID)
-            if not material:
+            else:
                 m = Material(len(G.materials), requiredID)
                 m.type = ""
                 m.averagable = True
@@ -541,11 +782,229 @@ class ListMaterial:
             requiredID = self.mat[iter]
             # Check if the material already exists before creating a new one
             material = next((x for x in G.materials if x.ID == requiredID), None)
-            self.matID.append(material.numID)
 
             if not material:
-                logger.exception(self.__str__() + f" material(s) {material} do not exist")
+                logger.exception(self.__str__() + f" material(s) {requiredID} do not exist")
                 raise ValueError
+
+            self.matID.append(material.numID)
+
+
+class CrimMixture:
+    """Mixing model based on the Complex Refractive Index Model (CRIM) for
+    stochastic (fractal) spatial distributions. Combines a fixed-fraction
+    non-dispersive matrix material with a single-pole Debye dispersive
+    material (e.g. water or brine) whose volumetric fraction varies between
+    bins; the remaining volume fraction is assumed to be air.
+    """
+
+    def __init__(
+        self,
+        ID,
+        matrix_id,
+        matrix_fraction,
+        dispersive_id,
+        fraction_lower,
+        fraction_upper,
+        f_min,
+        f_max,
+        a=0.5,
+    ):
+        """
+        Args:
+            ID: string for name of the CRIM mixing model.
+            matrix_id: string for ID of an existing non-dispersive material
+                        used for the fixed-fraction matrix (solid) phase.
+            matrix_fraction: float for fixed volumetric fraction of the
+                                matrix phase.
+            dispersive_id: string for ID of an existing single-pole Debye
+                            material used for the dispersive phase (e.g.
+                            water or brine).
+            fraction_lower: float for lower bound of the volumetric fraction
+                                of the dispersive phase.
+            fraction_upper: float for upper bound of the volumetric fraction
+                                of the dispersive phase.
+            f_min: float for lower bound of the frequency range (Hz) used to
+                    fit the CRIM mixing curve.
+            f_max: float for upper bound of the frequency range (Hz) used to
+                    fit the CRIM mixing curve.
+            a: float for CRIM shape factor (Default: 0.5).
+        """
+
+        self.ID = ID
+        self.matrix_id = matrix_id
+        self.matrix_fraction = matrix_fraction
+        self.dispersive_id = dispersive_id
+        self.mu = (fraction_lower, fraction_upper)
+        self.f_min = f_min
+        self.f_max = f_max
+        self.a = a
+        # Store all of the material IDs which allows for more general mixing models.
+        self.matID = []
+
+    def calculate_properties(self, nbins, G):
+        """Calculates a single-pole Debye material for each bin by fitting
+        the dielectric CRIM mixing curve of the matrix, dispersive, and
+        (assumed) air phases over the given frequency range. The dispersive
+        phase's own relaxation time is kept fixed and reused for every bin.
+        The DC conductivity is mixed separately by volume fraction.
+
+        Args:
+            nbins: int for number of bins to use to create the different materials.
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        matrix = next((m for m in G.materials if m.ID == self.matrix_id), None)
+        if not matrix:
+            logger.exception(f"{self.ID} material {self.matrix_id!r} does not exist")
+            raise ValueError
+        if isinstance(matrix, DispersiveMaterial) and matrix.poles > 0:
+            logger.exception(f"{self.ID} matrix material {self.matrix_id!r} must be non-dispersive")
+            raise ValueError
+        if matrix.is_pec or matrix.is_pmc:
+            logger.exception(
+                f"{self.ID} matrix material {self.matrix_id!r} cannot be a perfect conductor"
+            )
+            raise ValueError
+
+        dispersive = next((m for m in G.materials if m.ID == self.dispersive_id), None)
+        if not dispersive:
+            logger.exception(f"{self.ID} material {self.dispersive_id!r} does not exist")
+            raise ValueError
+        if (
+            not isinstance(dispersive, DispersiveMaterial)
+            or dispersive.type != "debye"
+            or dispersive.poles != 1
+        ):
+            logger.exception(
+                f"{self.ID} dispersive material {self.dispersive_id!r} must be a "
+                "single-pole Debye material"
+            )
+            raise ValueError
+
+        # CRIM is an electric-permittivity mixing model. Silently copying a
+        # magnetic matrix property to every mixture bin would not represent
+        # the stated three-phase mixture, so restrict the current model to
+        # ordinary non-magnetic dielectrics.
+        for role, material in (("matrix", matrix), ("dispersive", dispersive)):
+            if not np.isclose(material.mr, 1.0) or not np.isclose(material.sm, 0.0):
+                logger.exception(
+                    f"{self.ID} {role} material {material.ID!r} must be non-magnetic "
+                    "(mr=1 and sm=0)"
+                )
+                raise ValueError
+
+        properties = (
+            matrix.er,
+            matrix.se,
+            dispersive.er,
+            dispersive.se,
+            dispersive.deltaer[0],
+            dispersive.tau[0],
+        )
+        if not all(np.isfinite(value) for value in properties):
+            logger.exception(f"{self.ID} constituent material properties must be finite")
+            raise ValueError
+        if matrix.er < 1 or matrix.se < 0:
+            logger.exception(
+                f"{self.ID} matrix material {matrix.ID!r} must have er >= 1 and se >= 0"
+            )
+            raise ValueError
+        if (
+            dispersive.er < 1
+            or dispersive.se < 0
+            or dispersive.deltaer[0] < 0
+            or dispersive.tau[0] <= 0
+        ):
+            logger.exception(
+                f"{self.ID} dispersive material {dispersive.ID!r} must define a passive "
+                "single-pole Debye response"
+            )
+            raise ValueError
+
+        eps_matrix = matrix.er
+        sigma_matrix = matrix.se
+        eps_inf_disp = dispersive.er
+        deltaer_disp = dispersive.deltaer[0]
+        tau_disp = dispersive.tau[0]
+        sigma_disp = dispersive.se
+
+        # Dielectric CRIM curve evaluated across the fitting frequency range.
+        freq = np.logspace(np.log10(self.f_min), np.log10(self.f_max), 50)
+        w = 2 * np.pi * freq
+        eps_disp_w = eps_inf_disp + deltaer_disp / (1 + 1j * w * tau_disp)
+
+        # Design matrix for a linear least-squares fit of [e_inf, deltaer]
+        # against the exact CRIM curve, keeping tau fixed at the dispersive
+        # phase's own known relaxation time (reused unchanged for every
+        # bin, mirroring PeplinskiSoil's treatment of water's relaxation
+        # time above).
+        denom = 1 + (w * tau_disp) ** 2
+        A = np.concatenate(
+            [
+                np.column_stack([np.ones_like(w), 1 / denom]),
+                np.column_stack([np.zeros_like(w), -w * tau_disp / denom]),
+            ]
+        )
+
+        # Generate a set of bins based on the given volumetric fraction
+        # values of the dispersive phase, using the mid-point of each bin.
+        fracbins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
+        fracmaterials = 0.5 * (fracbins[1 : nbins + 1] + fracbins[0:nbins])
+
+        for f_disp in fracmaterials:
+            f_air = 1.0 - self.matrix_fraction - f_disp
+            if f_air < 0:
+                logger.exception(
+                    f"{self.ID} matrix fraction {self.matrix_fraction:g} plus dispersive "
+                    f"fraction {f_disp:g} exceeds 1 (implied air fraction is negative)"
+                )
+                raise ValueError
+
+            mix = (
+                self.matrix_fraction * eps_matrix**self.a
+                + f_disp * eps_disp_w**self.a
+                + f_air * 1.0**self.a
+            ) ** (1 / self.a)
+
+            b = np.concatenate([mix.real, mix.imag])
+            solution, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+            eri, deltaer = solution
+
+            sigma_bin = self.matrix_fraction * sigma_matrix + f_disp * sigma_disp
+
+            if (
+                not np.isfinite(eri)
+                or not np.isfinite(deltaer)
+                or not np.isfinite(sigma_bin)
+                or eri < 1
+                or deltaer < 0
+                or sigma_bin < 0
+            ):
+                logger.exception(
+                    f"{self.ID} produced a non-passive Debye fit for dispersive fraction "
+                    f"{f_disp:g} (er={eri:g}, deltaer={deltaer:g}, se={sigma_bin:g}); "
+                    "check the constituent materials, fractions, frequency range, and "
+                    "shape factor"
+                )
+                raise ValueError
+
+            # Create individual materials
+            m = DispersiveMaterial(len(G.materials), None)
+            m.type = "debye"
+            m.averagable = config.get_model_config().dispersive_averaging
+            m.poles = 1
+            if m.poles > config.get_model_config().materials["maxpoles"]:
+                config.get_model_config().materials["maxpoles"] = m.poles
+            m.er = eri
+            m.se = sigma_bin
+            m.mr = matrix.mr
+            m.sm = matrix.sm
+            m.deltaer.append(deltaer)
+            m.tau.append(tau_disp)
+            m.ID = f"|{float(m.er):.4f}+{float(m.se):.4f}+{float(m.mr):.4f}+{float(m.sm):.4f}|"
+            G.materials.append(m)
+            self.matID.append(m.numID)
 
 
 def create_built_in_materials(G):
@@ -561,7 +1020,13 @@ def create_built_in_materials(G):
     m.averagable = False
     G.materials.append(m)
 
-    m = Material(1, "free_space")
+    m = Material(1, "pmc")
+    m.sm = float("inf")
+    m.type = "builtin"
+    m.averagable = False
+    G.materials.append(m)
+
+    m = Material(2, "free_space")
     m.type = "builtin"
     G.materials.append(m)
 
@@ -611,7 +1076,7 @@ def create_water(G, T=25, S=0):
     eri, er, tau, sig = calculate_water_properties(T, S)
 
     m = DispersiveMaterial(len(G.materials), "water")
-    m.averagable = False
+    m.averagable = config.get_model_config().dispersive_averaging
     m.type = "builtin, debye"
     m.poles = 1
     m.er = eri
@@ -637,7 +1102,7 @@ def create_grass(G):
     sig = 0
 
     m = DispersiveMaterial(len(G.materials), "grass")
-    m.averagable = False
+    m.averagable = config.get_model_config().dispersive_averaging
     m.type = "builtin, debye"
     m.poles = 1
     m.er = eri
@@ -724,7 +1189,6 @@ def process_materials(G):
                     material.zt[pole],
                 )
                 z += 3
-
 
         # Construct information on material properties for printing table
         materialtext = [

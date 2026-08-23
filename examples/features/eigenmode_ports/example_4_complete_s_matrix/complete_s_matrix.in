@@ -1,0 +1,32 @@
+#title: Example 4 - complete dominant-mode microstrip S matrix
+
+#domain: 0.080 0.030 0.025
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 2e-9
+#pml_cells: 8 0 0 8 0 0
+
+## A lossless microstrip with a centred 2 mm series gap connects two internal
+## reference planes. The 2 mm substrate has relative permittivity 4, the strip
+## is 4 mm wide, and air surrounds its fringing fields.
+#material: 4 0 1 0 substrate
+#box: 0 0.004 0.006 0.080 0.026 0.007 pec
+#box: 0 0.004 0.007 0.080 0.026 0.009 substrate
+#box: 0 0.013 0.009 0.039 0.017 0.010 pec
+#box: 0.041 0.013 0.009 0.080 0.017 0.010 pec
+
+## Only the dominant quasi-TEM mode is retained at each port. Identical
+## cross-sections and inward-pointing directions give compatible reciprocal
+## references. Each uniform feed continues through its x-directed PML to
+## provide a matched termination; the gap remains between the reference planes.
+#eigenmode_band: matrix_band 4e9 8e9 101
+#eigenmode_port: 1 0.008 0.004 0.006 0.008 0.026 0.018 + 1 auto n
+#eigenmode_port: 2 0.072 0.004 0.006 0.072 0.026 0.018 - 1 auto n
+
+## The study changes this one reusable source to each declared channel. The
+## modal anchor solutions and geometry are built once, then two FDTD cases
+## assemble the complete 2 x 2 dominant-mode S matrix. For this reciprocal
+## structure, S21 and S12 should agree within numerical error.
+#eigenmode_excitation: 1 1 auto n
+#study: eigenmode modal_cases.csv
+
+#geometry_view: 0 0.002 0.004 0.080 0.028 0.020 0.001 0.001 0.001 microstrip_gap n

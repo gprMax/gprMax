@@ -67,7 +67,70 @@ Allows you to specify the size of the model. The syntax of the command is:
 
     #domain: f1 f2 f3
 
-where ``f1 f2 f3`` are the size of the model in the x, y, and z directions respectively. For example to specify a 500 x 500 x 1000mm model use: ``#domain: 0.5 0.5 1.0``
+where ``f1 f2 f3`` are the size of the model in the x, y, and z directions
+respectively. For example, to specify a 500 x 500 x 1000 mm model use
+``#domain: 0.5 0.5 1.0``.
+
+For an explicitly declared 2D model, use ``inf`` for its invariant axis and
+select the polarisation with ``#domain_mode``. gprMax resolves ``inf`` to the
+internal Yee-grid thickness required by the chosen mode; it does not create an
+infinite allocation. For example, the following specifies a model invariant in
+z:
+
+.. code-block:: none
+
+    #domain_mode: TM
+    #domain: 0.5 0.5 inf
+
+The legacy convention of giving one spatial cell on one axis remains supported
+and is interpreted as TM mode, but ``#domain_mode`` with ``inf`` is recommended
+for new models and is required for TE mode.
+
+#domain_mode:
+-------------
+
+Selects whether the domain is three-dimensional or uses a two-dimensional TM
+or TE field reduction. The syntax is:
+
+.. code-block:: none
+
+    #domain_mode: str1
+
+``str1`` is ``TM``, ``TE``, or ``3D`` (case-insensitive). ``3D`` is the
+default when this command is omitted. For TM or TE, exactly one coordinate of
+``#domain`` must be ``inf``; that coordinate selects the invariant axis. If
+``inf`` is used without ``#domain_mode``, gprMax defaults to TM for backwards
+compatibility.
+
+For example, these declarations select TMz and TEz respectively:
+
+.. code-block:: none
+
+    #domain_mode: TM
+    #domain: 0.5 0.5 inf
+
+.. code-block:: none
+
+    #domain_mode: TE
+    #domain: 0.5 0.5 inf
+
+TM uses one internal cell and TE uses two internal cells on the invariant axis.
+The physical coordinates on that axis may be written as ``inf`` in commands
+that accept points or bounds; gprMax resolves lower and upper bounds to the
+appropriate faces of the reduced domain. For a single source or receiver,
+``inf`` on the invariant axis selects the active interior reference layer
+(rather than a TE boundary layer whose fields are constrained). On an
+in-plane axis, ``-inf`` selects the lower domain face and ``inf`` the upper
+face.
+
+.. note::
+
+    * A 2D model must have exactly one invariant axis.
+    * Subgrids, symmetry boundaries, transmission-line sources, and magnetic
+      edges are not currently supported in 2D mode.
+    * A source polarisation must be one of the active components for the
+      selected plane and mode. gprMax rejects incompatible electric and
+      magnetic sources rather than silently creating a zero source.
 
 #dx_dy_dz:
 ----------
@@ -166,6 +229,12 @@ Allows you to control how many OpenMP threads (usually the number of physical CP
 
 where ``i1`` is the number of OpenMP threads to use. If ``#omp_threads`` is not specified gprMax will first look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
 
+For compatibility with input files created for earlier versions of gprMax,
+``#num_threads: i1`` is accepted as an exact alias for ``#omp_threads: i1``.
+``#omp_threads`` is the preferred name because it distinguishes OpenMP CPU
+threads from other forms of parallel execution. Do not specify both commands
+in the same input file.
+
 
 .. _materials:
 
@@ -175,7 +244,13 @@ Material commands
 Built-in materials
 ------------------
 
-gprMax has two builtin materials which can be used by specifying the identifiers ``pec`` and ``free_space``. These simulate a perfect electric conductor and air, i.e. a non-magnetic material with :math:`\epsilon_r = 1`, :math:`\sigma = 0`, respectively. Additionally the identifiers ``grass`` and ``water`` are currently reserved for internal use and should not be used unless you intentionally want to change their properties.
+gprMax has three built-in materials which can be used by specifying their identifiers:
+
+* ``pec`` is a perfect electric conductor (PEC), represented by infinite electric conductivity.
+* ``pmc`` is a perfect magnetic conductor (PMC), represented by infinite magnetic conductivity.
+* ``free_space`` is free space, with :math:`\epsilon_r = \mu_r = 1` and :math:`\sigma = \sigma_* = 0`.
+
+The identifiers ``grass`` and ``water`` are reserved for internal use and should not be used unless you intentionally want to change their properties.
 
 #material:
 ----------
@@ -193,6 +268,53 @@ Allows you to introduce a material into the model described by a set of constitu
 * ``str1`` is an identifier for the material.
 
 For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_sand`` which has a relative permittivity (frequency independent) of :math:`\epsilon_r = 3`, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
+
+#material_from_database:
+------------------------
+
+Creates a material from an official or local versioned JSON material
+database. See :doc:`material_databases` for the schema, lookup policy, and
+provenance information. The syntax is:
+
+.. code-block:: none
+
+    #material_from_database: str1 str2 [str3]
+
+* ``str1`` is the database name, without ``.json``.
+* ``str2`` is the entry key.
+* ``str3`` is an optional local material ID. It defaults to ``str2`` and is
+  useful for giving the material a model-specific name, avoiding a name
+  collision, or matching the name expected by imported geometry.
+
+For example ``#material_from_database: fundamental vacuum`` creates the
+official ``vacuum`` entry and uses ``vacuum`` as its local ID. To refer to the
+same material as ``model_vacuum`` within the model, use
+``#material_from_database: fundamental vacuum model_vacuum``.
+
+#material_density:
+------------------
+
+Assigns an optional physical mass density to one or more existing materials.
+The syntax is:
+
+.. code-block:: none
+
+    #material_density: f1 str1 [str2 ...]
+
+* ``f1`` is a finite, positive mass density in :math:`\mathrm{kg\,m^{-3}}`.
+* ``str1``, ``str2``, ... are existing material identifiers.
+
+For example, ``#material_density: 1040 brain white_matter`` assigns the same
+mass density to the two named materials. Density remains a cell-centred
+property of the final volumetric material assignment. It is not included in
+dielectric smoothing and has no effect on ordinary electromagnetic updates.
+Materials without this command retain an unspecified density; this is valid
+for ordinary simulations, but a dosimetry request will reject selected cells
+whose material has no density.
+
+.. note::
+
+    The Debye, Lorentz, and Drude commands below describe **electric** dispersion. They cannot be applied to PEC or PMC materials, including user-defined materials with infinite electric or magnetic conductivity.
 
 
 #add_dispersion_debye:
@@ -242,9 +364,9 @@ where
 
 .. math::
 
-    \beta_p = \sqrt{\omega_p^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{\omega_p^2 \Delta \epsilon_{rp}}{\beta_p},
+    \beta_p = \sqrt{(2\pi f_p)^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{(2\pi f_p)^2 \Delta \epsilon_{rp}}{\beta_p},
 
-where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity for the pole, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, :math:`\omega_p` is the frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (Hertz) , and :math:`j=\sqrt{-1}`.
+where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity for the pole, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, :math:`f_p` is the resonance frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (per second), and :math:`j=\sqrt{-1}`. The angular resonance frequency used in the formulation is :math:`\omega_p=2\pi f_p`.
 
 The syntax of the command is:
 
@@ -254,19 +376,19 @@ The syntax of the command is:
 
 * ``i1`` is the number of Lorentz poles.
 * ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty}` , for the first Lorentz pole.
-* ``f2`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Lorentz pole.
-* ``f3`` is the damping coefficient (Hertz), :math:`\delta_{p1}`, for the first Lorentz pole.
+* ``f2`` is the resonance frequency (Hertz), :math:`f_{p1}`, for the first Lorentz pole.
+* ``f3`` is the damping coefficient (per second), :math:`\delta_{p1}`, for the first Lorentz pole.
 * ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty}` , for the second Lorentz pole.
-* ``f5`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Lorentz pole.
-* ``f6`` is the damping coefficient (Hertz), :math:`\delta_{p2}`, for the second Lorentz pole.
+* ``f5`` is the resonance frequency (Hertz), :math:`f_{p2}`, for the second Lorentz pole.
+* ``f6`` is the damping coefficient (per second), :math:`\delta_{p2}`, for the second Lorentz pole.
 * ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`\omega_p` and :math:`\delta_p` for as many Lorentz poles as you have specified with ``i1``.
+    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`f_p` and :math:`\delta_p` for as many Lorentz poles as you have specified with ``i1``.
     * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * The recursive formulation requires :math:`f_p < 1/\Delta t`, :math:`\delta_p < 1/\Delta t`, and the underdamped condition :math:`\delta_p < 2\pi f_p`. These coefficient limits do not replace the stricter Nyquist and spatial-resolution limits on useful simulation output.
 
 
 #add_dispersion_drude:
@@ -276,9 +398,9 @@ Allows you to add dispersive properties to an already defined ``#material`` base
 
 .. math::
 
-    \chi_p (t) = \frac{\omega_p^2}{\gamma_p} (1-e^{-\gamma_p t}),
+    \chi_p (t) = \frac{(2\pi f_p)^2}{\gamma_p} (1-e^{-\gamma_p t}),
 
-where :math:`\omega_p` is the frequency (Hertz) of the pole, and :math:`\gamma_p` is the inverse of the pole relaxation time (Hertz).
+where :math:`f_p` is the plasma frequency (Hertz) of the pole, :math:`\omega_p=2\pi f_p` is its angular frequency, and :math:`\gamma_p` is the inverse of the pole relaxation time (per second).
 
 The syntax of the command is:
 
@@ -287,17 +409,17 @@ The syntax of the command is:
     #add_dispersion_drude: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Drude poles.
-* ``f1`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Drude pole.
-* ``f2`` is the inverse of the relaxation time (Hertz), :math:`\gamma_{p1}`, for the first Drude pole.
-* ``f3`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Drude pole.
-* ``f4`` is the inverse of the relaxation time (Hertz), :math:`\gamma_{p2}` for the second Drude pole.
+* ``f1`` is the plasma frequency (Hertz), :math:`f_{p1}`, for the first Drude pole.
+* ``f2`` is the inverse of the relaxation time (per second), :math:`\gamma_{p1}`, for the first Drude pole.
+* ``f3`` is the plasma frequency (Hertz), :math:`f_{p2}`, for the second Drude pole.
+* ``f4`` is the inverse of the relaxation time (per second), :math:`\gamma_{p2}` for the second Drude pole.
 * ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-    * You can continue to add pairs of values for :math:`\omega_p` and :math:`\gamma_p` for as many Drude poles as you have specified with ``i1``.
-    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * You can continue to add pairs of values for :math:`f_p` and :math:`\gamma_p` for as many Drude poles as you have specified with ``i1``.
+    * The recursive formulation requires :math:`f_p < 1/\Delta t` and :math:`\gamma_p < 1/\Delta t`. These coefficient limits do not replace the stricter Nyquist and spatial-resolution limits on useful simulation output.
 
 
 #material_range:
@@ -335,6 +457,58 @@ Allows you to create a list of pre-defined materials that can be used in conjunc
 * ``str3`` is an identifier for the material list.
 
 For example to create a fractal distribution of two different sand materials and water use: ``#material: 3 0 1 0 sand1``, ``#material: 4 0.1 1 0 sand2``, ``#material: 4.9 0.001 1 0 my_water``, ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``, ``#material_list: sand1 sand2 my_water my_list``, ``#fractal_box: 0 0 0 0.15 0.15 0.15 1.5 1 1 1 3 my_list my_frac_box``.
+
+
+.. _material_crim:
+
+#material_crim:
+---------------
+
+Allows you to use the Complex Refractive Index Model (CRIM) to mix a fixed-fraction non-dispersive matrix material with a single-pole Debye dispersive material (e.g. water or brine), with the remaining volume fraction assumed to be air. The command is designed to be used in conjunction with the ``#fractal_box`` command for creating media, such as wet soils, wet concrete, or brine-bearing ice, with realistic dielectric and geometric properties. Both the matrix and dispersive materials must already exist, i.e. be defined using ``#material`` (and, for the dispersive material, ``#add_dispersion_debye`` with exactly one pole) before this command is used.
+
+CRIM is a general power-law mixing formula for the bulk complex permittivity of a multi-phase medium [BIR1974]_, widely used for estimating the permittivity of soils, snow, ice, and other granular or porous media from the properties and volume fractions of their constituents. It takes the general form
+
+.. math::
+
+    \varepsilon_{\mathrm{mix}}(\omega)^{a} = \sum_{i} f_i \, \varepsilon_i(\omega)^{a},
+
+where :math:`f_i` and :math:`\varepsilon_i(\omega)` are the volumetric fraction and complex relative permittivity of constituent :math:`i` (with :math:`\sum_i f_i = 1`), and :math:`a` is an empirical shape factor that encodes the geometry of the mixed phases relative to the applied field: :math:`a=1` reduces to a simple volumetric (linear) average of permittivities, :math:`a=0.5` is the square-root, or "refractive index", form most commonly used for soils and other granular GPR media, and as :math:`a \to 0` the model approaches logarithmic (Lichtenecker) mixing.
+
+The syntax of the command is:
+
+.. code-block:: none
+
+    #material_crim: str1 f1 str2 f2 f3 f4 f5 f6 str3
+
+* ``str1`` is an identifier for an existing non-dispersive material used for the fixed-fraction matrix (solid) phase.
+* ``f1`` is the fixed volumetric fraction of the matrix phase.
+* ``str2`` is an identifier for an existing single-pole Debye material used for the dispersive phase.
+* ``f2`` and ``f3`` define a range for the volumetric fraction of the dispersive phase.
+* ``f4`` and ``f5`` are the lower and upper bounds of the frequency range (Hz) used to fit the CRIM mixing curve.
+* ``f6`` is the CRIM shape factor, :math:`a`, described above.
+* ``str3`` is an identifier for the CRIM mixing model.
+
+For this command, the mixture has exactly three phases - the fixed-fraction matrix, the dispersive phase, and air - so :math:`\varepsilon_i` is specialised to
+
+.. math::
+
+    \varepsilon_{\mathrm{mix}}(\omega)^{a} = f_1 \, \varepsilon_{\mathrm{matrix}}^{a} + f_{\mathrm{disp}} \left[\varepsilon_{\infty} + \frac{\Delta\varepsilon}{1+j\omega\tau}\right]^{a} + f_{\mathrm{air}} \, (1)^{a},
+
+where :math:`\varepsilon_{\infty}`, :math:`\Delta\varepsilon`, and :math:`\tau` are the dispersive material's own Debye parameters (taken directly from its ``#add_dispersion_debye`` definition), :math:`f_{\mathrm{disp}}` is a value between ``f2`` and ``f3`` for each bin, and the implied air fraction is :math:`f_{\mathrm{air}} = 1 - f_1 - f_{\mathrm{disp}}` (so ``f1`` plus ``f3`` must not exceed 1). For each of the ``n_materials`` bins created by the associated ``#fractal_box`` command, a single-pole Debye material is fitted by linear least-squares over the frequency range ``f4`` to ``f5`` to this dielectric CRIM curve. The dispersive material's relaxation time :math:`\tau` is fixed and reused for every bin; the fit determines the pole weight and infinite-frequency permittivity.
+
+The constituent DC conductivities are not included inside the fractional power in the equation above. They are mixed separately using the volumetric rule
+
+.. math::
+
+    \sigma_{\mathrm{mix}} = f_1 \sigma_{\mathrm{matrix}} + f_{\mathrm{disp}} \sigma_{\mathrm{disp}},
+
+with zero conductivity assumed for the air phase. This is a defined approximation rather than a fit of the complete conductive complex permittivity. The current implementation is limited to non-magnetic constituents (:math:`\mu_r=1` and :math:`\sigma_m=0`).
+
+For example, to create a fractal distribution of wet sand, with a fixed sand fraction of 0.6 and a water fraction ranging from 0.02 to 0.35, fitted over 1 MHz to 3 GHz with the standard CRIM shape factor, use: ``#material: 5 0 1 0 sand``, ``#material: 4.9 0 1 0 water``, ``#add_dispersion_debye: 1 73.3389 8.0994e-12 water``, ``#material_crim: sand 0.6 water 0.02 0.35 1e6 3e9 0.5 wetsand``, and then specify the fractal box using ``#fractal_box: 0 0 0 0.1 0.1 0.08 1.5 1 1 1 10 wetsand my_fractal_box``.
+
+.. note::
+
+    Only passive, single-pole Debye materials are accepted for the dispersive phase - CRIM's dispersive constituent is conventionally assumed to be water or brine, which is well represented by a single relaxation. Using a material with more than one Debye pole, a non-Debye dispersive material, a perfect conductor, or a magnetic material will raise an error.
 
 
 #soil_peplinski:
@@ -409,9 +583,109 @@ At the boundaries between different materials in the model there is the question
 
 .. note::
 
-    * If a material has dispersive properties then dielectric smoothing is automatically turned off for that material.
+    * Dispersive materials are not smoothed by default. Use
+      ``#dispersive_averaging: y`` to include Debye, Lorentz, and Drude media
+      in electric-edge smoothing.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular patch not triangular prism) cannot have dielectric smoothing.
+
+
+#magnetic_averaging:
+---------------------
+
+Selects the mixing rule used for magnetic-field components at smoothed material interfaces. Each H component is constructed from the two cells stacked along its own axis. Because the normal component of magnetic flux density is continuous across an interface, the harmonic mean of relative permeability (:math:`\mu_r`) and magnetic loss (:math:`\sigma_*`) is used by default. Electric-field smoothing is unchanged and continues to use its arithmetic four-cell average. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_averaging: str1
+
+* ``str1`` is ``harmonic`` or ``arithmetic`` (case-insensitive).
+
+.. note::
+
+    * This command is optional; the default is ``harmonic``.
+    * Earlier versions of gprMax used an arithmetic magnetic average. Add ``#magnetic_averaging: arithmetic`` when exact reproduction of those results is required.
+    * The command chooses the magnetic mixing rule only; it does not enable or disable dielectric smoothing.
+
+
+#dispersive_averaging:
+----------------------
+
+Enables or disables interface averaging for dispersive materials. When
+enabled, Debye, Lorentz, and Drude media use the same arithmetic four-cell
+electric-edge average as nondispersive dielectrics. The Debye case follows the
+contour-path formulation developed by [HAR2020]_; its extension to all three
+dispersion families uses the inclusive susceptibility representation of
+[GIA2014]_. The syntax is:
+
+.. code-block:: none
+
+    #dispersive_averaging: c1
+
+* ``c1`` is ``y`` to enable dispersive averaging or ``n`` to disable it.
+
+For surrounding-cell weights :math:`w_m`, the effective high-frequency
+permittivity and conductivity are
+
+.. math::
+
+    \begin{aligned}
+    \epsilon_{\infty,\mathrm{eff}}
+      &= \sum_m w_m\epsilon_{\infty,m}, \\
+    \sigma_{\mathrm{eff}}
+      &= \sum_m w_m\sigma_m.
+    \end{aligned}
+
+Writing a constituent susceptibility in inclusive pole-residue form as
+
+.. math::
+
+    \chi_m(\omega) = \sum_p
+    \frac{W_{m,p}}{j\omega-Q_{m,p}},
+
+where a complex Lorentz term implicitly includes its conjugate contribution,
+the effective response is
+
+.. math::
+
+    \epsilon_{r,\mathrm{eff}}(\omega) =
+    \sum_m w_m\left[
+      \epsilon_{\infty,m}+
+      \frac{\sigma_m}{j\omega\epsilon_0}+
+      \chi_m(\omega)
+    \right].
+
+Consequently, every pole location :math:`Q_{m,p}` is retained and its residue
+:math:`W_{m,p}` is multiplied by the corresponding cell weight. For a Debye
+term this is equivalent to retaining its relaxation time and scaling
+:math:`\Delta\epsilon`:
+
+.. math::
+
+    \chi_{m,p}(\omega) =
+    \frac{w_m\Delta\epsilon_{m,p}}
+         {1+j\omega\tau_{m,p}}.
+
+The four surrounding cells each contribute :math:`1/4`; repeated materials
+therefore naturally produce weights of :math:`1/2` or :math:`3/4`. Terms with
+identical pole locations are combined exactly. Two different single-pole
+materials generally produce a two-pole effective material, even if each bulk
+material uses only one pole.
+
+.. note::
+
+    * This command is optional; the default is ``n``. Enabling it is
+      recommended when interface accuracy is more important than the possible
+      increase in memory use.
+    * Nondispersive dielectric smoothing remains controlled by the optional
+      ``y``/``n`` argument of each volumetric geometry command.
+    * Dispersive state arrays use the model-wide maximum pole count for
+      computational efficiency. An averaged interface containing additional
+      distinct pole locations can therefore increase memory use throughout
+      the grid. The resolved maximum is included in gprMax's memory estimate.
+    * The production solver preserves the exact pole union. It does not apply
+      automatic pole reduction because any reduced model is valid only over a
+      chosen frequency band and error tolerance.
 
 
 .. _geometryview:
@@ -450,6 +724,105 @@ Allows you to introduce a wire with specific properties into the model. A wire i
 
 For example to specify a x-directed wire that is a perfect electric conductor, use: ``#edge: 0.5 0.5 0.5 0.7 0.5 0.5 pec``. Note that the y and z coordinates are identical.
 
+
+#thin_wire:
+-----------
+
+Allows a conducting wire whose physical radius is smaller than the Yee cell to
+be represented by an axis-aligned thin-wire model. The logarithmic radius
+correction is based on Umashankar, Taflove, and Beker [UMA1987]_, with the
+improved electric/magnetic contour factors proposed by Mäkinen, Juntunen, and
+Kivikoski [MAK2002]_. The wire occupies electric edges like a PEC ``#edge``,
+while the magnetic updates on the four surrounding Yee edges are corrected to
+represent the specified sub-cell radius. The syntax is:
+
+.. code-block:: none
+
+    #thin_wire: f1 f2 f3 f4 f5 f6 f7
+
+* ``f1 f2 f3`` and ``f4 f5 f6`` are the start and end coordinates of one
+  non-zero, axis-aligned wire in metres.
+* ``f7`` is the physical wire radius :math:`a` in metres. It must be positive
+  and smaller than half the minimum transverse cell size.
+
+For a wire along :math:`w`, consider a surrounding :math:`H_v` edge whose
+radial direction is :math:`u` (so :math:`u`, :math:`v`, and :math:`w` are the
+three Cartesian axes). The Umashankar radius factor is
+
+.. math::
+
+    F_u = \frac{2}{\ln(\Delta u/a)},
+
+and the Mäkinen contour factors are
+
+.. math::
+
+    k_{H_v} = \frac{\Delta u}{\Delta v}
+              \tan^{-1}\!\left(\frac{\Delta v}{\Delta u}\right),
+    \qquad
+    k_{E_u} = \frac{1}{k_{H_v}}.
+
+gprMax stores the projected Yee-edge value
+:math:`\widetilde{H}_v=k_{H_v}H_v`. In that representation, Mäkinen's
+magnetic update is implemented by multiplying the radial curl coefficient by
+:math:`F_u k_{H_v}`. The coefficient for the derivative along the wire remains
+the background value because :math:`k_{H_v}k_{E_u}=1`. The ordinary electric
+update then consumes :math:`\widetilde{H}_v` directly, thereby applying the
+required :math:`k_H` correction to the radial electric field without a special
+runtime kernel. On a square transverse mesh,
+:math:`k_H=\pi/4` and :math:`k_E=4/\pi`.
+
+The magnetic permeability and magnetic conductivity at each affected H
+component are inherited from its already-resolved background material,
+including magnetic material averaging. The magnetic-source coefficient is
+also multiplied by :math:`k_H`; therefore a co-located
+``#magnetic_frill_source`` must not apply :math:`k_H` a second time. It does,
+however, apply the feed-cell factor :math:`F_u`, as required by Hyun's
+discrete magnetic-current equation.
+
+.. important::
+
+    Receiver samples on the four H edges immediately surrounding the wire are
+    the stored projected values :math:`\widetilde{H}`. Divide such a sample by
+    its orientation-specific :math:`k_H` if the unprojected point value is
+    required. Current loops and ordinary electric updates should use the
+    stored values directly.
+
+For example, a z-directed wire of radius 0.1 mm is specified by:
+``#thin_wire: 0.05 0.05 0.02 0.05 0.05 0.12 0.0001``.
+
+The wire may lie on a transverse domain face only when that face is a PMC
+symmetry boundary. A wire and its surrounding magnetic stencil must not touch
+a PML region. MPI domain decomposition is supported: each electric edge and
+each member of the surrounding magnetic stencil is constructed on its owning
+rank, including a stencil that crosses an internal rank boundary. Thin wires
+in 2D models and overlapping sub-cell wire junctions are not currently
+supported. The charge-based end-cap treatment
+from [MAK2002]_ is not implemented, so an isolated open end retains the usual
+staircasing/electrically-long end error; the improved straight-section update
+is used up to the final wire edge. No special runtime solver is used: the
+corrected material coefficients are consumed by the normal CPU, CUDA, OpenCL,
+and Metal field-update kernels.
+
+
+#magnetic_edge:
+----------------
+
+Allows you to introduce a single magnetic-field edge with specific properties into the model. It is the magnetic dual of ``#edge``. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_edge: f1 f2 f3 f4 f5 f6 str1
+
+* ``f1 f2 f3`` are the starting (x,y,z) coordinates of the edge, and ``f4 f5 f6`` are its ending coordinates. The coordinates must define a single axis-aligned line.
+* ``str1`` is a material identifier that has already been defined, or one of the built-in materials.
+
+For example, an x-directed perfect magnetic conductor is specified with ``#magnetic_edge: 0.5 0.5 0.5 0.7 0.5 0.5 pmc``.
+
+.. note::
+
+    ``#magnetic_edge`` is not currently supported in 2D mode.
+
 #plate:
 -------
 
@@ -467,11 +840,30 @@ For example to specify a xy oriented plate that is a perfect electric conductor,
 #triangle:
 ----------
 
+.. _geometry-tags-hash:
+
+The volumetric commands ``#triangle`` (non-zero thickness), ``#box``,
+``#sphere``, ``#cylinder``, ``#cylindrical_sector``, ``#cone``,
+``#ellipsoid``, and ``#fractal_box`` accept an optional final positional
+``tag_name`` string. Geometry tags are cell-centred semantic metadata and
+are independent of materials. They follow normal ordered geometry semantics:
+a later tagged volume replaces the older tag in its cells, while a later
+untagged volume clears those cells to tag ID zero. Consequently
+``#cylinder: ... plastic n container`` followed by a smaller untagged
+free-space cylinder creates a tagged hollow shell. The tag must always be the
+last argument. To keep the positional grammar unambiguous and backward
+compatible, hash-command users must explicitly provide the preceding ``y`` or
+``n`` smoothing argument whenever a tag is present. A tagged
+``#fractal_box`` must therefore provide its seed and smoothing arguments
+before the tag. Tags may contain letters, digits, ``_``, ``-``, ``.``, and
+``:``; spaces are not permitted. The Python API does not require an explicit
+smoothing argument when ``tag`` is used.
+
 Allows you to introduce a triangular patch or a triangular prism with specific properties into the model. The patch is just a triangular surface made as a collection of staircased Yee cells, and the triangular prism extends the triangular patch in the direction perpendicular to the plane. The syntax of the command is:
 
 .. code-block:: none
 
-    #triangle: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1 [c1]
+    #triangle: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the first apex of the triangle, ``f4 f5 f6`` the coordinates (x,y,z) of the second apex, and ``f7 f8 f9`` the coordinates (x,y,z) of the third apex.
 * ``f10`` is the thickness of the triangular prism. If the thickness is zero then a triangular patch is created.
@@ -487,7 +879,7 @@ Allows you to introduce an orthogonal parallelepiped with specific properties in
 
 .. code-block:: none
 
-    #box: f1 f2 f3 f4 f5 f6 str1 [c1]
+    #box: f1 f2 f3 f4 f5 f6 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
@@ -500,7 +892,7 @@ Allows you to introduce a spherical object with specific parameters into the mod
 
 .. code-block:: none
 
-    #sphere: f1 f2 f3 f4 str1 [c1]
+    #sphere: f1 f2 f3 f4 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the sphere.
 * ``f4`` is its radius.
@@ -520,7 +912,7 @@ Allows you to introduce a circular cylinder into the model. The orientation of t
 
 .. code-block:: none
 
-    #cylinder: f1 f2 f3 f4 f5 f6 f7 str1 [c1]
+    #cylinder: f1 f2 f3 f4 f5 f6 f7 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of one face of the cylinder, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
 * ``f7`` is the radius of the cylinder.
@@ -541,7 +933,7 @@ Allows you to introduce a cylindrical sector (shaped like a slice of pie) into t
 
 .. code-block:: none
 
-    #cylindrical_sector: c1 f1 f2 f3 f4 f5 f6 f7 str1 [c1]
+    #cylindrical_sector: c1 f1 f2 f3 f4 f5 f6 f7 str1 [c1 [tag_name]]
 
 * ``c1`` is the direction of the axis of the cylinder from which the sector is defined and can be ``x``, ``y``, or ``z``.
 * ``f1 f2`` are the coordinates of the centre of the cylindrical sector.
@@ -565,7 +957,7 @@ Allows you to introduce a cone into the model. The orientation of the cylinder a
 
 .. code-block:: none
 
-    #cone: f1 f2 f3 f4 f5 f6 f7 f8 str1 [c1]
+    #cone: f1 f2 f3 f4 f5 f6 f7 f8 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the first face of the cone, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
 * ``f7`` is the radius of the first face of the cone, and ``f8`` is the radius of the other face of the cone.
@@ -585,7 +977,7 @@ Allows you to introduce an ellipsoid into the model. The syntax of the command i
 
 .. code-block:: none
 
-    #ellipsoid: f1 f2 f3 f4 f5 f6 str1 [c1]
+    #ellipsoid: f1 f2 f3 f4 f5 f6 str1 [c1 [tag_name]]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the ellipsoid.
 * ``f4 f5 f6`` are the coordinates (x,y,z) of the semi-axes of the ellipsoid.
@@ -607,7 +999,7 @@ Allows you to introduce an orthogonal parallelepiped with fractal distributed pr
 
 .. code-block:: none
 
-    #fractal_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 str2 [i2] [c1]
+    #fractal_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 str2 [i2 [c1 [tag_name]]]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``f7`` is the fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
@@ -691,32 +1083,51 @@ For example, to apply 100 blades of grass that vary in height between 100 and 15
 #geometry_objects_read:
 -----------------------
 
-Allows you to insert pre-defined geometry into a model. The geometry is specified using a 3D array of integer numbers stored in a HDF5 file. The integer numbers must correspond to the order of a list of ``#material`` commands specified in a text file. The syntax of the command is:
+Allows you to insert pre-defined geometry into a model. New geometry files
+store compact integer arrays in HDF5, stable entry names in
+``/material_keys``, and constitutive properties in a companion JSON material
+database. The syntax of the command is:
 
 .. code-block:: none
 
-    #geometry_objects_read: f1 f2 f3 file1 file2
+    #geometry_objects_read: f1 f2 f3 file1 file2 [y/n]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates in the domain where the lower left corner of the geometry array should be placed.
 * ``file1`` is the path to and filename of the HDF5 file that contains an integer array which defines the geometry.
-* ``file2`` is the path to and filename of the text file that contains ``#material`` commands.
-* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing. Dielectric smoothing can only be turned on if the geometry objects that are being read were originally generated by gprMax, i.e. via the ``#geometry_objects_write`` command.
+* ``file2`` is the material database name without ``.json``. It is resolved beside ``file1``.
+* The optional ``y/n`` parameter controls dielectric interface averaging when
+  reconstructing a *voxel-only* file. The default is ``n``. Use ``y`` for
+  voxelised tissue or other dielectric models when smoothed interfaces are
+  desired.
 
 .. note::
 
     * The integer numbers in the HDF5 file must be stored as a NumPy array at the root named ``data`` with type ``np.int16``.
-    * The integer numbers in the HDF5 file correspond to the order of material commands in the materials text file, i.e. if ``#sand: 3 0 1 0`` is the first material in the materials file, it will be associated with any integers that are zero in the HDF5 file.
+    * ``/material_keys`` maps each non-negative integer to an entry key in the JSON database.
     * You can use an integer of -1 in the HDF5 file to indicate not to build any material at that location, i.e. whatever material is already in the model at that location.
     * The spatial resolution of the geometry objects must match the spatial resolution defined in the model.
     * The spatial resolution must be specified as a root attribute of the HDF5 file with the name ``dx_dy_dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
-    * If the geometry objects being imported were originally generated using gprMax, i.e. exported using #geometry_objects_write, then you can use dielectric smoothing as you like when generating the original geometry objects. However, if the geometry objects being imported were generated by an external method then dielectric smoothing will not take place.
+    * Legacy material command files remain supported. Supply the ``.txt`` filename as ``file2``; files ending in ``.txt`` select the legacy reader.
+    * Averaging is applied only when the imported file contains cell material
+      indices but no complete Yee-component arrays. A file containing
+      ``/ID``, ``/rigidE``, and ``/rigidH`` records an authoritative component
+      mesh, so the optional averaging flag is ignored.
+    * For imported dispersive dielectrics, also enable
+      ``#dispersive_averaging: y``. Without that global option, dispersive
+      materials remain non-smoothable even if this command requests averaging.
+      Cell-centred material density and geometry tags are never averaged.
 
-For example, to insert a 2x2x2mm^3 AustinMan model with the lower left corner 40mm from the origin of the domain, and using disperive material properties use ``#geometry_objects_read: 0.04 0.04 0.04 toolboxes/AustinManWoman/AustinMan_v2.3_2x2x2.h5 toolboxes/AustinManWoman/AustinManWoman_materials_dispersive.txt``
+For example, after converting a downloaded 2 mm AustinMan model to the
+current HDF5/JSON format as described in the :doc:`AustinMan/AustinWoman
+toolbox <inc_AustinMan>`, insert it with its lower-left corner 40 mm from the
+domain origin and enable tissue-interface averaging using
+``#geometry_objects_read: 0.04 0.04 0.04
+AustinMan_v2.6_2x2x2_gprmax.h5 AustinMan_v2_6_2mm_materials y``.
 
 #geometry_objects_write:
 ------------------------
 
-Allows you to write geometry generated in a model to file. The file can be read back into gprMax using the ``#geometry_objects_read`` command. This allows complex geometry that can take some time to generate to be saved to file and more quickly imported into subsequent models. The geometry information is saved as a 3D array of integer numbers stored in a HDF5 file, and corresponding material information is stored in a text file. The integer numbers correspond to the order of a list of ``#material`` commands specified in the text file. The syntax of the command is:
+Allows you to write geometry generated in a model to file. The file can be read back into gprMax using the ``#geometry_objects_read`` command. This allows complex geometry that can take some time to generate to be saved to file and more quickly imported into subsequent models. Geometry arrays, cell-centred semantic tags (when present), their ID-to-name table, and stable material keys are saved in HDF5. Corresponding material definitions are saved in a versioned ``_materials.json`` database. The syntax of the command is:
 
 .. code-block:: none
 
@@ -860,6 +1271,85 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 * ``f4 f5`` are optional parameters. ``f4`` is a time delay in starting the source. ``f5`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f4 f5`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
+#rational_network:, #network_terminal:, #network_excitation:
+------------------------------------------------------------
+
+These commands connect a linear one-port network to one electric Yee edge.
+The reusable network model is expressed as a rational driving-point
+admittance
+
+.. math::
+
+    Y(s) = G + sC + \sum_{m=1}^{M}\frac{r_m}{s-p_m},
+
+where :math:`G` is the direct conductance, :math:`C` is the direct
+capacitance, and :math:`p_m` and :math:`r_m` are pole-residue pairs. The
+syntax is
+
+.. code-block:: none
+
+    #rational_network: str1 f1 f2 i1 [f3 f4 f5 f6 ...] [c1]
+    #network_terminal: c2 f7 f8 f9 str1 str2
+    #network_excitation: str2 str3 [f10 f11]
+
+* ``str1`` is the reusable network-model ID.
+* ``f1`` and ``f2`` are :math:`G` in siemens and :math:`C` in farads.
+* ``i1`` is the number of poles. Every pole then has four values:
+  ``pole_real pole_imag residue_real residue_imag``. Poles are in rad/s and
+  residues are in S/s. Non-real poles and residues must occur in conjugate
+  pairs so that the time-domain current is real.
+* ``c1`` is an optional ``y``/``n`` flag permitting an active model. It is
+  ``n`` by default. Passive models are checked over the FDTD band and all
+  poles must be stable.
+* ``c2`` is the terminal polarisation ``x``, ``y``, or ``z``; ``f7 f8 f9``
+  are its coordinates; and ``str2`` is its unique terminal ID.
+* ``str3`` is an existing waveform ID. The optional ``f10 f11`` pair gives
+  its start and stop times. Omitting ``#network_excitation`` creates a
+  passive load or receiving terminal.
+
+For common elements, a resistor uses :math:`G=1/R`, a capacitor uses the
+direct :math:`C` term, and an inductor uses :math:`p=0`, :math:`r=1/L`. A
+series :math:`RL` branch has :math:`p=-R/L` and :math:`r=1/L`. For example,
+a driven 50 Ohm terminal is
+
+.. code-block:: none
+
+    #waveform: ricker 1 2e9 pulse
+    #rational_network: source50 0.02 0 0
+    #network_terminal: z 0.05 0.05 0.02 source50 feed
+    #network_excitation: feed pulse
+    #network_port: feed 50 10
+
+The optional excitation is a Thévenin open-circuit voltage applied through
+the complete rational impedance. The arbitrary linear circuit-to-edge
+formulation follows [PER1999]_ and [CHE2007]_. gprMax improves the underlying
+classic PLRC time placement using the exponential recursive-convolution
+approach of Giannakis and Giannopoulos [GIA2014]_. In particular, every pole
+state is evaluated analytically at the electric half-step under a linearly
+varying terminal voltage; it is not estimated by averaging its two integer-
+time values. Each terminal stores only its own poles and applies one locally
+implicit edge correction, rather than allocating dispersive state throughout
+the mesh.
+
+A driven network with :math:`G=1/R`, no direct capacitance, and no poles is
+discretely identical to a finite-resistance ``#voltage_source`` having the
+same :math:`R`, waveform, position, and polarisation. A zero-resistance hard
+source is not equivalent.
+
+This implementation supports 3-D models on the CPU, CUDA, OpenCL, and Metal
+solvers, including domain-decomposed MPI CPU models, and a nondispersive
+terminal edge; dispersive materials may exist elsewhere in the model. In an
+MPI model the sparse terminal state is advanced only by the rank that owns its
+electric edge, then gathered for final port processing. A terminal may be
+placed in a CPU subgrid, where it uses the fine spatial and temporal steps. On
+an accelerator the complete recurrence and local field correction remain
+device-resident during time
+stepping. Several independent terminals may be used, but a coupled multiport
+admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
+lumped-network formulation and :ref:`Analytical comparisons
+<rational-network-validation>` for a complete loaded-guide comparison.
+
+
 #voltage_source:
 ----------------
 
@@ -867,24 +1357,45 @@ Allows you to introduce a voltage source at an electric field location. It can b
 
 .. code-block:: none
 
-    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6]
+    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6 [f7 | str2 str3 [f7]]]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the source in the model.
 * ``f4`` is the internal resistance of the voltage source in Ohms. If ``f4`` is set to zero then the voltage source is a hard source. That means it prescribes the value of the electric field component. If the waveform becomes zero then the source is perfectly reflecting.
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the source. ``f6`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f5 f6`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
+* ``str2`` is an optional port/output identifier. ``str3`` is then required
+  and is either the minimum cells per shortest material wavelength (default
+  10) or ``nyquist`` for every native non-negative FFT bin. Because hash
+  arguments are positional, ``f5`` and ``f6`` must be supplied before these
+  port options. If omitted, ``port1``, ``port2``, and so on are assigned.
+* ``f7`` is the optional positive wave-reference impedance in Ohms for a hard
+  source only; it is always the final positional value. A hard source defaults
+  to 50 Ohms. A finite-resistance source uses ``f4`` and must not supply
+  ``f7``.
 * ``str1`` is the identifier of the waveform that should be used with the source.
+
+Every 3-D voltage source automatically stores its terminal voltage and
+frequency-domain ``S11``, ``Zin``, and ``Yin``. No separate receiver-port
+command is required. For example:
+
+.. code-block:: none
+
+    #voltage_source: z 0.050 0.050 0.020 50 source_wave 0 10e-9 feed 10
+    #voltage_source: z 0.060 0.050 0.020 0 source_wave 0 10e-9 ideal_feed nyquist 75
 
 For example, to specify a y directed voltage source with an internal resistance of 50 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#voltage_source: y 0.05 0.05 0.05 50 my_gauss_pulse``.
 
 .. note::
 
     * Where a resistive voltage source is placed at a location that is not free space, the conductivity (determined from the resistance) of the voltage source will be added to the underlying conductivity of the existing material at that location. For example, if a resistive voltage source of 50 Ohms is placed at a location where the material has a relative permittivity of 4 and conductivity of 0.1 S/m, the conductivity of that cell edge will become 0.12 S/m.
+    * A finite-resistance source on a dispersive edge includes the complete
+      complex background permittivity in its Yee-gap correction. A hard source
+      on a dispersive edge is not yet supported.
 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, OpenCL, and Metal solvers. The syntax of the command is:
 
 .. code-block:: none
 
@@ -896,11 +1407,224 @@ Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at 
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the excitation of the transmission line. ``f6`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f5 f6`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
-Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`Simulation Output <output>` section. These parameters are useful for calculating characteristics of an antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``toolboxes/Plotting`` package) to help you view the input impedance and s11 parameter from an antenna model fed using a transmission line.
+Time histories of incident and total voltage and current are saved to the
+output file. gprMax also calculates S11, input impedance, and input admittance
+automatically after the simulation. The line resistance is used as the S11
+reference impedance; ``Zin`` is derived from S11, while an independently
+de-embedded current result is saved as ``Zin_current`` for verification. The
+frequency axis, validity masks, and lambda/10 mesh limit are stored with the
+results. No separate receiver-port command is required for a transmission-line
+source. The complete schema and equations are documented in the
+:ref:`Simulation Output <output>` section.
 
 For example, to specify a z directed transmission line source with a resistance of 75 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#transmission_line: z 0.05 0.05 0.05 75 my_gauss_pulse``.
 
 An example antenna model using a transmission line can be found in the :ref:`examples <example-wire-dipole>` section.
+
+#magnetic_frill_source:
+------------------------
+
+Allows you to introduce a magnetic-frill (equivalent-feed) source [HYU2009]_ at an
+electric field location, for an antenna driven through a PEC ground plane by a
+coaxial line - the antenna's own inner conductor passes continuously through the
+plane, unlike ``#voltage_source``/``#transmission_line``'s gap-feed model.
+Complements ``#transmission_line``: it is a different, well-established
+formulation (not a variant of the two-wire line, and not a general-purpose
+alternative to ``#voltage_source``), building on the magnetic frill generator of
+King and Harrison and on Maloney, Smith, & Scott's FDTD implementation of it.
+There is no explicit one-dimensional line, no absorbing boundary, and no
+"magic time step". The coax's sub-cell aperture is represented by an
+equivalent magnetic surface current entering Faraday's law at the four Yee
+magnetic-field components immediately surrounding the feed point. The
+corrected Hyun feed-cell formulation is supported by the CPU, CUDA, OpenCL,
+and Metal solvers, and by domain-decomposed MPI CPU models. In MPI, the four
+magnetic feed edges may cross internal rank boundaries: their Ampere-loop
+terms are combined before the common terminal state is advanced, and each
+field deposit is applied by its owning rank. The syntax is:
+
+.. code-block:: none
+
+    #magnetic_frill_source: c1 f1 f2 f3 f4 str1 [str2 | f5 f6 [str2]]
+
+* ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``
+  - the antenna axis the source drives current along, following the same
+  electrical sign convention already used by gprMax's
+  ``Ix``/``Iy``/``Iz`` current output.
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the feed point in the model - the
+  position of the antenna's own inner conductor where it passes through the
+  ground plane.
+* ``f4`` is the coax's characteristic impedance ``Zcoax`` (Ohms), and must be
+  finite and greater than zero.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+* ``f5 f6`` are optional parameters specifying a delay before the incident
+  waveform starts and a time at which that waveform stops. They gate only the
+  incident wave; the coaxial terminal relation remains connected for the rest
+  of the simulation so that late antenna reflections are treated correctly.
+* ``str2`` is an optional spectrum limit: either a numeric minimum number of
+  cells per shortest material wavelength or ``nyquist``. It may follow the
+  base command directly, or follow ``f5 f6`` when start and stop times are
+  supplied. The default is 10.
+
+The source must be co-located with a Yee edge of a ``#thin_wire`` of the same
+orientation. gprMax obtains the inner-conductor radius :math:`a`
+from that wire. This is necessary because the radius occurs explicitly in
+Hyun's discrete feed-cell equation. An ordinary PEC edge has no unambiguous
+physical radius and is therefore rejected. In particular, :math:`a` cannot be
+assumed to equal the cell size: that would make the logarithmic correction
+singular. The normal ``#thin_wire`` condition
+:math:`a < \min(\Delta u,\Delta v)/2` applies in the two transverse directions.
+
+The physical outer-conductor/aperture radius :math:`b` and the coax filler are
+represented through ``Zcoax`` and are not separate numerical inputs. For a
+lossless TEM coax with inner-conductor radius :math:`a`, outer-conductor inner
+radius :math:`b`, and filler relative permittivity and permeability
+:math:`\varepsilon_{r,c}` and :math:`\mu_{r,c}`, respectively,
+
+.. math::
+
+    Z_\mathrm{coax}
+    = \frac{1}{2\pi}
+      \sqrt{\frac{\mu_0\mu_{r,c}}{\varepsilon_0\varepsilon_{r,c}}}
+      \ln\!\left(\frac{b}{a}\right)
+    = \frac{\eta_0}{2\pi}
+      \sqrt{\frac{\mu_{r,c}}{\varepsilon_{r,c}}}
+      \ln\!\left(\frac{b}{a}\right).
+
+For the usual nonmagnetic filler (:math:`\mu_{r,c}=1`), this is commonly
+written
+
+.. math::
+
+    Z_\mathrm{coax} \simeq
+    \frac{60}{\sqrt{\varepsilon_{r,c}}}
+    \ln\!\left(\frac{b}{a}\right)\ \Omega,
+    \qquad
+    b = a\exp\!\left(
+        \frac{Z_\mathrm{coax}\sqrt{\varepsilon_{r,c}}}{60}
+    \right).
+
+Here :math:`\eta_0=\sqrt{\mu_0/\varepsilon_0}` is the impedance of free space.
+The permittivity in these equations is that of the **coax filler**, not
+necessarily the material above the ground plane surrounding the antenna.
+Thus a measured or datasheet value of ``Zcoax`` may be supplied directly;
+otherwise it can be calculated from :math:`a`, :math:`b`, and the filler.
+gprMax obtains :math:`a` from the attached ``#thin_wire`` but does not infer or
+check :math:`b`.
+
+.. warning::
+
+    This formulation is only strictly valid while the coax's aperture radius
+    ``b`` is sub-cell: smaller than the discretisation (:math:`\Delta`) in the
+    plane perpendicular to the polarisation axis -
+    :math:`b<\min(\Delta y,\Delta z)` for ``x`` polarisation,
+    :math:`b<\min(\Delta z,\Delta x)` for ``y``, or
+    :math:`b<\min(\Delta x,\Delta y)` for ``z``. This is a model-validity
+    boundary, not a refinement axis: a physical aperture that is not sub-cell
+    does not converge toward the true coax-fed antenna by refining the mesh,
+    it converges toward a different problem (a continuous PEC plane carrying a
+    fictitious current sheet) - mesh the coax explicitly with
+    ``#cylinder``/``#box`` commands instead in that case. Because gprMax is
+    never given ``b`` (only ``Zcoax``), **this is not checked automatically -
+    it is the user's responsibility to confirm it holds** for their coax and
+    mesh before trusting the result.
+
+The tangential electric edges of the ground plane at the feed must already be
+PEC (for example via ``#plate`` or ``#box``). The axial edge is supplied by the
+attached ``#thin_wire``. The sub-cell aperture is invisible to the grid and is
+represented by the frill term; no gap is cut in the PEC plane.
+
+In Hyun's notation, the equivalent magnetic current and coax load relation are
+
+.. math::
+
+    M_\phi^n =
+    \frac{-2V_\mathrm{inc}^n + Z_0 I_\mathrm{tot}^n}
+         {(\Delta\rho/2)\ln(\Delta\rho/a)},
+    \qquad
+    V_\mathrm{ab}^n = 2V_\mathrm{inc}^n-Z_0 I_\mathrm{tot}^n.
+
+gprMax generalises the cylindrical feed cell to a rectangular Cartesian Yee
+cell. For each transverse radial direction :math:`u`, the frill applies
+
+.. math::
+
+    F_u = \frac{2}{\ln(\Delta u/a)}
+
+to the magnetic-source coefficient. The attached improved thin-wire material
+already supplies Mäkinen's orientation-specific :math:`k_H` projection, so the
+complete source coefficient contains :math:`F_u k_H`. The frill must supply
+:math:`F_u`; omitting it would model the wrong inner-conductor radius.
+
+The leapfrog current is evaluated using the time-average approximation
+recommended in [HYU2009]_,
+
+.. math::
+
+    I_\mathrm{tot}^n = \frac{1}{2}
+    \left(I^{n-1/2}+I^{n+1/2}\right).
+
+Because :math:`I^{n+1/2}` depends on the frill voltage applied during the same
+update, gprMax solves this small implicit relation in closed form. If
+:math:`G_f` is the precomputed feed-cell self-admittance and
+:math:`I_\mathrm{bulk}^{n+1/2}` is the current after the ordinary magnetic
+update but before the new frill deposit, then
+
+.. math::
+
+    I^{n+1/2} =
+    \frac{I_\mathrm{bulk}^{n+1/2} + 2G_f V_\mathrm{inc}^n
+          - (G_f Z_0/2) I^{n-1/2}}
+         {1+G_f Z_0/2}.
+
+This avoids a forward-time predictor iteration and implements equations
+(8)--(11) of [HYU2009]_ directly. The command waveform follows gprMax's
+Thevenin-generator convention, so the stored incident wave is one half of the
+specified waveform amplitude.
+
+Time histories of incident and total voltage (:math:`V_\mathrm{inc}`,
+:math:`V_\mathrm{ab}`) and total current (:math:`I_\mathrm{tot}`) are saved to
+the output file, along with automatically-calculated S11, input impedance, and
+input admittance, following the same conventions as ``#transmission_line``. No
+separate receiver-port command is required. Supply the optional
+``spectrum_limit`` directly on the magnetic-frill source when needed. The complete schema and
+equations are documented in the :ref:`Simulation Output <output>` section.
+
+For example, a z-directed, 0.1 mm radius inner conductor driven through a
+ground plane at z = 0 by a 50 Ohm coax is:
+
+.. code-block:: none
+
+    #waveform: ricker 1 10e9 my_pulse
+    #plate: 0 0 0 0.1 0.1 0 pec
+    #thin_wire: 0.05 0.05 0 0.05 0.05 0.04 0.0001
+    #magnetic_frill_source: z 0.05 0.05 0 50 my_pulse
+
+The hash command creates a main-grid source and remains valid in a model that
+also contains subgrids. To place the frill, its attached thin wire, and its
+ground plane inside a ``SubGridHSG``, use the Python API and add all four
+objects (including the waveform) to the same subgrid object.
+
+.. note::
+
+    * This source can be placed at a symmetry-plane corner declared with
+      ``#symmetry_boundary`` (for example a monopole fed at the domain origin,
+      to simulate only a quarter of the structure) - but only at the '0'-type
+      faces transverse to ``c1`` (``y0``/``z0`` for ``x`` polarisation,
+      ``z0``/``x0`` for ``y``, or ``x0``/``y0`` for ``z``); the corresponding
+      'max'-type symmetry corners are not yet supported.
+    * A feed point placed exactly at a domain-minimum boundary without the
+      matching ``#symmetry_boundary`` declared there is rejected outright,
+      since gprMax's underlying current-loop calculation cannot otherwise
+      distinguish "domain edge" from "symmetry plane".
+    * Two frill sources may not share a surrounding H edge. Such adjacent or
+      duplicate feeds form a coupled feed-cell system and cannot be advanced
+      as independent scalar terminal relations.
+    * MPI symmetry boundaries are supported. A frill and its thin wire may
+      cross internal rank boundaries or use PMC image completion at supported
+      minimum-face symmetry corners.
+    * This source is a "Path A" (through-ground-plane, continuous-conductor)
+      feed model. It is not intended for a dipole/bow-tie style gap feed
+      (:math:`E_z \neq 0` at the feed) - use ``#voltage_source`` for that case.
 
 #plane_wave_angles:
 ---------------------
@@ -909,22 +1633,25 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [f10 f11 f12]
+    #plane_wave_angles: f1 f2 f3 f4 f5 f6 f7 f8 f9 str1 [str2 f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``f7`` is theta which defines the polar propagation angle (degrees) of the incident plane wave.
 * ``f8`` is phi which defines the azimuthal propagation angle (degrees) of the incident plane wave.
 * ``f9`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str2 f10 f11`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) with a polarisation angle :math:`\psi` of 90 degrees, azimuthal propagation angle :math:`\phi` of 63.4 degrees, polar propagation angle :math:`\theta` of 36.7 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_angles: 0.010 0.010 0.010 0.040 0.040 0.040 36.7 63.4 90.0 mypulse``.
 
 .. note::
 
-    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and not for user defined waveforms. 
-    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
+    * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
+    * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
+    * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * Internally, theta and phi are approximated by an integer direction vector (Mx, My, Mz) found to within a maximum acceptable angular difference of 3 arc minutes (0.05 degrees) by default. This tolerance can be relaxed or tightened using the ``max_angle_diff`` parameter (in degrees) when using the Python API.
 
 #plane_wave_vector:
 ---------------------
@@ -933,48 +1660,246 @@ Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sour
 
 .. code-block:: none
 
-    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+    #plane_wave_vector: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [str2 f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``i1 i2 i3`` are integers that specify the direction of the wave vector (Mx, My, Mz) of the incident plane wave.
 * ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``str2 f11 f12`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``str2 f10 f11`` are optional parameters. ``str2`` is a material identifier that is the background material that the plane wave propagates through. The default value is ``free_space``. This material must also be the background material of your full model. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
 For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the diagonal of your grid using a polarisation angle :math:`\psi` of 90 degrees, you can use as a vector (1,1,1) resulting in an azimuthal propagation angle :math:`\phi` of 45.0  degrees, polar propagation angle :math:`\theta` of approximately 54.736 degrees, and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_vector: 0.010 0.010 0.010 0.040 0.040 0.040 1 1 1 90.0 mypulse``.
 
 .. note::
 
-    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
-    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+    * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
+    * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
+    * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
+    * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
 #plane_wave_axial:
 ---------------------
 
-Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. This command introduces a plane wave that propagates along one of the three grid axes and can be normally incident on mulit-layer setups that span the entire model domain perpenticular to the direction of propagation. It takes its media properties from the background materials of the grid at the direction of the axis that it propagates. This allows for half-space simulations but only for normally incident plane waves. The syntax of the command is:
+Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. This command introduces a plane wave that propagates along one of the three grid axes and can be normally incident on multi-layer setups that span the entire model domain perpendicular to the direction of propagation. It takes its media properties from the background materials of the grid at the direction of the axis that it propagates. This allows for half-space simulations but only for normally incident plane waves. The syntax of the command is:
 
 .. code-block:: none
 
-    #plane_wave_axial: f1 f2 f3 f4 f5 f6 i1 i2 i3 f7 str1 [f10 f11 f12]
+    #plane_wave_axial: f1 f2 f3 f4 f5 f6 f7 c1 str1 [f10 f11]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the total field, scattered field (TFSF) box, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the total field, scattered field (TFSF) box.
 * ``c1`` is a character that specifies the axis along which the incident plane wave propagates and can be ``x``, ``y``, or ``z``. originating at the lower left corner of the TFSF box and propagating in the positive axis direction.
 * ``f7`` is psi which defines the polarisation angle (degrees) of the incident plane wave.
 * ``str1`` is the identifier of the waveform that should be used with the source.
-* ``f11 f12`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
+* ``f10 f11`` are optional parameters. ``f10`` is a time delay in starting the excitation of the discrete plane wave. ``f11`` is a time to remove the excitation of the discrete plane wave. If the time window is longer than the excitation of the discrete plane wave removal time then the excitation of the discrete plane wave will stop after the excitation of the discrete plane wave removal time. If the excitation of the discrete plane wave removal time is longer than the time window then the excitation of the discrete plane wave will be active for the entire time window. If ``f10 f11`` are omitted the excitation of the discrete plane wave will start at the beginning of time window and stop at the end of the time window.
 
 
-For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 x 90.0 mypulse``.
+For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010 to 0.040, 0.040, 0.040) propagating along the positive ``x`` direction using a polarisation angle :math:`\psi` of 90 degrees and using the waveform defined by the identifier ``mypulse`` use: ``#plane_wave_axial: 0.010 0.010 0.010 0.040 0.040 0.040 90.0 x mypulse``.
 
 .. note::
-    
-    * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formualtions are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
-    * Currently a plane wave can be supported for dielectric and mulit-Debye media backgrounds and do not use for ``user`` defined waveforms.
-    * This plane wave implementation was based on an intitial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
+
+    * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formulations are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
+    * Plane waves support non-dispersive dielectric layers and multi-pole Debye, Lorentz, and Drude layers. They do not currently support ``user``-defined waveforms.
+    * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
+    * MPI domain decomposition is supported. The layered one-dimensional material profile is assembled collectively once during model construction using the actual electric, magnetic, and dispersive update-coefficient rows. The compact auxiliary profile is then replicated, and the timestep loop requires no plane-wave-specific MPI communication.
+    * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
 
 
+
+#eigenmode_band:
+----------------
+
+Defines the single frequency band shared by every eigenmode port in the model:
+
+.. code-block:: none
+
+    #eigenmode_band: str1 f1 f2 i1 [f3 ...]
+
+* ``str1`` is a non-empty band identifier.
+* ``f1`` and ``f2`` are the inclusive DFT start and stop frequencies in Hertz.
+* ``i1`` is the number of uniformly spaced DFT points. A one-point band
+  requires ``f1=f2``; a multi-point band requires ``f2>f1``.
+* ``f3 ...`` are optional additional DFT frequencies inside the inclusive
+  band. gprMax sorts and deduplicates their union with the uniform grid. This
+  is useful when a dense S-parameter sweep must also contain specific NTFF
+  frequencies exactly.
+
+Exactly one band is required when eigenmode ports are present. Defining the
+band once guarantees identical DFT bins at every port.
+
+#eigenmode_port:
+----------------
+
+Defines an active or passive modal reference plane. The same command is used
+for every port; one or more ``#eigenmode_excitation`` commands select active
+port/mode channels.
+
+.. code-block:: none
+
+    #eigenmode_port: i1 f1 f2 f3 f4 f5 f6 c1 i2[,i3 ...] str1|f7 [f8 ...] [c2]
+
+* ``i1`` is the unique, one-based port number.
+* ``f1 f2 f3`` and ``f4 f5 f6`` are opposite port-plane points in metres.
+  In 3D exactly one finite coordinate pair must match, defining the normal.
+  In 2D the normal must be in-plane and the port must span the complete
+  invariant thickness; use ``inf`` for the upper invariant coordinate.
+* ``c1`` is ``+`` or ``-`` and points into the device from the port.
+* ``i2[,i3 ...]`` is a comma-separated, strictly increasing list of positive
+  one-based modes to monitor, for example ``1`` or ``1,2``.
+* ``str1`` can be ``auto``. One common automatic anchor list covers the
+  requested band and the significant sampled source spectrum, including its
+  transition regions, and is used by every automatic port.
+* Alternatively, ``f7 [f8 ...]`` are explicit, strictly increasing modal
+  anchor frequencies. Multiple anchors must cover the required range or the
+  model is rejected with suggested anchors. A single explicit anchor is
+  accepted intentionally as a constant modal basis across the complete band.
+* ``c2`` optionally controls field plots: ``y`` always writes them and ``n``
+  always suppresses them. If omitted, geometry-only runs write the plots and
+  normal runs do not.
+
+For example, these two rectangular-waveguide ports share one DFT band and one
+automatic anchor list:
+
+.. code-block:: none
+
+    #eigenmode_band: wg_band 45e9 65e9 81
+    #eigenmode_port: 1 0.002 0.001 0.001 0.002 0.007 0.005 + 1 auto
+    #eigenmode_port: 2 0.011 0.001 0.001 0.011 0.007 0.005 - 1 auto
+
+Consecutive anchors are checked using normalized modal-field overlap. If
+explicit multiple anchors show a severe mismatch, such as at a degeneracy or
+mode crossing, the run stops and recommends one explicit anchor. With
+``auto``, a failure confined to a spectral guard outside the requested band
+trims that tail only for the affected port and mode and uses its nearest
+retained modal profile for endpoint extrapolation. A failure in the requested
+band makes that port and mode warn and use its band-centre anchor. Candidate
+frequencies remain common, but retained masks and fallbacks are per port and
+per mode.
+
+#eigenmode_excitation:
+----------------------
+
+Selects one active port and mode after the band and ports have been defined.
+Repeat the command to drive several distinct port/mode channels. Omit it only
+when every port is a passive virtual guide; such a model writes raw modal
+spectra but no S matrix:
+
+.. code-block:: none
+
+    #eigenmode_excitation: i1 i2 [str1] [f1] [f2] [f3] [c1]
+
+* ``i1`` is an existing port number.
+* ``i2`` is one of that port's monitored mode indices.
+* ``str1`` is ``auto`` by default. It constructs a finite, real band-pass
+  pulse whose Gaussian-smoothed lower and upper edges adapt to the requested
+  band, simulation time step, and Nyquist limit. The same waveform drives the
+  source and its modal spectrum analysis. The pulse is placed at the earliest
+  causal time that preserves its significant temporal support, leaving the
+  remaining time window for propagation and ring-down.
+* A custom waveform identifier may be supplied instead. Its exact sampled
+  spectrum is checked before any modal solve. Significant DC or Nyquist bins
+  are discarded with a warning. More than one percent spectral power outside
+  the requested band remains an error. Use a band-limited waveform, or select
+  ``auto`` to synthesize one automatically for a finite frequency band.
+* ``f1`` is an optional non-zero amplitude scale. All simultaneous drives
+  must use the same base waveform.
+* ``f2`` is an optional constant phase in degrees. It defaults to zero.
+* ``f3`` is an optional true time delay :math:`\tau` in seconds. It defaults
+  to zero and applies :math:`\exp(-j2\pi f\tau)`.
+* ``c1`` optionally controls the waveform/DFT plot: ``y`` always writes it and
+  ``n`` always suppresses it. If omitted, geometry-only runs write the plot and
+  normal runs do not. The flag may follow ``i2`` directly when the default
+  waveform and amplitude are used.
+
+A complete excitation for the ports above is:
+
+.. code-block:: none
+
+    #eigenmode_excitation: 1 1 auto y
+
+For a simultaneous two-port state, for example:
+
+.. code-block:: none
+
+    #eigenmode_excitation: 1 1 auto 1 0 0 n
+    #eigenmode_excitation: 2 1 auto 0.5 90 0 n
+
+Exactly one active channel produces an S-parameter column. With two or more
+active channels, gprMax stores the driven incident/outgoing modal waves and
+drive metadata but does not create ``S`` datasets or an S-parameter CSV. Use
+an eigenmode study for the independently excited complete S matrix.
+
+A single-frequency band cannot use the automatic finite-band pulse. Supply a
+matching continuous waveform and one explicit modal anchor instead.
+
+At every FDTD time step the source port and all passive ports project the
+cell-centred transverse fields onto their requested modes. gprMax writes
+``<output>_sparameters.csv`` and the corresponding ``/eigenmode_ports`` HDF5
+groups. Source-port rows contain modal S11 results; other ports contain S21
+and modal-conversion results. See :doc:`eigenmode_port` for the phasor convention,
+FDFD formulation, power normalization, TF/SF injection, broadband synthesis,
+and output definitions.
+
+.. note::
+
+    * Hash commands define eigenmode ports on the main grid, where the CPU,
+      CUDA, OpenCL, and Metal solvers are supported. Direct eigenmode ports may
+      also be added to an HSG subgrid through the Python API; they then use the
+      fine-grid material slice, spatial step, time step, and CPU update cycle.
+      The complete port stencil must remain strictly inside the subgrid working
+      region. See :doc:`eigenmode_port`.
+    * Domain-decomposed MPI CPU models are supported. Modal material slices
+      are assembled collectively once, TF/SF corrections are restricted to
+      locally owned Yee components, and modal DFT projections are reduced at
+      finalisation.
+
+#virtual_waveguide:
+-------------------
+
+Replaces the continuation behind an eigenmode-port plane with a finite
+auxiliary FDTD waveguide terminated by a PML:
+
+.. code-block:: none
+
+    #virtual_waveguide: i1 [i2] [i3] [i4] [str1]
+
+* ``i1`` is the one-based number of an existing ``#eigenmode_port``.
+* ``i2`` is the total auxiliary-guide length in cells (default 30).
+* ``i3`` is the remote PML thickness in cells (default 12).
+* ``i4`` is the number of clear cells between an active modal source and the
+  PML (default 6).
+* ``str1`` optionally selects a reusable PML profile defined by named
+  ``#pml_formulation`` and ``#pml_cfs`` commands. Use ``None`` to retain the
+  global PML configuration while specifying all preceding positional values.
+
+The guide direction and cross-section are inherited from the referenced port.
+The material and Yee-component cross-section at the port is repeated through
+the auxiliary grid. The normal H field and tangential E fields are coupled in
+both directions at the aperture, so reflected modes enter the guide and are
+absorbed by its remote PML.
+
+If the referenced port is selected by ``#eigenmode_excitation``, the modal
+source is placed inside the auxiliary guide. Otherwise the guide is passive.
+All ports may be passive when every ``#eigenmode_port`` has a
+``#virtual_waveguide``; raw incident and outgoing modal spectra are then saved,
+but no S-parameters can be normalized without an active port.
+
+The port plane must be internal, locally uniform along the guide axis, and at
+least two cells wide in each transverse direction. The minimum guide length
+is ``i3 + i4 + 3`` cells. Main-grid virtual waveguides support 3D,
+non-dispersive guide cross-sections with the CPU, CUDA, OpenCL, and Metal
+solvers. Through the Python API, a virtual waveguide may instead be attached
+to an HSG-subgrid port; it then inherits that subgrid's fine material slice,
+spatial and temporal steps, and CPU update cycle. Domain-decomposed MPI CPU
+models are supported. The compact auxiliary guide is replicated, while one
+aperture-sized collective communicates the three required H sheets after each
+magnetic halo exchange.
+
+Unlike a direct eigenmode source, a virtual-waveguide source lies outside the
+main FDTD domain. A closed equivalent-current or KSIR NTFF surface may
+therefore enclose the antenna and its physical feed aperture without omitting
+a face. The integration surface must not intersect the virtual aperture.
 
 #rx:
 ----
@@ -992,6 +1917,9 @@ Allows you to introduce output points into the model. These are locations where 
 .. note::
 
     * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components will be output with the receiver point.
+    * On CUDA, OpenCL, and Metal, ``Ix``, ``Iy``, and ``Iz`` use the same
+      single-cell Ampere loops as the CPU solver. Their device histories are
+      allocated only for explicitly requested current components.
 
 #rx_array:
 ----------
@@ -1004,6 +1932,260 @@ Provides a simple method of defining multiple output points in the model. The sy
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output line/rectangle/volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output line/rectangle/volume.
 * ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. ``f7``, ``f8``, or  ``f9`` can be set to zero to prevent any output points in a particular direction. Otherwise, the minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
+
+Automatic voltage-source port output
+------------------------------------
+
+Every 3-D ``#voltage_source`` automatically calculates the complex reflection
+coefficient and input impedance of its single-cell feed edge. The hidden field
+monitor is placed at the source coordinate; a separate ``#rx`` command is not
+required. Two representative forms are:
+
+.. code-block:: none
+
+    #voltage_source: z 0.050 0.050 0.020 50 source_wave 0 10e-9 feed 10
+    #voltage_source: z 0.060 0.050 0.020 0 source_wave 0 10e-9 ideal_feed nyquist 75
+
+The automatic port is supported in domain-decomposed MPI CPU models. The source and
+its internal field monitor belong to one rank; for a hard source, magnetic
+halos are synchronised before the next current sample so an Ampere loop may
+cross an internal rank face or corner. Port histories are gathered and the
+frequency-domain quantities are calculated once on the coordinator rank.
+
+Finite-resistance sources on dispersive edges use the complete complex
+background permittivity in the Yee-gap correction. Hard sources on dispersive
+edges are not yet supported.
+
+For a finite-resistance source, the voltage-source resistance is the
+reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless the
+final optional reference-impedance value is supplied. At the source plane, the known generator
+spectrum :math:`V_g` and sampled total gap voltage :math:`V` give
+
+.. math::
+
+    S_{11,\mathrm{source}} = \frac{2V-V_g}{V_g}.
+
+No current calculation is required in this finite-resistance case. gprMax
+removes the parallel capacitance and background conductance of the source Yee
+edge before reporting the antenna-terminal result. With
+:math:`c=Z_0Y_\mathrm{gap}`, this correction and the input impedance are
+
+.. math::
+
+    S_{11} =
+    \frac{2S_{11,\mathrm{source}}+c(1+S_{11,\mathrm{source}})}
+         {2-c(1+S_{11,\mathrm{source}})},
+    \qquad
+    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}}.
+
+For a zero-resistance source, the gap voltage is prescribed at integer
+electric-field times. gprMax calculates the Ampere-loop current from the four
+surrounding magnetic components. The voltage and current samples retain their
+exact Yee times,
+
+.. math::
+
+    V=V^{n+1}, \qquad I_\mathrm{loop}=I_\mathrm{loop}^{n+1/2},
+
+and the engineering-convention transforms apply the corresponding
+:math:`\Delta t` and :math:`\Delta t/2` time offsets. This corrects their
+relative phase without attenuating current by interpolation. The terminal
+current is then
+
+.. math::
+
+    I_\mathrm{terminal}=I_\mathrm{loop}-Y_\mathrm{gap}V.
+
+For this integer-voltage/half-step-current pairing, the discrete parallel-gap
+admittance is
+
+.. math::
+
+    Y_\mathrm{gap} = G_\mathrm{bg}\cos\left(\frac{\omega\Delta t}{2}\right)
+    +j\frac{2C_\mathrm{gap}}{\Delta t}
+    \sin\left(\frac{\omega\Delta t}{2}\right).
+
+This is the FDTD analogue of an ideal delta-gap MoM excitation: voltage is
+imposed and the antenna current is a solved response. The user-supplied
+:math:`Z_0` (or its 50 Ohm default) defines the travelling-wave normalisation
+only. The reported
+quantities are calculated directly as
+
+.. math::
+
+    Z_\mathrm{in}=\frac{V}{I_\mathrm{terminal}},
+    \qquad
+    V^\pm=\frac{V\pm Z_0 I_\mathrm{terminal}}{2},
+    \qquad
+    S_{11}=\frac{V^-}{V^+}.
+
+The gap capacitance and conductance use the effective electric-edge material
+before any artificial source resistance is added. The appropriate discrete
+admittance is used in each source mode so the correction is consistent with
+the trapezoidal Yee update and the mode's voltage/current sampling times.
+
+By default, output stops at the first native FFT bin that does not have at
+least 10 cells per shortest wavelength in the model. For nonmagnetic,
+nondispersive media this is the material with the largest :math:`\epsilon_r`.
+A numeric ``str2`` changes this sampling requirement; values below 10 produce
+a warning and values below 3 are rejected. ``nyquist`` deliberately retains
+the full spectrum but does not claim it is accurate: the lambda/10 limit and
+per-bin mesh/source validity masks are still written to HDF5. The actual
+stored range, native frequency resolution, Nyquist bound, and limiting
+material are reported when the model is built.
+
+.. note::
+
+    * The implementation supports one finite-resistance or zero-resistance
+      voltage source on the main 3D grid with the CPU, CUDA, OpenCL, or Metal
+      solver. A hard-source port uses a 50 Ohm default :math:`Z_0`, which can
+      be overridden on ``#voltage_source``.
+    * MPI, subgrids, 2D modes, geometry-fixed runs, grouped sources, sources
+      inside a PML, and dispersive material on the source edge are currently
+      rejected. Dispersive materials elsewhere in the model are supported.
+      A hard-source current loop cannot lie on a domain-minimum transverse
+      boundary.
+    * ``S11`` remains the primary result. ``Zin`` is singular near an open
+      circuit (:math:`S_{11}=1`), so gprMax also stores ``Yin`` and separate
+      validity masks.
+    * A time trace that has not decayed before the end of the model window can
+      contaminate the spectrum. gprMax reports a tail-level warning rather
+      than hiding or clipping the result.
+
+#sar:
+-----
+
+Requests on-the-fly frequency-domain specific absorption rate (SAR) over one
+or more semantic geometry tags.
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 f3 f4|nyquist str2 str3 [str4 ...]
+
+where ``f1`` and ``f2`` are the start and stop frequencies in Hz, ``i1`` is
+the number of linearly spaced frequency points, ``str1`` is the waveform ID,
+``f3`` is the positive target peak-phasor amplitude, ``f4`` is the minimum
+number of cells per shortest material wavelength, ``str2`` is the output ID,
+and the remaining strings are geometry tags. For one frequency, ``f1`` and
+``f2`` must be equal. The target amplitude uses the source's native units
+(for example V/m for a discrete plane wave and V for a voltage source). For
+example:
+
+.. code-block:: none
+
+    #material_density: 1040 brain
+    #sar: 8e8 1.2e9 41 pulse 1 10 brain_sar brain_region
+
+The positional syntax deliberately requires every parameter. ``nyquist`` may
+replace ``f4`` only as an explicit research override; it bypasses the spatial
+wavelength criterion but not the temporal Nyquist check. The default Python
+API criterion is lambda/10, and lambda/8 is requested by supplying ``8``.
+Every material in the selected final tagged cells must have a positive mass
+density. Tagged cells inside boundary or internal PML regions are excluded
+automatically. Three- and two-dimensional CPU, CUDA, OpenCL, and Metal
+main-grid models, MPI domain-decomposed CPU models, and three-dimensional CPU
+HSG subgrids are supported. In 2-D, only invariant index zero for TM or index
+one for TE is sampled; tag mass and absorbed power are reported per unit
+invariant length. A ``#sar`` command inside a subgrid block samples the fine
+grid at its own timestep and writes
+``/subgrids/<subgrid ID>/sar/<output ID>``. Its normalising source may belong
+to the main grid or the subgrid. See :ref:`sar-output` for the formulation and
+datasets, and :ref:`sar-2d-cylinder-validation` for analytical TMz and TEz
+validation against homogeneous lossy-cylinder series.
+
+For port-power normalisation, replace the numeric target amplitude by
+``incident_power`` or ``accepted_power`` and insert the target power in watts
+for 3-D, or watts per metre for 2-D, and port ID before the spectrum limit.
+No waveform ID is required because the named port supplies its own incident
+and accepted spectra:
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 incident_power f3 str1 f4|nyquist str2 str3 [str4 ...]
+    #sar: 8e8 1.2e9 41 accepted_power 1 feed 10 brain_sar brain_region
+
+The older form containing an unused waveform ID before the power keyword is
+still accepted for input-file compatibility. A Hertzian current-moment or
+plane-wave incident-flux normalisation uses:
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 current_moment f3 f4|nyquist str2 str3 [str4 ...]
+    #sar: f1 f2 i1 str1 incident_flux f3 f4|nyquist str2 str3 [str4 ...]
+
+Here ``current_moment`` interprets ``f3`` as A m and is restricted to one
+active 3-D Hertzian dipole. ``incident_flux`` interprets it as W/m\ :sup:`2`
+and requires one active discrete plane wave using waveform ``str1``.
+
+The original numeric-amplitude form remains unchanged. By default the output
+contains local cell SAR, absorbed-power density, and per-tag summaries only.
+To request spatial mass averages, insert the literal ``spatial_average``, the
+number of target masses, and those masses in kg immediately before the
+geometry tags:
+
+.. code-block:: none
+
+    #sar: f1 f2 i1 str1 f3 f4|nyquist str2 spatial_average i2 f5 [f6 ...] str3 [str4 ...]
+    #sar: 8e8 1.2e9 41 pulse 1 10 brain_sar spatial_average 2 0.001 0.01 brain_region
+
+Here ``i2`` must be positive and determines exactly how many following values
+are interpreted as masses. This explicit positional marker keeps arbitrary
+geometry-tag names distinguishable from numeric masses. Omitting the marker
+requests no spatial averaging. The same suffix follows ``str3`` (the output
+ID) in the port-power form. The ``spatial_average`` suffix is currently
+three-dimensional only; it is rejected in TM and TE models.
+
+
+#radiometry:
+-------------
+
+Requests density-independent absorbed-power and radiometric weighting over
+semantic geometry tags. The waveform, current-moment, plane-wave flux, and
+port-power forms mirror ``#sar`` but do not accept a spatial-average suffix:
+
+.. code-block:: none
+
+    #radiometry: f1 f2 i1 str1 f3 f4|nyquist str2 str3 [str4 ...]
+    #radiometry: f1 f2 i1 str1 current_moment f3 f4|nyquist str2 str3 [str4 ...]
+    #radiometry: f1 f2 i1 str1 incident_flux f3 f4|nyquist str2 str3 [str4 ...]
+    #radiometry: f1 f2 i1 accepted_power f3 str1 f4|nyquist str2 str3 [str4 ...]
+
+For example, a unit-flux plane-wave absorption cross section for a tagged
+layer is requested with:
+
+.. code-block:: none
+
+    #radiometry: 5e8 2e9 61 incident incident_flux 1 10 layer_absorption subsurface_layer
+
+The output is written to ``/radiometry/<output ID>`` and contains local
+absorbed-power density, normalised absorption density, and per-tag integrals.
+It does not require ``#material_density``. See :ref:`radiometry-output` for
+the dimensional meaning of each normalisation.
+
+
+#network_port:
+--------------
+
+Requests time- and frequency-domain port quantities for an existing
+``#network_terminal``. The terminal ID is also the HDF5 port ID. The syntax is
+
+.. code-block:: none
+
+    #network_port: str1 [f1 [f2]]
+
+* ``str1`` is the network-terminal ID.
+* ``f1`` is the positive real power-wave reference impedance in ohms; it is
+  50 Ohms by default.
+* ``f2`` is the minimum number of cells per shortest material wavelength; it
+  is 10 by default. The literal ``nyquist`` retains the full native spectrum
+  with validity masks for research use.
+
+The output contains terminal voltage and current, incident and reflected
+power-wave spectra, ``S11``, ``Zin``, and ``Yin``. gprMax removes the
+background Yee-gap capacitance and conductance from the reported terminal
+current. A driven network obtains ``S11`` and incident power; an unexcited
+network remains useful as a passive measured port, for which ``Zin`` and
+``Yin`` are still available when numerically defined.
 
 #src_steps: and #rx_steps:
 --------------------------
@@ -1020,6 +2202,213 @@ Provides a simple method to allow you to move the location of all simple sources
 .. note::
 
     * ``#src_steps`` and ``#rx_steps`` are not suitable for moving sources which have associated geometry, e.g. antenna models.
+
+#study:
+-------
+
+Runs a sequence of source/receiver cases while building the model geometry
+only once. This is the general counterpart to ``#src_steps`` and
+``#rx_steps``: positions need not follow a regular increment, individual
+sources can be activated or scaled, and every output file records the exact
+case that produced it. The syntax is:
+
+.. code-block:: none
+
+    #study: gpr file1
+
+The study type may be ``gpr`` for irregular source/receiver acquisition,
+``source`` for fixed-topology stateful terminal sources, ``port`` for a
+finite-resistance voltage-source S-parameter study, ``eigenmode`` for a
+modal-port S-parameter study, or ``plane_wave`` for an angular TFSF/RCS
+study:
+
+.. code-block:: none
+
+    #study: source file1
+    #study: port file1
+    #study: eigenmode file1
+    #study: plane_wave file1
+
+``file1`` is a CSV table. Its path is resolved relative to the main input
+file. The required columns are ``case_id`` and ``object_id``. The optional
+columns are ``active``, ``x_m``, ``y_m``, ``z_m``, ``waveform_id``,
+``start_s``, ``stop_s``, ``scale``, ``record``, ``port``, and ``mode``. Blank
+cells mean "use the object's baseline value". All three position columns must
+be supplied together and contain absolute coordinates in metres. ``port`` and
+``mode`` are positive integers used only by an eigenmode study.
+
+A plane-wave table uses the deterministic object ID ``plane_wave_1``. Its
+additional optional columns are ``theta_deg``, ``phi_deg``, ``psi_deg``,
+``axis``, ``m_x``, ``m_y``, and ``m_z``. The permitted columns follow the
+plane-wave command used in the model: angles use theta/phi/psi, vector sources
+use all three integer mapping columns and psi, and axial sources use axis and
+psi. ``waveform_id``, ``start_s``, ``stop_s``, and a non-zero ``scale`` are
+available for every form. For example:
+
+.. code-block:: text
+
+    case_id,object_id,theta_deg,phi_deg,psi_deg,scale
+    x_incidence,plane_wave_1,90,0,90,1
+    y_incidence,plane_wave_1,90,90,90,1
+
+The TFSF box and its background material remain fixed. gprMax rebuilds the
+auxiliary one-dimensional discrete plane wave and resets/recompiles
+declarative NTFF accumulators for each row, while retaining the main model
+geometry. NTFF observation directions also remain fixed: request all angles
+needed across the cases in the input file and select the appropriate direction
+from each numbered output file.
+
+#array_codebook:
+----------------
+
+Associates a versioned JSON array-state codebook with an eigenmode study:
+
+.. code-block:: none
+
+    #study: eigenmode modal_cases.csv
+    #array_codebook: array_states.json
+
+The command has one positional argument, resolved relative to the main input
+file. It is valid only with ``#study: eigenmode``. The study CSV still defines
+the independent one-active-channel solves needed to obtain the complete
+S matrix. The JSON file defines any coherent states to evaluate after that
+matrix has been assembled and, optionally, the far-field requests whose
+linear complex fields should be retained as an embedded basis:
+
+.. code-block:: json
+
+    {
+      "schema": "gprMax-array-codebook-v1",
+      "embedded_far_fields": [
+        {"transform_id": "antenna_band", "output_id": "pattern"}
+      ],
+      "states": [
+        {
+          "id": "broadside",
+          "drives": [
+            {"port": 1, "mode": 1, "power_w": 1.0},
+            {"port": 2, "mode": 1, "power_w": 1.0,
+             "phase_deg": 0.0, "delay_s": 0.0}
+          ]
+        }
+      ]
+    }
+
+``power_w`` is incident modal power, so the complex power-wave magnitude is
+its square root. ``phase_deg`` is a frequency-independent phase shifter and
+``delay_s`` is a true time delay. Both default to zero and ``power_w``
+defaults to one. Omit a channel from a state to leave it passive. Every
+selected far field must identify one existing frequency-domain KSIR or
+equivalent-current far-field request. Retaining fields is opt-in because the
+requested directions, a full-sphere radiation quadrature, and every modal
+channel are stored.
+
+A ``source`` study manages main-grid ``#transmission_line``,
+``#magnetic_frill_source``, and ``#network_excitation`` commands. Their
+deterministic IDs are ``transmission_line_1``, ``magnetic_frill_source_1``,
+and ``network_excitation_1`` (and so on within each family). Positions,
+impedances, thin-wire/coax geometry, and rational-network definitions are
+fixed. The CSV may vary ``active``, ``waveform_id``, ``start_s``, ``stop_s``,
+and ``scale``. For example:
+
+.. code-block:: text
+
+    case_id,object_id,active,waveform_id,start_s,stop_s,scale
+    full_drive,transmission_line_1,true,pulse,0,4e-9,1
+    half_drive,transmission_line_1,true,pulse,0,4e-9,0.5
+    passive,transmission_line_1,false,,,,
+
+Any number of listed sources may be active in a case. An omitted or inactive
+source keeps its physical terminal and acts as a passive termination with
+zero generator drive. gprMax resets the terminal's internal field, recurrence,
+history, and derived port state before every case. Declarative NTFF outputs
+are also rebuilt with pristine accumulators. ``source`` studies are therefore
+suitable for comparing multiple-feed antenna excitations, but do not
+calculate a complete S matrix; use ``port`` or ``eigenmode`` for that purpose.
+The normal CPU, CUDA, OpenCL, and Metal implementations are available.
+Stateful sources inside subgrids, MPI, and task farming are not currently
+supported by this study type.
+
+For example:
+
+.. code-block:: text
+
+    case_id,object_id,active,x_m,y_m,z_m,waveform_id,start_s,stop_s,scale,record
+    trace_1,hertzian_dipole_1,true,0.100,0.050,0.030,,,,1,
+    trace_1,rx_1,,0.140,0.050,0.030,,,,,true
+    trace_2,hertzian_dipole_1,true,0.102,0.052,0.030,,,,0.8,
+    trace_2,rx_1,,0.145,0.052,0.030,,,,,true
+
+Objects receive deterministic IDs from their order of appearance within each
+object family: ``hertzian_dipole_1``, ``hertzian_dipole_2``,
+``magnetic_dipole_1``, ``voltage_source_1``, and ``rx_1``. An explicit
+``#rx`` identifier is also accepted as an alias. A source listed in a case is
+active by default; a source omitted from that case, or listed with
+``active=false``, is inactive. A receiver omitted from a case remains at its
+baseline position and is still recorded. ``record=false`` is reserved for
+future selective-output support and is currently rejected rather than
+silently ignored.
+
+For a ``port`` study, every ``#voltage_source`` must have finite, non-zero
+resistance and a unique automatic port ID. The CSV must contain
+one case for every voltage source and drive exactly one source in each case.
+Omitted sources retain their fixed source resistance but receive a zero
+generator waveform, so they behave as passive matched terminations. For
+example, a two-port schedule is:
+
+.. code-block:: text
+
+    case_id,object_id,active,scale
+    drive_port1,voltage_source_1,true,1
+    drive_port2,voltage_source_2,true,1
+
+Source position and resistance cannot vary in a port study because they are
+part of the built electric-edge material. Hard sources are not accepted: zero
+drive on a hard source enforces zero field and is not a matched termination.
+Each case output stores its source-plane S-matrix column. After the cases
+finish, ``<output>_study.h5`` stores the complete source-plane and
+gap-corrected matrices using
+``S[frequency, output_port, input_port]``. The correction removes all numerical
+gap capacitances/conductances through the full admittance matrix, including
+the coupled off-diagonal terms.
+
+For an ``eigenmode`` study, every case contains the single deterministic
+object ``eigenmode_excitation_1`` and selects one declared port/mode channel.
+Every mode on every ``#eigenmode_port`` must be selected exactly once:
+
+.. code-block:: text
+
+    case_id,object_id,port,mode
+    p1m1,eigenmode_excitation_1,1,1
+    p2m1,eigenmode_excitation_1,2,1
+
+All port modal anchors are solved during the first geometry build, including
+source-grade spectral-guard anchors. Later cases reuse those bases, reset the
+modal DFT and any ``#virtual_waveguide`` fields/PML history, and switch the
+active channel without another FDFD solve. The aggregate file stores
+``S[frequency, output_channel, input_channel]`` together with ``channel_ports``
+and ``channel_modes``. It retains the full measured incident and outgoing
+matrices from all cases and obtains :math:`S` from the conditioned system
+:math:`B=SA`; it does not assume that nominally passive ports have exactly
+zero incident wave. The same de-embedding is applied to any embedded far-field
+basis selected by an array codebook.
+
+The number of CSV cases determines the number of model runs, so ``-n`` is not
+required. ``-i N`` restarts at case ``N`` and retains absolute output numbering.
+The original geometry, materials, PMLs, and grid allocation are reused, but
+field arrays and receiver histories are reset before every case. Each output
+contains a ``/study`` group with the case ID, resolved parameters, and a copy
+of the CSV source.
+
+.. note::
+
+    GPR studies support top-level ``#hertzian_dipole``,
+    ``#magnetic_dipole``, and ``#rx`` objects; port studies additionally
+    support finite-resistance ``#voltage_source`` ports;
+    eigenmode studies support ``#eigenmode_port``, ``#eigenmode_excitation``,
+    and ``#virtual_waveguide``. MPI domain decomposition, task farming, plane
+    waves, transmission lines, and rational/frill ports remain excluded from
+    studies until their family-specific state reset hooks are implemented.
 
 #snapshot:
 ----------
@@ -1044,8 +2433,780 @@ or
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
 
+In a reduced 2-D model, the invariant-axis range is collapsed to the genuine
+field plane: index zero for TM and index one for TE. The two-cell TE thickness
+is required by Yee staggering and is not exported as two physical snapshot
+planes.
+
 .. tip::
     A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
+
+    The Python API can also add a snapshot to an HSG subgrid. Such a snapshot
+    uses the subgrid's finer spatial discretisation and time step, while its
+    file origin remains in the global model coordinate system. The hash
+    command above always defines a main-grid snapshot.
+
+Near-to-far-field transformation commands
+==========================================
+
+The NTFF commands separate the integration surface from the formulation and
+its output points. A closed surface can therefore be reused by KSIR and
+equivalent-current transforms, and by many output directions, without
+repeating the six surface coordinates. An open surface is specific to the
+frequency-domain Huygens/equivalent-current transform, which can use any
+user-selected nonempty subset of the six faces. All optional parameters
+use the traditional positional gprMax syntax; ``name=value`` tokens are not
+used.
+The derivations, field normalisation, Yee placement, and comparison of the
+three implemented transforms are given in :ref:`ntff-formulations`.
+
+The following conventions apply to every NTFF command:
+
+* coordinates and radii are in metres, frequencies are in Hz, and angles are
+  in degrees;
+* requested frequencies must not exceed the temporal Nyquist limit
+  :math:`1/(2\Delta t)` for the model time step;
+* :math:`\theta` is the polar angle measured from ``+z`` and :math:`\phi` is
+  the azimuth measured from ``+x`` towards ``+y``;
+* a spherical coordinate is relative to the centre of its integration
+  surface. The Python API can instead give a custom surface origin;
+* Cartesian outputs are ``Ex Ey Ez Hx Hy Hz``. Spherical outputs are
+  ``Er Etheta Ephi Hr Htheta Hphi``. Far-field derived outputs are described
+  under ``#ksir_far_field`` below;
+* every exact time- or frequency-domain point must be strictly outside the
+  completed integration surface. A point may be outside the FDTD model domain;
+* the sampled surface and exterior must be one homogeneous, lossless,
+  non-dispersive material for KSIR, conventional ``#ntff_frequency``, and the
+  transient transform. A ``#ntff_layered_frequency`` surface may instead
+  cross the declared planar interfaces; its two semi-infinite observation
+  materials must be lossless;
+* surface samples must remain outside the PML and clear of the TFSF correction
+  stencil. A closed surface must enclose the radiating source or the complete
+  TFSF box and scatterer. An open Huygens surface instead permits an impressed
+  source outside only through one of its omitted faces;
+* the implementation requires a three-dimensional model and does not support
+  geometry-fixed reuse. NTFF commands are main-grid objects, but their closed
+  surface may contain complete subgrids. A surface that overlaps a subgrid
+  must strictly enclose its HSG outer coupling surface; it cannot touch or cut
+  the coupling region. Both time- and frequency-domain KSIR collection and
+  frequency-domain equivalent-current collection are available with the
+  serial CPU, CUDA, OpenCL, Metal, and MPI domain-decomposition solvers.
+  Equivalent-current transient far fields are available with the same
+  solvers. MPI uses the CPU field-update backend;
+* CPU collection uses the Cython/OpenMP implementation. Accelerator surface
+  state and time-domain output storage remain on the device during FDTD
+  iterations and are transferred to the host once, after the solve. CUDA and
+  OpenCL are hardware-qualified on the development server. Metal has complete
+  source-generation and dispatch coverage, but still requires execution tests
+  on suitable Apple hardware. With MPI, every surface patch is sampled by the
+  rank which owns its inside Yee sample; the neighbouring outside sample is
+  read from the normal one-cell halo. There is therefore no additional NTFF
+  communication inside the FDTD iteration. Compact time histories are reduced
+  and frequency-domain surface phasors are assembled on the coordinator after
+  time stepping, before the normal HDF5 output is written.
+
+Directivity, gain, efficiency, and port normalisation are post-processing
+operations after the FDTD solve. Angular KSIR and equivalent-current
+evaluation uses Cython/OpenMP kernels on the host for CPU and accelerator
+simulations alike;
+it does not add a new per-iteration GPU operation or transfer fields back to
+the CPU during time stepping.
+
+A minimal dipole workflow can reuse one surface for an exact KSIR time-domain
+point and an equivalent-current frequency-domain radiation pattern:
+
+.. code-block:: none
+
+    #domain: 0.1 0.1 0.1
+    #dx_dy_dz: 0.002 0.002 0.002
+    #time_window: 10e-9
+
+    #waveform: gaussiandot 1 1e9 pulse
+    #hertzian_dipole: z 0.05 0.05 0.05 pulse
+
+    #ntff_surface: 0.03 0.03 0.03 0.07 0.07 0.07 radiation_surface
+    #ksir_time_rx: 0.12 0.05 0.05 radiation_surface transient Ez first_arrival
+    #ntff_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+    #ntff_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+
+The observation point may lie outside the FDTD domain because KSIR evaluates
+the homogeneous exterior analytically. The integration surface itself must be
+inside the non-PML FDTD region and enclose the source.
+
+KSIR independently reconstructs each Cartesian field component and is the
+only formulation that provides finite-distance fields. The conventional
+equivalent-current formulation combines tangential electric and magnetic
+fields and provides far-zone fields only. Its commands use the ``ntff``
+prefix. Both frequency-domain formulations support the same far-field,
+antenna, and RCS outputs, so they can be requested together for comparison.
+
+#ntff_surface:
+--------------
+
+Defines a reusable Yee-aligned cuboidal integration surface:
+
+.. code-block:: none
+
+    #ntff_surface: x1 y1 z1 x2 y2 z2 surface_id [omit_face1 ... omit_face5]
+
+``x1 y1 z1`` and ``x2 y2 z2`` are the lower and upper logical corners.
+``surface_id`` must be unique and must not contain ``/``. Zero to five trailing
+face names may be supplied from ``x0``, ``xmax``, ``y0``, ``ymax``, ``z0``,
+and ``zmax``; duplicates are not allowed. Listed faces are omitted from the
+frequency-domain Huygens/equivalent-current integral. At least one face must
+remain active. An impressed source outside the Huygens volume must enter
+through an omitted face. A feed crossing an opening should remain uniform to
+the corresponding PML, with its impressed source plane outside the volume.
+Every sampled face must lie in the homogeneous exterior. This open-surface form
+is rejected by every KSIR/Ramahi command and by the transient equivalent-current
+transform.
+
+An arbitrary open surface is not a mathematically exact closure. It is useful
+when the omitted contribution is intentionally excluded, but its far field can
+depend on the selected faces. Check convergence by moving and enlarging the
+sampled faces. The edge rows shared with an omitted face are excluded from the
+homogeneous-material check, allowing an active side face to terminate on a PEC
+backplane.
+
+.. warning::
+
+   The NTFF integration surface is not closed. Equivalent-current NTFF normally
+   assumes a closed Huygens surface. This option is intended for configurations
+   where the omitted face is associated with an eigenmode port or other
+   modelling scenarios that require an open Huygens surface. Results may be
+   incomplete or inaccurate if the omitted field contribution is not
+   represented correctly or is significant for your calculations.
+
+Without omitted face names, the surface is physically closed unless one or more
+faces coincide exactly with a declared
+``#symmetry_boundary``. Coincident PEC/PMC faces are then omitted from direct
+sampling and completed automatically using the exact image parity, reflected
+normal, edge quadrature, and propagation distance for every component.
+
+For example:
+
+.. code-block:: none
+
+    #ntff_surface: 0.034 0.034 0.034 0.066 0.066 0.066 radiation_surface
+
+An antenna fed from the negative x direction can omit its feed face:
+
+.. code-block:: none
+
+    #ntff_surface: 0.034 0.020 0.020 0.080 0.080 0.080 radiation_surface x0
+
+A leaky-wave antenna can omit both waveguide end faces so that a passive
+eigenmode receiver beyond ``xmax`` still measures S21:
+
+.. code-block:: none
+
+    #ntff_surface: 0.034 0.020 0.020 0.080 0.080 0.080 radiation_surface x0 xmax
+
+A surface whose lower side terminates on a PEC backplane can omit ``z0``:
+
+.. code-block:: none
+
+    #ntff_surface: 0.020 0.020 0.030 0.080 0.080 0.080 radiation_surface z0
+
+#ksir_frequency:
+----------------
+
+Declares a streaming frequency transform for a previously defined surface:
+
+.. code-block:: none
+
+    #ksir_frequency: surface_id transform_id f1 [f2 ...] [window]
+
+``transform_id`` must be globally unique. At least one non-negative frequency
+is required. The optional final ``window`` is ``rectangular`` (the default) or
+``hann``. Frequencies above the temporal Nyquist limit are rejected rather
+than being silently aliased. Frequencies are accumulated directly during time
+stepping; field histories are not retained. Surface phasors are saved under
+the transform's HDF5 group so that it remains useful even when it has no receiver
+or far-field command.
+
+The engineering convention is used throughout: phasors have time dependence
+``exp(+j*omega*t)``, the forward transform kernel is ``exp(-j*omega*t)``, and
+the outgoing Green function contains ``exp(-j*k*R)``.
+
+A frequency transform still requires a sufficiently long FDTD time window.
+The ``hann`` window reduces leakage from a truncated non-zero tail, but it is
+not a replacement for allowing the physical surface fields to decay. A
+``rectangular`` window retains the unmodified engineering phasor and is
+required by gain normalisation, but is more sensitive to end-of-record
+truncation.
+
+.. code-block:: none
+
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+
+#ntff_frequency:
+----------------
+
+Declares a streaming frequency transform using the conventional
+equivalent-current method of Luebbers *et al.* [LUE1991]_:
+
+.. code-block:: none
+
+    #ntff_frequency: surface_id transform_id f1 [f2 ...] [window]
+
+The frequency, window, engineering convention, Nyquist check, and globally
+unique transform-ID rules are identical to ``#ksir_frequency``.
+
+When ``#ntff_antenna_ports`` associates an eigenmode port with this transform,
+every transform frequency must be present in the final ``#eigenmode_band``
+DFT grid. The transform frequencies may be a strict subset. If a requested
+NTFF frequency is not one of the uniformly spaced modal bins, append it after
+the point count; gprMax sorts and deduplicates the combined grid. For example:
+
+.. code-block:: none
+
+    #eigenmode_band: antenna_band 8e9 12e9 101 8.5e9 9.5e9 10.5e9 11.5e9
+    #ntff_frequency: radiation_surface antenna_pattern 8e9 8.5e9 9e9 9.5e9 10e9 10.5e9 11e9 11.5e9 12e9 rectangular
+
+The extra modal bins affect the S-parameter DFT grid; they do not replace the
+``auto`` or explicit modal anchor policy on ``#eigenmode_port``.
+
+The tangential Yee fields are arithmetically collocated on common cell-face
+centres and form
+
+.. math::
+
+    \mathbf J_s=\hat{\mathbf n}\times\mathbf H,
+    \qquad
+    \mathbf M_s=-\hat{\mathbf n}\times\mathbf E.
+
+If
+
+.. math::
+
+    \mathbf N=\oint_S\mathbf J_s
+      e^{+jk\hat{\mathbf r}\cdot(\mathbf r'-\mathbf r_0)}\,\mathrm dS',
+    \qquad
+    \mathbf L=\oint_S\mathbf M_s
+      e^{+jk\hat{\mathbf r}\cdot(\mathbf r'-\mathbf r_0)}\,\mathrm dS',
+
+the stored range-normalized electric far field is
+
+.. math::
+
+    \mathbf F_E
+    =-\frac{jk}{4\pi}
+      \left[\eta\left(\mathbf N-
+      \hat{\mathbf r}(\hat{\mathbf r}\cdot\mathbf N)\right)
+      -\hat{\mathbf r}\times\mathbf L\right].
+
+Here :math:`\mathbf r_0` is the surface phase origin. This transform cannot be
+used by the finite-distance ``#ksir_frequency_rx`` commands. It is consumed by
+``#ntff_far_field``, ``#ntff_far_field_array``, and optionally
+``#ntff_antenna_ports``. It accepts either all six physical integration faces
+or any nonempty subset selected by trailing omitted face names on
+``#ntff_surface``. Symmetry-completed equivalent-current
+surfaces are not yet enabled.
+
+.. code-block:: none
+
+    #ntff_frequency: radiation_surface current_band 0.8e9 1.0e9 1.2e9 hann
+
+#ntff_layered_background:
+-------------------------
+
+Declares the material order and physical interfaces of a planar background:
+
+.. code-block:: none
+
+    #ntff_layered_background: background_id axis material0 [interface0 material1 ...]
+
+``axis`` is ``x``, ``y``, or ``z``. Materials run from the positive-axis
+semi-infinite exterior to the negative-axis semi-infinite exterior. Interface
+coordinates are in metres and must therefore be strictly descending. There
+is exactly one fewer interface than materials. For example, air above a
+finite dry-soil layer and a wet-soil lower half-space is
+
+.. code-block:: none
+
+    #ntff_layered_background: ground z free_space 0.0 dry_soil -0.1 wet_soil
+
+This command describes the analytical propagation background; it does not
+build FDTD geometry. The corresponding boxes/layers must be built separately
+at the same coordinates. Repeating a material on both sides of an interface
+is permitted and is useful for homogeneous-reduction checks.
+
+#ntff_layered_frequency:
+------------------------
+
+Declares a streaming equivalent-current transform which uses a previously
+defined planar background:
+
+.. code-block:: none
+
+    #ntff_layered_frequency: surface_id transform_id background_id f1 [f2 ...] [window]
+
+The frequency and window rules are identical to ``#ntff_frequency``. The
+surface may cross one or more declared layer interfaces. Internal materials
+may be electrically conductive or Debye, Lorentz, Drude, or inclusive
+multipole dispersive materials; their complex properties are evaluated at
+each requested frequency. The positive- and negative-axis exterior
+materials must be lossless. PEC and PMC layers are not supported.
+
+The transform is consumed by the existing ``#ntff_far_field``,
+``#ntff_far_field_array``, and ``#ntff_antenna_ports`` commands. It returns
+far-zone quantities only. For directions in the positive-axis hemisphere,
+range normalisation and radiation intensity use the positive exterior
+wavenumber and impedance; the negative exterior is used in the opposite
+hemisphere. Exact grazing directions (zero direction cosine along ``axis``)
+are rejected. Avoid requesting such a point explicitly; internal directivity
+quadrature omits it automatically.
+
+Far-field and antenna metrics support different lossless exterior materials.
+Coherent array-codebook synthesis is currently limited to stacks whose two
+exterior impedances are equal and frequency independent.
+
+Three grouped outputs are specific to a planar-layered transform:
+
+* ``exterior_power`` stores radiated power, radiated fraction, and the
+  positive-to-negative-axis integrated power ratio;
+* ``exterior_maximum`` stores each exterior's peak radiation intensity,
+  conventional full-sphere-normalised directivity, and peak direction;
+* ``exterior_efficiency`` stores accepted- and incident-power-normalised
+  coupling efficiencies and maximum gain for each exterior. It requires
+  ``#ntff_antenna_ports`` and a rectangular transform window.
+
+The first two outputs do not require an antenna-port association. The region
+names follow the declared stack axis rather than assuming that ``+z`` is air
+or ``-z`` is ground.
+
+.. code-block:: none
+
+    #ntff_layered_frequency: radiation_surface ground_band ground 0.8e9 1.0e9 1.2e9 rectangular
+    #ntff_antenna_ports: ground_band feed
+    #ntff_far_field: 30 0 ground_band upper_cut Etheta Ephi directivity_dbi exterior_power exterior_efficiency exterior_maximum
+    #ntff_far_field: 150 0 ground_band lower_cut Etheta Ephi directivity_dbi
+
+#ksir_antenna_ports:
+--------------------
+
+Associates a complete set of physical antenna ports with a frequency
+transform so that accepted power, gain, realized gain, and efficiency can be
+calculated:
+
+.. code-block:: none
+
+    #ksir_antenna_ports: transform_id port_id1 [port_id2 ...]
+
+For a voltage source, ``port_id`` is the source's optional ID, or its
+automatically assigned ``portN`` ID.
+Transmission-line and magnetic-frill sources provide automatic port IDs
+``tl1``, ``tl2``, ... and ``frill1``, ``frill2``, ... respectively, in source
+creation order. The association is not required for electric or magnetic far
+fields, radiation intensity, RCS, or directivity. It is required when a
+far-field command asks for gain or efficiency.
+
+Every Ramahi/KSIR command requires a closed six-face ``#ntff_surface``; this
+rule is independent of whether an eigenmode source is present. Traditionally
+a real guide extends through the domain PML and the crossed Huygens face is
+omitted, so that open surface cannot be reused for KSIR. With
+``#virtual_waveguide`` the matched continuation and source are outside the
+main domain, permitting a closed KSIR or equivalent-current surface around
+the physical antenna.
+
+A port on a subgrid is named as ``subgrid_id/port_id``. For example,
+``fine_grid/feed`` identifies a voltage source called ``feed`` on subgrid
+``fine_grid``; automatic source ports use forms such as ``fine_grid/tl1`` and
+``fine_grid/frill1``. Main-grid IDs remain unqualified. Each subgrid port is
+post-processed using its owning grid's finer spatial and temporal steps.
+
+The listed set must include **every** physical voltage, transmission-line, and
+magnetic-frill port in the model. This requirement makes the net accepted power
+unambiguous in coupled multiport antennas. A source whose waveform amplitude is
+zero is still a terminated physical port: list it normally. It has zero
+incident power, but coupling from driven ports can make its accepted power
+negative because it delivers coupled energy into its termination. gprMax sums
+all signed port powers when normalising antenna gain.
+
+Gain normalisation currently requires the transform to use the
+``rectangular`` window. Active Hertzian electric or magnetic dipoles and
+plane-wave sources cannot be mixed with a port-normalised antenna result,
+because their input power is not represented by this port set.
+The normal per-port wavelength-sampling limit also applies to gain validity.
+For a voltage-source or magnetic-frill port, an explicit ``nyquist`` research
+override on the source retains the full temporal band, including spatially
+under-resolved values, as it does for S11 and impedance.
+
+For example, a two-element array with one driven and one terminated element
+uses:
+
+.. code-block:: none
+
+    #waveform: ricker 1 1e9 driven
+    #waveform: ricker 0 1e9 terminated
+    #voltage_source: z 0.045 0.050 0.050 50 driven 0 10e-9 element1 10
+    #voltage_source: z 0.055 0.050 0.050 50 terminated 0 10e-9 element2 10
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 rectangular
+    #ksir_antenna_ports: antenna_band element1 element2
+    #ksir_far_field_array: 0 180 2 0 360 2 antenna_band pattern gain realized_gain
+
+#ntff_antenna_ports:
+--------------------
+
+Associates antenna ports with an equivalent-current frequency transform:
+
+.. code-block:: none
+
+    #ntff_antenna_ports: transform_id port_id1 [port_id2 ...]
+
+Its port-set, rectangular-window, multiport-power, subgrid, and validity rules
+are the same as for ``#ksir_antenna_ports``. The separate command name prevents
+accidentally associating a port set with a transform from the other
+formulation.
+
+This is the antenna-port association to use with an eigenmode excitation.
+Every ``#eigenmode_port`` uses ``portN``, where ``N`` is its explicit port
+number. The listed set must include every physical conventional and modal
+port in the model. A passive eigenmode port has zero generator incident power
+and contributes signed net modal power to the accepted-power balance.
+
+For every associated eigenmode port, every transform frequency must be present
+in that port's direct-DFT bins. The eigenmode grid may contain additional bins,
+so S-parameters may use a denser grid than the NTFF. Degenerate modes and mode
+crossings should use a single-frequency modal solve rather than broadband
+profile interpolation.
+
+#ksir_time_rx: and #ksir_time_rx_spherical:
+--------------------------------------------
+
+Request exact physical time-domain fields at one Cartesian or spherical
+point:
+
+.. code-block:: none
+
+    #ksir_time_rx: x y z surface_id [rx_id [output1 output2 ... [time_origin]]]
+    #ksir_time_rx_spherical: r theta phi surface_id [rx_id [output1 output2 ... [time_origin]]]
+
+The Cartesian command defaults to all six Cartesian components. The spherical
+command defaults to all six spherical components. ``rx_id`` is optional and
+is generated as ``rx1``, ``rx2``, and so on when omitted. ``time_origin`` is
+the final token and is either:
+
+* ``simulation`` (default): retain time from the start of the FDTD run; or
+* ``first_arrival``: omit the guaranteed retarded-time zero prefix separately
+  for each point while recording its absolute physical origin.
+
+Optional parameters are positional. Therefore an ID must be supplied before
+component names, and both the ID and any desired components must precede
+``time_origin``. For example:
+
+.. code-block:: none
+
+    #ksir_time_rx: 0.074 0.05 0.051 radiation_surface outside Ez Hy first_arrival
+    #ksir_time_rx_spherical: 0.25 90 0 radiation_surface principal Etheta Ephi simulation
+
+The spherical radius is explicit because these commands return the actual
+finite-distance field, including all ``1/R`` and ``1/R^2`` terms. It is not a
+normalization constant.
+
+The output file stores both ``fully_supported_lengths`` and ``valid_lengths``.
+Use the former by default: it stops before retarded propagation causes any
+surface patch to run beyond the available FDTD history. The latter exposes the
+longer partial tail for research use. gprMax also records a terminal decay
+ratio and warns when the field has not decayed adequately within the fully
+supported interval; in that case the simulation time window should be
+increased.
+
+#ksir_time_rx_array:
+--------------------
+
+Defines a Cartesian line, plane, or volume of exact time-domain points:
+
+.. code-block:: none
+
+    #ksir_time_rx_array: x1 y1 z1 x2 y2 z2 dx dy dz surface_id [rx_id [output1 output2 ... [time_origin]]]
+
+The bounds are inclusive and must contain an integer number of increments.
+An increment can be zero only on an axis whose lower and upper coordinates are
+equal. All points share one output ID and are stored as the first dimension of
+each field dataset.
+
+#ntff_time_far_field: and #ntff_time_far_field_array:
+-----------------------------------------------------
+
+Request transient far-zone fields using the modified one-step
+equivalent-current construction of Giannopoulos *et al.* [GIAFF1997]_:
+
+.. code-block:: none
+
+    #ntff_time_far_field: theta phi surface_id [output_id [output1 output2 ...]]
+    #ntff_time_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi surface_id [output_id [output1 output2 ...]]
+
+The default outputs are ``Etheta Ephi``. Any Cartesian or spherical electric
+or magnetic component may be requested. These are range-normalized far-zone
+waveforms, not finite-distance receivers, so the commands deliberately have no
+radius. If :math:`\tau=t-r/c_b`, the electric result is
+
+.. math::
+
+    \mathbf F_E(\hat{\mathbf r},\tau)
+    =-\frac{1}{4\pi c_b}\oint_S
+      \left[\eta\,\dot{\mathbf J}_{s,t}
+      -\hat{\mathbf r}\times\dot{\mathbf M}_s\right]
+      \left(\tau+\frac{\hat{\mathbf r}\cdot
+      (\mathbf r'-\mathbf r_0)}{c_b}\right)\,\mathrm dS'.
+
+Here :math:`\mathbf J_{s,t}` is the component of
+:math:`\mathbf J_s=\hat{\mathbf n}\times\mathbf H` transverse to the
+observation direction and
+:math:`\mathbf M_s=-\hat{\mathbf n}\times\mathbf E`. The electric and
+magnetic current differences retain their natural half-step offset: the
+derivative of :math:`\mathbf M_s^n` is placed at
+:math:`(n-1/2)\Delta t`, and the derivative of
+:math:`\mathbf J_s^{n+1/2}` at :math:`n\Delta t`. No extra interpolation is
+used to force them onto one FDTD time level. This is the modification to the
+original Luebbers method [LUE1991]_ introduced by Giannopoulos *et al.*
+[GIAFF1997]_. Linear interpolation is used only for fractional propagation
+delays.
+
+The stored reduced-time axis excludes both the range-dependent leading-zero
+delay and all final bins that are not supported by every integration patch.
+This prevents an incomplete retarded-time tail being mistaken for a physical
+late-time response. Increase ``#time_window`` if the stored terminal-decay
+test fails.
+
+The current implementation supports the CPU, CUDA, OpenCL, and Metal solvers,
+requires a homogeneous lossless background and all six physical faces, and
+supports 3-D serial models. KSIR
+remains available for finite-distance time-domain points and for
+symmetry-completed surfaces.
+
+.. code-block:: none
+
+    #ntff_time_far_field_array: 0 180 2 0 360 2 radiation_surface transient Etheta Ephi
+
+#ksir_frequency_rx: and #ksir_frequency_rx_spherical:
+------------------------------------------------------
+
+Request the exact finite-distance physical phasor at one point using a
+previously declared transform:
+
+.. code-block:: none
+
+    #ksir_frequency_rx: x y z transform_id [rx_id [output1 output2 ...]]
+    #ksir_frequency_rx_spherical: r theta phi transform_id [rx_id [output1 output2 ...]]
+
+The Cartesian and spherical component defaults match their time-domain
+counterparts. These results retain the full outgoing Green function and are
+not range normalized. Their arrays have shape ``(nfrequencies, npoints)``;
+``npoints`` is one for these two commands.
+
+.. code-block:: none
+
+    #ksir_frequency_rx: 0.074 0.05 0.051 antenna_band near_phasor Ez
+    #ksir_frequency_rx_spherical: 0.25 90 0 antenna_band spherical_phasor Etheta Ephi
+
+#ksir_frequency_rx_array:
+-------------------------
+
+Defines a Cartesian line, plane, or volume of exact frequency-domain points:
+
+.. code-block:: none
+
+    #ksir_frequency_rx_array: x1 y1 z1 x2 y2 z2 dx dy dz transform_id [rx_id [output1 output2 ...]]
+
+The inclusive bounds and zero-increment rule are the same as for
+``#ksir_time_rx_array``.
+
+#ksir_far_field:
+----------------
+
+Requests a range-normalized far field in one spherical direction:
+
+.. code-block:: none
+
+    #ksir_far_field: theta phi transform_id [output_id [output1 output2 ...]]
+
+The default outputs are ``Etheta Ephi``. Cartesian and spherical electric or
+magnetic components may be requested. The derived outputs are
+``radiation_intensity``, ``directivity``, ``directivity_dbi``, ``gain``,
+``gain_dbi``, ``realized_gain``, ``realized_gain_dbi``,
+``radiation_efficiency``, ``total_efficiency``, and ``rcs``. Linear and dBi
+forms are separate outputs; gprMax does not silently convert one into the
+other.
+
+For the range-normalized electric field, radiation intensity is
+
+.. math::
+
+    U(\theta,\phi,f)
+    = \frac{|F_\theta|^2+|F_\phi|^2}{2\eta},
+
+where :math:`\eta` is the wave impedance of the homogeneous material around
+the NTFF surface. When directivity or either efficiency is requested, gprMax
+also evaluates a temporary full sphere using Gauss--Legendre quadrature in
+:math:`\cos\theta` and periodic quadrature in :math:`\phi`:
+
+.. math::
+
+    P_\mathrm{rad}(f) = \int_{4\pi}U(\theta,\phi,f)\,\mathrm{d}\Omega,
+    \qquad
+    D(\theta,\phi,f) = \frac{4\pi U(\theta,\phi,f)}{P_\mathrm{rad}(f)}.
+
+The quadrature order is selected from the largest requested value of
+:math:`ka`, where :math:`a` is the bounding radius of the completed
+integration surface. The temporary
+full-sphere fields are processed in blocks and are not stored; only the
+radiated power, estimated pattern maximum and its direction, and quadrature
+metadata are retained. The maximum estimate is additionally refined with the
+directions explicitly requested for that output, so a fine user grid cannot
+report a larger directivity than the stored maximum. Therefore a user may request only a principal-plane
+cut and still obtain correctly full-sphere-normalised directivity.
+
+For an associated antenna port set, the exact-frequency terminal spectra give
+
+.. math::
+
+    P_\mathrm{acc}(f)
+    = \sum_p \frac{1}{2}\Re\{V_p I_p^*\},
+    \qquad
+    P_\mathrm{inc}(f)
+    = \sum_p \frac{|V_p^+|^2}{2Z_{0p}}.
+
+The requested gain quantities are
+
+.. math::
+
+    G = \frac{4\pi U}{P_\mathrm{acc}}, \qquad
+    G_\mathrm{realized} = \frac{4\pi U}{P_\mathrm{inc}},
+
+and the scalar efficiencies stored for each frequency are
+
+.. math::
+
+    \eta_\mathrm{rad}=\frac{P_\mathrm{rad}}{P_\mathrm{acc}}, \qquad
+    \eta_\mathrm{total}=\frac{P_\mathrm{rad}}{P_\mathrm{inc}}.
+
+All surface and terminal spectra use the same engineering DFT and transform
+scale, which cancels in these dimensionless ratios. Frequencies below
+``-40 dB`` of the peak total incident spectrum, invalid terminal samples, or
+non-positive normalising powers are written as ``NaN`` and marked invalid in
+the HDF5 port metadata. A radiation efficiency materially above unity emits a
+warning and normally indicates an insufficient time window, mesh error,
+integration-surface error, or inconsistent port definition.
+
+``rcs`` requests bistatic radar cross section and requires a TFSF plane-wave
+source. The NTFF surface must strictly enclose the TFSF box and be clear of
+its field-correction stencil. With hash commands, exactly one plane wave must
+be present and it is associated automatically. Use one plane wave per
+simulation for an unambiguous RCS result. RCS and port-normalised gain belong
+to different excitation workflows and cannot be combined in one result.
+
+Unlike the exact spherical receiver commands, ``#ksir_far_field`` has no
+radius. Each field component is the range-normalized quantity
+
+.. math::
+
+    F_\mathrm{s}(\theta,\phi,f)
+    = r\,\exp(+jkr)\,E_\mathrm{s}(r,\theta,\phi,f),
+
+in the far-zone limit, where the subscript ``s`` denotes the scattered field.
+The RCS is
+
+.. math::
+
+    \sigma(\theta,\phi,f)
+    = 4\pi
+      \frac{|F_{\mathrm{s},\theta}|^2+|F_{\mathrm{s},\phi}|^2}
+      {|E_{\mathrm{inc},x}|^2+|E_{\mathrm{inc},y}|^2
+       +|E_{\mathrm{inc},z}|^2}.
+
+The incident spectrum is not inferred from the nominal waveform amplitude.
+gprMax samples the actual numerically propagated field of the associated
+discrete plane wave and transforms it using the same frequencies and time
+window as the NTFF surface data. Plane-wave start and stop times are therefore
+included automatically. Frequencies at which the incident spectrum is zero
+produce ``NaN``; results where it is very small can be poorly conditioned and
+should not be used.
+
+``rcs`` is stored as a real, linear quantity in square metres, not in dBsm. It
+can be converted using
+
+.. math::
+
+    \sigma_\mathrm{dBsm}
+    = 10\log_{10}\!\left(\frac{\sigma}{1\,\mathrm{m}^2}\right).
+
+The requested :math:`(\theta,\phi)` specifies the observation direction. For
+monostatic RCS it must be opposite to the incident propagation direction. For
+example, a plane wave propagating along ``+x`` is observed in backscatter at
+``theta=90`` and ``phi=180`` degrees. The far-field normalization and
+engineering phase convention are also written as HDF5 attributes.
+
+.. code-block:: none
+
+    #ksir_far_field: 90 180 antenna_band backscatter Etheta Ephi rcs
+
+#ksir_far_field_array:
+----------------------
+
+Requests the Cartesian product of inclusive theta and phi ranges:
+
+.. code-block:: none
+
+    #ksir_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
+
+Each range must contain an integer number of positive increments. For example,
+the following requests a five-degree full-sphere pattern:
+
+.. code-block:: none
+
+    #ksir_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
+
+#ntff_far_field: and #ntff_far_field_array:
+------------------------------------------------
+
+Request conventional equivalent-current frequency-domain far fields:
+
+.. code-block:: none
+
+    #ntff_far_field: theta phi transform_id [output_id [output1 output2 ...]]
+    #ntff_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
+
+``transform_id`` must refer to ``#ntff_frequency`` or
+``#ntff_layered_frequency``. Angles, default field
+components, range and increment rules, range normalization, derived radiation
+quantities, RCS, and antenna-port normalization are identical to the
+corresponding ``#ksir_far_field`` commands. Because the underlying surface
+integral is independent, requesting both formulations on the same
+``#ntff_surface`` provides a useful numerical cross-check.
+
+Only a planar-layered transform accepts ``exterior_power``,
+``exterior_efficiency``, and ``exterior_maximum``. Their definitions and port
+requirements are given under ``#ntff_layered_frequency`` above.
+
+.. code-block:: none
+
+    #ntff_far_field_array: 0 180 5 0 360 5 current_band current_pattern Etheta Ephi directivity_dbi
+
+Symmetry-completed surface example
+----------------------------------
+
+A symmetry plane can coincide with an integration-surface face. No closure
+option is entered on the KSIR command:
+
+.. code-block:: none
+
+    #symmetry_boundary: x0 pmc
+    #ntff_surface: 0 0.034 0.034 0.026 0.066 0.066 half_surface
+    #ksir_time_rx: 0.04 0.05 0.051 half_surface half_fields Ez
+
+The physical ``x0`` face is not sampled. The other five faces and their
+reflected images form the completed closed surface. Observation points must be
+outside this completed physical-plus-image surface, not merely outside the
+simulated half. This KSIR workflow is supported by the local CPU, CUDA,
+OpenCL, and Metal solvers for nondispersive models. Equivalent-current
+transforms do not yet support symmetry image completion; physical faces can
+instead be omitted explicitly for an open frequency-domain Huygens surface.
+OpenCL has end-to-end qualification on the development server. Metal has
+source-generation and dispatch coverage but still requires qualification on
+suitable Apple hardware.
 
 
 PML commands
@@ -1083,9 +3244,12 @@ Allows you to alter the formulation used for the PML. The current options are to
 
 .. code-block:: none
 
-    #pml_formulation: str
+    #pml_formulation: str1 [str2]
 
-* ``str`` can be either 'HORIPML' or 'MRIPML'
+* ``str1`` can be either ``HORIPML`` or ``MRIPML``.
+* ``str2`` is an optional reusable PML profile ID. Without an ID the
+  formulation is applied globally. With an ID it is stored for use by a
+  ``#pml_slab`` and does not change the domain-boundary PMLs.
 
 For example to use the Multipole RIPML:
 
@@ -1100,7 +3264,7 @@ Allows you (advanced) control of the parameters that are used to build each orde
 
 .. code-block:: none
 
-    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6
+    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6 [str7]
 
 * ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
 * ``str2`` is the direction of the scaling to use for the CFS :math:`\alpha` parameter. It can be ``forward`` or ``reverse``.
@@ -1111,11 +3275,118 @@ Allows you (advanced) control of the parameters that are used to build each orde
 * ``str5`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
 * ``str6`` is the direction of the scaling to use for the CFS :math:`\sigma` parameter. It can be ``forward`` or ``reverse``.
 * ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
+* ``str7`` is an optional reusable PML profile ID. It must match the ID on a
+  named ``#pml_formulation`` and may then be selected by ``#pml_slab``.
 
 The CFS values (which are internally specified) used for the default standard first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
 
 The parameters will be applied to all slabs of the PML that are switched on.
+When a profile ID is supplied, they are applied only to slabs that select that
+profile. A profile can contain one or two CFS terms. A named formulation with
+no named ``#pml_cfs`` uses the default first-order CFS parameters.
 
 .. tip::
 
     ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
+
+#pml_slab:
+----------
+
+Places an experimental, one-axis RIPML correction in an axis-aligned region of
+the main 3D grid. This can form a local matched load inside a PEC guiding
+structure, or replace one domain-boundary PML with an independently configured
+profile. The syntax is:
+
+.. code-block:: none
+
+    #pml_slab: f1 f2 f3 f4 f5 f6 str1 [str2 [str3]]
+
+* ``f1 f2 f3`` and ``f4 f5 f6`` are the lower and upper corners of the slab.
+* ``str1`` is the maximum-stretch face: ``x0``, ``y0``, ``z0``, ``xmax``,
+  ``ymax``, or ``zmax``. The opposite face is the zero-stretch entrance.
+* ``str2`` is an optional profile ID defined by ``#pml_formulation`` and,
+  optionally, ``#pml_cfs``. If omitted, the global PML configuration is used.
+* ``str3`` optionally controls automatic PEC enclosure generation: ``y``
+  (default) or ``n``. To specify ``str3`` without a profile, use ``None`` for
+  ``str2``.
+
+For example, this replaces a disabled ``x0`` boundary PML with a 12-cell slab
+using a locally defined MRIPML recipe:
+
+.. code-block:: none
+
+    #pml_cells: 0 10 10 10 10 10
+    #pml_formulation: MRIPML port_load
+    #pml_slab: 0 0 0 0.012 0.080 0.060 x0 port_load
+
+For an internal absorber, gprMax normally creates five PEC plates after all
+user geometry has been processed: four transverse walls and a backing plate on
+the maximum-stretch face. Plates coincident with model-domain faces are not
+needed and are omitted. The zero-stretch entrance remains open. Existing
+geometry on an automatically enclosed face is therefore made PEC.
+
+Advanced experiments may disable this behaviour while retaining the global
+PML profile:
+
+.. code-block:: none
+
+    #pml_slab: 0.010 0.020 0.020 0.022 0.060 0.050 x0 None n
+
+With automatic plates disabled, gprMax checks the final Yee edges and warns
+about every exposed transverse or maximum-stretch face, but permits the model
+to run for research and custom-enclosure experiments. Incomplete enclosures
+have no stability guarantee: long-duration testing has demonstrated
+exponential late-time growth for exposed transverse and open maximum-stretch
+terminations. The material cross-section must remain constant along the
+absorption direction; inconsistently filled slabs, same-axis slab overlaps,
+and overlaps with a native PML remain errors because they invalidate the
+current formulation.
+
+An automatically generated internal identifier is reported in the log. The
+hash command defines a slab on the main 3D grid. With the Python API a slab may
+instead be added to an HSG subgrid, provided the complete slab lies inside its
+working region and does not overlap the HSG coupling or auxiliary-PML regions.
+Subgrid slabs use the CPU solver and the subgrid's finer spatial and temporal
+discretisation. Domain-decomposed MPI CPU models are also supported. A slab may
+cross any number of rank boundaries. Its CFS grading is evaluated over the
+complete global thickness and sliced consistently between ranks, while each
+rank allocates only the PML history arrays for its local part. Consequently,
+the timestep loop needs no slab-specific communication in addition to the
+normal electric- and magnetic-field halo exchanges. Automatic PEC enclosure,
+material-extrusion validation, custom profiles, and boundary-replacement slabs
+have the same behaviour as in serial models. Orthogonal PML slabs may overlap,
+as domain PMLs do at edges and corners.
+
+
+#symmetry_boundary:
+--------------------
+
+Sets a PEC or PMC symmetry boundary on one face of the model domain, replacing the PML on that face. The command may be used more than once to set different faces. The syntax is:
+
+.. code-block:: none
+
+    #symmetry_boundary: str1 str2
+
+* ``str1`` is ``x0``, ``y0``, ``z0``, ``xmax``, ``ymax``, or ``zmax``.
+* ``str2`` is ``pec`` or ``pmc``.
+
+For example:
+
+.. code-block:: none
+
+    #symmetry_boundary: x0 pec
+    #symmetry_boundary: ymax pmc
+
+.. note::
+
+    * The PML thickness on a symmetry face is set to zero automatically.
+    * PEC and PMC boundaries, including PMC boundaries in models containing
+      dispersive materials, are supported by the CPU, CUDA, OpenCL, Metal, and
+      domain-decomposed MPI CPU solvers.
+    * In MPI models, each face is constructed and updated only by ranks that
+      touch that global domain face. Domain-edge corrections are likewise
+      restricted to ranks touching both physical faces; internal rank seams
+      are not treated as symmetry edges.
+    * Symmetry boundaries are not currently supported in 2D mode or on a
+      subgrid. They may be used on the main grid of a model that contains
+      subgrids.

@@ -18,19 +18,21 @@
 
 import argparse
 import glob
-import logging
 import os
+from pathlib import Path
 
 import h5py
 import numpy as np
 
-from gprMax._version import __version__
 from gprMax.utilities.utilities import natural_keys
 
-logger = logging.getLogger(__name__)
+
+def _grid_group(output, grid_path="/"):
+    grid_path = str(grid_path).strip("/")
+    return output[grid_path] if grid_path else output
 
 
-def get_output_data(filename, rxnumber, rxcomponent):
+def get_output_data(filename, rxnumber, rxcomponent, grid_path="/"):
     """Gets B-scan output data from a model.
 
     Args:
@@ -45,30 +47,74 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
     # Open output file and read some attributes
     with h5py.File(filename, "r") as f:
-        nrx = f.attrs["nrx"]
-        dt = f.attrs["dt"]
+        grid = _grid_group(f, grid_path)
+        nrx = int(grid.attrs["nrx"])
+        dt = grid.attrs["dt"]
 
         # Check there are any receivers
         if nrx == 0:
-            logger.exception(f"No receivers found in {filename}")
-            raise ValueError
+            raise ValueError(f"No receivers found in {filename}")
 
-        path = "/rxs/rx" + str(rxnumber) + "/"
-        availableoutputs = list(f[path].keys())
+        if rxnumber < 1 or rxnumber > nrx:
+            raise ValueError(f"Receiver {rxnumber} is outside the valid range 1-{nrx}")
+
+        path = f"rxs/rx{rxnumber}"
+        availableoutputs = list(grid[path].keys())
 
         # Check if requested output is in file
         if rxcomponent not in availableoutputs:
-            logger.exception(
+            raise ValueError(
                 f"{rxcomponent} output requested to plot, but the "
-                + f"available output for receiver 1 is "
+                + f"available output for receiver {rxnumber} is "
                 + f"{', '.join(availableoutputs)}"
             )
-            raise ValueError
 
-        outputdata = f[path + "/" + rxcomponent]
-        outputdata = np.array(outputdata)
+        outputdata = np.asarray(grid[f"{path}/{rxcomponent}"])
 
     return outputdata, dt
+
+
+def _default_merged_filename(outputfiles):
+    paths = [Path(filename).resolve() for filename in outputfiles]
+    parent = Path(os.path.commonpath([str(path.parent) for path in paths]))
+    prefix = os.path.commonprefix([path.stem for path in paths]).rstrip("_- ")
+    return parent / f"{prefix or 'output'}_merged.h5"
+
+
+def _receiver_grid_paths(output):
+    paths = [""]
+    if "subgrids" in output:
+        paths.extend(f"subgrids/{name}" for name in output["subgrids"])
+    return paths
+
+
+def _values_equal(first, second):
+    return np.array_equal(np.asarray(first), np.asarray(second))
+
+
+def _validate_grid(reference, candidate, grid_path, filename):
+    for attribute in ("Iterations", "nrx", "dt"):
+        if attribute not in reference.attrs or attribute not in candidate.attrs:
+            raise ValueError(f"Missing {attribute} metadata for grid {grid_path or '/'}")
+        if not _values_equal(reference.attrs[attribute], candidate.attrs[attribute]):
+            raise ValueError(f"Inconsistent {attribute} for grid {grid_path or '/'} in {filename}")
+
+    nrx = int(reference.attrs["nrx"])
+    for rx in range(1, nrx + 1):
+        rxpath = f"rxs/rx{rx}"
+        if rxpath not in candidate:
+            raise ValueError(f"Missing {rxpath} in grid {grid_path or '/'} of {filename}")
+        if set(reference[rxpath].keys()) != set(candidate[rxpath].keys()):
+            raise ValueError(
+                f"Receiver outputs differ for {rxpath} in grid {grid_path or '/'} of {filename}"
+            )
+        for output in reference[rxpath]:
+            expected = (int(reference.attrs["Iterations"]),)
+            if candidate[f"{rxpath}/{output}"].shape != expected:
+                raise ValueError(
+                    f"{grid_path or '/'}/{rxpath}/{output} in {filename} has shape "
+                    f"{candidate[f'{rxpath}/{output}'].shape}; expected {expected}"
+                )
 
 
 def merge_files(outputfiles, merged_outputfile=None, removefiles=False):
@@ -82,53 +128,80 @@ def merge_files(outputfiles, merged_outputfile=None, removefiles=False):
         output. If not specified a default location is used.
     """
 
-    if merged_outputfile is None:
-        merged_outputfile = os.path.commonprefix(outputfiles) + "_merged.h5"
+    outputfiles = [Path(filename) for filename in outputfiles]
+    if not outputfiles:
+        raise ValueError("No output files were supplied for merging")
+    if any(not filename.is_file() for filename in outputfiles):
+        missing = [str(filename) for filename in outputfiles if not filename.is_file()]
+        raise FileNotFoundError("Output file(s) not found: " + ", ".join(missing))
 
-    # Combined output file
-    fout = h5py.File(merged_outputfile, "w")
+    merged_outputfile = (
+        Path(merged_outputfile)
+        if merged_outputfile is not None
+        else _default_merged_filename(outputfiles)
+    )
+    if merged_outputfile.resolve() in {filename.resolve() for filename in outputfiles}:
+        raise ValueError("Merged output file must not overwrite an input file")
 
-    for i, outputfile in enumerate(outputfiles):
-        fin = h5py.File(outputfile, "r")
-        nrx = fin.attrs["nrx"]
+    with h5py.File(outputfiles[0], "r") as reference:
+        grid_paths = _receiver_grid_paths(reference)
 
-        # Write properties for merged file on first iteration
-        if i == 0:
-            fout.attrs["gprMax"] = __version__
-            fout.attrs["Iterations"] = fin.attrs["Iterations"]
-            fout.attrs["nx_ny_nz"] = fin.attrs["nx_ny_nz"]
-            fout.attrs["dx_dy_dz"] = fin.attrs["dx_dy_dz"]
-            fout.attrs["dt"] = fin.attrs["dt"]
-            fout.attrs["nsrc"] = fin.attrs["nsrc"]
-            fout.attrs["nrx"] = fin.attrs["nrx"]
-            fout.attrs["srcsteps"] = fin.attrs["srcsteps"]
-            fout.attrs["rxsteps"] = fin.attrs["rxsteps"]
-
-            for rx in range(1, nrx + 1):
-                path = "/rxs/rx" + str(rx)
-                grp = fout.create_group(path)
-                availableoutputs = list(fin[path].keys())
-                for output in availableoutputs:
-                    grp.create_dataset(
-                        output,
-                        (fout.attrs["Iterations"], len(outputfiles)),
-                        dtype=fin[path + "/" + output].dtype,
+        # Validate every input before creating/truncating the destination.
+        for outputfile in outputfiles:
+            with h5py.File(outputfile, "r") as source:
+                if _receiver_grid_paths(source) != grid_paths:
+                    raise ValueError(f"Grid structure differs in {outputfile}")
+                for grid_path in grid_paths:
+                    _validate_grid(
+                        _grid_group(reference, grid_path),
+                        _grid_group(source, grid_path),
+                        grid_path,
+                        outputfile,
                     )
 
-        # For all receivers
-        for rx in range(1, nrx + 1):
-            path = "/rxs/rx" + str(rx) + "/"
-            availableoutputs = list(fin[path].keys())
-            # For all receiver outputs
-            for output in availableoutputs:
-                fout[path + "/" + output][:, i] = fin[path + "/" + output][:]
+        with h5py.File(merged_outputfile, "w") as merged:
+            for name, value in reference.attrs.items():
+                merged.attrs[name] = value
 
-        fin.close()
-    fout.close()
+            for grid_path in grid_paths:
+                source_grid = _grid_group(reference, grid_path)
+                destination_grid = merged.require_group(grid_path) if grid_path else merged
+                for name, value in source_grid.attrs.items():
+                    destination_grid.attrs[name] = value
+
+                nrx = int(source_grid.attrs["nrx"])
+                for rx in range(1, nrx + 1):
+                    rxpath = f"rxs/rx{rx}"
+                    source_rx = source_grid[rxpath]
+                    destination_rx = destination_grid.require_group(rxpath)
+                    for name, value in source_rx.attrs.items():
+                        destination_rx.attrs[name] = value
+                    for output, dataset in source_rx.items():
+                        merged_dataset = destination_rx.create_dataset(
+                            output,
+                            shape=(dataset.shape[0], len(outputfiles)),
+                            dtype=dataset.dtype,
+                        )
+                        for name, value in dataset.attrs.items():
+                            merged_dataset.attrs[name] = value
+
+            for index, outputfile in enumerate(outputfiles):
+                with h5py.File(outputfile, "r") as source:
+                    for grid_path in grid_paths:
+                        source_grid = _grid_group(source, grid_path)
+                        destination_grid = _grid_group(merged, grid_path)
+                        for rx in range(1, int(source_grid.attrs["nrx"]) + 1):
+                            rxpath = f"rxs/rx{rx}"
+                            for output in source_grid[rxpath]:
+                                destination_grid[f"{rxpath}/{output}"][:, index] = source_grid[
+                                    f"{rxpath}/{output}"
+                                ][:]
 
     if removefiles:
         for outputfile in outputfiles:
-            os.remove(outputfile)
+            outputfile.unlink()
+
+    return merged_outputfile
 
 
 if __name__ == "__main__":
@@ -137,7 +210,7 @@ if __name__ == "__main__":
         description="Merges traces (A-scans) from multiple "
         + "output files into one new file, then "
         + "optionally removes the series of output files.",
-        usage="cd gprMax; python -m tools.outputfiles_merge basefilename",
+        usage="python -m toolboxes.Utilities.outputfiles_merge basefilename",
     )
     parser.add_argument("basefilename", help="base name of output file series including path")
     parser.add_argument(
@@ -161,4 +234,6 @@ if __name__ == "__main__":
         filename for filename in files if "_merged" not in filename and args.output_file != filename
     ]
     outputfiles.sort(key=natural_keys)
+    if not outputfiles:
+        parser.error(f"No output files match {args.basefilename}*.h5")
     merge_files(outputfiles, merged_outputfile=args.output_file, removefiles=args.remove_files)

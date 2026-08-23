@@ -1,0 +1,94 @@
+{
+  "frequency_hz": 9224383323.076923,
+  "wavelength_m": 0.0325,
+  "angle_definition": "elevation from plate plane; monostatic HH",
+  "plot_floor_dbsm": -60.0,
+  "targets": {
+    "square": {
+      "coarse": {
+        "number_of_angles": 8,
+        "gprmax_vs_matlab_mom": {
+          "rms_difference_db": 1.358593578294372,
+          "mean_difference_db": 0.6281811561978703,
+          "maximum_absolute_difference_db": 3.0142539784405393
+        },
+        "broadside_sample": {
+          "elevation_deg": 89.10482628978893,
+          "gprmax_rcs_dbsm": 0.9415693704449786,
+          "matlab_mom_rcs_dbsm": 0.649299349849489,
+          "matlab_po_rcs_dbsm": 0.638292789899464,
+          "analytical_po_rcs_dbsm": 0.892363440738733
+        }
+      },
+      "fine": {
+        "number_of_angles": 8,
+        "gprmax_vs_matlab_mom": {
+          "rms_difference_db": 0.7003954534874034,
+          "mean_difference_db": 0.22181294723635875,
+          "maximum_absolute_difference_db": 1.2283965753684498
+        },
+        "broadside_sample": {
+          "elevation_deg": 89.10482628978893,
+          "gprmax_rcs_dbsm": 0.8758286291896124,
+          "matlab_mom_rcs_dbsm": 0.649299349849489,
+          "matlab_po_rcs_dbsm": 0.638292789899464,
+          "analytical_po_rcs_dbsm": 0.892363440738733
+        }
+      },
+      "matlab_po_vs_analytical_po_clipped": {
+        "rms_difference_db": 0.5501334695458264,
+        "mean_difference_db": 0.32604795681495413,
+        "maximum_absolute_difference_db": 0.9863082090026012
+      },
+      "gprmax_coarse_vs_fine": {
+        "number_of_common_angles": 8,
+        "rms_difference_db": 0.7418693336889558,
+        "mean_difference_db": 0.4063682089615115,
+        "maximum_absolute_difference_db": 1.7858574030720895
+      }
+    },
+    "circle": {
+      "coarse": {
+        "number_of_angles": 8,
+        "gprmax_vs_matlab_mom": {
+          "rms_difference_db": 5.26557512493356,
+          "mean_difference_db": 1.7342205880788655,
+          "maximum_absolute_difference_db": 9.639875545156215
+        },
+        "broadside_sample": {
+          "elevation_deg": 89.10482628978893,
+          "gprmax_rcs_dbsm": 10.461629943699116,
+          "matlab_mom_rcs_dbsm": 10.4808037990019,
+          "matlab_po_rcs_dbsm": 10.4222936856582,
+          "analytical_po_rcs_dbsm": 10.5598793318153
+        }
+      },
+      "fine": {
+        "number_of_angles": 3,
+        "gprmax_vs_matlab_mom": {
+          "rms_difference_db": 1.85674249393656,
+          "mean_difference_db": 0.3518038681562281,
+          "maximum_absolute_difference_db": 2.7005538302878733
+        },
+        "broadside_sample": {
+          "elevation_deg": 89.10482628978893,
+          "gprmax_rcs_dbsm": 10.579167158381216,
+          "matlab_mom_rcs_dbsm": 10.4808037990019,
+          "matlab_po_rcs_dbsm": 10.4222936856582,
+          "analytical_po_rcs_dbsm": 10.5598793318153
+        }
+      },
+      "matlab_po_vs_analytical_po_clipped": {
+        "rms_difference_db": 0.7435129181967682,
+        "mean_difference_db": 0.3022271910120744,
+        "maximum_absolute_difference_db": 2.0461487994517
+      },
+      "gprmax_coarse_vs_fine": {
+        "number_of_common_angles": 3,
+        "rms_difference_db": 5.484722764537012,
+        "mean_difference_db": 0.1116621086772754,
+        "maximum_absolute_difference_db": 6.939321714868342
+      }
+    }
+  }
+}

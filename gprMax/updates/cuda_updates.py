@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -26,15 +26,46 @@ from jinja2 import Environment, PackageLoader
 
 from gprMax import config
 from gprMax.cuda_opencl import (
+    knl_eigenmode,
     knl_fields_updates,
+    knl_magnetic_frill_source,
+    knl_planewave_updates,
+    knl_rational_network,
     knl_snapshots,
     knl_source_updates,
     knl_store_outputs,
+    knl_symmetry_boundaries,
+    knl_tfsf_injection,
+    knl_transmission_line,
+    knl_virtual_waveguide,
+)
+from gprMax.eigenmode_device import (
+    eigenmode_source_envelopes,
+    finalise_device_eigenmode_monitors,
+    prepare_device_eigenmode_monitor,
+    prepare_device_eigenmode_source,
+    reanchor_device_eigenmode_monitor,
 )
 from gprMax.grid.cuda_grid import CUDAGrid
-from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
-from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
-from gprMax.sources import htod_src_arrays
+from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
+from gprMax.ntff.device import CUDACombinedKSIRCollector
+from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
+from gprMax.sar_device import CUDASARCollector
+from gprMax.snapshots import (
+    Snapshot,
+    _snapshot_axis_strides,
+    dtoh_snapshot_array,
+    htod_snapshot_array,
+    update_snapshot_max_dims,
+)
+from gprMax.sources import (
+    MAGNETIC_FRILL_MAX_TERMS,
+    dtoh_magnetic_frill_source_outputs,
+    dtoh_transmission_line_outputs,
+    htod_magnetic_frill_source_arrays,
+    htod_src_arrays,
+    htod_transmission_line_arrays,
+)
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
 
@@ -44,7 +75,7 @@ logger = logging.getLogger(__name__)
 class CUDAUpdates(Updates[CUDAGrid]):
     """Defines update functions for GPU-based (CUDA) solver."""
 
-    def __init__(self, G: CUDAGrid):
+    def __init__(self, G: CUDAGrid, shared=None):
         """
         Args:
             G: CUDAGrid class describing a grid in a model.
@@ -56,9 +87,15 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.source_module = getattr(import_module("pycuda.compiler"), "SourceModule")
         self.drv.init()
 
-        # Create device handle and context on specific GPU device (and make it current context)
-        self.dev = config.get_model_config().device["dev"]
-        self.ctx = self.dev.make_context()
+        # Auxiliary virtual guides must share the parent's CUDA context so a
+        # coupling kernel can address both grids without per-step transfers.
+        self._owns_context = shared is None
+        if shared is None:
+            self.dev = config.get_model_config().device["dev"]
+            self.ctx = self.dev.make_context()
+        else:
+            self.dev = shared.dev
+            self.ctx = shared.ctx
 
         # Set common substitutions for use in kernels
         # Substitutions in function arguments
@@ -70,6 +107,8 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.subs_func = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
             "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "TFSF_IDX": "int t = blockIdx.x * blockDim.x + threadIdx.x;",
+            "METAL_DFT_PARAMETERS": "",
             "NX_FIELDS": self.grid.nx + 1,
             "NY_FIELDS": self.grid.ny + 1,
             "NZ_FIELDS": self.grid.nz + 1,
@@ -81,17 +120,47 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
 
+        # Must happen before _set_macros(), which bakes NX_SNAPS/NY_SNAPS/
+        # NZ_SNAPS into the shared kernel preamble - see
+        # update_snapshot_max_dims()'s docstring.
+        if self.grid.snapshots:
+            update_snapshot_max_dims(self.grid.snapshots)
+
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
+        if "pmc" in self.grid.symmetry_boundaries.values():
+            self._set_symmetry_boundary_knl()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
         if self.grid.rxs:
             self._set_rx_knl()
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
             self._set_src_knls()
+        if self.grid.transmissionlines:
+            self._set_transmission_line_knls()
+        if self.grid.networkterminals:
+            self._set_rational_network_knl()
+        if self.grid.magneticfrillsources:
+            self._set_magnetic_frill_knls()
         if self.grid.snapshots:
             self._set_snapshot_knl()
+        if self.grid.discreteplanewaves:
+            self._set_planewave_knls()
+        if self.grid.eigenmodesources:
+            self._set_eigenmode_source_knls()
+        if self.grid.eigenmodeports:
+            self._set_eigenmode_monitor_knl()
+        self.ntff_collector = None
+        if self.grid.ntff_monitors:
+            self.ntff_c_real = config.sim_config.dtypes["C_float_or_double"]
+            self.ntff_compiler_options = config.sim_config.devices["nvcc_opts"]
+            self.ntff_collector = CUDACombinedKSIRCollector(self)
+        self.sar_collector = CUDASARCollector(self) if self.grid.sar_monitors else None
+        if self.grid.virtual_waveguides:
+            self._set_virtual_waveguide_knls()
+        for guide in self.grid.virtual_waveguides:
+            guide.initialise_device(self)
 
     def _build_knl(self, knl_func, subs_name_args, subs_func):
         """Builds a CUDA kernel from templates: 1) function name and args;
@@ -132,6 +201,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self.knl_common = self.env.get_template("knl_common_cuda.tmpl").render(
             REAL=config.sim_config.dtypes["C_float_or_double"],
+            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -150,7 +220,14 @@ class CUDAUpdates(Updates[CUDAGrid]):
             NY_RXS=self.grid.iterations,
             NZ_RXS=len(self.grid.rxs),
             NY_SRCINFO=4,
-            NY_SRCWAVES=self.grid.iterations,
+            # Row stride for srcwaveforms must match htod_src_arrays()'s
+            # actual allocation (sources.py: (len(sources), G.iterations + 1),
+            # not G.iterations - the extra column holds a half-timestep
+            # sample). A stride one short here doesn't just misindex the
+            # last column: every row after the first is read shifted, since
+            # the stride mismatch compounds per source (source i's data
+            # starts 1*i elements early).
+            NY_SRCWAVES=self.grid.iterations + 1,
             NX_SNAPS=Snapshot.nx_max,
             NY_SNAPS=Snapshot.ny_max,
             NZ_SNAPS=Snapshot.nz_max,
@@ -209,17 +286,62 @@ class CUDAUpdates(Updates[CUDAGrid]):
         if config.get_model_config().materials["maxpoles"] > 0:
             self.grid.htod_dispersive_arrays()
 
-    def _set_pml_knls(self):
-        """PMLS - prepares kernels and gets kernel functions."""
-        knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+    def _set_symmetry_boundary_knl(self):
+        """Build normal or dispersive PMC ghost-image boundary kernels."""
+        substitutions = dict(self.subs_func)
+        substitutions.update(knl_symmetry_boundaries.nondispersive_substitutions())
+        source = self._build_knl(
+            knl_symmetry_boundaries.update_electric_pmc,
+            self.subs_name_args,
+            substitutions,
         )
-        knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_electric_pmc_dev = module.get_function("update_electric_pmc")
+        self._copy_mat_coeffs(module, module)
+        if config.get_model_config().materials["maxpoles"] > 0:
+            substitutions = dict(self.subs_func)
+            substitutions.update(
+                knl_symmetry_boundaries.dispersive_substitutions(
+                    config.sim_config.dtypes["C_float_or_double"]
+                )
+            )
+            source = self._build_knl(
+                knl_symmetry_boundaries.update_electric_pmc_dispersive,
+                self.subs_name_args,
+                substitutions,
+            )
+            module_a = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+            self.update_electric_pmc_dispersive_dev = module_a.get_function(
+                "update_electric_pmc_dispersive"
+            )
+            self._copy_mat_coeffs(module_a, module_a)
+            source = self._build_knl(
+                knl_symmetry_boundaries.update_electric_pmc_dispersive_b,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            module_b = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+            self.update_electric_pmc_dispersive_b_dev = module_b.get_function(
+                "update_electric_pmc_dispersive_b"
+            )
+
+    def _pmc_flags(self):
+        boundaries = self.grid.symmetry_boundaries
+        return tuple(
+            np.int32(boundaries.get(face) == "pmc")
+            for face in ("x0", "xmax", "y0", "ymax", "z0", "zmax")
         )
 
+    def _set_pml_knls(self):
+        """PMLS - prepares kernels and gets kernel functions."""
         # Initialise arrays on GPU, set block per grid, and get kernel functions
         for pml in self.grid.pmls["slabs"]:
+            knl_pml_updates_electric = import_module(
+                "gprMax.cuda_opencl.knl_pml_updates_electric_" + pml.formulation
+            )
+            knl_pml_updates_magnetic = import_module(
+                "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + pml.formulation
+            )
             pml.htod_field_arrays()
             pml.set_blocks_per_grid()
             knl_name = f"order{len(pml.CFS)}_{pml.direction}"
@@ -243,7 +365,13 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Receivers - initialises arrays on GPU, prepares kernel and gets kernel
         function.
         """
-        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid)
+        (
+            self.rxcoords_dev,
+            self.rxs_dev,
+            self.rxcurrentinfo_dev,
+            self.rxcurrents_dev,
+        ) = htod_rx_arrays(self.grid)
+        self.nrxcurrent = len(requested_current_outputs(self.grid))
 
         self.subs_func.update(
             {
@@ -258,12 +386,20 @@ class CUDAUpdates(Updates[CUDAGrid]):
         bld = self._build_knl(knl_store_outputs.store_outputs, self.subs_name_args, self.subs_func)
         knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.store_outputs_dev = knl.get_function("store_outputs")
+        if self.nrxcurrent:
+            bld = self._build_knl(
+                knl_store_outputs.store_current_outputs,
+                self.subs_name_args,
+                self.subs_func,
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            self.store_current_outputs_dev = knl.get_function("store_current_outputs")
 
     def _set_src_knls(self):
         """Sources - initialises arrays on GPU, prepares kernel and gets kernel
         function.
         """
-        self.subs_func.update({"NY_SRCINFO": 4, "NY_SRCWAVES": self.grid.iterations})
+        self.subs_func.update({"NY_SRCINFO": 4, "NY_SRCWAVES": self.grid.iterations + 1})
 
         if self.grid.hertziandipoles:
             (
@@ -301,6 +437,196 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self._copy_mat_coeffs(knl, knl)
 
+    def _set_transmission_line_knls(self):
+        """Initialise device-resident transmission lines and their kernels."""
+
+        arrays = htod_transmission_line_arrays(self.grid.transmissionlines, self.grid)
+        for name, array in arrays.items():
+            setattr(self, f"tl_{name}_dev", array)
+
+        real = config.sim_config.dtypes["float_or_double"]
+        line = self.grid.transmissionlines[0]
+        self.tl_line_coefficient = real(config.c * self.grid.dt / line.dl)
+        self.tl_abc_coefficient = real(
+            (config.c * self.grid.dt - line.dl) / (config.c * self.grid.dt + line.dl)
+        )
+        self.tl_tpb = (32, 1, 1)
+        self.tl_bpg = (
+            int(np.ceil(len(self.grid.transmissionlines) / self.tl_tpb[0])),
+            1,
+            1,
+        )
+
+        substitutions = dict(self.subs_func)
+        substitutions.update(
+            {
+                "NY_TLINFO": 10,
+                "NY_TLWAVES": self.grid.iterations + 1,
+                "NY_TLOUTPUTS": self.grid.iterations + 1,
+            }
+        )
+
+        source = self._build_knl(
+            knl_transmission_line.update_transmission_line_magnetic,
+            self.subs_name_args,
+            substitutions,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_transmission_line_magnetic_dev = module.get_function(
+            "update_transmission_line_magnetic"
+        )
+
+        source = self._build_knl(
+            knl_transmission_line.update_transmission_line_electric,
+            self.subs_name_args,
+            substitutions,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_transmission_line_electric_dev = module.get_function(
+            "update_transmission_line_electric"
+        )
+
+    def _set_eigenmode_source_knls(self):
+        """Upload modal bases and compile device TF/SF source kernels."""
+
+        # Geometry reuse creates a fresh CUDA context for every run.  Python
+        # attributes from the former context can still exist on the retained
+        # grid, so presence is not evidence that a device pointer is valid.
+        self.grid.htod_mat_coeff_arrays()
+        for source in self.grid.eigenmodesources:
+            prepare_device_eigenmode_source(source, "cuda")
+        self.eigenmode_tpb = (128, 1, 1)
+        magnetic = self._build_knl(
+            knl_eigenmode.update_eigenmode_magnetic,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(magnetic, options=config.sim_config.devices["nvcc_opts"])
+        self.update_eigenmode_magnetic_dev = module.get_function("update_eigenmode_magnetic")
+        electric = self._build_knl(
+            knl_eigenmode.update_eigenmode_electric,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(electric, options=config.sim_config.devices["nvcc_opts"])
+        self.update_eigenmode_electric_dev = module.get_function("update_eigenmode_electric")
+
+    def _set_eigenmode_monitor_knl(self):
+        """Upload modal projection bases and compile the DFT kernel."""
+
+        for monitor in self.grid.eigenmodeports:
+            prepare_device_eigenmode_monitor(monitor, "cuda")
+        source = self._build_knl(
+            knl_eigenmode.accumulate_eigenmode_dft,
+            self.subs_name_args,
+            self.subs_func,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.accumulate_eigenmode_dft_dev = module.get_function("accumulate_eigenmode_dft")
+
+    def _set_virtual_waveguide_knls(self):
+        """Compile aperture coupling kernels for auxiliary device grids."""
+
+        self.virtual_tpb = (128, 1, 1)
+        for specification, attribute, name in (
+            (
+                knl_virtual_waveguide.couple_magnetic,
+                "couple_virtual_magnetic_dev",
+                "couple_virtual_waveguide_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_magnetic,
+                "clear_virtual_magnetic_dev",
+                "clear_virtual_waveguide_rear_magnetic",
+            ),
+            (
+                knl_virtual_waveguide.couple_electric,
+                "couple_virtual_electric_dev",
+                "couple_virtual_waveguide_electric",
+            ),
+            (
+                knl_virtual_waveguide.clear_rear_electric,
+                "clear_virtual_electric_dev",
+                "clear_virtual_waveguide_rear_electric",
+            ),
+        ):
+            source = self._build_knl(specification, self.subs_name_args, self.subs_func)
+            module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+            setattr(self, attribute, module.get_function(name))
+
+    def _set_rational_network_knl(self):
+        """Initialise sparse device-resident rational-network terminals."""
+
+        arrays = htod_rational_network_arrays(self.grid.networkterminals, self.grid)
+        for name, array in arrays.items():
+            setattr(self, f"rn_{name}_dev", array)
+
+        self.rn_tpb = (32, 1, 1)
+        self.rn_bpg = (
+            int(np.ceil(len(self.grid.networkterminals) / self.rn_tpb[0])),
+            1,
+            1,
+        )
+        substitutions = dict(self.subs_func)
+        substitutions.update(
+            {
+                "NY_RNINFO": 6,
+                "NY_RNPARAMS": 7,
+                "NY_RNWAVEWHOLE": self.grid.iterations + 1,
+                "NY_RNWAVEHALF": self.grid.iterations,
+                "NY_RNVOLTAGE": self.grid.iterations + 1,
+                "NY_RNCURRENT": self.grid.iterations,
+            }
+        )
+        source = self._build_knl(
+            knl_rational_network.update_rational_network,
+            self.subs_name_args,
+            substitutions,
+        )
+        module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_rational_network_dev = module.get_function("update_rational_network")
+
+    def _set_magnetic_frill_knls(self):
+        """Initialise device-resident magnetic-frill sources and their kernel.
+
+        A dedicated kernel/module, mirroring _set_transmission_line_knls()
+        rather than folding into _set_src_knls() - like a transmission
+        line, this source has its own HDF5 output group and its own
+        per-iteration history arrays to marshal to/from the device, unlike
+        the point-dipole family _set_src_knls() already handles.
+        """
+
+        arrays = htod_magnetic_frill_source_arrays(self.grid.magneticfrillsources, self.grid)
+        for name, array in arrays.items():
+            setattr(self, f"frill_{name}_dev", array)
+
+        self.frill_tpb = (32, 1, 1)
+        self.frill_bpg = (
+            int(np.ceil(len(self.grid.magneticfrillsources) / self.frill_tpb[0])),
+            1,
+            1,
+        )
+
+        substitutions = dict(self.subs_func)
+        substitutions.update(
+            {
+                "MAX_FRILLTERMS": MAGNETIC_FRILL_MAX_TERMS,
+                "NY_FRILLTERMINFO": 4,
+                "NY_FRILLTERMPARAMS": 2,
+                "NY_FRILLPARAMS": 3,
+                "NY_FRILLWAVES": self.grid.iterations + 1,
+                "NY_FRILLOUT": self.grid.iterations + 1,
+            }
+        )
+
+        source = self._build_knl(
+            knl_magnetic_frill_source.update_magnetic_frill_source,
+            self.subs_name_args,
+            substitutions,
+        )
+        knl = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+        self.update_magnetic_frill_source_dev = knl.get_function("update_magnetic_frill_source")
+
     def _set_snapshot_knl(self):
         """Snapshots - initialises arrays on GPU, prepares kernel and gets kernel
         function.
@@ -326,6 +652,607 @@ class CUDAUpdates(Updates[CUDAGrid]):
         bld = self._build_knl(knl_snapshots.store_snapshot, self.subs_name_args, self.subs_func)
         knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.store_snapshot_dev = knl.get_function("store_snapshot")
+
+    def _set_planewave_knls(self):
+        """Plane wave (TF/SF) - prepares kernels, uploads 1D DPW arrays,
+        and gets kernel functions for standard and axial variants.
+        Called once at simulation init if discreteplanewaves exist.
+        """
+
+        # Additional subs needed for plane wave kernels.
+        # These are used in the func body template substitutions
+        subs_pw = dict(self.subs_func)
+
+        # Upload updatecoeffsH and updatecoeffsE to GPU as global arrays
+        # Used by axial kernels as pointer arguments - no 64KB constant memory limit
+        self.grid.htod_mat_coeff_arrays()
+
+        for dpw in self.grid.discreteplanewaves:
+            # Upload all 1D DPW arrays to GPU
+            self.grid.htod_planewave_arrays(dpw)
+
+            bld = self._build_knl(
+                knl_planewave_updates.initialise_1d_source,
+                self.subs_name_args,
+                subs_pw,
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.initialise_1d_source_dev = knl.get_function("initialise_1d_source")
+
+            # Standard (homogeneous) kernels
+            # Scalar coefficients passed as kernel args - no constant memory needed
+
+            bld = self._build_knl(
+                knl_planewave_updates.update_1d_magnetic, self.subs_name_args, subs_pw
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.update_1d_magnetic_dev = knl.get_function("update_1d_magnetic")
+
+            bld = self._build_knl(
+                knl_planewave_updates.update_1d_magnetic_pml, self.subs_name_args, subs_pw
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.update_1d_magnetic_pml_dev = knl.get_function("update_1d_magnetic_pml")
+
+            bld = self._build_knl(
+                knl_planewave_updates.update_1d_electric, self.subs_name_args, subs_pw
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.update_1d_electric_dev = knl.get_function("update_1d_electric")
+
+            bld = self._build_knl(
+                knl_planewave_updates.update_1d_electric_pml, self.subs_name_args, subs_pw
+            )
+            knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+            dpw.update_1d_electric_pml_dev = knl.get_function("update_1d_electric_pml")
+
+            # Standard dispersive electric kernels (compiled only when dpw.dispersive)
+            if dpw.dispersive:
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_dispersive_A,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_dispersive_A_dev = knl.get_function(
+                    "update_1d_electric_dispersive_A"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_dispersive_B,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_dispersive_B_dev = knl.get_function(
+                    "update_1d_electric_dispersive_B"
+                )
+
+            # Standard face injection kernels - 12 kernels (6 faces x H and E)
+            dpw.std_H_face_devs = []
+            for knl_dict in knl_tfsf_injection.STANDARD_H_KERNELS:
+                bld = self._build_knl(knl_dict, self.subs_name_args, subs_pw)
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                func_name = knl_dict["name"]
+                dpw.std_H_face_devs.append(knl.get_function(func_name))
+
+            dpw.std_E_face_devs = []
+            for knl_dict in knl_tfsf_injection.STANDARD_E_KERNELS:
+                bld = self._build_knl(knl_dict, self.subs_name_args, subs_pw)
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                func_name = knl_dict["name"]
+                dpw.std_E_face_devs.append(knl.get_function(func_name))
+
+            # Axial kernels (only if dpw.axial != 0)
+            # updatecoeffsH/E passed as pointer args - no constant memory, no 64KB limit
+            if dpw.axial != 0:
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_magnetic_axial_source,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_magnetic_axial_source_dev = knl.get_function(
+                    "update_1d_magnetic_axial_source"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_magnetic_axial_source_pml,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_magnetic_axial_source_pml_dev = knl.get_function(
+                    "update_1d_magnetic_axial_source_pml"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_magnetic_axial_inject,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_magnetic_axial_inject_dev = knl.get_function(
+                    "update_1d_magnetic_axial_inject"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_magnetic_axial_main,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_magnetic_axial_main_dev = knl.get_function(
+                    "update_1d_magnetic_axial_main"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_magnetic_axial_main_pml_end,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_magnetic_axial_main_pml_end_dev = knl.get_function(
+                    "update_1d_magnetic_axial_main_pml_end"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_magnetic_axial_main_pml_start,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_magnetic_axial_main_pml_start_dev = knl.get_function(
+                    "update_1d_magnetic_axial_main_pml_start"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_axial_source,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_axial_source_dev = knl.get_function(
+                    "update_1d_electric_axial_source"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_axial_source_pml,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_axial_source_pml_dev = knl.get_function(
+                    "update_1d_electric_axial_source_pml"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_axial_inject,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_axial_inject_dev = knl.get_function(
+                    "update_1d_electric_axial_inject"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_axial_main,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_axial_main_dev = knl.get_function(
+                    "update_1d_electric_axial_main"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_axial_main_pml_end,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_axial_main_pml_end_dev = knl.get_function(
+                    "update_1d_electric_axial_main_pml_end"
+                )
+
+                bld = self._build_knl(
+                    knl_planewave_updates.update_1d_electric_axial_main_pml_start,
+                    self.subs_name_args,
+                    subs_pw,
+                )
+                knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                dpw.update_1d_electric_axial_main_pml_start_dev = knl.get_function(
+                    "update_1d_electric_axial_main_pml_start"
+                )
+
+                # Dispersive axial kernels (compiled only when dpw.dispersive)
+                if dpw.dispersive:
+                    bld = self._build_knl(
+                        knl_planewave_updates.update_1d_electric_dispersive_axial_source,
+                        self.subs_name_args,
+                        subs_pw,
+                    )
+                    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                    dpw.update_1d_electric_dispersive_axial_source_dev = knl.get_function(
+                        "update_1d_electric_dispersive_axial_source"
+                    )
+
+                    bld = self._build_knl(
+                        knl_planewave_updates.update_1d_electric_dispersive_axial_source_T,
+                        self.subs_name_args,
+                        subs_pw,
+                    )
+                    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                    dpw.update_1d_electric_dispersive_axial_source_T_dev = knl.get_function(
+                        "update_1d_electric_dispersive_axial_source_T"
+                    )
+
+                    bld = self._build_knl(
+                        knl_planewave_updates.update_1d_electric_dispersive_axial_main,
+                        self.subs_name_args,
+                        subs_pw,
+                    )
+                    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                    dpw.update_1d_electric_dispersive_axial_main_dev = knl.get_function(
+                        "update_1d_electric_dispersive_axial_main"
+                    )
+
+                    bld = self._build_knl(
+                        knl_planewave_updates.update_1d_electric_dispersive_axial_main_T,
+                        self.subs_name_args,
+                        subs_pw,
+                    )
+                    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                    dpw.update_1d_electric_dispersive_axial_main_T_dev = knl.get_function(
+                        "update_1d_electric_dispersive_axial_main_T"
+                    )
+
+                # Axial face injection kernels - 12 kernels (6 faces x H and E)
+                # note- these kernels read updatecoeffsH/E from constant memory
+                # (declared by knl_common), so _copy_mat_coeffs must populate it
+                # on each compiled module - otherwise reads return uninitialised data.
+                dpw.axial_H_face_devs = []
+                for knl_dict in knl_tfsf_injection.AXIAL_H_KERNELS:
+                    bld = self._build_knl(knl_dict, self.subs_name_args, subs_pw)
+                    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                    self._copy_mat_coeffs(knl, knl)
+                    func_name = knl_dict["name"]
+                    dpw.axial_H_face_devs.append(knl.get_function(func_name))
+
+                dpw.axial_E_face_devs = []
+                for knl_dict in knl_tfsf_injection.AXIAL_E_KERNELS:
+                    bld = self._build_knl(knl_dict, self.subs_name_args, subs_pw)
+                    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+                    self._copy_mat_coeffs(knl, knl)
+                    func_name = knl_dict["name"]
+                    dpw.axial_E_face_devs.append(knl.get_function(func_name))
+
+    def _dpw_skip_axis(self, dpw):
+        """Resolves which face pair (if any) to skip for 2D TM/TE runs.
+
+        Mirrors the skip_axis parameter added to applyTFSF* in
+        plane_wave.pyx: 0/1/2 -> skip the x/y/z faces (the invariant
+        axis has no physical faces to inject through), -1 -> 3D, launch
+        all six. Reads dpw.skip_axis if the 2D-aware sources.py provides
+        it; otherwise derives it from the grid's mode2d encoding
+        (-1 = 3D; 0/1/2 = 2D TM invariant x/y/z; 3/4/5 = 2D TE
+        invariant x/y/z, so invariant axis = mode2d % 3); otherwise -1
+        (pure 3D behaviour, identical to before this change).
+        """
+        skip = getattr(dpw, "skip_axis", None)
+        if skip is not None:
+            return int(skip)
+        mode2d = getattr(self.grid, "mode2d", -1)
+        if mode2d is None or mode2d < 0:
+            return -1
+        return mode2d % 3
+
+    def _launch_std_H_face_kernels(self, dpw):
+        """Launches 6 standard H face injection kernels for one dpw object.
+        Called after 1D magnetic update every timestep.
+        """
+        corners = dpw.corners
+        # corners layout is [x_start, y_start, z_start, x_stop, y_stop, z_stop]
+        # (see plane_wave.pyx applyTFSF* and sources.py loops)
+        xs, ys, zs = corners[0], corners[1], corners[2]
+        xf, yf, zf = corners[3], corners[4], corners[5]
+        m = dpw.m
+        origin = dpw.origin
+
+        # Face sizes for thread decomposition
+        NY_xface = yf - ys + 1
+        NZ_xface = zf - zs + 1
+        NX_yface = xf - xs + 1
+        NZ_yface = zf - zs + 1
+        NX_zface = xf - xs + 1
+        NY_zface = yf - ys + 1
+
+        REAL = config.sim_config.dtypes["float_or_double"]
+
+        # x_low, x_high, y_low, y_high, z_low, z_high
+        face_configs = [
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xs, xs, ys, yf, zs, zf),
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xf, xf, ys, yf, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, ys, ys, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, yf, yf, zs, zf),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zs, zs),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zf, zf),
+        ]
+
+        mat = self.grid.updatecoeffsH[dpw.material.numID]
+        skip_axis = self._dpw_skip_axis(dpw)
+
+        for idx, (face_dev, fc) in enumerate(zip(dpw.std_H_face_devs, face_configs)):
+            # 2D TM/TE: no injection through the faces perpendicular to
+            # the invariant axis (mirrors skip_axis in applyTFSFMagnetic)
+            if skip_axis == idx // 2:
+                continue
+            face_size, NY_F, NZ_F, x_s, x_e, y_s, y_e, z_s, z_e = fc
+            if face_size == 0:
+                continue
+
+            # coef_H_1 and coef_H_2 depend on face axis
+            if idx < 2:  # x faces — use DBx (col 1)
+                c1 = REAL(mat[1])
+                c2 = REAL(mat[1])
+            elif idx < 4:  # y faces — use DBy (col 2)
+                c1 = REAL(mat[2])
+                c2 = REAL(mat[2])
+            else:  # z faces — use DBz (col 3)
+                c1 = REAL(mat[3])
+                c2 = REAL(mat[3])
+
+            face_dev(
+                np.int32(self.grid.ny + 1),
+                np.int32(self.grid.nz + 1),
+                np.int32(NY_F),
+                np.int32(NZ_F),
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
+                c1,
+                c2,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+                dpw.E_fields_dev[0],  # E_x row
+                dpw.E_fields_dev[1],  # E_y row
+                dpw.E_fields_dev[2],  # E_z row
+                block=(256, 1, 1),
+                grid=(int(np.ceil(face_size / 256)), 1, 1),
+            )
+
+    def _launch_std_E_face_kernels(self, dpw):
+        """Launches 6 standard E face injection kernels for one dpw object.
+        Called after 1D electric update every timestep.
+        """
+        corners = dpw.corners
+        # corners layout is [x_start, y_start, z_start, x_stop, y_stop, z_stop]
+        # (see plane_wave.pyx applyTFSF* and sources.py loops)
+        xs, ys, zs = corners[0], corners[1], corners[2]
+        xf, yf, zf = corners[3], corners[4], corners[5]
+        m = dpw.m
+        origin = dpw.origin
+
+        NY_xface = yf - ys + 1
+        NZ_xface = zf - zs + 1
+        NX_yface = xf - xs + 1
+        NZ_yface = zf - zs + 1
+        NX_zface = xf - xs + 1
+        NY_zface = yf - ys + 1
+
+        REAL = config.sim_config.dtypes["float_or_double"]
+
+        face_configs = [
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xs, xs, ys, yf, zs, zf),
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xf, xf, ys, yf, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, ys, ys, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, yf, yf, zs, zf),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zs, zs),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zf, zf),
+        ]
+
+        mat = self.grid.updatecoeffsE[dpw.material.numID]
+        skip_axis = self._dpw_skip_axis(dpw)
+
+        for idx, (face_dev, fc) in enumerate(zip(dpw.std_E_face_devs, face_configs)):
+            # 2D TM/TE: skip the invariant-axis faces (applyTFSFElectric)
+            if skip_axis == idx // 2:
+                continue
+            face_size, NY_F, NZ_F, x_s, x_e, y_s, y_e, z_s, z_e = fc
+            if face_size == 0:
+                continue
+
+            if idx < 2:  # x faces — use CBx (col 1)
+                c1 = REAL(mat[1])
+                c2 = REAL(mat[1])
+            elif idx < 4:  # y faces — use CBy (col 2)
+                c1 = REAL(mat[2])
+                c2 = REAL(mat[2])
+            else:  # z faces — use CBz (col 3)
+                c1 = REAL(mat[3])
+                c2 = REAL(mat[3])
+
+            face_dev(
+                np.int32(self.grid.ny + 1),
+                np.int32(self.grid.nz + 1),
+                np.int32(NY_F),
+                np.int32(NZ_F),
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
+                c1,
+                c2,
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                dpw.H_fields_dev[0],  # H_x row
+                dpw.H_fields_dev[1],  # H_y row
+                dpw.H_fields_dev[2],  # H_z row
+                block=(256, 1, 1),
+                grid=(int(np.ceil(face_size / 256)), 1, 1),
+            )
+
+    def _launch_axial_H_face_kernels(self, dpw):
+        """Launches 6 axial H face injection kernels for one dpw object.
+        updatecoeffsH passed as pointer arg — no constant memory limit.
+        """
+        corners = dpw.corners
+        # corners layout is [x_start, y_start, z_start, x_stop, y_stop, z_stop]
+        # (see plane_wave.pyx applyTFSF* and sources.py loops)
+        xs, ys, zs = corners[0], corners[1], corners[2]
+        xf, yf, zf = corners[3], corners[4], corners[5]
+        m = dpw.m
+        origin = dpw.origin
+
+        NY_xface = yf - ys + 1
+        NZ_xface = zf - zs + 1
+        NX_yface = xf - xs + 1
+        NZ_yface = zf - zs + 1
+        NX_zface = xf - xs + 1
+        NY_zface = yf - ys + 1
+
+        face_configs = [
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xs, xs, ys, yf, zs, zf),
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xf, xf, ys, yf, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, ys, ys, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, yf, yf, zs, zf),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zs, zs),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zf, zf),
+        ]
+
+        skip_axis = self._dpw_skip_axis(dpw)
+
+        for idx, (face_dev, fc) in enumerate(zip(dpw.axial_H_face_devs, face_configs)):
+            # 2D TM/TE: skip the invariant-axis faces
+            # (mirrors skip_axis in applyTFSFMagnetic_axial)
+            if skip_axis == idx // 2:
+                continue
+            face_size, NY_F, NZ_F, x_s, x_e, y_s, y_e, z_s, z_e = fc
+            if face_size == 0:
+                continue
+
+            face_dev(
+                np.int32(self.grid.ny + 1),
+                np.int32(self.grid.nz + 1),
+                np.int32(NY_F),
+                np.int32(NZ_F),
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
+                np.int32(dpw.origin_axial),
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+                dpw.E_fields_dev[
+                    0
+                ],  # E_x row (main 1D grid, matches Cython applyTFSFMagnetic_axial)
+                dpw.E_fields_dev[1],  # E_y row
+                dpw.E_fields_dev[2],  # E_z row
+                self.grid.ID_dev,
+                # updatecoeffsH is read from constant memory (populated by _copy_mat_coeffs)
+                block=(256, 1, 1),
+                grid=(int(np.ceil(face_size / 256)), 1, 1),
+            )
+
+    def _launch_axial_E_face_kernels(self, dpw):
+        """Launches 6 axial E face injection kernels for one dpw object.
+        updatecoeffsE passed as pointer arg — no constant memory limit.
+        """
+        corners = dpw.corners
+        # corners layout is [x_start, y_start, z_start, x_stop, y_stop, z_stop]
+        # (see plane_wave.pyx applyTFSF* and sources.py loops)
+        xs, ys, zs = corners[0], corners[1], corners[2]
+        xf, yf, zf = corners[3], corners[4], corners[5]
+        m = dpw.m
+        origin = dpw.origin
+
+        NY_xface = yf - ys + 1
+        NZ_xface = zf - zs + 1
+        NX_yface = xf - xs + 1
+        NZ_yface = zf - zs + 1
+        NX_zface = xf - xs + 1
+        NY_zface = yf - ys + 1
+
+        face_configs = [
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xs, xs, ys, yf, zs, zf),
+            (NY_xface * NZ_xface, NY_xface, NZ_xface, xf, xf, ys, yf, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, ys, ys, zs, zf),
+            (NX_yface * NZ_yface, NX_yface, NZ_yface, xs, xf, yf, yf, zs, zf),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zs, zs),
+            (NX_zface * NY_zface, NX_zface, NY_zface, xs, xf, ys, yf, zf, zf),
+        ]
+
+        skip_axis = self._dpw_skip_axis(dpw)
+
+        for idx, (face_dev, fc) in enumerate(zip(dpw.axial_E_face_devs, face_configs)):
+            # 2D TM/TE: skip the invariant-axis faces
+            # (mirrors skip_axis in applyTFSFElectric_axial)
+            if skip_axis == idx // 2:
+                continue
+            face_size, NY_F, NZ_F, x_s, x_e, y_s, y_e, z_s, z_e = fc
+            if face_size == 0:
+                continue
+
+            face_dev(
+                np.int32(self.grid.ny + 1),
+                np.int32(self.grid.nz + 1),
+                np.int32(NY_F),
+                np.int32(NZ_F),
+                np.int32(x_s),
+                np.int32(x_e),
+                np.int32(y_s),
+                np.int32(y_e),
+                np.int32(z_s),
+                np.int32(z_e),
+                np.int32(m[0]),
+                np.int32(m[1]),
+                np.int32(m[2]),
+                np.int32(origin[0]),
+                np.int32(origin[1]),
+                np.int32(origin[2]),
+                np.int32(dpw.origin_axial),
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                dpw.H_fields_dev[
+                    0
+                ],  # H_x row (main 1D grid, matches Cython applyTFSFElectric_axial)
+                dpw.H_fields_dev[1],  # H_y row
+                dpw.H_fields_dev[2],  # H_z row
+                self.grid.ID_dev,
+                # updatecoeffsE is read from constant memory (populated by _copy_mat_coeffs)
+                block=(256, 1, 1),
+                grid=(int(np.ceil(face_size / 256)), 1, 1),
+            )
 
     def _copy_mat_coeffs(self, knlE, knlH):
         """Copies material coefficient arrays to constant memory of GPU
@@ -371,6 +1298,21 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=(1, 1, 1),
                 grid=(round32(len(self.grid.rxs)), 1, 1),
             )
+            if self.nrxcurrent:
+                self.store_current_outputs_dev(
+                    np.int32(self.nrxcurrent),
+                    np.int32(iteration),
+                    self.rxcurrentinfo_dev.gpudata,
+                    self.rxcurrents_dev.gpudata,
+                    config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                    config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                    config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                    self.grid.Hx_dev.gpudata,
+                    self.grid.Hy_dev.gpudata,
+                    self.grid.Hz_dev.gpudata,
+                    block=(1, 1, 1),
+                    grid=(round32(self.nrxcurrent), 1, 1),
+                )
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -379,20 +1321,24 @@ class CUDAUpdates(Updates[CUDAGrid]):
             iteration: int for iteration number.
         """
 
+        sx, sy, sz = _snapshot_axis_strides()
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
-                    np.int32(snap.xf),
                     np.int32(snap.ys),
-                    np.int32(snap.yf),
                     np.int32(snap.zs),
-                    np.int32(snap.zf),
+                    np.int32(snap.nx),
+                    np.int32(snap.ny),
+                    np.int32(snap.nz),
                     np.int32(snap.dx),
                     np.int32(snap.dy),
                     np.int32(snap.dz),
+                    np.int32(sx),
+                    np.int32(sy),
+                    np.int32(sz),
                     self.grid.Ex_dev.gpudata,
                     self.grid.Ey_dev.gpudata,
                     self.grid.Ez_dev.gpudata,
@@ -437,6 +1383,84 @@ class CUDAUpdates(Updates[CUDAGrid]):
             grid=self.grid.bpg,
         )
 
+    def observe_ntff_electric(self, iteration):
+        """Collect electric frequency- and time-domain KSIR data on CUDA."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_ntff_magnetic(self, iteration):
+        """Collect magnetic frequency- and time-domain KSIR data on CUDA."""
+
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.observe_magnetic(iteration)
+
+    def observe_sar_electric(self, iteration):
+        """Collect sparse electric-field DFTs for SAR on CUDA."""
+
+        collector = getattr(self, "sar_collector", None)
+        if collector is not None:
+            collector.observe_electric(iteration)
+
+    def observe_eigenmode_ports(self, iteration):
+        """Project modal port fields and accumulate DFTs on CUDA."""
+
+        real = config.sim_config.dtypes["float_or_double"]
+        for monitor in self.grid.eigenmodeports:
+            if iteration != monitor._next_iteration:
+                raise RuntimeError(
+                    f"expected eigenmode DFT iteration {monitor._next_iteration}, "
+                    f"received {iteration}"
+                )
+            owner = monitor.owner
+            arrays = monitor.device_arrays
+            nf, nm = monitor.electric_dft.shape
+            self.accumulate_eigenmode_dft_dev(
+                np.int32(nf),
+                np.int32(nm),
+                np.int32(owner.normal_axis),
+                np.int32(1 if owner.direction == "+" else -1),
+                np.int32(monitor.magnetic_side),
+                np.int32(owner.transverse_start[0]),
+                np.int32(owner.transverse_start[1]),
+                np.int32(owner.transverse_stop[0]),
+                np.int32(owner.transverse_stop[1]),
+                np.int32(owner.plane_index),
+                real(self.grid.dt),
+                real(monitor.measure),
+                np.int32(monitor.handedness),
+                arrays["electric_phase_real"].gpudata,
+                arrays["electric_phase_imag"].gpudata,
+                arrays["magnetic_phase_real"].gpudata,
+                arrays["magnetic_phase_imag"].gpudata,
+                arrays["phase_step_real"].gpudata,
+                arrays["phase_step_imag"].gpudata,
+                arrays["conj_eu_real"].gpudata,
+                arrays["conj_eu_imag"].gpudata,
+                arrays["conj_ev_real"].gpudata,
+                arrays["conj_ev_imag"].gpudata,
+                arrays["conj_hu_real"].gpudata,
+                arrays["conj_hu_imag"].gpudata,
+                arrays["conj_hv_real"].gpudata,
+                arrays["conj_hv_imag"].gpudata,
+                arrays["electric_dft_real"].gpudata,
+                arrays["electric_dft_imag"].gpudata,
+                arrays["magnetic_dft_real"].gpudata,
+                arrays["magnetic_dft_imag"].gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+                block=(128, 1, 1),
+                grid=(int(np.ceil(nf / 128)), 1, 1),
+            )
+            monitor._next_iteration += 1
+            reanchor_device_eigenmode_monitor(monitor, self.grid, "cuda")
+
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -444,6 +1468,28 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
     def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
+        if self.grid.transmissionlines:
+            self.update_transmission_line_magnetic_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_info_dev.gpudata,
+                self.tl_resistance_dev.gpudata,
+                self.tl_waveform_half_dev.gpudata,
+                self.tl_voltage_dev.gpudata,
+                self.tl_current_dev.gpudata,
+                self.tl_Vtotal_dev.gpudata,
+                self.tl_Itotal_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+                block=self.tl_tpb,
+                grid=self.tl_bpg,
+            )
+
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
@@ -461,6 +1507,176 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=(1, 1, 1),
                 grid=(round32(len(self.grid.magneticdipoles)), 1, 1),
             )
+
+        if self.grid.magneticfrillsources:
+            self.update_magnetic_frill_source_dev(
+                np.int32(len(self.grid.magneticfrillsources)),
+                np.int32(iteration),
+                self.frill_term_counts_dev.gpudata,
+                self.frill_term_info_dev.gpudata,
+                self.frill_term_params_dev.gpudata,
+                self.frill_params_dev.gpudata,
+                self.frill_state_dev.gpudata,
+                self.frill_waveform_dev.gpudata,
+                self.frill_Vinc_dev.gpudata,
+                self.frill_Vtotal_dev.gpudata,
+                self.frill_Itot_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+                block=self.frill_tpb,
+                grid=self.frill_bpg,
+            )
+
+    def _launch_eigenmode_source(self, source, iteration, magnetic):
+        nu, nv = np.asarray(source.transverse_stop) - np.asarray(source.transverse_start)
+        npoints = int((nu + 1) * (nv + 1))
+        block = self.eigenmode_tpb
+        launch_grid = (int(np.ceil(npoints / block[0])), 1, 1)
+        kernel = (
+            self.update_eigenmode_magnetic_dev if magnetic else self.update_eigenmode_electric_dev
+        )
+        profiles = source.device_electric_profiles if magnetic else source.device_magnetic_profiles
+        fields = (
+            (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+            if magnetic
+            else (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)
+        )
+        coefficients = self.grid.updatecoeffsH_dev if magnetic else self.grid.updatecoeffsE_dev
+        real = config.sim_config.dtypes["float_or_double"]
+        for basis, envelope in eigenmode_source_envelopes(source, self.grid, iteration, magnetic):
+            kernel(
+                np.int32(npoints),
+                np.int32(source.normal_axis),
+                np.int32(1 if source.direction == "+" else -1),
+                np.int32(source.transverse_start[0]),
+                np.int32(source.transverse_start[1]),
+                np.int32(source.transverse_stop[0]),
+                np.int32(source.transverse_stop[1]),
+                np.int32(source.plane_index),
+                np.int32(basis),
+                real(envelope),
+                profiles.gpudata,
+                coefficients.gpudata,
+                self.grid.ID_dev.gpudata,
+                *(field.gpudata for field in fields),
+                block=block,
+                grid=launch_grid,
+            )
+
+    def update_eigenmode_sources_magnetic(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, True)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_magnetic(guide, iteration)
+
+    def update_eigenmode_sources_electric(self, iteration):
+        for source in self.grid.eigenmodesources:
+            self._launch_eigenmode_source(source, iteration, False)
+        for guide in self.grid.virtual_waveguides:
+            self._update_virtual_waveguide_electric(guide, iteration)
+
+    def _virtual_scalars(self, guide, npoints):
+        aux = guide.aux_grid
+        return (
+            np.int32(npoints),
+            np.int32(guide.normal_axis),
+            np.int32(guide.direction_sign),
+            np.int32(guide.u0),
+            np.int32(guide.v0),
+            np.int32(guide.u1),
+            np.int32(guide.v1),
+            np.int32(guide.plane_index),
+            np.int32(aux.nx),
+            np.int32(aux.ny),
+            np.int32(aux.nz),
+        )
+
+    def _virtual_launch(self, kernel, npoints, *arguments):
+        kernel(
+            *arguments,
+            block=self.virtual_tpb,
+            grid=(int(np.ceil(npoints / self.virtual_tpb[0])), 1, 1),
+        )
+
+    def _update_virtual_waveguide_magnetic(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_magnetic()
+        child.update_magnetic_pml()
+        child.update_eigenmode_sources_magnetic(iteration)
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_h = tuple(
+            field.gpudata for field in (self.grid.Hx_dev, self.grid.Hy_dev, self.grid.Hz_dev)
+        )
+        aux_h = tuple(
+            field.gpudata
+            for field in (guide.aux_grid.Hx_dev, guide.aux_grid.Hy_dev, guide.aux_grid.Hz_dev)
+        )
+        self._virtual_launch(
+            self.couple_virtual_magnetic_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            *main_h,
+            *aux_h,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_magnetic_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            *main_h,
+            *aux_h,
+        )
+
+    def _update_virtual_waveguide_electric(self, guide, iteration):
+        child = guide.aux_updates
+        child.update_electric_a()
+        child.update_electric_pml()
+        child.update_eigenmode_sources_electric(iteration)
+        child.update_electric_b()
+        nface = (guide.nu + 1) * (guide.nv + 1)
+        main_fields = tuple(
+            field.gpudata
+            for field in (
+                self.grid.Ex_dev,
+                self.grid.Ey_dev,
+                self.grid.Ez_dev,
+                self.grid.Hx_dev,
+                self.grid.Hy_dev,
+                self.grid.Hz_dev,
+            )
+        )
+        aux_fields = tuple(
+            field.gpudata
+            for field in (
+                guide.aux_grid.Ex_dev,
+                guide.aux_grid.Ey_dev,
+                guide.aux_grid.Ez_dev,
+                guide.aux_grid.Hx_dev,
+                guide.aux_grid.Hy_dev,
+                guide.aux_grid.Hz_dev,
+            )
+        )
+        self._virtual_launch(
+            self.couple_virtual_electric_dev,
+            nface,
+            *self._virtual_scalars(guide, nface),
+            guide.aux_grid.updatecoeffsE_dev.gpudata,
+            guide.aux_grid.ID_dev.gpudata,
+            *main_fields,
+            *aux_fields,
+        )
+        nmain = self.grid.Ex.size
+        self._virtual_launch(
+            self.clear_virtual_electric_dev,
+            nmain,
+            *self._virtual_scalars(guide, nmain),
+            *(field.gpudata for field in (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)),
+            *(
+                field.gpudata
+                for field in (guide.aux_grid.Ex_dev, guide.aux_grid.Ey_dev, guide.aux_grid.Ez_dev)
+            ),
+        )
 
     def update_electric_a(self):
         """Updates electric field components."""
@@ -504,6 +1720,76 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=self.grid.bpg,
             )
 
+    def update_symmetry_boundaries_electric(self):
+        """Apply the PMC ghost-image correction on CUDA."""
+        if "pmc" not in self.grid.symmetry_boundaries.values():
+            return
+        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        kernel = (
+            self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
+        )
+        leading = [
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+        ]
+        if dispersive:
+            leading.append(np.int32(config.get_model_config().materials["maxpoles"]))
+        arguments = [
+            *leading,
+            *self._pmc_flags(),
+        ]
+        if dispersive:
+            arguments.extend(
+                [
+                    self.grid.updatecoeffsdispersive_dev.gpudata,
+                    self.grid.Tx_dev.gpudata,
+                    self.grid.Ty_dev.gpudata,
+                    self.grid.Tz_dev.gpudata,
+                ]
+            )
+        arguments.extend(
+            [
+                self.grid.ID_dev.gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                self.grid.Hx_dev.gpudata,
+                self.grid.Hy_dev.gpudata,
+                self.grid.Hz_dev.gpudata,
+            ]
+        )
+        kernel(
+            *arguments,
+            block=self.grid.tpb,
+            grid=self.grid.bpg,
+        )
+
+    def update_symmetry_boundaries_electric_b(self):
+        """Complete the dispersive PMC ADE update on CUDA."""
+        if (
+            "pmc" not in self.grid.symmetry_boundaries.values()
+            or config.get_model_config().materials["maxpoles"] == 0
+        ):
+            return
+        self.update_electric_pmc_dispersive_b_dev(
+            np.int32(self.grid.nx),
+            np.int32(self.grid.ny),
+            np.int32(self.grid.nz),
+            np.int32(config.get_model_config().materials["maxpoles"]),
+            *self._pmc_flags(),
+            self.grid.updatecoeffsdispersive_dev.gpudata,
+            self.grid.Tx_dev.gpudata,
+            self.grid.Ty_dev.gpudata,
+            self.grid.Tz_dev.gpudata,
+            self.grid.ID_dev.gpudata,
+            self.grid.Ex_dev.gpudata,
+            self.grid.Ey_dev.gpudata,
+            self.grid.Ez_dev.gpudata,
+            block=self.grid.tpb,
+            grid=self.grid.bpg,
+        )
+
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -531,6 +1817,29 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=(round32(len(self.grid.voltagesources)), 1, 1),
             )
 
+        if self.grid.transmissionlines:
+            self.update_transmission_line_electric_dev(
+                np.int32(len(self.grid.transmissionlines)),
+                np.int32(iteration),
+                config.sim_config.dtypes["float_or_double"](self.grid.dx),
+                config.sim_config.dtypes["float_or_double"](self.grid.dy),
+                config.sim_config.dtypes["float_or_double"](self.grid.dz),
+                self.tl_line_coefficient,
+                self.tl_abc_coefficient,
+                self.tl_info_dev.gpudata,
+                self.tl_resistance_dev.gpudata,
+                self.tl_waveform_whole_dev.gpudata,
+                self.tl_voltage_dev.gpudata,
+                self.tl_current_dev.gpudata,
+                self.tl_abcv0_dev.gpudata,
+                self.tl_abcv1_dev.gpudata,
+                self.grid.Ex_dev.gpudata,
+                self.grid.Ey_dev.gpudata,
+                self.grid.Ez_dev.gpudata,
+                block=self.tl_tpb,
+                grid=self.tl_bpg,
+            )
+
         if self.grid.hertziandipoles:
             self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
@@ -549,6 +1858,1072 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 grid=(round32(len(self.grid.hertziandipoles)), 1, 1),
             )
 
+    def update_plane_waves_magnetic(self, iteration):
+        """Updates 1D DPW auxiliary grid H fields and applies TF/SF
+        corrections to 3D H field arrays at all 6 faces.
+        Called every timestep after update_magnetic().
+        """
+        if not self.grid.discreteplanewaves:
+            return
+
+        REAL = config.sim_config.dtypes["float_or_double"]
+
+        for dpw in self.grid.discreteplanewaves:
+            n = np.int32(dpw.length)
+            p = np.int32(dpw.pml_length)
+            M = np.int32(dpw.m[3])
+            mx = np.int32(dpw.m[0])
+            my = np.int32(dpw.m[1])
+            mz = np.int32(dpw.m[2])
+            dx = REAL(self.grid.dx)
+            dy = REAL(self.grid.dy)
+            dz = REAL(self.grid.dz)
+
+            bulk_size = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
+            pml_size = int(np.ceil(dpw.pml_length / 256))
+
+            # Source injection into the first M samples of the 1D grid. The
+            # projected waveform remains device-resident for the full solve.
+            M_int = int(dpw.m[3])
+            if M_int > 0:
+                target = dpw.H_fields_dev if dpw.axial == 0 else dpw.H_fields_s_dev
+                count = 3 * M_int
+                dpw.initialise_1d_source_dev(
+                    n,
+                    M,
+                    np.int32(iteration),
+                    target,
+                    dpw.source_h_dev,
+                    block=(256, 1, 1),
+                    grid=(int(np.ceil(count / 256)), 1, 1),
+                )
+
+            if dpw.axial == 0:
+                #  Standard (homogeneous) magnetic 1D update
+                # Get background material coefficients
+                mat = self.grid.updatecoeffsH[dpw.material.numID]
+                DA = REAL(mat[0])
+                DBx = REAL(mat[1])
+                DBy = REAL(mat[2])
+                DBz = REAL(mat[3])
+                srcm = REAL(mat[4])
+
+                # Bulk update
+                # Row offsets for [3, N] arrays: row_i starts at i * N * itemsize
+                Hx_ptr = dpw.H_fields_dev[0]
+                Hy_ptr = dpw.H_fields_dev[1]
+                Hz_ptr = dpw.H_fields_dev[2]
+                Ex_ptr = dpw.E_fields_dev[0]
+                Ey_ptr = dpw.E_fields_dev[1]
+                Ez_ptr = dpw.E_fields_dev[2]
+
+                # Coefficient order MUST match kernel signature:
+                # (xt, xy, xz), (yt, yx, yz), (zt, zx, zy)
+                # where xy=DBy(col2), xz=DBz(col3), yx=DBx(col1), yz=DBz(col3),
+                #       zx=DBx(col1), zy=DBy(col2)  per plane_wave.pyx
+                dpw.update_1d_magnetic_dev(
+                    n,
+                    M,
+                    mx,
+                    my,
+                    mz,
+                    DA,
+                    DBy,
+                    DBz,  # coef_H_xt, coef_H_xy, coef_H_xz
+                    DA,
+                    DBx,
+                    DBz,  # coef_H_yt, coef_H_yx, coef_H_yz
+                    DA,
+                    DBx,
+                    DBy,  # coef_H_zt, coef_H_zx, coef_H_zy
+                    Hx_ptr,
+                    Hy_ptr,
+                    Hz_ptr,
+                    Ex_ptr,
+                    Ey_ptr,
+                    Ez_ptr,
+                    block=(256, 1, 1),
+                    grid=(bulk_size, 1, 1),
+                )
+
+                # PML update
+                # Kernel expects 6 integral-row pointers + 12 coeff-row pointers.
+                # Magnetic PML uses integral rows 2,3 of Ix/Iy/Iz (per plane_wave.pyx)-
+                #   Ixmyz=Ix[2], Ixmzy=Ix[3], Iymxz=Iy[2], Iymzx=Iy[3],
+                #   Izmxy=Iz[2], Izmyx=Iz[3]
+                # Kernel param order is: Ixmzy, Ixmyz, Iymzx, Iymxz, Izmyx, Izmxy
+                # Coeff rows: RA=row0, RB=row1, RC=row2, RD=row3 of rcHx/rcHy/rcHz
+                if pml_size > 0:
+                    dpw.update_1d_magnetic_pml_dev(
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        srcm,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_ptr,
+                        Hy_ptr,
+                        Hz_ptr,
+                        Ex_ptr,
+                        Ey_ptr,
+                        Ez_ptr,
+                        dpw.Ix_dev[3],  # Ixmzy
+                        dpw.Ix_dev[2],  # Ixmyz
+                        dpw.Iy_dev[3],  # Iymzx
+                        dpw.Iy_dev[2],  # Iymxz
+                        dpw.Iz_dev[3],  # Izmyx
+                        dpw.Iz_dev[2],  # Izmxy
+                        dpw.pml_rhx_dev[0],  # RAHx
+                        dpw.pml_rhx_dev[1],  # RBHx
+                        dpw.pml_rhx_dev[2],  # RCHx
+                        dpw.pml_rhx_dev[3],  # RDHx
+                        dpw.pml_rhy_dev[0],  # RAHy
+                        dpw.pml_rhy_dev[1],  # RBHy
+                        dpw.pml_rhy_dev[2],  # RCHy
+                        dpw.pml_rhy_dev[3],  # RDHy
+                        dpw.pml_rhz_dev[0],  # RAHz
+                        dpw.pml_rhz_dev[1],  # RBHz
+                        dpw.pml_rhz_dev[2],  # RCHz
+                        dpw.pml_rhz_dev[3],  # RDHz
+                        block=(256, 1, 1),
+                        grid=(pml_size, 1, 1),
+                    )
+
+                # Standard face corrections
+                self._launch_std_H_face_kernels(dpw)
+
+            else:
+                # Axial magnetic 1D update (3 sequential launches)
+
+                # Row offsets for axial source grid arrays
+                Hx_s = dpw.H_fields_s_dev[0]
+                Hy_s = dpw.H_fields_s_dev[1]
+                Hz_s = dpw.H_fields_s_dev[2]
+                Ex_s = dpw.E_fields_s_dev[0]
+                Ey_s = dpw.E_fields_s_dev[1]
+                Ez_s = dpw.E_fields_s_dev[2]
+                Hx_m = dpw.H_fields_dev[0]
+                Hy_m = dpw.H_fields_dev[1]
+                Hz_m = dpw.H_fields_dev[2]
+                Ex_m = dpw.E_fields_dev[0]
+                Ey_m = dpw.E_fields_dev[1]
+                Ez_m = dpw.E_fields_dev[2]
+
+                # Launch 1: Update source grid bulk
+                if bulk_size > 0:
+                    dpw.update_1d_magnetic_axial_source_dev(
+                        n,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
+                        Ex_s,
+                        Ey_s,
+                        Ez_s,
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(256, 1, 1),
+                        grid=(bulk_size, 1, 1),
+                    )
+
+                # Source grid PML
+                # Kernel expects 6 integral-row pointers + 12 coeff-row pointers.
+                # Source PML integrals occupy rows 2,3 of Ix_s/Iy_s/Iz_s
+                # (Ixmyz_s=Ix_s[2], Ixmzy_s=Ix_s[3], etc., per plane_wave.pyx).
+                # Kernel param order: Ixmzy_s, Ixmyz_s, Iymzx_s, Iymxz_s, Izmyx_s, Izmxy_s
+                # Coeff rows: RA=0, RB=1, RC=2, RD=3 of pml_rhx0/pml_rhy0/pml_rhz0
+                if pml_size > 0:
+                    dpw.update_1d_magnetic_axial_source_pml_dev(
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
+                        Ex_s,
+                        Ey_s,
+                        Ez_s,
+                        dpw.Ix_s_dev[3],  # Ixmzy_s
+                        dpw.Ix_s_dev[2],  # Ixmyz_s
+                        dpw.Iy_s_dev[3],  # Iymzx_s
+                        dpw.Iy_s_dev[2],  # Iymxz_s
+                        dpw.Iz_s_dev[3],  # Izmyx_s
+                        dpw.Iz_s_dev[2],  # Izmxy_s
+                        dpw.pml_rhx0_dev[0],  # RAHx0
+                        dpw.pml_rhx0_dev[1],  # RBHx0
+                        dpw.pml_rhx0_dev[2],  # RCHx0
+                        dpw.pml_rhx0_dev[3],  # RDHx0
+                        dpw.pml_rhy0_dev[0],  # RAHy0
+                        dpw.pml_rhy0_dev[1],  # RBHy0
+                        dpw.pml_rhy0_dev[2],  # RCHy0
+                        dpw.pml_rhy0_dev[3],  # RDHy0
+                        dpw.pml_rhz0_dev[0],  # RAHz0
+                        dpw.pml_rhz0_dev[1],  # RBHz0
+                        dpw.pml_rhz0_dev[2],  # RCHz0
+                        dpw.pml_rhz0_dev[3],  # RDHz0
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(256, 1, 1),
+                        grid=(pml_size, 1, 1),
+                    )
+
+                # Launch 2-Inject source into main grid at src-2
+                dpw.update_1d_magnetic_axial_inject_dev(
+                    n,
+                    np.int32(dpw.origin_axial),
+                    mx,
+                    my,
+                    mz,
+                    Hx_m,
+                    Hy_m,
+                    Hz_m,
+                    Ex_s,
+                    Ey_s,
+                    Ez_s,
+                    dpw.ID_dev,
+                    self.grid.updatecoeffsH_dev,
+                    self.grid.updatecoeffsE_dev,
+                    block=(1, 1, 1),
+                    grid=(1, 1, 1),
+                )
+
+                # Launch 3- Update main grid bulk
+                # Range [M-1, N-M) gives size N - 2M + 1 (includes origin point)
+                main_bulk_threads = dpw.length - 2 * dpw.m[3] + 1
+                main_bulk_size = (
+                    int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                )
+                if main_bulk_size > 0:
+                    dpw.update_1d_magnetic_axial_main_dev(
+                        n,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        Hx_m,
+                        Hy_m,
+                        Hz_m,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(256, 1, 1),
+                        grid=(main_bulk_size, 1, 1),
+                    )
+
+                # Main grid PML end region
+                # Main PML integrals at rows 2,3 of Ix/Iy/Iz; coeffs at rows 0-3 of pml_rh*
+                if pml_size > 0:
+                    dpw.update_1d_magnetic_axial_main_pml_end_dev(
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_m,
+                        Hy_m,
+                        Hz_m,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        dpw.Ix_dev[3],  # Ixmzy
+                        dpw.Ix_dev[2],  # Ixmyz
+                        dpw.Iy_dev[3],  # Iymzx
+                        dpw.Iy_dev[2],  # Iymxz
+                        dpw.Iz_dev[3],  # Izmyx
+                        dpw.Iz_dev[2],  # Izmxy
+                        dpw.pml_rhx_dev[0],
+                        dpw.pml_rhx_dev[1],
+                        dpw.pml_rhx_dev[2],
+                        dpw.pml_rhx_dev[3],
+                        dpw.pml_rhy_dev[0],
+                        dpw.pml_rhy_dev[1],
+                        dpw.pml_rhy_dev[2],
+                        dpw.pml_rhy_dev[3],
+                        dpw.pml_rhz_dev[0],
+                        dpw.pml_rhz_dev[1],
+                        dpw.pml_rhz_dev[2],
+                        dpw.pml_rhz_dev[3],
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(256, 1, 1),
+                        grid=(pml_size, 1, 1),
+                    )
+
+                # Main grid PML start region
+                # Uses Ix0/Iy0/Iz0 (separate from main Ix/Iy/Iz) and pml_rh*0 (source coeffs reused)
+                if pml_size > 0:
+                    dpw.update_1d_magnetic_axial_main_pml_start_dev(
+                        n,
+                        p,
+                        mx,
+                        my,
+                        mz,
+                        dx,
+                        dy,
+                        dz,
+                        Hx_m,
+                        Hy_m,
+                        Hz_m,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        dpw.Ix0_dev[3],  # Ixmzy0
+                        dpw.Ix0_dev[2],  # Ixmyz0
+                        dpw.Iy0_dev[3],  # Iymzx0
+                        dpw.Iy0_dev[2],  # Iymxz0
+                        dpw.Iz0_dev[3],  # Izmyx0
+                        dpw.Iz0_dev[2],  # Izmxy0
+                        dpw.pml_rhx0_dev[0],
+                        dpw.pml_rhx0_dev[1],
+                        dpw.pml_rhx0_dev[2],
+                        dpw.pml_rhx0_dev[3],
+                        dpw.pml_rhy0_dev[0],
+                        dpw.pml_rhy0_dev[1],
+                        dpw.pml_rhy0_dev[2],
+                        dpw.pml_rhy0_dev[3],
+                        dpw.pml_rhz0_dev[0],
+                        dpw.pml_rhz0_dev[1],
+                        dpw.pml_rhz0_dev[2],
+                        dpw.pml_rhz0_dev[3],
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(256, 1, 1),
+                        grid=(pml_size, 1, 1),
+                    )
+
+                # Axial face corrections
+                self._launch_axial_H_face_kernels(dpw)
+
+    def update_plane_waves_electric(self, iteration):
+        """Updates 1D DPW auxiliary grid E fields and applies TF/SF
+        corrections to 3D E field arrays at all 6 faces.
+        Called every timestep after update_electric_a().
+        """
+        if not self.grid.discreteplanewaves:
+            return
+
+        REAL = config.sim_config.dtypes["float_or_double"]
+
+        for dpw in self.grid.discreteplanewaves:
+            n = np.int32(dpw.length)
+            p = np.int32(dpw.pml_length)
+            M = np.int32(dpw.m[3])
+            mx = np.int32(dpw.m[0])
+            my = np.int32(dpw.m[1])
+            mz = np.int32(dpw.m[2])
+            dx = REAL(self.grid.dx)
+            dy = REAL(self.grid.dy)
+            dz = REAL(self.grid.dz)
+
+            bulk_size = int(np.ceil((dpw.length - 2 * dpw.m[3]) / 256))
+            pml_size = int(np.ceil(dpw.pml_length / 256))
+
+            # Source injection into the first M samples of the 1D grid. The
+            # projected waveform remains device-resident for the full solve.
+            M_int = int(dpw.m[3])
+            if M_int > 0:
+                target = dpw.E_fields_dev if dpw.axial == 0 else dpw.E_fields_s_dev
+                count = 3 * M_int
+                dpw.initialise_1d_source_dev(
+                    n,
+                    M,
+                    np.int32(iteration + 1),
+                    target,
+                    dpw.source_e_dev,
+                    block=(256, 1, 1),
+                    grid=(int(np.ceil(count / 256)), 1, 1),
+                )
+
+            if dpw.axial == 0:
+                #  Standard (homogeneous) electric 1D update
+                mat = self.grid.updatecoeffsE[dpw.material.numID]
+                CA = REAL(mat[0])
+                CBx = REAL(mat[1])
+                CBy = REAL(mat[2])
+                CBz = REAL(mat[3])
+                srce = REAL(mat[4])
+
+                Ex_ptr = dpw.E_fields_dev[0]
+                Ey_ptr = dpw.E_fields_dev[1]
+                Ez_ptr = dpw.E_fields_dev[2]
+                Hx_ptr = dpw.H_fields_dev[0]
+                Hy_ptr = dpw.H_fields_dev[1]
+                Hz_ptr = dpw.H_fields_dev[2]
+
+                # Non-dispersive update runs ONLY when the source material is
+                # not dispersive - mirrors the if/else dispatch in
+                # cpu_updates.update_plane_waves_electric. Without this guard
+                # both the standard AND dispersive kernels would update E every
+                # timestep (double update -> compounding amplitude error).
+                if not dpw.dispersive:
+                    dpw.update_1d_electric_dev(
+                        n,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        CA,
+                        CBy,
+                        CBz,  # coef_E_xt, coef_E_xy, coef_E_xz
+                        CA,
+                        CBx,
+                        CBz,  # coef_E_yt, coef_E_yx, coef_E_yz
+                        CA,
+                        CBx,
+                        CBy,  # coef_E_zt, coef_E_zx, coef_E_zy
+                        Ex_ptr,
+                        Ey_ptr,
+                        Ez_ptr,
+                        Hx_ptr,
+                        Hy_ptr,
+                        Hz_ptr,
+                        block=(256, 1, 1),
+                        grid=(bulk_size, 1, 1),
+                    )
+
+                # Electric PML uses integral rows 0,1 of Ix/Iy/Iz (per plane_wave.pyx)-
+                #   Ixjyz=Ix[0], Ixjzy=Ix[1], Iyjxz=Iy[0], Iyjzx=Iy[1],
+                #   Izjxy=Iz[0], Izjyx=Iz[1]
+                # Kernel param order: Jxmzy, Jxmyz, Jymzx, Jymxz, Jzmyx, Jzmxy
+                #   (Jxmzy pairs with dHzy -> Ix[1]; Jxmyz pairs with dHyz -> Ix[0])
+                # Guarded like the bulk update above - the dispersive branch
+                # launches its own PML pass.
+                if pml_size > 0 and not dpw.dispersive:
+                    dpw.update_1d_electric_pml_dev(
+                        n,
+                        p,
+                        M,
+                        mx,
+                        my,
+                        mz,
+                        srce,
+                        dx,
+                        dy,
+                        dz,
+                        Ex_ptr,
+                        Ey_ptr,
+                        Ez_ptr,
+                        Hx_ptr,
+                        Hy_ptr,
+                        Hz_ptr,
+                        dpw.Ix_dev[1],  # Jxmzy
+                        dpw.Ix_dev[0],  # Jxmyz
+                        dpw.Iy_dev[1],  # Jymzx
+                        dpw.Iy_dev[0],  # Jymxz
+                        dpw.Iz_dev[1],  # Jzmyx
+                        dpw.Iz_dev[0],  # Jzmxy
+                        dpw.pml_rex_dev[0],  # RAEx
+                        dpw.pml_rex_dev[1],  # RBEx
+                        dpw.pml_rex_dev[2],  # RCEx
+                        dpw.pml_rex_dev[3],  # RDEx
+                        dpw.pml_rey_dev[0],  # RAEy
+                        dpw.pml_rey_dev[1],  # RBEy
+                        dpw.pml_rey_dev[2],  # RCEy
+                        dpw.pml_rey_dev[3],  # RDEy
+                        dpw.pml_rez_dev[0],  # RAEz
+                        dpw.pml_rez_dev[1],  # RBEz
+                        dpw.pml_rez_dev[2],  # RCEz
+                        dpw.pml_rez_dev[3],  # RDEz
+                        block=(256, 1, 1),
+                        grid=(pml_size, 1, 1),
+                    )
+
+                # Dispersive standard electric update
+                # Mirrors updatePlaneWave_electric_dispersive() in plane_wave.pyx.
+                # Part A: bulk + polarization update (before PML).
+                # PML: reuse existing update_1d_electric_pml_dev (identical math).
+                # Part B: final T subtraction (after PML, uses post-PML E values).
+                if dpw.dispersive:
+                    mat = self.grid.updatecoeffsE[dpw.material.numID]
+                    CA = REAL(mat[0])
+                    CBx = REAL(mat[1])
+                    CBy = REAL(mat[2])
+                    CBz = REAL(mat[3])
+                    srce = REAL(mat[4])
+                    num_poles = np.int32(config.get_model_config().materials["maxpoles"])
+
+                    Ex_ptr = dpw.E_fields_dev[0]
+                    Ey_ptr = dpw.E_fields_dev[1]
+                    Ez_ptr = dpw.E_fields_dev[2]
+                    Hx_ptr = dpw.H_fields_dev[0]
+                    Hy_ptr = dpw.H_fields_dev[1]
+                    Hz_ptr = dpw.H_fields_dev[2]
+
+                    # coef_D = dispersive coefficients for the source material
+                    mat_id = dpw.material.numID
+                    coef_D_ptr = self.grid.updatecoeffsdispersive_dev[mat_id]
+
+                    if bulk_size > 0:
+                        dpw.update_1d_electric_dispersive_A_dev(
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            num_poles,
+                            CA,
+                            CBx,
+                            CBy,
+                            CBz,
+                            srce,
+                            coef_D_ptr,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_ptr,
+                            Ey_ptr,
+                            Ez_ptr,
+                            Hx_ptr,
+                            Hy_ptr,
+                            Hz_ptr,
+                            block=(256, 1, 1),
+                            grid=(bulk_size, 1, 1),
+                        )
+
+                    if pml_size > 0:
+                        dpw.update_1d_electric_pml_dev(
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            srce,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_ptr,
+                            Ey_ptr,
+                            Ez_ptr,
+                            Hx_ptr,
+                            Hy_ptr,
+                            Hz_ptr,
+                            dpw.Ix_dev[1],
+                            dpw.Ix_dev[0],
+                            dpw.Iy_dev[1],
+                            dpw.Iy_dev[0],
+                            dpw.Iz_dev[1],
+                            dpw.Iz_dev[0],
+                            dpw.pml_rex_dev[0],
+                            dpw.pml_rex_dev[1],
+                            dpw.pml_rex_dev[2],
+                            dpw.pml_rex_dev[3],
+                            dpw.pml_rey_dev[0],
+                            dpw.pml_rey_dev[1],
+                            dpw.pml_rey_dev[2],
+                            dpw.pml_rey_dev[3],
+                            dpw.pml_rez_dev[0],
+                            dpw.pml_rez_dev[1],
+                            dpw.pml_rez_dev[2],
+                            dpw.pml_rez_dev[3],
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                    if bulk_size > 0:
+                        dpw.update_1d_electric_dispersive_B_dev(
+                            n,
+                            M,
+                            num_poles,
+                            coef_D_ptr,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_ptr,
+                            Ey_ptr,
+                            Ez_ptr,
+                            block=(256, 1, 1),
+                            grid=(bulk_size, 1, 1),
+                        )
+
+                self._launch_std_E_face_kernels(dpw)
+
+            else:
+                #  Axial electric 1D update (3 sequential launches)
+
+                # Row offsets for axial electric arrays
+                Ex_s = dpw.E_fields_s_dev[0]
+                Ey_s = dpw.E_fields_s_dev[1]
+                Ez_s = dpw.E_fields_s_dev[2]
+                Hx_s = dpw.H_fields_s_dev[0]
+                Hy_s = dpw.H_fields_s_dev[1]
+                Hz_s = dpw.H_fields_s_dev[2]
+                Ex_m = dpw.E_fields_dev[0]
+                Ey_m = dpw.E_fields_dev[1]
+                Ez_m = dpw.E_fields_dev[2]
+                Hx_m = dpw.H_fields_dev[0]
+                Hy_m = dpw.H_fields_dev[1]
+                Hz_m = dpw.H_fields_dev[2]
+
+                if not dpw.dispersive:
+                    # Launch 1: Source grid bulk
+                    if bulk_size > 0:
+                        dpw.update_1d_electric_axial_source_dev(
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(bulk_size, 1, 1),
+                        )
+
+                    # Source grid PML
+                    # Electric uses integral rows 0,1 of Ix_s/Iy_s/Iz_s
+                    # (Ixjyz_s=Ix_s[0], Ixjzy_s=Ix_s[1], etc., per plane_wave.pyx).
+                    # Kernel param order: Jxmzy_s..Jzmxy_s pairs with E PML naming.
+                    if pml_size > 0:
+                        dpw.update_1d_electric_axial_source_pml_dev(
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
+                            dpw.Ix_s_dev[1],  # Ixjzy_s
+                            dpw.Ix_s_dev[0],  # Ixjyz_s
+                            dpw.Iy_s_dev[1],  # Iyjzx_s
+                            dpw.Iy_s_dev[0],  # Iyjxz_s
+                            dpw.Iz_s_dev[1],  # Izjyx_s
+                            dpw.Iz_s_dev[0],  # Izjxy_s
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                    # Launch 2- Inject source into main grid at src-1
+                    dpw.update_1d_electric_axial_inject_dev(
+                        n,
+                        np.int32(dpw.origin_axial),
+                        mx,
+                        my,
+                        mz,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(1, 1, 1),
+                        grid=(1, 1, 1),
+                    )
+
+                    # Launch 3- Main grid bulk
+                    # Electric main range is [M, N-M) - size N - 2M (no -1, unlike magnetic)
+                    main_bulk_threads = dpw.length - 2 * dpw.m[3]
+                    main_bulk_size = (
+                        int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                    )
+                    if main_bulk_size > 0:
+                        dpw.update_1d_electric_axial_main_dev(
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(main_bulk_size, 1, 1),
+                        )
+
+                    # Main grid PML end
+                    if pml_size > 0:
+                        dpw.update_1d_electric_axial_main_pml_end_dev(
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix_dev[1],  # Ixjzy
+                            dpw.Ix_dev[0],  # Ixjyz
+                            dpw.Iy_dev[1],  # Iyjzx
+                            dpw.Iy_dev[0],  # Iyjxz
+                            dpw.Iz_dev[1],  # Izjyx
+                            dpw.Iz_dev[0],  # Izjxy
+                            dpw.pml_rex_dev[0],
+                            dpw.pml_rex_dev[1],
+                            dpw.pml_rex_dev[2],
+                            dpw.pml_rex_dev[3],
+                            dpw.pml_rey_dev[0],
+                            dpw.pml_rey_dev[1],
+                            dpw.pml_rey_dev[2],
+                            dpw.pml_rey_dev[3],
+                            dpw.pml_rez_dev[0],
+                            dpw.pml_rez_dev[1],
+                            dpw.pml_rez_dev[2],
+                            dpw.pml_rez_dev[3],
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                    # Main grid PML start
+                    if pml_size > 0:
+                        dpw.update_1d_electric_axial_main_pml_start_dev(
+                            n,
+                            p,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix0_dev[1],  # Ixjzy0
+                            dpw.Ix0_dev[0],  # Ixjyz0
+                            dpw.Iy0_dev[1],  # Iyjzx0
+                            dpw.Iy0_dev[0],  # Iyjxz0
+                            dpw.Iz0_dev[1],  # Izjyx0
+                            dpw.Iz0_dev[0],  # Izjxy0
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                # Dispersive axial electric update
+                # Mirrors updateElectricFields_dispersive_axial() in plane_wave.pyx.
+                # Sequence: source bulk - source PML - source T - inject - main bulk - main PML end - main PML start - main T
+                # Non-dispersive source/inject/PML kernels are reused where the math is identical.
+                if dpw.dispersive:
+                    num_poles = np.int32(config.get_model_config().materials["maxpoles"])
+                    matD = self.grid.updatecoeffsdispersive_dev
+
+                    # Source grid dispersive bulk
+                    if bulk_size > 0:
+                        dpw.update_1d_electric_dispersive_axial_source_dev(
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            num_poles,
+                            dpw.Px_s_dev,
+                            dpw.Py_s_dev,
+                            dpw.Pz_s_dev,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsE_dev,
+                            matD,
+                            block=(256, 1, 1),
+                            grid=(bulk_size, 1, 1),
+                        )
+
+                    # Source grid PML (reuse non-dispersive — same PML math)
+                    if pml_size > 0:
+                        dpw.update_1d_electric_axial_source_pml_dev(
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            Hx_s,
+                            Hy_s,
+                            Hz_s,
+                            dpw.Ix_s_dev[1],
+                            dpw.Ix_s_dev[0],
+                            dpw.Iy_s_dev[1],
+                            dpw.Iy_s_dev[0],
+                            dpw.Iz_s_dev[1],
+                            dpw.Iz_s_dev[0],
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                    # Source grid final T subtraction
+                    if bulk_size > 0:
+                        dpw.update_1d_electric_dispersive_axial_source_T_dev(
+                            n,
+                            M,
+                            num_poles,
+                            dpw.Px_s_dev,
+                            dpw.Py_s_dev,
+                            dpw.Pz_s_dev,
+                            Ex_s,
+                            Ey_s,
+                            Ez_s,
+                            dpw.ID_dev,
+                            matD,
+                            block=(256, 1, 1),
+                            grid=(bulk_size, 1, 1),
+                        )
+
+                    # Inject source into main grid at src-1 (reuse non-dispersive inject)
+                    dpw.update_1d_electric_axial_inject_dev(
+                        n,
+                        np.int32(dpw.origin_axial),
+                        mx,
+                        my,
+                        mz,
+                        Ex_m,
+                        Ey_m,
+                        Ez_m,
+                        Hx_s,
+                        Hy_s,
+                        Hz_s,
+                        dpw.ID_dev,
+                        self.grid.updatecoeffsH_dev,
+                        self.grid.updatecoeffsE_dev,
+                        block=(1, 1, 1),
+                        grid=(1, 1, 1),
+                    )
+
+                    # Main grid dispersive bulk
+                    main_bulk_threads = dpw.length - 2 * dpw.m[3]
+                    main_bulk_size = (
+                        int(np.ceil(main_bulk_threads / 256)) if main_bulk_threads > 0 else 0
+                    )
+                    if main_bulk_size > 0:
+                        dpw.update_1d_electric_dispersive_axial_main_dev(
+                            n,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            num_poles,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsE_dev,
+                            matD,
+                            block=(256, 1, 1),
+                            grid=(main_bulk_size, 1, 1),
+                        )
+
+                    # Main grid PML end (reuse non-dispersive)
+                    if pml_size > 0:
+                        dpw.update_1d_electric_axial_main_pml_end_dev(
+                            n,
+                            p,
+                            M,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix_dev[1],
+                            dpw.Ix_dev[0],
+                            dpw.Iy_dev[1],
+                            dpw.Iy_dev[0],
+                            dpw.Iz_dev[1],
+                            dpw.Iz_dev[0],
+                            dpw.pml_rex_dev[0],
+                            dpw.pml_rex_dev[1],
+                            dpw.pml_rex_dev[2],
+                            dpw.pml_rex_dev[3],
+                            dpw.pml_rey_dev[0],
+                            dpw.pml_rey_dev[1],
+                            dpw.pml_rey_dev[2],
+                            dpw.pml_rey_dev[3],
+                            dpw.pml_rez_dev[0],
+                            dpw.pml_rez_dev[1],
+                            dpw.pml_rez_dev[2],
+                            dpw.pml_rez_dev[3],
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                        # Main grid PML start (reuse non-dispersive)
+                        dpw.update_1d_electric_axial_main_pml_start_dev(
+                            n,
+                            p,
+                            mx,
+                            my,
+                            mz,
+                            dx,
+                            dy,
+                            dz,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            Hx_m,
+                            Hy_m,
+                            Hz_m,
+                            dpw.Ix0_dev[1],
+                            dpw.Ix0_dev[0],
+                            dpw.Iy0_dev[1],
+                            dpw.Iy0_dev[0],
+                            dpw.Iz0_dev[1],
+                            dpw.Iz0_dev[0],
+                            dpw.pml_rex0_dev[0],
+                            dpw.pml_rex0_dev[1],
+                            dpw.pml_rex0_dev[2],
+                            dpw.pml_rex0_dev[3],
+                            dpw.pml_rey0_dev[0],
+                            dpw.pml_rey0_dev[1],
+                            dpw.pml_rey0_dev[2],
+                            dpw.pml_rey0_dev[3],
+                            dpw.pml_rez0_dev[0],
+                            dpw.pml_rez0_dev[1],
+                            dpw.pml_rez0_dev[2],
+                            dpw.pml_rez0_dev[3],
+                            dpw.ID_dev,
+                            self.grid.updatecoeffsH_dev,
+                            self.grid.updatecoeffsE_dev,
+                            block=(256, 1, 1),
+                            grid=(pml_size, 1, 1),
+                        )
+
+                    # Main grid final T subtraction
+                    if main_bulk_size > 0:
+                        dpw.update_1d_electric_dispersive_axial_main_T_dev(
+                            n,
+                            M,
+                            num_poles,
+                            dpw.Px_dev,
+                            dpw.Py_dev,
+                            dpw.Pz_dev,
+                            Ex_m,
+                            Ey_m,
+                            Ez_m,
+                            dpw.ID_dev,
+                            matD,
+                            block=(256, 1, 1),
+                            grid=(main_bulk_size, 1, 1),
+                        )
+
+                self._launch_axial_E_face_kernels(dpw)
 
     def update_electric_b(self):
         """If there are any dispersive materials do 2nd part of dispersive
@@ -574,6 +2949,42 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 block=self.grid.tpb,
                 grid=self.grid.bpg,
             )
+
+    def update_network_terminals(self, iteration):
+        """Apply sparse rational-network corrections entirely on CUDA."""
+
+        if not self.grid.networkterminals:
+            return
+        self.update_rational_network_dev(
+            np.int32(len(self.grid.networkterminals)),
+            np.int32(iteration),
+            config.sim_config.dtypes["float_or_double"](self.grid.dt),
+            self.rn_info_dev.gpudata,
+            self.rn_params_dev.gpudata,
+            self.rn_waveform_whole_dev.gpudata,
+            self.rn_waveform_half_dev.gpudata,
+            self.rn_voltage_dev.gpudata,
+            self.rn_current_dev.gpudata,
+            self.rn_exp_half_real_dev.gpudata,
+            self.rn_exp_half_imag_dev.gpudata,
+            self.rn_coeff_half_new_real_dev.gpudata,
+            self.rn_coeff_half_new_imag_dev.gpudata,
+            self.rn_coeff_half_old_real_dev.gpudata,
+            self.rn_coeff_half_old_imag_dev.gpudata,
+            self.rn_exp_full_real_dev.gpudata,
+            self.rn_exp_full_imag_dev.gpudata,
+            self.rn_coeff_full_new_real_dev.gpudata,
+            self.rn_coeff_full_new_imag_dev.gpudata,
+            self.rn_coeff_full_old_real_dev.gpudata,
+            self.rn_coeff_full_old_imag_dev.gpudata,
+            self.rn_state_real_dev.gpudata,
+            self.rn_state_imag_dev.gpudata,
+            self.grid.Ex_dev.gpudata,
+            self.grid.Ey_dev.gpudata,
+            self.grid.Ez_dev.gpudata,
+            block=self.rn_tpb,
+            grid=self.rn_bpg,
+        )
 
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""
@@ -603,9 +3014,38 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
     def finalise(self):
         """Copies data from GPU back to CPU to save to file(s)."""
+        collector = getattr(self, "ntff_collector", None)
+        if collector is not None:
+            collector.finalise()
+        sar_collector = getattr(self, "sar_collector", None)
+        if sar_collector is not None:
+            sar_collector.finalise()
+
+        if getattr(self.grid, "eigenmodeports", ()):
+            finalise_device_eigenmode_monitors(self.grid.eigenmodeports, "cuda")
+
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
+            currents = self.rxcurrents_dev.get() if self.nrxcurrent else None
+            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid, currents)
+
+        if self.grid.transmissionlines:
+            dtoh_transmission_line_outputs(
+                self.tl_Vtotal_dev.get(), self.tl_Itotal_dev.get(), self.grid
+            )
+
+        if getattr(self.grid, "networkterminals", ()):
+            dtoh_rational_network_outputs(
+                self.rn_voltage_dev.get(), self.rn_current_dev.get(), self.grid
+            )
+
+        if self.grid.magneticfrillsources:
+            dtoh_magnetic_frill_source_outputs(
+                self.frill_Vinc_dev.get(),
+                self.frill_Vtotal_dev.get(),
+                self.frill_Itot_dev.get(),
+                self.grid,
+            )
 
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:
@@ -624,5 +3064,6 @@ class CUDAUpdates(Updates[CUDAGrid]):
     def cleanup(self):
         """Cleanup GPU context."""
         # Remove context from top of stack and clear
-        self.ctx.pop()
-        self.ctx = None
+        if self._owns_context:
+            self.ctx.pop()
+            self.ctx = None

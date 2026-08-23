@@ -1,0 +1,36 @@
+{
+  "2.0": {
+    "vertical": {
+      "rms_error_normalised_power": 0.003627573298056671,
+      "maximum_error_normalised_power": 0.010589448341750018,
+      "nearest_interface_fdtd_normalised_power": 0.0001875076834658295
+    },
+    "horizontal_e": {
+      "rms_error_normalised_power": 6.324850768299649e-05,
+      "maximum_error_normalised_power": 0.00014879851266780264,
+      "nearest_interface_fdtd_normalised_power": 0.0006352106646533331
+    },
+    "horizontal_h": {
+      "rms_error_normalised_power": 8.051145906328003e-05,
+      "maximum_error_normalised_power": 0.000190342864160975,
+      "nearest_interface_fdtd_normalised_power": 0.00040592653618910573
+    }
+  },
+  "4.0": {
+    "vertical": {
+      "rms_error_normalised_power": 0.003461953178551514,
+      "maximum_error_normalised_power": 0.007664717733402812,
+      "nearest_interface_fdtd_normalised_power": 0.0001482493309743265
+    },
+    "horizontal_e": {
+      "rms_error_normalised_power": 0.0009472998650914689,
+      "maximum_error_normalised_power": 0.003457053892551687,
+      "nearest_interface_fdtd_normalised_power": 0.00036762144858877696
+    },
+    "horizontal_h": {
+      "rms_error_normalised_power": 0.0008988564864390086,
+      "maximum_error_normalised_power": 0.0023294341813253072,
+      "nearest_interface_fdtd_normalised_power": 0.00032595475736305686
+    }
+  }
+}

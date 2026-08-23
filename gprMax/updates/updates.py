@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -51,6 +51,25 @@ class Updates(Generic[GridType], ABC):
         """
         pass
 
+    def observe_ntff_electric(self, iteration: int) -> None:
+        """Observe electric fields for any KSIR monitors.
+
+        Local solver implementations override this hook; unsupported backends
+        retain the no-op.
+        """
+
+        pass
+
+    def observe_ntff_magnetic(self, iteration: int) -> None:
+        """Observe magnetic fields for any KSIR monitors."""
+
+        pass
+
+    def observe_sar_electric(self, iteration: int) -> None:
+        """Observe electric fields for tagged-cell SAR monitors."""
+
+        pass
+
     @abstractmethod
     def update_magnetic(self) -> None:
         """Updates magnetic field components."""
@@ -66,9 +85,19 @@ class Updates(Generic[GridType], ABC):
         """Updates magnetic field components from sources."""
         pass
 
+    def update_plane_waves_magnetic(self, iteration: int) -> None:
+        """Advance auxiliary plane waves and apply magnetic TFSF corrections."""
+
+        pass
+
     @abstractmethod
     def update_electric_a(self) -> None:
         """Updates electric field components."""
+        pass
+
+    def update_symmetry_boundaries_electric(self) -> None:
+        """Apply any PMC ghost-image electric boundary correction."""
+
         pass
 
     @abstractmethod
@@ -83,6 +112,31 @@ class Updates(Generic[GridType], ABC):
         """
         pass
 
+    def update_plane_waves_electric(self, iteration: int) -> None:
+        """Advance auxiliary plane waves and apply electric TFSF corrections."""
+
+        pass
+
+    def update_eigenmode_sources_magnetic(self, iteration: int) -> None:
+        """Apply modal magnetic TF/SF corrections and virtual-guide coupling."""
+
+        pass
+
+    def update_eigenmode_sources_electric(self, iteration: int) -> None:
+        """Apply modal electric TF/SF corrections and virtual-guide coupling."""
+
+        pass
+
+    def observe_eigenmode_ports(self, iteration: int) -> None:
+        """Accumulate modal port DFTs."""
+
+        pass
+
+    def update_network_terminals(self, iteration: int) -> None:
+        """Apply sparse rational-network corrections to electric edges."""
+
+        pass
+
     @abstractmethod
     def update_electric_b(self) -> None:
         """If there are any dispersive materials do 2nd part of dispersive
@@ -91,6 +145,11 @@ class Updates(Generic[GridType], ABC):
         updated after the electric field has been updated by the PML and
         source updates.
         """
+        pass
+
+    def update_symmetry_boundaries_electric_b(self) -> None:
+        """Apply phase B of any dispersive PMC boundary correction."""
+
         pass
 
     @abstractmethod

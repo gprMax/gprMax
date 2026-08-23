@@ -1,3 +1,4 @@
+# cython: cdivision=True
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
 #                          and Nathan Mannall
@@ -19,7 +20,9 @@
 
 import numpy as np
 
+cimport cython
 cimport numpy as np
+from libc.math cimport ceil, cos, sin
 
 np.seterr(divide='raise')
 
@@ -28,7 +31,6 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
     set_rigid_Ex,
     set_rigid_Ey,
     set_rigid_Ez,
-    set_rigid_H,
     set_rigid_Hx,
     set_rigid_Hy,
     set_rigid_Hz,
@@ -39,11 +41,34 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
 from gprMax.utilities.utilities import round_value
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void set_geometry_tag(
+    np.uint8_t[::1] tag_bytes,
+    int itemsize,
+    Py_ssize_t ny,
+    Py_ssize_t nz,
+    Py_ssize_t i,
+    Py_ssize_t j,
+    Py_ssize_t k,
+    unsigned int tag_id,
+) noexcept nogil:
+    """Write an adaptively sized tag ID to a flattened C-contiguous map."""
+
+    cdef Py_ssize_t offset = ((i * ny + j) * nz + k) * itemsize
+    if itemsize == 1:
+        tag_bytes[offset] = <np.uint8_t>tag_id
+    elif itemsize == 2:
+        (<np.uint16_t*>&tag_bytes[offset])[0] = <np.uint16_t>tag_id
+    else:
+        (<np.uint32_t*>&tag_bytes[offset])[0] = <np.uint32_t>tag_id
+
+
 cpdef bint are_clockwise(
-    float v1x,
-    float v1y,
-    float v2x,
-    float v2y
+    double v1x,
+    double v1y,
+    double v2x,
+    double v2y
 ):
     """Find if vector 2 is clockwise relative to vector 1.
 
@@ -58,9 +83,9 @@ cpdef bint are_clockwise(
 
 
 cpdef bint is_within_radius(
-    float vx,
-    float vy,
-    float radius
+    double vx,
+    double vy,
+    double radius
 ):
     """Check if the point is within a given radius of the centre of the circle.
 
@@ -76,13 +101,13 @@ cpdef bint is_within_radius(
 
 
 cpdef bint is_inside_sector(
-    float px,
-    float py,
-    float ctrx,
-    float ctry,
-    float sectorstartangle,
-    float sectorangle,
-    float radius
+    double px,
+    double py,
+    double ctrx,
+    double ctry,
+    double sectorstartangle,
+    double sectorangle,
+    double radius
 ):
     """For a point to be inside a circular sector, it has to meet the following tests:
         It has to be positioned anti-clockwise from the start "arm" of the sector
@@ -102,12 +127,12 @@ cpdef bint is_inside_sector(
         (boolean)
     """
 
-    cdef float sectorstart1, sectorstart2, sectorend1, sectorend2, relpoint1, relpoint2
+    cdef double sectorstart1, sectorstart2, sectorend1, sectorend2, relpoint1, relpoint2
 
-    sectorstart1 = radius * np.cos(sectorstartangle)
-    sectorstart2 = radius * np.sin(sectorstartangle)
-    sectorend1 = radius * np.cos(sectorstartangle + sectorangle)
-    sectorend2 = radius * np.sin(sectorstartangle + sectorangle)
+    sectorstart1 = radius * cos(sectorstartangle)
+    sectorstart2 = radius * sin(sectorstartangle)
+    sectorend1 = radius * cos(sectorstartangle + sectorangle)
+    sectorend2 = radius * sin(sectorstartangle + sectorangle)
     relpoint1 = px - ctrx
     relpoint2 = py - ctry
 
@@ -242,6 +267,70 @@ cpdef void build_edge_z(
     ID[2, i, j, k] = numIDz
 
 
+cpdef void build_magnetic_edge_x(
+    int i,
+    int j,
+    int k,
+    int numIDx,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Set an x-orientated magnetic edge in the rigid and ID arrays - the
+    magnetic dual of build_edge_x, using the self-consistent single-position
+    Hx marker (set_rigid_Hx). Has no electric counterpart to touch, unlike
+    build_edge_x/y/z which take an (unused-by-them) rigidH parameter for
+    signature uniformity - a magnetic edge has no such relationship to E.
+
+    Args:
+        i, j, k: ints for cell coordinates of edge.
+        numIDx: int for numeric ID of material.
+        rigidH, ID: memoryviews to access rigid and ID arrays.
+    """
+
+    set_rigid_Hx(i, j, k, rigidH)
+    ID[3, i, j, k] = numIDx
+
+
+cpdef void build_magnetic_edge_y(
+    int i,
+    int j,
+    int k,
+    int numIDy,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Set a y-orientated magnetic edge in the rigid and ID arrays.
+
+    Args:
+        i, j, k: ints for cell coordinates of edge.
+        numIDy: int for numeric ID of material.
+        rigidH, ID: memoryviews to access rigid and ID arrays.
+    """
+
+    set_rigid_Hy(i, j, k, rigidH)
+    ID[4, i, j, k] = numIDy
+
+
+cpdef void build_magnetic_edge_z(
+    int i,
+    int j,
+    int k,
+    int numIDz,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Set a z-orientated magnetic edge in the rigid and ID arrays.
+
+    Args:
+        i, j, k: ints for cell coordinates of edge.
+        numIDz: int for numeric ID of material.
+        rigidH, ID: memoryviews to access rigid and ID arrays.
+    """
+
+    set_rigid_Hz(i, j, k, rigidH)
+    ID[5, i, j, k] = numIDz
+
+
 cpdef void build_face_yz(
     int i,
     int j,
@@ -335,6 +424,9 @@ cpdef void build_voxel(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
@@ -347,6 +439,13 @@ cpdef void build_voxel(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent, se=inf). PEC has no well-defined
+                    magnetic properties, so its H components are left
+                    completely untouched (ID value and rigid state both kept
+                    as whatever background was already there) rather than
+                    being set - unlike other rigid (non-averaged) materials,
+                    whose H is set at its correct 2 own-axis positions below.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
@@ -358,7 +457,20 @@ cpdef void build_voxel(
     else:
         solid[i, j, k] = numID
         set_rigid_E(i, j, k, rigidE)
-        set_rigid_H(i, j, k, rigidH)
+
+        # set_rigid_Hx/Hy/Hz are self-consistent single-position markers
+        # (mirroring set_rigid_Ex/Ey/Ez's shape) - a solid cell has 2 true
+        # H faces per component, so each is called twice, once per face,
+        # matching the two ID writes below exactly.
+        if not pec_x:
+            set_rigid_Hx(i, j, k, rigidH)
+            set_rigid_Hx(i + 1, j, k, rigidH)
+        if not pec_y:
+            set_rigid_Hy(i, j, k, rigidH)
+            set_rigid_Hy(i, j + 1, k, rigidH)
+        if not pec_z:
+            set_rigid_Hz(i, j, k, rigidH)
+            set_rigid_Hz(i, j, k + 1, rigidH)
 
         ID[0, i, j, k] = numIDx
         ID[0, i, j + 1, k + 1] = numIDx
@@ -375,46 +487,54 @@ cpdef void build_voxel(
         ID[2, i + 1, j, k] = numIDz
         ID[2, i, j + 1, k] = numIDz
 
-        ID[3, i, j, k] = numIDx
-        ID[3, i, j + 1, k + 1] = numIDx
-        ID[3, i, j + 1, k] = numIDx
-        ID[3, i, j, k + 1] = numIDx
+        # H components have only 2 true positions each, varying along their
+        # own dependency axis alone (tangential axes fixed to this cell) -
+        # unlike E's 4 tangential-corner positions above. This matches the
+        # established pattern in build_box(); the previous implementation
+        # incorrectly mirrored the E-component pattern. PEC axes skip this
+        # entirely - see the docstring above.
+        if not pec_x:
+            ID[3, i, j, k] = numIDx
+            ID[3, i + 1, j, k] = numIDx
 
-        ID[4, i, j, k] = numIDy
-        ID[4, i + 1, j, k + 1] = numIDy
-        ID[4, i + 1, j, k] = numIDy
-        ID[4, i, j, k + 1] = numIDy
+        if not pec_y:
+            ID[4, i, j, k] = numIDy
+            ID[4, i, j + 1, k] = numIDy
 
-        ID[5, i, j, k] = numIDz
-        ID[5, i + 1, j + 1, k] = numIDz
-        ID[5, i + 1, j, k] = numIDz
-        ID[5, i, j + 1, k] = numIDz
+        if not pec_z:
+            ID[5, i, j, k] = numIDz
+            ID[5, i, j, k + 1] = numIDz
 
 
 cpdef void build_triangle(
-    float x1,
-    float y1,
-    float z1,
-    float x2,
-    float y2,
-    float z2,
-    float x3,
-    float y3,
-    float z3,
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double x3,
+    double y3,
+    double z3,
     str normal,
-    float thickness,
-    float dx,
-    float dy,
-    float dz,
+    double thickness,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """
     Builds triangles and triangular prisms which sets values in the solid,
@@ -429,56 +549,58 @@ cpdef void build_triangle(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int i1, i2, j1, j2, sign, levelcells, thicknesscells
-    cdef float area, s, t
+    cdef int i1, i2, j1, j2, levelcells, thicknesscells
+    cdef int u1, v1, u2, v2, u3, v3
+    cdef long long bu, bv, cu, cv, qu2, qv2
+    cdef long long denominator, s_num2, t_num2
+    cdef bint inside
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
 
-    # Calculate a bounding box for the triangle
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
+
+    # Work from snapped cell indices and relative coordinates. This avoids
+    # subtracting large absolute floating-point coordinates, so translating an
+    # otherwise identical object into an MPI rank or subgrid cannot change
+    # which cell centres lie inside the triangle.
     if normal == 'x':
-        area = 0.5 * (-z2 * y3 + z1 * (-y2 + y3) + y1 * (z2 - z3) + y2 * z3)
-        i1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
-        i2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
-        j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
-        j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
+        u1, u2, u3 = round_value(y1 / dy), round_value(y2 / dy), round_value(y3 / dy)
+        v1, v2, v3 = round_value(z1 / dz), round_value(z2 / dz), round_value(z3 / dz)
+        i1, i2 = min(u1, u2, u3) - 1, max(u1, u2, u3) + 1
+        j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
-
-        # Bound to the size of the grid
-        if i2 > solid.shape[1]:
-            i2 = solid.shape[1]
-        if j2 > solid.shape[2]:
-            j2 = solid.shape[2]
+        i2, j2 = min(i2, solid.shape[1]), min(j2, solid.shape[2])
     elif normal == 'y':
-        area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
-        i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
-        i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
-        j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
-        j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
+        u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
+        v1, v2, v3 = round_value(z1 / dz), round_value(z2 / dz), round_value(z3 / dz)
+        i1, i2 = min(u1, u2, u3) - 1, max(u1, u2, u3) + 1
+        j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
-
-        # Bound to the size of the grid
-        if i2 > solid.shape[0]:
-            i2 = solid.shape[0]
-        if j2 > solid.shape[2]:
-            j2 = solid.shape[2]
+        i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[2])
     elif normal == 'z':
-        area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
-        i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
-        i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
-        j1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
-        j2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
+        u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
+        v1, v2, v3 = round_value(y1 / dy), round_value(y2 / dy), round_value(y3 / dy)
+        i1, i2 = min(u1, u2, u3) - 1, max(u1, u2, u3) + 1
+        j1, j2 = min(v1, v2, v3) - 1, max(v1, v2, v3) + 1
         levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
-
-        # Bound to the size of the grid
-        if i2 > solid.shape[0]:
-            i2 = solid.shape[0]
-        if j2 > solid.shape[1]:
-            j2 = solid.shape[1]
+        i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[1])
 
     # Bound to the start of the grid
     if i1 < 0:
@@ -486,31 +608,40 @@ cpdef void build_triangle(
     if j1 < 0:
         j1 = 0
 
-    sign = np.sign(area)
+    # Barycentric tests are performed entirely in snapped integer grid
+    # coordinates. Scaling either in-plane axis by its cell spacing is an
+    # affine transformation and therefore leaves these coordinates unchanged.
+    # This also makes the zero-area test exact on every compiler/architecture.
+    bu, bv = u2 - u1, v2 - v1
+    cu, cv = u3 - u1, v3 - v1
+    denominator = bu * cv - bv * cu
+    if denominator == 0:
+        return
 
     for i in range(i1, i2):
         for j in range(j1, j2):
+            # Twice the cell-centre offset avoids representing 0.5 in
+            # floating point. Numerators consequently share a denominator of
+            # 2 * ``denominator``.
+            qu2, qv2 = 2 * i + 1 - 2 * u1, 2 * j + 1 - 2 * v1
+            s_num2 = qu2 * cv - qv2 * cu
+            t_num2 = bu * qv2 - bv * qu2
+            if denominator > 0:
+                inside = (
+                    s_num2 > 0
+                    and t_num2 > 0
+                    and s_num2 + t_num2 < 2 * denominator
+                )
+            else:
+                inside = (
+                    s_num2 < 0
+                    and t_num2 < 0
+                    and s_num2 + t_num2 > 2 * denominator
+                )
 
-            # Calculate the areas of the 3 triangles defined by the 3 vertices
-            # of the main triangle and the point under test.
-            if normal == 'x':
-                ir = (i + 0.5) * dy
-                jr = (j + 0.5) * dz
-                s = sign * (z1 * y3 - y1 * z3 + (z3 - z1) * ir + (y1 - y3) * jr);
-                t = sign * (y1 * z2 - z1 * y2 + (z1 - z2) * ir + (y2 - y1) * jr);
-            elif normal == 'y':
-                ir = (i + 0.5) * dx
-                jr = (j + 0.5) * dz
-                s = sign * (z1 * x3 - x1 * z3 + (z3 - z1) * ir + (x1 - x3) * jr);
-                t = sign * (x1 * z2 - z1 * x2 + (z1 - z2) * ir + (x2 - x1) * jr);
-            elif normal == 'z':
-                ir = (i + 0.5) * dx
-                jr = (j + 0.5) * dy
-                s = sign * (y1 * x3 - x1 * y3 + (y3 - y1) * ir + (x1 - x3) * jr);
-                t = sign * (x1 * y2 - y1 * x2 + (y1 - y2) * ir + (x2 - x1) * jr);
-
-            # If these conditions are true then point is inside triangle
-            if s > 0 and t > 0 and (s + t) < 2 * area * sign:
+            # Preserve the historical strict-edge convention: cells whose
+            # centres lie exactly on an edge are not filled.
+            if inside:
                 if thicknesscells == 0:
                     if normal == 'x':
                         build_face_yz(levelcells, i, j, numIDy, numIDz,
@@ -525,36 +656,53 @@ cpdef void build_triangle(
                     for k in range(levelcells, levelcells + thicknesscells):
                         if normal == 'x':
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], k, i, j, tag_id)
                         elif normal == 'y':
                             build_voxel(i, k, j, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], i, k, j, tag_id)
                         elif normal == 'z':
                             build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_cylindrical_sector(
-    float ctr1,
-    float ctr2,
-    float level,
-    float sectorstartangle,
-    float sectorangle,
-    float radius,
+    double ctr1,
+    double ctr2,
+    double level,
+    double sectorstartangle,
+    double sectorangle,
+    double radius,
     str normal,
-    float thickness,
-    float dx,
-    float dy,
-    float dz,
+    double thickness,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """
     Builds cylindrical sectors which sets values in the solid, rigid and ID
@@ -576,19 +724,35 @@ cpdef void build_cylindrical_sector(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t x, y, z
-    cdef int x1, x2, y1, y2, z1, z2, thicknesscells
+    cdef int x1, x2, y1, y2, z1, z2, thicknesscells, ctr1cell, ctr2cell
+    cdef int radiuscells1, radiuscells2
+    cdef double rel1, rel2
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     if normal == 'x':
         # Angles are defined from zero degrees on the positive y-axis going
         # towards positive z-axis.
-        y1 = round_value((ctr1 - radius)/dy)
-        y2 = round_value((ctr1 + radius)/dy)
-        z1 = round_value((ctr2 - radius)/dz)
-        z2 = round_value((ctr2 + radius)/dz)
+        ctr1cell, ctr2cell = round_value(ctr1 / dy), round_value(ctr2 / dz)
+        radiuscells1, radiuscells2 = <int>ceil(radius / dy), <int>ceil(radius / dz)
+        y1, y2 = ctr1cell - radiuscells1 - 1, ctr1cell + radiuscells1 + 1
+        z1, z2 = ctr2cell - radiuscells2 - 1, ctr2cell + radiuscells2 + 1
         levelcells = round_value(level / dx)
         thicknesscells = round_value(thickness / dx)
 
@@ -604,23 +768,27 @@ cpdef void build_cylindrical_sector(
 
         for y in range(y1, y2):
             for z in range(z1, z2):
-                if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1,
-                                    ctr2, sectorstartangle, sectorangle, radius):
+                rel1, rel2 = (y + 0.5 - ctr1cell) * dy, (z + 0.5 - ctr2cell) * dz
+                if is_inside_sector(rel1, rel2, 0, 0, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_yz(levelcells, y, z, numIDy, numIDz,
                                       rigidE, rigidH, ID)
                     else:
                         for x in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], x, y, z, tag_id)
 
     elif normal == 'y':
         # Angles are defined from zero degrees on the positive x-axis going
         # towards positive z-axis.
-        x1 = round_value((ctr1 - radius)/dx)
-        x2 = round_value((ctr1 + radius)/dx)
-        z1 = round_value((ctr2 - radius)/dz)
-        z2 = round_value((ctr2 + radius)/dz)
+        ctr1cell, ctr2cell = round_value(ctr1 / dx), round_value(ctr2 / dz)
+        radiuscells1, radiuscells2 = <int>ceil(radius / dx), <int>ceil(radius / dz)
+        x1, x2 = ctr1cell - radiuscells1 - 1, ctr1cell + radiuscells1 + 1
+        z1, z2 = ctr2cell - radiuscells2 - 1, ctr2cell + radiuscells2 + 1
         levelcells = round_value(level / dy)
         thicknesscells = round_value(thickness / dy)
 
@@ -636,23 +804,27 @@ cpdef void build_cylindrical_sector(
 
         for x in range(x1, x2):
             for z in range(z1, z2):
-                if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1,
-                                    ctr2, sectorstartangle, sectorangle, radius):
+                rel1, rel2 = (x + 0.5 - ctr1cell) * dx, (z + 0.5 - ctr2cell) * dz
+                if is_inside_sector(rel1, rel2, 0, 0, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_xz(x, levelcells, z, numIDx, numIDz,
                                       rigidE, rigidH, ID)
                     else:
                         for y in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], x, y, z, tag_id)
 
     elif normal == 'z':
         # Angles are defined from zero degrees on the positive x-axis going
         # towards positive y-axis.
-        x1 = round_value((ctr1 - radius)/dx)
-        x2 = round_value((ctr1 + radius)/dx)
-        y1 = round_value((ctr2 - radius)/dy)
-        y2 = round_value((ctr2 + radius)/dy)
+        ctr1cell, ctr2cell = round_value(ctr1 / dx), round_value(ctr2 / dy)
+        radiuscells1, radiuscells2 = <int>ceil(radius / dx), <int>ceil(radius / dy)
+        x1, x2 = ctr1cell - radiuscells1 - 1, ctr1cell + radiuscells1 + 1
+        y1, y2 = ctr2cell - radiuscells2 - 1, ctr2cell + radiuscells2 + 1
         levelcells = round_value(level / dz)
         thicknesscells = round_value(thickness / dz)
 
@@ -668,15 +840,19 @@ cpdef void build_cylindrical_sector(
 
         for x in range(x1, x2):
             for y in range(y1, y2):
-                if is_inside_sector(x * dx + 0.5 * dx, y * dy + 0.5 * dy, ctr1,
-                                    ctr2, sectorstartangle, sectorangle, radius):
+                rel1, rel2 = (x + 0.5 - ctr1cell) * dx, (y + 0.5 - ctr2cell) * dy
+                if is_inside_sector(rel1, rel2, 0, 0, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_xy(x, y, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
                     else:
                         for z in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
-                                        averaging, solid, rigidE, rigidH, ID)
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                                 solid.shape[2], x, y, z, tag_id)
 
 
 cpdef void build_box(
@@ -691,10 +867,15 @@ cpdef void build_box(
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds boxes which sets values in the solid, rigid and ID arrays.
 
@@ -703,16 +884,35 @@ cpdef void build_box(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        if tag_array.shape != (solid.shape[0], solid.shape[1], solid.shape[2]):
+            raise ValueError("Geometry tag map shape must match the solid array")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     if averaging:
         for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
                     unset_rigid_E(i, j, k, rigidE)
                     unset_rigid_H(i, j, k, rigidH)
     else:
@@ -720,66 +920,89 @@ cpdef void build_box(
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     solid[i, j, k] = numID
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
                     set_rigid_E(i, j, k, rigidE)
-                    set_rigid_H(i, j, k, rigidH)
+
+        # Each E/H component gets its own full-range loop. Ex/Ey/Ez are
+        # node-based on their two tangential axes, so those need the full
+        # ys..yf/zs..zf node range (+1), not just the cell range - matches
+        # the pre-2022 (pre-9c1b6f06) structure, which this restores. See
+        # project_2d_mode_framework.md for the investigation that found
+        # the regression (narrowed to single-line patches when prange was
+        # added in 9c1b6f06, and never restored when prange was later
+        # removed as a performance regression in b96ef3c1).
+        for i in range(xs, xf):
+            for j in range(ys, yf + 1):
+                for k in range(zs, zf + 1):
                     ID[0, i, j, k] = numIDx
-                    ID[1, i, j, k] = numIDy
-                    ID[2, i, j, k] = numIDz
-                    ID[3, i, j, k] = numIDx
-                    ID[4, i, j, k] = numIDy
-                    ID[5, i, j, k] = numIDz
 
-        for i in range(xs, xf):
-            j = yf
-            k = zf
-            ID[0, i, j, k] = numIDx
-
-        i = xf
-        for j in range(ys, yf):
-            for k in range(zf, zf + 1):
-                ID[1, i, j, k] = numIDy
-
-        i = xf
-        j = yf
-        for k in range(zs, zf):
-            ID[2, i, j, k] = numIDz
-
-        i = xf
-        for j in range(ys, yf):
-            for k in range(zs, zf):
-                ID[3, i, j, k] = numIDx
-
-        for i in range(xs, xf):
-            j = yf
-            for k in range(zs, zf):
-                ID[4, i, j, k] = numIDy
-
-        for i in range(xs, xf):
+        for i in range(xs, xf + 1):
             for j in range(ys, yf):
-                k = zf
-                ID[5, i, j, k] = numIDz
+                for k in range(zs, zf + 1):
+                    ID[1, i, j, k] = numIDy
+
+        for i in range(xs, xf + 1):
+            for j in range(ys, yf + 1):
+                for k in range(zs, zf):
+                    ID[2, i, j, k] = numIDz
+
+        # PEC has no well-defined magnetic properties, so a PEC axis's H is
+        # left completely untouched (background ID/rigid state kept as-is)
+        # rather than set - see build_voxel()'s docstring for the rationale.
+        # set_rigid_Hx/Hy/Hz are self-consistent single-position markers,
+        # so calling them once per position in these full-range loops
+        # (rather than once per cell in the loop above) correctly marks
+        # every position exactly once, with no redundant double-calls at
+        # shared interior boundaries.
+        if not pec_x:
+            for i in range(xs, xf + 1):
+                for j in range(ys, yf):
+                    for k in range(zs, zf):
+                        set_rigid_Hx(i, j, k, rigidH)
+                        ID[3, i, j, k] = numIDx
+
+        if not pec_y:
+            for i in range(xs, xf):
+                for j in range(ys, yf + 1):
+                    for k in range(zs, zf):
+                        set_rigid_Hy(i, j, k, rigidH)
+                        ID[4, i, j, k] = numIDy
+
+        if not pec_z:
+            for i in range(xs, xf):
+                for j in range(ys, yf):
+                    for k in range(zs, zf + 1):
+                        set_rigid_Hz(i, j, k, rigidH)
+                        ID[5, i, j, k] = numIDz
 
 
 cpdef void build_cylinder(
-    float x1,
-    float y1,
-    float z1,
-    float x2,
-    float y2,
-    float z2,
-    float r,
-    float dx,
-    float dy,
-    float dz,
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double r,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds cylinders which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -792,192 +1015,86 @@ cpdef void build_cylinder(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf, xc, yc, zc
-    cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2
-    cdef float theta1, theta2, distance1, distance2
-    cdef bint build, x_align, y_align, z_align
-    cdef np.ndarray f1f2, f2f1, f1pt, f2pt
+    cdef int xs, xf, ys, yf, zs, zf
+    cdef int ix1, iy1, iz1, ix2, iy2, iz2
+    cdef int rx, ry, rz
+    cdef double ax, ay, az, axis2, qx, qy, qz, projection, t
+    cdef double radial2, radius2
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
 
-    # Check if cylinder is aligned with an axis
-    x_align = y_align = z_align = 0
-    # x-aligned
-    if (round_value(y1 / dy) == round_value(y2 / dy) and
-        round_value(z1 / dz) == round_value(z2 / dz)):
-        x_align = 1
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
-    # y-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(z1 / dz) == round_value(z2 / dz)):
-        y_align = 1
+    ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
+    ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
+    ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
+    axis2 = ax * ax + ay * ay + az * az
+    if axis2 == 0:
+        return
 
-    # z-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(y1 / dy) == round_value(y2 / dy)):
-        z_align = 1
+    rx, ry, rz = <int>ceil(r / dx), <int>ceil(r / dy), <int>ceil(r / dz)
+    xs, xf = max(0, min(ix1, ix2) - rx - 1), min(solid.shape[0], max(ix1, ix2) + rx + 1)
+    ys, yf = max(0, min(iy1, iy2) - ry - 1), min(solid.shape[1], max(iy1, iy2) + ry + 1)
+    zs, zf = max(0, min(iz1, iz2) - rz - 1), min(solid.shape[2], max(iz1, iz2) + rz + 1)
+    radius2 = r * r
 
-    # Calculate a bounding box for the cylinder
-    if x1 < x2:
-        if x_align:
-            xs = round_value(x1 / dx)
-            xf = round_value(x2 / dx)
-        else:
-            xs = round_value((x1 - r) / dx) - 1
-            xf = round_value((x2 + r) / dx) + 1
-    else:
-        if x_align:
-            xs = round_value(x2 / dx)
-            xf = round_value(x1 / dx)
-        else:
-            xs = round_value((x2 - r) / dx) - 1
-            xf = round_value((x1 + r) / dx) + 1
-    if y1 < y2:
-        if y_align:
-            ys = round_value(y1 / dy)
-            yf = round_value(y2 / dy)
-        else:
-            ys = round_value((y1 - r) / dy) - 1
-            yf = round_value((y2 + r) / dy) + 1
-    else:
-        if y_align:
-            ys = round_value(y2 / dy)
-            yf = round_value(y1 / dy)
-        else:
-            ys = round_value((y2 - r) / dy) - 1
-            yf = round_value((y1 + r) / dy) + 1
-    if z1 < z2:
-        if z_align:
-            zs = round_value(z1 / dz)
-            zf = round_value(z2 / dz)
-        else:
-            zs = round_value((z1 - r) / dz) - 1
-            zf = round_value((z2 + r) / dz) + 1
-    else:
-        if z_align:
-            zs = round_value(z2 / dz)
-            zf = round_value(z1 / dz)
-        else:
-            zs = round_value((z2 - r) / dz) - 1
-            zf = round_value((z1 + r) / dz) + 1
-
-    # Set bounds to domain if they outside
-    if xs < 0:
-        xs = 0
-    if xf > solid.shape[0]:
-        xf = solid.shape[0]
-    if ys < 0:
-        ys = 0
-    if yf > solid.shape[1]:
-        yf = solid.shape[1]
-    if zs < 0:
-        zs = 0
-    if zf > solid.shape[2]:
-        zf = solid.shape[2]
-
-    # x-aligned cylinder
-    if x_align:
+    for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= r:
-                    for i in range(xs, xf):
+                qx, qy, qz = (i + 0.5 - ix1) * dx, (j + 0.5 - iy1) * dy, (k + 0.5 - iz1) * dz
+                projection = qx * ax + qy * ay + qz * az
+                t = projection / axis2
+                if 0 <= t <= 1:
+                    radial2 = qx * qx + qy * qy + qz * qz - projection * projection / axis2
+                    if radial2 <= radius2:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
-    # y-aligned cylinder
-    elif y_align:
-        for i in range(xs, xf):
-            for k in range(zs, zf):
-                if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= r:
-                    for j in range(ys, yf):
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
-    # z-aligned cylinder
-    elif z_align:
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= r:
-                    for k in range(zs, zf):
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
-
-    # Not aligned with any axis
-    else:
-        # Vectors between centres of cylinder faces
-        f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
-        f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
-
-        # Magnitudes
-        f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
-        f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
-
-        for i in range(xs, xf):
-            for j in range(ys, yf):
-                for k in range(zs, zf):
-                    # Build flag - default false, set to True if point is in cylinder
-                    build = 0
-                    # Vector from centre of first cylinder face to test point
-                    f1pt = np.array([i * dx + 0.5 * dx - x1,
-                                     j * dy + 0.5 * dy - y1,
-                                     k * dz + 0.5 * dz - z1], dtype=np.float32)
-                    # Vector from centre of second cylinder face to test point
-                    f2pt = np.array([i * dx + 0.5 * dx - x2,
-                                     j * dy + 0.5 * dy - y2,
-                                     k * dz + 0.5 * dz - z2], dtype=np.float32)
-                    # Magnitudes
-                    f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
-                    f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
-                    # Dot products
-                    dot1 = np.dot(f1f2, f1pt)
-                    dot2 = np.dot(f2f1, f2pt)
-
-                    if f1ptmag == 0 or f2ptmag == 0:
-                        build = 1
-                    else:
-                        factor1 = dot1 / (f1f2mag * f1ptmag)
-                        factor2 = dot2 / (f2f1mag * f2ptmag)
-                        # Catch cases where either factor1 or factor2 are 1
-                        try:
-                            theta1 = np.arccos(factor1)
-                        except FloatingPointError:
-                            theta1 = 0
-                        try:
-                            theta2 = np.arccos(factor2)
-                        except FloatingPointError:
-                            theta2 = 0
-                        distance1 = f1ptmag * np.sin(theta1)
-                        distance2 = f2ptmag * np.sin(theta2)
-                        if ((distance1 <= r or distance2 <= r) and
-                            theta1 <= np.pi/2 and theta2 <= np.pi/2):
-                            build = 1
-
-                    if build:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
+                        if tag_itemsize:
+                            set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                             solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_cone(
-    float x1,
-    float y1,
-    float z1,
-    float x2,
-    float y2,
-    float z2,
-    float r1,
-    float r2,
-    float dx,
-    float dy,
-    float dz,
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double r1,
+    double r2,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds cones which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -991,206 +1108,83 @@ cpdef void build_cone(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf, xs_bound, xf_bound, ys_bound, yf_bound, zs_bound, zf_bound
-    cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2
-    cdef float theta1, theta2, distance1, distance2, R1, R2
-    cdef float height, distance_axis_1, distance_axis_2
-    cdef bint build, x_align, y_align, z_align
-    cdef np.ndarray f1f2, f2f1, f1pt, f2pt
-    cdef float Rmax
+    cdef int xs, xf, ys, yf, zs, zf
+    cdef int ix1, iy1, iz1, ix2, iy2, iz2
+    cdef int rx, ry, rz
+    cdef double ax, ay, az, axis2, qx, qy, qz, projection, t
+    cdef double radial2, radius, Rmax
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
 
-    Rmax = np.amax([r1, r2])
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
-    # Check if cone is aligned with an axis
-    x_align = y_align = z_align = 0
-    # x-aligned
-    if (round_value(y1 / dy) == round_value(y2 / dy) and
-        round_value(z1 / dz) == round_value(z2 / dz)):
-        x_align = 1
+    ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
+    ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
+    ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
+    axis2 = ax * ax + ay * ay + az * az
+    if axis2 == 0:
+        return
 
-    # y-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(z1 / dz) == round_value(z2 / dz)):
-        y_align = 1
+    Rmax = max(r1, r2)
+    rx, ry, rz = <int>ceil(Rmax / dx), <int>ceil(Rmax / dy), <int>ceil(Rmax / dz)
+    xs, xf = max(0, min(ix1, ix2) - rx - 1), min(solid.shape[0], max(ix1, ix2) + rx + 1)
+    ys, yf = max(0, min(iy1, iy2) - ry - 1), min(solid.shape[1], max(iy1, iy2) + ry + 1)
+    zs, zf = max(0, min(iz1, iz2) - rz - 1), min(solid.shape[2], max(iz1, iz2) + rz + 1)
 
-    # z-aligned
-    elif (round_value(x1 / dx) == round_value(x2 / dx) and
-          round_value(y1 / dy) == round_value(y2 / dy)):
-        z_align = 1
-
-    # Calculate a bounding box for the cone
-    if x1 < x2:
-        if x_align:
-            xs = round_value(x1 / dx)
-            xf = round_value(x2 / dx)
-        else:
-            xs = round_value((x1 - Rmax) / dx) - 1
-            xf = round_value((x2 + Rmax) / dx) + 1
-    else:
-        if x_align:
-            xs = round_value(x2 / dx)
-            xf = round_value(x1 / dx)
-        else:
-            xs = round_value((x2 - Rmax) / dx) - 1
-            xf = round_value((x1 + Rmax) / dx) + 1
-    if y1 < y2:
-        if y_align:
-            ys = round_value(y1 / dy)
-            yf = round_value(y2 / dy)
-        else:
-            ys = round_value((y1 - Rmax) / dy) - 1
-            yf = round_value((y2 + Rmax) / dy) + 1
-    else:
-        if y_align:
-            ys = round_value(y2 / dy)
-            yf = round_value(y1 / dy)
-        else:
-            ys = round_value((y2 - Rmax) / dy) - 1
-            yf = round_value((y1 + Rmax) / dy) + 1
-    if z1 < z2:
-        if z_align:
-            zs = round_value(z1 / dz)
-            zf = round_value(z2 / dz)
-        else:
-            zs = round_value((z1 - Rmax) / dz) - 1
-            zf = round_value((z2 + Rmax) / dz) + 1
-    else:
-        if z_align:
-            zs = round_value(z2 / dz)
-            zf = round_value(z1 / dz)
-        else:
-            zs = round_value((z2 - Rmax) / dz) - 1
-            zf = round_value((z1 + Rmax) / dz) + 1
-
-    xs_bound = xs
-    xf_bound = xf
-    ys_bound = ys
-    yf_bound = yf
-    zs_bound = zs
-    zf_bound = zf
-
-    # Set bounds to domain if they outside
-    if xs_bound < 0:
-        xs_bound = 0
-    if xf_bound > solid.shape[0]:
-        xf_bound = solid.shape[0]
-    if ys_bound < 0:
-        ys_bound = 0
-    if yf_bound > solid.shape[1]:
-        yf_bound = solid.shape[1]
-    if zs_bound < 0:
-        zs_bound = 0
-    if zf_bound > solid.shape[2]:
-        zf_bound = solid.shape[2]
-
-    # x-aligned cone
-    if x_align:
-        for j in range(ys_bound, yf_bound):
-            for k in range(zs_bound, zf_bound):
-                for i in range(xs_bound, xf_bound):
-                    if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i- xs)/(xf-xs))*(r2-r1) + r1:
+    for i in range(xs, xf):
+        for j in range(ys, yf):
+            for k in range(zs, zf):
+                qx, qy, qz = (i + 0.5 - ix1) * dx, (j + 0.5 - iy1) * dy, (k + 0.5 - iz1) * dz
+                projection = qx * ax + qy * ay + qz * az
+                t = projection / axis2
+                if 0 <= t <= 1:
+                    radius = r1 + t * (r2 - r1)
+                    radial2 = qx * qx + qy * qy + qz * qz - projection * projection / axis2
+                    if radial2 <= radius * radius:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
-    # y-aligned cone
-    elif y_align:
-        for i in range(xs_bound, xf_bound):
-            for k in range(zs_bound, zf_bound):
-                for j in range(ys_bound, yf_bound):
-                    if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((j-ys)/(yf-ys))*(r2-r1) + r1:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
-    # z-aligned cone
-    elif z_align:
-        for i in range(xs_bound, xf_bound):
-            for j in range(ys_bound, yf_bound):
-                for k in range(zs_bound, zf_bound):
-                    if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= ((k-zs)/(zf-zs))*(r2-r1) + r1:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
-
-    # Not aligned with any axis
-    else:
-        # Vectors between centres of cone faces
-        f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
-        f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
-
-        # Magnitudes
-        f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
-        f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
-
-        height = f1f2mag
-
-        for i in range(xs_bound, xf_bound):
-            for j in range(ys_bound, yf_bound):
-                for k in range(zs_bound, zf_bound):
-                    # Build flag - default false, set to True if point is in cone
-                    build = 0
-                    # Vector from centre of first cone face to test point
-                    f1pt = np.array([i * dx + 0.5 * dx - x1,
-                                     j * dy + 0.5 * dy - y1,
-                                     k * dz + 0.5 * dz - z1], dtype=np.float32)
-                    # Vector from centre of second cone face to test point
-                    f2pt = np.array([i * dx + 0.5 * dx - x2,
-                                     j * dy + 0.5 * dy - y2,
-                                     k * dz + 0.5 * dz - z2], dtype=np.float32)
-                    # Magnitudes
-                    f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
-                    f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
-                    # Dot products
-                    dot1 = np.dot(f1f2, f1pt)
-                    dot2 = np.dot(f2f1, f2pt)
-
-                    if f1ptmag == 0 or f2ptmag == 0:
-                        build = 1
-                    else:
-                        factor1 = dot1 / (f1f2mag * f1ptmag)
-                        factor2 = dot2 / (f2f1mag * f2ptmag)
-                        # Catch cases where either factor1 or factor2 are 1
-                        try:
-                            theta1 = np.arccos(factor1)
-                        except FloatingPointError:
-                            theta1 = 0
-                        try:
-                            theta2 = np.arccos(factor2)
-                        except FloatingPointError:
-                            theta2 = 0
-                        distance1 = f1ptmag * np.sin(theta1)
-                        distance2 = f2ptmag * np.sin(theta2)
-                        distance_axis_1 = f1ptmag * np.cos(theta1)
-                        distance_axis_2 = f2ptmag * np.cos(theta2)
-                        R1 = r1
-                        R2 = r2
-
-                        if ((distance1 <= (distance_axis_1/height)*(R2 - R1) + R1 or distance2 <= (distance_axis_2/height)*(R1 - R2) + R2) and
-                            theta1 <= np.pi/2 and theta2 <= np.pi/2):
-                            build = 1
-
-                    if build:
-                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                    averaging, solid, rigidE, rigidH, ID)
+                                    averaging, pec_x, pec_y, pec_z,
+                                    solid, rigidE, rigidH, ID)
+                        if tag_itemsize:
+                            set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                             solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_sphere(
     int xc,
     int yc,
     int zc,
-    float r,
-    float dx,
-    float dy,
-    float dz,
+    double r,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds spheres which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -1202,19 +1196,32 @@ cpdef void build_sphere(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf
+    cdef int xs, xf, ys, yf, zs, zf, rx, ry, rz
+    cdef double qx, qy, qz
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Calculate a bounding box for sphere
-    xs = round_value(((xc * dx) - r) / dx) - 1
-    xf = round_value(((xc * dx) + r) / dx) + 1
-    ys = round_value(((yc * dy) - r) / dy) - 1
-    yf = round_value(((yc * dy) + r) / dy) + 1
-    zs = round_value(((zc * dz) - r) / dz) - 1
-    zf = round_value(((zc * dz) + r) / dz) + 1
+    rx, ry, rz = <int>ceil(r / dx), <int>ceil(r / dy), <int>ceil(r / dz)
+    xs, xf = xc - rx - 1, xc + rx + 1
+    ys, yf = yc - ry - 1, yc + ry + 1
+    zs, zf = zc - rz - 1, zc + rz + 1
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1233,32 +1240,40 @@ cpdef void build_sphere(
     for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                if (np.sqrt((i + 0.5 - xc)**2 * dx**2 +
-                            (j + 0.5 - yc)**2 * dy**2 +
-                            (k + 0.5 - zc)**2 * dz**2) <= r):
+                qx, qy, qz = (i + 0.5 - xc) * dx, (j + 0.5 - yc) * dy, (k + 0.5 - zc) * dz
+                if qx * qx + qy * qy + qz * qz <= r * r:
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                averaging, pec_x, pec_y, pec_z,
+                                solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                         solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_ellipsoid(
     int xc,
     int yc,
     int zc,
-    float xr,
-    float yr,
-    float zr,
-    float dx,
-    float dy,
-    float dz,
+    double xr,
+    double yr,
+    double zr,
+    double dx,
+    double dy,
+    double dz,
     int numID,
     int numIDx,
     int numIDy,
     int numIDz,
     bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds ellipsoids which sets values in the solid, rigid and ID arrays for
         a Yee voxel.
@@ -1272,19 +1287,32 @@ cpdef void build_ellipsoid(
         numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
         averaging: bint for whether material property averaging will occur for
                     the object.
+        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
+                    PEC (or PEC-equivalent) - see build_voxel().
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int xs, xf, ys, yf, zs, zf
+    cdef int xs, xf, ys, yf, zs, zf, rxcells, rycells, rzcells
+    cdef double qx, qy, qz
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
 
-    # Calculate a bounding box for sphere
-    xs = round_value(((xc * dx) - xr) / dx) - 1
-    xf = round_value(((xc * dx) + xr) / dx) + 1
-    ys = round_value(((yc * dy) - yr) / dy) - 1
-    yf = round_value(((yc * dy) + yr) / dy) + 1
-    zs = round_value(((zc * dz) - zr) / dz) - 1
-    zf = round_value(((zc * dz) + zr) / dz) + 1
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
+
+    # Calculate an origin-independent bounding box.
+    rxcells, rycells, rzcells = <int>ceil(xr / dx), <int>ceil(yr / dy), <int>ceil(zr / dz)
+    xs, xf = xc - rxcells - 1, xc + rxcells + 1
+    ys, yf = yc - rycells - 1, yc + rycells + 1
+    zs, zf = zc - rzcells - 1, zc + rzcells + 1
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1303,11 +1331,14 @@ cpdef void build_ellipsoid(
     for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                if (((i + 0.5 - xc)**2 * dx**2)/xr**2 +
-                            ((j + 0.5 - yc)**2 * dy**2)/yr**2 +
-                            ((k + 0.5 - zc)**2 * dz**2)/zr**2 <= 1):
+                qx, qy, qz = (i + 0.5 - xc) * dx, (j + 0.5 - yc) * dy, (k + 0.5 - zc) * dz
+                if (qx * qx) / (xr * xr) + (qy * qy) / (yr * yr) + (qz * qz) / (zr * zr) <= 1:
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                averaging, pec_x, pec_y, pec_z,
+                                solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
+                                         solid.shape[2], i, j, k, tag_id)
 
 
 cpdef void build_voxels_from_array(
@@ -1316,11 +1347,15 @@ cpdef void build_voxels_from_array(
     int zs,
     int numexistmaterials,
     bint averaging,
+    np.uint8_t[::1] is_pec_lookup,
+    np.uint8_t[::1] is_averagable_lookup,
     np.int16_t[:, :, ::1] data,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
 ):
     """Builds Yee voxels by reading integers from an array.
 
@@ -1330,13 +1365,37 @@ cpdef void build_voxels_from_array(
         numexistmaterials: int for number of existing materials in model prior
                             to building voxels.
         averaging: bint for whether material property averaging will occur for
-                    the object.
+                    the object, requested by the user/grid default - combined
+                    per-voxel with is_averagable_lookup below, since a mixing
+                    model (e.g. #material_list/#material_range with a fractal
+                    box) may reference a non-averagable material (PEC/PMC, or
+                    any custom se=inf/sm=inf material) for only some of its
+                    bins - those voxels must always take the rigid path
+                    regardless of the requested averaging, matching how
+                    Box/Cylinder/etc. already gate on materials[0].averagable.
+        is_pec_lookup: memoryview indexed by numID, True where that material is
+                    PEC (or PEC-equivalent) - see build_voxel().
+        is_averagable_lookup: memoryview indexed by numID, True where that
+                    material permits dielectric smoothing (Material.averagable).
         data: memoryview to access array containing numeric IDs of voxels to create.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
     cdef Py_ssize_t i, j, k
     cdef int xf, yf, zf, numID
+    cdef bint pec, voxel_averaging
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -1366,7 +1425,13 @@ cpdef void build_voxels_from_array(
                 numID = data[i - xs, j - ys, k - zs]
                 if numID >= 0:
                     numID = numID + numexistmaterials
-                    build_voxel(i, j, k, numID, numID, numID, numID, averaging, solid, rigidE, rigidH, ID)
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
+                    build_voxel(i, j, k, numID, numID, numID, numID, voxel_averaging,
+                                pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
 
 
 cpdef void build_voxels_from_array_mask(
@@ -1376,12 +1441,18 @@ cpdef void build_voxels_from_array_mask(
     int waternumID,
     int grassnumID,
     bint averaging,
+    np.uint8_t[::1] is_pec_lookup,
+    np.uint8_t[::1] is_averagable_lookup,
     np.int8_t[:, :, ::1] mask,
     np.int16_t[:, :, ::1] data,
     np.uint32_t[:, :, ::1] solid,
     np.int8_t[:, :, :, ::1] rigidE,
     np.int8_t[:, :, :, ::1] rigidH,
-    np.uint32_t[:, :, :, ::1] ID
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0,
+    unsigned int water_tag_id=0,
+    unsigned int grass_tag_id=0
 ):
     """Builds Yee voxels by reading integers from an array.
 
@@ -1389,7 +1460,13 @@ cpdef void build_voxels_from_array_mask(
         xs, ys, zs: ints for cell coordinates of position of start of array in domain.
         waternumID, grassnumID: ints for numeric ID of water and grass materials.
         averaging: bint for whether material property averaging will occur for
-                the object.
+                the object, requested by the user/grid default - see
+                build_voxels_from_array() for why this is combined per-voxel
+                with is_averagable_lookup rather than applied uniformly.
+        is_pec_lookup: memoryview indexed by numID, True where that material is
+                    PEC (or PEC-equivalent) - see build_voxel().
+        is_averagable_lookup: memoryview indexed by numID, True where that
+                    material permits dielectric smoothing (Material.averagable).
         data: memoryview to access array containing numeric IDs of voxels to create.
         mask: memoryview to access to array containing a mask of voxels to create.
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
@@ -1397,6 +1474,19 @@ cpdef void build_voxels_from_array_mask(
 
     cdef Py_ssize_t i, j, k
     cdef int xf, yf, zf, numID, numIDx, numIDy, numIDz
+    cdef bint pec, voxel_averaging
+    cdef int tag_itemsize = 0
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
     # Set upper bounds
     xf = xs + data.shape[0]
@@ -1408,13 +1498,28 @@ cpdef void build_voxels_from_array_mask(
             for k in range(zs, zf):
                 if mask[i - xs, j - ys, k - zs] == 1:
                     numID = numIDx = numIDy = numIDz = data[i - xs, j - ys, k - zs]
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, tag_id)
                 elif mask[i - xs, j - ys, k - zs] == 2:
                     numID = numIDx = numIDy = numIDz = waternumID
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, water_tag_id)
                 elif mask[i - xs, j - ys, k - zs] == 3:
                     numID = numIDx = numIDy = numIDz = grassnumID
+                    pec = is_pec_lookup[numID]
+                    voxel_averaging = averaging and is_averagable_lookup[numID]
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
-                                averaging, solid, rigidE, rigidH, ID)
+                                voxel_averaging, pec, pec, pec, solid, rigidE, rigidH, ID)
+                    if tag_itemsize:
+                        set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1], solid.shape[2],
+                                         i, j, k, grass_tag_id)

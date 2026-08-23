@@ -30,11 +30,13 @@ from tqdm import tqdm
 import gprMax.config as config
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.utilities.mpi import Dim, Dir
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
+from .mode2d import mode2d_geometry
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -54,7 +56,15 @@ def save_snapshots(snapshots: List["Snapshot"]):
     logger.info(f"Snapshot directory: {snapshotdir.resolve()}")
 
     for i, snap in enumerate(snapshots):
-        snap.filename = snapshotdir / snap.filename
+        # Re-derive from just the basename, not the previous value of
+        # snap.filename directly: under geometry_fixed reuse this function
+        # runs again on the same Snapshot object, whose filename is already
+        # an absolute path from the prior run. Path.__truediv__ discards the
+        # left side entirely when the right side is already absolute, so
+        # naively joining would silently collapse back to the previous
+        # run's directory, overwriting its file instead of writing this
+        # run's own.
+        snap.filename = snapshotdir / Path(snap.filename).name
         pbar = tqdm(
             total=snap.nbytes,
             leave=True,
@@ -67,7 +77,38 @@ def save_snapshots(snapshots: List["Snapshot"]):
         )
         snap.write_file(pbar)
         pbar.close()
+        # Free the full-size field buffers once written. Safe except under
+        # geometry_fixed reuse (build(), and so initialise_snapfields(),
+        # only runs once - a later reused run's store() needs these arrays
+        # to still exist) - see #389.
+        if not (config.sim_config.geometry_fixed and config.sim_config.number_of_models > 1):
+            snap.snapfields = {}
     logger.info("")
+
+
+def _snapshot_axis_strides():
+    """Neighbour-offset strides (sx, sy, sz) for calculate_snapshot_fields().
+
+    1 (genuine +1-neighbour averaging) on every axis for 3D mode and for
+    2D TM mode - TM's only surviving components (Ez, Hx, Hy) never
+    reference the invariant axis in their averaging formula at all, so a
+    stride of 1 there is inert either way.
+
+    For 2D TE mode, the invariant axis's stride is 0 instead: that axis
+    has only ever one genuine field value (flanked by forced-zero
+    PEC/PMC wall padding from FDTDGrid.tex()/tey()/tez() on either side,
+    not a second real value) - averaging against the +1 neighbour there
+    was unconditionally blending the one real value with a forced zero,
+    an exact 50% reduction on every 2D TE-mode snapshot regardless of
+    proximity to any actual PEC/PMC boundary in the model. A stride of 0
+    makes both terms of any pair on that axis resolve to the same
+    (genuine) index, i.e. (X + X) / n = X - no averaging, just the real
+    value - instead of a special-cased branch per component.
+    """
+    geometry = mode2d_geometry(config.get_model_config().mode)
+    if geometry is None:
+        return 1, 1, 1
+    return geometry.collocation_strides
 
 
 class Snapshot(Generic[GridType]):
@@ -178,7 +219,7 @@ class Snapshot(Generic[GridType]):
     @property
     def nz(self) -> int:
         return self.grid_view.nz
-    
+
     @property
     def dx(self) -> int:
         return self.grid_view.dx
@@ -223,6 +264,7 @@ class Snapshot(Generic[GridType]):
 
         # Calculate field values at points (comes from averaging field
         # components in cells)
+        sx, sy, sz = _snapshot_axis_strides()
         calculate_snapshot_fields(
             self.nx,
             self.ny,
@@ -246,6 +288,9 @@ class Snapshot(Generic[GridType]):
             self.snapfields["Hx"],
             self.snapfields["Hy"],
             self.snapfields["Hz"],
+            sx,
+            sy,
+            sz,
         )
 
     def write_file(self, pbar: tqdm):
@@ -269,7 +314,7 @@ class Snapshot(Generic[GridType]):
             pbar: Progress bar class instance.
         """
 
-        origin = self.grid_view.start * self.grid.dl
+        origin = self._physical_origin()
         spacing = self.grid_view.step * self.grid.dl
 
         with VtkImageData(self.filename, self.grid_view.size, origin, spacing) as f:
@@ -285,20 +330,34 @@ class Snapshot(Generic[GridType]):
             pbar: Progress bar class instance.
         """
 
-        f = h5py.File(self.filename, "w")
-        f.attrs["gprMax"] = __version__
-        # TODO: Output model name (title) and grid name? in snapshot output
-        # f.attrs["Title"] = G.title
-        f.attrs["nx_ny_nz"] = tuple(self.grid_view.size)
-        f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
-        f.attrs["time"] = self.time * self.grid.dt
+        with h5py.File(self.filename, "w") as f:
+            f.attrs["gprMax"] = __version__
+            # TODO: Output model name (title) and grid name? in snapshot output
+            # f.attrs["Title"] = G.title
+            f.attrs["nx_ny_nz"] = tuple(self.grid_view.size)
+            f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
+            f.attrs["origin"] = self._physical_origin()
+            f.attrs["time"] = self.time * self.grid.dt
 
-        for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
-            if self.outputs[key]:
-                f[key] = self.snapfields[key]
-                pbar.update(n=self.snapfields[key].nbytes)
+            for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
+                if self.outputs[key]:
+                    f[key] = self.snapfields[key]
+                    pbar.update(n=self.snapfields[key].nbytes)
 
-        f.close()
+    def _physical_origin(self):
+        """Return the snapshot origin in the model's global coordinate frame."""
+
+        if isinstance(self.grid, SubGridBaseGrid):
+            return self.grid.local_to_global(self.grid_view.start)
+        origin = np.asarray(self.grid_view.start * self.grid.dl, dtype=np.float64)
+        geometry = mode2d_geometry(config.get_model_config().mode)
+        if geometry is not None and geometry.polarisation == "TE":
+            # VTK/HDF5 store cell data, so their origin is the lower vertex of
+            # the output cell.  The genuine TE fields live on the central
+            # invariant plane at index one; move the one-cell output extent
+            # back by half a cell so its cell centre lies on that plane.
+            origin[geometry.invariant_axis] -= 0.5 * self.grid.dl[geometry.invariant_axis]
+        return origin
 
 
 class MPISnapshot(Snapshot[MPIGrid]):
@@ -497,7 +556,10 @@ class MPISnapshot(Snapshot[MPIGrid]):
             Hzslice = np.concatenate((Hzslice, Hzhalo), axis=Dim.Z)
 
         # Calculate field values at points (comes from averaging field
-        # components in cells)
+        # components in cells). No axis-stride arguments needed here (unlike
+        # the non-MPI Snapshot.store() below) - MPI only ever runs 3D models,
+        # never 2D TE mode, so the function's default strides (1, 1, 1,
+        # i.e. the original formula) are always exactly correct.
         calculate_snapshot_fields(
             self.nx,
             self.ny,
@@ -550,24 +612,51 @@ class MPISnapshot(Snapshot[MPIGrid]):
         """
         assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
 
-        f = h5py.File(self.filename, "w", driver="mpio", comm=self.comm)
+        with h5py.File(self.filename, "w", driver="mpio", comm=self.comm) as f:
+            f.attrs["gprMax"] = __version__
+            # TODO: Output model name (title) and grid name? in snapshot output
+            # f.attrs["Title"] = G.title
+            f.attrs["nx_ny_nz"] = self.grid_view.global_size
+            f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
+            f.attrs["origin"] = self.grid_view.global_start * self.grid.dl
+            f.attrs["time"] = self.time * self.grid.dt
 
-        f.attrs["gprMax"] = __version__
-        # TODO: Output model name (title) and grid name? in snapshot output
-        # f.attrs["Title"] = G.title
-        f.attrs["nx_ny_nz"] = self.grid_view.global_size
-        f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
-        f.attrs["time"] = self.time * self.grid.dt
+            dset_slice = self.grid_view.get_3d_output_slice()
 
-        dset_slice = self.grid_view.get_3d_output_slice()
+            for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
+                if self.outputs[key]:
+                    dset = f.create_dataset(key, self.grid_view.global_size)
+                    dset[dset_slice] = self.snapfields[key]
+                    pbar.update(n=self.snapfields[key].nbytes)
 
-        for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
-            if self.outputs[key]:
-                dset = f.create_dataset(key, self.grid_view.global_size)
-                dset[dset_slice] = self.snapfields[key]
-                pbar.update(n=self.snapfields[key].nbytes)
 
-        f.close()
+def update_snapshot_max_dims(snapshots: List["Snapshot"]):
+    """Updates Snapshot.nx_max/ny_max/nz_max (the dimensions of the largest
+    requested snapshot) from the given list.
+
+    Must be called before _set_macros() bakes NX_SNAPS/NY_SNAPS/NZ_SNAPS
+    into the shared GPU kernel preamble (IDX4D_SNAPS's Jinja-rendered
+    macro definition) - calling it only later, inside htod_snapshot_array()
+    (which _set_snapshot_knl() does, after _set_macros() has already run),
+    left that macro baked with stale dimensions (0, 0, 0 for the first
+    model in any process, since Snapshot.nx_max/ny_max/nz_max default to
+    0) - collapsing IDX4D_SNAPS's indexing arithmetic
+    (p*NX_SNAPS*NY_SNAPS*NZ_SNAPS + ...) down to effectively just the z
+    index, so every thread wrote to one of only a handful of memory
+    locations, racing non-deterministically, regardless of the snapshot's
+    real size or position. This is idempotent - calling it again later
+    (as htod_snapshot_array() still does) is harmless.
+
+    Args:
+        snapshots: list of Snapshot instances to consider.
+    """
+    for snap in snapshots:
+        if snap.nx > Snapshot.nx_max:
+            Snapshot.nx_max = snap.nx
+        if snap.ny > Snapshot.ny_max:
+            Snapshot.ny_max = snap.ny
+        if snap.nz > Snapshot.nz_max:
+            Snapshot.nz_max = snap.nz
 
 
 def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
@@ -582,13 +671,7 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
     """
 
     # Get dimensions of largest requested snapshot
-    for snap in snapshots:
-        if snap.nx > Snapshot.nx_max:
-            Snapshot.nx_max = snap.nx
-        if snap.ny > Snapshot.ny_max:
-            Snapshot.ny_max = snap.ny
-        if snap.nz > Snapshot.nz_max:
-            Snapshot.nz_max = snap.nz
+    update_snapshot_max_dims(snapshots)
 
     if config.sim_config.general["solver"] == "cuda":
         # Blocks per grid - according to largest requested snapshot
@@ -658,11 +741,11 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
         snapHx_dev = clarray.to_device(queue, snapHx)
         snapHy_dev = clarray.to_device(queue, snapHy)
         snapHz_dev = clarray.to_device(queue, snapHz)
-    
+
     elif config.sim_config.general["solver"] == "metal":
         # Metal doesn't use a queue parameter, need to get device from config
         dev = config.get_model_config().device["dev"]
-        
+
         snapEx_dev = dev.newBufferWithBytes_length_options_(snapEx, snapEx.nbytes, 0)
         snapEy_dev = dev.newBufferWithBytes_length_options_(snapEy, snapEy.nbytes, 0)
         snapEz_dev = dev.newBufferWithBytes_length_options_(snapEz, snapEz.nbytes, 0)
@@ -685,9 +768,18 @@ def dtoh_snapshot_array(
         snap: Snapshot class instance
     """
 
-    snap.snapfields["Ex"] = snapEx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Ey"] = snapEy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Ez"] = snapEz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Hx"] = snapHx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Hy"] = snapHy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
-    snap.snapfields["Hz"] = snapHz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    # snap*_dev's own (x, y, z) axes are already local/0-based (0..nx-1 etc,
+    # where nx/ny/nz is this snapshot's own sample count) - store_snapshot()
+    # (knl_snapshots.py) writes into them using that same local indexing.
+    # They are NOT indexed by the absolute grid coordinates snap.xs/snap.ys/
+    # snap.zs/etc - slicing with those (the original, buggy version of this
+    # function) only happened to work for a snapshot starting exactly at the
+    # grid origin; any other position silently truncated/misaligned the
+    # copied-back data (confirmed empirically: an origin snapshot worked,
+    # a non-origin one produced a wrongly-shaped result).
+    snap.snapfields["Ex"] = snapEx_dev[i, : snap.nx, : snap.ny, : snap.nz]
+    snap.snapfields["Ey"] = snapEy_dev[i, : snap.nx, : snap.ny, : snap.nz]
+    snap.snapfields["Ez"] = snapEz_dev[i, : snap.nx, : snap.ny, : snap.nz]
+    snap.snapfields["Hx"] = snapHx_dev[i, : snap.nx, : snap.ny, : snap.nz]
+    snap.snapfields["Hy"] = snapHy_dev[i, : snap.nx, : snap.ny, : snap.nz]
+    snap.snapfields["Hz"] = snapHz_dev[i, : snap.nx, : snap.ny, : snap.nz]

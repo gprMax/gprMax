@@ -1,0 +1,76 @@
+name: Unit tests
+
+on:
+  pull_request:
+    branches:
+      - devel
+      - master
+  push:
+    branches:
+      - devel
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      MPI4PY_RC_FINALIZE: "0"
+      OMP_NUM_THREADS: "1"
+      PYTHONFAULTHANDLER: "1"
+      PYTHONUNBUFFERED: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            mpi: openmpi
+          - os: windows-latest
+            mpi: msmpi
+          - os: macos-latest
+            mpi: mpich
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Set up MPI runtime
+        if: runner.os != 'Linux'
+        uses: mpi4py/setup-mpi@v1
+        timeout-minutes: 15
+        with:
+          mpi: ${{ matrix.mpi }}
+
+      - name: Set up Open MPI runtime on Linux
+        if: runner.os == 'Linux'
+        run: |
+          python -m pip install openmpi==5.0.10
+          mpiexec --version
+
+      - name: Install gprMax and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install --editable .
+
+      - name: Import smoke test
+        run: python -u -c "import gprMax; from gprMax.fractals.fractal_surface import FractalSurface; print('imports ok')"
+
+      - name: Run unit tests
+        run: python -u -m pytest -m unit

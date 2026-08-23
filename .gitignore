@@ -15,6 +15,7 @@ gprMax/cython/fields_updates_dispersive.pyx
 # build, dist and egg-info directories
 build/
 dist/
+target/
 *.egg-info/
 docs/.buildinfo
 
@@ -30,20 +31,38 @@ testing/*.out
 testing/*.png
 
 # Output files from running the examples
-examples/*.h5
-examples/*.pdf
+examples/**/*.h5
+examples/**/*.pdf
+examples/**/*.npy
+examples/**/*.vti
+examples/**/*.vtkhdf
+examples/features/eigenmode_ports/**/*.csv
+examples/features/eigenmode_ports/**/*.png
+examples/**/*_eigenmode_*.png
+toolboxes/STEPtoVoxel/examples/**/output/
+
+# Raw logo simulation outputs (the snapshot is approximately 1.7 GB)
+toolboxes/gprMaxLogo/model/*.out
+toolboxes/gprMaxLogo/model/*_snaps/
+
+# Local eigenmode regression workspace
+eigensource_test_run/
+
+# CST comparisons that are not ready for review
+testing/other_codes/cst/under_test/
 
 # Test coverage files
 .coverage
 cov.xml
 
-# marimo runtime cache
-__marimo__/
+# IDEs
+.idea/
+.vscode/
 
-# local simulation artifacts
-my_first_model.h5
-my_first_model.in
-inspect_h5.py
+# Agents
+AGENTS.md
+.codex_tmp
+
+# marimo runtime cache and exported layouts
+__marimo__/
 layouts/
-toolboxes/Marimo/__marimo__/
-toolboxes/Marimo/__marimo__/

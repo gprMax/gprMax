@@ -1,0 +1,207 @@
+{
+  "xz": {
+    "clipped_full_cut_rms_difference_db": 3.2564929106908513,
+    "clipped_upper_hemisphere_rms_difference_db": 0.4152481714937199,
+    "maximum_absolute_clipped_difference_db": 12.52991116525373,
+    "matlab_upper_mirror_asymmetry": {
+      "rms_difference_db": 0.9464413559346779,
+      "maximum_absolute_difference_db": 1.2897200268703761
+    },
+    "gprmax_upper_mirror_asymmetry": {
+      "rms_difference_db": 0.3361345294641064,
+      "maximum_absolute_difference_db": 0.8804180000000006
+    }
+  },
+  "yz": {
+    "clipped_full_cut_rms_difference_db": 0.8658978374277292,
+    "clipped_upper_hemisphere_rms_difference_db": 0.04478723153451367,
+    "maximum_absolute_clipped_difference_db": 3.252106929467871,
+    "matlab_upper_mirror_asymmetry": {
+      "rms_difference_db": 0.0024956392357983574,
+      "maximum_absolute_difference_db": 0.00766573559990924
+    },
+    "gprmax_upper_mirror_asymmetry": {
+      "rms_difference_db": 1.8461052816832996e-06,
+      "maximum_absolute_difference_db": 3.0000000013075123e-06
+    }
+  },
+  "normalisation": "one global co-polar peak per solver",
+  "plot_floor_db": -40.0,
+  "gprmax_feed_pattern_difference": {
+    "single_vs_distributed": {
+      "xz": {
+        "upper_hemisphere_rms_db": 0.0002867364889327292,
+        "upper_hemisphere_maximum_absolute_db": 0.0006130000000013069
+      },
+      "yz": {
+        "upper_hemisphere_rms_db": 1.1910892657292708e-06,
+        "upper_hemisphere_maximum_absolute_db": 3.0000000013075123e-06
+      }
+    },
+    "series_vs_distributed": {
+      "xz": {
+        "upper_hemisphere_rms_db": 0.013211149735380514,
+        "upper_hemisphere_maximum_absolute_db": 0.020024699999999562
+      },
+      "yz": {
+        "upper_hemisphere_rms_db": 3.336518531268903e-05,
+        "upper_hemisphere_maximum_absolute_db": 6.700000000137152e-05
+      }
+    }
+  },
+  "gprmax_mesh_pattern_difference": {
+    "fine_z_vs_standard": {
+      "xz": {
+        "upper_hemisphere_rms_db": 0.029391595237315712,
+        "upper_hemisphere_maximum_absolute_db": 0.049538500000000596
+      },
+      "yz": {
+        "upper_hemisphere_rms_db": 0.008557042051909216,
+        "upper_hemisphere_maximum_absolute_db": 0.017877000000000365
+      }
+    },
+    "fine_xyz_vs_standard": {
+      "xz": {
+        "upper_hemisphere_rms_db": 0.06500742249506625,
+        "upper_hemisphere_maximum_absolute_db": 0.11115599999999937
+      },
+      "yz": {
+        "upper_hemisphere_rms_db": 0.0187782940979179,
+        "upper_hemisphere_maximum_absolute_db": 0.03899000000000008
+      }
+    },
+    "fine_xyz_vs_fine_z": {
+      "xz": {
+        "upper_hemisphere_rms_db": 0.03571022096664643,
+        "upper_hemisphere_maximum_absolute_db": 0.061757300000000015
+      },
+      "yz": {
+        "upper_hemisphere_rms_db": 0.010221429816645042,
+        "upper_hemisphere_maximum_absolute_db": 0.021112999999999715
+      }
+    }
+  },
+  "s11": {
+    "reference_impedance_ohm": 50.0,
+    "frequency_spacing_hz": 2083319.7675536238,
+    "fft_zero_padding_factor": 8,
+    "independent_frequency_resolution_hz": 16666558.14042899,
+    "gprmax_distributed_minimum": {
+      "frequency_hz": 2359263029.5861473,
+      "magnitude_db": -14.959847958597905,
+      "sampled_frequency_hz": 2358317976.8707023,
+      "sampled_magnitude_db": -14.90765896944901
+    },
+    "gprmax_single_minimum": {
+      "frequency_hz": 2360625756.6621304,
+      "magnitude_db": -15.534021507942999,
+      "sampled_frequency_hz": 2360401296.6382556,
+      "sampled_magnitude_db": -15.530457093755805
+    },
+    "gprmax_series_minimum": {
+      "frequency_hz": 2362759097.2601004,
+      "magnitude_db": -18.54300763976859,
+      "sampled_frequency_hz": 2362484616.4058094,
+      "sampled_magnitude_db": -18.53153195619058
+    },
+    "gprmax_single_fine_z_minimum": {
+      "frequency_hz": 2363265495.1994114,
+      "magnitude_db": -14.30729586363352,
+      "sampled_frequency_hz": 2362483073.523715,
+      "sampled_magnitude_db": -14.277118654880352
+    },
+    "gprmax_single_fine_xyz_minimum": {
+      "frequency_hz": 2370778218.5675387,
+      "magnitude_db": -14.499630802602022,
+      "sampled_frequency_hz": 2370817895.4760237,
+      "sampled_magnitude_db": -14.49954808569892
+    },
+    "gprmax_single_39_mm_minimum": {
+      "frequency_hz": 2417438332.385924,
+      "magnitude_db": -15.19710205062019,
+      "sampled_frequency_hz": 2416650930.3622036,
+      "sampled_magnitude_db": -15.161919717514527
+    },
+    "gprmax_single_38_mm_minimum": {
+      "frequency_hz": 2477079909.8705873,
+      "magnitude_db": -14.884991988479548,
+      "sampled_frequency_hz": 2477067203.6212587,
+      "sampled_magnitude_db": -14.884984293423054
+    },
+    "gprmax_single_79_by_59_mm_board_minimum": {
+      "frequency_hz": 2360611070.0104294,
+      "magnitude_db": -15.797501457656368,
+      "sampled_frequency_hz": 2360401296.6382556,
+      "sampled_magnitude_db": -15.794222550362855
+    },
+    "gprmax_single_78_by_58_mm_board_minimum": {
+      "frequency_hz": 2360588211.0737095,
+      "magnitude_db": -16.085851262995387,
+      "sampled_frequency_hz": 2360401296.6382556,
+      "sampled_magnitude_db": -16.083095634952528
+    },
+    "matlab_minimum": {
+      "frequency_hz": 2436689830.888045,
+      "magnitude_db": -14.023072906227695,
+      "sampled_frequency_hz": 2437484128.0377398,
+      "sampled_magnitude_db": -13.99721978387804
+    },
+    "distributed_minimum_frequency_offset_hz": 77426801.30189753,
+    "single_minimum_frequency_offset_hz": 76064074.22591448,
+    "series_minimum_frequency_offset_hz": 73930733.62794447,
+    "single_fine_z_minimum_frequency_offset_hz": 73424335.68863344,
+    "single_fine_xyz_minimum_frequency_offset_hz": 65911612.320506096,
+    "gprmax_distributed_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 2346687816.9054255,
+      "upper_frequency_hz": 2371990466.7554917,
+      "bandwidth_hz": 25302649.850066185
+    },
+    "gprmax_single_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 2347888519.3792663,
+      "upper_frequency_hz": 2373540748.593154,
+      "bandwidth_hz": 25652229.21388769
+    },
+    "gprmax_series_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 2349551682.456482,
+      "upper_frequency_hz": 2376155722.5045156,
+      "bandwidth_hz": 26604040.048033714
+    },
+    "gprmax_single_fine_z_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 2350972079.4571586,
+      "upper_frequency_hz": 2375713346.2976537,
+      "bandwidth_hz": 24741266.84049511
+    },
+    "gprmax_single_fine_xyz_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 2358331730.1860704,
+      "upper_frequency_hz": 2383360398.3778996,
+      "bandwidth_hz": 25028668.191829205
+    },
+    "matlab_minus_10_db_bandwidth": {
+      "threshold_db": -10.0,
+      "lower_frequency_hz": 2423889814.8490844,
+      "upper_frequency_hz": 2449617938.735519,
+      "bandwidth_hz": 25728123.886434555
+    },
+    "distributed_magnitude_rms_difference_db": 2.368356213438148,
+    "single_magnitude_rms_difference_db": 2.384712311819051,
+    "series_magnitude_rms_difference_db": 2.497938990980098,
+    "single_fine_z_magnitude_rms_difference_db": 2.298360541187451,
+    "single_fine_xyz_magnitude_rms_difference_db": 2.2300783784898304,
+    "distributed_magnitude_maximum_absolute_difference_db": 13.583587733104968,
+    "single_magnitude_maximum_absolute_difference_db": 14.143013406655243,
+    "series_magnitude_maximum_absolute_difference_db": 17.0763873072538,
+    "single_fine_z_magnitude_maximum_absolute_difference_db": 12.82193457311541,
+    "single_fine_xyz_magnitude_maximum_absolute_difference_db": 12.722179750222683,
+    "gprmax_distributed_incident_spectrum_minimum_relative_db": -7.9173878409493135,
+    "gprmax_distributed_feed_edge_rms_nonuniformity_maximum": 0.20915772252752884,
+    "gprmax_single_feed_edge_rms_nonuniformity_maximum": 0.0,
+    "gprmax_series_feed_edge_rms_nonuniformity_maximum": 1.4872580010500514e-08,
+    "gprmax_single_fine_z_edge_rms_nonuniformity_maximum": 0.0,
+    "gprmax_single_fine_xyz_edge_rms_nonuniformity_maximum": 0.0
+  }
+}

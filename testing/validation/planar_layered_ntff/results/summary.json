@@ -1,0 +1,10 @@
+{
+  "spatial_step_m": 0.001,
+  "maximum_error_normalised_to_peak": 0.023039634049704345,
+  "rms_error_normalised_to_peak": 0.008567427137539614,
+  "maximum_relative_error_above_minus_60_db": 0.06394698799696766,
+  "maximum_error_limit": 0.03,
+  "rms_error_limit": 0.012,
+  "maximum_relative_error_limit": 0.08,
+  "passed": true
+}

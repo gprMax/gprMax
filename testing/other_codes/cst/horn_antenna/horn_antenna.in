@@ -1,0 +1,115 @@
+#title: SAB-derived rectangular pyramidal horn with a virtual waveguide feed
+
+## Geometry reconstructed from the current horn.sab (ACIS 34, CST dimensions
+## in mm):
+##   straight-guide length:       30.0
+##   straight inner aperture:     24.0 x 10.0
+##   straight outer aperture:     26.0 x 12.0
+##   flare length:               228.0
+##   mouth inner aperture:       110.0 x 80.0
+##   mouth outer aperture:       112.0353 x 82.0234
+##   total horn length:          258.0
+## The new SAB has 1 mm walls at the throat. Its RF-critical inner surface and
+## its outer mouth both snap naturally to this 1 mm grid, so a connected
+## one-cell-thick PEC shell represents it without the impractical 0.5 mm mesh.
+
+#domain: 0.152 0.122 0.310
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 25e-9
+#pml_cells: 12
+
+## Place the SAB z=0 back aperture at z=20 mm. The 30 mm straight section ends
+## at z=50 mm and the horn mouth is at z=278 mm. Four boxes per z cell form a
+## closed rectangular PEC ring. Nearest-cell snapping keeps the analytic flare
+## error at or below 0.5 mm while retaining a leak-free staircase shell.
+#python:
+dl = 1e-3
+centre_x_cells = 76
+centre_y_cells = 61
+back_z_cell = 20
+flare_z_cell = 50
+mouth_z_cell = 278
+
+
+def emit_box(x0, y0, z0, x1, y1, z1):
+    print(
+        "#box: "
+        f"{x0 * dl:.6f} {y0 * dl:.6f} {z0 * dl:.6f} "
+        f"{x1 * dl:.6f} {y1 * dl:.6f} {z1 * dl:.6f} pec n"
+    )
+
+
+def emit_ring(x_lower, x_upper, y_lower, y_upper, z_lower, z_upper):
+    emit_box(x_lower - 1, y_lower - 1, z_lower, x_lower, y_upper + 1, z_upper)
+    emit_box(x_upper, y_lower - 1, z_lower, x_upper + 1, y_upper + 1, z_upper)
+    emit_box(x_lower, y_lower - 1, z_lower, x_upper, y_lower, z_upper)
+    emit_box(x_lower, y_upper, z_lower, x_upper, y_upper + 1, z_upper)
+
+
+## Straight feed section. The new 24 x 10 mm throat and its 1 mm PEC wall are
+## represented exactly on the grid.
+straight_x_lower = centre_x_cells - 12
+straight_x_upper = centre_x_cells + 12
+straight_y_lower = centre_y_cells - 5
+straight_y_upper = centre_y_cells + 5
+emit_ring(
+    straight_x_lower,
+    straight_x_upper,
+    straight_y_lower,
+    straight_y_upper,
+    back_z_cell,
+    flare_z_cell,
+)
+
+## Pyramidal flare. Each one-cell z slab is a hollow PEC ring whose inner
+## half-widths interpolate from 12 x 5 mm to 55 x 40 mm. Rounding the analytic
+## inner wall to the nearest cell also puts the final outer ring at 112 x 82 mm,
+## within 0.024 mm of the SAB outer-mouth dimensions.
+flare_cells = mouth_z_cell - flare_z_cell
+for z_cell in range(flare_z_cell, mouth_z_cell):
+    fraction = (z_cell + 1 - flare_z_cell) / flare_cells
+    half_x = 12.0 + fraction * (55.0 - 12.0)
+    half_y = 5.0 + fraction * (40.0 - 5.0)
+    x_lower = round(centre_x_cells - half_x)
+    x_upper = round(centre_x_cells + half_x)
+    y_lower = round(centre_y_cells - half_y)
+    y_upper = round(centre_y_cells + half_y)
+    emit_ring(x_lower, x_upper, y_lower, y_upper, z_cell, z_cell + 1)
+#end_python:
+
+## Port 1 lies inside the uniform straight section and launches the dominant
+## mode toward +z. Its source is moved into a separately terminated auxiliary
+## guide, allowing the physical horn and port aperture to sit inside a closed
+## NTFF surface.
+##
+## The eigenmode band bounds the automatic excitation and retains only the five
+## modal DFT bins that coincide with the requested far-field frequencies. Modal
+## S-parameter output is not retained or used by this validation.
+#eigenmode_band: horn_excitation_band 8e9 12e9 5
+## The automatic modal-anchor candidates cover the requested band and the
+## significant spectrum of the automatic excitation waveform, including guard
+## candidates across its transition regions. Candidate validity, propagation,
+## reference selection, and any fallback are resolved independently for each
+## port and mode. Non-propagating candidates can serve as monitor references but
+## are excluded from source and propagating-power interpolation. Modal-field
+## plotting is disabled because its diagnostic mosaics are not needed here.
+#eigenmode_port: 1 0.064 0.056 0.025 0.088 0.066 0.025 + 1 auto n
+#virtual_waveguide: 1 21 12 6
+#eigenmode_excitation: 1 1 auto y
+
+## Closed six-face Huygens box. It encloses the complete physical horn and its
+## virtual aperture, remains in free space, and stays outside the domain PML.
+#ntff_surface: 0.016 0.016 0.016 0.136 0.106 0.286 horn_surface
+#ntff_frequency: horn_surface horn_ntff 8e9 9e9 10e9 11e9 12e9 rectangular
+
+## Complete 1-degree principal-plane cuts. In the gprMax spherical convention,
+## phi={0,180} covers the two halves of the xz plane and phi={90,270} covers
+## the two halves of the yz plane; theta spans +z through -z inclusively.
+#ntff_far_field_array: 0 180 1 0 180 180 horn_ntff xz_plane Etheta Ephi radiation_intensity directivity_dbi
+#ntff_far_field_array: 0 180 1 90 270 180 horn_ntff yz_plane Etheta Ephi radiation_intensity directivity_dbi
+
+## No #ntff_antenna_ports association is made because this comparison reports
+## directivity rather than gain or realized gain. Field,
+## radiation-intensity, and directivity outputs remain available.
+
+#geometry_view: 0 0 0 0.152 0.122 0.310 0.001 0.001 0.001 horn_antenna_geometry n

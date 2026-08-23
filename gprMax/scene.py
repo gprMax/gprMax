@@ -19,10 +19,15 @@
 import logging
 from typing import List, Sequence
 
+import numpy as np
+
+from gprMax.geometry_tags import GeometryTagMap, GeometryTagRegistry
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.mpi_model import MPIModel
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
 from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
@@ -112,16 +117,31 @@ class Scene:
             raise
 
     def process_single_use_objects(self, model: Model):
-        # Check for duplicate commands and warn user if they exist
-        # TODO: Test this works
-        unique_commands = list(set(self.single_use_objects))
-        if len(unique_commands) != len(self.single_use_objects):
-            logger.exception("Duplicate single-use commands exist in the input.")
+        # Check for duplicate commands and warn user if they exist. Each
+        # single-use command TYPE (Domain, Discretisation, TimeWindow,
+        # PMLThickness, ...) is meant to appear at most once per model.
+        # `set(self.single_use_objects)` cannot detect this: UserObject
+        # has no value-based __eq__/__hash__, so it falls back to
+        # identity, meaning two separate Domain(...) instances built from
+        # two `#domain` lines are never considered equal/duplicate - the
+        # old check never fired for real duplicate commands. Detect
+        # duplicates by command type instead.
+        seen_types = set()
+        duplicate_types = set()
+        for cmd in self.single_use_objects:
+            cmd_type = type(cmd)
+            if cmd_type in seen_types:
+                duplicate_types.add(cmd_type)
+            seen_types.add(cmd_type)
+
+        if duplicate_types:
+            names = ", ".join(sorted(t.__name__ for t in duplicate_types))
+            logger.exception(f"Duplicate single-use commands exist in the input: {names}.")
             raise ValueError
 
         # Check essential commands and warn user if missing
         for cmd_type in self.ESSENTIAL_CMDS:
-            d = any(isinstance(cmd, cmd_type) for cmd in unique_commands)
+            d = any(isinstance(cmd, cmd_type) for cmd in self.single_use_objects)
             if not d:
                 logger.exception(
                     "Your input file is missing essential commands "
@@ -130,7 +150,7 @@ class Scene:
                 )
                 raise ValueError
 
-        self.build_model_objects(unique_commands, model)
+        self.build_model_objects(self.single_use_objects, model)
 
     def process_multi_use_objects(self, model: Model):
         self.build_grid_objects(self.grid_objects, model.G)
@@ -152,6 +172,69 @@ class Scene:
         # Process all geometry commands
         self.build_grid_objects(objects_to_be_built, grid)
 
+    @staticmethod
+    def _build_internal_pml_enclosures(grid: FDTDGrid):
+        """Build requested PEC enclosures after all user geometry.
+
+        The plates must be the final geometry operation so their rigid PEC
+        edges cannot be overwritten by a later user object. They are still
+        built before ``FDTDGrid.build()``, material averaging, and PML
+        coefficient generation, using the normal :class:`Plate` path.
+        """
+        from gprMax.user_objects.cmds_geometry.plate import Plate
+
+        limits = (
+            tuple(grid.global_size)
+            if isinstance(grid, MPIGrid)
+            else (grid.nx, grid.ny, grid.nz)
+        )
+        for spec in grid.pmls["internal_specs"]:
+            if not spec.build_pec:
+                continue
+
+            lower = np.array((spec.xs, spec.ys, spec.zs), dtype=int)
+            upper = np.array((spec.xf, spec.yf, spec.zf), dtype=int)
+            axis = "xyz".index(spec.maximum_face[0])
+            faces = []
+
+            for normal in range(3):
+                if normal == axis:
+                    continue
+                for coordinate in (lower[normal], upper[normal]):
+                    if coordinate in (0, limits[normal]):
+                        continue
+                    p1 = lower.copy()
+                    p2 = upper.copy()
+                    p1[normal] = coordinate
+                    p2[normal] = coordinate
+                    faces.append((p1, p2))
+
+            maximum_coordinate = lower[axis] if spec.maximum_face.endswith("0") else upper[axis]
+            if maximum_coordinate not in (0, limits[axis]):
+                p1 = lower.copy()
+                p2 = upper.copy()
+                p1[axis] = maximum_coordinate
+                p2[axis] = maximum_coordinate
+                faces.append((p1, p2))
+
+            for p1, p2 in faces:
+                if isinstance(grid, SubGridBaseGrid):
+                    continuous_p1 = tuple(grid.local_to_global(p1))
+                    continuous_p2 = tuple(grid.local_to_global(p2))
+                else:
+                    continuous_p1 = tuple(np.asarray(grid.dl) * p1)
+                    continuous_p2 = tuple(np.asarray(grid.dl) * p2)
+                Plate(
+                    p1=continuous_p1,
+                    p2=continuous_p2,
+                    material_id="pec",
+                ).build(grid)
+
+            grid.pmls["internal_registry"][spec.ID]["generated_pec_faces"] = len(faces)
+            logger.info(
+                f"Internal PML slab '{spec.ID}' generated {len(faces)} PEC enclosure plates."
+            )
+
     def process_subgrid_objects(self, model: Model):
         """Process all commands in any sub-grids."""
         # Iterate through the user command objects under the subgrid user object
@@ -163,6 +246,42 @@ class Scene:
             self.build_grid_objects(subgrid_object.children_grid, subgrid)
             self.build_output_objects(subgrid_object.children_output, model, subgrid)
             self.process_geometry_objects(subgrid_object.children_geometry, subgrid)
+            self._build_internal_pml_enclosures(subgrid)
+
+    def initialise_geometry_tags(self, model: Model):
+        """Create one model-wide registry and optional cell maps per grid."""
+
+        registry = GeometryTagRegistry()
+        grid_objects = [(model.G, self.geometry_objects)]
+        grid_objects.extend(
+            (subgrid_object.subgrid, subgrid_object.children_geometry)
+            for subgrid_object in self.subgrid_objects
+        )
+
+        declared_by_grid = []
+        for grid, objects in grid_objects:
+            declared = tuple(
+                tag for obj in objects for tag in obj.declared_geometry_tags()
+            )
+            registry.register_many(declared)
+            declared_by_grid.append((grid, declared))
+
+        registry.freeze()
+        if not registry.has_tags:
+            model.geometry_tag_registry = None
+            for grid, _ in declared_by_grid:
+                grid.geometry_tag_registry = None
+                grid.geometry_tag_map = None
+            return
+
+        model.geometry_tag_registry = registry
+        for grid, declared in declared_by_grid:
+            grid.geometry_tag_registry = registry
+            grid.geometry_tag_map = (
+                GeometryTagMap(tuple(int(value) for value in grid.size), registry)
+                if declared
+                else None
+            )
 
     def create_internal_objects(self, model: Model):
         """Calls the UserObject.build() function in the correct way - API
@@ -179,12 +298,17 @@ class Scene:
         # Process multiple commands
         self.process_multi_use_objects(model)
 
+        # Discover semantic tags, including catalogues stored in imported
+        # geometry, before selecting the compact map dtype.
+        self.initialise_geometry_tags(model)
+
         # Initialise geometry arrays for main and subgrids
         for grid in [model.G] + model.subgrids:
             grid.initialise_geometry_arrays()
 
         # Process the main grid geometry commands
         self.process_geometry_objects(self.geometry_objects, model.G)
+        self._build_internal_pml_enclosures(model.G)
 
         # Process all the commands for subgrids
         self.process_subgrid_objects(model)

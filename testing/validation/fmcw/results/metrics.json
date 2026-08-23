@@ -1,0 +1,19 @@
+{
+  "method": "Paper-inspired Eide et al. 2022 analytical multilayer validation",
+  "frequency_band_hz": [
+    150000000.0,
+    1200000000.0
+  ],
+  "frequency_samples": 1024,
+  "sweep_time_seconds": 0.1,
+  "grid_spacing_metres": 0.001,
+  "precision": "double",
+  "backend": "cuda:0",
+  "runtime_seconds": {
+    "target": 55.281709814444184,
+    "background": 55.22742612659931
+  },
+  "complex_relative_l2_error": 0.00024649675950602146,
+  "magnitude_rmse": 8.976300724706706e-05,
+  "fast_time_complex_relative_l2_error": 0.00013802853721375566
+}

@@ -1,7 +1,35 @@
 {% extends "knl_common_base.tmpl" %}
 
 {% block header %}
+{% if DRUDELORENTZ and REAL == "double" %}
+#define PYOPENCL_DEFINE_CDOUBLE
+{% endif %}
 #include <pyopencl-complex.h>
+
+// OpenCL C has no native complex arithmetic. PyOpenCL deliberately exposes
+// complex values as structs, so operator * and + must not be used for
+// Lorentz/Drude pole state.
+{% if DRUDELORENTZ %}
+{% if REAL == "double" %}
+#define GPRMAX_CMUL(a, b) cdouble_mul((a), (b))
+#define GPRMAX_CRMUL(a, b) cdouble_mulr((a), (b))
+#define GPRMAX_CADD(a, b) cdouble_add((a), (b))
+#define GPRMAX_CSUB(a, b) cdouble_sub((a), (b))
+#define GPRMAX_CREAL(a) cdouble_real(a)
+{% else %}
+#define GPRMAX_CMUL(a, b) cfloat_mul((a), (b))
+#define GPRMAX_CRMUL(a, b) cfloat_mulr((a), (b))
+#define GPRMAX_CADD(a, b) cfloat_add((a), (b))
+#define GPRMAX_CSUB(a, b) cfloat_sub((a), (b))
+#define GPRMAX_CREAL(a) cfloat_real(a)
+{% endif %}
+{% else %}
+#define GPRMAX_CMUL(a, b) ((a) * (b))
+#define GPRMAX_CRMUL(a, b) ((a) * (b))
+#define GPRMAX_CADD(a, b) ((a) + (b))
+#define GPRMAX_CSUB(a, b) ((a) - (b))
+#define GPRMAX_CREAL(a) (a)
+{% endif %}
 {% endblock header %}
 
 

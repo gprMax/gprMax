@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -270,9 +270,6 @@ class PrecursorNodesBase:
 
             # interpolate over a fine grid
             f_i = self.interpolate_to_sub_grid(f_t, obj[1])
-
-            if np.array_equal(f_i, f_t):
-                raise ValueError
 
             # discard the outer nodes only required for interpolation
             # f = f_i[self.ratio:-self.ratio, self.ratio:-self.ratio]

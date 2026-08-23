@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -31,12 +31,52 @@ from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
 from .user_objects.cmds_geometry.edge import Edge
 from .user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from .user_objects.cmds_geometry.fractal_box import FractalBox
+from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
 from .user_objects.cmds_geometry.sphere import Sphere
+from .user_objects.cmds_geometry.thin_wire import ThinWire
 from .user_objects.cmds_geometry.triangle import Triangle
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_fractal_modifier_targets(geometry):
+    """Reject malformed or orphaned fractal-surface hash commands.
+
+    Fractal modifiers are constructed while processing their associated
+    ``#fractal_box``. Without this preliminary check, a modifier whose box ID
+    does not exist (or a malformed modifier when there are no fractal boxes)
+    is never visited and is silently discarded.
+    """
+
+    tokenised = [command.split() for command in geometry]
+    fractal_box_commands = [
+        tokens for tokens in tokenised if tokens and tokens[0] == "#fractal_box:"
+    ]
+    for tokens in fractal_box_commands:
+        if len(tokens) not in (14, 15, 16, 17):
+            raise ValueError(f"'{' '.join(tokens)}' requires 13 to 16 parameters")
+    fractal_box_ids = {tokens[13] for tokens in fractal_box_commands}
+    if len(fractal_box_ids) != len(fractal_box_commands):
+        raise ValueError("#fractal_box identifiers must be unique")
+
+    modifier_specs = {
+        "#add_surface_roughness:": ((13, 14), 12),
+        "#add_surface_water:": ((9,), 8),
+        "#add_grass:": ((12, 13), 11),
+    }
+
+    for tokens in tokenised:
+        if not tokens or tokens[0] not in modifier_specs:
+            continue
+        valid_lengths, target_index = modifier_specs[tokens[0]]
+        if len(tokens) not in valid_lengths:
+            expected = " or ".join(str(length - 1) for length in valid_lengths)
+            raise ValueError(f"'{' '.join(tokens)}' requires exactly {expected} parameter(s)")
+        target = tokens[target_index]
+        if target not in fractal_box_ids:
+            raise ValueError(f"'{tokens[0][:-1]}' cannot find #fractal_box with ID '{target}'")
 
 
 def process_geometrycmds(geometry):
@@ -51,21 +91,69 @@ def process_geometrycmds(geometry):
         scene_objects: list that holds objects in scene.
     """
 
+    _validate_fractal_modifier_targets(geometry)
     scene_objects = []
 
     for object in geometry:
         tmp = object.split()
+        tag = None
+
+        # Geometry hash commands use positional arguments only. A tag is
+        # accepted only after an explicit y/n smoothing argument. Requiring
+        # that marker keeps all existing isotropic and anisotropic forms
+        # unambiguous and backward compatible.
+        base_lengths = {
+            "#triangle:": 12,
+            "#box:": 8,
+            "#cylinder:": 9,
+            "#cone:": 10,
+            "#cylindrical_sector:": 10,
+            "#sphere:": 6,
+            "#ellipsoid:": 8,
+        }
+        base_length = base_lengths.get(tmp[0])
+        if base_length is not None:
+            if len(tmp) == base_length + 2 and tmp[-2].lower() in {"y", "n"}:
+                tag, tmp = tmp[-1], tmp[:-1]
+
+        # A fractal tag follows the existing seed and y/n smoothing values.
+        elif tmp[0] == "#fractal_box:":
+            if len(tmp) == 17 and tmp[-2].lower() in {"y", "n"}:
+                tag, tmp = tmp[-1], tmp[:-1]
 
         if tmp[0] == "#geometry_objects_read:":
             from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
 
-            if len(tmp) != 6:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly five parameters")
+            if len(tmp) not in {6, 7}:
+                logger.exception(
+                    "'"
+                    + " ".join(tmp)
+                    + "' requires five parameters and an optional y/n averaging flag"
+                )
                 raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
 
-            gor = GeometryObjectsRead(p1=p1, geofile=tmp[4], matfile=tmp[5])
+            # Legacy files supplied a .txt list of executable material
+            # commands. New files use a database name (without .json); keep
+            # the distinction positional so the established hash-command
+            # syntax remains familiar.
+            averaging = tmp[6].lower() if len(tmp) == 7 else "n"
+            if averaging not in {"y", "n"}:
+                raise ValueError(
+                    "#geometry_objects_read optional averaging flag must be either y or n"
+                )
+            if tmp[5].lower().endswith(".txt"):
+                gor = GeometryObjectsRead(
+                    p1=p1, geofile=tmp[4], matfile=tmp[5], averaging=averaging
+                )
+            else:
+                gor = GeometryObjectsRead(
+                    p1=p1,
+                    geofile=tmp[4],
+                    material_database=tmp[5],
+                    averaging=averaging,
+                )
             scene_objects.append(gor)
 
         elif tmp[0] == "#edge:":
@@ -80,6 +168,30 @@ def process_geometrycmds(geometry):
             )
 
             scene_objects.append(edge)
+
+        elif tmp[0] == "#magnetic_edge:":
+            if len(tmp) != 8:
+                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly seven parameters")
+                raise ValueError
+
+            magnetic_edge = MagneticEdge(
+                p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
+                p2=(float(tmp[4]), float(tmp[5]), float(tmp[6])),
+                material_id=tmp[7],
+            )
+            scene_objects.append(magnetic_edge)
+
+        elif tmp[0] == "#thin_wire:":
+            if len(tmp) != 8:
+                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly seven parameters")
+                raise ValueError
+
+            thin_wire = ThinWire(
+                p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
+                p2=(float(tmp[4]), float(tmp[5]), float(tmp[6])),
+                radius=float(tmp[7]),
+            )
+            scene_objects.append(thin_wire)
 
         elif tmp[0] == "#plate:":
             if len(tmp) < 8:
@@ -120,7 +232,10 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 12:
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11])
+                triangle = Triangle(
+                    p1=p1, p2=p2, p3=p3, thickness=thickness,
+                    material_id=tmp[11], tag=tag
+                )
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 13:
@@ -131,11 +246,15 @@ def process_geometrycmds(geometry):
                     thickness=thickness,
                     material_id=tmp[11],
                     averaging=tmp[12],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 14:
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_ids=tmp[11:])
+                triangle = Triangle(
+                    p1=p1, p2=p2, p3=p3, thickness=thickness,
+                    material_ids=tmp[11:], tag=tag
+                )
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -153,15 +272,15 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 8:
-                box = Box(p1=p1, p2=p2, material_id=tmp[7])
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8])
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8], tag=tag)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
-                box = Box(p1=p1, p2=p2, material_ids=tmp[7:])
+                box = Box(p1=p1, p2=p2, material_ids=tmp[7:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -180,15 +299,17 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 9:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8])
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 10:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9])
+                cylinder = Cylinder(
+                    p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9], tag=tag
+                )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:])
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -208,7 +329,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 10:
-                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9])
+                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
@@ -219,11 +340,12 @@ def process_geometrycmds(geometry):
                     r2=r2,
                     material_id=tmp[9],
                     averaging=tmp[10],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
-                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_ids=tmp[9:])
+                cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_ids=tmp[9:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -257,6 +379,7 @@ def process_geometrycmds(geometry):
                     start=start,
                     end=end,
                     material_id=tmp[9],
+                    tag=tag,
                 )
 
             # Isotropic case with user specified averaging
@@ -272,6 +395,7 @@ def process_geometrycmds(geometry):
                     end=end,
                     averaging=tmp[10],
                     material_id=tmp[9],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
@@ -286,6 +410,7 @@ def process_geometrycmds(geometry):
                     start=start,
                     end=end,
                     material_ids=tmp[9:],
+                    tag=tag,
                 )
 
             else:
@@ -304,15 +429,15 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 6:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5])
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 7:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6])
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6], tag=tag)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5:])
+                sphere = Sphere(p1=p1, r=r, material_ids=tmp[5:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -332,7 +457,9 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 8:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7])
+                ellipsoid = Ellipsoid(
+                    p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], tag=tag
+                )
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
@@ -343,11 +470,14 @@ def process_geometrycmds(geometry):
                     zr=zr,
                     material_id=tmp[7],
                     averaging=tmp[8],
+                    tag=tag,
                 )
 
             # Uniaxial anisotropic case
-            elif len(tmp) == 8:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7:])
+            elif len(tmp) == 10:
+                ellipsoid = Ellipsoid(
+                    p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:], tag=tag
+                )
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
@@ -381,6 +511,7 @@ def process_geometrycmds(geometry):
                     n_materials=n_materials,
                     mixing_model_id=mixing_model_id,
                     id=ID,
+                    tag=tag,
                 )
             elif len(tmp) == 15:
                 fb = FractalBox(
@@ -392,6 +523,7 @@ def process_geometrycmds(geometry):
                     mixing_model_id=mixing_model_id,
                     id=ID,
                     seed=tmp[14],
+                    tag=tag,
                 )
             elif len(tmp) == 16:
                 fb = FractalBox(
@@ -404,6 +536,7 @@ def process_geometrycmds(geometry):
                     id=ID,
                     seed=tmp[14],
                     averaging=tmp[15],
+                    tag=tag,
                 )
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")

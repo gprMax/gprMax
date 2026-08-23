@@ -18,6 +18,8 @@ gprMax User Guide
 
     input_hash_cmds
     input_api
+    material_databases
+    eigenmode_port
     output
 
 .. toctree::
@@ -38,7 +40,13 @@ gprMax User Guide
     inc_DebyeFit
     inc_LandmineModels
     inc_Materials
+    inc_GeometryImport
     inc_STLtoVoxel
+    inc_STEPtoVoxel
+    inc_gprMaxLogo
+    inc_ImpulseResponse
+    inc_SFCW
+    inc_FMCW
     inc_Plotting
     inc_Utilities
 
@@ -62,6 +70,7 @@ gprMax User Guide
     :caption: Developers
 
     contributing
+    testing
     reframe_test_suite
 
 .. toctree::

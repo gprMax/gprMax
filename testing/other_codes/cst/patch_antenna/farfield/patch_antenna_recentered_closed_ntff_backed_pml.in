@@ -1,0 +1,43 @@
+#title: Geometrically faithful translated patch with internal PML and closed NTFF
+
+## The complete original antenna geometry is translated rigidly by
+## (+0.012, +0.010, +0.010) m. No antenna dimension or source-to-patch
+## separation is changed. The larger domain provides room for the internal
+## termination, a closed NTFF surface, and the outer domain PML.
+#domain: 0.1204 0.1600 0.0560
+#dx_dy_dz: 0.0004 0.0004 0.0004
+#time_window: 20e-9
+#pml_cells: 12
+
+#material: 4.4 0 1 0 substrate
+
+## Original ground and substrate, rigidly translated.
+#box: 0.0228 0.0180 0.0172 0.0972 0.1420 0.0176 pec n
+#box: 0.0228 0.0180 0.0176 0.0972 0.1420 0.0192 substrate y
+
+## Original patch and complete feed, rigidly translated.
+#box: 0.0416 0.0460 0.0192 0.0788 0.0740 0.0196 pec n
+#box: 0.0600 0.0740 0.0192 0.0604 0.0916 0.0196 pec n
+#box: 0.0588 0.0916 0.0192 0.0616 0.1420 0.0196 pec n
+
+## The source plane retains its original 56.4 mm separation from the patch
+## edge. The PML occupies only the original 11.6 mm feed continuation behind
+## the source plane. Its transverse PEC walls and rear plate form the load,
+## not part of the antenna region in front of the port.
+#box: 0.0428 0.1304 0.0172 0.0432 0.1420 0.0356 pec n
+#box: 0.0772 0.1304 0.0172 0.0776 0.1420 0.0356 pec n
+#box: 0.0428 0.1304 0.0352 0.0776 0.1420 0.0356 pec n
+#plate: 0.0432 0.1420 0.0172 0.0772 0.1420 0.0352 pec
+
+#pml_slab: 0.0432 0.1304 0.0172 0.0772 0.1420 0.0352 ymax port_load
+#eigenmode_band: patch_farfield_band 2.2e9 2.7e9 11
+#eigenmode_port: 1 0.0432 0.1304 0.0172 0.0772 0.1304 0.0352 - 1 auto n
+#eigenmode_excitation: 1 1 auto n
+
+## The closed surface is centred in x and y around the translated original
+## ground geometry. It has 8 mm clearance from the ground/termination in x
+## and y, 8 mm below the ground, and 24.4 mm above the patch.
+#ntff_surface: 0.0148 0.0100 0.0092 0.1052 0.1500 0.0440 patch_surface
+#ntff_frequency: patch_surface patch_farfield_band 2.2e9 2.25e9 2.3e9 2.35e9 2.4e9 2.45e9 2.5e9 2.55e9 2.6e9 2.65e9 2.7e9 rectangular
+#ntff_antenna_ports: patch_farfield_band port1
+#ntff_far_field_array: 0 180 1 0 359 1 patch_farfield_band full_sphere Etheta Ephi radiation_intensity directivity_dbi gain_dbi realized_gain_dbi radiation_efficiency total_efficiency

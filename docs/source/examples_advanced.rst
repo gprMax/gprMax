@@ -4,14 +4,127 @@ Advanced features
 
 This section provides example models of some of the more advanced features of gprMax. Each example comes with an input file which you can download and run.
 
+Eigenmode ports
+===============
+
+The six numbered examples under ``examples/features/eigenmode_ports`` progress
+from straight and curved guides to a closed-surface horn, a complete modal
+matrix study, a phase-steered array, and a guide crossing cutoff.
+:doc:`eigenmode_port` provides a step-by-step tutorial for users who primarily
+want S-parameters and far fields.
+
+Always inspect the solved mode before committing to a long FDTD run:
+
+.. code-block:: console
+
+    python -m gprMax examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide.in --geometry-only
+
+Geometry-only mode builds the material grid and solves the mode without time
+stepping. It automatically writes the modal-field plot. Check its requested
+polarisation, symmetry, mode order, confinement, and field behaviour at
+material, PEC, or PMC boundaries.
+
+.. figure:: ../../images_shared/eigenmode_dielectric_slab_2d_tm_fields.png
+    :width: 700 px
+
+    Yee-staggered active field components of the fundamental 2D TM dielectric-slab mode.
+
+The complete regression and directionality matrix is kept separately under
+``testing/regression/eigenmode_sources``; it is not intended as introductory
+user material.
+
+
+Plane-wave TFSF source
+======================
+
+:download:`dielectric_sphere_tfsf.in <../../examples/features/plane_waves/dielectric_sphere_tfsf.in>`
+and its equivalent
+:download:`Python API model <../../examples/features/plane_waves/dielectric_sphere_tfsf.py>`
+demonstrate a discrete plane wave incident on a dielectric sphere. The sphere
+and one receiver lie inside the total-field/scattered-field box, while a
+second receiver beyond its x-maximum face records scattered field only.
+
+.. literalinclude:: ../../examples/features/plane_waves/dielectric_sphere_tfsf.in
+    :language: none
+    :linenos:
+
+The example above is deliberately small and focuses on the TFSF field
+separation. For a quantitative far-field scattering calculation, use the PEC
+sphere example below.
+
+
+PEC-sphere radar cross section
+==============================
+
+:download:`pec_sphere_rcs.in <../../examples/rcs/pec_sphere/pec_sphere_rcs.in>`
+and the equivalent
+:download:`Python API model <../../examples/rcs/pec_sphere/pec_sphere_rcs.py>`
+together with their
+:download:`plotting script <../../examples/rcs/pec_sphere/plot_pec_sphere_rcs.py>`
+form a complete monostatic radar cross-section workflow. A 16 mm-radius PEC
+sphere is represented on a 0.5 mm grid and illuminated by a broadband,
+z-polarised plane wave propagating in the positive x direction. The 12 ns time
+window allows the transient to decay before the frequency-domain results are
+formed. The model uses the default 10-cell PML, so no ``#pml_cells`` command is
+needed.
+
+.. literalinclude:: ../../examples/rcs/pec_sphere/pec_sphere_rcs.in
+    :language: none
+    :linenos:
+
+The TFSF box encloses the sphere. The larger ``NTFFSurface`` encloses the
+complete TFSF box and remains in homogeneous free space, clear of both the
+TFSF correction stencil and the PML. ``NTFFFrequencyTransform`` streams the
+tangential fields needed by the conventional equivalent-current formulation
+at 34 frequencies from 0.75 to 9 GHz. The hash-command model automatically
+associates the enclosed plane wave with the transform. The Python API makes
+the same choice explicit with ``plane_wave_index=0``.
+
+``NTFFFarField`` requests the monostatic direction
+:math:`\theta=90^\circ`, :math:`\phi=180^\circ`, opposite to the incident
+wave. The stored ``rcs`` array is linear and has units of square metres. The
+plotting script normalises it by the geometrical cross section
+:math:`\pi a^2` and independently evaluates a dense analytical PEC Mie series.
+The electrical-size axis, :math:`ka=2\pi f a/c`, exposes the familiar
+resonances and nulls of PEC-sphere backscatter; a secondary axis gives the
+corresponding frequency.
+
+From the repository root, run with:
+
+.. code-block:: console
+
+    python -m gprMax examples/rcs/pec_sphere/pec_sphere_rcs.in -gpu 0
+    python examples/rcs/pec_sphere/plot_pec_sphere_rcs.py
+
+Omit ``-gpu 0`` to run on the CPU. A GPU is recommended for this
+:math:`320^3`-cell model. The model also writes a fine VTK HDF geometry view
+for inspection in ParaView.
+
+.. _pec-sphere-backscatter-rcs:
+
+.. figure:: ../../images_shared/pec_sphere_backscatter_rcs.png
+    :width: 720px
+
+    Monostatic backscatter RCS from the equivalent-current NTFF output
+    compared with the PEC-sphere Mie series over :math:`0.25<ka<3.02`.
+
+For this 0.5 mm discretisation, which represents the sphere radius with 32
+cells, the RMS difference over the sweep is approximately 0.44 dB. At
+:math:`ka\simeq1`, gprMax gives -25.16 dBsm and the Mie series gives
+-25.33 dBsm. The error grows around sharp RCS minima because a small shift in
+a null produces a relatively large dB difference. The principal limitation is
+the staircased representation of the curved PEC surface; a formal convergence
+study should repeat the model at several spatial resolutions and compare the
+complex far fields as well as RCS.
+
 Building a heterogeneous soil
 =============================
 
-:download:`heterogeneous_soil.in <../../examples/heterogeneous_soil.in>`
+:download:`heterogeneous_soil.in <../../examples/gpr/materials/heterogeneous_soil.in>`
 
 This example demonstrates how to build a more realistic soil model using a stochastic distribution of dielectric properties. A mixing model for soils proposed by Peplinski (http://dx.doi.org/10.1109/36.387598) is used to define a series of dispersive material properties for the soil.
 
-.. literalinclude:: ../../examples/heterogeneous_soil.in
+.. literalinclude:: ../../examples/gpr/materials/heterogeneous_soil.in
     :language: none
     :linenos:
 
@@ -50,7 +163,7 @@ Subgridding functionality requires using our :ref:`Python API <input-api>`.
 High dielectric example
 -----------------------
 
-:download:`cylinder_fs.py <../../examples/subgrids/cylinder_fs.py>`
+:download:`cylinder_fs.py <../../examples/features/subgrids/cylinder_fs.py>`
 
 This example is a basic demonstration of how to use subgrids. The geometry is 3D (required for any use of subgrids) and is of a water-filled (high dielectric constant) cylindrical object in freespace. The subgrid encloses the cylindrical object using a fine spatial discretisation (1mm), and a courser spatial discretisation (5mm) is used in the rest of the model (main grid). A simple Hertzian dipole source is used with a waveform shaped as the first derivative of a gaussian.
 
@@ -59,7 +172,7 @@ This example is a basic demonstration of how to use subgrids. The geometry is 3D
 
     The geometry of a 3D model of a water cylinder (meshed using a subgrid) in free space.
 
-.. literalinclude:: ../../examples/subgrids/cylinder_fs.py
+.. literalinclude:: ../../examples/features/subgrids/cylinder_fs.py
     :language: python
     :linenos:
 
@@ -79,7 +192,7 @@ Finally, on line 95 when the model is run the keyword arguments ``subgrid`` and 
 Antenna modelling example
 -------------------------
 
-:download:`gssi_400_over_fractal_subsurface.py <../../examples/subgrids/gssi_400_over_fractal_subsurface.py>`
+:download:`gssi_400_over_fractal_subsurface.py <../../examples/gpr/subgrids/gssi_400_over_fractal_subsurface.py>`
 
 This example demonstrates how to use subgrids at a more advanced level combining use of an imported GPR antenna model (like a GSSI 400MHz antenna) and rough subsurface interface. The geometry is 3D (required for any use of subgrids) and is of a 2 layered subsurface. The top layer in a sandy soil and the bottom layer a soil with
 higher permittivity (both have some simple conductive loss). There is a rough interface between the soil layers. A GPR antenna model (like a GSSI 400MHz antenna) is imported and placed on the surface of the layered media. The antenna is meshed using a subgrid with a fine spatial discretisation (1mm), and a courser spatial discretisation (9mm) is used in the rest of the model (main grid).
@@ -94,7 +207,7 @@ higher permittivity (both have some simple conductive loss). There is a rough in
 
     Zoomed in geometry showing a subgrid ratio of 1mm (subgrid) - antenna model - to 9mm (main grid).
 
-.. literalinclude:: ../../examples/subgrids/gssi_400_over_fractal_subsurface.py
+.. literalinclude:: ../../examples/gpr/subgrids/gssi_400_over_fractal_subsurface.py
     :language: python
     :linenos:
 

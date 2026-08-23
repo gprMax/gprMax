@@ -3,13 +3,13 @@
 %
 % Craig Warren
 
-clear all, clc
+clearvars; clc
 
-[filename, pathname] = uigetfile('*.out', 'Select gprMax output file to plot B-scan', 'MultiSelect', 'on');
+[filename, pathname] = uigetfile('*.h5', 'Select merged gprMax output file to plot B-scan');
 filename = fullfile(pathname, filename);
 
 % Open file and read fields
-if filename ~= 0
+if ~isequal(filename, 0)
     iterations = double(h5readatt(filename, '/', 'Iterations'));
     dt = h5readatt(filename, '/', 'dt');
 
@@ -18,7 +18,7 @@ if filename ~= 0
     fieldpath = strcat('/rxs/rx1/', field);
     field = h5read(filename, fieldpath)';
     time = linspace(0, (iterations - 1) * dt, iterations)';
-    traces = 0:size(field, 2);
+    traces = 0:(size(field, 2) - 1);
 
     fh1=figure('Name', filename);
     clims = [-max(max(abs(field))) max(max(abs(field)))];

@@ -1,0 +1,12 @@
+#title: Magnetic edge crossing MPI partitions
+#domain: 0.040 0.040 0.040
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-10
+#pml_cells: 3
+
+#material: 1 0 4 0.05 magnetic_wire
+#waveform: ricker 1 1e10 pulse
+#hertzian_dipole: y 0.008 0.020 0.019 pulse
+#rx: 0.032 0.020 0.019
+
+#magnetic_edge: 0.012 0.020 0.020 0.028 0.020 0.020 magnetic_wire

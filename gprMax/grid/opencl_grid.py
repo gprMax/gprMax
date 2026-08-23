@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -19,20 +19,21 @@
 
 from importlib import import_module
 
+import numpy as np
+
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.pml import PML, OpenCLPML
+from gprMax.pml import OpenCLPML
 
 
 class OpenCLGrid(FDTDGrid):
     """Additional grid methods for solving on compute device using OpenCL."""
 
+    pml_type = OpenCLPML
+
     def __init__(self):
         super().__init__()
 
         self.clarray = import_module("pyopencl.array")
-
-    def _construct_pml(self, pml_ID: str, thickness: int) -> OpenCLPML:
-        return super()._construct_pml(pml_ID, thickness, OpenCLPML)
 
     def htod_geometry_arrays(self, queue):
         """Initialise an array for cell edge IDs (ID) on compute device.
@@ -69,3 +70,74 @@ class OpenCLGrid(FDTDGrid):
         self.Tx_dev = self.clarray.to_device(queue, self.Tx)
         self.Ty_dev = self.clarray.to_device(queue, self.Ty)
         self.Tz_dev = self.clarray.to_device(queue, self.Tz)
+
+    def htod_mat_coeff_arrays(self, queue):
+        """Initialise plane-wave material coefficient arrays on the device."""
+
+        self.updatecoeffsH_dev = self.clarray.to_device(queue, self.updatecoeffsH)
+        self.updatecoeffsE_dev = self.clarray.to_device(queue, self.updatecoeffsE)
+
+    def htod_planewave_arrays(self, dpw, queue):
+        """Initialise all auxiliary plane-wave arrays on the device."""
+
+        for name in (
+            "E_fields",
+            "H_fields",
+            "Ix",
+            "Iy",
+            "Iz",
+            "pml_rhx",
+            "pml_rhy",
+            "pml_rhz",
+            "pml_rex",
+            "pml_rey",
+            "pml_rez",
+        ):
+            setattr(dpw, f"{name}_dev", self.clarray.to_device(queue, getattr(dpw, name)))
+
+        real = dpw.E_fields.dtype
+        source_e = np.asarray(
+            dpw.waveformvalues_wholedt * dpw.projections[None, :3, None],
+            dtype=real,
+            order="C",
+        )
+        source_h = np.asarray(
+            dpw.waveformvalues_halfdt * dpw.projections[None, 3:, None],
+            dtype=real,
+            order="C",
+        )
+        if source_e.size > np.iinfo(np.int32).max:
+            raise ValueError("Plane-wave source arrays exceed the signed 32-bit index range.")
+        dpw.source_e_dev = self.clarray.to_device(queue, source_e)
+        dpw.source_h_dev = self.clarray.to_device(queue, source_h)
+
+        if dpw.axial != 0:
+            for name in (
+                "E_fields_s",
+                "H_fields_s",
+                "Ix_s",
+                "Iy_s",
+                "Iz_s",
+                "Ix0",
+                "Iy0",
+                "Iz0",
+                "pml_rhx0",
+                "pml_rhy0",
+                "pml_rhz0",
+                "pml_rex0",
+                "pml_rey0",
+                "pml_rez0",
+                "ID",
+            ):
+                setattr(dpw, f"{name}_dev", self.clarray.to_device(queue, getattr(dpw, name)))
+
+        if dpw.dispersive:
+            for name in ("Px", "Py", "Pz"):
+                setattr(dpw, f"{name}_dev", self.clarray.to_device(queue, getattr(dpw, name)))
+            if dpw.axial != 0:
+                for name in ("Px_s", "Py_s", "Pz_s"):
+                    setattr(
+                        dpw,
+                        f"{name}_dev",
+                        self.clarray.to_device(queue, getattr(dpw, name)),
+                    )

@@ -56,7 +56,8 @@ Relaxation Class
 
 This class is designed for modelling different relaxation functions, like Havriliak-Negami (``HavriliakNegami``), Jonscher (``Jonscher``), Complex Refractive Index Mixing (`CRIM`) models, and arbitrary dielectric data derived experimentally or calculated using some other function (``Rawdata``).
 
-More about the ``Relaxation`` class structure can be found in the :doc:`Relaxation doc <../../toolboxes/DebyeFit/relaxation.rst>`.
+More about the ``Relaxation`` class structure can be found in the
+:download:`Relaxation documentation <../../toolboxes/DebyeFit/relaxation.rst>`.
 
 Havriliak-Negami Function
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -185,7 +186,8 @@ Class Optimizer
 This class supports global optimization algorithms (particle swarm, dual annealing, evolutionary algorithms) for finding an optimal set of relaxation times that minimise the error between the actual and the approximated electric permittivity, and calculates optimised weights for the given relaxation times.
 Code written here is mainly based on external libraries, like ``scipy`` and ``pyswarm``.
 
-More about the ``Optimizer`` class structure can be found in the :doc:`Optimisation doc <../../toolboxes/DebyeFit/optimisation.rst>`.
+More about the ``Optimizer`` class structure can be found in the
+:download:`optimisation documentation <../../toolboxes/DebyeFit/optimization.rst>`.
 
 PSO_DLS Class
 ^^^^^^^^^^^^^

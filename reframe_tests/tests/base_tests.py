@@ -300,14 +300,14 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
 
         if self.is_antenna_model:
             self.postrun_cmds = [
-                f"python -m toolboxes.Plotting.plot_antenna_params -save {self.output_file}"
+                f"python -m toolboxes.Plotting.plot_port --save {self.output_file}"
             ]
 
-            antenna_t1_params = f"{self.model}_t1_params.pdf"
-            antenna_ant_params = f"{self.model}_ant_params.pdf"
+            antenna_port_parameters = f"{self.model}_ports_feed_parameters.png"
+            antenna_port_signals = f"{self.model}_ports_feed_signals.png"
             self.keep_files += [
-                antenna_t1_params,
-                antenna_ant_params,
+                antenna_port_parameters,
+                antenna_port_signals,
             ]
         """
 

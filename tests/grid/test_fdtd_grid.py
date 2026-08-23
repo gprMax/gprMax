@@ -6,6 +6,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 from pytest import param
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.materials import Material
 
 
 def get_current_in_3d_grid(
@@ -119,3 +120,14 @@ def test_calculate_Iz(dx, dy, Hx, Hy, expected, size=2):
     expected_current[:, 0, :] = 0
 
     assert_allclose(actual_current, expected_current)
+
+
+def test_initialise_geometry_arrays_uses_free_space_numid():
+    grid = FDTDGrid()
+    grid.nx, grid.ny, grid.nz = 2, 2, 2
+    grid.materials = [Material(0, "other"), Material(1, "free_space")]
+
+    grid.initialise_geometry_arrays()
+
+    assert_array_equal(grid.solid, np.full((2, 2, 2), 1, dtype=np.uint32))
+    assert_array_equal(grid.ID, np.full((6, 3, 3, 3), 1, dtype=np.uint32))

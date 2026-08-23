@@ -39,7 +39,13 @@ from gprMax.config import ModelConfig
 from ._version import __version__, codename
 from .model import Model
 from .solvers import create_solver
-from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info, print_metal_info
+from .utilities.host_info import (
+    print_cuda_info,
+    print_host_info,
+    print_metal_info,
+    print_opencl_info,
+    set_omp_threads,
+)
 from .utilities.utilities import get_terminal_width, logo, timer
 
 logger = logging.getLogger(__name__)
@@ -57,6 +63,10 @@ class Context:
         self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
         self.sim_start_time = 0
         self.sim_end_time = 0
+        # Persists across _run_model() calls so geometry_fixed can reuse it
+        # on model_num > 0 runs, where model_config.reuse_geometry() is True
+        # and no new Model is created.
+        self.model: Optional[Model] = None
 
     def _start_simulation(self) -> None:
         """Run pre-simulation steps
@@ -93,9 +103,15 @@ class Context:
         for i in self.model_range:
             self._run_model(i)
 
+        results = {}
+        if config.sim_config.study is not None:
+            study_result = config.sim_config.study.finalise()
+            if study_result is not None:
+                results["study"] = study_result
+
         self._end_simulation()
 
-        return {}
+        return results
 
     def _run_model(self, model_num: int) -> None:
         """Process for running a single model.
@@ -110,20 +126,34 @@ class Context:
 
         if not model_config.reuse_geometry():
             scene = self._get_scene(model_num)
-            model = self._create_model()
-            scene.create_internal_objects(model)
+            self.model = self._create_model()
+            if config.sim_config.study is not None:
+                config.sim_config.study.bind_scene(scene)
+            scene.create_internal_objects(self.model)
+        else:
+            # model_config is freshly created every call (unlike self.model,
+            # which is reused as-is), so fields normally set once in
+            # Model.__init__()/create_internal_objects() - which don't run on
+            # this path - need to be resolved again here. This includes not
+            # just ompthreads, but everything build_geometry() would
+            # otherwise have derived (mode, dispersive-material settings) -
+            # see ModelConfig.restore_geometry_derived_config()'s docstring.
+            reference_config = config.sim_config.get_model_config(config.sim_config.model_start)
+            model_config.restore_geometry_derived_config(reference_config)
+            model_config.ompthreads = set_omp_threads(model_config.ompthreads)
 
-        model.build()
+        self.model.build()
 
         if not config.sim_config.geometry_only:
-            solver = create_solver(model)
-            model.solve(solver)
+            solver = create_solver(self.model)
+            self.model.solve(solver)
             del solver
 
         if not config.sim_config.geometry_fixed:
             # Manual garbage collection required to stop memory leak on GPUs
             # when using pycuda
-            del model.G, model
+            del self.model.G
+            self.model = None
 
         gc.collect()
 
@@ -191,6 +221,12 @@ class MPIContext(Context):
     def run(self) -> Dict:
         try:
             result = super().run()
+            # A geometry-fixed series retains the same MPIGrid (and its
+            # committed halo datatypes) across every model run. Release them
+            # only after the complete series has finished. Ordinary grids are
+            # retired in _run_model() and self.model is already None here.
+            if self.model is not None:
+                self.model.G.free_halo_maps()
             logger.debug("Waiting for all ranks to finish.")
             self.comm.Barrier()
             logger.debug("Completed.")
@@ -211,21 +247,36 @@ class MPIContext(Context):
         config.sim_config.set_model_config(model_config)
 
         if not model_config.reuse_geometry():
-            model = self._create_model()
+            self.model = self._create_model()
             scene = self._get_scene(model_num)
-            scene.create_internal_objects(model)
+            if config.sim_config.study is not None:
+                config.sim_config.study.bind_scene(scene)
+            scene.create_internal_objects(self.model)
+        else:
+            # model_config is freshly created every call (unlike self.model,
+            # which is reused as-is), so fields normally set once in
+            # Model.__init__()/create_internal_objects() - which don't run on
+            # this path - need to be resolved again here. This includes not
+            # just ompthreads, but everything build_geometry() would
+            # otherwise have derived (mode, dispersive-material settings) -
+            # see ModelConfig.restore_geometry_derived_config()'s docstring.
+            reference_config = config.sim_config.get_model_config(config.sim_config.model_start)
+            model_config.restore_geometry_derived_config(reference_config)
+            model_config.ompthreads = set_omp_threads(model_config.ompthreads)
 
-        model.build()
+        self.model.build()
 
         if not config.sim_config.geometry_only:
-            solver = create_solver(model)
-            model.solve(solver)
+            solver = create_solver(self.model)
+            self.model.solve(solver)
             del solver
 
         if not config.sim_config.geometry_fixed:
             # Manual garbage collection required to stop memory leak on GPUs
             # when using pycuda
-            del model.G, model
+            self.model.G.free_halo_maps()
+            del self.model.G
+            self.model = None
 
         gc.collect()
 
@@ -252,8 +303,18 @@ class TaskfarmContext(Context):
         Set device in model config according to MPI rank.
         """
         model_config = super()._create_model_config(model_num)
-        # Set GPU deviceID according to worker rank
-        if config.sim_config.general["solver"] == "cuda":
+        # Set GPU deviceID according to worker rank. OpenCL's
+        # detect_opencl() enumerates every visible device (across all
+        # platforms) into devices["devs"], exactly like CUDA's
+        # detect_cuda_gpus() - so the same per-rank indexing applies.
+        # Metal is deliberately NOT handled here: detect_metal() only
+        # ever calls MTLCreateSystemDefaultDevice() (gprMax/utilities/
+        # host_info.py), so devices["devs"] always has exactly one entry
+        # (key 0) - there is no multi-GPU enumeration to index into yet.
+        # Adding self.rank - 1 indexing here would raise KeyError for
+        # every worker rank beyond the first, rather than genuinely
+        # fixing device assignment.
+        if config.sim_config.general["solver"] in ("cuda", "opencl"):
             model_config.device = {
                 "dev": config.sim_config.devices["devs"][self.rank - 1],
                 "deviceID": self.rank - 1,

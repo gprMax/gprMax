@@ -242,13 +242,54 @@ class MPIModel(Model):
         if self.G.snapshots:
             save_snapshots(self.G.snapshots)
 
-        # TODO: Output sources and receivers using parallel I/O
-        self.G.gather_grid_objects()
+        self.G.reduce_eigenmode_ports()
+        sar_payloads = self.G.gather_sar_payloads()
 
-        # Write output data to file if they are any receivers in any grids
-        if self.is_coordinator() and (self.G.rxs or self.G.transmissionlines):
-            self.G.size = self.G.global_size
-            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
+        # TODO: Output sources and receivers using parallel I/O
+        with self.G.gathered_output_state():
+            # Write output data to file if they are any receivers in any grids
+            if self.is_coordinator() and (
+                self.G.rxs
+                or self.G.transmissionlines
+                or self.G.magneticfrillsources
+                or self.G.networkterminals
+                or self.G.port_monitors
+                or self.G.eigenmodeports
+                or self.G.ntff_output_writers
+                or self.G.sar_monitors
+            ):
+                self.G.size = self.G.global_size
+                from gprMax.eigenmode_ports import finalise_eigenmode_ports
+
+                finalise_eigenmode_ports(self.G)
+                for port in self.G.port_monitors:
+                    rebind = getattr(port, "rebind_after_mpi_gather", None)
+                    if rebind is not None:
+                        rebind(self.G)
+                    local_owner = self.G.mpi_port_output_owners.get(port.output_id)
+                    if local_owner is not None:
+                        port.owner = local_owner
+                        local_owner._monitor = port
+                    port.finalise(self.G)
+                # Transmission-line objects and their complete histories have
+                # now been gathered onto the coordinator. Derived terminal
+                # quantities must be calculated here, before the HDF5 file is
+                # opened.
+                from gprMax.ports import (
+                    finalise_magnetic_frill_ports,
+                    finalise_transmission_line_ports,
+                    prepare_magnetic_frill_ports,
+                )
+
+                finalise_transmission_line_ports(self.G)
+                prepare_magnetic_frill_ports(self.G)
+                finalise_magnetic_frill_ports(self.G)
+                if sar_payloads is not None:
+                    for monitor, payloads in zip(self.G.sar_monitors, sar_payloads):
+                        monitor.finalise_mpi(payloads, self.G.global_size)
+                write_hdf5_outputfile(
+                    config.get_model_config().output_file_path_ext, self.title, self
+                )
 
     def _create_grid(self) -> MPIGrid:
         cart_comm = MPI.COMM_WORLD.Create_cart(config.sim_config.mpi)

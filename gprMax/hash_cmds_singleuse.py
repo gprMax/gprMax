@@ -20,11 +20,13 @@
 import logging
 
 from .user_objects.cmds_singleuse import (
+    DispersiveAveraging,
     Discretisation,
     Domain,
+    DomainMode,
+    MagneticAveraging,
     OMPThreads,
     OutputDir,
-    PMLFormulation,
     PMLThickness,
     RxSteps,
     SrcSteps,
@@ -62,11 +64,18 @@ def process_singlecmds(singlecmds):
 
     # Number of threads for CPU-based (OpenMP) parallelised parts of code
     cmd = "#omp_threads"
-    if singlecmds[cmd] is not None:
-        tmp = tuple(int(x) for x in singlecmds[cmd].split())
+    legacy_cmd = "#num_threads"
+    if singlecmds[cmd] is not None and singlecmds[legacy_cmd] is not None:
+        message = f"{cmd} and its legacy alias {legacy_cmd} cannot both be specified"
+        logger.error(message)
+        raise ValueError(message)
+
+    selected_cmd = cmd if singlecmds[cmd] is not None else legacy_cmd
+    if singlecmds[selected_cmd] is not None:
+        tmp = tuple(int(x) for x in singlecmds[selected_cmd].split())
         if len(tmp) != 1:
             logger.exception(
-                f"{cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
+                f"{selected_cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
             )
             raise ValueError
 
@@ -84,6 +93,36 @@ def process_singlecmds(singlecmds):
         discretisation = Discretisation(p1=dl)
         scene_objects.append(discretisation)
 
+    cmd = "#domain_mode"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires exactly one parameter, either 'TM', 'TE' or '3D'")
+            raise ValueError
+
+        domain_mode = DomainMode(mode=tmp[0])
+        scene_objects.append(domain_mode)
+
+    cmd = "#magnetic_averaging"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires exactly one parameter, either 'harmonic' or 'arithmetic'")
+            raise ValueError
+
+        magnetic_averaging = MagneticAveraging(mode=tmp[0])
+        scene_objects.append(magnetic_averaging)
+
+    cmd = "#dispersive_averaging"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1 or tmp[0].lower() not in ("y", "n"):
+            logger.exception(f"{cmd} requires exactly one parameter, either 'y' or 'n'")
+            raise ValueError
+
+        dispersive_averaging = DispersiveAveraging(enabled=tmp[0].lower() == "y")
+        scene_objects.append(dispersive_averaging)
+
     cmd = "#domain"
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
@@ -97,7 +136,13 @@ def process_singlecmds(singlecmds):
 
     cmd = "#time_step_stability_factor"
     if singlecmds[cmd] is not None:
-        tmp = tuple(float(x) for x in singlecmds[cmd].split())
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            message = f"{cmd} requires exactly one parameter"
+            logger.error(message)
+            raise ValueError(message)
+
+        tmp = tuple(float(x) for x in tmp)
         tsf = TimeStepStabilityFactor(f=tmp[0])
         scene_objects.append(tsf)
 
@@ -123,17 +168,6 @@ def process_singlecmds(singlecmds):
 
         scene_objects.append(tw)
 
-    cmd = "#pml_formulation"
-    if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            logger.exception(f"{cmd} requires one parameter")
-            raise ValueError
-        else:
-            pml_formulation = PMLFormulation(formulation=tmp[0])
-            scene_objects.append(pml_formulation)
-
-
     cmd = "#pml_cells"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
@@ -145,12 +179,14 @@ def process_singlecmds(singlecmds):
             pml_thickness = PMLThickness(thickness=int(tmp[0]))
         else:
             pml_thickness = PMLThickness(
-                x0=int(tmp[0]),
-                y0=int(tmp[1]),
-                z0=int(tmp[2]),
-                xmax=int(tmp[3]),
-                ymax=int(tmp[4]),
-                zmax=int(tmp[5]),
+                thickness=(
+                    int(tmp[0]),
+                    int(tmp[1]),
+                    int(tmp[2]),
+                    int(tmp[3]),
+                    int(tmp[4]),
+                    int(tmp[5]),
+                )
             )
 
         scene_objects.append(pml_thickness)

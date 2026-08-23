@@ -11,11 +11,18 @@ from . import perimeter
 
 
 def mesh_to_plane(mesh, bounding_box, parallel):
-    if parallel:
-        pool = mp.Pool(mp.cpu_count())
-        result_ids = []
-
     vol = np.zeros(bounding_box[::-1], dtype=bool)
+    pool = None
+    result_ids = []
+    if parallel:
+        # Do not create more worker processes than there are z planes. Apart
+        # from wasting resources, doing so is particularly expensive for small
+        # meshes and in constrained HPC jobs.
+        # gprMax imports MPI, and forking a multi-threaded MPI process can
+        # deadlock. A spawn context keeps this standalone converter safe when
+        # it is imported from a gprMax Python session.
+        context = mp.get_context("spawn")
+        pool = context.Pool(min(mp.cpu_count(), bounding_box[2]))
 
     current_mesh_indices = set()
     z = 0
@@ -30,7 +37,12 @@ def mesh_to_plane(mesh, bounding_box, parallel):
                 mesh_subset = [mesh[ind] for ind in current_mesh_indices]
 
                 if parallel:
-                    pass
+                    result_ids.append(
+                        pool.apply_async(
+                            paint_z_plane,
+                            (mesh_subset, z, bounding_box[1::-1]),
+                        )
+                    )
                 else:
                     pbar.update(1)
                     _, pixels = paint_z_plane(mesh_subset, z, bounding_box[1::-1])
@@ -44,14 +56,15 @@ def mesh_to_plane(mesh, bounding_box, parallel):
                 assert tri_ind in current_mesh_indices
                 current_mesh_indices.remove(tri_ind)
 
-    if parallel:
-        results = [r.get() for r in result_ids]
-
-        for z, pixels in results:
-            vol[z] = pixels
-
-        pool.close()
-        pool.join()
+        if parallel:
+            pool.close()
+            try:
+                for result in result_ids:
+                    z, pixels = result.get()
+                    vol[z] = pixels
+                    pbar.update(1)
+            finally:
+                pool.join()
 
     return vol
 
@@ -116,6 +129,14 @@ def where_line_crosses_z(p1, p2, z):
 
 
 def calculate_scale_shift(meshes, discretization):
+    discretization = np.asarray(discretization, dtype=float)
+    if (
+        discretization.shape != (3,)
+        or not np.isfinite(discretization).all()
+        or np.any(discretization <= 0)
+    ):
+        raise ValueError("discretization must contain three positive finite values")
+
     mesh_min = meshes[0].min(axis=(0, 1))
     mesh_max = meshes[0].max(axis=(0, 1))
 
@@ -124,21 +145,15 @@ def calculate_scale_shift(meshes, discretization):
         mesh_max = np.maximum(mesh_max, mesh.max(axis=(0, 1)))
     amplitude = mesh_max - mesh_min
     # Standard Unit of STL is mm
-    vx = discretization[0] * 1000
-    vy = discretization[1] * 1000
-    vz = discretization[2] * 1000
+    voxel_size_mm = discretization * 1000
+    scale = 1 / voxel_size_mm
+    bounding_box = np.floor(amplitude * scale).astype(int) + 1
 
-    bx = int(amplitude[0] / vx)
-    by = int(amplitude[1] / vy)
-    bz = int(amplitude[2] / vz)
-    bounding_box = [bx + 1, by + 1, bz + 1]
-
-    return max(1 / vx, 1 / vy, 1 / vz), mesh_min, bounding_box
+    return scale, mesh_min, bounding_box.tolist()
 
 
 def scale_and_shift_mesh(mesh, scale, shift):
-    for i, dim_shift in enumerate(shift):
-        mesh[..., i] = (mesh[..., i] - dim_shift) * scale
+    mesh[...] = (mesh - shift) * scale
 
 
 def generate_tri_events(mesh):

@@ -1,0 +1,38 @@
+{
+  "dipole": {
+    "frequency_points": 5,
+    "frequency_range_hz": [
+      666567104.0,
+      1333134208.0
+    ],
+    "frequency_resolution_hz": 166641774.384454,
+    "mesh_frequency_limit_hz": 14831117920.216408,
+    "tail_relative_level_db": -50.09971210210533,
+    "gap_capacitance_f": 1.7708375637599998e-14,
+    "discretisation_m": [
+      0.002,
+      0.002,
+      0.002
+    ],
+    "model_characteristic_length_m": 0.15,
+    "matlab_characteristic_length_m": 0.151,
+    "matlab_minimum": {
+      "frequency_hz": 999850624.0,
+      "magnitude_db": -9.974881511460383
+    },
+    "gprmax_corrected_minimum": {
+      "frequency_hz": 999850624.0,
+      "magnitude_db": -8.999648087289279
+    },
+    "gprmax_source_plane_minimum": {
+      "frequency_hz": 999850624.0,
+      "magnitude_db": -9.070845466117959
+    },
+    "corrected_s11_rms_complex": 0.0651726204970584,
+    "source_plane_s11_rms_complex": 0.06909478877331415,
+    "corrected_s11_rms_magnitude_db": 0.6956795673688966,
+    "source_plane_s11_rms_magnitude_db": 0.6677731904877502,
+    "corrected_s11_rms_phase_deg": 3.8873682990794283,
+    "corrected_zin_rms_ohm": 29.13751128942305
+  }
+}

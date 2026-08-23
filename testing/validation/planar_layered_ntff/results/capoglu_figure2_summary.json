@@ -1,0 +1,9 @@
+{
+  "maximum_component_rms_normalised_to_paper_E0": 0.0008324819569431152,
+  "maximum_real_or_imag_curve_rms_relative_to_curve_peak": 0.004769430713519783,
+  "maximum_vector_error_normalised_to_peak": 0.0037807318989800122,
+  "rms_vector_error_normalised_to_peak": 0.002707110275299654,
+  "paper_reported_maximum_rms": 0.01,
+  "published_field_dft_scale": 0.15915494309189535,
+  "passed": true
+}
