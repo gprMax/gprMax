@@ -864,6 +864,7 @@ def test_hdf5_metadata_distinguishes_power_and_reference_anchor_banks():
     monitor.anchor_mode_reference_valid = np.asarray([[True], [True], [True]])
     monitor.anchor_mode_propagating = np.asarray([[False], [True], [True]])
     monitor.anchor_balanced_power = np.asarray([[1.0], [2.0], [3.0]])
+    monitor.anchor_neff = np.asarray([[-0.5j], [0.4 - 0.01j], [0.7 - 0.02j]])
     monitor.mode_anchor_policies = ("explicit_nonpropagating_trimmed",)
     monitor.result = EigenmodePortResult(
         frequency=np.asarray([1e9]),
@@ -895,6 +896,7 @@ def test_hdf5_metadata_distinguishes_power_and_reference_anchor_banks():
     )
     np.testing.assert_array_equal(group["anchor_mode_reference_valid"], [[1], [1], [1]])
     np.testing.assert_allclose(group["anchor_balanced_power"], [[1.0], [2.0], [3.0]])
+    np.testing.assert_allclose(group["anchor_complex_neff"], monitor.anchor_neff)
     np.testing.assert_array_equal(group["generalized_valid"], [[1]])
     np.testing.assert_array_equal(group["coefficient_valid"], group["generalized_valid"])
     np.testing.assert_array_equal(group["valid"], [[0]])

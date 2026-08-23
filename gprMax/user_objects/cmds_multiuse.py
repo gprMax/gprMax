@@ -38,6 +38,13 @@ from gprMax.eigenmode_config import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.impedance_surfaces import SurfaceImpedanceModel
+from gprMax.surface_impedance_presets import (
+    DEFAULT_METAL_FMAX_HZ,
+    DEFAULT_METAL_FMIN_HZ,
+    DEFAULT_METAL_FIT_ORDER,
+    fit_metal_surface_impedance,
+)
 from gprMax.material_database import build_material_from_spec, load_material_spec
 from gprMax.materials import CrimMixture as CrimMixtureUser
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
@@ -457,6 +464,121 @@ class RationalNetwork(GridUserObject):
         logger.info(
             self.grid_name(grid) + f"Rational network {self.ID!r}: G={model.conductance:g} S, "
             f"C={model.capacitance:g} F, {len(model.poles)} pole(s)."
+        )
+
+
+class SurfaceImpedance(GridUserObject):
+    """Define a reusable scalar surface impedance in real state-space form.
+
+    A constant resistance uses only ``resistance``. A dispersive model uses
+    real ``A``, ``B``, ``C``, and ``D`` coefficients for
+    ``Z(s) = D + C(sI-A)^-1B``. Common bulk-metal models use ``preset`` and
+    are fitted as passive Foster realizations over the requested band.
+    """
+
+    @property
+    def order(self):
+        return 2
+
+    @property
+    def hash(self):
+        return "#surface_impedance"
+
+    def __init__(
+        self,
+        id: str,
+        resistance: Optional[float] = None,
+        *,
+        A=(),
+        B=(),
+        C=(),
+        D: Optional[float] = None,
+        fit_fmin_hz: float = 0.0,
+        fit_fmax_hz: float = np.inf,
+        allow_active: bool = False,
+        preset: Optional[str] = None,
+        fit_order: int = DEFAULT_METAL_FIT_ORDER,
+    ):
+        state_space_supplied = D is not None or any(
+            np.asarray(value).size for value in (A, B, C)
+        )
+        fitted = None
+        if preset is not None:
+            if resistance is not None or state_space_supplied:
+                raise ValueError(
+                    "SurfaceImpedance preset cannot be combined with resistance or A/B/C/D"
+                )
+            preset_fmin = (
+                DEFAULT_METAL_FMIN_HZ if fit_fmin_hz == 0 else float(fit_fmin_hz)
+            )
+            preset_fmax = (
+                DEFAULT_METAL_FMAX_HZ if np.isinf(fit_fmax_hz) else float(fit_fmax_hz)
+            )
+            fitted = fit_metal_surface_impedance(
+                preset, preset_fmin, preset_fmax, fit_order
+            )
+            A, B, C, D = fitted.A, fitted.B, fitted.C, fitted.D
+            fit_fmin_hz, fit_fmax_hz = fitted.fmin_hz, fitted.fmax_hz
+            preset = fitted.preset.key
+        elif resistance is not None and state_space_supplied:
+            raise ValueError("SurfaceImpedance accepts either resistance or A/B/C/D")
+        if resistance is None and D is None:
+            raise ValueError("SurfaceImpedance requires resistance, preset, or D")
+        direct = float(resistance if resistance is not None else D)
+        super().__init__(
+            id=id,
+            resistance=resistance,
+            A=A,
+            B=B,
+            C=C,
+            D=direct,
+            fit_fmin_hz=fit_fmin_hz,
+            fit_fmax_hz=fit_fmax_hz,
+            allow_active=allow_active,
+            preset=preset,
+            fit_order=fit_order,
+        )
+        self.ID = id
+        self.A = A
+        self.B = B
+        self.C = C
+        self.D = direct
+        self.fit_fmin_hz = fit_fmin_hz
+        self.fit_fmax_hz = fit_fmax_hz
+        self.allow_active = allow_active
+        self.preset = preset
+        self.fit_order = int(fit_order)
+        self.provenance = fitted.preset.source if fitted is not None else None
+        self.fit_max_relative_error = (
+            fitted.max_relative_error if fitted is not None else None
+        )
+
+    def build(self, grid: FDTDGrid):
+        if self.ID in grid.surface_impedance_models:
+            raise ValueError(f"{self.params_str()} surface-impedance model ID is already in use")
+        model = SurfaceImpedanceModel(
+            ID=self.ID,
+            A=self.A,
+            B=self.B,
+            C=self.C,
+            D=self.D,
+            fit_fmin_hz=self.fit_fmin_hz,
+            fit_fmax_hz=self.fit_fmax_hz,
+            allow_active=self.allow_active,
+            preset=self.preset,
+            provenance=self.provenance,
+            fit_max_relative_error=self.fit_max_relative_error,
+        )
+        grid.surface_impedance_models[self.ID] = model
+        description = f"D={model.D:g} Ohm, order {model.order}"
+        if model.preset is not None:
+            description += (
+                f", {model.preset} preset over {model.fit_fmin_hz:g}--"
+                f"{model.fit_fmax_hz:g} Hz, maximum fit error "
+                f"{100 * model.fit_max_relative_error:.3g}%"
+            )
+        logger.info(
+            self.grid_name(grid) + f"Surface impedance {self.ID!r}: {description}."
         )
 
 

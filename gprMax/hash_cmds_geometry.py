@@ -31,6 +31,8 @@ from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
 from .user_objects.cmds_geometry.edge import Edge
 from .user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from .user_objects.cmds_geometry.fractal_box import FractalBox
+from .user_objects.cmds_geometry.impedance_box import ImpedanceBox
+from .user_objects.cmds_geometry.impedance_volume import ImpedanceVolume
 from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
 from .user_objects.cmds_geometry.sphere import Sphere
@@ -287,6 +289,31 @@ def process_geometrycmds(geometry):
                 raise ValueError
 
             scene_objects.append(box)
+
+        elif tmp[0] == "#impedance_box:":
+            if len(tmp) != 8:
+                raise ValueError(
+                    f"'{' '.join(tmp)}' requires six coordinates and a surface-impedance ID"
+                )
+            scene_objects.append(
+                ImpedanceBox(
+                    p1=tuple(float(value) for value in tmp[1:4]),
+                    p2=tuple(float(value) for value in tmp[4:7]),
+                    surface_impedance_id=tmp[7],
+                )
+            )
+
+        elif tmp[0] == "#impedance_volume:":
+            if len(tmp) != 3:
+                raise ValueError(
+                    f"'{' '.join(tmp)}' requires a geometry tag and a surface-impedance ID"
+                )
+            scene_objects.append(
+                ImpedanceVolume(
+                    geometry_tag=tmp[1],
+                    surface_impedance_id=tmp[2],
+                )
+            )
 
         elif tmp[0] == "#cylinder:":
             if len(tmp) < 9:

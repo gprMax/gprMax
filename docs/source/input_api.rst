@@ -599,6 +599,22 @@ Material
 --------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.Material
 
+Surface impedance
+-----------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.SurfaceImpedance
+
+Common-metal surface impedances use ``preset='copper'``, ``'silver'``, or
+``'gold'``. The optional ``fit_fmin_hz``, ``fit_fmax_hz``, and ``fit_order``
+parameters control their passive Foster fit. The defaults cover 1 MHz to
+100 GHz with 16 candidate poles. These are 293 K thick-bulk good-conductor
+models, not optical or thin-film material data.
+Output HDF5 files preserve each model's continuous ``A, B, C, D`` data,
+fit/provenance/hash metadata, and the exact ``F, G, L, Z0`` coefficients used
+at the run's FDTD time step under ``surface_impedance_models``.
+The complete geometry semantics, ADE derivation, sparse FDTD update, FDFD
+reduction, modal workflow, and validation procedure are described in
+:doc:`impedance_surfaces`.
+
 Material from database
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialFromDatabase
@@ -776,6 +792,62 @@ not part of the FDTD field update and are not transferred to accelerators.
 Tags are flat rather than hierarchical. Larger groups such as ``head`` can be
 formed later by selecting several leaf tags such as ``brain``, ``eyes``, and
 ``cranial_bone``.
+
+Closed impedance volumes
+------------------------
+
+``ImpedanceBox`` directly creates an axis-aligned closed impedance volume.
+For any other volumetric voxelizer, assign a geometry ``tag`` and place an
+``ImpedanceVolume`` after the tagged geometry. The operator converts the
+currently surviving tagged cells, so normal ordered overwrite semantics also
+support unions and cavities.
+
+.. code-block:: python
+
+    scene.add(gprMax.SurfaceImpedance(id='metal', preset='copper'))
+    scene.add(gprMax.Sphere(
+        p1=(0.15, 0.10, 0.08), r=0.025,
+        material_id='free_space', tag='metal_body',
+    ))
+    scene.add(gprMax.ImpedanceVolume(
+        geometry_tag='metal_body', surface_impedance_id='metal',
+    ))
+
+.. autoclass:: gprMax.user_objects.cmds_geometry.impedance_box.ImpedanceBox
+
+.. autoclass:: gprMax.user_objects.cmds_geometry.impedance_volume.ImpedanceVolume
+
+The supported inputs are closed cell-occupying volumes, including boxes,
+spheres, ellipsoids, cylinders, cones, finite-thickness sectors and triangular
+prisms, fractal boxes, and tagged imported voxel geometry. Plates, wires, and
+zero-thickness patches require a future two-sided sheet transition condition
+and are deliberately rejected by this one-sided opaque-volume API. A voxel
+shape that contains a diagonally touching, non-manifold Yee edge is also
+rejected; increase its resolution, thickness, or radius so the rasterized
+volume has an unambiguous closed boundary.
+
+This first version is restricted to three-dimensional CPU models without MPI
+domain decomposition or subgrids. An impedance volume cannot coexist with a
+thin wire or any symmetry boundary, and its boundary cannot intersect a PML.
+An axial discrete plane wave is unsupported; a homogeneous vector/angle plane
+wave may be used only when the complete impedance boundary lies strictly
+inside its TFSF box. The retained dielectric immediately outside the boundary
+must be non-dispersive.
+
+Direct three-dimensional ``EigenmodePort`` planes may cross a
+propagation-invariant impedance volume. The FDFD solve uses the same
+time-discrete ADE transfer as FDTD, retains the independent boundary E/H
+degrees of freedom, and inserts the clipped integral Ampere rows. The modal
+window must contain the complete guide aperture and its impedance boundary.
+``VirtualWaveguide`` termination is not yet supported for impedance volumes.
+Every eigenmode anchor and its trapezoidal bilinear-warped evaluation
+frequency must lie inside each intersected dispersive surface model's declared
+fit band; gprMax rejects extrapolation. The surface ADE reduction is exact for
+the FDTD time step; the surrounding legacy P/Q eigensolver retains its
+physical-frequency normalization, so this is not a fully time-discrete bulk
+Yee eigenproblem near temporal Nyquist.
+See :doc:`impedance_surfaces` for the discrete equations and implementation
+limits.
 
 Box
 ---

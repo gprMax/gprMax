@@ -8,6 +8,11 @@ from scipy.sparse import bmat, coo_matrix, diags
 from scipy.sparse.linalg import eigs
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
+    BoundaryAmpereRow,
+    BoundaryMagneticTerm,
+    FDFDSurfaceBoundary,
+)
 
 
 class FDFD_2D_mode_solver:
@@ -37,6 +42,11 @@ class FDFD_2D_mode_solver:
     and PMC respectively, then replaced by finite placeholders after the masks
     have been built.
 
+    ``surface_boundary`` supplies impedance-volume topology independently of
+    PEC/PMC masks. Its retained-component masks remove interior volume DOFs,
+    while each integral Ampere row replaces the corresponding standard curl
+    row and electric material coefficient.
+
     After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
     before normalization. ``forward_power_metrics`` is its real part divided
     by a positive, E/H-balanced transverse field norm; ``power_valid`` applies
@@ -64,6 +74,7 @@ class FDFD_2D_mode_solver:
         pmc_v_mask=None,
         pmc_w_mask=None,
         guess=None,
+        surface_boundary=None,
     ):
         self.epsilon0 = config.sim_config.em_consts["e0"]
         self.mu0 = config.sim_config.em_consts["m0"]
@@ -126,6 +137,9 @@ class FDFD_2D_mode_solver:
         self.eu_constraint_mask = self.pec_u_mask | self.pmc_v_mask
         self.ev_constraint_mask = self.pec_v_mask | self.pmc_u_mask
 
+        self.surface_boundary = surface_boundary
+        self._prepare_surface_boundary()
+
         self.eps_r_uu[self.pec_u_mask] = 1.0 + 0j
         self.eps_r_vv[self.pec_v_mask] = 1.0 + 0j
         self.eps_r_ww[self.pec_w_mask] = 1.0 + 0j
@@ -133,12 +147,18 @@ class FDFD_2D_mode_solver:
         self.mu_r_vv[self.pmc_v_mask] = 1.0 + 0j
         self.mu_r_ww[self.pmc_w_mask] = 1.0 + 0j
 
-        self.free_eu_mask = ~self.pec_u_mask.ravel(order="F")
-        self.free_ev_mask = ~self.pec_v_mask.ravel(order="F")
-        self.free_ew_mask = ~self.pec_w_mask.ravel(order="F")
-        self.free_hu_mask = ~self.pmc_u_mask.ravel(order="F")
-        self.free_hv_mask = ~self.pmc_v_mask.ravel(order="F")
-        self.free_hw_mask = ~self.pmc_w_mask.ravel(order="F")
+        self.free_eu_mask = self.surface_electric_retained[0].ravel(order="F").copy()
+        self.free_ev_mask = self.surface_electric_retained[1].ravel(order="F").copy()
+        self.free_ew_mask = self.surface_electric_retained[2].ravel(order="F").copy()
+        self.free_hu_mask = self.surface_magnetic_retained[0].ravel(order="F").copy()
+        self.free_hv_mask = self.surface_magnetic_retained[1].ravel(order="F").copy()
+        self.free_hw_mask = self.surface_magnetic_retained[2].ravel(order="F").copy()
+        self.free_eu_mask &= ~self.pec_u_mask.ravel(order="F")
+        self.free_ev_mask &= ~self.pec_v_mask.ravel(order="F")
+        self.free_ew_mask &= ~self.pec_w_mask.ravel(order="F")
+        self.free_hu_mask &= ~self.pmc_u_mask.ravel(order="F")
+        self.free_hv_mask &= ~self.pmc_v_mask.ravel(order="F")
+        self.free_hw_mask &= ~self.pmc_w_mask.ravel(order="F")
         self.free_eu_mask &= ~self.pmc_v_mask.ravel(order="F")
         self.free_ev_mask &= ~self.pmc_u_mask.ravel(order="F")
         self.free_hu_mask &= ~self.pec_v_mask.ravel(order="F")
@@ -188,6 +208,160 @@ class FDFD_2D_mode_solver:
                 )
             mask |= explicit_mask
         return mask
+
+    def _prepare_surface_boundary(self):
+        """Validate and install impedance-volume topology and boundary rows."""
+        electric_shapes = (self.shape_eu, self.shape_ev, self.shape_ew)
+        magnetic_shapes = (self.shape_hu, self.shape_hv, self.shape_hw)
+        if self.surface_boundary is None:
+            self.surface_electric_retained = tuple(
+                np.ones(shape, dtype=bool) for shape in electric_shapes
+            )
+            self.surface_magnetic_retained = tuple(
+                np.ones(shape, dtype=bool) for shape in magnetic_shapes
+            )
+            self.surface_boundary_rows = ()
+            return
+        if not isinstance(self.surface_boundary, FDFDSurfaceBoundary):
+            raise TypeError("surface_boundary must be an FDFDSurfaceBoundary")
+
+        self.surface_electric_retained = self._validated_retained_masks(
+            self.surface_boundary.electric_retained,
+            electric_shapes,
+            "electric",
+        )
+        self.surface_magnetic_retained = self._validated_retained_masks(
+            self.surface_boundary.magnetic_retained,
+            magnetic_shapes,
+            "magnetic",
+        )
+
+        electric_constraints = (
+            self.eu_constraint_mask,
+            self.ev_constraint_mask,
+            self.pec_w_mask,
+        )
+        magnetic_constraints = (
+            self.hu_constraint_mask,
+            self.hv_constraint_mask,
+            self.pmc_w_mask,
+        )
+        allowed_magnetic_axes = ({2}, {2}, {0, 1})
+        rows = []
+        occupied = set()
+        for row in self.surface_boundary.rows:
+            if not isinstance(row, BoundaryAmpereRow):
+                raise TypeError("surface boundary rows must be BoundaryAmpereRow objects")
+            axis = self._validated_axis(row.electric_axis, "electric")
+            index = self._validated_component_index(
+                row.electric_index,
+                electric_shapes[axis],
+                f"surface electric axis {axis}",
+            )
+            key = (axis, index)
+            if key in occupied:
+                raise ValueError(f"duplicate surface Ampere row for electric component {key}")
+            occupied.add(key)
+            if not self.surface_electric_retained[axis][index]:
+                raise ValueError(f"surface Ampere row {key} is marked as excluded")
+            if electric_constraints[axis][index]:
+                raise ValueError(f"surface Ampere row {key} conflicts with a PEC/PMC constraint")
+
+            area = float(row.retained_dual_area)
+            relative_permittivity = complex(row.relative_permittivity)
+            if not np.isfinite(area) or area <= 0:
+                raise ValueError(f"surface Ampere row {key} has invalid retained dual area")
+            if not np.isfinite(relative_permittivity):
+                raise ValueError(f"surface Ampere row {key} has non-finite permittivity")
+            if not row.magnetic_terms:
+                raise ValueError(f"surface Ampere row {key} has no magnetic circulation terms")
+
+            term_weights = {}
+            for term in row.magnetic_terms:
+                if not isinstance(term, BoundaryMagneticTerm):
+                    raise TypeError(
+                        "surface boundary magnetic terms must be BoundaryMagneticTerm objects"
+                    )
+                magnetic_axis = self._validated_axis(term.axis, "magnetic")
+                if magnetic_axis not in allowed_magnetic_axes[axis]:
+                    raise ValueError(
+                        f"surface electric axis {axis} cannot use magnetic axis {magnetic_axis}"
+                    )
+                magnetic_index = self._validated_component_index(
+                    term.index,
+                    magnetic_shapes[magnetic_axis],
+                    f"surface magnetic axis {magnetic_axis}",
+                )
+                line_weight = float(term.line_weight)
+                if not np.isfinite(line_weight) or line_weight == 0:
+                    raise ValueError(f"surface Ampere row {key} has invalid line weight")
+                if not self.surface_magnetic_retained[magnetic_axis][magnetic_index]:
+                    raise ValueError(
+                        f"surface Ampere row {key} references an excluded magnetic component"
+                    )
+                if magnetic_constraints[magnetic_axis][magnetic_index]:
+                    raise ValueError(
+                        f"surface Ampere row {key} references a PEC/PMC-constrained magnetic component"
+                    )
+                term_key = (magnetic_axis, magnetic_index)
+                term_weights[term_key] = term_weights.get(term_key, 0.0) + line_weight
+
+            terms = tuple(
+                BoundaryMagneticTerm(axis, index, line_weight)
+                for (axis, index), line_weight in sorted(term_weights.items())
+                if line_weight != 0
+            )
+            if not terms:
+                raise ValueError(f"surface Ampere row {key} has zero net magnetic circulation")
+
+            canonical_row = BoundaryAmpereRow(
+                electric_axis=axis,
+                electric_index=index,
+                retained_dual_area=area,
+                relative_permittivity=relative_permittivity,
+                magnetic_terms=terms,
+            )
+            rows.append(canonical_row)
+            (self.eps_r_uu, self.eps_r_vv, self.eps_r_ww)[axis][index] = relative_permittivity
+        self.surface_boundary_rows = tuple(rows)
+
+    @staticmethod
+    def _validated_retained_masks(masks, expected_shapes, field_kind):
+        if len(masks) != 3:
+            raise ValueError(f"surface {field_kind} retained masks must contain three components")
+        validated = []
+        for axis, (mask, shape) in enumerate(zip(masks, expected_shapes)):
+            array = np.asarray(mask, dtype=bool)
+            if array.shape != shape:
+                raise ValueError(
+                    f"surface {field_kind} axis {axis} retained mask shape {array.shape} "
+                    f"does not match expected shape {shape}"
+                )
+            validated.append(array.copy())
+        return tuple(validated)
+
+    @staticmethod
+    def _validated_axis(axis, field_kind):
+        if isinstance(axis, (bool, np.bool_)) or not isinstance(axis, (int, np.integer)):
+            raise ValueError(f"surface {field_kind} axis must be an integer in [0, 2]")
+        axis = int(axis)
+        if axis < 0 or axis > 2:
+            raise ValueError(f"surface {field_kind} axis must be an integer in [0, 2]")
+        return axis
+
+    @staticmethod
+    def _validated_component_index(index, shape, label):
+        if len(index) != 2:
+            raise ValueError(f"{label} index must contain two entries")
+        if any(
+            isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer))
+            for value in index
+        ):
+            raise ValueError(f"{label} index entries must be integers")
+        index = (int(index[0]), int(index[1]))
+        if not (0 <= index[0] < shape[0] and 0 <= index[1] < shape[1]):
+            raise ValueError(f"{label} index {index} is outside shape {shape}")
+        return index
 
     @staticmethod
     def _flat_index(i, j, nu):
@@ -256,6 +430,68 @@ class FDFD_2D_mode_solver:
         self.DHV_HU_TO_EW = -self.DEV_EW_TO_EV.conj().T
         self.DHU_HW_TO_HU = -self.DEU_EV_TO_HW.conj().T
         self.DHV_HW_TO_HV = -self.DEV_EU_TO_HW.conj().T
+        self._apply_surface_ampere_rows()
+
+    def _apply_surface_ampere_rows(self):
+        """Replace standard rectangular curl rows by clipped integral rows."""
+        if not self.surface_boundary_rows:
+            return
+
+        replacements = {
+            "DHU_HV_TO_EW": {},
+            "DHV_HU_TO_EW": {},
+            "DHU_HW_TO_HU": {},
+            "DHV_HW_TO_HV": {},
+        }
+        for boundary_row in self.surface_boundary_rows:
+            electric_axis = boundary_row.electric_axis
+            electric_shape = (self.shape_eu, self.shape_ev, self.shape_ew)[electric_axis]
+            row_index = self._flat_index(*boundary_row.electric_index, electric_shape[0])
+            denominator = boundary_row.retained_dual_area * self.k0
+
+            # A longitudinal electric row contains both transverse magnetic
+            # derivatives; replacing only one would leave part of the old,
+            # unclipped rectangular circulation behind.
+            if electric_axis == 2:
+                replacements["DHU_HV_TO_EW"][row_index] = {}
+                replacements["DHV_HU_TO_EW"][row_index] = {}
+
+            for term in boundary_row.magnetic_terms:
+                coefficient = term.line_weight / denominator
+                if electric_axis == 0:
+                    matrix_name = "DHV_HW_TO_HV"
+                    column_shape = self.shape_hw
+                elif electric_axis == 1:
+                    matrix_name = "DHU_HW_TO_HU"
+                    column_shape = self.shape_hw
+                    coefficient *= -1
+                elif term.axis == 0:
+                    matrix_name = "DHV_HU_TO_EW"
+                    column_shape = self.shape_hu
+                    coefficient *= -1
+                else:
+                    matrix_name = "DHU_HV_TO_EW"
+                    column_shape = self.shape_hv
+                column = self._flat_index(*term.index, column_shape[0])
+                row_values = replacements[matrix_name].setdefault(row_index, {})
+                row_values[column] = row_values.get(column, 0.0) + coefficient
+
+        for matrix_name, rows in replacements.items():
+            if rows:
+                setattr(
+                    self,
+                    matrix_name,
+                    self._replace_sparse_rows(getattr(self, matrix_name), rows),
+                )
+
+    @staticmethod
+    def _replace_sparse_rows(matrix, replacements):
+        editable = matrix.tolil(copy=True)
+        for row, values in replacements.items():
+            nonzero = sorted((column, value) for column, value in values.items() if value != 0)
+            editable.rows[row] = [column for column, _ in nonzero]
+            editable.data[row] = [value for _, value in nonzero]
+        return editable.tocsr()
 
     @staticmethod
     def _diag(values):
@@ -382,12 +618,12 @@ class FDFD_2D_mode_solver:
         )
 
     def _zero_constrained_fields(self):
-        self.Eu[self.eu_constraint_mask, :] = 0.0
-        self.Ev[self.ev_constraint_mask, :] = 0.0
-        self.Ew[self.pec_w_mask, :] = 0.0
-        self.Hu[self.hu_constraint_mask, :] = 0.0
-        self.Hv[self.hv_constraint_mask, :] = 0.0
-        self.Hw[self.pmc_w_mask, :] = 0.0
+        self.Eu[self.eu_constraint_mask | ~self.surface_electric_retained[0], :] = 0.0
+        self.Ev[self.ev_constraint_mask | ~self.surface_electric_retained[1], :] = 0.0
+        self.Ew[self.pec_w_mask | ~self.surface_electric_retained[2], :] = 0.0
+        self.Hu[self.hu_constraint_mask | ~self.surface_magnetic_retained[0], :] = 0.0
+        self.Hv[self.hv_constraint_mask | ~self.surface_magnetic_retained[1], :] = 0.0
+        self.Hw[self.pmc_w_mask | ~self.surface_magnetic_retained[2], :] = 0.0
 
     def _set_modal_fields(self):
         self.modal_Eu = self.Eu[:, :, self.mode_index]

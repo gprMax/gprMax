@@ -1130,6 +1130,12 @@ class EigenmodePortMonitor:
         group["anchor_mode_reference_valid"] = self.anchor_mode_reference_valid.astype(np.uint8)
         group["anchor_mode_propagating"] = self.anchor_mode_propagating.astype(np.uint8)
         group["anchor_balanced_power"] = self.anchor_balanced_power
+        # Persist the propagation constants that define both broadband modal
+        # interpolation and forward/backward de-embedding.  This makes an
+        # FDTD launch reproducible and lets validation distinguish an FDFD-to-
+        # FDTD mismatch from the cross-section discretisation error relative
+        # to a continuum guide formula.
+        group["anchor_complex_neff"] = self.anchor_neff
         group["power_matrix_valid"] = self.power_matrix_valid.astype(np.uint8)
         if self.s_parameters is not None:
             group["S"] = self.s_parameters

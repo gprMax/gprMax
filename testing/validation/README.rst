@@ -11,6 +11,18 @@ The main validations are:
   reflection for dielectric, multipole Debye, Lorentz, and Drude materials;
 * ``validate_plane_wave_realistic_materials.py`` -- Fresnel reflection for
   fresh water and Puerto Rico clay over their dispersive bands;
+* ``validate_impedance_box_reflection.py`` -- specular normal-incidence
+  reflection from all six faces of a closed impedance box, compared with the
+  exact bilinear-ADE/Yee-staggered boundary impedance;
+* ``validate_impedance_modal_injection.py`` -- direct TE10 FDFD-to-FDTD
+  injection in a lossy impedance guide, checking source-plane reflection and
+  attenuation against conductor-loss perturbation theory;
+* ``validate_impedance_copper_waveguide_s21.py`` -- direct TE10 modal
+  injection into a copper rectangular guide at 130--150 GHz. The FDFD modal
+  attenuation is checked against copper conductor-loss perturbation theory,
+  the driven-port reflection must remain below -20 dB, and the raw
+  two-passive-plane propagation factor is retained as a diagnostic comparison
+  with analytical :math:`S_{21}`;
 * ``validate_hertzian_dipole.py`` -- Hertzian-dipole far-field pattern and
   directivity, plus one analytical near-field time-domain component;
 * ``planar_layered_ntff/validate_point_dipole.py`` -- the frequency-domain
@@ -116,6 +128,9 @@ Run modules from the repository root, for example::
     python -m testing.validation.planar_layered_ntff.validate_smith_dipole_height --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_gssi_energy_convergence --gpu 0
     python -m testing.validation.validate_fdfd_eigenmodes
+    python -m testing.validation.validate_impedance_box_reflection --threads 4
+    python -m testing.validation.validate_impedance_modal_injection --threads 4
+    python -m testing.validation.validate_impedance_copper_waveguide_s21 --threads 4
     python -m testing.validation.validate_rational_network_literature
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0

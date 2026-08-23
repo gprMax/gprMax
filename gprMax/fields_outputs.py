@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE_EXCITATION_SCHEMA_VERSION = 1
 RECEIVER_TIMING_SCHEMA_VERSION = 1
+SURFACE_IMPEDANCE_SCHEMA_VERSION = 1
 
 
 def _waveform_metadata(grid, waveform_id):
@@ -284,6 +285,63 @@ def _global_position(grid, coordx: int, coordy: int, coordz: int, is_subgrid: bo
     return (coordx * grid.dx, coordy * grid.dy, coordz * grid.dz)
 
 
+def _write_surface_impedance_metadata(basegrp, grid) -> None:
+    """Persist the shared continuous and time-discrete SIBC definitions."""
+
+    models = getattr(grid, "surface_impedance_models", {})
+    if not models:
+        return
+
+    parent = basegrp.create_group("surface_impedance_models")
+    parent.attrs["SchemaVersion"] = SURFACE_IMPEDANCE_SCHEMA_VERSION
+    parent.attrs["TimeConvention"] = "exp(+j*omega*t)"
+    parent.attrs["FourierAnalysisConvention"] = "exp(-j*omega*t)"
+    parent.attrs["SurfaceNormalConvention"] = "metal_to_retained_dielectric"
+    parent.attrs["SurfaceCurrentConvention"] = "K = n_m cross H"
+    parent.attrs["Units"] = "SI"
+    parent.attrs["FDTDTimeStep"] = float(grid.dt)
+
+    system = getattr(grid, "impedance_surfaces", None)
+    used_ids = set(getattr(system, "model_ids", ()))
+    for index, model in enumerate(models.values(), start=1):
+        group = parent.create_group(f"model{index}")
+        group.attrs["ID"] = model.ID
+        group.attrs["ModelHashSHA256"] = model.model_hash
+        group.attrs["Order"] = model.order
+        group.attrs["D"] = model.D
+        group.attrs["FitMinimumFrequencyHz"] = model.fit_fmin_hz
+        group.attrs["FitMaximumFrequencyHz"] = model.fit_fmax_hz
+        group.attrs["AllowActive"] = model.allow_active
+        group.attrs["UsedByCompiledBoundary"] = model.ID in used_ids
+        group.attrs["Preset"] = model.preset or ""
+        group.attrs["Provenance"] = model.provenance or ""
+        if model.fit_max_relative_error is not None:
+            group.attrs["FitMaximumRelativeError"] = model.fit_max_relative_error
+        group.create_dataset("A", data=model.A)
+        group.create_dataset("B", data=model.B)
+        group.create_dataset("C", data=model.C)
+
+        if model.preset is not None:
+            from gprMax.surface_impedance_presets import get_metal_surface_preset
+
+            preset = get_metal_surface_preset(model.preset)
+            group.attrs["ReferenceTemperatureK"] = preset.reference_temperature_k
+            group.attrs["ResistivityOhmMetre"] = preset.resistivity_ohm_m
+            group.attrs["ConductivitySiemensPerMetre"] = preset.conductivity_s_per_m
+
+        # Only compiled models need runtime coefficients. They have already
+        # passed discretisation/passivity checks during grid construction.
+        if model.ID in used_ids:
+            discrete = model.discretise(grid.dt)
+            runtime = group.create_group("fdtd_discrete")
+            runtime.attrs["TimeStep"] = float(grid.dt)
+            runtime.attrs["Z0"] = discrete.Z0
+            runtime.attrs["PassivityChecked"] = not model.allow_active
+            runtime.create_dataset("F", data=discrete.F)
+            runtime.create_dataset("G", data=discrete.G)
+            runtime.create_dataset("L", data=discrete.L)
+
+
 def write_hd5_data(basegrp, grid, is_subgrid=False):
     """Writes grid meta data and data to HDF5 group.
 
@@ -337,6 +395,8 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
             group.attrs["EntrySHA256"] = provenance["entry_sha256"]
             group.attrs["Official"] = provenance["official"]
             group.attrs["Source"] = provenance["source"]
+
+    _write_surface_impedance_metadata(basegrp, grid)
 
     if is_subgrid:
         # Write additional meta data about subgrid

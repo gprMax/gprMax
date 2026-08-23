@@ -22,6 +22,7 @@ import logging
 import numpy as np
 
 import gprMax.config as config
+from gprMax.surface_impedance_presets import DEFAULT_METAL_FIT_ORDER
 
 from .user_objects.cmds_multiuse import (
     PMLCFS,
@@ -51,6 +52,7 @@ from .user_objects.cmds_multiuse import (
     Rx,
     RxArray,
     SoilPeplinski,
+    SurfaceImpedance,
     SymmetryBoundary,
     TransmissionLine,
     VirtualWaveguide,
@@ -154,6 +156,39 @@ def process_multicmds(multicmds):
                     allow_active=allow_active,
                 )
             )
+
+    cmdname = "#surface_impedance"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) not in (2, 4, 5):
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires an ID and resistance, or an ID, "
+                    "metal preset, fmin, fmax, and optional fit order"
+                )
+            if len(tokens) == 2:
+                try:
+                    resistance = float(tokens[1])
+                except ValueError:
+                    scene_objects.append(SurfaceImpedance(id=tokens[0], preset=tokens[1]))
+                else:
+                    scene_objects.append(
+                        SurfaceImpedance(id=tokens[0], resistance=resistance)
+                    )
+            else:
+                scene_objects.append(
+                    SurfaceImpedance(
+                        id=tokens[0],
+                        preset=tokens[1],
+                        fit_fmin_hz=float(tokens[2]),
+                        fit_fmax_hz=float(tokens[3]),
+                        fit_order=(
+                            int(tokens[4])
+                            if len(tokens) == 5
+                            else DEFAULT_METAL_FIT_ORDER
+                        ),
+                    )
+                )
 
     cmdname = "#network_terminal"
     if multicmds[cmdname] is not None:
