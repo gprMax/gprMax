@@ -1,0 +1,3 @@
+case_id,object_id,port,mode
+drive_port_1,eigenmode_excitation_1,1,1
+drive_port_2,eigenmode_excitation_1,2,1

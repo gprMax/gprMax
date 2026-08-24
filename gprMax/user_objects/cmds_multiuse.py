@@ -398,7 +398,17 @@ class Waveform(GridUserObject):
 
 
 class RationalNetwork(GridUserObject):
-    """Define a reusable rational one-port admittance."""
+    """Define a reusable rational one-port admittance.
+
+    Args:
+        id: Unique network-model identifier.
+        conductance: Direct conductance :math:`G` in siemens.
+        capacitance: Direct capacitance :math:`C` in farads.
+        poles: Sequence of poles :math:`p_m` in radians per second.
+        residues: Sequence of residues :math:`r_m` paired with ``poles``.
+        allow_active: Permit coefficients which do not satisfy the normal
+            passive-network checks. The default is ``False``.
+    """
 
     @property
     def order(self):
@@ -451,7 +461,14 @@ class RationalNetwork(GridUserObject):
 
 
 class NetworkTerminal(GridUserObject):
-    """Connect a rational network model to one electric Yee edge."""
+    """Connect a rational network model to one electric Yee edge.
+
+    Args:
+        p1: Physical ``(x, y, z)`` position of the electric edge.
+        polarisation: Electric-edge direction, ``x``, ``y``, or ``z``.
+        network_id: Identifier of a preceding :class:`RationalNetwork`.
+        id: Unique terminal and HDF5 port identifier.
+    """
 
     @property
     def order(self):
@@ -520,7 +537,14 @@ class NetworkTerminal(GridUserObject):
 
 
 class NetworkExcitation(GridUserObject):
-    """Apply a Thevenin open-circuit waveform to a network terminal."""
+    """Apply a Thevenin open-circuit waveform to a network terminal.
+
+    Args:
+        terminal_id: Identifier of a preceding :class:`NetworkTerminal`.
+        waveform_id: Identifier of the driving waveform.
+        start: Optional source start time in seconds.
+        stop: Optional source stop time in seconds.
+    """
 
     @property
     def order(self):
@@ -1723,6 +1747,8 @@ class DiscretePlaneWaveAngles(GridUserObject):
                         background material in the TFSF box.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
+        precompute: boolean optional. If ``True`` (default), precompute the
+            auxiliary plane-wave source history before time stepping.
     """
 
     @property
@@ -1908,6 +1934,8 @@ class DiscretePlaneWaveVector(GridUserObject):
                         background material in the TFSF box.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
+        precompute: boolean optional. If ``True`` (default), precompute the
+            auxiliary plane-wave source history before time stepping.
     """
 
     @property
@@ -2067,6 +2095,8 @@ class DiscretePlaneWaveAxial(GridUserObject):
         waveform_id: string required for identifier of waveform used with source.
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
+        precompute: boolean optional. If ``True`` (default), precompute the
+            auxiliary plane-wave source history before time stepping.
     """
 
     @property
@@ -2204,6 +2234,19 @@ class EigenmodeBand(GridUserObject):
     ``fmin``, ``fmax``, and ``points`` define the usual uniform grid.
     ``frequencies`` may contain additional in-band frequencies; gprMax sorts
     and deduplicates their union with the uniform grid.
+
+    Attributes:
+        id: unique identifier for the shared eigenmode band.
+        fmin: lower direct-DFT frequency in Hz.
+        fmax: upper direct-DFT frequency in Hz.
+        points: number of linearly spaced direct-DFT frequencies.
+        frequencies: optional additional direct-DFT frequencies in Hz. Values
+            must lie within the inclusive band and are merged with the uniform
+            grid.
+        transition: positive transition width in Hz for an automatically
+            generated bandpass waveform, or ``"auto"`` (default).
+        spectral_threshold: relative spectral threshold used to determine
+            significant excitation support. The default is ``1e-3``.
     """
 
     @property
@@ -2281,7 +2324,21 @@ class EigenmodeBand(GridUserObject):
 
 
 class EigenmodePort(GridUserObject):
-    """Define a modal port plane with its own anchor-frequency policy."""
+    """Define a modal port plane with its own anchor-frequency policy.
+
+    Attributes:
+        port: positive, one-based port number.
+        p1: first physical ``(x, y, z)`` corner of the port plane.
+        p2: opposite physical ``(x, y, z)`` corner of the port plane.
+        direction: launch/monitor direction normal to the plane, ``+`` or
+            ``-``.
+        modes: positive integer mode count or an increasing sequence of
+            one-based mode indices.
+        anchors: ``"auto"`` (default), one frequency, or an increasing
+            sequence of modal-solve anchor frequencies in Hz.
+        plot_fields: optionally force or suppress modal-field plots. ``None``
+            retains the geometry-only default.
+    """
 
     @property
     def order(self):
@@ -3753,7 +3810,7 @@ class AddDebyeDispersion(GridUserObject):
                     permittivity and relative permittivity at infinite frequency
                     for each pole.
         tau: tuple required for relaxation time (secs) for each pole.
-        material_ids: list required of material ids to apply disperive
+        material_ids: list required of material ids to apply dispersive
                         properties.
     """
 
@@ -3848,7 +3905,7 @@ class AddLorentzDispersion(GridUserObject):
                     for each pole.
         omega: tuple required for resonance frequency (Hz) for each pole.
         delta: tuple required for damping coefficient (per second) for each pole.
-        material_ids: list required of material ids to apply disperive
+        material_ids: list required of material ids to apply dispersive
                         properties.
     """
 
@@ -3945,7 +4002,7 @@ class AddDrudeDispersion(GridUserObject):
         poles: float required for number of Drude poles.
         omega: tuple required for plasma frequency (Hz) for each pole.
         alpha: tuple required for inverse of relaxation time (per second) for each pole.
-        material_ids: list required of material ids to apply disperive
+        material_ids: list required of material ids to apply dispersive
                         properties.
     """
 
@@ -4424,6 +4481,8 @@ class PMLCFS(GridUserObject):
                                 for CFS sigma parameter.
         sigmamin: float required for minimum value for the CFS sigma parameter.
         sigmamax: float required for maximum value for the CFS sigma parameter.
+        profile_id: optional reusable PML-profile identifier. If omitted, the
+            parameters modify the global domain-PML configuration.
     """
 
     @property
@@ -4563,6 +4622,17 @@ class PMLSlab(GridUserObject):
     subgrid must lie wholly within its working region. Domain-decomposed MPI
     CPU models may partition a slab normally or transversely; every rank stores
     only its local PML history while retaining the complete global CFS profile.
+
+    Attributes:
+        p1: lower physical ``(x, y, z)`` corner of the slab.
+        p2: upper physical ``(x, y, z)`` corner of the slab.
+        maximum_face: face at maximum stretching: ``x0``, ``xmax``, ``y0``,
+            ``ymax``, ``z0``, or ``zmax``.
+        profile_id: optional reusable PML profile. If omitted, the global PML
+            formulation and CFS parameters are used.
+        build_pec: create the five enclosing PEC plates. The default is
+            ``True``.
+        id: optional unique slab identifier. If omitted, gprMax generates one.
     """
 
     FACE_TO_DIRECTION = {

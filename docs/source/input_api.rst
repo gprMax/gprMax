@@ -12,7 +12,7 @@ gprMax has a choice of two methods for building a model to simulate:
 1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). This method is recommended for beginners and those not familiar with Python, and is described in the :ref:`input-hash-cmds` section.
 2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in this section of the documentation.
 
-The Python API in gprMax allows users to access to gprMax functions directly from Python through importing the gprMax module. There are several advantages to using the API:
+The Python API in gprMax allows users to access gprMax functions directly from Python by importing the gprMax module. There are several advantages to using the API:
 
 * Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
 * gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
@@ -491,6 +491,17 @@ simulations rather than post-processing.
 
 .. autoclass:: gprMax.studies.EmbeddedFarFieldSpec
 
+The study methods above return structured result objects rather than scene
+commands. Their array shapes, channel ordering, units, and validity masks are
+documented below. These objects can also be reconstructed from a saved study
+file, allowing array states to be evaluated without rerunning FDTD.
+
+.. autoclass:: gprMax.studies.EmbeddedFarFieldBank
+
+.. autoclass:: gprMax.studies.ArrayStateResult
+
+.. autoclass:: gprMax.studies.ArrayFarFieldResult
+
 .. autofunction:: gprMax.studies.modal_array_weights
 
 .. autofunction:: gprMax.studies.combine_embedded_modal_responses
@@ -603,6 +614,22 @@ Mass density is optional cell-centred physical metadata in SI units
 (:math:`\mathrm{kg\,m^{-3}}`). It does not alter electromagnetic update
 coefficients or dielectric smoothing. Derived dosimetry outputs require a
 finite, positive density for every selected material.
+
+Material range
+--------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialRange
+
+``MaterialRange`` defines bounded stochastic constitutive properties for a
+:class:`gprMax.FractalBox`; it does not create a homogeneous material. See
+:ref:`#material_range <material_range>` for how the sampled values are used.
+
+Material list
+-------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialList
+
+``MaterialList`` groups existing material IDs for stochastic assignment by a
+:class:`gprMax.FractalBox`. See :ref:`#material_list <material_list>` for the
+corresponding input-file command.
 
 Debye Dispersion
 ----------------
@@ -862,7 +889,7 @@ Fractal Box
 
 .. note::
 
-    * Currently (2024) we are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model.
+    * We are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model.
 
 Add Grass
 ---------
@@ -1171,14 +1198,74 @@ from the coarse main grid.
 Voltage Source
 --------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.VoltageSource
+    :members: result
+
+A finite-resistance voltage source is a one-cell Thévenin gap source. It also
+acts as a port: after a supported 3-D simulation, ``source.result`` provides
+the sampled voltage and current together with the frequency-domain port
+quantities. Its physical resistance is the wave-reference impedance. A zero
+resistance creates a hard source and therefore requires a separate
+``reference_impedance`` when port quantities are needed.
+
+.. code-block:: python
+
+    feed = gprMax.VoltageSource(
+        p1=(0.05, 0.05, 0.02),
+        polarisation='z',
+        resistance=50,
+        waveform_id='pulse',
+        id='feed',
+    )
+    scene.add(feed)
+
+The waveform amplitude is the generator voltage in volts. See
+:ref:`#voltage_source <voltage_source>` for the one-cell source equation and
+the definition of the automatic port spectra.
 
 Hertzian Dipole Source
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.HertzianDipole
 
+This additive electric source uses the waveform amplitude as current
+:math:`I` in amperes and an effective dipole length equal to the cell step in
+the selected direction. It therefore impresses
+
+.. math::
+
+   J_s = \frac{I\,\Delta l}{\Delta x\,\Delta y\,\Delta z}.
+
+For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.HertzianDipole(
+        p1=(0.05, 0.05, 0.05),
+        polarisation='z',
+        waveform_id='pulse',
+    ))
+
+It is an ideal field excitation, not a circuit port, and consequently does
+not produce S-parameters or an input impedance.
+
 Magnetic Dipole Source
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.MagneticDipole
+
+This is the magnetic-current dual of the additive Hertzian source. It is
+placed at a magnetic Yee-field location and does not represent a circuit
+port. For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.MagneticDipole(
+        p1=(0.05, 0.05, 0.05),
+        polarisation='y',
+        waveform_id='pulse',
+    ))
+
+The permitted source component and invariant-axis index in a 2-D model follow
+the surviving TM or TE magnetic-field components and are validated when the
+scene is built.
 
 Rational lumped-network terminal
 --------------------------------
@@ -1970,6 +2057,30 @@ These classes provide the conventional Love-current frequency transform and
 share the KSIR far-field output and antenna-metric definitions. They do not
 provide finite-distance receivers. See :ref:`ntff-formulations` for the
 surface-current equations and engineering phasor convention.
+
+Advanced NTFF utilities
+-----------------------
+
+The following low-level API utilities support specialised post-processing
+and research workflows. They are not scene objects and should not be passed
+to ``Scene.add``.
+
+.. autoclass:: gprMax.SymmetryCompletion
+
+.. autoclass:: gprMax.ExperimentalMask
+
+.. autofunction:: gprMax.evaluate_saved_surface_dft
+
+.. autofunction:: gprMax.spherical_observation_points
+
+``SymmetryCompletion`` requests an exact image-theory completion at declared
+PEC or PMC symmetry boundaries. ``ExperimentalMask`` deliberately makes a
+KSIR surface mathematically open; it is provided for controlled research
+experiments and generally does not produce a physical field without a
+separately justified closure. ``evaluate_saved_surface_dft`` evaluates a
+compatible saved surface spectrum after a run, while
+``spherical_observation_points`` constructs Cartesian exact-field receiver
+locations from spherical coordinates.
 
 A layered transform reuses the same far-field request classes. For example,
 air above a finite dielectric layer and a lower dielectric half-space can be

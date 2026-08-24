@@ -56,6 +56,11 @@ class SymmetryCompletion:
 
     If faces is omitted, every declared symmetry boundary touched by the
     logical KSIR box is used.
+
+    Args:
+        faces: optional tuple containing any of ``x0``, ``xmax``, ``y0``,
+            ``ymax``, ``z0``, and ``zmax``. If omitted, use all compatible
+            symmetry faces touched by the logical integration box.
     """
 
     faces: Optional[Tuple[str, ...]] = None
@@ -67,7 +72,17 @@ class SymmetryCompletion:
 
 @dataclass(frozen=True)
 class ExperimentalMask:
-    """Deliberately omit complete physical faces from the KSIR integral."""
+    """Deliberately omit complete physical faces from the KSIR integral.
+
+    This is a research diagnostic, not a closed-surface transformation.
+    Omitting a face generally violates the exact KSIR representation and can
+    produce non-physical fields unless the user supplies an independently
+    justified closure.
+
+    Args:
+        omit_faces: tuple containing one to five distinct faces from ``x0``,
+            ``xmax``, ``y0``, ``ymax``, ``z0``, and ``zmax``.
+    """
 
     omit_faces: Tuple[str, ...]
 

@@ -354,7 +354,7 @@ For example to create a model of water with a single Debye pole, :math:`\epsilon
 #add_dispersion_lorentz:
 ------------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorentz formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Lorentz material is given by:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorentz formulation (see :ref:`capabilities` section). For example, the susceptibility function for a single-pole Lorentz material is given by:
 
 .. math::
 
@@ -394,7 +394,7 @@ The syntax of the command is:
 #add_dispersion_drude:
 ----------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Drude formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Drude material is given by:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Drude formulation (see :ref:`capabilities` section). For example, the susceptibility function for a single-pole Drude material is given by:
 
 .. math::
 
@@ -422,6 +422,8 @@ The syntax of the command is:
     * The recursive formulation requires :math:`f_p < 1/\Delta t` and :math:`\gamma_p < 1/\Delta t`. These coefficient limits do not replace the stricter Nyquist and spatial-resolution limits on useful simulation output.
 
 
+.. _material_range:
+
 #material_range:
 ----------------
 
@@ -443,6 +445,8 @@ Allows you to create a series of materials with properties specified by ranges o
 
 For example to create a series of 10 materials with relative permittivity ranging between 2 and 6, :math:`\sigma=0`, :math:`\mu_r=1`, and :math:`\sigma_*=0`, distributed using a fractal approach, use: ``#material_range: 2 6 0 0 1 1 0 0 er2_6`` and ``#fractal_box: 0 0 0 0.15 0.15 0.15 1.5 1 1 1 10 er2_6 my_frac_box``.
 
+
+.. _material_list:
 
 #material_list:
 ----------------
@@ -1016,7 +1020,7 @@ For example, to create an orthogonal parallelepiped with fractal distributed pro
 
 .. note::
 
-    * Currently (2024) we are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model.
+    * We are not aware of a formulation of Perfectly Matched Layer (PML) absorbing boundary that can specifically handle distributions of material properties (such as those created by fractals) throughout the thickness of the PML, i.e. this is a required area of research. Our PML formulations can work to an extent depending on your modelling scenario and requirements. You may need to increase the thickness of the PML and/or consider tuning the parameters of the PML (:ref:`pml-tuning`) to improve performance for your specific model.
 
 #add_surface_roughness:
 -----------------------
@@ -1037,7 +1041,7 @@ Allows you to add rough surfaces to a ``#fractal_box`` in the model. A fractal d
 
 Up to six ``#add_rough_surface commands`` can be given for any ``#fractal_box`` corresponding to the six surfaces.
 
-For example, if a ``#fractal_box`` has been specified using: ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 50 my_soil my_fractal_box`` then to apply a rough surface that varys between 85 mm and 110 mm (i.e. valleys that are up to 15 mm deep and peaks that are up to 10 mm tall) to the surface that is in the positive z direction, use ``#add_surface_roughness: 0 0 0.1 0.1 0.1 0.1 1.5 1 1 0.085 0.110 my_fractal_box``.
+For example, if a ``#fractal_box`` has been specified using: ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 50 my_soil my_fractal_box`` then to apply a rough surface that varies between 85 mm and 110 mm (i.e. valleys that are up to 15 mm deep and peaks that are up to 10 mm tall) to the surface that is in the positive z direction, use ``#add_surface_roughness: 0 0 0.1 0.1 0.1 0.1 1.5 1 1 0.085 0.110 my_fractal_box``.
 
 #add_surface_water:
 -------------------
@@ -1349,6 +1353,8 @@ admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
 lumped-network formulation and :ref:`Analytical comparisons
 <rational-network-validation>` for a complete loaded-guide comparison.
 
+
+.. _voltage_source:
 
 #voltage_source:
 ----------------

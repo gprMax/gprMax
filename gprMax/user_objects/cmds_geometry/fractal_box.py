@@ -58,6 +58,8 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         seed: (optional) float parameter which controls the seeding of the
                 random number generator used to create the fractals.
         averaging: string (y or n) used to switch on and off dielectric smoothing.
+        tag: optional semantic geometry-tag string written to the final cells
+            occupied by the fractal volume.
     """
 
     @property

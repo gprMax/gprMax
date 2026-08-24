@@ -1065,7 +1065,23 @@ def _recompile_declarative_ntff(model, grid, study_name: str) -> None:
 
 @dataclass(frozen=True)
 class PortStudyResult:
-    """Assembled source-plane and gap-corrected multiport S parameters."""
+    """Assembled source-plane and gap-corrected multiport S parameters.
+
+    Attributes:
+        frequency: frequency axis in Hz with shape ``(F,)``.
+        port_ids: output-port ordering used by both S-matrix port axes.
+        source_ids: voltage-source identifiers corresponding to ``port_ids``.
+        case_ids: study-case ordering used for the driven input columns.
+        reference_impedance: real port impedances in ohms with shape ``(P,)``.
+        gap_correction: dimensionless parallel gap admittance with shape
+            ``(F, P)``.
+        s_source: uncorrected source-plane S matrix with shape ``(F, P, P)``.
+        s: gap-corrected S matrix with shape ``(F, P, P)``; its axes are
+            ``(frequency, output_port, input_port)``.
+        valid_s_source: validity mask for ``s_source``.
+        valid_s: validity mask for ``s``.
+        output_file: aggregate study HDF5 path.
+    """
 
     frequency: npt.NDArray[np.floating]
     port_ids: tuple[str, ...]
@@ -1534,7 +1550,32 @@ def _deembed_modal_responses(
 
 @dataclass(frozen=True)
 class EigenmodeStudyResult:
-    """Assembled modal S matrix from one active port/mode per run."""
+    """Assembled modal S matrix from one active port/mode per run.
+
+    Attributes:
+        frequency: frequency axis in Hz with shape ``(F,)``.
+        channel_ports: one-based port number for each modal channel.
+        channel_modes: one-based mode number for each modal channel.
+        case_ids: identifiers of the independent excitation cases.
+        s: generalized modal S matrix with shape ``(F, C, C)`` and axes
+            ``(frequency, output_channel, input_channel)``.
+        valid_s: physical propagating-power validity mask for ``s``.
+        generalized_valid_s: generalized-coefficient validity mask for ``s``.
+        output_file: aggregate study HDF5 path.
+        embedded_far_fields: mapping from ``transform_id/output_id`` to
+            de-embedded :class:`EmbeddedFarFieldBank` objects.
+        incident_matrix: measured incident modal matrix for all cases, when
+            retained.
+        outgoing_matrix: measured outgoing modal matrix for all cases, when
+            retained.
+        wave_valid_matrix: physical power-wave validity for the measured
+            modal matrices.
+        generalized_wave_valid_matrix: generalized-coefficient validity for
+            the measured modal matrices.
+        deembedding_condition_number: condition number of the incident-wave
+            solve at each frequency.
+        deembedding_valid: validity of that solve at each frequency.
+    """
 
     frequency: npt.NDArray[np.floating]
     channel_ports: npt.NDArray[np.integer]
@@ -1875,7 +1916,33 @@ class ArrayCodebook:
 
 @dataclass(frozen=True)
 class EmbeddedFarFieldBank:
-    """Per-unit-incident-power complex field basis ordered by modal channel."""
+    """Per-unit-incident-power complex field basis ordered by modal channel.
+
+    Requested-direction fields have shape ``(F, D, C)`` and full-sphere
+    fields have shape ``(F, Q, C)``, where ``F`` is frequency, ``D`` is the
+    number of requested directions, ``Q`` is the internal quadrature size,
+    and ``C`` is the modal-channel count. Complex fields are range-normalized
+    field per square-root watt of incident modal power.
+
+    Attributes:
+        transform_id: source frequency-transform identifier.
+        output_id: source far-field request identifier.
+        frequency: frequency axis in Hz.
+        theta: requested polar angles in degrees.
+        phi: requested azimuthal angles in degrees.
+        etheta: embedded requested-direction :math:`E_\\theta` fields.
+        ephi: embedded requested-direction :math:`E_\\phi` fields.
+        sphere_theta: internal full-sphere polar angles in degrees.
+        sphere_phi: internal full-sphere azimuthal angles in degrees.
+        sphere_weights: full-sphere solid-angle quadrature weights.
+        sphere_etheta: embedded full-sphere :math:`E_\\theta` fields.
+        sphere_ephi: embedded full-sphere :math:`E_\\phi` fields.
+        valid: physical modal-channel validity mask with shape ``(F, C)``.
+        impedance: lossless exterior wave impedance in ohms.
+        theta_order: full-sphere polar quadrature order.
+        phi_order: full-sphere azimuthal quadrature order.
+        enclosure_radius: radius in metres enclosing the transformed source.
+    """
 
     transform_id: str
     output_id: str
@@ -1902,7 +1969,34 @@ class EmbeddedFarFieldBank:
 
 @dataclass(frozen=True)
 class ArrayFarFieldResult:
-    """Coherently synthesized fields and radiation metrics for one array state."""
+    """Coherently synthesized fields and radiation metrics for one array state.
+
+    Direction-dependent arrays have shape ``(F, D)``; integrated, maximum,
+    efficiency, and validity arrays have shape ``(F,)``.
+
+    Attributes:
+        transform_id: source frequency-transform identifier.
+        output_id: source far-field request identifier.
+        theta: requested polar angles in degrees.
+        phi: requested azimuthal angles in degrees.
+        etheta: coherently combined range-normalized :math:`E_\\theta`.
+        ephi: coherently combined range-normalized :math:`E_\\phi`.
+        radiation_intensity: radiation intensity in W/sr.
+        radiated_power: full-sphere integrated radiated power in W.
+        directivity: linear directivity.
+        directivity_dbi: directivity in dBi.
+        gain: linear accepted-power gain.
+        gain_dbi: accepted-power gain in dBi.
+        realized_gain: linear incident-power gain.
+        realized_gain_dbi: incident-power gain in dBi.
+        radiation_efficiency: radiated power divided by accepted power.
+        total_efficiency: radiated power divided by incident power.
+        maximum_directivity: maximum linear directivity.
+        maximum_directivity_dbi: maximum directivity in dBi.
+        maximum_theta: polar angle of maximum directivity in degrees.
+        maximum_phi: azimuthal angle of maximum directivity in degrees.
+        valid: frequency-bin validity mask.
+    """
 
     transform_id: str
     output_id: str
@@ -1929,7 +2023,23 @@ class ArrayFarFieldResult:
 
 @dataclass(frozen=True)
 class ArrayStateResult:
-    """Network and optional radiation result for one named array state."""
+    """Network and optional radiation result for one named array state.
+
+    Attributes:
+        id: array-state identifier.
+        frequency: frequency axis in Hz with shape ``(F,)``.
+        incident: incident modal power waves with shape ``(F, C)``.
+        outgoing: outgoing modal power waves with shape ``(F, C)``.
+        active_reflection: active reflection coefficient for each driven
+            modal channel, with shape ``(F, C)``.
+        incident_power: total incident power in W.
+        reflected_power: total reflected power in W.
+        accepted_power: net accepted power in W.
+        tarc: total active reflection coefficient.
+        valid: frequency-bin network validity mask.
+        far_fields: mapping from ``transform_id/output_id`` to synthesized
+            :class:`ArrayFarFieldResult` objects.
+    """
 
     id: str
     frequency: npt.NDArray[np.floating]

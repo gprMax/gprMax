@@ -1506,7 +1506,21 @@ def evaluate_saved_surface_dft(
     *,
     origin: Optional[npt.ArrayLike] = None,
 ) -> KSIRSavedFarField:
-    """Evaluate new directions from a saved production KSIR surface DFT."""
+    """Evaluate new directions from a saved production KSIR surface DFT.
+
+    Args:
+        filename: model HDF5 output containing a saved KSIR surface DFT.
+        monitor_name: frequency-transform identifier below the ``/ntff``
+            group.
+        theta: one-dimensional polar-angle values in degrees.
+        phi: one-dimensional azimuthal-angle values in degrees.
+        origin: optional Cartesian phase-reference origin in metres. If
+            omitted, use the origin stored with the surface.
+
+    Returns:
+        A :class:`KSIRSavedFarField` evaluated on the Cartesian product of
+        ``theta`` and ``phi`` without rerunning FDTD.
+    """
 
     with h5py.File(filename, "r") as source:
         path = f"ntff/{monitor_name}"

@@ -82,6 +82,16 @@ def spherical_observation_points(
     ``(npoints, 3)`` array accepted by the exact-point KSIR evaluator. For an
     angular product grid, pass (for example) ``theta[:, None]`` and
     ``phi[None, :]``.
+
+    Args:
+        origin: Cartesian sphere origin ``(x, y, z)`` in metres.
+        radius: positive radius value or broadcastable array in metres.
+        theta: polar angle value or broadcastable array.
+        phi: azimuthal angle value or broadcastable array.
+        degrees: interpret angles in degrees rather than radians.
+
+    Returns:
+        Contiguous Cartesian point array with shape ``(npoints, 3)``.
     """
 
     dtype = _floating_input_dtype(origin, radius, theta, phi)

@@ -37,6 +37,7 @@ examples/**/*.npy
 examples/**/*.vti
 examples/**/*.vtkhdf
 examples/features/eigenmode_ports/**/*.csv
+!examples/features/eigenmode_ports/**/modal_cases.csv
 examples/features/eigenmode_ports/**/*.png
 examples/**/*_eigenmode_*.png
 toolboxes/STEPtoVoxel/examples/**/output/
@@ -62,4 +63,3 @@ cov.xml
 # Agents
 AGENTS.md
 .codex_tmp
-
