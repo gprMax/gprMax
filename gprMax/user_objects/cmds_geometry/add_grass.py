@@ -51,6 +51,8 @@ class AddGrass(RotatableMixin, GeometryUserObject):
                     applied to the surface area.
         fractal_box_id: string identifier for the FractalBox class that the
                         grass should be applied to.
+        seed: optional integer used to seed the random number generator. If
+            omitted, a different distribution is generated on each run.
     """
 
     @property

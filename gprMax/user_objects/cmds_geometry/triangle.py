@@ -47,6 +47,8 @@ class Triangle(RotatableMixin, GeometryUserObject):
                         to material that has already been defined.
         material_ids: list of material identifiers in the x, y, z directions.
         averaging: string (y or n) used to switch on and off dielectric smoothing.
+        tag: optional semantic geometry-tag string for a volumetric triangular
+            prism. It is not accepted when ``thickness`` is zero.
     """
 
     @property
